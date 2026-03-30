@@ -23,6 +23,9 @@ extension SyncClient: DependencyKey {
 
                 var auth = Anki_Sync_SyncAuth()
                 auth.hkey = hostKey
+                if let endpoint = KeychainHelper.loadEndpoint() {
+                    auth.endpoint = endpoint
+                }
 
                 var req = Anki_Sync_SyncCollectionRequest()
                 req.auth = auth
@@ -109,6 +112,9 @@ extension SyncClient: DependencyKey {
 
                 var auth = Anki_Sync_SyncAuth()
                 auth.hkey = hostKey
+                if let endpoint = KeychainHelper.loadEndpoint() {
+                    auth.endpoint = endpoint
+                }
 
                 var req = Anki_Sync_FullUploadOrDownloadRequest()
                 req.auth = auth
@@ -131,6 +137,9 @@ extension SyncClient: DependencyKey {
 
                 var auth = Anki_Sync_SyncAuth()
                 auth.hkey = hostKey
+                if let endpoint = KeychainHelper.loadEndpoint() {
+                    auth.endpoint = endpoint
+                }
 
                 do {
                     try backend.callVoid(
@@ -160,6 +169,9 @@ extension SyncClient: DependencyKey {
         var req = Anki_Sync_SyncLoginRequest()
         req.username = username
         req.password = password
+        if let endpoint = KeychainHelper.loadEndpoint() {
+            req.endpoint = endpoint
+        }
 
         do {
             let auth: Anki_Sync_SyncAuth = try backend.invoke(

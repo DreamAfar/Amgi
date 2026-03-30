@@ -1,10 +1,13 @@
 import SwiftUI
 import AnkiBackend
+import AnkiSync
 import Dependencies
 import Foundation
 
 @main
 struct AnkiAppApp: App {
+    @State private var onboardingCompleted = UserDefaults.standard.bool(forKey: "onboardingCompleted")
+
     init() {
         try! prepareDependencies {
             let backend = try AnkiBackend(preferredLangs: ["en"])
@@ -38,7 +41,11 @@ struct AnkiAppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if onboardingCompleted {
+                ContentView()
+            } else {
+                OnboardingView(isCompleted: $onboardingCompleted)
+            }
         }
     }
 }

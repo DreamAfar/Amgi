@@ -3,8 +3,9 @@ import Security
 
 public enum KeychainHelper: Sendable {
     private static let service = "com.ankiapp.sync"
-    private static let hostKeyAccount = "ankiweb-host-key"
-    private static let usernameAccount = "ankiweb-username"
+    private static let hostKeyAccount = "sync-host-key"
+    private static let usernameAccount = "sync-username"
+    private static let endpointAccount = "sync-endpoint"
 
     // MARK: - Host Key
 
@@ -32,6 +33,20 @@ public enum KeychainHelper: Sendable {
 
     public static func deleteUsername() {
         delete(account: usernameAccount)
+    }
+
+    // MARK: - Endpoint
+
+    public static func saveEndpoint(_ url: String) throws {
+        try save(account: endpointAccount, value: url)
+    }
+
+    public static func loadEndpoint() -> String? {
+        load(account: endpointAccount)
+    }
+
+    public static func deleteEndpoint() {
+        delete(account: endpointAccount)
     }
 
     // MARK: - Internal

@@ -5,6 +5,10 @@ struct ContentView: View {
     @State private var showSync = false
     @State private var refreshID = UUID()
 
+    private var isLocalMode: Bool {
+        UserDefaults.standard.string(forKey: "syncMode") == "local"
+    }
+
     var body: some View {
         TabView {
             Tab("Decks", systemImage: "rectangle.stack") {
@@ -13,10 +17,18 @@ struct ContentView: View {
                         .id(refreshID)
                         .toolbar {
                             ToolbarItem(placement: .topBarTrailing) {
-                                Button {
-                                    showSync = true
-                                } label: {
-                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                if isLocalMode {
+                                    Button {
+                                        showImport = true
+                                    } label: {
+                                        Image(systemName: "square.and.arrow.down")
+                                    }
+                                } else {
+                                    Button {
+                                        showSync = true
+                                    } label: {
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                    }
                                 }
                             }
                         }
