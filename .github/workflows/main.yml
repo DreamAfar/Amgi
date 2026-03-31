@@ -12,7 +12,6 @@ jobs:
 
     steps:
       # ── 1. 选定 Xcode 26.3（正式版，非 RC）────────────────────
-      # 26.4 是 RC，iOS 26.4 SDK 不完整。26.3 是正式版，SDK 完整。
       - name: Select Xcode 26.3
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -23,8 +22,6 @@ jobs:
         run: |
           xcodebuild -version
           swift --version
-          echo "=== Available SDKs ==="
-          xcodebuild -showsdks | grep -i ios
 
       # ── 3. 检出代码（含子模块）──────────────────────────────────
       - name: Checkout repository with submodules
@@ -76,18 +73,10 @@ jobs:
           echo "=== Files in AnkiApp/ ==="
           ls -la ../AnkiApp/
 
-      # ── 10. 列出 Schemes 和可用 destinations ──────────────────
-      - name: List schemes and destinations
-        run: |
-          xcodebuild -project AnkiApp/AnkiApp.xcodeproj -list || true
-          echo "=== Available destinations ==="
-          xcodebuild -project AnkiApp/AnkiApp.xcodeproj \
-            -scheme AnkiApp \
-            -showdestinations 2>&1 | head -40 || true
-
-      # ── 11. 构建无签名 xcarchive ───────────────────────────────
-      # 关键：用 SDKROOT=iphoneos 指定 SDK，不依赖 iOS runtime 是否安装
-      # ONLY_ACTIVE_ARCH=NO 确保编译 arm64（设备架构）
+      # ── 10. 构建无签名 xcarchive ───────────────────────────────
+      # -skipPackagePluginValidation：允许 CI 中使用 Swift Macro（如 swift-dependencies
+      #   的 DependenciesMacrosPlugin），跳过 Xcode 的交互式插件信任确认
+      # -skipMacroValidation：同上，针对 Swift macro 本身的验证
       - name: Build unsigned xcarchive
         run: |
           xcodebuild archive \
@@ -99,9 +88,11 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            -skipPackagePluginValidation \
+            -skipMacroValidation
 
-      # ── 12. 打包成 IPA ─────────────────────────────────────────
+      # ── 11. 打包成 IPA ─────────────────────────────────────────
       - name: Package .app into unsigned .ipa
         run: |
           ARCHIVE_PATH="$RUNNER_TEMP/AnkiApp.xcarchive"
@@ -126,7 +117,7 @@ jobs:
           echo "=== IPA created ==="
           ls -lh /tmp/AnkiApp-unsigned.ipa
 
-      # ── 13. 上传为 Artifact ────────────────────────────────────
+      # ── 12. 上传为 Artifact ────────────────────────────────────
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
