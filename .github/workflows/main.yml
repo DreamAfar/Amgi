@@ -8,24 +8,23 @@ env:
 
 jobs:
   build:
-    # ✅ 核心修复：从 macos-15 换到 macos-26
-    # macos-15 的 Xcode 16.4 只含 SPM 6.1.0，不满足项目要求的 6.2.0
-    # macos-26 含更新的 Xcode，支持 Swift tools version 6.2.0
     runs-on: macos-26
 
     steps:
-      # ── 1. 选定 Xcode 版本 ────────────────────────────────────
-      # macos-26 runner 上可能装有多个 Xcode，明确选支持 Swift 6.2 的版本
-      - name: Select Xcode version
+      # ── 1. 选定 Xcode 26.3（正式版，非 RC）────────────────────
+      # 26.4 是 RC，iOS 26.4 SDK 不完整。26.3 是正式版，SDK 完整。
+      - name: Select Xcode 26.3
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: '26.3'
 
-      # ── 2. 确认版本（调试用）──────────────────────────────────
-      - name: Show Xcode and Swift version
+      # ── 2. 确认版本 ────────────────────────────────────────────
+      - name: Show versions
         run: |
           xcodebuild -version
           swift --version
+          echo "=== Available SDKs ==="
+          xcodebuild -showsdks | grep -i ios
 
       # ── 3. 检出代码（含子模块）──────────────────────────────────
       - name: Checkout repository with submodules
@@ -77,12 +76,18 @@ jobs:
           echo "=== Files in AnkiApp/ ==="
           ls -la ../AnkiApp/
 
-      # ── 10. 列出可用 Schemes ───────────────────────────────────
-      - name: List available schemes
+      # ── 10. 列出 Schemes 和可用 destinations ──────────────────
+      - name: List schemes and destinations
         run: |
           xcodebuild -project AnkiApp/AnkiApp.xcodeproj -list || true
+          echo "=== Available destinations ==="
+          xcodebuild -project AnkiApp/AnkiApp.xcodeproj \
+            -scheme AnkiApp \
+            -showdestinations 2>&1 | head -40 || true
 
       # ── 11. 构建无签名 xcarchive ───────────────────────────────
+      # 关键：用 SDKROOT=iphoneos 指定 SDK，不依赖 iOS runtime 是否安装
+      # ONLY_ACTIVE_ARCH=NO 确保编译 arm64（设备架构）
       - name: Build unsigned xcarchive
         run: |
           xcodebuild archive \
@@ -90,7 +95,8 @@ jobs:
             -scheme AnkiApp \
             -configuration Release \
             -archivePath "$RUNNER_TEMP/AnkiApp.xcarchive" \
-            -destination "generic/platform=iOS" \
+            -sdk iphoneos \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
