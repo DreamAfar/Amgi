@@ -1,15 +1,14 @@
 name: Build Unsigned IPA
 
 on:
-  # 手动触发
   workflow_dispatch:
-  # 或者每次推送 main 分支时自动触发（可选）
-  # push:
-  #   branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # 消除 Node.js 20 警告
 
 jobs:
   build:
-    runs-on: macos-15  # 包含 Xcode 16，满足项目要求
+    runs-on: macos-15
 
     steps:
       # ── 1. 检出代码（含子模块）──────────────────────────────────
@@ -22,10 +21,10 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.92"   # 项目要求 1.92+
+          toolchain: "1.92"
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
 
-      # ── 3. 缓存 Rust 编译产物（加速后续构建）──────────────────
+      # ── 3. 缓存 Rust 编译产物 ──────────────────────────────────
       - name: Cache Rust build artifacts
         uses: actions/cache@v4
         with:
@@ -55,45 +54,48 @@ jobs:
           chmod +x ./scripts/generate-protos.sh
           ./scripts/generate-protos.sh
 
-      # ── 7. 生成 Xcode 项目 ─────────────────────────────────────
+      # ── 7. 生成 Xcode 项目，并列出实际生成了什么文件 ───────────
       - name: Generate Xcode project
         run: |
           cd AnkiApp && xcodegen generate
+          echo "=== Files in AnkiApp/ ==="
+          ls -la ../AnkiApp/
 
-      # ── 8. 确认 Xcode 版本 ─────────────────────────────────────
-      - name: Show Xcode version
-        run: xcodebuild -version
+      # ── 8. 列出可用 Schemes（方便调试）────────────────────────
+      - name: List available schemes
+        run: |
+          echo "=== Schemes (xcodeproj) ==="
+          xcodebuild -project AnkiApp/AnkiApp.xcodeproj -list || true
 
-      # ── 9. 构建（无签名 archive）──────────────────────────────
-      # 关键参数：
-      #   CODE_SIGN_IDENTITY=""          → 不使用任何证书
-      #   CODE_SIGNING_REQUIRED=NO       → 不强制签名
-      #   CODE_SIGNING_ALLOWED=NO        → 完全跳过签名
+      # ── 9. 构建无签名 xcarchive（使用 xcodeproj）──────────────
+      # 关键修复：改用 -project 替代 -workspace（xcodegen 未生成 workspace）
       - name: Build unsigned xcarchive
         run: |
           xcodebuild archive \
-            -workspace AnkiApp/AnkiApp.xcworkspace \
+            -project AnkiApp/AnkiApp.xcodeproj \
             -scheme AnkiApp \
             -configuration Release \
-            -archivePath $RUNNER_TEMP/AnkiApp.xcarchive \
+            -archivePath "$RUNNER_TEMP/AnkiApp.xcarchive" \
             -destination "generic/platform=iOS" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            | xcpretty || true
-
-          # 如果没有 xcworkspace，尝试 xcodeproj
-          # -project AnkiApp/AnkiApp.xcodeproj \
+            CODE_SIGNING_ALLOWED=NO
 
       # ── 10. 打包成 IPA ─────────────────────────────────────────
-      # 原理：IPA 就是一个 zip 文件
-      #   xcarchive/Products/Applications/*.app → Payload/*.app → 压缩 → .ipa
       - name: Package .app into unsigned .ipa
         run: |
           ARCHIVE_PATH="$RUNNER_TEMP/AnkiApp.xcarchive"
-          APP_PATH=$(find "$ARCHIVE_PATH/Products/Applications" -name "*.app" | head -1)
 
+          echo "=== Archive contents ==="
+          find "$ARCHIVE_PATH" -maxdepth 3 | head -30
+
+          APP_PATH=$(find "$ARCHIVE_PATH/Products/Applications" -name "*.app" | head -1)
           echo "Found app: $APP_PATH"
+
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app found in archive"
+            exit 1
+          fi
 
           mkdir -p /tmp/Payload
           cp -r "$APP_PATH" /tmp/Payload/
@@ -101,13 +103,13 @@ jobs:
           cd /tmp
           zip -r AnkiApp-unsigned.ipa Payload
 
-          echo "IPA created: /tmp/AnkiApp-unsigned.ipa"
+          echo "=== IPA created ==="
           ls -lh /tmp/AnkiApp-unsigned.ipa
 
       # ── 11. 上传为 Artifact ────────────────────────────────────
-      - name: Upload unsigned IPA as artifact
+      - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
           name: AnkiApp-unsigned-ipa
           path: /tmp/AnkiApp-unsigned.ipa
-          retention-days: 7   # 保留 7 天，免费账号限制
+          retention-days: 7
