@@ -85,6 +85,7 @@ struct CardContextMenu: View {
             showError = true
         }
     }
+}
 
 
 #Preview {

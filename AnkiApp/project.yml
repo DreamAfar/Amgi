@@ -22,7 +22,9 @@ targets:
     type: application
     platform: iOS
     sources:
-      - Sources
+      - path: Sources
+        excludes:
+          - "**/*Tests.swift"
     dependencies:
       - package: AnkiBridge
         product: AnkiKit
