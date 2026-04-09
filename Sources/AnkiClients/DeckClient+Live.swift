@@ -136,7 +136,7 @@ extension DeckClient: DependencyKey {
                     logger.error("delete deck failed: \(error)")
                     throw error
                 }
-            }
+            },
             getDeckConfig: { deckId in
                 // Get the deck configuration using GetDeckConfigsForUpdate
                 var req = Anki_DeckConfig_GetDeckConfigsForUpdateRequest()
