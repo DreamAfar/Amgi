@@ -109,17 +109,14 @@ struct DeckConfigView: View {
             let loadedConfig = try deckClient.getDeckConfig(deckId)
             await MainActor.run {
                 config = loadedConfig
+                let cfg = loadedConfig.config
                 
                 // Extract values from config
-                if let newConfig = loadedConfig.newPerDay {
-                    newCardsPerDay = newConfig
-                }
-                if let reviewConfig = loadedConfig.reviewsPerDay {
-                    reviewsPerDay = reviewConfig
-                }
+                newCardsPerDay = Int32(cfg.newPerDay)
+                reviewsPerDay = Int32(cfg.reviewsPerDay)
                 
                 // FSRS settings
-                fsrsEnabled = loadedConfig.useFiltered
+                fsrsEnabled = !cfg.fsrsParams4.isEmpty || !cfg.fsrsParams5.isEmpty || !cfg.fsrsParams6.isEmpty
                 
                 isLoading = false
             }
@@ -138,9 +135,8 @@ struct DeckConfigView: View {
         isSaving = true
         
         // Update config with new values
-        config.newPerDay = newCardsPerDay
-        config.reviewsPerDay = reviewsPerDay
-        config.useFiltered = fsrsEnabled
+        config.config.newPerDay = UInt32(max(0, newCardsPerDay))
+        config.config.reviewsPerDay = UInt32(max(0, reviewsPerDay))
         
         do {
             try deckClient.updateDeckConfig(config)
