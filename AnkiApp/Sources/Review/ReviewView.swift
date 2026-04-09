@@ -47,6 +47,21 @@ struct ReviewView: View {
     @ViewBuilder
     private var cardView: some View {
         VStack(spacing: 0) {
+            HStack {
+                if !session.isFinished && session.currentCard != nil {
+                    CardContextMenu(
+                        cardId: session.currentCard?.card.id ?? 0,
+                        onSuccess: {
+                            // After card action, refresh queue and advance
+                            session.refreshAndAdvance()
+                        }
+                    )
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            
             if session.showAnswer {
                 CardWebView(html: session.backHTML)
             } else {

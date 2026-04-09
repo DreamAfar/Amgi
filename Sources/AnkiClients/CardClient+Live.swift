@@ -42,7 +42,7 @@ extension CardClient: DependencyKey {
                 }
 
                 var req = Anki_Scheduler_GetQueuedCardsRequest()
-                req.fetchLimit = 200
+                req.fetchLimit = 50
 
                 do {
                     let response: Anki_Scheduler_QueuedCards = try backend.invoke(
@@ -83,7 +83,52 @@ extension CardClient: DependencyKey {
                 }
             },
             fetchByNote: { noteId in
-                [] // Search-based; deferred to full implementation
+                // Search for cards by note using search RPC
+                var searchReq = Anki_Search_SearchCardsRequest()
+                searchReq.query = "nid:\(noteId)"
+                
+                do {
+                    let searchResponse: Anki_Search_SearchCardsResponse = try backend.invoke(
+                        service: AnkiBackend.Service.search,
+                        method: AnkiBackend.SearchMethod.searchCards,
+                        request: searchReq
+                    )
+                    
+                    logger.info("Found \(searchResponse.cardIds.count) cards for noteId=\(noteId)")
+                    
+                    // Convert card IDs to CardRecord objects by fetching each card
+                    // This is a simplified implementation; optimize with batch fetch if needed
+                    var cards: [CardRecord] = []
+                    for cardId in searchResponse.cardIds.prefix(50) {  // Limit to 50 per call
+                        do {
+                            var req = Anki_Cards_CardId()
+                            req.cid = cardId
+                            let card: Anki_Cards_Card = try backend.invoke(
+                                service: AnkiBackend.Service.cards,
+                                method: 0,  // GetCard method
+                                request: req
+                            )
+                            cards.append(CardRecord(
+                                id: card.id, nid: card.noteID, did: card.deckID,
+                                ord: Int32(card.templateIdx), mod: card.mtimeSecs,
+                                usn: card.usn, type: Int16(card.ctype),
+                                queue: Int16(card.queue), due: card.due,
+                                ivl: Int32(card.interval), factor: Int32(card.easeFactor),
+                                reps: Int32(card.reps), lapses: Int32(card.lapses),
+                                left: Int32(card.remainingSteps), odue: card.originalDue,
+                                odid: card.originalDeckID, flags: Int32(card.flags),
+                                data: card.customData
+                            ))
+                        } catch {
+                            logger.warning("Failed to fetch card \(cardId): \(error)")
+                            continue
+                        }
+                    }
+                    return cards
+                } catch {
+                    logger.error("fetchByNote failed for noteId=\(noteId): \(error)")
+                    throw error
+                }
             },
             save: { card in
                 // Rust owns the DB; no direct writes needed
@@ -106,9 +151,113 @@ extension CardClient: DependencyKey {
                     request: answer
                 )
             },
-            undo: { _ in },
-            suspend: { cardId in },
-            bury: { cardId in }
+            undo: {
+                do {
+                    _ = try backend.call(
+                        service: AnkiBackend.Service.collection,
+                        method: AnkiBackend.CollectionMethod.undo
+                    )
+                    logger.info("Card undo completed")
+                } catch {
+                    logger.error("Undo failed: \(error)")
+                    throw error
+                }
+            },
+            suspend: { cardId in
+                var req = Anki_Scheduler_BuryOrSuspendCardsRequest()
+                req.cardIds = [cardId]
+                req.mode = .suspend
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.scheduler,
+                        method: AnkiBackend.SchedulerMethod.buryOrSuspendCards,
+                        request: req
+                    )
+                    logger.info("Card suspended: \(cardId)")
+                } catch {
+                    logger.error("Suspend failed for cardId=\(cardId): \(error)")
+                    throw error
+                }
+            },
+            bury: { cardId in
+                var req = Anki_Scheduler_BuryOrSuspendCardsRequest()
+                req.cardIds = [cardId]
+                req.mode = .bury
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.scheduler,
+                        method: AnkiBackend.SchedulerMethod.buryOrSuspendCards,
+                        request: req
+                    )
+                    logger.info("Card buried: \(cardId)")
+                } catch {
+                    logger.error("Bury failed for cardId=\(cardId): \(error)")
+                    throw error
+                }
+            },
+            flag: { cardId, flag in
+                var req = Anki_Cards_SetFlagRequest()
+                req.cardIds = [cardId]
+                req.flag = flag
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.cards,
+                        method: AnkiBackend.CardsMethod.setFlag,
+                        request: req
+                    )
+                    logger.info("Card flagged: \(cardId) with flag=\(flag)")
+                } catch {
+                    logger.error("Flag failed for cardId=\(cardId): \(error)")
+                    throw error
+                }
+            },
+            search: { query in
+                // Search cards using the search service
+                var req = Anki_Search_SearchCardsRequest()
+                req.query = query
+                
+                do {
+                    let response: Anki_Search_SearchCardsResponse = try backend.invoke(
+                        service: AnkiBackend.Service.search,
+                        method: AnkiBackend.SearchMethod.searchCards,
+                        request: req
+                    )
+                    
+                    logger.info("Card search for '\(query)': found \(response.cardIds.count) cards")
+                    
+                    // Convert card IDs to CardRecord objects
+                    var cards: [CardRecord] = []
+                    for cardId in response.cardIds {
+                        do {
+                            var cardReq = Anki_Cards_CardId()
+                            cardReq.cid = cardId
+                            let card: Anki_Cards_Card = try backend.invoke(
+                                service: AnkiBackend.Service.cards,
+                                method: 0,  // GetCard method
+                                request: cardReq
+                            )
+                            cards.append(CardRecord(
+                                id: card.id, nid: card.noteID, did: card.deckID,
+                                ord: Int32(card.templateIdx), mod: card.mtimeSecs,
+                                usn: card.usn, type: Int16(card.ctype),
+                                queue: Int16(card.queue), due: card.due,
+                                ivl: Int32(card.interval), factor: Int32(card.easeFactor),
+                                reps: Int32(card.reps), lapses: Int32(card.lapses),
+                                left: Int32(card.remainingSteps), odue: card.originalDue,
+                                odid: card.originalDeckID, flags: Int32(card.flags),
+                                data: card.customData
+                            ))
+                        } catch {
+                            logger.warning("Failed to fetch card \(cardId): \(error)")
+                            continue
+                        }
+                    }
+                    return cards
+                } catch {
+                    logger.error("Card search failed for '\(query)': \(error)")
+                    throw error
+                }
+            }
         )
     }()
 }

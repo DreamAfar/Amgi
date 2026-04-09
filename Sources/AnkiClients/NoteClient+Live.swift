@@ -97,7 +97,7 @@ extension NoteClient: DependencyKey {
                 req.noteIds = [noteId]
                 try backend.callVoid(
                     service: AnkiBackend.Service.notes,
-                    method: 3, // removeNotes
+                    method: AnkiBackend.NotesMethod.removeNotes,
                     request: req
                 )
             }

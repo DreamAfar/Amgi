@@ -18,6 +18,9 @@ struct BrowseView: View {
     @State private var isLoading = false
     @State private var hasMorePages = true
     @State private var showAddNote = false
+    @State private var selectedNoteForDelete: NoteRecord?
+    @State private var showDeleteConfirm = false
+    @State private var isDeleting = false
 
     private let pageSize = 50
 
@@ -46,6 +49,14 @@ struct BrowseView: View {
                                         Task { await loadNextPage() }
                                     }
                                 }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                selectedNoteForDelete = note
+                                showDeleteConfirm = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
                     }
 
@@ -89,6 +100,18 @@ struct BrowseView: View {
         .sheet(isPresented: $showAddNote) {
             AddNoteView {
                 Task { await performSearch() }
+            }
+        }
+        .alert("Delete Note?", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let note = selectedNoteForDelete {
+                    Task { await deleteNote(note) }
+                }
+            }
+        } message: {
+            if let note = selectedNoteForDelete {
+                Text("Are you sure you want to delete '\(note.sfld)'?")
             }
         }
         .safeAreaInset(edge: .top) {
@@ -208,6 +231,20 @@ struct BrowseView: View {
             allDecks = try deckClient.fetchAll()
         } catch {
             allDecks = []
+        }
+    }
+
+    private func deleteNote(_ note: NoteRecord) async {
+        isDeleting = true
+        defer { isDeleting = false }
+        
+        do {
+            try noteClient.delete(note.id)
+            selectedNoteForDelete = nil
+            await performSearch()
+        } catch {
+            selectedNoteForDelete = nil
+            print("[Browse] Failed to delete note: \(error)")
         }
     }
 

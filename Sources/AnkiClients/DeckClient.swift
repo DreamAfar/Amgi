@@ -1,4 +1,5 @@
 public import AnkiKit
+public import AnkiProto
 public import Dependencies
 import DependenciesMacros
 
@@ -10,6 +11,8 @@ public struct DeckClient: Sendable {
     public var create: @Sendable (_ name: String) throws -> Int64
     public var rename: @Sendable (_ deckId: Int64, _ name: String) throws -> Void
     public var delete: @Sendable (_ deckId: Int64) throws -> Void
+    public var getDeckConfig: @Sendable (_ deckId: Int64) throws -> Anki_DeckConfig_DeckConfig
+    public var updateDeckConfig: @Sendable (_ config: Anki_DeckConfig_DeckConfig) throws -> Void
 }
 
 extension DeckClient: TestDependencyKey {

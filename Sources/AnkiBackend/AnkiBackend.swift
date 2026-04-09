@@ -169,6 +169,7 @@ extension AnkiBackend {
     public enum Service {
         public static let sync: UInt32 = 1
         public static let collection: UInt32 = 3
+        public static let deckConfig: UInt32 = 6
         public static let cards: UInt32 = 5
         public static let decks: UInt32 = 7
         public static let scheduler: UInt32 = 13
@@ -185,6 +186,7 @@ extension AnkiBackend {
         public static let open: UInt32 = 0
         public static let close: UInt32 = 1
         public static let latestProgress: UInt32 = 4
+        public static let undo: UInt32 = 2
     }
 
     public enum SyncMethod {
@@ -204,6 +206,7 @@ extension AnkiBackend {
         public static let schedTimingToday: UInt32 = 5
         public static let countsForDeckToday: UInt32 = 10
         public static let congratsInfo: UInt32 = 11
+        public static let buryOrSuspendCards: UInt32 = 14
     }
 
     public enum NotesMethod {
@@ -215,6 +218,9 @@ extension AnkiBackend {
     }
 
     public enum DecksMethod {
+        public static let addDeck: UInt32 = 0
+        public static let renameDeck: UInt32 = 1
+        public static let deleteDeck: UInt32 = 2
         public static let getDeck: UInt32 = 8
         public static let getDeckNames: UInt32 = 13
         public static let getDeckTree: UInt32 = 4
@@ -222,9 +228,18 @@ extension AnkiBackend {
         public static let getCurrentDeck: UInt32 = 23
     }
 
+    public enum DeckConfigMethod {
+        public static let getDeckConfigsForUpdate: UInt32 = 7
+        public static let updateDeckConfigs: UInt32 = 3
+    }
+
     public enum SearchMethod {
         public static let searchCards: UInt32 = 1
         public static let searchNotes: UInt32 = 2
+    }
+
+    public enum CardsMethod {
+        public static let setFlag: UInt32 = 4
     }
 
     // BackendCardRenderingService (27) has 6 extra methods before renderExistingCard
@@ -246,5 +261,11 @@ extension AnkiBackend {
     public enum StatsMethod {
         public static let cardStats: UInt32 = 0
         public static let graphs: UInt32 = 2
+    }
+
+    public enum TagsMethod {
+        public static let getTagTree: UInt32 = 0
+        public static let renameTag: UInt32 = 1
+        public static let removeTag: UInt32 = 2
     }
 }

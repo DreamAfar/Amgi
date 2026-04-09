@@ -28,6 +28,11 @@ final class ReviewSession {
     private var cardQueue: [Anki_Scheduler_QueuedCards.QueuedCard] = []
     private var currentQueuedCard: Anki_Scheduler_QueuedCards.QueuedCard?
 
+    /// Public accessor for the current card
+    var currentCard: Anki_Scheduler_QueuedCards.QueuedCard? {
+        currentQueuedCard
+    }
+
     init(deckId: Int64) {
         self.deckId = deckId
     }
@@ -64,6 +69,34 @@ final class ReviewSession {
         } catch {
             print("[ReviewSession] Start failed: \(error)")
             isFinished = true
+        }
+    }
+
+    /// Refresh the card queue after a card action (suspend, bury, flag, etc.)
+    /// and advance to the next card
+    func refreshAndAdvance() {
+        do {
+            // Re-fetch queue (scheduler state changed after action)
+            var req = Anki_Scheduler_GetQueuedCardsRequest()
+            req.fetchLimit = 200
+            let response: Anki_Scheduler_QueuedCards = try backend.invoke(
+                service: AnkiBackend.Service.scheduler,
+                method: AnkiBackend.SchedulerMethod.getQueuedCards,
+                request: req
+            )
+            cardQueue = response.cards
+            remainingCounts = DeckCounts(
+                newCount: Int(response.newCount),
+                learnCount: Int(response.learningCount),
+                reviewCount: Int(response.reviewCount)
+            )
+            
+            print("[ReviewSession] Queue refreshed after action: \(cardQueue.count) cards remaining")
+            advanceToNextCard()
+        } catch {
+            print("[ReviewSession] Refresh failed: \(error)")
+            // Still try to advance to next card even if refresh fails
+            advanceToNextCard()
         }
     }
 

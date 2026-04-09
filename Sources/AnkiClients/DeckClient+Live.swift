@@ -84,11 +84,102 @@ extension DeckClient: DependencyKey {
                 return .zero
             },
             create: { name in
-                // Full implementation needs AddDeckLegacy or similar
-                return 0
+                // Create a new deck using AddDeck
+                var req = Anki_Decks_AddDeckRequest()
+                req.name = name
+                
+                do {
+                    let resp: Anki_Decks_AddDeckResponse = try backend.invoke(
+                        service: AnkiBackend.Service.decks,
+                        method: AnkiBackend.DecksMethod.addDeck,
+                        request: req
+                    )
+                    logger.info("Created deck '\(name)' with ID: \(resp.id)")
+                    return resp.id
+                } catch {
+                    logger.error("create deck failed for '\(name)': \(error)")
+                    throw error
+                }
             },
-            rename: { deckId, name in },
-            delete: { deckId in }
+            rename: { deckId, name in
+                // Rename a deck
+                var req = Anki_Decks_RenameDeckRequest()
+                req.deckId = deckId
+                req.newName = name
+                
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.decks,
+                        method: AnkiBackend.DecksMethod.renameDeck,
+                        request: req
+                    )
+                    logger.info("Renamed deck \(deckId) to '\(name)'")
+                } catch {
+                    logger.error("rename deck failed: \(error)")
+                    throw error
+                }
+            },
+            delete: { deckId in
+                // Delete a deck
+                var req = Anki_Decks_DeleteDeckRequest()
+                req.deckId = deckId
+                req.cardCount = 0  // Will be set by backend
+                
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.decks,
+                        method: AnkiBackend.DecksMethod.deleteDeck,
+                        request: req
+                    )
+                    logger.info("Deleted deck \(deckId)")
+                } catch {
+                    logger.error("delete deck failed: \(error)")
+                    throw error
+                }
+            }
+            getDeckConfig: { deckId in
+                // Get the deck configuration using GetDeckConfigsForUpdate
+                var req = Anki_DeckConfig_GetDeckConfigsForUpdateRequest()
+                req.deckId = deckId
+                
+                do {
+                    let response: Anki_DeckConfig_GetDeckConfigsForUpdateResponse = try backend.invoke(
+                        service: AnkiBackend.Service.deckConfig,
+                        method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
+                        request: req
+                    )
+                    
+                    // Return the first config (usually there's only one active per deck)
+                    if response.configsToUpdate.isEmpty {
+                        logger.warning("No deck configs found for deckId=\(deckId)")
+                        return Anki_DeckConfig_DeckConfig()
+                    }
+                    
+                    let config = response.configsToUpdate[0]
+                    logger.info("Retrieved deck config for deckId=\(deckId): \(config.name)")
+                    return config
+                } catch {
+                    logger.error("getDeckConfig failed for deckId=\(deckId): \(error)")
+                    throw error
+                }
+            },
+            updateDeckConfig: { config in
+                // Update the deck configuration
+                var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
+                req.configs = [config]
+                
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.deckConfig,
+                        method: AnkiBackend.DeckConfigMethod.updateDeckConfigs,
+                        request: req
+                    )
+                    logger.info("Updated deck config: \(config.name)")
+                } catch {
+                    logger.error("updateDeckConfig failed for \(config.name): \(error)")
+                    throw error
+                }
+            }
         )
     }()
 }

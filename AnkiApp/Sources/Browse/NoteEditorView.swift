@@ -11,13 +11,18 @@ struct NoteEditorView: View {
     let onSave: () -> Void
 
     @Dependency(\.noteClient) var noteClient
+    @Dependency(\.tagClient) var tagClient
     @Dependency(\.ankiBackend) var backend
 
     @State private var fieldValues: [String] = []
     @State private var fieldNames: [String] = []
     @State private var tags: String = ""
+    @State private var availableTags: [String] = []
     @State private var isSaving = false
     @State private var showSavedConfirmation = false
+    @State private var showTagPicker = false
+    @State private var errorMessage: String?
+    @State private var showError = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -29,7 +34,8 @@ struct NoteEditorView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         TextField(name, text: fieldBinding(for: index), axis: .vertical)
-                            .lineLimit(1...5)
+                            .lineLimit(1...10)
+                            .textInputAutocapitalization(.sentences)
                     }
                 }
             }
@@ -38,6 +44,30 @@ struct NoteEditorView: View {
                 TextField("Tags (space-separated)", text: $tags)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                
+                if !availableTags.isEmpty {
+                    Button(action: { showTagPicker = true }) {
+                        Label("Select from available tags", systemImage: "ellipsis")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .foregroundStyle(.blue)
+                }
+                
+                if !tags.isEmpty {
+                    HStack {
+                        Text("Current tags:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        ForEach(tags.split(separator: " ").map(String.init), id: \.self) { tag in
+                            Text(tag)
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.blue.opacity(0.2), in: Capsule())
+                        }
+                    }
+                }
             }
         }
         .navigationTitle("Edit Note")
@@ -54,7 +84,7 @@ struct NoteEditorView: View {
             if showSavedConfirmation {
                 VStack {
                     Spacer()
-                    Text("Saved")
+                    Text("✓ Saved")
                         .font(.subheadline.weight(.medium))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
@@ -64,7 +94,40 @@ struct NoteEditorView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .task { loadNote() }
+        .sheet(isPresented: $showTagPicker) {
+            NavigationStack {
+                List {
+                    ForEach(availableTags.sorted(), id: \.self) { tag in
+                        Button(action: { addTag(tag) }) {
+                            HStack {
+                                Text(tag)
+                                if tags.contains(tag) {
+                                    Spacer()
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("Available Tags")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { showTagPicker = false }
+                    }
+                }
+            }
+        }
+        .alert("Error", isPresented: $showError) {
+            Button("OK") { }
+        } message: {
+            Text(errorMessage ?? "Unknown error")
+        }
+        .task { 
+            loadNote()
+            await loadAvailableTags()
+        }
     }
 
     private func fieldBinding(for index: Int) -> Binding<String> {
@@ -87,6 +150,8 @@ struct NoteEditorView: View {
             fieldNames = notetype.fields.map(\.name)
         } catch {
             print("[NoteEditorView] Error loading notetype: \(error)")
+            errorMessage = "Failed to load note type"
+            showError = true
         }
 
         fieldValues = note.flds
@@ -94,6 +159,25 @@ struct NoteEditorView: View {
             .map(String.init)
         while fieldValues.count < fieldNames.count { fieldValues.append("") }
         tags = note.tags.trimmingCharacters(in: .whitespaces)
+    }
+    
+    private func loadAvailableTags() async {
+        do {
+            availableTags = try tagClient.getAllTags()
+        } catch {
+            print("[NoteEditorView] Failed to load tags: \(error)")
+        }
+    }
+    
+    private func addTag(_ tag: String) {
+        let tagSet = Set(tags.split(separator: " ").map(String.init))
+        if !tagSet.contains(tag) {
+            if tags.isEmpty {
+                tags = tag
+            } else {
+                tags += " \(tag)"
+            }
+        }
     }
 
     private func save() async {
@@ -106,7 +190,7 @@ struct NoteEditorView: View {
         updatedNote.flds = newFlds
         updatedNote.sfld = newSfld
         updatedNote.csum = newCsum
-        updatedNote.tags = " \(tags) "
+        updatedNote.tags = " \(tags.trimmingCharacters(in: .whitespaces)) "
 
         do {
             try noteClient.save(updatedNote)
@@ -114,7 +198,10 @@ struct NoteEditorView: View {
             try? await Task.sleep(for: .seconds(1.5))
             withAnimation { showSavedConfirmation = false }
             onSave()
-        } catch {}
+        } catch {
+            errorMessage = "Failed to save note: \(error.localizedDescription)"
+            showError = true
+        }
         isSaving = false
     }
 }

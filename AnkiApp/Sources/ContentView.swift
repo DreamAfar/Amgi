@@ -49,6 +49,12 @@ struct ContentView: View {
                         .id(refreshID)
                 }
             }
+            Tab("Tags", systemImage: "tag.fill") {
+                NavigationStack {
+                    TagsView()
+                        .id(refreshID)
+                }
+            }
             #if DEBUG
             Tab("Debug", systemImage: "wrench.and.screwdriver") {
                 NavigationStack {

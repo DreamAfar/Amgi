@@ -9,6 +9,7 @@ struct DeckDetailView: View {
     @State private var counts: DeckCounts = .zero
     @State private var childDecks: [DeckTreeNode] = []
     @State private var showReview = false
+    @State private var showConfig = false
 
     private var shortTitle: String {
         String(deck.name.split(separator: "::", omittingEmptySubsequences: true).last ?? Substring(deck.name))
@@ -74,6 +75,18 @@ struct DeckDetailView: View {
             }
         }
         .navigationTitle(shortTitle)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: { showConfig = true }) {
+                    Image(systemName: "gear")
+                }
+            }
+        }
+        .sheet(isPresented: $showConfig) {
+            DeckConfigView(deckId: deck.id) {
+                showConfig = false
+            }
+        }
         .fullScreenCover(isPresented: $showReview) {
             ReviewView(deckId: deck.id) {
                 showReview = false
