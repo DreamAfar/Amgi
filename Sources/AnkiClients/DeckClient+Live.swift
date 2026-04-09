@@ -85,14 +85,14 @@ extension DeckClient: DependencyKey {
             },
             create: { name in
                 // Create a new deck using AddDeck
-                var req = Anki_Decks_AddDeckRequest()
-                req.name = name
+                var deck = Anki_Decks_Deck()
+                deck.name = name
                 
                 do {
-                    let resp: Anki_Decks_AddDeckResponse = try backend.invoke(
+                    let resp: Anki_Collection_OpChangesWithId = try backend.invoke(
                         service: AnkiBackend.Service.decks,
                         method: AnkiBackend.DecksMethod.addDeck,
-                        request: req
+                        request: deck
                     )
                     logger.info("Created deck '\(name)' with ID: \(resp.id)")
                     return resp.id
@@ -120,15 +120,14 @@ extension DeckClient: DependencyKey {
                 }
             },
             delete: { deckId in
-                // Delete a deck
-                var req = Anki_Decks_DeleteDeckRequest()
-                req.deckId = deckId
-                req.cardCount = 0  // Will be set by backend
+                // Delete a deck using RemoveDecks
+                var req = Anki_Decks_DeckIds()
+                req.dids.append(deckId)
                 
                 do {
                     try backend.callVoid(
                         service: AnkiBackend.Service.decks,
-                        method: AnkiBackend.DecksMethod.deleteDeck,
+                        method: AnkiBackend.DecksMethod.removeDecks,
                         request: req
                     )
                     logger.info("Deleted deck \(deckId)")
@@ -139,11 +138,11 @@ extension DeckClient: DependencyKey {
             },
             getDeckConfig: { deckId in
                 // Get the deck configuration using GetDeckConfigsForUpdate
-                var req = Anki_DeckConfig_GetDeckConfigsForUpdateRequest()
-                req.deckId = deckId
+                var req = Anki_Decks_DeckId()
+                req.did = deckId
                 
                 do {
-                    let response: Anki_DeckConfig_GetDeckConfigsForUpdateResponse = try backend.invoke(
+                    let response: Anki_DeckConfig_DeckConfigsForUpdate = try backend.invoke(
                         service: AnkiBackend.Service.deckConfig,
                         method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
                         request: req

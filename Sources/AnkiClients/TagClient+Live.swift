@@ -18,7 +18,7 @@ extension TagClient: DependencyKey {
                 do {
                     let response: Anki_Tags_TagTreeNode = try backend.invoke(
                         service: AnkiBackend.Service.tags,
-                        method: 0,  // GetTagTree
+                        method: AnkiBackend.TagsMethod.tagTree,
                         request: Anki_Generic_Empty()
                     )
                     
@@ -48,14 +48,14 @@ extension TagClient: DependencyKey {
                 logger.info("Tag '\(tag)' created/managed through note operations")
             },
             removeTag: { tag in
-                // Remove tag from all notes
+                // Remove tag from all notes using RemoveTags
                 do {
-                    var req = Anki_Tags_RemoveTagRequest()
-                    req.tag = tag
+                    var req = Anki_Generic_String()
+                    req.val = tag
                     
                     try backend.callVoid(
                         service: AnkiBackend.Service.tags,
-                        method: 2,  // RemoveTag
+                        method: AnkiBackend.TagsMethod.removeTags,
                         request: req
                     )
                     logger.info("Tag '\(tag)' removed")
@@ -65,15 +65,15 @@ extension TagClient: DependencyKey {
                 }
             },
             renameTag: { oldName, newName in
-                // Rename tag across all notes
+                // Rename tag across all notes using RenameTags
                 do {
-                    var req = Anki_Tags_RenameTagRequest()
+                    var req = Anki_Tags_RenameTagsRequest()
                     req.oldName = oldName
                     req.newName = newName
                     
                     try backend.callVoid(
                         service: AnkiBackend.Service.tags,
-                        method: 1,  // RenameTag
+                        method: AnkiBackend.TagsMethod.renameTags,
                         request: req
                     )
                     logger.info("Tag renamed: '\(oldName)' → '\(newName)'")
@@ -85,17 +85,19 @@ extension TagClient: DependencyKey {
             findNotesByTag: { tag in
                 // Search for notes with the given tag
                 do {
-                    var req = Anki_Search_SearchNotesRequest()
-                    req.query = "tag:\(tag)"
+                    var req = Anki_Search_SearchRequest()
+                    var parsableText = Anki_Search_SearchNode()
+                    parsableText.parsableText = "tag:\(tag)"
+                    req.filter = .node(parsableText)
                     
-                    let response: Anki_Search_SearchNotesResponse = try backend.invoke(
+                    let response: Anki_Search_SearchResponse = try backend.invoke(
                         service: AnkiBackend.Service.search,
-                        method: 2,  // SearchNotes
+                        method: AnkiBackend.SearchMethod.searchNotes,
                         request: req
                     )
                     
-                    logger.info("Found \(response.noteIds.count) notes with tag '\(tag)'")
-                    return response.noteIds
+                    logger.info("Found \(response.cardIds.count) notes with tag '\(tag)'")
+                    return response.cardIds
                 } catch {
                     logger.error("findNotesByTag failed for '\(tag)': \(error)")
                     throw error

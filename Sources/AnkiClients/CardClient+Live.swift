@@ -84,11 +84,13 @@ extension CardClient: DependencyKey {
             },
             fetchByNote: { noteId in
                 // Search for cards by note using search RPC
-                var searchReq = Anki_Search_SearchCardsRequest()
-                searchReq.query = "nid:\(noteId)"
+                var searchReq = Anki_Search_SearchRequest()
+                var parsableText = Anki_Search_SearchNode()
+                parsableText.parsableText = "nid:\(noteId)"
+                searchReq.filter = .node(parsableText)
                 
                 do {
-                    let searchResponse: Anki_Search_SearchCardsResponse = try backend.invoke(
+                    let searchResponse: Anki_Search_SearchResponse = try backend.invoke(
                         service: AnkiBackend.Service.search,
                         method: AnkiBackend.SearchMethod.searchCards,
                         request: searchReq
@@ -105,7 +107,7 @@ extension CardClient: DependencyKey {
                             req.cid = cardId
                             let card: Anki_Cards_Card = try backend.invoke(
                                 service: AnkiBackend.Service.cards,
-                                method: 0,  // GetCard method
+                                method: AnkiBackend.CardsMethod.getCard,
                                 request: req
                             )
                             cards.append(CardRecord(
@@ -213,11 +215,13 @@ extension CardClient: DependencyKey {
             },
             search: { query in
                 // Search cards using the search service
-                var req = Anki_Search_SearchCardsRequest()
-                req.query = query
+                var req = Anki_Search_SearchRequest()
+                var parsableText = Anki_Search_SearchNode()
+                parsableText.parsableText = query
+                req.filter = .node(parsableText)
                 
                 do {
-                    let response: Anki_Search_SearchCardsResponse = try backend.invoke(
+                    let response: Anki_Search_SearchResponse = try backend.invoke(
                         service: AnkiBackend.Service.search,
                         method: AnkiBackend.SearchMethod.searchCards,
                         request: req
@@ -233,7 +237,7 @@ extension CardClient: DependencyKey {
                             cardReq.cid = cardId
                             let card: Anki_Cards_Card = try backend.invoke(
                                 service: AnkiBackend.Service.cards,
-                                method: 0,  // GetCard method
+                                method: AnkiBackend.CardsMethod.getCard,
                                 request: cardReq
                             )
                             cards.append(CardRecord(

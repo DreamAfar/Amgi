@@ -218,12 +218,28 @@ extension AnkiBackend {
     }
 
     public enum DecksMethod {
-        public static let addDeck: UInt32 = 0
-        public static let renameDeck: UInt32 = 1
-        public static let deleteDeck: UInt32 = 2
+        public static let newDeck: UInt32 = 0
+        public static let addDeck: UInt32 = 1
+        public static let addDeckLegacy: UInt32 = 2
+        public static let addOrUpdateDeckLegacy: UInt32 = 3
+        public static let deckTree: UInt32 = 4
+        public static let deckTreeLegacy: UInt32 = 5
+        public static let getAllDecksLegacy: UInt32 = 6
+        public static let getDeckIdByName: UInt32 = 7
         public static let getDeck: UInt32 = 8
+        public static let updateDeck: UInt32 = 9
+        public static let updateDeckLegacy: UInt32 = 10
+        public static let setDeckCollapsed: UInt32 = 11
+        public static let getDeckLegacy: UInt32 = 12
         public static let getDeckNames: UInt32 = 13
-        public static let getDeckTree: UInt32 = 4
+        public static let getDeckAndChildNames: UInt32 = 14
+        public static let newDeckLegacy: UInt32 = 15
+        public static let removeDecks: UInt32 = 16
+        public static let reparentDecks: UInt32 = 17
+        public static let renameDeck: UInt32 = 18
+        public static let getOrCreateFilteredDeck: UInt32 = 19
+        public static let addOrUpdateFilteredDeck: UInt32 = 20
+        public static let removeBrushedTags: UInt32 = 21
         public static let setCurrentDeck: UInt32 = 22
         public static let getCurrentDeck: UInt32 = 23
     }
@@ -239,6 +255,10 @@ extension AnkiBackend {
     }
 
     public enum CardsMethod {
+        public static let getCard: UInt32 = 0
+        public static let updateCards: UInt32 = 1
+        public static let removeCards: UInt32 = 2
+        public static let setDeck: UInt32 = 3
         public static let setFlag: UInt32 = 4
     }
 
@@ -264,8 +284,16 @@ extension AnkiBackend {
     }
 
     public enum TagsMethod {
-        public static let getTagTree: UInt32 = 0
-        public static let renameTag: UInt32 = 1
-        public static let removeTag: UInt32 = 2
+        public static let clearUnusedTags: UInt32 = 0
+        public static let allTags: UInt32 = 1
+        public static let removeTags: UInt32 = 2
+        public static let setTagCollapsed: UInt32 = 3
+        public static let tagTree: UInt32 = 4
+        public static let reparentTags: UInt32 = 5
+        public static let renameTags: UInt32 = 6
+        public static let addNoteTags: UInt32 = 7
+        public static let removeNoteTags: UInt32 = 8
+        public static let findAndReplaceTag: UInt32 = 9
+        public static let completeTag: UInt32 = 10
     }
 }
