@@ -68,8 +68,8 @@ extension TagClient: DependencyKey {
                 // Rename tag across all notes using RenameTags
                 do {
                     var req = Anki_Tags_RenameTagsRequest()
-                    req.oldName = oldName
-                    req.newName = newName
+                    req.currentPrefix = oldName
+                    req.newPrefix = newName
                     
                     try backend.callVoid(
                         service: AnkiBackend.Service.tags,
@@ -86,9 +86,7 @@ extension TagClient: DependencyKey {
                 // Search for notes with the given tag
                 do {
                     var req = Anki_Search_SearchRequest()
-                    var parsableText = Anki_Search_SearchNode()
-                    parsableText.parsableText = "tag:\(tag)"
-                    req.filter = .node(parsableText)
+                    req.search = "tag:\(tag)"
                     
                     let response: Anki_Search_SearchResponse = try backend.invoke(
                         service: AnkiBackend.Service.search,
@@ -96,8 +94,8 @@ extension TagClient: DependencyKey {
                         request: req
                     )
                     
-                    logger.info("Found \(response.cardIds.count) notes with tag '\(tag)'")
-                    return response.cardIds
+                    logger.info("Found \(response.ids.count) notes with tag '\(tag)'")
+                    return response.ids
                 } catch {
                     logger.error("findNotesByTag failed for '\(tag)': \(error)")
                     throw error

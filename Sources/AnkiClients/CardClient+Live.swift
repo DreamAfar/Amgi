@@ -85,9 +85,7 @@ extension CardClient: DependencyKey {
             fetchByNote: { noteId in
                 // Search for cards by note using search RPC
                 var searchReq = Anki_Search_SearchRequest()
-                var parsableText = Anki_Search_SearchNode()
-                parsableText.parsableText = "nid:\(noteId)"
-                searchReq.filter = .node(parsableText)
+                searchReq.search = "nid:\(noteId)"
                 
                 do {
                     let searchResponse: Anki_Search_SearchResponse = try backend.invoke(
@@ -96,12 +94,12 @@ extension CardClient: DependencyKey {
                         request: searchReq
                     )
                     
-                    logger.info("Found \(searchResponse.cardIds.count) cards for noteId=\(noteId)")
+                    logger.info("Found \(searchResponse.ids.count) cards for noteId=\(noteId)")
                     
                     // Convert card IDs to CardRecord objects by fetching each card
                     // This is a simplified implementation; optimize with batch fetch if needed
                     var cards: [CardRecord] = []
-                    for cardId in searchResponse.cardIds.prefix(50) {  // Limit to 50 per call
+                    for cardId in searchResponse.ids.prefix(50) {  // Limit to 50 per call
                         do {
                             var req = Anki_Cards_CardId()
                             req.cid = cardId
@@ -184,7 +182,7 @@ extension CardClient: DependencyKey {
             bury: { cardId in
                 var req = Anki_Scheduler_BuryOrSuspendCardsRequest()
                 req.cardIds = [cardId]
-                req.mode = .bury
+                req.mode = .buryUser
                 do {
                     try backend.callVoid(
                         service: AnkiBackend.Service.scheduler,
@@ -216,9 +214,7 @@ extension CardClient: DependencyKey {
             search: { query in
                 // Search cards using the search service
                 var req = Anki_Search_SearchRequest()
-                var parsableText = Anki_Search_SearchNode()
-                parsableText.parsableText = query
-                req.filter = .node(parsableText)
+                req.search = query
                 
                 do {
                     let response: Anki_Search_SearchResponse = try backend.invoke(
@@ -227,11 +223,11 @@ extension CardClient: DependencyKey {
                         request: req
                     )
                     
-                    logger.info("Card search for '\(query)': found \(response.cardIds.count) cards")
+                    logger.info("Card search for '\(query)': found \(response.ids.count) cards")
                     
                     // Convert card IDs to CardRecord objects
                     var cards: [CardRecord] = []
-                    for cardId in response.cardIds {
+                    for cardId in response.ids {
                         do {
                             var cardReq = Anki_Cards_CardId()
                             cardReq.cid = cardId

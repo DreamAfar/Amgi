@@ -242,6 +242,9 @@ extension AnkiBackend {
         public static let removeBrushedTags: UInt32 = 21
         public static let setCurrentDeck: UInt32 = 22
         public static let getCurrentDeck: UInt32 = 23
+
+        // Backward-compatible aliases
+        public static let getDeckTree: UInt32 = deckTree
     }
 
     public enum DeckConfigMethod {
@@ -295,5 +298,8 @@ extension AnkiBackend {
         public static let removeNoteTags: UInt32 = 8
         public static let findAndReplaceTag: UInt32 = 9
         public static let completeTag: UInt32 = 10
+
+        // Backward-compatible aliases
+        public static let getTagTree: UInt32 = tagTree
     }
 }

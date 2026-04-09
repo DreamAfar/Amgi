@@ -104,7 +104,7 @@ extension DeckClient: DependencyKey {
             rename: { deckId, name in
                 // Rename a deck
                 var req = Anki_Decks_RenameDeckRequest()
-                req.deckId = deckId
+                req.deckID = deckId
                 req.newName = name
                 
                 do {
@@ -149,12 +149,12 @@ extension DeckClient: DependencyKey {
                     )
                     
                     // Return the first config (usually there's only one active per deck)
-                    if response.configsToUpdate.isEmpty {
+                    if response.allConfig.isEmpty {
                         logger.warning("No deck configs found for deckId=\(deckId)")
                         return Anki_DeckConfig_DeckConfig()
                     }
                     
-                    let config = response.configsToUpdate[0]
+                    let config = response.allConfig[0].config
                     logger.info("Retrieved deck config for deckId=\(deckId): \(config.name)")
                     return config
                 } catch {
