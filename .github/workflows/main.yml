@@ -78,12 +78,16 @@ jobs:
         continue-on-error: true
         run: |
           echo "=== Running 34+ Integration Tests ==="
-          xcodebuild test \
-            -project AnkiApp/AnkiApp.xcodeproj \
-            -scheme AnkiApp \
-            -destination 'generic/platform=iOS' \
-            -testClassPattern="(TagClientIntegrationTests|DeckClientIntegrationTests|CrossSystemIntegrationTests)" \
-            2>&1 | tee test-results.log
+          if xcodebuild -list -project AnkiApp/AnkiApp.xcodeproj | grep -q "Tests"; then
+            xcodebuild test \
+              -project AnkiApp/AnkiApp.xcodeproj \
+              -scheme AnkiApp \
+              -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+              -testClassPattern="(TagClientIntegrationTests|DeckClientIntegrationTests|CrossSystemIntegrationTests)" \
+              2>&1 | tee test-results.log
+          else
+            echo "No test targets configured in AnkiApp scheme, skipping xcodebuild test." | tee test-results.log
+          fi
           
           # 统计测试结果
           if grep -q "Test Suite.*passed" test-results.log; then
@@ -98,6 +102,7 @@ jobs:
       # -skipMacroValidation：同上，针对 Swift macro 本身的验证
       - name: Build unsigned xcarchive
         run: |
+          set -o pipefail
           echo "=== Building IPA with Sprint 3 Features ==="
           xcodebuild archive \
             -project AnkiApp/AnkiApp.xcodeproj \
@@ -112,14 +117,13 @@ jobs:
             -skipPackagePluginValidation \
             -skipMacroValidation \
             2>&1 | tee build.log
-          
-          # 验证构建成功
-          if grep -q "Build complete!" build.log; then
-            echo "✅ Archive build successful!"
-          else
-            echo "❌ Archive build failed!"
+
+          # 验证构建产物存在
+          if [ ! -d "$RUNNER_TEMP/AnkiApp.xcarchive" ]; then
+            echo "❌ Archive output not found at $RUNNER_TEMP/AnkiApp.xcarchive"
             exit 1
           fi
+          echo "✅ Archive build successful!"
 
       # ── 11. 打包成 IPA ─────────────────────────────────────────
       - name: Package .app into unsigned .ipa
@@ -162,7 +166,11 @@ jobs:
           echo "" >> build-summary.md
           echo "**Build Date**: $(date)" >> build-summary.md
           echo "**IPA File**: AnkiApp-unsigned.ipa" >> build-summary.md
-          echo "**IPA Size**: $(ls -lh /tmp/AnkiApp-unsigned.ipa | awk '{print $5}')" >> build-summary.md
+          if [ -f /tmp/AnkiApp-unsigned.ipa ]; then
+            echo "**IPA Size**: $(ls -lh /tmp/AnkiApp-unsigned.ipa | awk '{print $5}')" >> build-summary.md
+          else
+            echo "**IPA Size**: N/A (IPA not generated)" >> build-summary.md
+          fi
           echo "" >> build-summary.md
           echo "## Sprint 3 Features Included" >> build-summary.md
           echo "- ✅ 标签管理系统 (TagClient)" >> build-summary.md
