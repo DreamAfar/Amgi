@@ -416,6 +416,10 @@
 "browse_sort_modified_asc" = "按修改时间（旧到新）";
 "browse_sort_created_desc" = "按创建时间（新到旧）";
 "browse_sort_created_asc" = "按创建时间（旧到新）";
+"browse_filter_accessibility" = "筛选";
+"browse_multiselect_accessibility" = "多选";
+"browse_sort_accessibility" = "排序";
+"browse_add_accessibility" = "添加笔记";
 
 // MARK: - TagsView (extended)
 "tags_empty_title" = "暂无标签";
@@ -472,6 +476,8 @@
 "deck_template_preview_counts" = "结构";
 "deck_template_preview_fields" = "字段数";
 "deck_template_preview_cards" = "卡片模板数";
+"deck_template_preview_field_names" = "字段列表";
+"deck_template_preview_template_names" = "卡片模板列表";
 "card_info_section_fsrs" = "FSRS 记忆状态";
 "card_info_section_ids" = "标识符";
 "card_info_queue" = "队列";

@@ -17,9 +17,7 @@ struct DeckTemplateListView: View {
     @State private var showPreview = false
 
     private var filteredEntries: [Anki_Notetypes_NotetypeNames.NameID] {
-        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return entries }
-        return entries.filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
+        filterDeckTemplateEntries(entries, searchText: searchText)
     }
 
     var body: some View {
@@ -97,6 +95,22 @@ struct DeckTemplateListView: View {
                                     row(L("deck_template_preview_fields"), "\(selectedTemplate.fields.count)")
                                     row(L("deck_template_preview_cards"), "\(selectedTemplate.templates.count)")
                                 }
+
+                                if !selectedTemplate.fields.isEmpty {
+                                    Section(L("deck_template_preview_field_names")) {
+                                        ForEach(Array(selectedTemplate.fields.enumerated()), id: \.offset) { _, field in
+                                            Text(field.name)
+                                        }
+                                    }
+                                }
+
+                                if !selectedTemplate.templates.isEmpty {
+                                    Section(L("deck_template_preview_template_names")) {
+                                        ForEach(Array(selectedTemplate.templates.enumerated()), id: \.offset) { _, template in
+                                            Text(template.name)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -124,7 +138,7 @@ struct DeckTemplateListView: View {
                 service: AnkiBackend.Service.notetypes,
                 method: AnkiBackend.NotetypesMethod.getNotetypeNames
             )
-            entries = resp.entries.sorted(by: { $0.name.localizedStandardCompare($1.name) == .orderedAscending })
+            entries = sortDeckTemplateEntries(resp.entries)
             errorMessage = nil
         } catch {
             entries = []
@@ -163,4 +177,19 @@ struct DeckTemplateListView: View {
                 .multilineTextAlignment(.trailing)
         }
     }
+}
+
+func sortDeckTemplateEntries(
+    _ entries: [Anki_Notetypes_NotetypeNames.NameID]
+) -> [Anki_Notetypes_NotetypeNames.NameID] {
+    entries.sorted(by: { $0.name.localizedStandardCompare($1.name) == .orderedAscending })
+}
+
+func filterDeckTemplateEntries(
+    _ entries: [Anki_Notetypes_NotetypeNames.NameID],
+    searchText: String
+) -> [Anki_Notetypes_NotetypeNames.NameID] {
+    let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return entries }
+    return entries.filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
 }

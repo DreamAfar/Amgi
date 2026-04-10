@@ -1,6 +1,7 @@
 import XCTest
 @testable import AnkiApp
 import AnkiKit
+import AnkiProto
 
 final class DeckUIInteractionTests: XCTestCase {
 
@@ -22,5 +23,31 @@ final class DeckUIInteractionTests: XCTestCase {
     func testBrowseViewInit() {
         let view = BrowseView()
         XCTAssertNotNil(view)
+    }
+
+    func testSortDeckTemplateEntriesByName() {
+        var a = Anki_Notetypes_NotetypeNames.NameID()
+        a.id = 2
+        a.name = "Basic"
+
+        var b = Anki_Notetypes_NotetypeNames.NameID()
+        b.id = 1
+        b.name = "Cloze"
+
+        let sorted = sortDeckTemplateEntries([b, a])
+        XCTAssertEqual(sorted.map(\.name), ["Basic", "Cloze"])
+    }
+
+    func testFilterDeckTemplateEntriesBySearchText() {
+        var a = Anki_Notetypes_NotetypeNames.NameID()
+        a.id = 1
+        a.name = "Basic"
+
+        var b = Anki_Notetypes_NotetypeNames.NameID()
+        b.id = 2
+        b.name = "Japanese Cloze"
+
+        let filtered = filterDeckTemplateEntries([a, b], searchText: "japanese")
+        XCTAssertEqual(filtered.map(\.name), ["Japanese Cloze"])
     }
 }

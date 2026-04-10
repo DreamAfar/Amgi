@@ -194,6 +194,7 @@ struct BrowseView: View {
                 } label: {
                     Image(systemName: "line.3.horizontal.decrease.circle")
                 }
+                .accessibilityLabel(L("browse_filter_accessibility"))
             }
 
             ToolbarItem(placement: .topBarLeading) {
@@ -202,11 +203,15 @@ struct BrowseView: View {
                 } label: {
                     Text(L("tags_nav_title"))
                 }
+                .accessibilityLabel(L("tags_nav_title"))
             }
 
             ToolbarItem(placement: .principal) {
                 Text(L("browse_toolbar_title_count", allNotes.count))
                     .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .monospacedDigit()
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -217,6 +222,7 @@ struct BrowseView: View {
                 } label: {
                     Image(systemName: isEditing ? "checkmark.circle" : "checklist")
                 }
+                .accessibilityLabel(L("browse_multiselect_accessibility"))
 
                 Menu {
                     ForEach(BrowseSortMode.allCases, id: \.self) { mode in
@@ -234,12 +240,14 @@ struct BrowseView: View {
                 } label: {
                     Image(systemName: "arrow.up.arrow.down.circle")
                 }
+                .accessibilityLabel(L("browse_sort_accessibility"))
 
                 Button {
                     showAddNote = true
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel(L("browse_add_accessibility"))
             }
 
             if isEditing {
@@ -575,18 +583,7 @@ struct BrowseView: View {
     }
 
     private func sortNotes(_ input: [NoteRecord]) -> [NoteRecord] {
-        input.sorted { lhs, rhs in
-            switch sortMode {
-            case .modifiedDesc:
-                return lhs.mod > rhs.mod
-            case .modifiedAsc:
-                return lhs.mod < rhs.mod
-            case .createdDesc:
-                return lhs.id > rhs.id
-            case .createdAsc:
-                return lhs.id < rhs.id
-            }
-        }
+        sortBrowseNotes(input, mode: sortMode)
     }
 
     private func applySort() {
@@ -664,7 +661,7 @@ struct BrowseView: View {
     }
 }
 
-private enum BrowseQuickFilter: CaseIterable {
+enum BrowseQuickFilter: CaseIterable {
     case all
     case addedToday
     case studiedToday
@@ -728,7 +725,7 @@ private enum BrowseQuickFilter: CaseIterable {
     }
 }
 
-private enum BrowseSortMode: CaseIterable {
+enum BrowseSortMode: CaseIterable {
     case modifiedDesc
     case modifiedAsc
     case createdDesc
@@ -749,6 +746,21 @@ private enum BrowseSortMode: CaseIterable {
         case .modifiedAsc: "arrow.up.circle"
         case .createdDesc: "clock.arrow.circlepath"
         case .createdAsc: "clock"
+        }
+    }
+}
+
+func sortBrowseNotes(_ input: [NoteRecord], mode: BrowseSortMode) -> [NoteRecord] {
+    input.sorted { lhs, rhs in
+        switch mode {
+        case .modifiedDesc:
+            return lhs.mod > rhs.mod
+        case .modifiedAsc:
+            return lhs.mod < rhs.mod
+        case .createdDesc:
+            return lhs.id > rhs.id
+        case .createdAsc:
+            return lhs.id < rhs.id
         }
     }
 }

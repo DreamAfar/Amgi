@@ -416,6 +416,10 @@
 "browse_sort_modified_asc" = "更新日時（古い順）";
 "browse_sort_created_desc" = "作成日時（新しい順）";
 "browse_sort_created_asc" = "作成日時（古い順）";
+"browse_filter_accessibility" = "絞り込み";
+"browse_multiselect_accessibility" = "複数選択";
+"browse_sort_accessibility" = "並び替え";
+"browse_add_accessibility" = "ノートを追加";
 
 // MARK: - TagsView (extended)
 "tags_empty_title" = "タグなし";
@@ -472,6 +476,8 @@
 "deck_template_preview_counts" = "構造";
 "deck_template_preview_fields" = "フィールド数";
 "deck_template_preview_cards" = "カードテンプレート数";
+"deck_template_preview_field_names" = "フィールド一覧";
+"deck_template_preview_template_names" = "テンプレート一覧";
 "card_info_section_fsrs" = "FSRS メモリ状態";
 "card_info_section_ids" = "識別子";
 "card_info_queue" = "キュー";

@@ -153,8 +153,19 @@ extension DeckClient: DependencyKey {
                     logger.info("Got response with \(response.allConfig.count) configs, currentDeck=\(response.currentDeck.name), configID=\(response.currentDeck.configID)")
                     
                     if response.allConfig.isEmpty {
-                        // No configs found - try to get a config directly by the deck's configID
-                        // or return an empty default config (the backend will use defaults)
+                        let currentConfigId = response.currentDeck.configID
+                        if currentConfigId != 0 {
+                            var configReq = Anki_DeckConfig_DeckConfigId()
+                            configReq.dcid = currentConfigId
+                            let config: Anki_DeckConfig_DeckConfig = try backend.invoke(
+                                service: AnkiBackend.Service.deckConfig,
+                                method: AnkiBackend.DeckConfigMethod.getDeckConfig,
+                                request: configReq
+                            )
+                            logger.info("Loaded deck config directly for deckId=\(deckId): configID=\(config.id), name=\(config.name)")
+                            return config
+                        }
+
                         logger.warning("allConfig is empty for deckId=\(deckId), returning empty DeckConfig")
                         var emptyConfig = Anki_DeckConfig_DeckConfig()
                         emptyConfig.name = "Default"
@@ -168,8 +179,40 @@ extension DeckClient: DependencyKey {
                     logger.info("Retrieved deck config for deckId=\(deckId): configID=\(config.id), name=\(config.name)")
                     return config
                 } catch {
-                    logger.error("getDeckConfig failed for deckId=\(deckId): \(error)")
-                    throw error
+                    let primaryError = error
+                    logger.warning("GetDeckConfigsForUpdate failed for deckId=\(deckId), falling back to direct deck lookup: \(primaryError)")
+
+                    do {
+                        let deck: Anki_Decks_Deck = try backend.invoke(
+                            service: AnkiBackend.Service.decks,
+                            method: AnkiBackend.DecksMethod.getDeck,
+                            request: req
+                        )
+
+                        guard case .normal(let normalDeck)? = deck.kind else {
+                            throw BackendError(
+                                kind: .invalidInput,
+                                message: "Study options are only available for normal decks."
+                            )
+                        }
+
+                        var configReq = Anki_DeckConfig_DeckConfigId()
+                        configReq.dcid = normalDeck.configID
+                        let config: Anki_DeckConfig_DeckConfig = try backend.invoke(
+                            service: AnkiBackend.Service.deckConfig,
+                            method: AnkiBackend.DeckConfigMethod.getDeckConfig,
+                            request: configReq
+                        )
+                        logger.info("Loaded deck config via direct deck lookup for deckId=\(deckId): configID=\(config.id), name=\(config.name)")
+                        return config
+                    } catch {
+                        let fallbackError = error
+                        logger.error("getDeckConfig failed for deckId=\(deckId): primary=\(primaryError), fallback=\(fallbackError)")
+                        throw BackendError(
+                            kind: .invalidInput,
+                            message: "Failed to load study options for deck \(deckId). Primary error: \(primaryError.localizedDescription). Fallback error: \(fallbackError.localizedDescription)"
+                        )
+                    }
                 }
             },
             updateDeckConfig: { deckId, config, applyToChildren in

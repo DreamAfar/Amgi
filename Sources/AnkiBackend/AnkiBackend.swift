@@ -256,6 +256,7 @@ extension AnkiBackend {
     }
 
     public enum DeckConfigMethod {
+        public static let getDeckConfig: UInt32 = 1
         public static let getDeckConfigsForUpdate: UInt32 = 6
         public static let updateDeckConfigs: UInt32 = 7
     }

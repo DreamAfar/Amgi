@@ -416,6 +416,10 @@
 "browse_sort_modified_asc" = "Modified (Oldest)";
 "browse_sort_created_desc" = "Created (Newest)";
 "browse_sort_created_asc" = "Created (Oldest)";
+"browse_filter_accessibility" = "Filter";
+"browse_multiselect_accessibility" = "Multi-select";
+"browse_sort_accessibility" = "Sort";
+"browse_add_accessibility" = "Add note";
 
 // MARK: - TagsView (extended)
 "tags_empty_title" = "No Tags";
@@ -472,6 +476,8 @@
 "deck_template_preview_counts" = "Structure";
 "deck_template_preview_fields" = "Fields";
 "deck_template_preview_cards" = "Card Templates";
+"deck_template_preview_field_names" = "Field Names";
+"deck_template_preview_template_names" = "Template Names";
 "card_info_section_fsrs" = "FSRS Memory State";
 "card_info_section_ids" = "Identifiers";
 "card_info_queue" = "Queue";

@@ -107,10 +107,12 @@ struct DeckDetailView: View {
                 } label: {
                     Image(systemName: "square.on.square")
                 }
+                .accessibilityLabel(L("card_info_template"))
 
                 Button(action: { showConfig = true }) {
                     Image(systemName: "slider.horizontal.3")
                 }
+                .accessibilityLabel(L("deck_detail_config"))
             }
         }
         .sheet(isPresented: $showConfig) {
