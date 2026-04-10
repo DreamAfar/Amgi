@@ -9,6 +9,7 @@ import SwiftUI
 /// Usage in views:
 ///   Text(L("key_name"))
 ///   Text(L("greeting", "Alice"))   // with interpolation
+@MainActor
 final class LanguageManager: ObservableObject {
     static let shared = LanguageManager()
 

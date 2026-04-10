@@ -405,6 +405,11 @@ struct BrowseView: View {
         String(fullName.split(separator: "::").last ?? Substring(fullName))
     }
 
+    private func shortTagName(_ tag: String) -> String {
+        // Show only the last component of a hierarchical tag (e.g. "日语::词汇" → "词汇")
+        String(tag.split(separator: "::").last ?? Substring(tag))
+    }
+
     // MARK: - Data Loading
 
     private func loadDecks() async {
