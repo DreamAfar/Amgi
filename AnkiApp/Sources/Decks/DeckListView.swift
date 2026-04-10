@@ -68,48 +68,50 @@ private struct DeckRowView: View {
     @State private var showActionError = false
 
     var body: some View {
-        if node.children.isEmpty {
-            NavigationLink(value: deckInfo) {
-                rowContent
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button {
-                    renameText = node.name
-                    showRenamePrompt = true
-                } label: {
-                    Label("Rename", systemImage: "pencil")
-                }
-                .tint(.blue)
-
-                Button(role: .destructive) {
-                    showDeleteConfirmStep1 = true
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-        } else {
-            DisclosureGroup {
-                ForEach(node.children) { child in
-                    DeckRowView(node: child, onDeckChanged: onDeckChanged)
-                }
-            } label: {
+        Group {
+            if node.children.isEmpty {
                 NavigationLink(value: deckInfo) {
                     rowContent
                 }
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button {
-                    renameText = node.name
-                    showRenamePrompt = true
-                } label: {
-                    Label("Rename", systemImage: "pencil")
-                }
-                .tint(.blue)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button {
+                        renameText = node.name
+                        showRenamePrompt = true
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+                    .tint(.blue)
 
-                Button(role: .destructive) {
-                    showDeleteConfirmStep1 = true
+                    Button(role: .destructive) {
+                        showDeleteConfirmStep1 = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            } else {
+                DisclosureGroup {
+                    ForEach(node.children) { child in
+                        DeckRowView(node: child, onDeckChanged: onDeckChanged)
+                    }
                 } label: {
-                    Label("Delete", systemImage: "trash")
+                    NavigationLink(value: deckInfo) {
+                        rowContent
+                    }
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button {
+                        renameText = node.name
+                        showRenamePrompt = true
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+                    .tint(.blue)
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmStep1 = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
             }
         }

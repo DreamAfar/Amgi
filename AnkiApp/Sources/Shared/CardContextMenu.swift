@@ -72,7 +72,7 @@ struct CardContextMenu: View {
         }
     }
 
-    private func performFlag(_ value: Int32) {
+    private func performFlag(_ value: UInt32) {
         do {
             try cardClient.flag(cardId, value)
             onSuccess?()
@@ -94,7 +94,7 @@ struct CardContextMenu: View {
         }
     }
 
-    private func flagButton(_ value: Int32, colorName: String) -> some View {
+    private func flagButton(_ value: UInt32, colorName: String) -> some View {
         Button(action: { performFlag(value) }) {
             Label("旗标\(value)（\(colorName)）", systemImage: "flag.fill")
         }

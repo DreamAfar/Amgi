@@ -1,6 +1,7 @@
 import SwiftUI
 import AnkiKit
 import AnkiClients
+import AnkiProto
 import Dependencies
 
 struct ReviewView: View {
