@@ -169,7 +169,7 @@ extension AnkiBackend {
     public enum Service {
         public static let sync: UInt32 = 1
         public static let collection: UInt32 = 3
-        public static let deckConfig: UInt32 = 6
+        public static let deckConfig: UInt32 = 11
         public static let cards: UInt32 = 5
         public static let decks: UInt32 = 7
         public static let scheduler: UInt32 = 13

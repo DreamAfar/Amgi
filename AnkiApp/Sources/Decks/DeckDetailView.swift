@@ -14,8 +14,7 @@ struct DeckDetailView: View {
     @State private var selectedChildDeck: DeckTreeNode?
     @State private var renameText = ""
     @State private var showRenamePrompt = false
-    @State private var showDeleteConfirmStep1 = false
-    @State private var showDeleteConfirmStep2 = false
+    @State private var showDeleteConfirm = false
     @State private var actionError: String?
     @State private var showActionError = false
 
@@ -71,19 +70,15 @@ struct DeckDetailView: View {
         } message: {
             Text(L("deck_rename_alert_message"))
         }
-        .alert(L("deck_delete_confirm1_title"), isPresented: $showDeleteConfirmStep1) {
-            Button(L("btn_cancel"), role: .cancel) {}
-            Button(L("btn_continue")) {
-                showDeleteConfirmStep2 = true
-            }
-        } message: {
-            Text(L("deck_delete_confirm1_message", selectedChildDeck?.name ?? ""))
-        }
-        .alert(L("deck_delete_confirm2_title"), isPresented: $showDeleteConfirmStep2) {
-            Button(L("btn_cancel"), role: .cancel) {}
+        .confirmationDialog(
+            L("deck_delete_confirm2_title"),
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
             Button(L("btn_confirm_delete"), role: .destructive) {
                 Task { await deleteChildDeck() }
             }
+            Button(L("btn_cancel"), role: .cancel) {}
         } message: {
             Text(L("deck_delete_confirm2_message", selectedChildDeck?.name ?? ""))
         }
@@ -169,7 +164,7 @@ struct DeckDetailView: View {
 
                     Button(role: .destructive) {
                         selectedChildDeck = child
-                        showDeleteConfirmStep1 = true
+                        showDeleteConfirm = true
                     } label: {
                         Label(L("deck_row_delete"), systemImage: "trash")
                     }

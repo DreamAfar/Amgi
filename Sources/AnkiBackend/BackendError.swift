@@ -2,9 +2,11 @@ public import AnkiProto
 public import Foundation
 import SwiftProtobuf
 
-public struct BackendError: Error, Sendable {
+public struct BackendError: LocalizedError, Sendable {
     public let kind: Anki_Backend_BackendError.Kind
     public let message: String
+
+    public var errorDescription: String? { message }
 
     public init(kind: Anki_Backend_BackendError.Kind, message: String) {
         self.kind = kind

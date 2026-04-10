@@ -95,29 +95,7 @@ struct NoteEditorView: View {
             }
         }
         .sheet(isPresented: $showTagPicker) {
-            NavigationStack {
-                List {
-                    ForEach(availableTags.sorted(), id: \.self) { tag in
-                        Button(action: { addTag(tag) }) {
-                            HStack {
-                                Text(tag)
-                                if tags.contains(tag) {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.blue)
-                                }
-                            }
-                        }
-                    }
-                }
-                .navigationTitle(L("note_editor_available_tags"))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(L("common_done")) { showTagPicker = false }
-                    }
-                }
-            }
+            tagPickerSheet
         }
         .alert(L("common_error"), isPresented: $showError) {
             Button(L("common_ok")) { }
@@ -127,6 +105,32 @@ struct NoteEditorView: View {
         .task { 
             loadNote()
             await loadAvailableTags()
+        }
+    }
+
+    private var tagPickerSheet: some View {
+        NavigationStack {
+            List {
+                ForEach(availableTags.sorted(), id: \.self) { tag in
+                    Button(action: { addTag(tag) }) {
+                        HStack {
+                            Text(tag)
+                            if tags.contains(tag) {
+                                Spacer()
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(L("note_editor_available_tags"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done")) { showTagPicker = false }
+                }
+            }
         }
     }
 

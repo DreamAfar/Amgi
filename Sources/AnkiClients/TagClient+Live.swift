@@ -22,17 +22,18 @@ extension TagClient: DependencyKey {
                         request: Anki_Generic_Empty()
                     )
                     
-                    // Flatten the tree to get all tag names
+                    // Flatten the tree to get all tag names with full paths
                     var tags: [String] = []
-                    func flatten(_ node: Anki_Tags_TagTreeNode) {
-                        tags.append(node.name)
+                    func flatten(_ node: Anki_Tags_TagTreeNode, parentPath: String) {
+                        let fullPath = parentPath.isEmpty ? node.name : "\(parentPath)::\(node.name)"
+                        tags.append(fullPath)
                         for child in node.children {
-                            flatten(child)
+                            flatten(child, parentPath: fullPath)
                         }
                     }
                     
                     for child in response.children {
-                        flatten(child)
+                        flatten(child, parentPath: "")
                     }
                     
                     logger.info("Retrieved \(tags.count) tags")
@@ -57,15 +58,16 @@ extension TagClient: DependencyKey {
                     request: Anki_Generic_Empty()
                 )
 
-                func contains(_ node: Anki_Tags_TagTreeNode, tag: String) -> Bool {
-                    if node.name.caseInsensitiveCompare(tag) == .orderedSame { return true }
+                func contains(_ node: Anki_Tags_TagTreeNode, tag: String, parentPath: String) -> Bool {
+                    let fullPath = parentPath.isEmpty ? node.name : "\(parentPath)::\(node.name)"
+                    if fullPath.caseInsensitiveCompare(tag) == .orderedSame { return true }
                     for child in node.children {
-                        if contains(child, tag: tag) { return true }
+                        if contains(child, tag: tag, parentPath: fullPath) { return true }
                     }
                     return false
                 }
 
-                if existing.children.contains(where: { contains($0, tag: normalized) }) {
+                if existing.children.contains(where: { contains($0, tag: normalized, parentPath: "") }) {
                     logger.info("Tag '\(normalized)' already exists")
                     return
                 }

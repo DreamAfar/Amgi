@@ -106,10 +106,22 @@ struct CardWebView: UIViewRepresentable {
         <body><div class="card">\(processedHTML)</div></body>
         </html>
         """
-        
-        // Use the current user's media directory as baseURL so relative src paths resolve.
-        let baseURL = Self.currentMediaDirectoryURL()
-        webView.loadHTMLString(styledHTML, baseURL: baseURL)
+
+        // WKWebView.loadHTMLString does NOT grant file system access for local
+        // resources (images, audio). We must write the HTML to a file inside
+        // the media directory and use loadFileURL with allowingReadAccessTo so
+        // that relative src paths (e.g. <img src="image.jpg">) resolve correctly.
+        guard let mediaDir = Self.currentMediaDirectoryURL() else {
+            webView.loadHTMLString(styledHTML, baseURL: nil)
+            return
+        }
+        let htmlFile = mediaDir.appendingPathComponent("_card.html")
+        do {
+            try styledHTML.write(to: htmlFile, atomically: true, encoding: .utf8)
+            webView.loadFileURL(htmlFile, allowingReadAccessTo: mediaDir)
+        } catch {
+            webView.loadHTMLString(styledHTML, baseURL: nil)
+        }
     }
 
     // MARK: - Helpers

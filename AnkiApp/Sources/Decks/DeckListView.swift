@@ -62,78 +62,13 @@ private struct DeckRowView: View {
     let onDeckChanged: () -> Void
 
     @State private var showRenamePrompt = false
-    @State private var showDeleteConfirmStep1 = false
-    @State private var showDeleteConfirmStep2 = false
+    @State private var showDeleteConfirm = false
     @State private var renameText = ""
     @State private var actionError: String?
     @State private var showActionError = false
 
     var body: some View {
-        Group {
-            if node.children.isEmpty {
-                if depth == 0 {
-                    NavigationLink(value: deckInfo) {
-                        rowContent
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            showDeleteConfirmStep1 = true
-                        } label: {
-                            Label(L("deck_row_delete"), systemImage: "trash")
-                        }
-
-                        Button {
-                            renameText = node.name
-                            showRenamePrompt = true
-                        } label: {
-                            Label(L("deck_row_rename"), systemImage: "pencil")
-                        }
-                        .tint(.blue)
-                    }
-                } else {
-                    NavigationLink(value: deckInfo) {
-                        rowContent
-                    }
-                }
-            } else {
-                if depth == 0 {
-                    DisclosureGroup {
-                        ForEach(node.children) { child in
-                            DeckRowView(node: child, depth: depth + 1, onDeckChanged: onDeckChanged)
-                        }
-                    } label: {
-                        NavigationLink(value: deckInfo) {
-                            rowContent
-                        }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            showDeleteConfirmStep1 = true
-                        } label: {
-                            Label(L("deck_row_delete"), systemImage: "trash")
-                        }
-
-                        Button {
-                            renameText = node.name
-                            showRenamePrompt = true
-                        } label: {
-                            Label(L("deck_row_rename"), systemImage: "pencil")
-                        }
-                        .tint(.blue)
-                    }
-                } else {
-                    DisclosureGroup {
-                        ForEach(node.children) { child in
-                            DeckRowView(node: child, depth: depth + 1, onDeckChanged: onDeckChanged)
-                        }
-                    } label: {
-                        NavigationLink(value: deckInfo) {
-                            rowContent
-                        }
-                    }
-                }
-            }
-        }
+        deckContent
         .alert(L("deck_rename_alert_title"), isPresented: $showRenamePrompt) {
             TextField(L("deck_rename_alert_placeholder"), text: $renameText)
             Button(L("btn_cancel"), role: .cancel) {}
@@ -143,19 +78,15 @@ private struct DeckRowView: View {
         } message: {
             Text(L("deck_rename_alert_message"))
         }
-        .alert(L("deck_delete_confirm1_title"), isPresented: $showDeleteConfirmStep1) {
-            Button(L("btn_cancel"), role: .cancel) {}
-            Button(L("btn_continue")) {
-                showDeleteConfirmStep2 = true
-            }
-        } message: {
-            Text(L("deck_delete_confirm1_message", node.name))
-        }
-        .alert(L("deck_delete_confirm2_title"), isPresented: $showDeleteConfirmStep2) {
-            Button(L("btn_cancel"), role: .cancel) {}
+        .confirmationDialog(
+            L("deck_delete_confirm2_title"),
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
             Button(L("btn_confirm_delete"), role: .destructive) {
                 Task { await deleteDeck() }
             }
+            Button(L("btn_cancel"), role: .cancel) {}
         } message: {
             Text(L("deck_delete_confirm2_message", node.name))
         }
@@ -163,6 +94,78 @@ private struct DeckRowView: View {
             Button(L("btn_got_it"), role: .cancel) {}
         } message: {
             Text(actionError ?? L("label_error_unknown"))
+        }
+    }
+
+    @ViewBuilder
+    private var deckContent: some View {
+        if node.children.isEmpty {
+            leafRow
+        } else {
+            parentRow
+        }
+    }
+
+    @ViewBuilder
+    private var leafRow: some View {
+        if depth == 0 {
+            NavigationLink(value: deckInfo) {
+                rowContent
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                swipeButtons
+            }
+        } else {
+            NavigationLink(value: deckInfo) {
+                rowContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var parentRow: some View {
+        if depth == 0 {
+            DisclosureGroup {
+                childrenList
+            } label: {
+                NavigationLink(value: deckInfo) {
+                    rowContent
+                }
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                swipeButtons
+            }
+        } else {
+            DisclosureGroup {
+                childrenList
+            } label: {
+                NavigationLink(value: deckInfo) {
+                    rowContent
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var swipeButtons: some View {
+        Button(role: .destructive) {
+            showDeleteConfirm = true
+        } label: {
+            Label(L("deck_row_delete"), systemImage: "trash")
+        }
+
+        Button {
+            renameText = node.name
+            showRenamePrompt = true
+        } label: {
+            Label(L("deck_row_rename"), systemImage: "pencil")
+        }
+        .tint(.blue)
+    }
+
+    private var childrenList: some View {
+        ForEach(node.children) { child in
+            DeckRowView(node: child, depth: depth + 1, onDeckChanged: onDeckChanged)
         }
     }
 
