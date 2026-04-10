@@ -100,6 +100,39 @@ final class ReviewSession {
         }
     }
 
+    /// Refresh queue after a card mutation (like flag/edit) while trying to keep current card.
+    func refreshAfterCardMutation() async {
+        let currentId = currentQueuedCard?.card.id
+
+        do {
+            var req = Anki_Scheduler_GetQueuedCardsRequest()
+            req.fetchLimit = 200
+            let response: Anki_Scheduler_QueuedCards = try backend.invoke(
+                service: AnkiBackend.Service.scheduler,
+                method: AnkiBackend.SchedulerMethod.getQueuedCards,
+                request: req
+            )
+
+            cardQueue = response.cards
+            remainingCounts = DeckCounts(
+                newCount: Int(response.newCount),
+                learnCount: Int(response.learningCount),
+                reviewCount: Int(response.reviewCount)
+            )
+
+            if let currentId,
+               let retained = cardQueue.first(where: { $0.card.id == currentId }) {
+                currentQueuedCard = retained
+                showAnswer = true
+                renderCurrentCard(retained)
+            } else {
+                advanceToNextCard()
+            }
+        } catch {
+            print("[ReviewSession] Mutation refresh failed: \(error)")
+        }
+    }
+
     func revealAnswer() {
         showAnswer = true
     }
@@ -175,10 +208,22 @@ final class ReviewSession {
         showAnswer = false
         reviewStartTime = .now
 
-        // Render the card using Rust backend
+        renderCurrentCard(next)
+
+        // Extract next intervals from scheduling states
+        let states = next.states
+        nextIntervals = [
+            .again: formatInterval(scheduledSecs(states.again)),
+            .hard: formatInterval(scheduledSecs(states.hard)),
+            .good: formatInterval(scheduledSecs(states.good)),
+            .easy: formatInterval(scheduledSecs(states.easy)),
+        ]
+    }
+
+    private func renderCurrentCard(_ queued: Anki_Scheduler_QueuedCards.QueuedCard) {
         do {
             var renderReq = Anki_CardRendering_RenderExistingCardRequest()
-            renderReq.cardID = next.card.id
+            renderReq.cardID = queued.card.id
             renderReq.browser = false
 
             let rendered: Anki_CardRendering_RenderCardResponse = try backend.invoke(
@@ -196,19 +241,10 @@ final class ReviewSession {
                 backHTML = cssTag + backHTML
             }
         } catch {
-            print("[ReviewSession] Render failed for card \(next.card.id): \(error)")
+            print("[ReviewSession] Render failed for card \(queued.card.id): \(error)")
             frontHTML = "<p>Error rendering card</p>"
             backHTML = "<p>Error rendering card</p>"
         }
-
-        // Extract next intervals from scheduling states
-        let states = next.states
-        nextIntervals = [
-            .again: formatInterval(scheduledSecs(states.again)),
-            .hard: formatInterval(scheduledSecs(states.hard)),
-            .good: formatInterval(scheduledSecs(states.good)),
-            .easy: formatInterval(scheduledSecs(states.easy)),
-        ]
     }
 
     /// Extract the next interval from the scheduling state.

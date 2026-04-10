@@ -6,10 +6,9 @@ import Dependencies
 @MainActor
 struct CardContextMenu: View {
     let cardId: Int64
-    var onSuccess: (() -> Void)?
+    var onSuccess: ((_ shouldAdvance: Bool) -> Void)?
     
     @Dependency(\.cardClient) var cardClient
-    @Environment(\.dismiss) var dismiss
     
     @State private var errorMessage: String?
     @State private var showError = false
@@ -24,7 +23,15 @@ struct CardContextMenu: View {
                 Label("Bury", systemImage: "books.vertical")
             }
             
-            Button(action: performFlag) {
+            Menu {
+                flagButton(1, colorName: "红色")
+                flagButton(2, colorName: "橙色")
+                flagButton(3, colorName: "绿色")
+                flagButton(4, colorName: "蓝色")
+                flagButton(5, colorName: "粉色")
+                flagButton(6, colorName: "青色")
+                flagButton(7, colorName: "紫色")
+            } label: {
                 Label("Flag", systemImage: "flag.fill")
             }
             
@@ -45,8 +52,7 @@ struct CardContextMenu: View {
     private func performSuspend() {
         do {
             try cardClient.suspend(cardId)
-            dismiss()
-            onSuccess?()
+            onSuccess?(true)
         } catch {
             errorMessage = "Failed to suspend card: \(error.localizedDescription)"
             showError = true
@@ -56,19 +62,17 @@ struct CardContextMenu: View {
     private func performBury() {
         do {
             try cardClient.bury(cardId)
-            dismiss()
-            onSuccess?()
+            onSuccess?(true)
         } catch {
             errorMessage = "Failed to bury card: \(error.localizedDescription)"
             showError = true
         }
     }
-    
-    private func performFlag() {
+
+    private func performFlag(_ value: Int32) {
         do {
-            try cardClient.flag(cardId, 1)  // Flag 1 (default red flag)
-            dismiss()
-            onSuccess?()
+            try cardClient.flag(cardId, value)
+            onSuccess?(false)
         } catch {
             errorMessage = "Failed to flag card: \(error.localizedDescription)"
             showError = true
@@ -78,11 +82,16 @@ struct CardContextMenu: View {
     private func performUndo() {
         do {
             try cardClient.undo()
-            dismiss()
-            onSuccess?()
+            onSuccess?(true)
         } catch {
             errorMessage = "Failed to undo: \(error.localizedDescription)"
             showError = true
+        }
+    }
+
+    private func flagButton(_ value: Int32, colorName: String) -> some View {
+        Button(action: { performFlag(value) }) {
+            Label("旗标\(value)（\(colorName)）", systemImage: "flag.fill")
         }
     }
 }

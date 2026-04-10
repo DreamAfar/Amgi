@@ -148,13 +148,15 @@ extension DeckClient: DependencyKey {
                         request: req
                     )
                     
-                    // Return the first config (usually there's only one active per deck)
                     if response.allConfig.isEmpty {
                         logger.warning("No deck configs found for deckId=\(deckId)")
                         return Anki_DeckConfig_DeckConfig()
                     }
-                    
-                    let config = response.allConfig[0].config
+
+                    // Match the current deck's active config first, then fallback to first.
+                    let currentConfigId = response.currentDeck.configID
+                    let config = response.allConfig.first(where: { $0.config.id == currentConfigId })?.config
+                        ?? response.allConfig[0].config
                     logger.info("Retrieved deck config for deckId=\(deckId): \(config.name)")
                     return config
                 } catch {
@@ -162,10 +164,13 @@ extension DeckClient: DependencyKey {
                     throw error
                 }
             },
-            updateDeckConfig: { config in
+            updateDeckConfig: { deckId, config in
                 // Update the deck configuration
                 var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
+                req.targetDeckID = deckId
                 req.configs = [config]
+                req.mode = .normal
+                req.fsrs = !config.config.fsrsParams6.isEmpty
                 
                 do {
                     try backend.callVoid(
@@ -173,9 +178,9 @@ extension DeckClient: DependencyKey {
                         method: AnkiBackend.DeckConfigMethod.updateDeckConfigs,
                         request: req
                     )
-                    logger.info("Updated deck config: \(config.name)")
+                    logger.info("Updated deck config for deckId=\(deckId): \(config.name)")
                 } catch {
-                    logger.error("updateDeckConfig failed for \(config.name): \(error)")
+                    logger.error("updateDeckConfig failed for deckId=\(deckId), config=\(config.name): \(error)")
                     throw error
                 }
             }

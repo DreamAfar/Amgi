@@ -1,11 +1,18 @@
 import SwiftUI
 import AnkiKit
+import AnkiClients
+import Dependencies
 
 struct ReviewView: View {
     let deckId: Int64
     let onDismiss: () -> Void
 
+    @Dependency(\.noteClient) var noteClient
+
     @State private var session: ReviewSession
+    @State private var editingNote: NoteRecord?
+    @State private var showEditSheet = false
+    @State private var showCardInfo = false
 
     init(deckId: Int64, onDismiss: @escaping () -> Void) {
         self.deckId = deckId
@@ -37,31 +44,44 @@ struct ReviewView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") { onDismiss() }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("编辑") {
+                        Task { await openEditorForCurrentCard() }
+                    }
+                    .disabled(session.currentCard == nil)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showCardInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .disabled(session.currentCard == nil)
+                }
             }
         }
         .task {
             session.start()
+        }
+        .sheet(isPresented: $showEditSheet) {
+            if let editingNote {
+                NavigationStack {
+                    NoteEditorView(note: editingNote) {
+                        Task { await session.refreshAfterCardMutation() }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showCardInfo) {
+            if let queued = session.currentCard {
+                ReviewCardInfoSheet(queuedCard: queued)
+            }
         }
     }
 
     @ViewBuilder
     private var cardView: some View {
         VStack(spacing: 0) {
-            HStack {
-                if !session.isFinished && session.currentCard != nil {
-                    CardContextMenu(
-                        cardId: session.currentCard?.card.id ?? 0,
-                        onSuccess: {
-                            // After card action, refresh queue and advance
-                            session.refreshAndAdvance()
-                        }
-                    )
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            
             if session.showAnswer {
                 CardWebView(html: session.backHTML)
             } else {
@@ -71,6 +91,24 @@ struct ReviewView: View {
             Spacer()
 
             if session.showAnswer {
+                HStack {
+                    Spacer()
+                    if !session.isFinished, let current = session.currentCard {
+                        CardContextMenu(
+                            cardId: current.card.id,
+                            onSuccess: { shouldAdvance in
+                                if shouldAdvance {
+                                    session.refreshAndAdvance()
+                                } else {
+                                    Task { await session.refreshAfterCardMutation() }
+                                }
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+
                 answerButtons
             } else {
                 Button {
@@ -148,6 +186,50 @@ struct ReviewView: View {
             Button("Done") { onDismiss() }
                 .buttonStyle(.borderedProminent)
                 .padding()
+        }
+    }
+
+    private func openEditorForCurrentCard() async {
+        guard let noteId = session.currentCard?.card.noteID else { return }
+        guard let note = try? noteClient.fetch(noteId) else { return }
+        editingNote = note
+        showEditSheet = true
+    }
+}
+
+private struct ReviewCardInfoSheet: View {
+    let queuedCard: Anki_Scheduler_QueuedCards.QueuedCard
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                row("Card ID", "\(queuedCard.card.id)")
+                row("Note ID", "\(queuedCard.card.noteID)")
+                row("Deck ID", "\(queuedCard.card.deckID)")
+                row("Queue", "\(queuedCard.card.queue)")
+                row("Due", "\(queuedCard.card.due)")
+                row("Interval", "\(queuedCard.card.interval)")
+                row("Reps", "\(queuedCard.card.reps)")
+                row("Lapses", "\(queuedCard.card.lapses)")
+                row("Flags", "\(queuedCard.card.flags)")
+            }
+            .navigationTitle("Card Info")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func row(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
         }
     }
 }

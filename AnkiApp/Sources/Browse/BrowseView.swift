@@ -6,6 +6,8 @@ import Dependencies
 struct BrowseView: View {
     @Dependency(\.noteClient) var noteClient
     @Dependency(\.deckClient) var deckClient
+    @Dependency(\.cardClient) var cardClient
+    @Environment(\.editMode) private var editMode
 
     @State private var searchText = ""
     @State private var allNotes: [NoteRecord] = []
@@ -21,30 +23,49 @@ struct BrowseView: View {
     @State private var selectedNoteForDelete: NoteRecord?
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
+    @State private var showTagsManager = false
+    @State private var selectedNoteIDs = Set<Int64>()
+    @State private var isBatchWorking = false
+    @State private var batchErrorMessage: String?
+    @State private var showBatchError = false
 
-    private let pageSize = 50
+                List(selection: $selectedNoteIDs) {
 
-    var body: some View {
-        Group {
-            if notes.isEmpty && !isLoading && searchText.isEmpty && activeDeck == nil {
-                ContentUnavailableView(
-                    "Browse Notes",
-                    systemImage: "magnifyingglass",
-                    description: Text("Search by content, tags, or filter by deck.")
-                )
-            } else if notes.isEmpty && !isLoading {
-                ContentUnavailableView.search(text: searchText)
-            } else {
-                List {
-                    ForEach(notes, id: \.id) { note in
-                        NavigationLink(value: note) {
+                        if isEditing {
                             NoteRowView(note: note)
+                                .tag(note.id)
                                 .onAppear {
                                     // Lazy-load stub notes when they appear on screen
                                     if note.sfld == "Loading..." {
                                         Task { await fetchNoteDetails(id: note.id) }
                                     }
                                     // Paging: load next batch near the end
+                                    if note.id == notes.last?.id {
+                                        Task { await loadNextPage() }
+                                    }
+                                    }
+                        } else {
+                            NavigationLink(value: note) {
+                                NoteRowView(note: note)
+                                    .onAppear {
+                                        // Lazy-load stub notes when they appear on screen
+                                        if note.sfld == "Loading..." {
+                                            Task { await fetchNoteDetails(id: note.id) }
+                                        }
+                                        // Paging: load next batch near the end
+                                        if note.id == notes.last?.id {
+                                            Task { await loadNextPage() }
+                                        }
+                                    }
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    selectedNoteForDelete = note
+                                    showDeleteConfirm = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                                     if note.id == notes.last?.id {
                                         Task { await loadNextPage() }
                                     }
@@ -89,7 +110,37 @@ struct BrowseView: View {
                     Image(systemName: "plus")
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                EditButton()
+
+                Button {
+                    showTagsManager = true
+                } label: {
+                    Image(systemName: "tag")
+                }
+
+                if !selectedNoteIDs.isEmpty {
+                    Menu {
+                        Menu("批量标记") {
+                            Button("旗标1（红）") { Task { await batchFlag(1) } }
+                            Button("旗标2（橙）") { Task { await batchFlag(2) } }
+                            Button("旗标3（绿）") { Task { await batchFlag(3) } }
+                            Button("旗标4（蓝）") { Task { await batchFlag(4) } }
+                            Button("旗标5（粉）") { Task { await batchFlag(5) } }
+                            Button("旗标6（青）") { Task { await batchFlag(6) } }
+                            Button("旗标7（紫）") { Task { await batchFlag(7) } }
+                        }
+
+                        Button("批量暂停") { Task { await batchSuspend() } }
+                        Button("批量搁置") { Task { await batchBury() } }
+                        Divider()
+                        Button("清空选择", role: .cancel) { selectedNoteIDs.removeAll() }
+                    } label: {
+                        Image(systemName: isBatchWorking ? "hourglass" : "ellipsis.circle")
+                    }
+                    .disabled(isBatchWorking)
+                }
+
                 if !notes.isEmpty {
                     Text("\(allNotes.count) notes")
                         .font(.caption)
@@ -102,6 +153,9 @@ struct BrowseView: View {
                 Task { await performSearch() }
             }
         }
+        .sheet(isPresented: $showTagsManager) {
+            TagsView()
+        }
         .alert("Delete Note?", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -113,6 +167,11 @@ struct BrowseView: View {
             if let note = selectedNoteForDelete {
                 Text("Are you sure you want to delete '\(note.sfld)'?")
             }
+        }
+        .alert("批量操作失败", isPresented: $showBatchError) {
+            Button("知道了", role: .cancel) {}
+        } message: {
+            Text(batchErrorMessage ?? "未知错误")
         }
         .safeAreaInset(edge: .top) {
             if !allDecks.isEmpty {
@@ -130,6 +189,10 @@ struct BrowseView: View {
             await loadDecks()
             await performSearch()
         }
+    }
+
+    private var isEditing: Bool {
+        editMode?.wrappedValue.isEditing == true
     }
 
     // MARK: - Deck Filter
@@ -293,6 +356,50 @@ struct BrowseView: View {
             parts.append(trimmed)
         }
         return parts.joined(separator: " ")
+    }
+
+    private func batchFlag(_ flag: Int32) async {
+        await performBatchAction { cardId in
+            try cardClient.flag(cardId, flag)
+        }
+    }
+
+    private func batchSuspend() async {
+        await performBatchAction { cardId in
+            try cardClient.suspend(cardId)
+        }
+    }
+
+    private func batchBury() async {
+        await performBatchAction { cardId in
+            try cardClient.bury(cardId)
+        }
+    }
+
+    private func performBatchAction(_ action: (Int64) throws -> Void) async {
+        guard !selectedNoteIDs.isEmpty else { return }
+        isBatchWorking = true
+        defer { isBatchWorking = false }
+
+        do {
+            var allCardIDs = Set<Int64>()
+            for noteId in selectedNoteIDs {
+                let cards = try cardClient.fetchByNote(noteId)
+                for card in cards {
+                    allCardIDs.insert(card.id)
+                }
+            }
+
+            for cardId in allCardIDs {
+                try action(cardId)
+            }
+
+            selectedNoteIDs.removeAll()
+            await performSearch()
+        } catch {
+            batchErrorMessage = error.localizedDescription
+            showBatchError = true
+        }
     }
 }
 
