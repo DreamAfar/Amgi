@@ -23,13 +23,13 @@ struct CardCountsChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Card Counts").font(.headline)
+                Text(L("stats_card_counts_title")).font(.headline)
                 Spacer()
                 Text("\(total) total").font(.caption).foregroundStyle(.secondary)
             }
 
             if chartData.isEmpty {
-                Text("No cards").foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_card_counts_empty")).foregroundStyle(.secondary).frame(height: 180)
             } else {
                 Chart(chartData, id: \.name) { item in
                     SectorMark(

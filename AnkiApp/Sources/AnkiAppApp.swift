@@ -7,44 +7,77 @@ import Foundation
 @main
 struct AnkiAppApp: App {
     @State private var onboardingCompleted = UserDefaults.standard.bool(forKey: "onboardingCompleted")
+    private let startupErrorMessage: String?
+    @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
+
+    private var currentLocale: Locale {
+        (AppLanguage(rawValue: appLanguageRaw) ?? .system).locale
+    }
 
     init() {
-        try! prepareDependencies {
-            let backend = try AnkiBackend(preferredLangs: ["en"])
+        do {
+            try prepareDependencies {
+                let backend = try AnkiBackend(preferredLangs: ["en"])
 
-            let appSupport = FileManager.default.urls(
-                for: .applicationSupportDirectory, in: .userDomainMask
-            ).first!
-            let ankiDir = appSupport.appendingPathComponent("AnkiCollection", isDirectory: true)
-            try FileManager.default.createDirectory(at: ankiDir, withIntermediateDirectories: true)
+                let selectedUser = AppUserStore.loadSelectedUser()
+                let urls = AppUserStore.collectionURLs(for: selectedUser)
 
-            let collectionPath = ankiDir.appendingPathComponent("collection.anki2").path
-            let mediaPath = ankiDir.appendingPathComponent("media").path
-            let mediaDbPath = ankiDir.appendingPathComponent("media.db").path
-            try FileManager.default.createDirectory(
-                atPath: mediaPath, withIntermediateDirectories: true
-            )
+                try FileManager.default.createDirectory(
+                    at: urls.directory,
+                    withIntermediateDirectories: true
+                )
+                try FileManager.default.createDirectory(
+                    at: urls.mediaDirectory,
+                    withIntermediateDirectories: true
+                )
 
-            try backend.openCollection(
-                collectionPath: collectionPath,
-                mediaFolderPath: mediaPath,
-                mediaDbPath: mediaDbPath
-            )
+                try backend.openCollection(
+                    collectionPath: urls.collection.path,
+                    mediaFolderPath: urls.mediaDirectory.path,
+                    mediaDbPath: urls.mediaDB.path
+                )
 
-            // Run CheckDatabase to repair any inconsistencies after sync/migration
-            // CollectionService = service 2, CheckDatabase = method 0
-            _ = try? backend.call(service: 2, method: 0)
+                // Run CheckDatabase to repair any inconsistencies after sync/migration
+                // CollectionService = service 2, CheckDatabase = method 0
+                _ = try? backend.call(
+                    service: AnkiBackend.Service.checkDatabase,
+                    method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+                )
 
-            $0.ankiBackend = backend
+                $0.ankiBackend = backend
+            }
+            startupErrorMessage = nil
+        } catch {
+            startupErrorMessage = "Startup failed: \(error.localizedDescription)"
         }
     }
 
     var body: some Scene {
         WindowGroup {
-            if onboardingCompleted {
-                ContentView()
-            } else {
-                OnboardingView(isCompleted: $onboardingCompleted)
+            Group {
+                if let startupErrorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.orange)
+                        Text(L("app_unable_to_start"))
+                            .font(.headline)
+                        Text(startupErrorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                } else if onboardingCompleted {
+                    ContentView()
+                } else {
+                    OnboardingView(isCompleted: $onboardingCompleted)
+                }
+            }
+            .environment(\.locale, currentLocale)
+            .onChange(of: appLanguageRaw) { _, newValue in
+                let lang = AppLanguage(rawValue: newValue) ?? .system
+                LanguageManager.shared.apply(lang)
             }
         }
     }

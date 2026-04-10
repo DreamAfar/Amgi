@@ -37,10 +37,10 @@ struct IntervalsChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Review Intervals").font(.headline)
+            Text(L("stats_intervals_title")).font(.headline)
 
             if buckets.isEmpty {
-                Text("No interval data").foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_intervals_empty")).foregroundStyle(.secondary).frame(height: 180)
             } else {
                 Chart(buckets) { bucket in
                     BarMark(

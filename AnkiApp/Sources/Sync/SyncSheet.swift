@@ -34,7 +34,7 @@ struct SyncSheet: View {
                 Spacer()
                 switch syncState {
                 case .idle:
-                    ProgressView("Preparing sync...")
+                    ProgressView(L("sync_preparing"))
                 case .syncing(let message):
                     ProgressView(message)
                 case .success(let summary):
@@ -49,11 +49,11 @@ struct SyncSheet: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle("Sync")
+            .navigationTitle(L("sync_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { isPresented = false }
+                    Button(L("sync_btn_done")) { isPresented = false }
                 }
             }
         }
@@ -76,7 +76,7 @@ struct SyncSheet: View {
             if let endpoint = KeychainHelper.loadEndpoint() {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Server")
+                        Text(L("sync_label_server"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(endpoint)
@@ -92,10 +92,10 @@ struct SyncSheet: View {
                     }
                     Spacer()
                     Menu {
-                        Button("Change Server") {
+                        Button(L("sync_menu_change_server")) {
                             showServerSetup = true
                         }
-                        Button("Logout", role: .destructive) {
+                        Button(L("sync_menu_logout"), role: .destructive) {
                             logout()
                         }
                     } label: {
@@ -106,11 +106,11 @@ struct SyncSheet: View {
                 .padding(.horizontal)
             } else if syncMode == "local" {
                 HStack {
-                    Label("Syncing is disabled", systemImage: "iphone")
+                    Label(L("sync_local_mode_label"), systemImage: "iphone")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Set Up Server") {
+                    Button(L("sync_btn_setup_server")) {
                         showServerSetup = true
                     }
                     .font(.caption)
@@ -131,11 +131,11 @@ struct SyncSheet: View {
             return
         }
 
-        syncState = .syncing("Syncing...")
+        syncState = .syncing(L("sync_syncing"))
 
         do {
             let summary = try await syncClient.sync()
-            syncState = .syncing("Syncing media...")
+            syncState = .syncing(L("sync_syncing_media"))
             _ = try? await syncClient.syncMedia()
             syncState = .success(summary)
         } catch let syncError as SyncError where syncError == .authFailed {
@@ -160,13 +160,13 @@ struct SyncSheet: View {
             Image(systemName: "server.rack")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
-            Text("No Server Configured")
+            Text(L("sync_no_server_title"))
                 .font(.title3.weight(.semibold))
-            Text("Set up a sync server to keep your collection in sync across devices.")
+            Text(L("sync_no_server_desc"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("Set Up Server") {
+            Button(L("sync_btn_setup_server")) {
                 showServerSetup = true
             }
             .buttonStyle(.borderedProminent)
@@ -179,15 +179,15 @@ struct SyncSheet: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(.green)
-            Text("Sync Complete")
+            Text(L("sync_complete_title"))
                 .font(.title3.weight(.semibold))
             VStack(alignment: .leading, spacing: 4) {
-                if summary.cardsPulled > 0 { Text("\u{2193} \(summary.cardsPulled) cards received") }
-                if summary.cardsPushed > 0 { Text("\u{2191} \(summary.cardsPushed) cards sent") }
-                if summary.notesPulled > 0 { Text("\u{2193} \(summary.notesPulled) notes received") }
-                if summary.notesPushed > 0 { Text("\u{2191} \(summary.notesPushed) notes sent") }
+                if summary.cardsPulled > 0 { Text(L("sync_cards_received", summary.cardsPulled)) }
+                if summary.cardsPushed > 0 { Text(L("sync_cards_sent", summary.cardsPushed)) }
+                if summary.notesPulled > 0 { Text(L("sync_notes_received", summary.notesPulled)) }
+                if summary.notesPushed > 0 { Text(L("sync_notes_sent", summary.notesPushed)) }
                 if summary.cardsPulled == 0 && summary.cardsPushed == 0 {
-                    Text("Everything up to date")
+                    Text(L("sync_up_to_date"))
                 }
             }
             .font(.caption)
@@ -201,13 +201,13 @@ struct SyncSheet: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(.orange)
-            Text("Sync Failed")
+            Text(L("sync_failed_title"))
                 .font(.title3.weight(.semibold))
             Text(message)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("Retry") {
+            Button(L("btn_retry")) {
                 Task { await startSync() }
             }
             .buttonStyle(.borderedProminent)
@@ -219,9 +219,9 @@ struct SyncSheet: View {
             Image(systemName: "arrow.triangle.2.circlepath")
                 .font(.system(size: 48))
                 .foregroundStyle(.orange)
-            Text("Full Sync Required")
+            Text(L("sync_full_required_title"))
                 .font(.title3.weight(.semibold))
-            Text("Your collection has changed in a way that requires replacing one copy entirely.")
+            Text(L("sync_full_required_desc"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -230,7 +230,7 @@ struct SyncSheet: View {
                 Button {
                     Task { await fullSync(.download) }
                 } label: {
-                    Label("Download from Server", systemImage: "arrow.down.circle")
+                    Label(L("sync_btn_download"), systemImage: "arrow.down.circle")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -238,7 +238,7 @@ struct SyncSheet: View {
                 Button {
                     Task { await fullSync(.upload) }
                 } label: {
-                    Label("Upload to Server", systemImage: "arrow.up.circle")
+                    Label(L("sync_btn_upload"), systemImage: "arrow.up.circle")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -248,7 +248,7 @@ struct SyncSheet: View {
 
     private func fullSync(_ direction: SyncDirection) async {
         syncState = .syncing(
-            direction == .download ? "Downloading collection..." : "Uploading collection..."
+            direction == .download ? L("sync_full_downloading") : L("sync_full_uploading")
         )
         do {
             try await syncClient.fullSync(direction)
@@ -271,28 +271,28 @@ private struct ServerSetupSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Server URL", text: $serverURL)
+                    TextField(L("onboarding_server_url_placeholder"), text: $serverURL)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                         .keyboardType(.URL)
                 } header: {
-                    Text("Sync Server")
+                    Text(L("sync_label_server"))
                 } footer: {
-                    Text("Enter the URL of your Anki sync server (e.g. https://sync.example.com).")
+                    Text(L("onboarding_footer"))
                 }
 
                 Section {
-                    Button("Save") {
+                    Button(L("btn_save")) {
                         save()
                     }
                     .disabled(serverURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .navigationTitle("Server Setup")
+            .navigationTitle(L("sync_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { isPresented = false }
+                    Button(L("btn_cancel")) { isPresented = false }
                 }
             }
         }

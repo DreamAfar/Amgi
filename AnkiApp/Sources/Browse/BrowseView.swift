@@ -7,6 +7,7 @@ struct BrowseView: View {
     @Dependency(\.noteClient) var noteClient
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.cardClient) var cardClient
+    @Dependency(\.tagClient) var tagClient
     @Environment(\.editMode) private var editMode
 
     @State private var searchText = ""
@@ -17,6 +18,8 @@ struct BrowseView: View {
     @State private var parentDeck: DeckInfo?
     /// The actual deck filter applied (could be parent or a subdeck)
     @State private var activeDeck: DeckInfo?
+    @State private var allTags: [String] = []
+    @State private var activeTag: String?
     @State private var isLoading = false
     @State private var hasMorePages = true
     @State private var showAddNote = false
@@ -39,9 +42,9 @@ struct BrowseView: View {
         Group {
             if notes.isEmpty && !isLoading && searchText.isEmpty && activeDeck == nil {
                 ContentUnavailableView(
-                    "Browse Notes",
+                    L("browse_nav_title"),
                     systemImage: "magnifyingglass",
-                    description: Text("Search by content, tags, or filter by deck.")
+                    description: Text(L("browse_empty_desc"))
                 )
             } else if notes.isEmpty && !isLoading {
                 ContentUnavailableView.search(text: searchText)
@@ -76,7 +79,7 @@ struct BrowseView: View {
                                     selectedNoteForDelete = note
                                     showDeleteConfirm = true
                                 } label: {
-                                    Label("Delete", systemImage: "trash")
+                                    Label(L("common_delete"), systemImage: "trash")
                                 }
                             }
                         }
@@ -114,7 +117,7 @@ struct BrowseView: View {
                 .clipShape(Capsule())
             }
         }
-        .navigationTitle("Browse")
+        .navigationTitle(L("browse_nav_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -128,28 +131,32 @@ struct BrowseView: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 EditButton()
 
-                Button {
-                    showTagsManager = true
-                } label: {
-                    Image(systemName: "tag")
-                }
-
                 if !selectedNoteIDs.isEmpty {
                     Menu {
-                        Menu("Batch Flag") {
-                            Button("Flag 1 (Red)") { Task { await batchFlag(1) } }
-                            Button("Flag 2 (Orange)") { Task { await batchFlag(2) } }
-                            Button("Flag 3 (Green)") { Task { await batchFlag(3) } }
-                            Button("Flag 4 (Blue)") { Task { await batchFlag(4) } }
-                            Button("Flag 5 (Pink)") { Task { await batchFlag(5) } }
-                            Button("Flag 6 (Cyan)") { Task { await batchFlag(6) } }
-                            Button("Flag 7 (Purple)") { Task { await batchFlag(7) } }
+                        Button {
+                            showTagsManager = true
+                        } label: {
+                            Label(L("browse_tag_manage"), systemImage: "tag")
                         }
 
-                        Button("Batch Suspend") { Task { await batchSuspend() } }
-                        Button("Batch Bury") { Task { await batchBury() } }
                         Divider()
-                        Button("Clear Selection", role: .cancel) { selectedNoteIDs.removeAll() }
+
+                        Menu(L("browse_batch_flags")) {
+                            Button(L("browse_flag_1")) { Task { await batchFlag(1) } }
+                            Button(L("browse_flag_2")) { Task { await batchFlag(2) } }
+                            Button(L("browse_flag_3")) { Task { await batchFlag(3) } }
+                            Button(L("browse_flag_4")) { Task { await batchFlag(4) } }
+                            Button(L("browse_flag_5")) { Task { await batchFlag(5) } }
+                            Button(L("browse_flag_6")) { Task { await batchFlag(6) } }
+                            Button(L("browse_flag_7")) { Task { await batchFlag(7) } }
+                            Divider()
+                            Button(L("browse_flag_clear")) { Task { await batchFlag(0) } }
+                        }
+
+                        Button(L("browse_batch_suspend")) { Task { await batchSuspend() } }
+                        Button(L("browse_batch_bury")) { Task { await batchBury() } }
+                        Divider()
+                        Button(L("browse_batch_clear_selection"), role: .cancel) { selectedNoteIDs.removeAll() }
                     } label: {
                         Image(systemName: isBatchWorking ? "hourglass" : "ellipsis.circle")
                     }
@@ -157,7 +164,7 @@ struct BrowseView: View {
                 }
 
                 if !notes.isEmpty {
-                    Text("\(allNotes.count) notes")
+                    Text(L("browse_note_count", allNotes.count))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -165,45 +172,55 @@ struct BrowseView: View {
 
             if isEditing {
                 ToolbarItemGroup(placement: .bottomBar) {
-                    Text("Selected: \(selectedNoteIDs.count)")
+                    Text(L("browse_selected_count", selectedNoteIDs.count))
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
                     Spacer()
 
-                    Button("Select Page") {
+                    Button(L("browse_select_page")) {
                         selectAllVisibleNotes()
                     }
                     .disabled(notes.isEmpty)
 
-                    Button("Select Filtered") {
+                    Button(L("browse_select_filtered")) {
                         selectAllFilteredNotes()
                     }
                     .disabled(allNotes.isEmpty)
 
-                    Button("Clear") {
+                    Button(L("browse_select_clear")) {
                         selectedNoteIDs.removeAll()
                     }
                     .disabled(selectedNoteIDs.isEmpty)
 
                     Menu {
-                        Menu("Batch Flag") {
-                            Button("Flag 1 (Red)") { Task { await batchFlag(1) } }
-                            Button("Flag 2 (Orange)") { Task { await batchFlag(2) } }
-                            Button("Flag 3 (Green)") { Task { await batchFlag(3) } }
-                            Button("Flag 4 (Blue)") { Task { await batchFlag(4) } }
-                            Button("Flag 5 (Pink)") { Task { await batchFlag(5) } }
-                            Button("Flag 6 (Cyan)") { Task { await batchFlag(6) } }
-                            Button("Flag 7 (Purple)") { Task { await batchFlag(7) } }
+                        Button {
+                            showTagsManager = true
+                        } label: {
+                            Label(L("browse_batch_manage_tags"), systemImage: "tag")
                         }
 
-                        Button("Batch Suspend") { Task { await batchSuspend() } }
-                        Button("Batch Bury") { Task { await batchBury() } }
+                        Divider()
+
+                        Menu(L("browse_batch_flag_menu")) {
+                            Button(L("browse_batch_flag_1")) { Task { await batchFlag(1) } }
+                            Button(L("browse_batch_flag_2")) { Task { await batchFlag(2) } }
+                            Button(L("browse_batch_flag_3")) { Task { await batchFlag(3) } }
+                            Button(L("browse_batch_flag_4")) { Task { await batchFlag(4) } }
+                            Button(L("browse_batch_flag_5")) { Task { await batchFlag(5) } }
+                            Button(L("browse_batch_flag_6")) { Task { await batchFlag(6) } }
+                            Button(L("browse_batch_flag_7")) { Task { await batchFlag(7) } }
+                            Divider()
+                            Button(L("browse_batch_flag_clear")) { Task { await batchFlag(0) } }
+                        }
+
+                        Button(L("browse_batch_suspend")) { Task { await batchSuspend() } }
+                        Button(L("browse_batch_bury")) { Task { await batchBury() } }
                     } label: {
                         if isBatchWorking {
                             ProgressView()
                         } else {
-                            Label("Batch", systemImage: "slider.horizontal.3")
+                            Label(L("browse_batch_menu_label"), systemImage: "slider.horizontal.3")
                         }
                     }
                     .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
@@ -215,45 +232,54 @@ struct BrowseView: View {
                 Task { await performSearch() }
             }
         }
-        .sheet(isPresented: $showTagsManager) {
-            TagsView()
+        .sheet(isPresented: $showTagsManager, onDismiss: {
+            Task {
+                await loadTags()
+                await performSearch()
+            }
+        }) {
+            TagsView(targetNoteIDs: Array(selectedNoteIDs))
         }
-        .alert("Delete Note?", isPresented: $showDeleteConfirm) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
+        .alert(L("browse_delete_title"), isPresented: $showDeleteConfirm) {
+            Button(L("common_cancel"), role: .cancel) { }
+            Button(L("common_delete"), role: .destructive) {
                 if let note = selectedNoteForDelete {
                     Task { await deleteNote(note) }
                 }
             }
         } message: {
             if let note = selectedNoteForDelete {
-                Text("Are you sure you want to delete '\(note.sfld)'?")
+                Text(L("browse_delete_confirm", note.sfld))
             }
         }
-        .alert("Batch Action Failed", isPresented: $showBatchError) {
-            Button("OK", role: .cancel) {}
+        .alert(L("browse_batch_failed_title"), isPresented: $showBatchError) {
+            Button(L("common_ok"), role: .cancel) {}
         } message: {
-            Text(batchErrorMessage ?? "Unknown error")
+            Text(batchErrorMessage ?? L("common_unknown_error"))
         }
-        .alert("Batch Action Completed", isPresented: $showBatchSuccess) {
-            Button("OK", role: .cancel) {}
+        .alert(L("browse_batch_success_title"), isPresented: $showBatchSuccess) {
+            Button(L("common_ok"), role: .cancel) {}
         } message: {
-            Text(batchSuccessMessage ?? "Completed")
+            Text(batchSuccessMessage ?? L("common_completed"))
         }
         .safeAreaInset(edge: .top) {
-            if !allDecks.isEmpty {
+            if !allDecks.isEmpty || !allTags.isEmpty {
                 deckFilterBar
             }
         }
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search notes...")
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: L("browse_search_placeholder"))
         .onChange(of: searchText) {
             Task { await performSearch() }
         }
         .onChange(of: activeDeck) {
             Task { await performSearch() }
         }
+        .onChange(of: activeTag) {
+            Task { await performSearch() }
+        }
         .task {
             await loadDecks()
+            await loadTags()
             await performSearch()
         }
     }
@@ -282,7 +308,7 @@ struct BrowseView: View {
             // Top-level deck chips
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    chipButton(label: "All", isSelected: activeDeck == nil) {
+                    chipButton(label: L("browse_filter_all"), isSelected: activeDeck == nil) {
                         parentDeck = nil
                         activeDeck = nil
                     }
@@ -306,7 +332,7 @@ struct BrowseView: View {
                     HStack(spacing: 8) {
                         // "All" chip = parent deck (includes subdecks)
                         chipButton(
-                            label: "All",
+                            label: L("browse_filter_all"),
                             isSelected: activeDeck?.id == parentDeck?.id,
                             small: true
                         ) {
@@ -319,6 +345,33 @@ struct BrowseView: View {
                                 small: true
                             ) {
                                 activeDeck = child
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                }
+            }
+
+            // Tag row
+            if !allTags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        chipButton(
+                            label: L("browse_filter_all"),
+                            isSelected: activeTag == nil,
+                            small: true
+                        ) {
+                            activeTag = nil
+                        }
+
+                        ForEach(allTags, id: \.self) { tag in
+                            chipButton(
+                                label: shortTagName(tag),
+                                isSelected: activeTag == tag,
+                                small: true
+                            ) {
+                                activeTag = tag
                             }
                         }
                     }
@@ -359,6 +412,18 @@ struct BrowseView: View {
             allDecks = try deckClient.fetchAll()
         } catch {
             allDecks = []
+        }
+    }
+
+    private func loadTags() async {
+        do {
+            allTags = try tagClient.getAllTags().sorted()
+            if let activeTag, !allTags.contains(activeTag) {
+                self.activeTag = nil
+            }
+        } catch {
+            allTags = []
+            activeTag = nil
         }
     }
 
@@ -416,6 +481,9 @@ struct BrowseView: View {
         if let deck = activeDeck {
             parts.append("deck:\"\(deck.name)\"")
         }
+        if let activeTag {
+            parts.append("tag:\"\(activeTag)\"")
+        }
         let trimmed = searchText.trimmingCharacters(in: .whitespaces)
         if !trimmed.isEmpty {
             parts.append(trimmed)
@@ -469,13 +537,13 @@ struct BrowseView: View {
             }
 
             if allCardIDs.isEmpty {
-                batchErrorMessage = "No cards found under selected notes."
+                batchErrorMessage = L("browse_batch_no_cards")
                 showBatchError = true
                 return
             }
 
             selectedNoteIDs.removeAll()
-            batchSuccessMessage = "Processed \(allCardIDs.count) cards from \(selectedNotesCount) notes."
+            batchSuccessMessage = L("browse_batch_processed", allCardIDs.count, selectedNotesCount)
             showBatchSuccess = true
             await performSearch()
         } catch {
@@ -498,17 +566,73 @@ struct BrowseView: View {
 struct NoteRowView: View {
     let note: NoteRecord
 
+    private var tagList: [String] {
+        note.tags
+            .split(separator: " ")
+            .map(String.init)
+            .filter { !$0.isEmpty }
+    }
+
+    private var modifiedDateString: String {
+        guard note.mod > 0 else { return "" }
+        let date = Date(timeIntervalSince1970: Double(note.mod))
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return L("common_today") }
+        if cal.isDateInYesterday(date) { return L("common_yesterday") }
+        let fmt = DateFormatter()
+        fmt.locale = .current
+        fmt.dateStyle = .short
+        fmt.timeStyle = .none
+        return fmt.string(from: date)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(note.sfld)
-                .font(.body)
-                .lineLimit(1)
-            if !note.tags.trimmingCharacters(in: .whitespaces).isEmpty {
-                Text(note.tags.trimmingCharacters(in: .whitespaces))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top) {
+                Text(note.sfld == "Loading..." ? L("common_loading") : note.sfld)
+                    .font(.body)
+                    .lineLimit(2)
+                    .redacted(reason: note.sfld == "Loading..." ? .placeholder : [])
+                Spacer(minLength: 4)
+                if !modifiedDateString.isEmpty && note.sfld != "Loading..." {
+                    Text(modifiedDateString)
+                        .font(.caption2)
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
+            }
+
+            if !tagList.isEmpty && note.sfld != "Loading..." {
+                let displayTags = Array(tagList.prefix(3))
+                let extra = tagList.count - displayTags.count
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(displayTags, id: \.self) { tag in
+                            Text(shortTagName(tag))
+                                .font(.caption2)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Color.accentColor.opacity(0.12))
+                                .foregroundStyle(Color.accentColor)
+                                .clipShape(Capsule())
+                        }
+                        if extra > 0 {
+                            Text("+\(extra)")
+                                .font(.caption2)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Color(.secondarySystemFill))
+                                .foregroundStyle(Color(.secondaryLabel))
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
+    }
+
+    private func shortTagName(_ tag: String) -> String {
+        // Show only the last component of a hierarchical tag (e.g. "日语::词汇" → "词汇")
+        String(tag.split(separator: "::").last ?? Substring(tag))
     }
 }

@@ -15,73 +15,76 @@ struct DebugView: View {
 
     var body: some View {
         List {
-            Section("Account") {
+            Section(L("debug_section_account")) {
                 HStack {
-                    Text("Username")
+                    Text(L("debug_username"))
                     Spacer()
-                    Text(KeychainHelper.loadUsername() ?? "Not logged in")
+                    Text(KeychainHelper.loadUsername() ?? L("debug_not_logged_in"))
                         .foregroundStyle(.secondary)
                 }
                 HStack {
-                    Text("Host Key")
+                    Text(L("debug_host_key"))
                     Spacer()
-                    Text(KeychainHelper.loadHostKey() != nil ? "Stored ✓" : "None")
+                    Text(KeychainHelper.loadHostKey() != nil ? L("debug_stored") : L("common_none"))
                         .foregroundStyle(.secondary)
                 }
-                Button("Logout (clear credentials)", role: .destructive) {
+                Button(L("debug_logout"), role: .destructive) {
                     KeychainHelper.deleteHostKey()
-                    statusMessage = "Logged out. Tap sync to re-login."
+                    statusMessage = L("debug_logged_out_msg")
                 }
             }
 
-            Section("Import / Export") {
-                Button("Export Collection (.colpkg)") {
+            Section(L("debug_section_import_export")) {
+                Button(L("debug_export_button")) {
                     do {
                         let url = try ImportHelper.exportCollection()
                         exportedFileURL = url
                         showShareSheet = true
-                        statusMessage = "Export ready: \(url.lastPathComponent)"
+                        statusMessage = L("debug_export_ready", url.lastPathComponent)
                     } catch {
-                        statusMessage = "Export error: \(error.localizedDescription)"
+                        statusMessage = L("debug_export_error", error.localizedDescription)
                     }
                 }
             }
 
-            Section("Database") {
-                Button("Check Database") {
+            Section(L("debug_section_database")) {
+                Button(L("debug_check_db")) {
                     do {
-                        let responseBytes = try backend.call(service: 2, method: 0)
-                        statusMessage = "CheckDatabase OK (\(responseBytes.count) bytes)"
+                        let responseBytes = try backend.call(
+                            service: AnkiBackend.Service.checkDatabase,
+                            method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+                        )
+                        statusMessage = L("debug_check_db_ok", responseBytes.count)
                     } catch {
-                        statusMessage = "CheckDatabase error: \(error)"
+                        statusMessage = L("debug_check_db_error", "\(error)")
                     }
                 }
 
-                Button("Reset Everything", role: .destructive) {
+                Button(L("debug_reset_button"), role: .destructive) {
                     showResetConfirm = true
                 }
-                .confirmationDialog("This will delete your local collection and credentials. You'll need to sync again.", isPresented: $showResetConfirm, titleVisibility: .visible) {
-                    Button("Reset", role: .destructive) {
+                .confirmationDialog(L("debug_reset_confirm_msg"), isPresented: $showResetConfirm, titleVisibility: .visible) {
+                    Button(L("debug_reset_confirm_button"), role: .destructive) {
                         resetEverything()
                     }
                 }
             }
 
             if !statusMessage.isEmpty {
-                Section("Status") {
+                Section(L("debug_section_status")) {
                     Text(statusMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section("Collection Info") {
-                Button("Dump Deck Tree") {
+            Section(L("debug_section_collection_info")) {
+                Button(L("debug_dump_deck_tree")) {
                     dumpDeckTree()
                 }
             }
         }
-        .navigationTitle("Debug")
+        .navigationTitle(L("debug_nav_title"))
         .sheet(isPresented: $showShareSheet) {
             if let url = exportedFileURL {
                 ShareSheet(items: [url])
@@ -111,7 +114,7 @@ struct DebugView: View {
             statusMessage = info
             print("[Debug] DeckTree:\n\(info)")
         } catch {
-            statusMessage = "DeckTree error: \(error)"
+            statusMessage = L("debug_deck_tree_error", "\(error)")
             print("[Debug] DeckTree error: \(error)")
         }
     }
@@ -131,6 +134,6 @@ struct DebugView: View {
         try? FileManager.default.removeItem(at: ankiDir)
 
         // Remove migration marker so it recreates fresh
-        statusMessage = "Reset complete. Please restart the app."
+        statusMessage = L("debug_reset_complete")
     }
 }

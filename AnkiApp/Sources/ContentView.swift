@@ -1,10 +1,13 @@
 import SwiftUI
 import AnkiSync
 import AnkiClients
+import AnkiBackend
 import Dependencies
+import Foundation
 
 struct ContentView: View {
     @Dependency(\.deckClient) var deckClient
+    @Dependency(\.ankiBackend) var backend
 
     @State private var showSync = false
     @State private var showImport = false
@@ -17,6 +20,9 @@ struct ContentView: View {
     @State private var showUserManager = false
     @State private var users: [String] = AppUserStore.loadUsers()
     @State private var selectedUser: String = AppUserStore.loadSelectedUser()
+    @State private var isSwitchingUser = false
+    @State private var userSwitchError: String?
+    @State private var showUserSwitchError = false
 
     private var isLocalMode: Bool {
         UserDefaults.standard.string(forKey: "syncMode") == "local"
@@ -24,7 +30,7 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            Tab("Decks", systemImage: "rectangle.stack") {
+            Tab(L("tab_decks"), systemImage: "rectangle.stack") {
                 NavigationStack {
                     DeckListView {
                         refreshID = UUID()
@@ -35,8 +41,7 @@ struct ContentView: View {
                                 Menu {
                                     ForEach(users, id: \.self) { user in
                                         Button {
-                                            selectedUser = user
-                                            AppUserStore.setSelectedUser(user)
+                                            Task { await switchUser(to: user) }
                                         } label: {
                                             if selectedUser == user {
                                                 Label(user, systemImage: "checkmark")
@@ -44,13 +49,14 @@ struct ContentView: View {
                                                 Text(user)
                                             }
                                         }
+                                        .disabled(isSwitchingUser)
                                     }
                                     Divider()
-                                    Button("用户管理设置") {
+                                    Button(L("menu_user_settings")) {
                                         showUserManager = true
                                     }
                                 } label: {
-                                    Label(selectedUser, systemImage: "person.crop.circle")
+                                    Label(selectedUser, systemImage: isSwitchingUser ? "arrow.triangle.2.circlepath.circle" : "person.crop.circle")
                                 }
                             }
                             ToolbarItem(placement: .topBarTrailing) {
@@ -62,15 +68,15 @@ struct ContentView: View {
                                     }
 
                                     Menu {
-                                        Button("添加牌组") {
+                                        Button(L("menu_add_deck")) {
                                             showAddDeckPrompt = true
                                         }
-                                        Button("导出牌组") {
+                                        Button(L("menu_export_deck")) {
                                             showExportNotice = true
                                         }
                                         if isLocalMode {
                                             Divider()
-                                            Button("导入 .apkg/.colpkg") {
+                                            Button(L("menu_import_apkg")) {
                                                 showImport = true
                                             }
                                         }
@@ -88,21 +94,15 @@ struct ContentView: View {
                         .id(refreshID)
                 }
             }
-            Tab("Stats", systemImage: "chart.bar") {
+            Tab(L("tab_stats"), systemImage: "chart.bar") {
                 NavigationStack {
                     StatsDashboardView()
                         .id(refreshID)
                 }
             }
-            Tab("Settings", systemImage: "gearshape") {
+            Tab(L("tab_settings"), systemImage: "gearshape") {
                 NavigationStack {
                     SettingsView()
-                        .id(refreshID)
-                }
-            }
-            Tab("Browse", systemImage: "magnifyingglass") {
-                NavigationStack {
-                    BrowseView()
                         .id(refreshID)
                 }
             }
@@ -118,26 +118,31 @@ struct ContentView: View {
         .fileImporter(isPresented: $showImport, allowedContentTypes: [.data]) { result in
             handleImport(result)
         }
-        .alert("新建牌组", isPresented: $showAddDeckPrompt) {
-            TextField("牌组名称", text: $newDeckName)
-            Button("取消", role: .cancel) {
+        .alert(L("alert_new_deck_title"), isPresented: $showAddDeckPrompt) {
+            TextField(L("alert_new_deck_placeholder"), text: $newDeckName)
+            Button(L("btn_cancel"), role: .cancel) {
                 newDeckName = ""
             }
-            Button("创建") {
+            Button(L("btn_create")) {
                 Task { await createDeck() }
             }
         } message: {
-            Text("请输入新牌组名称")
+            Text(L("alert_new_deck_message"))
         }
-        .alert("Import", isPresented: $showImportAlert) {
-            Button("OK") { }
+        .alert(L("alert_import_title"), isPresented: $showImportAlert) {
+            Button(L("btn_ok")) { }
         } message: {
             Text(importMessage ?? "")
         }
-        .alert("导出牌组", isPresented: $showExportNotice) {
-            Button("知道了", role: .cancel) {}
+        .alert(L("alert_export_deck_title"), isPresented: $showExportNotice) {
+            Button(L("btn_got_it"), role: .cancel) {}
         } message: {
-            Text("导出功能将在下一步完善。")
+            Text(L("alert_export_deck_message"))
+        }
+        .alert(L("deck_action_error_title"), isPresented: $showUserSwitchError) {
+            Button(L("btn_ok"), role: .cancel) {}
+        } message: {
+            Text(userSwitchError ?? L("label_error_unknown"))
         }
     }
 
@@ -152,12 +157,51 @@ struct ContentView: View {
         do {
             _ = try deckClient.create(name)
             refreshID = UUID()
-            importMessage = "牌组 \(name) 创建成功"
+            importMessage = L("alert_import_title") + ": \(name)"
             showImportAlert = true
             newDeckName = ""
         } catch {
-            importMessage = "创建牌组失败: \(error.localizedDescription)"
+            importMessage = "Create deck failed: \(error.localizedDescription)"
             showImportAlert = true
+        }
+    }
+
+    private func switchUser(to user: String) async {
+        guard user != selectedUser, !isSwitchingUser else { return }
+
+        isSwitchingUser = true
+        defer { isSwitchingUser = false }
+
+        do {
+            let urls = AppUserStore.collectionURLs(for: user)
+            try? backend.closeCollection()
+
+            try FileManager.default.createDirectory(
+                at: urls.directory,
+                withIntermediateDirectories: true
+            )
+            try FileManager.default.createDirectory(
+                at: urls.mediaDirectory,
+                withIntermediateDirectories: true
+            )
+
+            try backend.openCollection(
+                collectionPath: urls.collection.path,
+                mediaFolderPath: urls.mediaDirectory.path,
+                mediaDbPath: urls.mediaDB.path
+            )
+
+            _ = try? backend.call(
+                service: AnkiBackend.Service.checkDatabase,
+                method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+            )
+
+            selectedUser = user
+            AppUserStore.setSelectedUser(user)
+            refreshID = UUID()
+        } catch {
+            userSwitchError = error.localizedDescription
+            showUserSwitchError = true
         }
     }
 

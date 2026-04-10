@@ -14,29 +14,29 @@ struct OnboardingView: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.tint)
 
-            Text("Welcome")
+            Text(L("onboarding_welcome"))
                 .font(.largeTitle.weight(.bold))
 
-            Text("Choose how to sync your collection")
+            Text(L("onboarding_subtitle"))
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 12) {
                 if showServerSetup {
                     VStack(spacing: 12) {
-                        TextField("Server URL", text: $serverURL)
+                        TextField(L("onboarding_server_url_placeholder"), text: $serverURL)
                             .textFieldStyle(.roundedBorder)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                             .keyboardType(.URL)
                             .padding(.horizontal)
 
-                        Button("Continue") {
+                        Button(L("onboarding_btn_continue")) {
                             saveAndContinue()
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(serverURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-                        Button("Back") {
+                        Button(L("onboarding_btn_back")) {
                             showServerSetup = false
                         }
                         .foregroundStyle(.secondary)
@@ -45,7 +45,7 @@ struct OnboardingView: View {
                     Button {
                         showServerSetup = true
                     } label: {
-                        Label("Custom Server", systemImage: "server.rack")
+                        Label(L("onboarding_btn_custom_server"), systemImage: "server.rack")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -56,7 +56,7 @@ struct OnboardingView: View {
                         UserDefaults.standard.set(true, forKey: "onboardingCompleted")
                         isCompleted = true
                     } label: {
-                        Label("Use Locally", systemImage: "iphone")
+                        Label(L("onboarding_btn_use_local"), systemImage: "iphone")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -65,7 +65,7 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 32)
 
-            Text("You can change this anytime in sync settings")
+            Text(L("onboarding_footer"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

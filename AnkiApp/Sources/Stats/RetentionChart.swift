@@ -27,24 +27,24 @@ struct RetentionChart: View {
             )
         }
         return [
-            row("Today", trueRetention.today),
-            row("Yesterday", trueRetention.yesterday),
-            row("Week", trueRetention.week),
-            row("Month", trueRetention.month),
-            row("Year", trueRetention.year),
-            row("All Time", trueRetention.allTime),
+            row(L("common_today"), trueRetention.today),
+            row(L("stats_retention_yesterday"), trueRetention.yesterday),
+            row(L("stats_period_week"), trueRetention.week),
+            row(L("stats_period_month"), trueRetention.month),
+            row(L("stats_period_year"), trueRetention.year),
+            row(L("stats_period_all"), trueRetention.allTime),
         ]
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("True Retention").font(.headline)
+            Text(L("stats_retention_title")).font(.headline)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                 GridRow {
-                    Text("Period").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                    Text("Young").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                    Text("Mature").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(L("stats_retention_period")).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(L("stats_retention_young")).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(L("stats_retention_mature")).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 }
                 Divider()
                 ForEach(rows) { row in

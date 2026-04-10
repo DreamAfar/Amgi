@@ -19,23 +19,23 @@ struct TodayStatsCard: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                statItem(title: "Reviewed", value: "\(today.answerCount)", color: .primary)
+                statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: .primary)
                 Spacer()
-                statItem(title: "Time", value: formatTime(today.answerMillis), color: .primary)
+                statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: .primary)
                 Spacer()
-                statItem(title: "Correct", value: accuracy, color: .green)
+                statItem(title: L("stats_today_correct"), value: accuracy, color: .green)
                 Spacer()
-                statItem(title: "Mature", value: matureAccuracy, color: .purple)
+                statItem(title: L("stats_today_mature"), value: matureAccuracy, color: .purple)
             }
             Divider()
             HStack {
-                statBadge("New", count: today.learnCount, color: .cyan)
+                statBadge(L("stats_card_new"), count: today.learnCount, color: .cyan)
                 Spacer()
-                statBadge("Learn", count: today.relearnCount, color: .orange)
+                statBadge(L("stats_card_learn"), count: today.relearnCount, color: .orange)
                 Spacer()
-                statBadge("Review", count: today.reviewCount, color: .green)
+                statBadge(L("stats_card_review"), count: today.reviewCount, color: .green)
                 Spacer()
-                statBadge("Again", count: today.answerCount - today.correctCount, color: .red)
+                statBadge(L("stats_card_again"), count: today.answerCount - today.correctCount, color: .red)
             }
         }
         .padding()

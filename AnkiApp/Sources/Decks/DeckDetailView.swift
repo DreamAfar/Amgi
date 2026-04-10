@@ -10,6 +10,13 @@ struct DeckDetailView: View {
     @State private var childDecks: [DeckTreeNode] = []
     @State private var showReview = false
     @State private var showConfig = false
+    @State private var selectedChildDeck: DeckTreeNode?
+    @State private var renameText = ""
+    @State private var showRenamePrompt = false
+    @State private var showDeleteConfirmStep1 = false
+    @State private var showDeleteConfirmStep2 = false
+    @State private var actionError: String?
+    @State private var showActionError = false
 
     private var shortTitle: String {
         String(deck.name.split(separator: "::", omittingEmptySubsequences: true).last ?? Substring(deck.name))
@@ -20,7 +27,7 @@ struct DeckDetailView: View {
             Section {
                 HStack {
                     VStack(alignment: .leading) {
-                        Text("New")
+                        Text(L("deck_detail_count_new"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text("\(counts.newCount)")
@@ -29,7 +36,7 @@ struct DeckDetailView: View {
                     }
                     Spacer()
                     VStack(alignment: .leading) {
-                        Text("Learning")
+                        Text(L("deck_detail_count_learning"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text("\(counts.learnCount)")
@@ -38,7 +45,7 @@ struct DeckDetailView: View {
                     }
                     Spacer()
                     VStack(alignment: .leading) {
-                        Text("Review")
+                        Text(L("deck_detail_count_review"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text("\(counts.reviewCount)")
@@ -53,7 +60,7 @@ struct DeckDetailView: View {
                 Button {
                     showReview = true
                 } label: {
-                    Label("Study Now", systemImage: "play.fill")
+                    Label(L("deck_detail_study_now"), systemImage: "play.fill")
                         .frame(maxWidth: .infinity)
                         .font(.headline)
                 }
@@ -61,13 +68,30 @@ struct DeckDetailView: View {
             }
 
             if !childDecks.isEmpty {
-                Section("Subdecks") {
+                Section(L("deck_detail_subdecks")) {
                     ForEach(childDecks) { child in
                         NavigationLink(value: DeckInfo(id: child.id, name: child.fullName, counts: child.counts)) {
                             HStack {
                                 Text(child.name)
                                 Spacer()
                                 DeckCountsView(counts: child.counts)
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button {
+                                selectedChildDeck = child
+                                renameText = child.name
+                                showRenamePrompt = true
+                            } label: {
+                                Label(L("deck_row_rename"), systemImage: "pencil")
+                            }
+                            .tint(.blue)
+
+                            Button(role: .destructive) {
+                                selectedChildDeck = child
+                                showDeleteConfirmStep1 = true
+                            } label: {
+                                Label(L("deck_row_delete"), systemImage: "trash")
                             }
                         }
                     }
@@ -92,6 +116,36 @@ struct DeckDetailView: View {
                 showReview = false
                 Task { await loadCounts() }
             }
+        }
+        .alert(L("deck_rename_alert_title"), isPresented: $showRenamePrompt) {
+            TextField(L("deck_rename_alert_placeholder"), text: $renameText)
+            Button(L("btn_cancel"), role: .cancel) {}
+            Button(L("btn_save")) {
+                Task { await renameChildDeck() }
+            }
+        } message: {
+            Text(L("deck_rename_alert_message"))
+        }
+        .alert(L("deck_delete_confirm1_title"), isPresented: $showDeleteConfirmStep1) {
+            Button(L("btn_cancel"), role: .cancel) {}
+            Button(L("btn_continue")) {
+                showDeleteConfirmStep2 = true
+            }
+        } message: {
+            Text(L("deck_delete_confirm1_message", selectedChildDeck?.name ?? ""))
+        }
+        .alert(L("deck_delete_confirm2_title"), isPresented: $showDeleteConfirmStep2) {
+            Button(L("btn_cancel"), role: .cancel) {}
+            Button(L("btn_confirm_delete"), role: .destructive) {
+                Task { await deleteChildDeck() }
+            }
+        } message: {
+            Text(L("deck_delete_confirm2_message", selectedChildDeck?.name ?? ""))
+        }
+        .alert(L("deck_action_error_title"), isPresented: $showActionError) {
+            Button(L("btn_got_it"), role: .cancel) {}
+        } message: {
+            Text(actionError ?? L("label_error_unknown"))
         }
         .task {
             await loadCounts()
@@ -125,5 +179,33 @@ struct DeckDetailView: View {
             if !found.isEmpty { return found }
         }
         return []
+    }
+
+    private func renameChildDeck() async {
+        guard let child = selectedChildDeck else { return }
+        let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        do {
+            try deckClient.rename(child.id, trimmed)
+            await loadChildren()
+            await loadCounts()
+        } catch {
+            actionError = error.localizedDescription
+            showActionError = true
+        }
+    }
+
+    private func deleteChildDeck() async {
+        guard let child = selectedChildDeck else { return }
+        do {
+            try deckClient.delete(child.id)
+            selectedChildDeck = nil
+            await loadChildren()
+            await loadCounts()
+        } catch {
+            actionError = error.localizedDescription
+            showActionError = true
+        }
     }
 }

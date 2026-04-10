@@ -19,15 +19,15 @@ struct EaseChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Card Ease").font(.headline)
+                Text(L("stats_ease_title")).font(.headline)
                 Spacer()
-                Text("Avg: \(averageEase)")
+                Text(L("stats_ease_avg", averageEase))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
 
             if chartData.isEmpty {
-                Text("No ease data").foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_ease_empty")).foregroundStyle(.secondary).frame(height: 180)
             } else {
                 Chart(chartData, id: \.ease) { item in
                     BarMark(

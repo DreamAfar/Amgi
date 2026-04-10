@@ -19,6 +19,17 @@ enum StatsPeriod: String, CaseIterable, Sendable {
         }
     }
 
+    var localizedLabel: String {
+        switch self {
+        case .day: L("stats_period_day")
+        case .week: L("stats_period_week")
+        case .month: L("stats_period_month")
+        case .threeMonths: L("stats_period_3months")
+        case .year: L("stats_period_year")
+        case .all: L("stats_period_all")
+        }
+    }
+
     var shortLabel: String {
         switch self {
         case .day: "1D"
@@ -26,7 +37,7 @@ enum StatsPeriod: String, CaseIterable, Sendable {
         case .month: "1M"
         case .threeMonths: "3M"
         case .year: "1Y"
-        case .all: "All"
+        case .all: L("stats_period_all_short")
         }
     }
 }

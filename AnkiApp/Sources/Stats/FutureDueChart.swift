@@ -30,10 +30,10 @@ struct FutureDueChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Future Due").font(.headline)
+            Text(L("stats_future_due_title")).font(.headline)
 
             if filteredData.isEmpty {
-                Text("No cards due").foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_future_due_empty")).foregroundStyle(.secondary).frame(height: 180)
             } else {
                 Chart(filteredData, id: \.day) { item in
                     BarMark(
@@ -52,15 +52,15 @@ struct FutureDueChart: View {
             }
 
             if futureDue.haveBacklog {
-                Toggle("Include Backlog", isOn: $includeBacklog)
+                Toggle(L("stats_future_due_backlog"), isOn: $includeBacklog)
                     .font(.caption)
             }
 
             HStack(spacing: 16) {
-                footerItem("Total", value: "\(totalDue)")
-                footerItem("Avg/day", value: String(format: "%.1f", avgPerDay))
-                footerItem("Tomorrow", value: "\(dueTomorrow)")
-                footerItem("Daily Load", value: "\(futureDue.dailyLoad)")
+                footerItem(L("stats_total"), value: "\(totalDue)")
+                footerItem(L("stats_avg_day"), value: String(format: "%.1f", avgPerDay))
+                footerItem(L("stats_future_due_tomorrow"), value: "\(dueTomorrow)")
+                footerItem(L("stats_future_due_daily_load"), value: "\(futureDue.dailyLoad)")
             }
             .font(.caption2)
         }

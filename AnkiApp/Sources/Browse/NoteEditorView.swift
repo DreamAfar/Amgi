@@ -27,7 +27,7 @@ struct NoteEditorView: View {
 
     var body: some View {
         Form {
-            Section("Fields") {
+            Section(L("add_note_section_fields")) {
                 ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(name)
@@ -40,14 +40,14 @@ struct NoteEditorView: View {
                 }
             }
 
-            Section("Tags") {
-                TextField("Tags (space-separated)", text: $tags)
+            Section(L("add_note_section_tags")) {
+                TextField(L("add_note_tags_placeholder"), text: $tags)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                 
                 if !availableTags.isEmpty {
                     Button(action: { showTagPicker = true }) {
-                        Label("Select from available tags", systemImage: "ellipsis")
+                        Label(L("note_editor_select_tags"), systemImage: "ellipsis")
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .foregroundStyle(.blue)
@@ -55,7 +55,7 @@ struct NoteEditorView: View {
                 
                 if !tags.isEmpty {
                     HStack {
-                        Text("Current tags:")
+                        Text(L("note_editor_current_tags"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -70,11 +70,11 @@ struct NoteEditorView: View {
                 }
             }
         }
-        .navigationTitle("Edit Note")
+        .navigationTitle(L("note_editor_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
+                Button(L("note_editor_save")) {
                     Task { await save() }
                 }
                 .disabled(isSaving)
@@ -84,7 +84,7 @@ struct NoteEditorView: View {
             if showSavedConfirmation {
                 VStack {
                     Spacer()
-                    Text("✓ Saved")
+                    Text(L("note_editor_saved"))
                         .font(.subheadline.weight(.medium))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
@@ -110,19 +110,19 @@ struct NoteEditorView: View {
                         }
                     }
                 }
-                .navigationTitle("Available Tags")
+                .navigationTitle(L("note_editor_available_tags"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Done") { showTagPicker = false }
+                        Button(L("common_done")) { showTagPicker = false }
                     }
                 }
             }
         }
-        .alert("Error", isPresented: $showError) {
-            Button("OK") { }
+        .alert(L("common_error"), isPresented: $showError) {
+            Button(L("common_ok")) { }
         } message: {
-            Text(errorMessage ?? "Unknown error")
+            Text(errorMessage ?? L("common_unknown_error"))
         }
         .task { 
             loadNote()
@@ -145,12 +145,14 @@ struct NoteEditorView: View {
             var ntReq = Anki_Notetypes_NotetypeId()
             ntReq.ntid = note.mid
             let notetype: Anki_Notetypes_Notetype = try backend.invoke(
-                service: 23, method: 6, request: ntReq
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.getNotetype,
+                request: ntReq
             )
             fieldNames = notetype.fields.map(\.name)
         } catch {
             print("[NoteEditorView] Error loading notetype: \(error)")
-            errorMessage = "Failed to load note type"
+            errorMessage = L("common_failed_load_notetype")
             showError = true
         }
 
@@ -199,7 +201,7 @@ struct NoteEditorView: View {
             withAnimation { showSavedConfirmation = false }
             onSave()
         } catch {
-            errorMessage = "Failed to save note: \(error.localizedDescription)"
+            errorMessage = L("note_editor_error_save", error.localizedDescription)
             showError = true
         }
         isSaving = false

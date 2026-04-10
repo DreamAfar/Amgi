@@ -26,16 +26,16 @@ struct AddNoteView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Deck") {
-                    Picker("Deck", selection: $selectedDeckId) {
+                Section(L("add_note_section_deck")) {
+                    Picker(L("add_note_section_deck"), selection: $selectedDeckId) {
                         ForEach(decks) { deck in
                             Text(deck.name).tag(deck.id)
                         }
                     }
                 }
 
-                Section("Note Type") {
-                    Picker("Type", selection: $selectedNotetypeId) {
+                Section(L("add_note_section_type")) {
+                    Picker(L("add_note_type_label"), selection: $selectedNotetypeId) {
                         ForEach(notetypeNames, id: \.0) { id, name in
                             Text(name).tag(id)
                         }
@@ -45,7 +45,7 @@ struct AddNoteView: View {
                     }
                 }
 
-                Section("Fields") {
+                Section(L("add_note_section_fields")) {
                     ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(name)
@@ -57,8 +57,8 @@ struct AddNoteView: View {
                     }
                 }
 
-                Section("Tags") {
-                    TextField("Tags (space-separated)", text: $tags)
+                Section(L("add_note_section_tags")) {
+                    TextField(L("add_note_tags_placeholder"), text: $tags)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                 }
@@ -71,14 +71,14 @@ struct AddNoteView: View {
                     }
                 }
             }
-            .navigationTitle("Add Note")
+            .navigationTitle(L("add_note_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L("common_cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
+                    Button(L("add_note_button")) {
                         Task { await save() }
                     }
                     .disabled(isSaving || fieldValues.allSatisfy(\.isEmpty))
@@ -169,7 +169,7 @@ struct AddNoteView: View {
             onSave()
             dismiss()
         } catch {
-            errorMessage = "Failed to add note: \(error.localizedDescription)"
+            errorMessage = L("add_note_error_save", error.localizedDescription)
         }
 
         isSaving = false

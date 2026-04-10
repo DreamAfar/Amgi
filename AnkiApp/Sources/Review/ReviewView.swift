@@ -27,7 +27,7 @@ struct ReviewView: View {
                 HStack(spacing: 12) {
                     DeckCountsView(counts: session.remainingCounts)
                     Spacer()
-                    Text("\(session.sessionStats.reviewed) reviewed")
+                    Text(L("review_reviewed_count", session.sessionStats.reviewed))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -43,10 +43,10 @@ struct ReviewView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Done") { onDismiss() }
+                    Button(L("common_done")) { onDismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("编辑") {
+                    Button(L("review_edit_button")) {
                         Task { await openEditorForCurrentCard() }
                     }
                     .disabled(session.currentCard == nil)
@@ -115,7 +115,7 @@ struct ReviewView: View {
                 Button {
                     session.revealAnswer()
                 } label: {
-                    Text("Show Answer")
+                    Text(L("review_show_answer"))
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -155,10 +155,10 @@ struct ReviewView: View {
 
     private func ratingLabel(_ rating: Rating) -> String {
         switch rating {
-        case .again: "Again"
-        case .hard: "Hard"
-        case .good: "Good"
-        case .easy: "Easy"
+        case .again: L("review_rating_again")
+        case .hard: L("review_rating_hard")
+        case .good: L("review_rating_good")
+        case .easy: L("review_rating_easy")
         }
     }
 
@@ -175,16 +175,16 @@ struct ReviewView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(.green)
-            Text("Congratulations!")
+            Text(L("review_finished_title"))
                 .font(.title2.weight(.semibold))
-            Text("You've reviewed \(session.sessionStats.reviewed) cards")
+            Text(L("review_finished_count", session.sessionStats.reviewed))
                 .foregroundStyle(.secondary)
             if session.sessionStats.reviewed > 0 {
-                Text("Accuracy: \(Int(session.sessionStats.accuracy * 100))%")
+                Text(L("review_finished_accuracy", Int(session.sessionStats.accuracy * 100)))
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Done") { onDismiss() }
+            Button(L("common_done")) { onDismiss() }
                 .buttonStyle(.borderedProminent)
                 .padding()
         }
@@ -202,35 +202,118 @@ private struct ReviewCardInfoSheet: View {
     let queuedCard: Anki_Scheduler_QueuedCards.QueuedCard
     @Environment(\.dismiss) private var dismiss
 
+    private var card: Anki_Cards_Card { queuedCard.card }
+
     var body: some View {
         NavigationStack {
             List {
-                row("Card ID", "\(queuedCard.card.id)")
-                row("Note ID", "\(queuedCard.card.noteID)")
-                row("Deck ID", "\(queuedCard.card.deckID)")
-                row("Queue", "\(queuedCard.card.queue)")
-                row("Due", "\(queuedCard.card.due)")
-                row("Interval", "\(queuedCard.card.interval)")
-                row("Reps", "\(queuedCard.card.reps)")
-                row("Lapses", "\(queuedCard.card.lapses)")
-                row("Flags", "\(queuedCard.card.flags)")
+                // MARK: - 复习状态
+                Section(L("card_info_section_review_status")) {
+                    row(L("card_info_queue"), queueLabel(queuedCard.queue))
+                    row(L("card_info_interval"), formatInterval(Int(card.interval)))
+                    row(L("card_info_due"), dueDateString(card.due, queue: queuedCard.queue))
+                    row(L("card_info_reps"), "\(card.reps)")
+                    row(L("card_info_lapses"), "\(card.lapses)")
+                    if card.interval > 0 {
+                        row(L("card_info_ease"), String(format: "%.0f%%", Double(card.easeFactor) / 10.0))
+                    }
+                }
+
+                // MARK: - FSRS 状态（有 memoryState 时显示）
+                if card.hasMemoryState {
+                    Section(L("card_info_section_fsrs")) {
+                        row(L("card_info_stability"), String(format: L("card_info_stability_fmt"), card.memoryState.stability))
+                        row(L("card_info_difficulty"), String(format: "%.2f", card.memoryState.difficulty))
+                        if card.hasDesiredRetention {
+                            row(L("card_info_retention"), String(format: "%.0f%%", Double(card.desiredRetention) * 100))
+                        }
+                        if card.hasDecay {
+                            row(L("card_info_decay"), String(format: "%.4f", card.decay))
+                        }
+                        if card.hasLastReviewTimeSecs {
+                            row(L("card_info_last_review"), relativeDate(card.lastReviewTimeSecs))
+                        }
+                    }
+                }
+
+                // MARK: - ID 信息（技术参考）
+                Section(L("card_info_section_ids")) {
+                    row(L("card_info_card_id"), "\(card.id)")
+                    row(L("card_info_note_id"), "\(card.noteID)")
+                    row(L("card_info_deck_id"), "\(card.deckID)")
+                    row(L("card_info_template"), "\(card.templateIdx)")
+                    if card.flags != 0 {
+                        row(L("card_info_flags"), flagLabel(card.flags))
+                    }
+                }
             }
-            .navigationTitle("Card Info")
+            .navigationTitle(L("card_info_title"))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button(L("common_done")) { dismiss() }
                 }
             }
         }
     }
 
     private func row(_ title: String, _ value: String) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
+        LabeledContent(title) {
             Text(value)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
         }
+    }
+
+    private func queueLabel(_ queue: Anki_Scheduler_QueuedCards.Queue) -> String {
+        switch queue {
+        case .new: return L("card_queue_new")
+        case .learning: return L("card_queue_learning")
+        case .review: return L("card_queue_review")
+        case .UNRECOGNIZED(let v): return L("card_queue_unknown", v)
+        }
+    }
+
+    private func formatInterval(_ days: Int) -> String {
+        if days == 0 { return L("card_interval_less_than_1d") }
+        if days < 30 { return L("card_interval_days", days) }
+        if days < 365 { return L("card_interval_months", days / 30) }
+        return L("card_interval_years", Double(days) / 365.0)
+    }
+
+    private func dueDateString(_ due: Int32, queue: Anki_Scheduler_QueuedCards.Queue) -> String {
+        switch queue {
+        case .new:
+            return L("card_due_position", due)
+        case .learning:
+            // due is Unix timestamp for learning cards
+            let date = Date(timeIntervalSince1970: Double(due))
+            let fmt = RelativeDateTimeFormatter()
+            fmt.locale = .current
+            return fmt.localizedString(for: date, relativeTo: Date())
+        case .review:
+            // due is days since epoch (Anki day 0 = 2006-01-01)
+            let ankiEpoch: TimeInterval = 1136073600 // 2006-01-01 UTC
+            let dueDate = Date(timeIntervalSince1970: ankiEpoch + Double(due) * 86400)
+            if Calendar.current.isDateInToday(dueDate) { return L("common_today") }
+            let fmt = RelativeDateTimeFormatter()
+            fmt.locale = .current
+            return fmt.localizedString(for: dueDate, relativeTo: Date())
+        default:
+            return "\(due)"
+        }
+    }
+
+    private func relativeDate(_ unixSecs: Int64) -> String {
+        let date = Date(timeIntervalSince1970: Double(unixSecs))
+        let fmt = RelativeDateTimeFormatter()
+        fmt.locale = .current
+        return fmt.localizedString(for: date, relativeTo: Date())
+    }
+
+    private func flagLabel(_ flags: UInt32) -> String {
+        let names: [String] = ["", L("flag_red"), L("flag_orange"), L("flag_green"), L("flag_blue"), L("flag_pink"), L("flag_cyan"), L("flag_purple")]
+        let idx = Int(flags)
+        return (idx >= 0 && idx < names.count && !names[idx].isEmpty) ? names[idx] : L("flag_other", flags)
     }
 }

@@ -1,0 +1,640 @@
+// MARK: - Common
+"btn_cancel" = "取消";
+"btn_ok" = "确定";
+"btn_save" = "保存";
+"btn_done" = "完成";
+"btn_delete" = "删除";
+"btn_retry" = "重试";
+"btn_continue" = "继续";
+"btn_back" = "返回";
+"btn_create" = "创建";
+"btn_rename" = "重命名";
+"btn_got_it" = "知道了";
+"btn_understood" = "明白了";
+"btn_confirm_delete" = "确认删除";
+"btn_select_all" = "全选";
+"btn_clear" = "清除";
+"btn_clear_selection" = "清除选择";
+"btn_select_page" = "选择当前页";
+"btn_select_filtered" = "选择筛选结果";
+"label_loading" = "加载中…";
+"label_error_unknown" = "未知错误";
+
+// MARK: - ContentView / Tabs
+"tab_decks" = "牌组";
+"tab_stats" = "统计";
+"tab_settings" = "设置";
+"tab_browse" = "浏览";
+"menu_user_settings" = "用户管理设置";
+"menu_add_deck" = "添加牌组";
+"menu_export_deck" = "导出牌组";
+"menu_import_apkg" = "导入 .apkg/.colpkg";
+"alert_new_deck_title" = "新建牌组";
+"alert_new_deck_placeholder" = "牌组名称";
+"alert_new_deck_message" = "请输入新牌组名称";
+"alert_import_title" = "导入";
+"alert_export_deck_title" = "导出牌组";
+"alert_export_deck_message" = "导出功能将在下一步完善。";
+
+// MARK: - DeckListView
+"deck_list_nav_title" = "牌组";
+"deck_list_empty_title" = "暂无牌组";
+"deck_list_empty_desc" = "与服务器同步以获取您的牌组。";
+"deck_row_rename" = "重命名";
+"deck_row_delete" = "删除";
+"deck_rename_alert_title" = "重命名牌组";
+"deck_rename_alert_placeholder" = "新名称";
+"deck_rename_alert_message" = "请输入新的牌组名称";
+"deck_delete_confirm1_title" = "删除牌组（第1次确认）";
+"deck_delete_confirm1_message" = "即将删除 %@，请再次确认。";
+"deck_delete_confirm2_title" = "删除牌组（第2次确认）";
+"deck_delete_confirm2_message" = "删除后不可恢复：%@";
+"deck_action_error_title" = "操作失败";
+
+// MARK: - DeckDetailView
+"deck_detail_nav_title" = "牌组详情";
+"deck_detail_start_review" = "开始复习";
+"deck_detail_config" = "设置";
+"deck_detail_stats" = "统计";
+"deck_detail_no_cards" = "今日暂无到期卡片";
+
+// MARK: - DeckConfigView
+"deck_config_nav_title" = "牌组设置";
+"deck_config_section_basic" = "基本设置";
+"deck_config_section_daily" = "每日上限";
+"deck_config_section_new" = "新卡片";
+"deck_config_section_lapses" = "遗忘";
+"deck_config_section_display" = "展示顺序";
+"deck_config_section_fsrs" = "FSRS 间隔算法";
+"deck_config_section_bury" = "同牌组搁置";
+"deck_config_section_timer" = "计时器";
+"deck_config_section_autoadvance" = "自动前进";
+"deck_config_section_advanced" = "高级";
+"deck_config_section_easy_days" = "轻松日权重";
+"deck_config_save" = "保存";
+"deck_config_save_failed" = "保存失败";
+
+// MARK: - BrowseView
+"browse_nav_title" = "浏览";
+"browse_search_placeholder" = "搜索笔记…";
+"browse_empty_desc" = "您的卡牌集为空。";
+"browse_no_results_title" = "无结果";
+"browse_no_results_desc" = "请尝试其他搜索词。";
+"browse_note_count_format" = "%d 条笔记";
+"browse_batch_menu_label" = "批量操作";
+"browse_batch_manage_tags" = "管理标签…";
+"browse_batch_flag_menu" = "批量旗标";
+"browse_batch_flag_1" = "旗标 1（红色）";
+"browse_batch_flag_2" = "旗标 2（橙色）";
+"browse_batch_flag_3" = "旗标 3（绿色）";
+"browse_batch_flag_4" = "旗标 4（蓝色）";
+"browse_batch_flag_5" = "旗标 5（粉色）";
+"browse_batch_flag_6" = "旗标 6（青色）";
+"browse_batch_flag_7" = "旗标 7（紫色）";
+"browse_batch_flag_clear" = "清除旗标";
+"browse_batch_suspend" = "批量暂停";
+"browse_batch_bury" = "批量掩埋";
+"browse_batch_clear_selection" = "清除选择";
+"browse_delete_note_title" = "删除笔记？";
+"browse_delete_note_message" = "确认删除「%@」？";
+"browse_edit_btn_add" = "添加笔记";
+
+// MARK: - AddNoteView
+"add_note_nav_title" = "添加笔记";
+"add_note_field_front" = "正面";
+"add_note_field_back" = "背面";
+"add_note_btn_add" = "添加笔记";
+"add_note_section_fields" = "字段";
+"add_note_section_tags" = "标签";
+"add_note_section_deck" = "牌组";
+"add_note_success" = "笔记已添加";
+"add_note_failed" = "添加笔记失败";
+
+// MARK: - NoteEditorView
+"note_editor_nav_title" = "编辑笔记";
+"note_editor_btn_save" = "保存";
+"note_editor_save_failed" = "保存失败";
+
+// MARK: - ReviewView
+"review_nav_title" = "复习";
+"review_again" = "重来";
+"review_hard" = "困难";
+"review_good" = "良好";
+"review_easy" = "简单";
+"review_done_title" = "全部完成！";
+"review_done_message" = "今日该牌组已无到期卡片。";
+"review_info_sheet_title" = "卡片信息";
+"review_info_section_status" = "复习状态";
+"review_info_section_fsrs" = "FSRS 记忆状态";
+"review_info_section_ids" = "标识信息";
+"review_info_queue" = "队列";
+"review_info_due" = "到期";
+"review_info_interval" = "间隔";
+"review_info_ease" = "难度系数";
+"review_info_stability" = "稳定性";
+"review_info_difficulty" = "难度";
+"review_info_retention" = "期望保留率";
+"review_info_last_review" = "上次复习";
+"review_info_card_id" = "卡片 ID";
+"review_info_note_id" = "笔记 ID";
+"review_info_card_type" = "卡片类型";
+"review_queue_new" = "新卡片";
+"review_queue_learn" = "学习中";
+"review_queue_review" = "复习";
+"review_queue_day_learn" = "日间学习";
+"review_queue_preview" = "预览";
+"review_queue_unknown" = "未知";
+"review_flag_red" = "红色";
+"review_flag_orange" = "橙色";
+"review_flag_green" = "绿色";
+"review_flag_blue" = "蓝色";
+"review_flag_pink" = "粉色";
+"review_flag_cyan" = "青色";
+"review_flag_purple" = "紫色";
+"review_flag_none" = "无";
+
+// MARK: - TagsView
+"tags_empty_desc_note_mode" = "集合中没有标签。您可以点击 + 新建并应用标签。";
+"tags_empty_desc" = "将标签添加到笔记以整理您的卡牌集。";
+"tags_note_mode_header" = "将标签应用到 %d 条笔记";
+"tags_done" = "完成";
+"tags_add_sheet_title" = "添加标签";
+"tags_add_target_section" = "目标笔记";
+"tags_add_target_desc" = "新标签将立即应用到 %d 条选中笔记。";
+"tags_add_name_section" = "新标签名称";
+"tags_add_placeholder" = "例：日语::词汇";
+"tags_add_btn_create_apply" = "创建并应用";
+"tags_add_btn_create" = "创建标签";
+"tags_action_apply" = "应用到 %d 条笔记";
+"tags_action_remove" = "从 %d 条笔记移除";
+"tags_swipe_remove" = "从笔记移除";
+"tags_swipe_apply" = "应用到笔记";
+"tags_swipe_delete" = "删除";
+"tags_delete_confirm_title" = "删除标签？";
+"tags_delete_confirm_message" = "删除标签「%@」？包含此标签的笔记不受影响（仅移除标签）。";
+"tags_error_title" = "错误";
+"tags_load_failed" = "加载标签失败：%@";
+"tags_create_failed" = "创建标签失败：%@";
+"tags_apply_failed" = "应用标签失败：%@";
+"tags_remove_failed" = "移除标签失败：%@";
+"tags_delete_failed" = "删除标签失败：%@";
+
+// MARK: - CardContextMenu
+"card_ctx_flag_red" = "旗标：红色";
+"card_ctx_flag_orange" = "旗标：橙色";
+"card_ctx_flag_green" = "旗标：绿色";
+"card_ctx_flag_blue" = "旗标：蓝色";
+"card_ctx_flag_pink" = "旗标：粉色";
+"card_ctx_flag_cyan" = "旗标：青色";
+"card_ctx_flag_purple" = "旗标：紫色";
+"card_ctx_flag_clear" = "清除旗标";
+"card_ctx_suspend" = "暂停";
+"card_ctx_bury" = "掩埋";
+"card_ctx_unsuspend" = "取消暂停";
+"card_ctx_unbury" = "取消掩埋";
+
+// MARK: - SettingsView
+"settings_nav_title" = "设置";
+"settings_section_basic" = "基础";
+"settings_section_display" = "显示与主题";
+"settings_section_maintenance" = "维护";
+"settings_section_other" = "其他";
+"settings_row_account" = "账户";
+"settings_row_editing" = "编辑";
+"settings_row_review" = "复习";
+"settings_toggle_follow_system" = "与系统保持一致";
+"settings_toggle_dark_mode" = "夜间模式";
+"settings_picker_language" = "语言";
+"settings_language_restart_hint" = "语言切换将在重启 App 后完全生效。";
+"settings_row_backup" = "备份";
+"settings_row_check_database" = "检查数据库";
+"settings_row_check_media" = "检查媒体文件";
+"settings_row_empty_cards" = "空卡片";
+"settings_row_about" = "关于";
+"settings_language_system" = "跟随系统";
+"settings_language_zh_hans" = "简体中文";
+"settings_language_en" = "English";
+"settings_language_ja" = "日本語";
+
+// MARK: - SyncSheet
+"sync_nav_title" = "同步";
+"sync_btn_done" = "完成";
+"sync_label_server" = "服务器";
+"sync_menu_change_server" = "更换服务器";
+"sync_menu_logout" = "退出登录";
+"sync_local_mode_label" = "同步已禁用";
+"sync_btn_setup_server" = "设置服务器";
+"sync_preparing" = "正在准备同步…";
+"sync_syncing" = "同步中…";
+"sync_syncing_media" = "同步媒体文件…";
+"sync_complete_title" = "同步完成";
+"sync_cards_received" = "↓ 收到 %d 张卡片";
+"sync_cards_sent" = "↑ 发送 %d 张卡片";
+"sync_notes_received" = "↓ 收到 %d 条笔记";
+"sync_notes_sent" = "↑ 发送 %d 条笔记";
+"sync_up_to_date" = "所有内容均为最新";
+"sync_failed_title" = "同步失败";
+"sync_no_server_title" = "未配置服务器";
+"sync_no_server_desc" = "设置同步服务器以在设备间同步您的卡牌集。";
+"sync_full_required_title" = "需要全量同步";
+"sync_full_required_desc" = "您的卡牌集发生了较大变更，需要完全替换其中一份。";
+"sync_btn_download" = "从服务器下载";
+"sync_btn_upload" = "上传到服务器";
+"sync_full_downloading" = "正在下载完整卡牌集…";
+"sync_full_uploading" = "正在上传完整卡牌集…";
+
+// MARK: - LoginSheet
+"login_nav_title" = "登录";
+"login_field_username" = "用户名";
+"login_field_password" = "密码";
+"login_btn_sign_in" = "登录";
+"login_failed" = "登录失败，请检查用户名和密码。";
+
+// MARK: - OnboardingView
+"onboarding_welcome" = "欢迎使用";
+"onboarding_subtitle" = "选择同步卡牌集的方式";
+"onboarding_server_url_placeholder" = "服务器地址";
+"onboarding_btn_continue" = "继续";
+"onboarding_btn_back" = "返回";
+"onboarding_btn_custom_server" = "自定义服务器";
+"onboarding_btn_use_local" = "仅本地使用";
+"onboarding_footer" = "您可以随时在同步设置中修改";
+
+// MARK: - Statistics
+"stats_nav_title" = "统计";
+"stats_loading" = "正在加载统计数据…";
+"stats_load_failed_title" = "统计加载失败";
+"stats_whole_collection" = "全部卡牌集";
+"stats_period_month" = "月";
+"stats_period_year" = "年";
+"stats_period_life" = "全部时间";
+"stats_today_reviewed" = "复习";
+"stats_today_time" = "用时";
+"stats_today_correct" = "正确率";
+"stats_today_mature" = "成熟卡";
+"stats_card_new" = "新卡片";
+"stats_card_learn" = "学习中";
+"stats_card_review" = "复习";
+"stats_card_again" = "重来";
+
+// MARK: - UserManagementView
+"user_mgmt_nav_title" = "用户管理";
+"user_mgmt_add_user" = "添加用户";
+"user_mgmt_delete_user" = "删除用户";
+
+// MARK: - DebugView
+"debug_check_db_result" = "数据库检查结果：%@";
+
+// MARK: - Common (extended)
+"common_cancel" = "取消";
+"common_ok" = "确定";
+"common_save" = "保存";
+"common_done" = "完成";
+"common_delete" = "删除";
+"common_back" = "返回";
+"common_loading" = "加载中…";
+"common_today" = "今天";
+"common_yesterday" = "昨天";
+"common_none" = "无";
+"common_error" = "错误";
+"common_unknown_error" = "未知错误";
+"common_completed" = "已完成";
+"common_failed_load_notetype" = "加载笔记类型失败";
+
+// MARK: - App Startup
+"app_unable_to_start" = "无法启动 AnkiApp";
+
+// MARK: - DeckDetailView (extended)
+"deck_detail_study_now" = "立即学习";
+"deck_detail_count_new" = "新卡";
+"deck_detail_count_learning" = "学习中";
+"deck_detail_count_review" = "待复习";
+"deck_detail_subdecks" = "子牌组";
+"deck_count_format" = "%d 个牌组";
+
+// MARK: - DeckConfigView (extended)
+"deck_config_title" = "牌组设置";
+"deck_config_name" = "预设名称";
+"deck_config_name_placeholder" = "预设名称";
+"deck_config_apply_children" = "应用到子牌组";
+"deck_config_daily_new" = "每日新卡上限";
+"deck_config_daily_review" = "每日复习上限";
+"deck_config_learn_steps" = "学习步骤";
+"deck_config_learn_steps_hint" = "例如：1m 10m";
+"deck_config_good_interval" = "毕业间隔";
+"deck_config_easy_interval" = "简单间隔";
+"deck_config_insert_order" = "插入顺序";
+"deck_config_order_due" = "顺序（最早优先）";
+"deck_config_order_random" = "随机";
+"deck_config_new_mix" = "新卡/复习顺序";
+"deck_config_mix_with_reviews" = "穿插复习";
+"deck_config_mix_after_reviews" = "复习后";
+"deck_config_mix_before_reviews" = "复习前";
+"deck_config_section_order" = "显示顺序";
+"deck_config_relearn_steps" = "重新学习步骤";
+"deck_config_relearn_steps_hint" = "例如：10m";
+"deck_config_leech_threshold" = "难卡阈值";
+"deck_config_times_fmt" = "%d 次";
+"deck_config_leech_action" = "难卡操作";
+"deck_config_leech_suspend" = "暂停卡片";
+"deck_config_leech_tag_only" = "仅添加标签";
+"deck_config_review_order" = "复习排序";
+"deck_config_review_order_day" = "按天随机";
+"deck_config_review_order_asc" = "间隔升序";
+"deck_config_review_order_desc" = "间隔降序";
+"deck_config_interday_mix" = "跨日学习穿插";
+"deck_config_fsrs_enable" = "启用 FSRS";
+"deck_config_desired_retention" = "期望记忆保留率";
+"deck_config_fsrs_weights" = "FSRS 权重";
+"deck_config_fsrs_weights_hint" = "逗号分隔的数值";
+"deck_config_bury_new" = "埋藏新相关卡";
+"deck_config_bury_reviews" = "埋藏复习相关卡";
+"deck_config_bury_interday" = "埋藏跨日相关卡";
+"deck_config_show_timer" = "显示计时器";
+"deck_config_timer_cap" = "答题时间上限";
+"deck_config_seconds_fmt" = "%d 秒";
+"deck_config_stop_timer_on_answer" = "答题时停止计时";
+"deck_config_question_secs" = "问题操作秒数";
+"deck_config_answer_secs" = "答案操作秒数";
+"deck_config_after_question" = "问题后操作";
+"deck_config_after_answer" = "答案后操作";
+"deck_config_action_show_answer" = "显示答案";
+"deck_config_action_show_reminder" = "显示提醒";
+"deck_config_action_bury" = "埋藏卡片";
+"deck_config_action_again" = "再次";
+"deck_config_action_hard" = "困难";
+"deck_config_action_good" = "良好";
+"deck_config_disable_autoplay" = "禁用自动播放";
+"deck_config_wait_audio" = "等待音频";
+"deck_config_skip_question_audio" = "重播时跳过问题音频";
+"deck_config_max_interval" = "最大间隔";
+"deck_config_days_fmt" = "%d 天";
+"deck_config_interval_mult" = "间隔修正系数";
+"deck_config_hard_mult" = "困难间隔";
+"deck_config_easy_mult" = "简单奖励";
+"deck_config_error_load" = "加载牌组配置失败：%@";
+"deck_config_error_save" = "保存牌组配置失败：%@";
+
+// MARK: - Weekdays
+"weekday_mon" = "周一";
+"weekday_tue" = "周二";
+"weekday_wed" = "周三";
+"weekday_thu" = "周四";
+"weekday_fri" = "周五";
+"weekday_sat" = "周六";
+"weekday_sun" = "周日";
+"weekday_other" = "?";
+
+// MARK: - BrowseView (extended)
+"browse_title" = "浏览";
+"browse_note_count" = "%d 条笔记";
+"browse_selected_count" = "已选：%d";
+"browse_select_page" = "选择当前页";
+"browse_select_filtered" = "选择筛选结果";
+"browse_select_clear" = "清除";
+"browse_delete_title" = "删除笔记？";
+"browse_delete_confirm" = "确定要删除这条笔记吗？";
+"browse_batch_failed_title" = "批量操作失败";
+"browse_batch_success_title" = "批量操作完成";
+"browse_batch_no_cards" = "未选择卡片";
+"browse_batch_processed" = "已处理 %d 张卡片";
+"browse_empty_title" = "暂无笔记";
+"browse_empty_description" = "您的卡牌库为空。";
+"browse_filter_all" = "全部";
+
+// MARK: - TagsView (extended)
+"tags_empty_title" = "暂无标签";
+"tags_empty_note_mode" = "卡牌库中没有标签。点击 + 创建并应用一个。";
+"tags_empty_collection_mode" = "为笔记添加标签以整理您的卡牌库。";
+"tags_apply_hint" = "将标签应用到 %d 条笔记";
+"tags_section_select" = "选择标签";
+"tags_section_all" = "所有标签";
+"tags_nav_title_note_mode" = "应用/移除标签";
+"tags_nav_title" = "标签";
+"tags_target_notes" = "目标笔记";
+"tags_new_tag_will_apply" = "新标签将应用到已选的 %d 条笔记。";
+"tags_new_tag_name_section" = "标签名称";
+"tags_new_tag_placeholder" = "例如：日语::词汇";
+"tags_create_and_apply" = "创建并应用";
+"tags_create_tag" = "创建标签";
+"tags_add_tag_title" = "添加标签";
+"tags_delete_title" = "删除标签？";
+"tags_delete_confirm" = "删除标签「%@」？含此标签的笔记将保留。";
+"tags_action_dialog_title" = "操作";
+"tags_apply_to_notes" = "应用到 %d 条笔记";
+"tags_remove_from_notes" = "从 %d 条笔记移除";
+"tags_remove_swipe" = "从笔记移除";
+"tags_apply_swipe" = "应用到笔记";
+"tags_error_load" = "加载标签失败：%@";
+"tags_error_create" = "创建标签失败：%@";
+"tags_error_apply" = "应用标签失败：%@";
+"tags_error_remove" = "移除标签失败：%@";
+"tags_error_delete" = "删除标签失败：%@";
+
+// MARK: - ReviewView (extended)
+"review_reviewed_count" = "已复习：%d";
+"review_edit_button" = "编辑";
+"review_show_answer" = "显示答案";
+"review_rating_again" = "重来";
+"review_rating_hard" = "困难";
+"review_rating_good" = "良好";
+"review_rating_easy" = "简单";
+"review_finished_title" = "恭喜！";
+"review_finished_count" = "已复习 %d 张卡片";
+"review_finished_accuracy" = "正确率：%.0f%%";
+
+// MARK: - Card Info Sheet
+"card_info_title" = "卡片信息";
+"card_info_section_review_status" = "复习状态";
+"card_info_section_fsrs" = "FSRS 记忆状态";
+"card_info_section_ids" = "标识符";
+"card_info_queue" = "队列";
+"card_info_interval" = "间隔";
+"card_info_due" = "到期时间";
+"card_info_reps" = "复习次数";
+"card_info_lapses" = "失误次数";
+"card_info_ease" = "容易度";
+"card_info_stability" = "稳定性";
+"card_info_stability_fmt" = "%.1f 天";
+"card_info_difficulty" = "难度";
+"card_info_retention" = "期望保留率";
+"card_info_decay" = "衰减";
+"card_info_last_review" = "上次复习";
+"card_info_card_id" = "卡片 ID";
+"card_info_note_id" = "笔记 ID";
+"card_info_deck_id" = "牌组 ID";
+"card_info_template" = "模板";
+"card_info_flags" = "标记";
+
+// MARK: - Card Queue / Interval
+"card_queue_new" = "新卡";
+"card_queue_learning" = "学习中";
+"card_queue_review" = "待复习";
+"card_queue_unknown" = "未知";
+"card_interval_less_than_1d" = "< 1 天";
+"card_interval_days" = "%d 天";
+"card_interval_months" = "%.1f 个月";
+"card_interval_years" = "%.1f 年";
+"card_due_position" = "位置 %d";
+
+// MARK: - Flags
+"flag_red" = "红色";
+"flag_orange" = "橙色";
+"flag_green" = "绿色";
+"flag_blue" = "蓝色";
+"flag_pink" = "粉色";
+"flag_cyan" = "青色";
+"flag_purple" = "紫色";
+"flag_other" = "标记 %d";
+"card_flag_label" = "标记 %d（%@）";
+
+// MARK: - CardContextMenu (extended)
+"card_action_suspend" = "暂停";
+"card_action_bury" = "埋藏";
+"card_action_flag" = "标记";
+"card_action_undo" = "撤销";
+"card_action_error_title" = "操作失败";
+"card_action_error_suspend" = "暂停卡片失败";
+"card_action_error_bury" = "埋藏卡片失败";
+"card_action_error_flag" = "标记卡片失败";
+"card_action_error_undo" = "撤销失败";
+
+// MARK: - AddNoteView (extended)
+"add_note_title" = "添加笔记";
+"add_note_section_type" = "笔记类型";
+"add_note_type_label" = "笔记类型";
+"add_note_tags_placeholder" = "例如：语法、词汇";
+"add_note_button" = "添加笔记";
+"add_note_error_save" = "添加笔记失败：%@";
+
+// MARK: - NoteEditorView (extended)
+"note_editor_title" = "编辑笔记";
+"note_editor_save" = "保存";
+"note_editor_saved" = "✓ 已保存";
+"note_editor_select_tags" = "选择标签";
+"note_editor_current_tags" = "当前标签";
+"note_editor_available_tags" = "可用标签";
+"note_editor_error_save" = "保存失败：%@";
+
+// MARK: - Stats (extended)
+"stats_added_title" = "已添加";
+"stats_added_empty" = "暂无数据";
+"stats_total" = "合计：%d";
+"stats_avg_day" = "日均：%.1f";
+"stats_buttons_title" = "答题按钮";
+"stats_buttons_empty" = "暂无数据";
+"stats_card_counts_title" = "卡片数量";
+"stats_card_counts_empty" = "暂无数据";
+"stats_card_states_title" = "卡片状态";
+"stats_card_states_empty" = "暂无数据";
+"stats_ease_title" = "容易度分布";
+"stats_ease_empty" = "暂无数据";
+"stats_ease_avg" = "平均：%.0f%%";
+"stats_forecast_title" = "到期预测";
+"stats_future_due_title" = "未来到期";
+"stats_future_due_empty" = "没有到期卡片";
+"stats_future_due_backlog" = "显示积压";
+"stats_future_due_tomorrow" = "明天：%d";
+"stats_future_due_daily_load" = "日均负荷：%.1f";
+"stats_heatmap_title" = "复习热力图";
+"stats_heatmap_streak" = "🔥 连续 %d 天";
+"stats_heatmap_empty" = "暂无复习记录";
+"stats_heatmap_less" = "少";
+"stats_heatmap_more" = "多";
+"stats_this_month" = "本月：%d";
+"stats_this_week" = "本周：%d";
+"stats_hourly_title" = "每小时分布";
+"stats_hourly_empty" = "暂无数据";
+"stats_intervals_title" = "间隔分布";
+"stats_intervals_empty" = "暂无数据";
+"stats_reviews_title" = "复习次数";
+"stats_reviews_empty" = "暂无数据";
+"stats_retention_title" = "记忆保留率";
+"stats_retention_period" = "时段";
+"stats_retention_young" = "年轻卡";
+"stats_retention_mature" = "成熟卡";
+"stats_retention_yesterday" = "昨天";
+"stats_period_day" = "日";
+"stats_period_week" = "周";
+"stats_period_3months" = "3 个月";
+"stats_period_all" = "所有时间";
+"stats_period_all_short" = "全部";
+
+// MARK: - UserManagementView
+"user_mgmt_title" = "用户管理";
+"user_mgmt_section_accounts" = "已登录账户";
+"user_mgmt_rename" = "重命名";
+"user_mgmt_add_title" = "添加用户";
+"user_mgmt_username_placeholder" = "用户名";
+"user_mgmt_add_button" = "添加";
+"user_mgmt_rename_title" = "重命名用户";
+"user_mgmt_new_username_placeholder" = "新用户名";
+"user_mgmt_delete_confirm1_title" = "删除用户？";
+"user_mgmt_delete_continue" = "继续";
+"user_mgmt_delete_confirm1_msg" = "此操作将永久删除该用户及其所有数据。";
+"user_mgmt_delete_confirm2_title" = "您确定吗？";
+"user_mgmt_delete_confirm_button" = "永久删除";
+"user_mgmt_delete_confirm2_msg" = "此操作不可撤销。";
+"user_mgmt_default_user" = "用户1";
+
+// MARK: - DebugView
+"debug_nav_title" = "调试";
+"debug_section_account" = "账户";
+"debug_section_import_export" = "导入 / 导出";
+"debug_section_database" = "数据库";
+"debug_section_status" = "状态";
+"debug_section_collection_info" = "卡牌库信息";
+"debug_username" = "用户名";
+"debug_host_key" = "Host Key";
+"debug_not_logged_in" = "未登录";
+"debug_stored" = "已存储 ✓";
+"debug_logout" = "退出登录（清除凭据）";
+"debug_logged_out_msg" = "已退出登录。请点击同步重新登录。";
+"debug_export_button" = "导出卡牌库（.colpkg）";
+"debug_export_ready" = "导出就绪：%@";
+"debug_export_error" = "导出错误：%@";
+"debug_check_db" = "检查数据库";
+"debug_check_db_ok" = "数据库检查正常（%d 字节）";
+"debug_check_db_error" = "数据库检查错误：%@";
+"debug_reset_button" = "重置所有数据";
+"debug_reset_confirm_msg" = "此操作将删除您的本地卡牌库和凭据，您需要重新同步。";
+"debug_reset_confirm_button" = "重置";
+"debug_reset_complete" = "重置完成，请重新启动应用。";
+"debug_dump_deck_tree" = "输出牌组树";
+"debug_deck_tree_error" = "牌组树错误：%@";
+"deck_config_section_auto_advance" = "自动翻卡";
+
+// MARK: - SettingsInfoView & AboutView
+"settings_info_editing" = "编辑选项目前通过笔记类型和牌组配置屏幕处理。";
+"settings_info_review" = "复习行为通过牌组设置逐个配置。";
+"settings_check_media_not_wired" = "媒体检查功能尚未在此版本中启用。";
+"settings_empty_cards_not_wired" = "清理空卡功能尚未在此版本中启用。";
+
+// MARK: - AboutView
+"about_nav_title" = "关于";
+"about_section_amgi" = "Amgi";
+"about_summary_text" = "一个开源、离线优先的 Anki 兼容 iOS 闪卡客户端，支持同步服务器。";
+"about_section_architecture" = "架构";
+"about_architecture_text" = "SwiftUI 视图 → 依赖注入客户端 → AnkiBackend (Swift) → C FFI → Rust 后端";
+"about_section_tech_stack" = "技术栈";
+"about_tech_text" = "SwiftUI、Swift 6.2、Rust FFI、Protocol Buffers、SQLite、XcodeGen";
+"about_section_open_source" = "开源引用";
+"about_open_source_text" = "ankitects/anki、AnkiDroid、Point-Free swift-dependencies";
+"about_section_license" = "许可证";
+"about_license_text" = "AGPL-3.0";
+
+// MARK: - BrowseView Batch Operations
+"browse_tag_manage" = "管理标签…";
+"browse_batch_flags" = "批量旗标";
+"browse_flag_1" = "旗标 1（红色）";
+"browse_flag_2" = "旗标 2（橙色）";
+"browse_flag_3" = "旗标 3（绿色）";
+"browse_flag_4" = "旗标 4（蓝色）";
+"browse_flag_5" = "旗标 5（粉色）";
+"browse_flag_6" = "旗标 6（青色）";
+"browse_flag_7" = "旗标 7（紫色）";
+"browse_flag_clear" = "清除旗标";
+"browse_batch_suspend" = "批量暂停";
+"browse_batch_bury" = "批量掩埋";
+"browse_batch_ops" = "批量操作";
+"browse_batch_deselect" = "清除选择";

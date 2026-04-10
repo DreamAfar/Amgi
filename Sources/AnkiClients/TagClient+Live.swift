@@ -43,9 +43,88 @@ extension TagClient: DependencyKey {
                 }
             },
             addTag: { tag in
-                // Adding a tag through the notes service by finding notes with empty tags
-                // and adding the tag (simplified for now)
-                logger.info("Tag '\(tag)' created/managed through note operations")
+                let normalized = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !normalized.isEmpty else {
+                    throw BackendError(kind: .invalidInput, message: "Tag name cannot be empty")
+                }
+
+                // Anki backend does not expose a standalone "create tag" RPC.
+                // Tags are persisted when attached to notes, so we perform a real
+                // backend read and return a clear error instead of silently succeeding.
+                let existing: Anki_Tags_TagTreeNode = try backend.invoke(
+                    service: AnkiBackend.Service.tags,
+                    method: AnkiBackend.TagsMethod.tagTree,
+                    request: Anki_Generic_Empty()
+                )
+
+                func contains(_ node: Anki_Tags_TagTreeNode, tag: String) -> Bool {
+                    if node.name.caseInsensitiveCompare(tag) == .orderedSame { return true }
+                    for child in node.children {
+                        if contains(child, tag: tag) { return true }
+                    }
+                    return false
+                }
+
+                if existing.children.contains(where: { contains($0, tag: normalized) }) {
+                    logger.info("Tag '\(normalized)' already exists")
+                    return
+                }
+
+                logger.warning("Cannot create standalone tag '\(normalized)' via backend; tag must be attached to at least one note")
+                throw BackendError(
+                    kind: .invalidInput,
+                    message: "Standalone tag creation is not supported by backend. Please add this tag to at least one note."
+                )
+            },
+            addTagToNotes: { tag, noteIDs in
+                let normalized = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !normalized.isEmpty else {
+                    throw BackendError(kind: .invalidInput, message: "Tag name cannot be empty")
+                }
+                guard !noteIDs.isEmpty else {
+                    throw BackendError(kind: .invalidInput, message: "No notes selected")
+                }
+
+                var req = Anki_Tags_NoteIdsAndTagsRequest()
+                req.noteIds = noteIDs
+                req.tags = normalized
+
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.tags,
+                        method: AnkiBackend.TagsMethod.addNoteTags,
+                        request: req
+                    )
+                    logger.info("Applied tag '\(normalized)' to \(noteIDs.count) notes")
+                } catch {
+                    logger.error("addTagToNotes failed for tag='\(normalized)': \(error)")
+                    throw error
+                }
+            },
+            removeTagFromNotes: { tag, noteIDs in
+                let normalized = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !normalized.isEmpty else {
+                    throw BackendError(kind: .invalidInput, message: "Tag name cannot be empty")
+                }
+                guard !noteIDs.isEmpty else {
+                    throw BackendError(kind: .invalidInput, message: "No notes selected")
+                }
+
+                var req = Anki_Tags_NoteIdsAndTagsRequest()
+                req.noteIds = noteIDs
+                req.tags = normalized
+
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.tags,
+                        method: AnkiBackend.TagsMethod.removeNoteTags,
+                        request: req
+                    )
+                    logger.info("Removed tag '\(normalized)' from \(noteIDs.count) notes")
+                } catch {
+                    logger.error("removeTagFromNotes failed for tag='\(normalized)': \(error)")
+                    throw error
+                }
             },
             removeTag: { tag in
                 // Remove tag from all notes using RemoveTags

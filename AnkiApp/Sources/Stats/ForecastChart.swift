@@ -7,7 +7,7 @@ struct ForecastChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Forecast (30 days)").font(.headline)
+            Text(L("stats_forecast_title")).font(.headline)
 
             if data.isEmpty || data.allSatisfy({ $0.count == 0 }) {
                 Text("Review some cards to see forecast")

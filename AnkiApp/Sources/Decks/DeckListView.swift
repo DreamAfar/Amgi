@@ -15,14 +15,14 @@ struct DeckListView: View {
                 ProgressView()
             } else if tree.isEmpty {
                 ContentUnavailableView(
-                    "No Decks",
+                    L("deck_list_empty_title"),
                     systemImage: "rectangle.stack",
-                    description: Text("Sync with your server to get your decks.")
+                    description: Text(L("deck_list_empty_desc"))
                 )
             } else {
                 List {
                     ForEach(tree) { node in
-                        DeckRowView(node: node, onDeckChanged: {
+                        DeckRowView(node: node, depth: 0, onDeckChanged: {
                             Task { await loadDecks() }
                             onDeckChanged?()
                         })
@@ -33,7 +33,7 @@ struct DeckListView: View {
                 }
             }
         }
-        .navigationTitle("Decks")
+        .navigationTitle(L("deck_list_nav_title"))
         .task {
             await loadDecks()
         }
@@ -58,6 +58,7 @@ struct DeckListView: View {
 private struct DeckRowView: View {
     @Dependency(\.deckClient) var deckClient
     let node: DeckTreeNode
+    let depth: Int
     let onDeckChanged: () -> Void
 
     @State private var showRenamePrompt = false
@@ -70,80 +71,98 @@ private struct DeckRowView: View {
     var body: some View {
         Group {
             if node.children.isEmpty {
-                NavigationLink(value: deckInfo) {
-                    rowContent
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button {
-                        renameText = node.name
-                        showRenamePrompt = true
-                    } label: {
-                        Label("Rename", systemImage: "pencil")
+                if depth == 0 {
+                    NavigationLink(value: deckInfo) {
+                        rowContent
                     }
-                    .tint(.blue)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button {
+                            renameText = node.name
+                            showRenamePrompt = true
+                        } label: {
+                            Label(L("deck_row_rename"), systemImage: "pencil")
+                        }
+                        .tint(.blue)
 
-                    Button(role: .destructive) {
-                        showDeleteConfirmStep1 = true
-                    } label: {
-                        Label("Delete", systemImage: "trash")
+                        Button(role: .destructive) {
+                            showDeleteConfirmStep1 = true
+                        } label: {
+                            Label(L("deck_row_delete"), systemImage: "trash")
+                        }
                     }
-                }
-            } else {
-                DisclosureGroup {
-                    ForEach(node.children) { child in
-                        DeckRowView(node: child, onDeckChanged: onDeckChanged)
-                    }
-                } label: {
+                } else {
                     NavigationLink(value: deckInfo) {
                         rowContent
                     }
                 }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button {
-                        renameText = node.name
-                        showRenamePrompt = true
+            } else {
+                if depth == 0 {
+                    DisclosureGroup {
+                        ForEach(node.children) { child in
+                            DeckRowView(node: child, depth: depth + 1, onDeckChanged: onDeckChanged)
+                        }
                     } label: {
-                        Label("Rename", systemImage: "pencil")
+                        NavigationLink(value: deckInfo) {
+                            rowContent
+                        }
                     }
-                    .tint(.blue)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button {
+                            renameText = node.name
+                            showRenamePrompt = true
+                        } label: {
+                            Label(L("deck_row_rename"), systemImage: "pencil")
+                        }
+                        .tint(.blue)
 
-                    Button(role: .destructive) {
-                        showDeleteConfirmStep1 = true
+                        Button(role: .destructive) {
+                            showDeleteConfirmStep1 = true
+                        } label: {
+                            Label(L("deck_row_delete"), systemImage: "trash")
+                        }
+                    }
+                } else {
+                    DisclosureGroup {
+                        ForEach(node.children) { child in
+                            DeckRowView(node: child, depth: depth + 1, onDeckChanged: onDeckChanged)
+                        }
                     } label: {
-                        Label("Delete", systemImage: "trash")
+                        NavigationLink(value: deckInfo) {
+                            rowContent
+                        }
                     }
                 }
             }
         }
-        .alert("重命名牌组", isPresented: $showRenamePrompt) {
-            TextField("新名称", text: $renameText)
-            Button("取消", role: .cancel) {}
-            Button("保存") {
+        .alert(L("deck_rename_alert_title"), isPresented: $showRenamePrompt) {
+            TextField(L("deck_rename_alert_placeholder"), text: $renameText)
+            Button(L("btn_cancel"), role: .cancel) {}
+            Button(L("btn_save")) {
                 Task { await renameDeck() }
             }
         } message: {
-            Text("请输入新的牌组名称")
+            Text(L("deck_rename_alert_message"))
         }
-        .alert("删除牌组（第1次确认）", isPresented: $showDeleteConfirmStep1) {
-            Button("取消", role: .cancel) {}
-            Button("继续") {
+        .alert(L("deck_delete_confirm1_title"), isPresented: $showDeleteConfirmStep1) {
+            Button(L("btn_cancel"), role: .cancel) {}
+            Button(L("btn_continue")) {
                 showDeleteConfirmStep2 = true
             }
         } message: {
-            Text("即将删除 \(node.name)，请再次确认。")
+            Text(L("deck_delete_confirm1_message", node.name))
         }
-        .alert("删除牌组（第2次确认）", isPresented: $showDeleteConfirmStep2) {
-            Button("取消", role: .cancel) {}
-            Button("确认删除", role: .destructive) {
+        .alert(L("deck_delete_confirm2_title"), isPresented: $showDeleteConfirmStep2) {
+            Button(L("btn_cancel"), role: .cancel) {}
+            Button(L("btn_confirm_delete"), role: .destructive) {
                 Task { await deleteDeck() }
             }
         } message: {
-            Text("删除后不可恢复：\(node.name)")
+            Text(L("deck_delete_confirm2_message", node.name))
         }
-        .alert("操作失败", isPresented: $showActionError) {
-            Button("知道了", role: .cancel) {}
+        .alert(L("deck_action_error_title"), isPresented: $showActionError) {
+            Button(L("btn_got_it"), role: .cancel) {}
         } message: {
-            Text(actionError ?? "未知错误")
+            Text(actionError ?? L("label_error_unknown"))
         }
     }
 

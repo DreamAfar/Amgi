@@ -19,7 +19,7 @@ struct UserManagementView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("已登录账户") {
+                Section(L("user_mgmt_section_accounts")) {
                     ForEach(users, id: \.self) { user in
                         HStack {
                             Text(user)
@@ -40,7 +40,7 @@ struct UserManagementView: View {
                                 renameText = user
                                 showRenamePrompt = true
                             } label: {
-                                Label("Rename", systemImage: "pencil")
+                                Label(L("user_mgmt_rename"), systemImage: "pencil")
                             }
                             .tint(.blue)
 
@@ -48,16 +48,16 @@ struct UserManagementView: View {
                                 deleteTarget = user
                                 showDeleteConfirmStep1 = true
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(L("common_delete"), systemImage: "trash")
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("用户管理")
+            .navigationTitle(L("user_mgmt_title"))
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("返回") {
+                    Button(L("common_back")) {
                         dismiss()
                     }
                 }
@@ -71,10 +71,10 @@ struct UserManagementView: View {
                 }
             }
         }
-        .alert("添加用户", isPresented: $showAddPrompt) {
-            TextField("用户名", text: $newUserName)
-            Button("取消", role: .cancel) {}
-            Button("添加") {
+        .alert(L("user_mgmt_add_title"), isPresented: $showAddPrompt) {
+            TextField(L("user_mgmt_username_placeholder"), text: $newUserName)
+            Button(L("common_cancel"), role: .cancel) {}
+            Button(L("user_mgmt_add_button")) {
                 let trimmed = newUserName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return }
                 if !users.contains(trimmed) {
@@ -85,10 +85,10 @@ struct UserManagementView: View {
                 AppUserStore.setSelectedUser(trimmed)
             }
         }
-        .alert("重命名用户", isPresented: $showRenamePrompt) {
-            TextField("新用户名", text: $renameText)
-            Button("取消", role: .cancel) {}
-            Button("保存") {
+        .alert(L("user_mgmt_rename_title"), isPresented: $showRenamePrompt) {
+            TextField(L("user_mgmt_new_username_placeholder"), text: $renameText)
+            Button(L("common_cancel"), role: .cancel) {}
+            Button(L("common_save")) {
                 guard let old = renameTarget else { return }
                 let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return }
@@ -102,21 +102,21 @@ struct UserManagementView: View {
                 }
             }
         }
-        .alert("删除用户（第1次确认）", isPresented: $showDeleteConfirmStep1) {
-            Button("取消", role: .cancel) {}
-            Button("继续") {
+        .alert(L("user_mgmt_delete_confirm1_title"), isPresented: $showDeleteConfirmStep1) {
+            Button(L("common_cancel"), role: .cancel) {}
+            Button(L("user_mgmt_delete_continue")) {
                 showDeleteConfirmStep2 = true
             }
         } message: {
-            Text("即将删除用户，请再次确认。")
+            Text(L("user_mgmt_delete_confirm1_msg"))
         }
-        .alert("删除用户（第2次确认）", isPresented: $showDeleteConfirmStep2) {
-            Button("取消", role: .cancel) {}
-            Button("确认删除", role: .destructive) {
+        .alert(L("user_mgmt_delete_confirm2_title"), isPresented: $showDeleteConfirmStep2) {
+            Button(L("common_cancel"), role: .cancel) {}
+            Button(L("user_mgmt_delete_confirm_button"), role: .destructive) {
                 guard let target = deleteTarget else { return }
                 users.removeAll { $0 == target }
                 if users.isEmpty {
-                    users = ["用户1"]
+                    users = [L("user_mgmt_default_user")]
                 }
                 AppUserStore.saveUsers(users)
                 if selectedUser == target {
@@ -125,7 +125,7 @@ struct UserManagementView: View {
                 }
             }
         } message: {
-            Text("删除后不可恢复。")
+            Text(L("user_mgmt_delete_confirm2_msg"))
         }
     }
 }

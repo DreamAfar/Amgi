@@ -1,0 +1,640 @@
+// MARK: - Common
+"btn_cancel" = "キャンセル";
+"btn_ok" = "OK";
+"btn_save" = "保存";
+"btn_done" = "完了";
+"btn_delete" = "削除";
+"btn_retry" = "再試行";
+"btn_continue" = "続ける";
+"btn_back" = "戻る";
+"btn_create" = "作成";
+"btn_rename" = "名前変更";
+"btn_got_it" = "わかった";
+"btn_understood" = "了解";
+"btn_confirm_delete" = "削除を確認";
+"btn_select_all" = "すべて選択";
+"btn_clear" = "クリア";
+"btn_clear_selection" = "選択をクリア";
+"btn_select_page" = "ページを選択";
+"btn_select_filtered" = "フィルター結果を選択";
+"label_loading" = "読み込み中…";
+"label_error_unknown" = "不明なエラー";
+
+// MARK: - ContentView / Tabs
+"tab_decks" = "デッキ";
+"tab_stats" = "統計";
+"tab_settings" = "設定";
+"tab_browse" = "ブラウズ";
+"menu_user_settings" = "ユーザー設定";
+"menu_add_deck" = "デッキを追加";
+"menu_export_deck" = "デッキをエクスポート";
+"menu_import_apkg" = ".apkg/.colpkg をインポート";
+"alert_new_deck_title" = "新しいデッキ";
+"alert_new_deck_placeholder" = "デッキ名";
+"alert_new_deck_message" = "新しいデッキ名を入力してください";
+"alert_import_title" = "インポート";
+"alert_export_deck_title" = "デッキをエクスポート";
+"alert_export_deck_message" = "エクスポート機能は近日対応予定です。";
+
+// MARK: - DeckListView
+"deck_list_nav_title" = "デッキ";
+"deck_list_empty_title" = "デッキなし";
+"deck_list_empty_desc" = "サーバーと同期してデッキを取得してください。";
+"deck_row_rename" = "名前変更";
+"deck_row_delete" = "削除";
+"deck_rename_alert_title" = "デッキ名変更";
+"deck_rename_alert_placeholder" = "新しい名前";
+"deck_rename_alert_message" = "新しいデッキ名を入力してください";
+"deck_delete_confirm1_title" = "デッキを削除（確認 1）";
+"deck_delete_confirm1_message" = "%@ を削除しようとしています。よろしいですか？";
+"deck_delete_confirm2_title" = "デッキを削除（確認 2）";
+"deck_delete_confirm2_message" = "元に戻せません：%@";
+"deck_action_error_title" = "操作に失敗しました";
+
+// MARK: - DeckDetailView
+"deck_detail_nav_title" = "デッキ詳細";
+"deck_detail_start_review" = "学習開始";
+"deck_detail_config" = "設定";
+"deck_detail_stats" = "統計";
+"deck_detail_no_cards" = "期限のカードなし";
+
+// MARK: - DeckConfigView
+"deck_config_nav_title" = "デッキ設定";
+"deck_config_section_basic" = "基本設定";
+"deck_config_section_daily" = "1日の上限";
+"deck_config_section_new" = "新規カード";
+"deck_config_section_lapses" = "忘却";
+"deck_config_section_display" = "表示順序";
+"deck_config_section_fsrs" = "FSRSスケジューリング";
+"deck_config_section_bury" = "同デッキの埋め込み";
+"deck_config_section_timer" = "タイマー";
+"deck_config_section_autoadvance" = "自動進行";
+"deck_config_section_advanced" = "詳細設定";
+"deck_config_section_easy_days" = "楽な日の重み";
+"deck_config_save" = "保存";
+"deck_config_save_failed" = "保存に失敗しました";
+
+// MARK: - BrowseView
+"browse_nav_title" = "ブラウズ";
+"browse_search_placeholder" = "ノートを検索…";
+"browse_empty_desc" = "コレクションが空です。";
+"browse_no_results_title" = "結果なし";
+"browse_no_results_desc" = "別の検索ワードをお試しください。";
+"browse_note_count_format" = "%d 件のノート";
+"browse_batch_menu_label" = "一括操作";
+"browse_batch_manage_tags" = "タグを管理…";
+"browse_batch_flag_menu" = "一括フラグ";
+"browse_batch_flag_1" = "フラグ 1（赤）";
+"browse_batch_flag_2" = "フラグ 2（橙）";
+"browse_batch_flag_3" = "フラグ 3（緑）";
+"browse_batch_flag_4" = "フラグ 4（青）";
+"browse_batch_flag_5" = "フラグ 5（ピンク）";
+"browse_batch_flag_6" = "フラグ 6（シアン）";
+"browse_batch_flag_7" = "フラグ 7（紫）";
+"browse_batch_flag_clear" = "フラグをクリア";
+"browse_batch_suspend" = "一括停止";
+"browse_batch_bury" = "一括埋め込み";
+"browse_batch_clear_selection" = "選択をクリア";
+"browse_delete_note_title" = "ノートを削除しますか？";
+"browse_delete_note_message" = "「%@」を削除してもよろしいですか？";
+"browse_edit_btn_add" = "ノートを追加";
+
+// MARK: - AddNoteView
+"add_note_nav_title" = "ノートを追加";
+"add_note_field_front" = "表面";
+"add_note_field_back" = "裏面";
+"add_note_btn_add" = "ノートを追加";
+"add_note_section_fields" = "フィールド";
+"add_note_section_tags" = "タグ";
+"add_note_section_deck" = "デッキ";
+"add_note_success" = "ノートを追加しました";
+"add_note_failed" = "ノートの追加に失敗しました";
+
+// MARK: - NoteEditorView
+"note_editor_nav_title" = "ノートを編集";
+"note_editor_btn_save" = "保存";
+"note_editor_save_failed" = "保存に失敗しました";
+
+// MARK: - ReviewView
+"review_nav_title" = "学習";
+"review_again" = "もう一度";
+"review_hard" = "難しい";
+"review_good" = "良い";
+"review_easy" = "簡単";
+"review_done_title" = "完了！";
+"review_done_message" = "このデッキに期限のカードはありません。";
+"review_info_sheet_title" = "カード情報";
+"review_info_section_status" = "学習状況";
+"review_info_section_fsrs" = "FSRS記憶状態";
+"review_info_section_ids" = "識別情報";
+"review_info_queue" = "キュー";
+"review_info_due" = "期限";
+"review_info_interval" = "間隔";
+"review_info_ease" = "難易度係数";
+"review_info_stability" = "安定性";
+"review_info_difficulty" = "難易度";
+"review_info_retention" = "目標保持率";
+"review_info_last_review" = "最終学習";
+"review_info_card_id" = "カードID";
+"review_info_note_id" = "ノートID";
+"review_info_card_type" = "カードタイプ";
+"review_queue_new" = "新規";
+"review_queue_learn" = "学習中";
+"review_queue_review" = "復習";
+"review_queue_day_learn" = "日中学習";
+"review_queue_preview" = "プレビュー";
+"review_queue_unknown" = "不明";
+"review_flag_red" = "赤";
+"review_flag_orange" = "橙";
+"review_flag_green" = "緑";
+"review_flag_blue" = "青";
+"review_flag_pink" = "ピンク";
+"review_flag_cyan" = "シアン";
+"review_flag_purple" = "紫";
+"review_flag_none" = "なし";
+
+// MARK: - TagsView
+"tags_empty_desc_note_mode" = "コレクションにタグがありません。+ をタップして作成・適用できます。";
+"tags_empty_desc" = "ノートにタグを追加してコレクションを整理しましょう。";
+"tags_note_mode_header" = "%d 件のノートにタグを適用";
+"tags_done" = "完了";
+"tags_add_sheet_title" = "タグを追加";
+"tags_add_target_section" = "対象ノート";
+"tags_add_target_desc" = "新しいタグを選択した %d 件のノートに適用します。";
+"tags_add_name_section" = "タグ名";
+"tags_add_placeholder" = "例：日本語::語彙";
+"tags_add_btn_create_apply" = "作成して適用";
+"tags_add_btn_create" = "タグを作成";
+"tags_action_apply" = "%d 件のノートに適用";
+"tags_action_remove" = "%d 件のノートから削除";
+"tags_swipe_remove" = "ノートから削除";
+"tags_swipe_apply" = "ノートに適用";
+"tags_swipe_delete" = "削除";
+"tags_delete_confirm_title" = "タグを削除しますか？";
+"tags_delete_confirm_message" = "タグ「%@」を削除しますか？このタグがついたノートは保持されます。";
+"tags_error_title" = "エラー";
+"tags_load_failed" = "タグの読み込みに失敗しました：%@";
+"tags_create_failed" = "タグの作成に失敗しました：%@";
+"tags_apply_failed" = "タグの適用に失敗しました：%@";
+"tags_remove_failed" = "タグの削除に失敗しました：%@";
+"tags_delete_failed" = "タグの削除に失敗しました：%@";
+
+// MARK: - CardContextMenu
+"card_ctx_flag_red" = "フラグ：赤";
+"card_ctx_flag_orange" = "フラグ：橙";
+"card_ctx_flag_green" = "フラグ：緑";
+"card_ctx_flag_blue" = "フラグ：青";
+"card_ctx_flag_pink" = "フラグ：ピンク";
+"card_ctx_flag_cyan" = "フラグ：シアン";
+"card_ctx_flag_purple" = "フラグ：紫";
+"card_ctx_flag_clear" = "フラグをクリア";
+"card_ctx_suspend" = "停止";
+"card_ctx_bury" = "埋め込み";
+"card_ctx_unsuspend" = "停止を解除";
+"card_ctx_unbury" = "埋め込みを解除";
+
+// MARK: - SettingsView
+"settings_nav_title" = "設定";
+"settings_section_basic" = "基本";
+"settings_section_display" = "表示とテーマ";
+"settings_section_maintenance" = "メンテナンス";
+"settings_section_other" = "その他";
+"settings_row_account" = "アカウント";
+"settings_row_editing" = "編集";
+"settings_row_review" = "学習";
+"settings_toggle_follow_system" = "システムに合わせる";
+"settings_toggle_dark_mode" = "ダークモード";
+"settings_picker_language" = "言語";
+"settings_language_restart_hint" = "言語の変更はアプリ再起動後に完全に反映されます。";
+"settings_row_backup" = "バックアップ";
+"settings_row_check_database" = "データベース確認";
+"settings_row_check_media" = "メディア確認";
+"settings_row_empty_cards" = "空のカード";
+"settings_row_about" = "アプリについて";
+"settings_language_system" = "システムに従う";
+"settings_language_zh_hans" = "简体中文";
+"settings_language_en" = "English";
+"settings_language_ja" = "日本語";
+
+// MARK: - SyncSheet
+"sync_nav_title" = "同期";
+"sync_btn_done" = "完了";
+"sync_label_server" = "サーバー";
+"sync_menu_change_server" = "サーバーを変更";
+"sync_menu_logout" = "ログアウト";
+"sync_local_mode_label" = "同期は無効です";
+"sync_btn_setup_server" = "サーバーを設定";
+"sync_preparing" = "同期の準備中…";
+"sync_syncing" = "同期中…";
+"sync_syncing_media" = "メディアを同期中…";
+"sync_complete_title" = "同期完了";
+"sync_cards_received" = "↓ %d 枚のカードを受信";
+"sync_cards_sent" = "↑ %d 枚のカードを送信";
+"sync_notes_received" = "↓ %d 件のノートを受信";
+"sync_notes_sent" = "↑ %d 件のノートを送信";
+"sync_up_to_date" = "すべて最新の状態です";
+"sync_failed_title" = "同期に失敗しました";
+"sync_no_server_title" = "サーバー未設定";
+"sync_no_server_desc" = "デバイス間でコレクションを同期するにはサーバーを設定してください。";
+"sync_full_required_title" = "完全同期が必要です";
+"sync_full_required_desc" = "コレクションに大きな変更があり、一方を完全に置き換える必要があります。";
+"sync_btn_download" = "サーバーからダウンロード";
+"sync_btn_upload" = "サーバーにアップロード";
+"sync_full_downloading" = "完全なコレクションをダウンロード中…";
+"sync_full_uploading" = "完全なコレクションをアップロード中…";
+
+// MARK: - LoginSheet
+"login_nav_title" = "ログイン";
+"login_field_username" = "ユーザー名";
+"login_field_password" = "パスワード";
+"login_btn_sign_in" = "サインイン";
+"login_failed" = "ログインに失敗しました。ユーザー名とパスワードを確認してください。";
+
+// MARK: - OnboardingView
+"onboarding_welcome" = "ようこそ";
+"onboarding_subtitle" = "コレクションの同期方法を選択";
+"onboarding_server_url_placeholder" = "サーバーURL";
+"onboarding_btn_continue" = "続ける";
+"onboarding_btn_back" = "戻る";
+"onboarding_btn_custom_server" = "カスタムサーバー";
+"onboarding_btn_use_local" = "ローカルで使用";
+"onboarding_footer" = "同期設定でいつでも変更できます";
+
+// MARK: - Statistics
+"stats_nav_title" = "統計";
+"stats_loading" = "統計データを読み込み中…";
+"stats_load_failed_title" = "統計の読み込みに失敗しました";
+"stats_whole_collection" = "コレクション全体";
+"stats_period_month" = "月間";
+"stats_period_year" = "年間";
+"stats_period_life" = "全期間";
+"stats_today_reviewed" = "復習";
+"stats_today_time" = "時間";
+"stats_today_correct" = "正解率";
+"stats_today_mature" = "成熟";
+"stats_card_new" = "新規";
+"stats_card_learn" = "学習中";
+"stats_card_review" = "復習";
+"stats_card_again" = "もう一度";
+
+// MARK: - UserManagementView
+"user_mgmt_nav_title" = "ユーザー設定";
+"user_mgmt_add_user" = "ユーザーを追加";
+"user_mgmt_delete_user" = "ユーザーを削除";
+
+// MARK: - DebugView
+"debug_check_db_result" = "データベース確認結果：%@";
+
+// MARK: - Common (extended)
+"common_cancel" = "キャンセル";
+"common_ok" = "OK";
+"common_save" = "保存";
+"common_done" = "完了";
+"common_delete" = "削除";
+"common_back" = "戻る";
+"common_loading" = "読み込み中…";
+"common_today" = "今日";
+"common_yesterday" = "昨日";
+"common_none" = "なし";
+"common_error" = "エラー";
+"common_unknown_error" = "不明なエラー";
+"common_completed" = "完了";
+"common_failed_load_notetype" = "ノートタイプの読み込みに失敗しました";
+
+// MARK: - App Startup
+"app_unable_to_start" = "AnkiApp を起動できません";
+
+// MARK: - DeckDetailView (extended)
+"deck_detail_study_now" = "今すぐ学習";
+"deck_detail_count_new" = "新規";
+"deck_detail_count_learning" = "学習中";
+"deck_detail_count_review" = "復習";
+"deck_detail_subdecks" = "サブデッキ";
+"deck_count_format" = "%d デッキ";
+
+// MARK: - DeckConfigView (extended)
+"deck_config_title" = "デッキ設定";
+"deck_config_name" = "プリセット名";
+"deck_config_name_placeholder" = "プリセット名";
+"deck_config_apply_children" = "サブデッキに適用";
+"deck_config_daily_new" = "1日の新規カード数";
+"deck_config_daily_review" = "1日の最大復習数";
+"deck_config_learn_steps" = "学習ステップ";
+"deck_config_learn_steps_hint" = "例：1m 10m";
+"deck_config_good_interval" = "卒業間隔";
+"deck_config_easy_interval" = "簡単間隔";
+"deck_config_insert_order" = "挿入順序";
+"deck_config_order_due" = "順番（古い順）";
+"deck_config_order_random" = "ランダム";
+"deck_config_new_mix" = "新規/復習の順序";
+"deck_config_mix_with_reviews" = "復習と混在";
+"deck_config_mix_after_reviews" = "復習の後";
+"deck_config_mix_before_reviews" = "復習の前";
+"deck_config_section_order" = "表示順序";
+"deck_config_relearn_steps" = "再学習ステップ";
+"deck_config_relearn_steps_hint" = "例：10m";
+"deck_config_leech_threshold" = "難問閾値";
+"deck_config_times_fmt" = "%d 回";
+"deck_config_leech_action" = "難問対処";
+"deck_config_leech_suspend" = "カードを一時停止";
+"deck_config_leech_tag_only" = "タグのみ";
+"deck_config_review_order" = "復習の並び替え";
+"deck_config_review_order_day" = "日ごとにランダム";
+"deck_config_review_order_asc" = "間隔昇順";
+"deck_config_review_order_desc" = "間隔降順";
+"deck_config_interday_mix" = "日をまたぐ学習の混在";
+"deck_config_fsrs_enable" = "FSRS を有効化";
+"deck_config_desired_retention" = "目標保持率";
+"deck_config_fsrs_weights" = "FSRS ウェイト";
+"deck_config_fsrs_weights_hint" = "カンマ区切りの数値";
+"deck_config_bury_new" = "新規の兄弟カードを埋める";
+"deck_config_bury_reviews" = "復習の兄弟カードを埋める";
+"deck_config_bury_interday" = "跨日学習の兄弟カードを埋める";
+"deck_config_show_timer" = "タイマーを表示";
+"deck_config_timer_cap" = "回答時間制限";
+"deck_config_seconds_fmt" = "%d 秒";
+"deck_config_stop_timer_on_answer" = "回答時にタイマー停止";
+"deck_config_question_secs" = "質問後の操作秒数";
+"deck_config_answer_secs" = "回答後の操作秒数";
+"deck_config_after_question" = "質問後の操作";
+"deck_config_after_answer" = "回答後の操作";
+"deck_config_action_show_answer" = "答えを表示";
+"deck_config_action_show_reminder" = "リマインダーを表示";
+"deck_config_action_bury" = "カードを埋める";
+"deck_config_action_again" = "もう一度";
+"deck_config_action_hard" = "難しい";
+"deck_config_action_good" = "良い";
+"deck_config_disable_autoplay" = "自動再生を無効化";
+"deck_config_wait_audio" = "音声を待つ";
+"deck_config_skip_question_audio" = "再生時に質問音声をスキップ";
+"deck_config_max_interval" = "最大間隔";
+"deck_config_days_fmt" = "%d 日";
+"deck_config_interval_mult" = "間隔修正係数";
+"deck_config_hard_mult" = "難しい間隔";
+"deck_config_easy_mult" = "簡単ボーナス";
+"deck_config_error_load" = "デッキ設定の読み込み失敗：%@";
+"deck_config_error_save" = "デッキ設定の保存失敗：%@";
+
+// MARK: - Weekdays
+"weekday_mon" = "月";
+"weekday_tue" = "火";
+"weekday_wed" = "水";
+"weekday_thu" = "木";
+"weekday_fri" = "金";
+"weekday_sat" = "土";
+"weekday_sun" = "日";
+"weekday_other" = "?";
+
+// MARK: - BrowseView (extended)
+"browse_title" = "ブラウズ";
+"browse_note_count" = "%d 件のノート";
+"browse_selected_count" = "選択中：%d";
+"browse_select_page" = "このページを選択";
+"browse_select_filtered" = "フィルター結果を選択";
+"browse_select_clear" = "クリア";
+"browse_delete_title" = "ノートを削除？";
+"browse_delete_confirm" = "このノートを削除してもよろしいですか？";
+"browse_batch_failed_title" = "一括操作失敗";
+"browse_batch_success_title" = "一括操作完了";
+"browse_batch_no_cards" = "カードが選択されていません";
+"browse_batch_processed" = "%d 枚のカードを処理しました";
+"browse_empty_title" = "ノートなし";
+"browse_empty_description" = "コレクションが空です。";
+"browse_filter_all" = "すべて";
+
+// MARK: - TagsView (extended)
+"tags_empty_title" = "タグなし";
+"tags_empty_note_mode" = "コレクションにタグがありません。+ をタップして作成・適用してください。";
+"tags_empty_collection_mode" = "ノートにタグを追加してコレクションを整理しましょう。";
+"tags_apply_hint" = "%d 件のノートにタグを適用";
+"tags_section_select" = "タグを選択";
+"tags_section_all" = "すべてのタグ";
+"tags_nav_title_note_mode" = "タグの適用 / 削除";
+"tags_nav_title" = "タグ";
+"tags_target_notes" = "対象ノート";
+"tags_new_tag_will_apply" = "新しいタグを選択した %d 件のノートに適用します。";
+"tags_new_tag_name_section" = "タグ名";
+"tags_new_tag_placeholder" = "例：日本語::語彙";
+"tags_create_and_apply" = "作成して適用";
+"tags_create_tag" = "タグを作成";
+"tags_add_tag_title" = "タグを追加";
+"tags_delete_title" = "タグを削除？";
+"tags_delete_confirm" = "タグ「%@」を削除しますか？このタグを持つノートは保持されます。";
+"tags_action_dialog_title" = "操作";
+"tags_apply_to_notes" = "%d 件のノートに適用";
+"tags_remove_from_notes" = "%d 件のノートから削除";
+"tags_remove_swipe" = "ノートから削除";
+"tags_apply_swipe" = "ノートに適用";
+"tags_error_load" = "タグの読み込みに失敗：%@";
+"tags_error_create" = "タグの作成に失敗：%@";
+"tags_error_apply" = "タグの適用に失敗：%@";
+"tags_error_remove" = "タグの削除に失敗：%@";
+"tags_error_delete" = "タグの削除に失敗：%@";
+
+// MARK: - ReviewView (extended)
+"review_reviewed_count" = "復習済み：%d";
+"review_edit_button" = "編集";
+"review_show_answer" = "答えを表示";
+"review_rating_again" = "もう一度";
+"review_rating_hard" = "難しい";
+"review_rating_good" = "良い";
+"review_rating_easy" = "簡単";
+"review_finished_title" = "おめでとうございます！";
+"review_finished_count" = "%d 枚復習しました";
+"review_finished_accuracy" = "正解率：%.0f%%";
+
+// MARK: - Card Info Sheet
+"card_info_title" = "カード情報";
+"card_info_section_review_status" = "復習ステータス";
+"card_info_section_fsrs" = "FSRS メモリ状態";
+"card_info_section_ids" = "識別子";
+"card_info_queue" = "キュー";
+"card_info_interval" = "間隔";
+"card_info_due" = "期日";
+"card_info_reps" = "復習回数";
+"card_info_lapses" = "失敗回数";
+"card_info_ease" = "容易度";
+"card_info_stability" = "安定性";
+"card_info_stability_fmt" = "%.1f 日";
+"card_info_difficulty" = "難易度";
+"card_info_retention" = "目標保持率";
+"card_info_decay" = "減衰";
+"card_info_last_review" = "最終復習";
+"card_info_card_id" = "カード ID";
+"card_info_note_id" = "ノート ID";
+"card_info_deck_id" = "デッキ ID";
+"card_info_template" = "テンプレート";
+"card_info_flags" = "フラグ";
+
+// MARK: - Card Queue / Interval
+"card_queue_new" = "新規";
+"card_queue_learning" = "学習中";
+"card_queue_review" = "復習";
+"card_queue_unknown" = "不明";
+"card_interval_less_than_1d" = "1日未満";
+"card_interval_days" = "%d 日";
+"card_interval_months" = "%.1f ヶ月";
+"card_interval_years" = "%.1f 年";
+"card_due_position" = "位置 %d";
+
+// MARK: - Flags
+"flag_red" = "赤";
+"flag_orange" = "オレンジ";
+"flag_green" = "緑";
+"flag_blue" = "青";
+"flag_pink" = "ピンク";
+"flag_cyan" = "シアン";
+"flag_purple" = "紫";
+"flag_other" = "フラグ %d";
+"card_flag_label" = "フラグ %d（%@）";
+
+// MARK: - CardContextMenu (extended)
+"card_action_suspend" = "一時停止";
+"card_action_bury" = "埋める";
+"card_action_flag" = "フラグ";
+"card_action_undo" = "元に戻す";
+"card_action_error_title" = "操作失敗";
+"card_action_error_suspend" = "カードの一時停止に失敗しました";
+"card_action_error_bury" = "カードを埋めるのに失敗しました";
+"card_action_error_flag" = "カードのフラグ設定に失敗しました";
+"card_action_error_undo" = "元に戻すのに失敗しました";
+
+// MARK: - AddNoteView (extended)
+"add_note_title" = "ノートを追加";
+"add_note_section_type" = "ノートタイプ";
+"add_note_type_label" = "ノートタイプ";
+"add_note_tags_placeholder" = "例：文法、語彙";
+"add_note_button" = "ノートを追加";
+"add_note_error_save" = "ノートの追加に失敗：%@";
+
+// MARK: - NoteEditorView (extended)
+"note_editor_title" = "ノートを編集";
+"note_editor_save" = "保存";
+"note_editor_saved" = "✓ 保存しました";
+"note_editor_select_tags" = "タグを選択";
+"note_editor_current_tags" = "現在のタグ";
+"note_editor_available_tags" = "利用可能なタグ";
+"note_editor_error_save" = "保存に失敗：%@";
+
+// MARK: - Stats (extended)
+"stats_added_title" = "追加済み";
+"stats_added_empty" = "データなし";
+"stats_total" = "合計：%d";
+"stats_avg_day" = "日平均：%.1f";
+"stats_buttons_title" = "回答ボタン";
+"stats_buttons_empty" = "データなし";
+"stats_card_counts_title" = "カード数";
+"stats_card_counts_empty" = "データなし";
+"stats_card_states_title" = "カード状態";
+"stats_card_states_empty" = "データなし";
+"stats_ease_title" = "容易度分布";
+"stats_ease_empty" = "データなし";
+"stats_ease_avg" = "平均：%.0f%%";
+"stats_forecast_title" = "予測";
+"stats_future_due_title" = "将来の期日";
+"stats_future_due_empty" = "期日のカードなし";
+"stats_future_due_backlog" = "バックログを表示";
+"stats_future_due_tomorrow" = "明日：%d";
+"stats_future_due_daily_load" = "日次負荷：%.1f";
+"stats_heatmap_title" = "復習ヒートマップ";
+"stats_heatmap_streak" = "🔥 %d 日連続";
+"stats_heatmap_empty" = "まだ復習がありません";
+"stats_heatmap_less" = "少";
+"stats_heatmap_more" = "多";
+"stats_this_month" = "今月：%d";
+"stats_this_week" = "今週：%d";
+"stats_hourly_title" = "時間帯別";
+"stats_hourly_empty" = "データなし";
+"stats_intervals_title" = "間隔分布";
+"stats_intervals_empty" = "データなし";
+"stats_reviews_title" = "復習回数";
+"stats_reviews_empty" = "データなし";
+"stats_retention_title" = "保持率";
+"stats_retention_period" = "期間";
+"stats_retention_young" = "若いカード";
+"stats_retention_mature" = "成熟カード";
+"stats_retention_yesterday" = "昨日";
+"stats_period_day" = "日";
+"stats_period_week" = "週";
+"stats_period_3months" = "3ヶ月";
+"stats_period_all" = "全期間";
+"stats_period_all_short" = "全";
+
+// MARK: - UserManagementView
+"user_mgmt_title" = "ユーザー管理";
+"user_mgmt_section_accounts" = "アカウント";
+"user_mgmt_rename" = "名前変更";
+"user_mgmt_add_title" = "ユーザーを追加";
+"user_mgmt_username_placeholder" = "ユーザー名";
+"user_mgmt_add_button" = "追加";
+"user_mgmt_rename_title" = "ユーザー名変更";
+"user_mgmt_new_username_placeholder" = "新しいユーザー名";
+"user_mgmt_delete_confirm1_title" = "ユーザーを削除？";
+"user_mgmt_delete_continue" = "続ける";
+"user_mgmt_delete_confirm1_msg" = "このユーザーとそのすべてのデータが完全に削除されます。";
+"user_mgmt_delete_confirm2_title" = "本当によろしいですか？";
+"user_mgmt_delete_confirm_button" = "完全に削除";
+"user_mgmt_delete_confirm2_msg" = "この操作は元に戻せません。";
+"user_mgmt_default_user" = "ユーザー1";
+
+// MARK: - DebugView
+"debug_nav_title" = "デバッグ";
+"debug_section_account" = "アカウント";
+"debug_section_import_export" = "インポート / エクスポート";
+"debug_section_database" = "データベース";
+"debug_section_status" = "ステータス";
+"debug_section_collection_info" = "コレクション情報";
+"debug_username" = "ユーザー名";
+"debug_host_key" = "ホストキー";
+"debug_not_logged_in" = "未ログイン";
+"debug_stored" = "保存済み ✓";
+"debug_logout" = "ログアウト（資格情報を削除）";
+"debug_logged_out_msg" = "ログアウトしました。同期をタップして再ログインしてください。";
+"debug_export_button" = "コレクションをエクスポート（.colpkg）";
+"debug_export_ready" = "エクスポート準備完了：%@";
+"debug_export_error" = "エクスポートエラー：%@";
+"debug_check_db" = "データベースをチェック";
+"debug_check_db_ok" = "DBチェック正常（%d バイト）";
+"debug_check_db_error" = "DBチェックエラー：%@";
+"debug_reset_button" = "すべてリセット";
+"debug_reset_confirm_msg" = "ローカルコレクションと資格情報を削除します。再同期が必要になります。";
+"debug_reset_confirm_button" = "リセット";
+"debug_reset_complete" = "リセット完了。アプリを再起動してください。";
+"debug_dump_deck_tree" = "デッキツリーをダンプ";
+"debug_deck_tree_error" = "デッキツリーエラー：%@";
+"deck_config_section_auto_advance" = "自動進行";
+
+// MARK: - SettingsInfoView & AboutView
+"settings_info_editing" = "編集オプションは現在、ノートタイプとデッキ設定画面で処理されています。";
+"settings_info_review" = "復習動作はデッキ設定ごとに設定されます。";
+"settings_check_media_not_wired" = "メディアチェック機能はまだこのビルドで有効にされていません。";
+"settings_empty_cards_not_wired" = "空カードクリーンアップはまだこのビルドで有効にされていません。";
+
+// MARK: - AboutView
+"about_nav_title" = "について";
+"about_section_amgi" = "Amgi";
+"about_summary_text" = "オフラインファースト、Anki互換のオープンソースiOSフラッシュカードクライアント。";
+"about_section_architecture" = "アーキテクチャ";
+"about_architecture_text" = "SwiftUI Views → Dependency Clients → AnkiBackend (Swift) → C FFI → Rust backend";
+"about_section_tech_stack" = "技術スタック";
+"about_tech_text" = "SwiftUI、Swift 6.2、Rust FFI、Protocol Buffers、SQLite、XcodeGen";
+"about_section_open_source" = "オープンソース参考";
+"about_open_source_text" = "ankitects/anki、AnkiDroid、Point-Free swift-dependencies";
+"about_section_license" = "ライセンス";
+"about_license_text" = "AGPL-3.0";
+
+// MARK: - BrowseView Batch Operations
+"browse_tag_manage" = "タグを管理...";
+"browse_batch_flags" = "一括フラグ";
+"browse_flag_1" = "フラグ 1（赤）";
+"browse_flag_2" = "フラグ 2（オレンジ）";
+"browse_flag_3" = "フラグ 3（緑）";
+"browse_flag_4" = "フラグ 4（青）";
+"browse_flag_5" = "フラグ 5（ピンク）";
+"browse_flag_6" = "フラグ 6（シアン）";
+"browse_flag_7" = "フラグ 7（紫）";
+"browse_flag_clear" = "フラグをクリア";
+"browse_batch_suspend" = "一括停止";
+"browse_batch_bury" = "一括埋める";
+"browse_batch_ops" = "一括操作";
+"browse_batch_deselect" = "選択をクリア";

@@ -26,10 +26,10 @@ struct AddedChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Cards Added").font(.headline)
+            Text(L("stats_added_title")).font(.headline)
 
             if filteredData.isEmpty {
-                Text("No cards added").foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_added_empty")).foregroundStyle(.secondary).frame(height: 180)
             } else {
                 Chart(filteredData, id: \.day) { item in
                     BarMark(
@@ -48,8 +48,8 @@ struct AddedChart: View {
             }
 
             HStack(spacing: 16) {
-                footerItem("Total", value: "\(totalAdded)")
-                footerItem("Avg/day", value: String(format: "%.1f", avgPerDay))
+                footerItem(L("stats_total"), value: "\(totalAdded)")
+                footerItem(L("stats_avg_day"), value: String(format: "%.1f", avgPerDay))
             }
             .font(.caption2)
         }

@@ -60,7 +60,16 @@ struct DeckConfigView: View {
     @State private var skipQuestionWhenReplayingAnswer = false
     @State private var easyDayPercentages: [Double] = Array(repeating: 100, count: 7)
     @State private var applyToChildren = false
-    
+
+    // Collapsible section expanded states
+    @State private var orderExpanded = false
+    @State private var fsrsExpanded = false
+    @State private var buryExpanded = false
+    @State private var timerExpanded = false
+    @State private var autoAdvanceExpanded = false
+    @State private var advancedExpanded = false
+    @State private var easyDaysExpanded = false
+
     var body: some View {
         NavigationStack {
             VStack {
@@ -69,166 +78,209 @@ struct DeckConfigView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     Form {
-                        Section("系统设置") {
-                            TextField("配置名称", text: $configName)
-                            Toggle("禁用自动播放音频", isOn: $disableAutoplay)
-                            Toggle("等待音频播放完成", isOn: $waitForAudio)
-                            Toggle("重放答案时跳过问题音频", isOn: $skipQuestionWhenReplayingAnswer)
-                            Toggle("应用到子牌组", isOn: $applyToChildren)
+                        // MARK: - 基本设置（始终展开）
+                        Section(L("deck_config_section_basic")) {
+                            LabeledContent(L("deck_config_name")) {
+                                TextField(L("deck_config_name_placeholder"), text: $configName)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            Toggle(L("deck_config_apply_children"), isOn: $applyToChildren)
                         }
 
-                        Section("每日上限") {
-                            Stepper(
-                                "New cards per day: \(newCardsPerDay)",
-                                value: $newCardsPerDay,
-                                in: 0...1000
-                            )
-                            
-                            Stepper(
-                                "Reviews per day: \(reviewsPerDay)",
-                                value: $reviewsPerDay,
-                                in: 0...10000
-                            )
-                        }
-                        
-                        Section("新卡片") {
-                            TextField("Steps (space-separated)", text: $learningStepsText)
-                                .font(.monospaced(.body)())
-
-                            Stepper("Good 间隔（天）: \(graduatingGoodDays)", value: $graduatingGoodDays, in: 0...365)
-                            Stepper("Easy 间隔（天）: \(graduatingEasyDays)", value: $graduatingEasyDays, in: 0...365)
-
-                            Picker("新卡插入顺序", selection: $newCardInsertOrder) {
-                                Text("按到期").tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
-                                Text("随机").tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
+                        // MARK: - 每日上限（始终展开）
+                        Section(L("deck_config_section_daily")) {
+                            LabeledContent(L("deck_config_daily_new")) {
+                                Stepper("\(newCardsPerDay)", value: $newCardsPerDay, in: 0...1000)
                             }
-
-                            Picker("新卡与复习混合", selection: $newMix) {
-                                Text("与复习混合").tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                                Text("复习后").tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                                Text("复习前").tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
-                            }
-                        }
-                        
-                        Section("遗忘") {
-                            TextField("Steps (space-separated)", text: $relearningStepsText)
-                                .font(.monospaced(.body)())
-
-                            Stepper("记忆阈值（leech）: \(leechThreshold)", value: $leechThreshold, in: 1...50)
-
-                            Picker("记忆阈值后动作", selection: $leechAction) {
-                                Text("暂停卡片").tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
-                                Text("仅打标签").tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
-                            }
-                        }
-                        
-                        Section("展示顺序") {
-                            Picker("复习卡片顺序", selection: $reviewOrder) {
-                                Text("按天").tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
-                                Text("按间隔升序").tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
-                                Text("按间隔降序").tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
-                                Text("随机").tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
-                            }
-
-                            Picker("跨天学习卡片", selection: $interdayLearningMix) {
-                                Text("与复习混合").tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                                Text("复习后").tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                                Text("复习前").tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+                            LabeledContent(L("deck_config_daily_review")) {
+                                Stepper("\(reviewsPerDay)", value: $reviewsPerDay, in: 0...10000)
                             }
                         }
 
-                        Section("FSRS") {
-                            Toggle("Enable FSRS", isOn: $fsrsEnabled)
-
-                            HStack {
-                                Text("目标记忆保持率")
-                                Spacer()
-                                Text("\(Int(desiredRetentionPercent))%")
-                                    .foregroundStyle(.secondary)
+                        // MARK: - 新卡片（始终展开）
+                        Section(L("deck_config_section_new")) {
+                            LabeledContent(L("deck_config_learn_steps")) {
+                                TextField(L("deck_config_learn_steps_hint"), text: $learningStepsText)
+                                    .multilineTextAlignment(.trailing)
+                                    .font(.monospaced(.body)())
                             }
-                            Slider(value: $desiredRetentionPercent, in: 70...97, step: 1)
-                            
+                            LabeledContent(L("deck_config_good_interval")) {
+                                Stepper(L("deck_config_days_fmt", graduatingGoodDays), value: $graduatingGoodDays, in: 0...365)
+                            }
+                            LabeledContent(L("deck_config_easy_interval")) {
+                                Stepper(L("deck_config_days_fmt", graduatingEasyDays), value: $graduatingEasyDays, in: 0...365)
+                            }
+                            Picker(L("deck_config_insert_order"), selection: $newCardInsertOrder) {
+                                Text(L("deck_config_order_due")).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
+                                Text(L("deck_config_order_random")).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
+                            }
+                            Picker(L("deck_config_new_mix"), selection: $newMix) {
+                                Text(L("deck_config_mix_with_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                                Text(L("deck_config_mix_after_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                                Text(L("deck_config_mix_before_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+                            }
+                        }
+
+                        // MARK: - 遗忘（始终展开）
+                        Section(L("deck_config_section_lapses")) {
+                            LabeledContent(L("deck_config_relearn_steps")) {
+                                TextField(L("deck_config_relearn_steps_hint"), text: $relearningStepsText)
+                                    .multilineTextAlignment(.trailing)
+                                    .font(.monospaced(.body)())
+                            }
+                            LabeledContent(L("deck_config_leech_threshold")) {
+                                Stepper(L("deck_config_times_fmt", leechThreshold), value: $leechThreshold, in: 1...50)
+                            }
+                            Picker(L("deck_config_leech_action"), selection: $leechAction) {
+                                Text(L("deck_config_leech_suspend")).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
+                                Text(L("deck_config_leech_tag_only")).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
+                            }
+                        }
+
+                        // MARK: - 展示顺序（默认折叠）
+                        DisclosureGroup(L("deck_config_section_order"), isExpanded: $orderExpanded) {
+                            Picker(L("deck_config_review_order"), selection: $reviewOrder) {
+                                Text(L("deck_config_review_order_day")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
+                                Text(L("deck_config_review_order_asc")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
+                                Text(L("deck_config_review_order_desc")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
+                                Text(L("deck_config_order_random")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
+                            }
+                            Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
+                                Text(L("deck_config_mix_with_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                                Text(L("deck_config_mix_after_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                                Text(L("deck_config_mix_before_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .padding(.vertical, 10)
+
+                        // MARK: - FSRS（默认折叠）
+                        DisclosureGroup(L("deck_config_section_fsrs"), isExpanded: $fsrsExpanded) {
+                            Toggle(L("deck_config_fsrs_enable"), isOn: $fsrsEnabled)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(L("deck_config_desired_retention"))
+                                    Spacer()
+                                    Text("\(Int(desiredRetentionPercent))%")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: $desiredRetentionPercent, in: 70...97, step: 1)
+                            }
                             if fsrsEnabled {
-                                TextField("FSRS Weights", text: $fsrsWeights)
-                                    .font(.monospaced(.caption)())
-                                    .lineLimit(3)
+                                LabeledContent(L("deck_config_fsrs_weights")) {
+                                    TextField(L("deck_config_fsrs_weights_hint"), text: $fsrsWeights)
+                                        .multilineTextAlignment(.trailing)
+                                        .font(.monospaced(.caption)())
+                                }
                             }
                         }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .padding(.vertical, 10)
 
-                        Section("搁置") {
-                            Toggle("新卡片与当天复习卡片", isOn: $buryNew)
-                            Toggle("复习卡与当天复习卡片", isOn: $buryReviews)
-                            Toggle("跨天学习与当天复习卡片", isOn: $buryInterdayLearning)
+                        // MARK: - 搁置（默认折叠）
+                        DisclosureGroup(L("deck_config_section_bury"), isExpanded: $buryExpanded) {
+                            Toggle(L("deck_config_bury_new"), isOn: $buryNew)
+                            Toggle(L("deck_config_bury_reviews"), isOn: $buryReviews)
+                            Toggle(L("deck_config_bury_interday"), isOn: $buryInterdayLearning)
                         }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .padding(.vertical, 10)
 
-                        Section("计时器") {
-                            Toggle("显示计时器", isOn: $showTimer)
-                            Stepper("答题时间记录上限（秒）: \(capAnswerTimeToSecs)", value: $capAnswerTimeToSecs, in: 5...600)
-                            Toggle("回答后停止计时", isOn: $stopTimerOnAnswer)
+                        // MARK: - 计时器（默认折叠）
+                        DisclosureGroup(L("deck_config_section_timer"), isExpanded: $timerExpanded) {
+                            Toggle(L("deck_config_show_timer"), isOn: $showTimer)
+                            LabeledContent(L("deck_config_timer_cap")) {
+                                Stepper(L("deck_config_seconds_fmt", capAnswerTimeToSecs), value: $capAnswerTimeToSecs, in: 5...600)
+                            }
+                            Toggle(L("deck_config_stop_timer_on_answer"), isOn: $stopTimerOnAnswer)
                         }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .padding(.vertical, 10)
 
-                        Section("自动前进") {
-                            HStack {
-                                Text("问题显示秒数")
-                                Spacer()
-                                Text(String(format: "%.1f", secondsToShowQuestion))
-                                    .foregroundStyle(.secondary)
+                        // MARK: - 自动前进（默认折叠）
+                        DisclosureGroup(L("deck_config_section_auto_advance"), isExpanded: $autoAdvanceExpanded) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(L("deck_config_question_secs"))
+                                    Spacer()
+                                    Text(String(format: "%.1f s", secondsToShowQuestion))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: $secondsToShowQuestion, in: 0...60, step: 0.5)
                             }
-                            Slider(value: $secondsToShowQuestion, in: 0...60, step: 0.5)
-
-                            HStack {
-                                Text("答案显示秒数")
-                                Spacer()
-                                Text(String(format: "%.1f", secondsToShowAnswer))
-                                    .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(L("deck_config_answer_secs"))
+                                    Spacer()
+                                    Text(String(format: "%.1f s", secondsToShowAnswer))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: $secondsToShowAnswer, in: 0...60, step: 0.5)
                             }
-                            Slider(value: $secondsToShowAnswer, in: 0...60, step: 0.5)
-
-                            Picker("显示问题后", selection: $questionAction) {
-                                Text("显示答案").tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
-                                Text("显示提醒").tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
+                            Picker(L("deck_config_after_question"), selection: $questionAction) {
+                                Text(L("deck_config_action_show_answer")).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
+                                Text(L("deck_config_action_show_reminder")).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
                             }
-
-                            Picker("显示答案后", selection: $answerAction) {
-                                Text("搁置卡片").tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
-                                Text("选择 Again").tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
-                                Text("选择 Hard").tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
-                                Text("选择 Good").tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
-                                Text("显示提醒").tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
+                            Picker(L("deck_config_after_answer"), selection: $answerAction) {
+                                Text(L("deck_config_action_bury")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
+                                Text(L("deck_config_action_again")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
+                                Text(L("deck_config_action_hard")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
+                                Text(L("deck_config_action_good")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
+                                Text(L("deck_config_action_show_reminder")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
                             }
                         }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .padding(.vertical, 10)
 
-                        Section("高级") {
-                            Stepper("最大复习间隔（天）: \(maximumReviewIntervalDays)", value: $maximumReviewIntervalDays, in: 1...36500)
-
-                            HStack {
-                                Text("间隔倍率")
-                                Spacer()
-                                Text("\(Int(intervalMultiplierPercent))%")
-                                    .foregroundStyle(.secondary)
+                        // MARK: - 高级（默认折叠）
+                        DisclosureGroup(L("deck_config_section_advanced"), isExpanded: $advancedExpanded) {
+                            Toggle(L("deck_config_disable_autoplay"), isOn: $disableAutoplay)
+                            Toggle(L("deck_config_wait_audio"), isOn: $waitForAudio)
+                            Toggle(L("deck_config_skip_question_audio"), isOn: $skipQuestionWhenReplayingAnswer)
+                            LabeledContent(L("deck_config_max_interval")) {
+                                Stepper(L("deck_config_days_fmt", maximumReviewIntervalDays), value: $maximumReviewIntervalDays, in: 1...36500)
                             }
-                            Slider(value: $intervalMultiplierPercent, in: 50...200, step: 1)
-
-                            HStack {
-                                Text("Hard 倍率")
-                                Spacer()
-                                Text("\(Int(hardMultiplierPercent))%")
-                                    .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(L("deck_config_interval_mult"))
+                                    Spacer()
+                                    Text("\(Int(intervalMultiplierPercent))%")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: $intervalMultiplierPercent, in: 50...200, step: 1)
                             }
-                            Slider(value: $hardMultiplierPercent, in: 80...200, step: 1)
-
-                            HStack {
-                                Text("Easy 倍率")
-                                Spacer()
-                                Text("\(Int(easyMultiplierPercent))%")
-                                    .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(L("deck_config_hard_mult"))
+                                    Spacer()
+                                    Text("\(Int(hardMultiplierPercent))%")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: $hardMultiplierPercent, in: 80...200, step: 1)
                             }
-                            Slider(value: $easyMultiplierPercent, in: 100...300, step: 1)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(L("deck_config_easy_mult"))
+                                    Spacer()
+                                    Text("\(Int(easyMultiplierPercent))%")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: $easyMultiplierPercent, in: 100...300, step: 1)
+                            }
                         }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .padding(.vertical, 10)
 
-                        Section("轻松日") {
+                        // MARK: - 轻松日（默认折叠）
+                        DisclosureGroup(L("deck_config_section_easy_days"), isExpanded: $easyDaysExpanded) {
                             ForEach(0..<7, id: \.self) { idx in
-                                VStack(alignment: .leading, spacing: 6) {
+                                VStack(alignment: .leading, spacing: 4) {
                                     HStack {
                                         Text(weekdayName(idx))
                                         Spacer()
@@ -243,39 +295,34 @@ struct DeckConfigView: View {
                                 .padding(.vertical, 2)
                             }
                         }
-                        
-                        Section {
-                            Button(action: saveConfig) {
-                                if isSaving {
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity)
-                                } else {
-                                    Text("Save Configuration")
-                                        .frame(maxWidth: .infinity)
-                                }
-                            }
-                            .disabled(isSaving)
-                        }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .padding(.vertical, 10)
                     }
                 }
             }
-            .navigationTitle("Deck Configuration")
+            .navigationTitle(L("deck_config_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { onDismiss() }
+                    Button(L("common_cancel")) { onDismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("保存") {
-                        saveConfig()
+                    if isSaving {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button(L("common_save")) {
+                            saveConfig()
+                        }
+                        .bold()
                     }
-                    .disabled(isSaving)
                 }
             }
-            .alert("Configuration Error", isPresented: $showError) {
-                Button("OK") { }
+            .alert(L("deck_config_save_failed"), isPresented: $showError) {
+                Button(L("common_ok")) { }
             } message: {
-                Text(errorMessage ?? "Unknown error occurred")
+                Text(errorMessage ?? L("common_unknown_error"))
             }
             .task {
                 await loadConfig()
@@ -285,7 +332,9 @@ struct DeckConfigView: View {
     
     private func loadConfig() async {
         do {
+            Swift.print("[DeckConfigView] Loading config for deckId=\(deckId)")
             let loadedConfig = try deckClient.getDeckConfig(deckId)
+            Swift.print("[DeckConfigView] Loaded config: \(loadedConfig.name), id=\(loadedConfig.id)")
             await MainActor.run {
                 config = loadedConfig
                 let cfg = loadedConfig.config
@@ -344,10 +393,12 @@ struct DeckConfigView: View {
                 }
                 
                 isLoading = false
+                Swift.print("[DeckConfigView] Configuration loaded successfully")
             }
         } catch {
+            Swift.print("[DeckConfigView] Failed to load config: \(error)")
             await MainActor.run {
-                errorMessage = "Failed to load deck configuration: \(error.localizedDescription)"
+                errorMessage = L("deck_config_error_load", error.localizedDescription)
                 showError = true
                 isLoading = false
             }
@@ -417,7 +468,7 @@ struct DeckConfigView: View {
             try deckClient.updateDeckConfig(deckId, config, applyToChildren)
             onDismiss()
         } catch {
-            errorMessage = "Failed to save configuration: \(error.localizedDescription)"
+            errorMessage = L("deck_config_error_save", error.localizedDescription)
             showError = true
             isSaving = false
         }
@@ -447,9 +498,9 @@ struct DeckConfigView: View {
     }
 
     private func weekdayName(_ idx: Int) -> String {
-        let names = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-        if idx >= 0 && idx < names.count { return names[idx] }
-        return "周\(idx + 1)"
+        let keys = ["weekday_mon", "weekday_tue", "weekday_wed", "weekday_thu", "weekday_fri", "weekday_sat", "weekday_sun"]
+        if idx >= 0 && idx < keys.count { return L(keys[idx]) }
+        return L("weekday_other", idx + 1)
     }
 }
 

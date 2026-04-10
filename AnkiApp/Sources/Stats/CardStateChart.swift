@@ -16,10 +16,10 @@ struct CardStateChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Card States").font(.headline)
+            Text(L("stats_card_states_title")).font(.headline)
 
             if chartData.isEmpty {
-                Text("No cards").foregroundStyle(.secondary).frame(height: 150)
+                Text(L("stats_card_states_empty")).foregroundStyle(.secondary).frame(height: 150)
             } else {
                 Chart(chartData, id: \.0) { item in
                     SectorMark(angle: .value("Count", item.1), innerRadius: .ratio(0.5))

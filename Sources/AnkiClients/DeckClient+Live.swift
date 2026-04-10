@@ -141,6 +141,8 @@ extension DeckClient: DependencyKey {
                 var req = Anki_Decks_DeckId()
                 req.did = deckId
                 
+                logger.info("Loading deck config for deckId=\(deckId)")
+                
                 do {
                     let response: Anki_DeckConfig_DeckConfigsForUpdate = try backend.invoke(
                         service: AnkiBackend.Service.deckConfig,
@@ -148,16 +150,25 @@ extension DeckClient: DependencyKey {
                         request: req
                     )
                     
-                    if response.allConfig.isEmpty {
-                        logger.warning("No deck configs found for deckId=\(deckId)")
-                        return Anki_DeckConfig_DeckConfig()
+                    logger.info("Got response with \(response.allConfig.count) configs, currentDeck=\(response.currentDeck.name), configID=\(response.currentDeck.configID)")
+                    
+                    guard !response.allConfig.isEmpty else {
+                        let errorMsg = "No deck configuration found for deck ID \(deckId). " +
+                                      "Deck name: '\(response.currentDeck.name)', " +
+                                      "Config ID: \(response.currentDeck.configID). " +
+                                      "The deck may not have a valid configuration assigned."
+                        logger.error("\(errorMsg)")
+                        let error = NSError(domain: "DeckConfigError", code: 1, userInfo: [
+                            NSLocalizedDescriptionKey: errorMsg
+                        ])
+                        throw error
                     }
 
                     // Match the current deck's active config first, then fallback to first.
                     let currentConfigId = response.currentDeck.configID
                     let config = response.allConfig.first(where: { $0.config.id == currentConfigId })?.config
                         ?? response.allConfig[0].config
-                    logger.info("Retrieved deck config for deckId=\(deckId): \(config.name)")
+                    logger.info("Retrieved deck config for deckId=\(deckId): configID=\(config.id), name=\(config.name)")
                     return config
                 } catch {
                     logger.error("getDeckConfig failed for deckId=\(deckId): \(error)")

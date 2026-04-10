@@ -49,10 +49,10 @@ struct ButtonsChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Answer Buttons").font(.headline)
+            Text(L("stats_buttons_title")).font(.headline)
 
             if entries.isEmpty {
-                Text("No button data").foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_buttons_empty")).foregroundStyle(.secondary).frame(height: 180)
             } else {
                 Chart(entries) { entry in
                     BarMark(

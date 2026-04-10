@@ -168,6 +168,7 @@ public final class AnkiBackend: Sendable {
 extension AnkiBackend {
     public enum Service {
         public static let sync: UInt32 = 1
+        public static let checkDatabase: UInt32 = 2
         public static let collection: UInt32 = 3
         public static let deckConfig: UInt32 = 6
         public static let cards: UInt32 = 5
@@ -187,6 +188,10 @@ extension AnkiBackend {
         public static let close: UInt32 = 1
         public static let latestProgress: UInt32 = 4
         public static let undo: UInt32 = 2
+    }
+
+    public enum CheckDatabaseMethod {
+        public static let checkDatabase: UInt32 = 0
     }
 
     public enum SyncMethod {
@@ -239,12 +244,13 @@ extension AnkiBackend {
         public static let renameDeck: UInt32 = 18
         public static let getOrCreateFilteredDeck: UInt32 = 19
         public static let addOrUpdateFilteredDeck: UInt32 = 20
-        public static let removeBrushedTags: UInt32 = 21
+        public static let filteredDeckOrderLabels: UInt32 = 21
         public static let setCurrentDeck: UInt32 = 22
         public static let getCurrentDeck: UInt32 = 23
 
         // Backward-compatible aliases
         public static let getDeckTree: UInt32 = deckTree
+        public static let removeBrushedTags: UInt32 = filteredDeckOrderLabels
     }
 
     public enum DeckConfigMethod {

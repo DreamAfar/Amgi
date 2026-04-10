@@ -115,26 +115,26 @@ struct HeatmapChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Review Activity")
+                Text(L("stats_heatmap_title"))
                     .font(.headline)
                 Spacer()
                 if currentStreak > 0 {
-                    Label("\(currentStreak) day streak", systemImage: "flame.fill")
+                    Label(L("stats_heatmap_streak", currentStreak), systemImage: "flame.fill")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.orange)
                 }
             }
 
             if dayCountMap.isEmpty {
-                Text("No review history yet")
+                Text(L("stats_heatmap_empty"))
                     .foregroundStyle(.secondary)
                     .frame(height: 100)
             } else {
                 HStack(spacing: 16) {
-                    summaryItem(value: "\(totalReviews)", label: "Total")
-                    summaryItem(value: "\(reviewsThisMonth)", label: "This Month")
-                    summaryItem(value: "\(reviewsThisWeek)", label: "This Week")
-                    summaryItem(value: "\(dayCountMap[0] ?? 0)", label: "Today")
+                    summaryItem(value: "\(totalReviews)", label: L("stats_total"))
+                    summaryItem(value: "\(reviewsThisMonth)", label: L("stats_this_month"))
+                    summaryItem(value: "\(reviewsThisWeek)", label: L("stats_this_week"))
+                    summaryItem(value: "\(dayCountMap[0] ?? 0)", label: L("common_today"))
                 }
 
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -188,13 +188,13 @@ struct HeatmapChart: View {
 
                 HStack(spacing: 4) {
                     Spacer()
-                    Text("Less").font(.caption2).foregroundStyle(.secondary)
+                    Text(L("stats_heatmap_less")).font(.caption2).foregroundStyle(.secondary)
                     ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
                         RoundedRectangle(cornerRadius: 2)
                             .fill(Color.green.opacity(max(0.1, intensity)))
                             .frame(width: cellSize, height: cellSize)
                     }
-                    Text("More").font(.caption2).foregroundStyle(.secondary)
+                    Text(L("stats_heatmap_more")).font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }

@@ -2,11 +2,15 @@ import SwiftUI
 import AnkiClients
 import Dependencies
 
-/// View for managing tags in the collection
+/// View for managing tags in the collection.
+/// When `targetNoteIDs` is non-empty the view acts as a "apply / remove tag"
+/// picker for the selected notes.  When empty it is a collection-level tag
+/// manager.
 @MainActor
 struct TagsView: View {
     @Dependency(\.tagClient) var tagClient
-    
+    let targetNoteIDs: [Int64]
+
     @State private var allTags: [String] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -16,7 +20,16 @@ struct TagsView: View {
     @State private var selectedTag: String?
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
-    
+    @State private var tagActionTag: String?
+    @State private var isApplying = false
+
+    init(targetNoteIDs: [Int64] = []) {
+        self.targetNoteIDs = targetNoteIDs
+    }
+
+    // Whether this view is in "apply tags to notes" mode
+    private var isNoteMode: Bool { !targetNoteIDs.isEmpty }
+
     var body: some View {
         NavigationStack {
             VStack {
@@ -25,125 +38,231 @@ struct TagsView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if allTags.isEmpty {
                     ContentUnavailableView(
-                        "No Tags",
+                        L("tags_empty_title"),
                         systemImage: "tag.slash",
-                        description: Text("Add tags to notes to organize your collection.")
+                        description: Text(isNoteMode
+                            ? L("tags_empty_note_mode")
+                            : L("tags_empty_collection_mode"))
                     )
                 } else {
                     List {
-                        ForEach(allTags.sorted(), id: \.self) { tag in
-                            HStack {
-                                Label(tag, systemImage: "tag.fill")
-                                    .foregroundStyle(.blue)
-                                Spacer()
-                                Text("→")
+                        if isNoteMode {
+                            Section {
+                                Label(L("tags_apply_hint", targetNoteIDs.count), systemImage: "doc.text")
+                                    .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedTag = tag
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    selectedTag = tag
-                                    showDeleteConfirm = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
+                        }
+
+                        Section(isNoteMode ? L("tags_section_select") : L("tags_section_all")) {
+                            ForEach(allTags.sorted(), id: \.self) { tag in
+                                tagRow(tag)
                             }
                         }
                     }
+                    .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("Tags")
+            .navigationTitle(isNoteMode ? L("tags_nav_title_note_mode") : L("tags_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_done")) { /* dismiss handled by parent sheet */ }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAddTag = true }) {
                         Image(systemName: "plus")
                     }
                 }
             }
+            // Add-tag sheet
             .sheet(isPresented: $showAddTag) {
                 NavigationStack {
                     Form {
-                        Section("New Tag") {
-                            TextField("Tag name", text: $newTagName)
+                        if isNoteMode {
+                            Section(L("tags_target_notes")) {
+                                Text(L("tags_new_tag_will_apply", targetNoteIDs.count))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        
+                        Section(L("tags_new_tag_name_section")) {
+                            TextField(L("tags_new_tag_placeholder"), text: $newTagName)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
                         Section {
-                            Button("Create Tag") {
+                            Button(isNoteMode ? L("tags_create_and_apply") : L("tags_create_tag")) {
                                 Task { await createTag() }
                             }
                         }
                     }
-                    .navigationTitle("Add Tag")
+                    .navigationTitle(L("tags_add_tag_title"))
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
-                            Button("Cancel") { showAddTag = false }
+                            Button(L("common_cancel")) { showAddTag = false }
                         }
                     }
                 }
             }
-            .alert("Delete Tag?", isPresented: $showDeleteConfirm) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
+            // Confirm delete (collection-level)
+            .alert(L("tags_delete_title"), isPresented: $showDeleteConfirm) {
+                Button(L("common_cancel"), role: .cancel) { }
+                Button(L("common_delete"), role: .destructive) {
                     if let tag = selectedTag {
                         Task { await deleteTag(tag) }
                     }
                 }
             } message: {
                 if let tag = selectedTag {
-                    Text("Delete tag '\(tag)'? Notes with this tag will be preserved.")
+                    Text(L("tags_delete_confirm", tag))
                 }
             }
-            .alert("Error", isPresented: $showError) {
-                Button("OK") { }
+            .alert(L("common_error"), isPresented: $showError) {
+                Button(L("common_ok")) { }
             } message: {
-                Text(errorMessage ?? "Unknown error")
+                Text(errorMessage ?? L("common_unknown_error"))
+            }
+            // Per-tag action confirmation when in note mode
+            .confirmationDialog(
+                L("tags_action_dialog_title", tagActionTag ?? ""),
+                isPresented: Binding(
+                    get: { tagActionTag != nil && isNoteMode },
+                    set: { if !$0 { tagActionTag = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let tag = tagActionTag {
+                    Button(L("tags_apply_to_notes", targetNoteIDs.count)) {
+                        Task { await applyTag(tag) }
+                    }
+                    Button(L("tags_remove_from_notes", targetNoteIDs.count), role: .destructive) {
+                        Task { await removeTagFromSelectedNotes(tag) }
+                    }
+                    Button(L("common_cancel"), role: .cancel) { tagActionTag = nil }
+                }
             }
             .task {
                 await loadTags()
             }
         }
     }
-    
+
+    // MARK: - Row
+
+    @ViewBuilder
+    private func tagRow(_ tag: String) -> some View {
+        HStack {
+            Label(tag, systemImage: "tag.fill")
+                .foregroundStyle(.blue)
+            Spacer()
+            if isApplying && tagActionTag == tag {
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isNoteMode {
+                tagActionTag = tag
+            } else {
+                selectedTag = tag
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            if isNoteMode {
+                Button {
+                    Task { await removeTagFromSelectedNotes(tag) }
+                } label: {
+                    Label(L("tags_remove_swipe"), systemImage: "tag.slash")
+                }
+                .tint(.orange)
+
+                Button {
+                    Task { await applyTag(tag) }
+                } label: {
+                    Label(L("tags_apply_swipe"), systemImage: "tag")
+                }
+                .tint(.blue)
+            } else {
+                Button(role: .destructive) {
+                    selectedTag = tag
+                    showDeleteConfirm = true
+                } label: {
+                    Label(L("common_delete"), systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    // MARK: - Actions
+
     private func loadTags() async {
         do {
             allTags = try tagClient.getAllTags()
             isLoading = false
         } catch {
-            errorMessage = "Failed to load tags: \(error.localizedDescription)"
+            errorMessage = L("tags_error_load", error.localizedDescription)
             showError = true
             isLoading = false
         }
     }
-    
+
     private func createTag() async {
-        guard !newTagName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        
+        let name = newTagName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+
         do {
-            try tagClient.addTag(newTagName)
+            if isNoteMode {
+                try tagClient.addTagToNotes(name, targetNoteIDs)
+            } else {
+                try tagClient.addTag(name)
+            }
             newTagName = ""
             showAddTag = false
             await loadTags()
         } catch {
-            errorMessage = "Failed to create tag: \(error.localizedDescription)"
+            errorMessage = L("tags_error_create", error.localizedDescription)
             showError = true
         }
     }
-    
+
+    private func applyTag(_ tag: String) async {
+        isApplying = true
+        defer { isApplying = false; tagActionTag = nil }
+        do {
+            try tagClient.addTagToNotes(tag, targetNoteIDs)
+        } catch {
+            errorMessage = L("tags_error_apply", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func removeTagFromSelectedNotes(_ tag: String) async {
+        isApplying = true
+        defer { isApplying = false; tagActionTag = nil }
+        do {
+            try tagClient.removeTagFromNotes(tag, targetNoteIDs)
+        } catch {
+            errorMessage = L("tags_error_remove", error.localizedDescription)
+            showError = true
+        }
+    }
+
     private func deleteTag(_ tag: String) async {
         isDeleting = true
         defer { isDeleting = false }
-        
         do {
             try tagClient.removeTag(tag)
             selectedTag = nil
             await loadTags()
         } catch {
-            errorMessage = "Failed to delete tag: \(error.localizedDescription)"
+            errorMessage = L("tags_error_delete", error.localizedDescription)
             showError = true
         }
     }
@@ -151,5 +270,10 @@ struct TagsView: View {
 
 #Preview {
     TagsView()
+        .preferredColorScheme(.dark)
+}
+
+#Preview("注记模式") {
+    TagsView(targetNoteIDs: [1, 2, 3])
         .preferredColorScheme(.dark)
 }

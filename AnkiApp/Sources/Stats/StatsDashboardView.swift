@@ -20,11 +20,11 @@ struct StatsDashboardView: View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 if isLoading {
-                    ProgressView("Loading statistics...")
+                    ProgressView(L("stats_loading"))
                         .padding(.top, 40)
                 } else if let error = errorMessage {
                     ContentUnavailableView(
-                        "Failed to Load Stats",
+                        L("stats_load_failed_title"),
                         systemImage: "exclamationmark.triangle",
                         description: Text(error)
                     )
@@ -51,7 +51,7 @@ struct StatsDashboardView: View {
             }
             .padding()
         }
-        .navigationTitle("Statistics")
+        .navigationTitle(L("stats_nav_title"))
         .task {
             await loadDecks()
             await loadStats()
@@ -67,8 +67,8 @@ struct StatsDashboardView: View {
     private var deckMenu: some View {
         Menu {
             Button { selectedDeck = nil } label: {
-                if selectedDeck == nil { Label("Whole Collection", systemImage: "checkmark") }
-                else { Text("Whole Collection") }
+                if selectedDeck == nil { Label(L("stats_whole_collection"), systemImage: "checkmark") }
+                else { Text(L("stats_whole_collection")) }
             }
             Divider()
             ForEach(decks.filter({ !$0.name.contains("::") })) { deck in
@@ -80,7 +80,7 @@ struct StatsDashboardView: View {
         } label: {
             filterCapsule(
                 icon: "rectangle.stack",
-                label: selectedDeck?.name ?? "Collection"
+                label: selectedDeck?.name ?? L("stats_whole_collection")
             )
         }
     }
@@ -91,8 +91,8 @@ struct StatsDashboardView: View {
         Menu {
             ForEach(StatsPeriod.allCases, id: \.self) { p in
                 Button { period = p } label: {
-                    if period == p { Label(p.rawValue, systemImage: "checkmark") }
-                    else { Text(p.rawValue) }
+                    if period == p { Label(p.localizedLabel, systemImage: "checkmark") }
+                    else { Text(p.localizedLabel) }
                 }
             }
         } label: {

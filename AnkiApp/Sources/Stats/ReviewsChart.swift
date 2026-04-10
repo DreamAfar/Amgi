@@ -49,10 +49,10 @@ struct ReviewsChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Reviews").font(.headline)
+            Text(L("stats_reviews_title")).font(.headline)
 
             if entries.isEmpty {
-                Text("No review data").foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_reviews_empty")).foregroundStyle(.secondary).frame(height: 180)
             } else {
                 Chart(entries) { entry in
                     BarMark(
@@ -78,8 +78,8 @@ struct ReviewsChart: View {
             }
 
             HStack(spacing: 16) {
-                footerItem("Total", value: "\(totalReviews)")
-                footerItem("Avg/day", value: String(format: "%.1f", avgPerDay))
+                footerItem(L("stats_total"), value: "\(totalReviews)")
+                footerItem(L("stats_avg_day"), value: String(format: "%.1f", avgPerDay))
             }
             .font(.caption2)
         }

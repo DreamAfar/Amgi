@@ -34,10 +34,10 @@ struct HourlyChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Hourly Breakdown").font(.headline)
+            Text(L("stats_hourly_title")).font(.headline)
 
             if entries.allSatisfy({ $0.total == 0 }) {
-                Text("No review data").foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_hourly_empty")).foregroundStyle(.secondary).frame(height: 180)
             } else {
                 Chart(entries) { entry in
                     BarMark(

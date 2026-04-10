@@ -17,36 +17,36 @@ struct CardContextMenu: View {
     var body: some View {
         Menu {
             Button(action: performSuspend) {
-                Label("Suspend", systemImage: "pause.circle")
+                Label(L("card_action_suspend"), systemImage: "pause.circle")
             }
             
             Button(action: performBury) {
-                Label("Bury", systemImage: "books.vertical")
+                Label(L("card_action_bury"), systemImage: "books.vertical")
             }
             
             Menu {
-                flagButton(1, colorName: "红色")
-                flagButton(2, colorName: "橙色")
-                flagButton(3, colorName: "绿色")
-                flagButton(4, colorName: "蓝色")
-                flagButton(5, colorName: "粉色")
-                flagButton(6, colorName: "青色")
-                flagButton(7, colorName: "紫色")
+                flagButton(1, colorName: L("flag_red"))
+                flagButton(2, colorName: L("flag_orange"))
+                flagButton(3, colorName: L("flag_green"))
+                flagButton(4, colorName: L("flag_blue"))
+                flagButton(5, colorName: L("flag_pink"))
+                flagButton(6, colorName: L("flag_cyan"))
+                flagButton(7, colorName: L("flag_purple"))
             } label: {
-                Label("Flag", systemImage: "flag.fill")
+                Label(L("card_action_flag"), systemImage: "flag.fill")
             }
             
             Button(action: performUndo) {
-                Label("Undo", systemImage: "arrow.uturn.backward")
+                Label(L("card_action_undo"), systemImage: "arrow.uturn.backward")
             }
         } label: {
             Image(systemName: "ellipsis.circle")
                 .font(.headline)
         }
-        .alert("Card Action Error", isPresented: $showError) {
-            Button("OK") { }
+        .alert(L("card_action_error_title"), isPresented: $showError) {
+            Button(L("common_ok")) { }
         } message: {
-            Text(errorMessage ?? "Unknown error occurred")
+            Text(errorMessage ?? L("common_unknown_error"))
         }
     }
     
@@ -56,7 +56,7 @@ struct CardContextMenu: View {
             onSuccess?()
             onActionSuccess?(true)
         } catch {
-            errorMessage = "Failed to suspend card: \(error.localizedDescription)"
+            errorMessage = L("card_action_error_suspend", error.localizedDescription)
             showError = true
         }
     }
@@ -67,7 +67,7 @@ struct CardContextMenu: View {
             onSuccess?()
             onActionSuccess?(true)
         } catch {
-            errorMessage = "Failed to bury card: \(error.localizedDescription)"
+            errorMessage = L("card_action_error_bury", error.localizedDescription)
             showError = true
         }
     }
@@ -78,7 +78,7 @@ struct CardContextMenu: View {
             onSuccess?()
             onActionSuccess?(false)
         } catch {
-            errorMessage = "Failed to flag card: \(error.localizedDescription)"
+            errorMessage = L("card_action_error_flag", error.localizedDescription)
             showError = true
         }
     }
@@ -89,14 +89,14 @@ struct CardContextMenu: View {
             onSuccess?()
             onActionSuccess?(true)
         } catch {
-            errorMessage = "Failed to undo: \(error.localizedDescription)"
+            errorMessage = L("card_action_error_undo", error.localizedDescription)
             showError = true
         }
     }
 
     private func flagButton(_ value: UInt32, colorName: String) -> some View {
         Button(action: { performFlag(value) }) {
-            Label("旗标\(value)（\(colorName)）", systemImage: "flag.fill")
+            Label(L("card_flag_label", value, colorName), systemImage: "flag.fill")
         }
     }
 }

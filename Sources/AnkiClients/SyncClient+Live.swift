@@ -73,7 +73,10 @@ extension SyncClient: DependencyKey {
 
                         // Run CheckDatabase to repair any inconsistencies
                         do {
-                            let checkResult = try backend.call(service: 2, method: 0)
+                            let checkResult = try backend.call(
+                                service: AnkiBackend.Service.checkDatabase,
+                                method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+                            )
                             logger.info("CheckDatabase completed (\(checkResult.count) bytes)")
                         } catch {
                             logger.warning("CheckDatabase failed: \(error) — continuing anyway")
