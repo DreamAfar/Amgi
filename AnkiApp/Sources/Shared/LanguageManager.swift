@@ -44,12 +44,14 @@ final class LanguageManager: ObservableObject {
 
 /// Returns the localized string for `key` using the active LanguageManager bundle.
 /// Falls back to the key itself if no translation is found.
+@MainActor
 func L(_ key: String) -> String {
     NSLocalizedString(key, bundle: LanguageManager.shared.bundle, comment: "")
 }
 
 /// Convenience overload for simple string interpolation.
 /// Example: `L("deck_count_format", deck.count)` → "3 Decks"
+@MainActor
 func L(_ key: String, _ args: CVarArg...) -> String {
     let fmt = NSLocalizedString(key, bundle: LanguageManager.shared.bundle, comment: "")
     return String(format: fmt, arguments: args)
