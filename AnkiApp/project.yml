@@ -40,3 +40,4 @@ targets:
       base:
         INFOPLIST_FILE: Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.ankiapp.AnkiApp
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
