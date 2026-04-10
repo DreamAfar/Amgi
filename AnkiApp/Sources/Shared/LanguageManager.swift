@@ -13,10 +13,24 @@ import SwiftUI
 final class LanguageManager: ObservableObject {
     static let shared = LanguageManager()
 
-    /// Thread-safe access to the current bundle for localization functions.
-    nonisolated(unsafe) static var currentBundle: Bundle = .main
+    /// Thread-safe static bundle used by L() functions.
+    /// Initialized from UserDefaults at static access time so language is
+    /// correct from the very first L() call, even before LanguageManager.shared is created.
+    nonisolated(unsafe) static var currentBundle: Bundle = LanguageManager.resolveInitialBundle()
 
-    @Published private(set) var bundle: Bundle = .main {
+    /// Reads the stored app_language preference from UserDefaults and returns
+    /// the matching Bundle without touching any @MainActor state.
+    private nonisolated static func resolveInitialBundle() -> Bundle {
+        let raw = UserDefaults.standard.string(forKey: "app_language") ?? AppLanguage.system.rawValue
+        guard raw != AppLanguage.system.rawValue else { return .main }
+        if let path = Bundle.main.path(forResource: raw, ofType: "lproj"),
+           let bundle = Bundle(path: path) {
+            return bundle
+        }
+        return .main
+    }
+
+    @Published private(set) var bundle: Bundle = LanguageManager.resolveInitialBundle() {
         didSet {
             // Keep the nonisolated static in sync with the published property
             Self.currentBundle = bundle
@@ -24,7 +38,9 @@ final class LanguageManager: ObservableObject {
     }
 
     private init() {
-        applyStoredLanguage()
+        // bundle is already initialized via resolveInitialBundle() above;
+        // sync the currentBundle static once more in case of edge-case ordering.
+        Self.currentBundle = bundle
     }
 
     func apply(_ language: AppLanguage) {
@@ -40,11 +56,6 @@ final class LanguageManager: ObservableObject {
                 bundle = .main
             }
         }
-    }
-
-    private func applyStoredLanguage() {
-        let raw = UserDefaults.standard.string(forKey: "app_language") ?? AppLanguage.system.rawValue
-        apply(AppLanguage(rawValue: raw) ?? .system)
     }
 }
 

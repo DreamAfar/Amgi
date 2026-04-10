@@ -3,7 +3,7 @@ import Foundation
 enum AppUserStore {
     private static let usersKey = "amgi.users"
     private static let selectedUserKey = "amgi.selectedUser"
-    private static let defaultUsers = ["用户1", "用户2", "用户3"]
+    private static let defaultUsers = ["用户1"]
 
     static func loadUsers() -> [String] {
         if let users = UserDefaults.standard.array(forKey: usersKey) as? [String], !users.isEmpty {

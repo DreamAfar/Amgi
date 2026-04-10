@@ -22,6 +22,10 @@ struct CardWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        // Convert Anki [sound:filename.mp3] tags to <audio> HTML elements.
+        // The Rust renderer keeps these tags literal; the client must expand them.
+        let processedHTML = Self.expandSoundTags(html)
+
         let styledHTML = """
         <!DOCTYPE html>
         <html>
@@ -64,43 +68,54 @@ struct CardWebView: UIViewRepresentable {
             }
         </style>
         </head>
-        <body><div class="card">\(html)</div></body>
+        <body><div class="card">\(processedHTML)</div></body>
         </html>
         """
         
-        // Get media directory URL as baseURL for relative URL resolution
-        let mediaDirectoryURL = getMediaDirectoryURL()
-        webView.loadHTMLString(styledHTML, baseURL: mediaDirectoryURL)
+        // Use the current user's media directory as baseURL so relative src paths resolve.
+        let baseURL = Self.currentMediaDirectoryURL()
+        webView.loadHTMLString(styledHTML, baseURL: baseURL)
     }
-    
-    /// Get the media directory URL for the currently selected user
-    private func getMediaDirectoryURL() -> URL? {
+
+    // MARK: - Helpers
+
+    /// Converts Anki `[sound:filename.ext]` markers to HTML `<audio controls>` elements.
+    private static func expandSoundTags(_ html: String) -> String {
+        // Pattern: [sound:anything_without_closing_bracket]
+        guard let regex = try? NSRegularExpression(
+            pattern: #"\[sound:([^\]]+)\]"#, options: []
+        ) else { return html }
+        let range = NSRange(html.startIndex..., in: html)
+        return regex.stringByReplacingMatches(
+            in: html, range: range,
+            withTemplate: "<audio src=\"$1\" controls></audio>"
+        )
+    }
+
+    /// Returns the media directory URL for the currently selected user.
+    /// Mirrors AppUserStore.collectionURLs(for:) exactly so paths always match.
+    private static func currentMediaDirectoryURL() -> URL? {
         let selectedUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "用户1"
-        let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first
-        
-        guard let appSupport = appSupport else { return nil }
-        
-        let userFolder = sanitizedUserFolderName(selectedUser)
-        let mediaDirectory = appSupport
+        guard let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first else { return nil }
+
+        let userFolder = sanitizedFolderName(selectedUser)
+        return appSupport
             .appendingPathComponent("AnkiCollection", isDirectory: true)
             .appendingPathComponent(userFolder, isDirectory: true)
             .appendingPathComponent("media", isDirectory: true)
-        
-        return mediaDirectory
     }
-    
-    /// Sanitize user folder name (matching AppUserStore logic)
-    private func sanitizedUserFolderName(_ user: String) -> String {
+
+    /// Must match AppUserStore.sanitizedUserFolderName exactly (including underscore trimming).
+    private static func sanitizedFolderName(_ user: String) -> String {
         let trimmed = user.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "default" }
-        
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
         let mapped = trimmed.unicodeScalars.map { scalar -> Character in
             allowed.contains(scalar) ? Character(scalar) : "_"
         }
-        return String(mapped)
+        let folder = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return folder.isEmpty ? "default" : folder
     }
 }

@@ -15,6 +15,8 @@ struct ContentView: View {
     @State private var importMessage: String?
     @State private var showImportAlert = false
     @State private var showExportNotice = false
+    @State private var exportedFileURL: URL?
+    @State private var showExportShareSheet = false
     @State private var showAddDeckPrompt = false
     @State private var newDeckName = ""
     @State private var showUserManager = false
@@ -72,7 +74,7 @@ struct ContentView: View {
                                             showAddDeckPrompt = true
                                         }
                                         Button(L("menu_export_deck")) {
-                                            showExportNotice = true
+                                            exportCollection()
                                         }
                                         if isLocalMode {
                                             Divider()
@@ -135,9 +137,14 @@ struct ContentView: View {
             Text(importMessage ?? "")
         }
         .alert(L("alert_export_deck_title"), isPresented: $showExportNotice) {
-            Button(L("btn_got_it"), role: .cancel) {}
+            Button(L("btn_ok")) { }
         } message: {
-            Text(L("alert_export_deck_message"))
+            Text(importMessage ?? "")
+        }
+        .sheet(isPresented: $showExportShareSheet) {
+            if let url = exportedFileURL {
+                ShareSheet(items: [url])
+            }
         }
         .alert(L("deck_action_error_title"), isPresented: $showUserSwitchError) {
             Button(L("btn_ok"), role: .cancel) {}
@@ -202,6 +209,17 @@ struct ContentView: View {
         } catch {
             userSwitchError = error.localizedDescription
             showUserSwitchError = true
+        }
+    }
+
+    private func exportCollection() {
+        do {
+            let url = try ImportHelper.exportCollection()
+            exportedFileURL = url
+            showExportShareSheet = true
+        } catch {
+            importMessage = L("debug_export_error", error.localizedDescription)
+            showExportNotice = true
         }
     }
 

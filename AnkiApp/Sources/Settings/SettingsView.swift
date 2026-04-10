@@ -154,13 +154,7 @@ struct SettingsView: View {
     }
 
     private func settingsRowLabel(_ title: String, icon: String) -> some View {
-        HStack {
-            Label(title, systemImage: icon)
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
+        Label(title, systemImage: icon)
     }
 
     private func exportBackup() {

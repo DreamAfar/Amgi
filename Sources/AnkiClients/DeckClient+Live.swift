@@ -152,16 +152,13 @@ extension DeckClient: DependencyKey {
                     
                     logger.info("Got response with \(response.allConfig.count) configs, currentDeck=\(response.currentDeck.name), configID=\(response.currentDeck.configID)")
                     
-                    guard !response.allConfig.isEmpty else {
-                        let errorMsg = "No deck configuration found for deck ID \(deckId). " +
-                                      "Deck name: '\(response.currentDeck.name)', " +
-                                      "Config ID: \(response.currentDeck.configID). " +
-                                      "The deck may not have a valid configuration assigned."
-                        logger.error("\(errorMsg)")
-                        let error = NSError(domain: "DeckConfigError", code: 1, userInfo: [
-                            NSLocalizedDescriptionKey: errorMsg
-                        ])
-                        throw error
+                    if response.allConfig.isEmpty {
+                        // No configs found - try to get a config directly by the deck's configID
+                        // or return an empty default config (the backend will use defaults)
+                        logger.warning("allConfig is empty for deckId=\(deckId), returning empty DeckConfig")
+                        var emptyConfig = Anki_DeckConfig_DeckConfig()
+                        emptyConfig.name = "Default"
+                        return emptyConfig
                     }
 
                     // Match the current deck's active config first, then fallback to first.

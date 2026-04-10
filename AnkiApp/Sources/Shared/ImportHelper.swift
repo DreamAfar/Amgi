@@ -18,16 +18,24 @@ enum ImportError: Error, LocalizedError {
 
 enum ImportHelper {
     static func importPackage(from url: URL) throws -> String {
-        guard url.startAccessingSecurityScopedResource() else {
-            throw ImportError.accessDenied
+        // startAccessingSecurityScopedResource can return false for local files that
+        // don't need a security scope — we always attempt the call but proceed either way.
+        let needsRelease = url.startAccessingSecurityScopedResource()
+        defer {
+            if needsRelease {
+                url.stopAccessingSecurityScopedResource()
+            }
         }
-        defer { url.stopAccessingSecurityScopedResource() }
 
         // Copy to a temp location the Rust backend can access
         let tempDir = FileManager.default.temporaryDirectory
         let tempFile = tempDir.appendingPathComponent(url.lastPathComponent)
         try? FileManager.default.removeItem(at: tempFile)
-        try FileManager.default.copyItem(at: url, to: tempFile)
+        do {
+            try FileManager.default.copyItem(at: url, to: tempFile)
+        } catch {
+            throw ImportError.importFailed("Cannot copy file: \(error.localizedDescription). Please try again.")
+        }
 
         defer { try? FileManager.default.removeItem(at: tempFile) }
 
