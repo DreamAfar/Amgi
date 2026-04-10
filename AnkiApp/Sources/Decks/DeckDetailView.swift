@@ -25,78 +25,11 @@ struct DeckDetailView: View {
 
     var body: some View {
         List {
-            Section {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(L("deck_detail_count_new"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("\(counts.newCount)")
-                            .font(.title2.weight(.semibold))
-                            .foregroundStyle(.blue)
-                    }
-                    Spacer()
-                    VStack(alignment: .leading) {
-                        Text(L("deck_detail_count_learning"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("\(counts.learnCount)")
-                            .font(.title2.weight(.semibold))
-                            .foregroundStyle(.orange)
-                    }
-                    Spacer()
-                    VStack(alignment: .leading) {
-                        Text(L("deck_detail_count_review"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("\(counts.reviewCount)")
-                            .font(.title2.weight(.semibold))
-                            .foregroundStyle(.green)
-                    }
-                }
-                .padding(.vertical, 8)
-            }
-
-            Section {
-                Button {
-                    showReview = true
-                } label: {
-                    Label(L("deck_detail_study_now"), systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                        .font(.headline)
-                }
-                .disabled(counts.total == 0)
-            }
+            countsSection
+            studySection
 
             if !childDecks.isEmpty {
-                Section(L("deck_detail_subdecks")) {
-                    ForEach(childDecks) { child in
-                        NavigationLink(value: DeckInfo(id: child.id, name: child.fullName, counts: child.counts)) {
-                            HStack {
-                                Text(child.name)
-                                Spacer()
-                                DeckCountsView(counts: child.counts)
-                            }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button {
-                                selectedChildDeck = child
-                                renameText = child.name
-                                showRenamePrompt = true
-                            } label: {
-                                Label(L("deck_row_rename"), systemImage: "pencil")
-                            }
-                            .tint(.blue)
-
-                            Button(role: .destructive) {
-                                selectedChildDeck = child
-                                showDeleteConfirmStep1 = true
-                            } label: {
-                                Label(L("deck_row_delete"), systemImage: "trash")
-                            }
-                        }
-                    }
-                }
+                subdecksSection
             }
         }
         .navigationTitle(shortTitle)
@@ -162,6 +95,86 @@ struct DeckDetailView: View {
         .task {
             await loadCounts()
             await loadChildren()
+        }
+    }
+
+    // MARK: - Extracted Sub-Views
+
+    private var countsSection: some View {
+        Section {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(L("deck_detail_count_new"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(counts.newCount)")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.blue)
+                }
+                Spacer()
+                VStack(alignment: .leading) {
+                    Text(L("deck_detail_count_learning"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(counts.learnCount)")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.orange)
+                }
+                Spacer()
+                VStack(alignment: .leading) {
+                    Text(L("deck_detail_count_review"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(counts.reviewCount)")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.green)
+                }
+            }
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var studySection: some View {
+        Section {
+            Button {
+                showReview = true
+            } label: {
+                Label(L("deck_detail_study_now"), systemImage: "play.fill")
+                    .frame(maxWidth: .infinity)
+                    .font(.headline)
+            }
+            .disabled(counts.total == 0)
+        }
+    }
+
+    private var subdecksSection: some View {
+        Section(L("deck_detail_subdecks")) {
+            ForEach(childDecks) { child in
+                NavigationLink(value: DeckInfo(id: child.id, name: child.fullName, counts: child.counts)) {
+                    HStack {
+                        Text(child.name)
+                        Spacer()
+                        DeckCountsView(counts: child.counts)
+                    }
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button {
+                        selectedChildDeck = child
+                        renameText = child.name
+                        showRenamePrompt = true
+                    } label: {
+                        Label(L("deck_row_rename"), systemImage: "pencil")
+                    }
+                    .tint(.blue)
+
+                    Button(role: .destructive) {
+                        selectedChildDeck = child
+                        showDeleteConfirmStep1 = true
+                    } label: {
+                        Label(L("deck_row_delete"), systemImage: "trash")
+                    }
+                }
+            }
         }
     }
 

@@ -40,52 +40,10 @@ struct ContentView: View {
                         .id(refreshID)
                         .toolbar {
                             ToolbarItem(placement: .topBarLeading) {
-                                Menu {
-                                    ForEach(users, id: \.self) { user in
-                                        Button {
-                                            Task { await switchUser(to: user) }
-                                        } label: {
-                                            if selectedUser == user {
-                                                Label(user, systemImage: "checkmark")
-                                            } else {
-                                                Text(user)
-                                            }
-                                        }
-                                        .disabled(isSwitchingUser)
-                                    }
-                                    Divider()
-                                    Button(L("menu_user_settings")) {
-                                        showUserManager = true
-                                    }
-                                } label: {
-                                    Label(selectedUser, systemImage: isSwitchingUser ? "arrow.triangle.2.circlepath.circle" : "person.crop.circle")
-                                }
+                                userMenu
                             }
                             ToolbarItem(placement: .topBarTrailing) {
-                                HStack(spacing: 14) {
-                                    Button {
-                                        showSync = true
-                                    } label: {
-                                        Image(systemName: "arrow.triangle.2.circlepath")
-                                    }
-
-                                    Menu {
-                                        Button(L("menu_add_deck")) {
-                                            showAddDeckPrompt = true
-                                        }
-                                        Button(L("menu_export_deck")) {
-                                            exportCollection()
-                                        }
-                                        if isLocalMode {
-                                            Divider()
-                                            Button(L("menu_import_apkg")) {
-                                                showImport = true
-                                            }
-                                        }
-                                    } label: {
-                                        Image(systemName: "square.and.arrow.up.on.square")
-                                    }
-                                }
+                                trailingActions
                             }
                         }
                 }
@@ -150,6 +108,58 @@ struct ContentView: View {
             Button(L("btn_ok"), role: .cancel) {}
         } message: {
             Text(userSwitchError ?? L("label_error_unknown"))
+        }
+    }
+
+    // MARK: - Extracted Sub-Views
+
+    private var userMenu: some View {
+        Menu {
+            ForEach(users, id: \.self) { user in
+                Button {
+                    Task { await switchUser(to: user) }
+                } label: {
+                    if selectedUser == user {
+                        Label(user, systemImage: "checkmark")
+                    } else {
+                        Text(user)
+                    }
+                }
+                .disabled(isSwitchingUser)
+            }
+            Divider()
+            Button(L("menu_user_settings")) {
+                showUserManager = true
+            }
+        } label: {
+            Label(selectedUser, systemImage: isSwitchingUser ? "arrow.triangle.2.circlepath.circle" : "person.crop.circle")
+        }
+    }
+
+    private var trailingActions: some View {
+        HStack(spacing: 14) {
+            Button {
+                showSync = true
+            } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+            }
+
+            Menu {
+                Button(L("menu_add_deck")) {
+                    showAddDeckPrompt = true
+                }
+                Button(L("menu_export_deck")) {
+                    exportCollection()
+                }
+                if isLocalMode {
+                    Divider()
+                    Button(L("menu_import_apkg")) {
+                        showImport = true
+                    }
+                }
+            } label: {
+                Image(systemName: "square.and.arrow.up.on.square")
+            }
         }
     }
 

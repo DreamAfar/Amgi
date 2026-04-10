@@ -46,22 +46,7 @@ struct TagsView: View {
                             : L("tags_empty_collection_mode"))
                     )
                 } else {
-                    List {
-                        if isNoteMode {
-                            Section {
-                                Label(L("tags_apply_hint", targetNoteIDs.count), systemImage: "doc.text")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        Section(isNoteMode ? L("tags_section_select") : L("tags_section_all")) {
-                            ForEach(allTags.sorted(), id: \.self) { tag in
-                                tagRow(tag)
-                            }
-                        }
-                    }
-                    .listStyle(.insetGrouped)
+                    tagListContent
                 }
             }
             .navigationTitle(isNoteMode ? L("tags_nav_title_note_mode") : L("tags_nav_title"))
@@ -76,38 +61,9 @@ struct TagsView: View {
                     }
                 }
             }
-            // Add-tag sheet
             .sheet(isPresented: $showAddTag) {
-                NavigationStack {
-                    Form {
-                        if isNoteMode {
-                            Section(L("tags_target_notes")) {
-                                Text(L("tags_new_tag_will_apply", targetNoteIDs.count))
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Section(L("tags_new_tag_name_section")) {
-                            TextField(L("tags_new_tag_placeholder"), text: $newTagName)
-                                .autocorrectionDisabled()
-                                .textInputAutocapitalization(.never)
-                        }
-                        Section {
-                            Button(isNoteMode ? L("tags_create_and_apply") : L("tags_create_tag")) {
-                                Task { await createTag() }
-                            }
-                        }
-                    }
-                    .navigationTitle(L("tags_add_tag_title"))
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button(L("common_cancel")) { showAddTag = false }
-                        }
-                    }
-                }
+                addTagSheet
             }
-            // Confirm delete (collection-level)
             .alert(L("tags_delete_title"), isPresented: $showDeleteConfirm) {
                 Button(L("common_cancel"), role: .cancel) { }
                 Button(L("common_delete"), role: .destructive) {
@@ -125,7 +81,6 @@ struct TagsView: View {
             } message: {
                 Text(errorMessage ?? L("common_unknown_error"))
             }
-            // Per-tag action confirmation when in note mode
             .confirmationDialog(
                 L("tags_action_dialog_title", tagActionTag ?? ""),
                 isPresented: Binding(
@@ -146,6 +101,58 @@ struct TagsView: View {
             }
             .task {
                 await loadTags()
+            }
+        }
+    }
+
+    // MARK: - Extracted Sub-Views
+
+    private var tagListContent: some View {
+        List {
+            if isNoteMode {
+                Section {
+                    Label(L("tags_apply_hint", targetNoteIDs.count), systemImage: "doc.text")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section(isNoteMode ? L("tags_section_select") : L("tags_section_all")) {
+                ForEach(allTags.sorted(), id: \.self) { tag in
+                    tagRow(tag)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+
+    private var addTagSheet: some View {
+        NavigationStack {
+            Form {
+                if isNoteMode {
+                    Section(L("tags_target_notes")) {
+                        Text(L("tags_new_tag_will_apply", targetNoteIDs.count))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Section(L("tags_new_tag_name_section")) {
+                    TextField(L("tags_new_tag_placeholder"), text: $newTagName)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                }
+                Section {
+                    Button(isNoteMode ? L("tags_create_and_apply") : L("tags_create_tag")) {
+                        Task { await createTag() }
+                    }
+                }
+            }
+            .navigationTitle(L("tags_add_tag_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_cancel")) { showAddTag = false }
+                }
             }
         }
     }

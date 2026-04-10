@@ -78,226 +78,17 @@ struct DeckConfigView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     Form {
-                        // MARK: - 基本设置（始终展开）
-                        Section(L("deck_config_section_basic")) {
-                            LabeledContent(L("deck_config_name")) {
-                                TextField(L("deck_config_name_placeholder"), text: $configName)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                            Toggle(L("deck_config_apply_children"), isOn: $applyToChildren)
-                        }
-
-                        // MARK: - 每日上限（始终展开）
-                        Section(L("deck_config_section_daily")) {
-                            LabeledContent(L("deck_config_daily_new")) {
-                                Stepper("\(newCardsPerDay)", value: $newCardsPerDay, in: 0...1000)
-                            }
-                            LabeledContent(L("deck_config_daily_review")) {
-                                Stepper("\(reviewsPerDay)", value: $reviewsPerDay, in: 0...10000)
-                            }
-                        }
-
-                        // MARK: - 新卡片（始终展开）
-                        Section(L("deck_config_section_new")) {
-                            LabeledContent(L("deck_config_learn_steps")) {
-                                TextField(L("deck_config_learn_steps_hint"), text: $learningStepsText)
-                                    .multilineTextAlignment(.trailing)
-                                    .font(.monospaced(.body)())
-                            }
-                            LabeledContent(L("deck_config_good_interval")) {
-                                Stepper(L("deck_config_days_fmt", graduatingGoodDays), value: $graduatingGoodDays, in: 0...365)
-                            }
-                            LabeledContent(L("deck_config_easy_interval")) {
-                                Stepper(L("deck_config_days_fmt", graduatingEasyDays), value: $graduatingEasyDays, in: 0...365)
-                            }
-                            Picker(L("deck_config_insert_order"), selection: $newCardInsertOrder) {
-                                Text(L("deck_config_order_due")).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
-                                Text(L("deck_config_order_random")).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
-                            }
-                            Picker(L("deck_config_new_mix"), selection: $newMix) {
-                                Text(L("deck_config_mix_with_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                                Text(L("deck_config_mix_after_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                                Text(L("deck_config_mix_before_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
-                            }
-                        }
-
-                        // MARK: - 遗忘（始终展开）
-                        Section(L("deck_config_section_lapses")) {
-                            LabeledContent(L("deck_config_relearn_steps")) {
-                                TextField(L("deck_config_relearn_steps_hint"), text: $relearningStepsText)
-                                    .multilineTextAlignment(.trailing)
-                                    .font(.monospaced(.body)())
-                            }
-                            LabeledContent(L("deck_config_leech_threshold")) {
-                                Stepper(L("deck_config_times_fmt", leechThreshold), value: $leechThreshold, in: 1...50)
-                            }
-                            Picker(L("deck_config_leech_action"), selection: $leechAction) {
-                                Text(L("deck_config_leech_suspend")).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
-                                Text(L("deck_config_leech_tag_only")).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
-                            }
-                        }
-
-                        // MARK: - 展示顺序（默认折叠）
-                        DisclosureGroup(L("deck_config_section_order"), isExpanded: $orderExpanded) {
-                            Picker(L("deck_config_review_order"), selection: $reviewOrder) {
-                                Text(L("deck_config_review_order_day")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
-                                Text(L("deck_config_review_order_asc")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
-                                Text(L("deck_config_review_order_desc")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
-                                Text(L("deck_config_order_random")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
-                            }
-                            Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
-                                Text(L("deck_config_mix_with_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                                Text(L("deck_config_mix_after_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                                Text(L("deck_config_mix_before_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
-                            }
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                        .padding(.vertical, 10)
-
-                        // MARK: - FSRS（默认折叠）
-                        DisclosureGroup(L("deck_config_section_fsrs"), isExpanded: $fsrsExpanded) {
-                            Toggle(L("deck_config_fsrs_enable"), isOn: $fsrsEnabled)
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(L("deck_config_desired_retention"))
-                                    Spacer()
-                                    Text("\(Int(desiredRetentionPercent))%")
-                                        .foregroundStyle(.secondary)
-                                }
-                                Slider(value: $desiredRetentionPercent, in: 70...97, step: 1)
-                            }
-                            if fsrsEnabled {
-                                LabeledContent(L("deck_config_fsrs_weights")) {
-                                    TextField(L("deck_config_fsrs_weights_hint"), text: $fsrsWeights)
-                                        .multilineTextAlignment(.trailing)
-                                        .font(.monospaced(.caption)())
-                                }
-                            }
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                        .padding(.vertical, 10)
-
-                        // MARK: - 搁置（默认折叠）
-                        DisclosureGroup(L("deck_config_section_bury"), isExpanded: $buryExpanded) {
-                            Toggle(L("deck_config_bury_new"), isOn: $buryNew)
-                            Toggle(L("deck_config_bury_reviews"), isOn: $buryReviews)
-                            Toggle(L("deck_config_bury_interday"), isOn: $buryInterdayLearning)
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                        .padding(.vertical, 10)
-
-                        // MARK: - 计时器（默认折叠）
-                        DisclosureGroup(L("deck_config_section_timer"), isExpanded: $timerExpanded) {
-                            Toggle(L("deck_config_show_timer"), isOn: $showTimer)
-                            LabeledContent(L("deck_config_timer_cap")) {
-                                Stepper(L("deck_config_seconds_fmt", capAnswerTimeToSecs), value: $capAnswerTimeToSecs, in: 5...600)
-                            }
-                            Toggle(L("deck_config_stop_timer_on_answer"), isOn: $stopTimerOnAnswer)
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                        .padding(.vertical, 10)
-
-                        // MARK: - 自动前进（默认折叠）
-                        DisclosureGroup(L("deck_config_section_auto_advance"), isExpanded: $autoAdvanceExpanded) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(L("deck_config_question_secs"))
-                                    Spacer()
-                                    Text(String(format: "%.1f s", secondsToShowQuestion))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Slider(value: $secondsToShowQuestion, in: 0...60, step: 0.5)
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(L("deck_config_answer_secs"))
-                                    Spacer()
-                                    Text(String(format: "%.1f s", secondsToShowAnswer))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Slider(value: $secondsToShowAnswer, in: 0...60, step: 0.5)
-                            }
-                            Picker(L("deck_config_after_question"), selection: $questionAction) {
-                                Text(L("deck_config_action_show_answer")).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
-                                Text(L("deck_config_action_show_reminder")).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
-                            }
-                            Picker(L("deck_config_after_answer"), selection: $answerAction) {
-                                Text(L("deck_config_action_bury")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
-                                Text(L("deck_config_action_again")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
-                                Text(L("deck_config_action_hard")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
-                                Text(L("deck_config_action_good")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
-                                Text(L("deck_config_action_show_reminder")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
-                            }
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                        .padding(.vertical, 10)
-
-                        // MARK: - 高级（默认折叠）
-                        DisclosureGroup(L("deck_config_section_advanced"), isExpanded: $advancedExpanded) {
-                            Toggle(L("deck_config_disable_autoplay"), isOn: $disableAutoplay)
-                            Toggle(L("deck_config_wait_audio"), isOn: $waitForAudio)
-                            Toggle(L("deck_config_skip_question_audio"), isOn: $skipQuestionWhenReplayingAnswer)
-                            LabeledContent(L("deck_config_max_interval")) {
-                                Stepper(L("deck_config_days_fmt", maximumReviewIntervalDays), value: $maximumReviewIntervalDays, in: 1...36500)
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(L("deck_config_interval_mult"))
-                                    Spacer()
-                                    Text("\(Int(intervalMultiplierPercent))%")
-                                        .foregroundStyle(.secondary)
-                                }
-                                Slider(value: $intervalMultiplierPercent, in: 50...200, step: 1)
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(L("deck_config_hard_mult"))
-                                    Spacer()
-                                    Text("\(Int(hardMultiplierPercent))%")
-                                        .foregroundStyle(.secondary)
-                                }
-                                Slider(value: $hardMultiplierPercent, in: 80...200, step: 1)
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(L("deck_config_easy_mult"))
-                                    Spacer()
-                                    Text("\(Int(easyMultiplierPercent))%")
-                                        .foregroundStyle(.secondary)
-                                }
-                                Slider(value: $easyMultiplierPercent, in: 100...300, step: 1)
-                            }
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                        .padding(.vertical, 10)
-
-                        // MARK: - 轻松日（默认折叠）
-                        DisclosureGroup(L("deck_config_section_easy_days"), isExpanded: $easyDaysExpanded) {
-                            ForEach(0..<7, id: \.self) { idx in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Text(weekdayName(idx))
-                                        Spacer()
-                                        Text("\(Int(easyDayPercentages[idx]))%")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Slider(value: Binding(
-                                        get: { easyDayPercentages[idx] },
-                                        set: { easyDayPercentages[idx] = $0 }
-                                    ), in: 50...150, step: 1)
-                                }
-                                .padding(.vertical, 2)
-                            }
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                        .padding(.vertical, 10)
+                        basicSection
+                        dailyLimitsSection
+                        newCardsSection
+                        lapsesSection
+                        orderSection
+                        fsrsSection
+                        burySection
+                        timerSection
+                        autoAdvanceSection
+                        advancedSection
+                        easyDaysSection
                     }
                 }
             }
@@ -328,6 +119,240 @@ struct DeckConfigView: View {
                 await loadConfig()
             }
         }
+    }
+
+    // MARK: - Extracted Sections
+
+    private var basicSection: some View {
+        Section(L("deck_config_section_basic")) {
+            LabeledContent(L("deck_config_name")) {
+                TextField(L("deck_config_name_placeholder"), text: $configName)
+                    .multilineTextAlignment(.trailing)
+            }
+            Toggle(L("deck_config_apply_children"), isOn: $applyToChildren)
+        }
+    }
+
+    private var dailyLimitsSection: some View {
+        Section(L("deck_config_section_daily")) {
+            LabeledContent(L("deck_config_daily_new")) {
+                Stepper("\(newCardsPerDay)", value: $newCardsPerDay, in: 0...1000)
+            }
+            LabeledContent(L("deck_config_daily_review")) {
+                Stepper("\(reviewsPerDay)", value: $reviewsPerDay, in: 0...10000)
+            }
+        }
+    }
+
+    private var newCardsSection: some View {
+        Section(L("deck_config_section_new")) {
+            LabeledContent(L("deck_config_learn_steps")) {
+                TextField(L("deck_config_learn_steps_hint"), text: $learningStepsText)
+                    .multilineTextAlignment(.trailing)
+                    .font(.monospaced(.body)())
+            }
+            LabeledContent(L("deck_config_good_interval")) {
+                Stepper(L("deck_config_days_fmt", graduatingGoodDays), value: $graduatingGoodDays, in: 0...365)
+            }
+            LabeledContent(L("deck_config_easy_interval")) {
+                Stepper(L("deck_config_days_fmt", graduatingEasyDays), value: $graduatingEasyDays, in: 0...365)
+            }
+            Picker(L("deck_config_insert_order"), selection: $newCardInsertOrder) {
+                Text(L("deck_config_order_due")).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
+                Text(L("deck_config_order_random")).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
+            }
+            Picker(L("deck_config_new_mix"), selection: $newMix) {
+                Text(L("deck_config_mix_with_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                Text(L("deck_config_mix_after_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                Text(L("deck_config_mix_before_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+            }
+        }
+    }
+
+    private var lapsesSection: some View {
+        Section(L("deck_config_section_lapses")) {
+            LabeledContent(L("deck_config_relearn_steps")) {
+                TextField(L("deck_config_relearn_steps_hint"), text: $relearningStepsText)
+                    .multilineTextAlignment(.trailing)
+                    .font(.monospaced(.body)())
+            }
+            LabeledContent(L("deck_config_leech_threshold")) {
+                Stepper(L("deck_config_times_fmt", leechThreshold), value: $leechThreshold, in: 1...50)
+            }
+            Picker(L("deck_config_leech_action"), selection: $leechAction) {
+                Text(L("deck_config_leech_suspend")).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
+                Text(L("deck_config_leech_tag_only")).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
+            }
+        }
+    }
+
+    private var orderSection: some View {
+        DisclosureGroup(L("deck_config_section_order"), isExpanded: $orderExpanded) {
+            Picker(L("deck_config_review_order"), selection: $reviewOrder) {
+                Text(L("deck_config_review_order_day")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
+                Text(L("deck_config_review_order_asc")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
+                Text(L("deck_config_review_order_desc")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
+                Text(L("deck_config_order_random")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
+            }
+            Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
+                Text(L("deck_config_mix_with_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                Text(L("deck_config_mix_after_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                Text(L("deck_config_mix_before_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+            }
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .padding(.vertical, 10)
+    }
+
+    private var fsrsSection: some View {
+        DisclosureGroup(L("deck_config_section_fsrs"), isExpanded: $fsrsExpanded) {
+            Toggle(L("deck_config_fsrs_enable"), isOn: $fsrsEnabled)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_desired_retention"))
+                    Spacer()
+                    Text("\(Int(desiredRetentionPercent))%")
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $desiredRetentionPercent, in: 70...97, step: 1)
+            }
+            if fsrsEnabled {
+                LabeledContent(L("deck_config_fsrs_weights")) {
+                    TextField(L("deck_config_fsrs_weights_hint"), text: $fsrsWeights)
+                        .multilineTextAlignment(.trailing)
+                        .font(.monospaced(.caption)())
+                }
+            }
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .padding(.vertical, 10)
+    }
+
+    private var burySection: some View {
+        DisclosureGroup(L("deck_config_section_bury"), isExpanded: $buryExpanded) {
+            Toggle(L("deck_config_bury_new"), isOn: $buryNew)
+            Toggle(L("deck_config_bury_reviews"), isOn: $buryReviews)
+            Toggle(L("deck_config_bury_interday"), isOn: $buryInterdayLearning)
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .padding(.vertical, 10)
+    }
+
+    private var timerSection: some View {
+        DisclosureGroup(L("deck_config_section_timer"), isExpanded: $timerExpanded) {
+            Toggle(L("deck_config_show_timer"), isOn: $showTimer)
+            LabeledContent(L("deck_config_timer_cap")) {
+                Stepper(L("deck_config_seconds_fmt", capAnswerTimeToSecs), value: $capAnswerTimeToSecs, in: 5...600)
+            }
+            Toggle(L("deck_config_stop_timer_on_answer"), isOn: $stopTimerOnAnswer)
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .padding(.vertical, 10)
+    }
+
+    private var autoAdvanceSection: some View {
+        DisclosureGroup(L("deck_config_section_auto_advance"), isExpanded: $autoAdvanceExpanded) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_question_secs"))
+                    Spacer()
+                    Text(String(format: "%.1f s", secondsToShowQuestion))
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $secondsToShowQuestion, in: 0...60, step: 0.5)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_answer_secs"))
+                    Spacer()
+                    Text(String(format: "%.1f s", secondsToShowAnswer))
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $secondsToShowAnswer, in: 0...60, step: 0.5)
+            }
+            Picker(L("deck_config_after_question"), selection: $questionAction) {
+                Text(L("deck_config_action_show_answer")).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
+                Text(L("deck_config_action_show_reminder")).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
+            }
+            Picker(L("deck_config_after_answer"), selection: $answerAction) {
+                Text(L("deck_config_action_bury")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
+                Text(L("deck_config_action_again")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
+                Text(L("deck_config_action_hard")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
+                Text(L("deck_config_action_good")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
+                Text(L("deck_config_action_show_reminder")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
+            }
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .padding(.vertical, 10)
+    }
+
+    private var advancedSection: some View {
+        DisclosureGroup(L("deck_config_section_advanced"), isExpanded: $advancedExpanded) {
+            Toggle(L("deck_config_disable_autoplay"), isOn: $disableAutoplay)
+            Toggle(L("deck_config_wait_audio"), isOn: $waitForAudio)
+            Toggle(L("deck_config_skip_question_audio"), isOn: $skipQuestionWhenReplayingAnswer)
+            LabeledContent(L("deck_config_max_interval")) {
+                Stepper(L("deck_config_days_fmt", maximumReviewIntervalDays), value: $maximumReviewIntervalDays, in: 1...36500)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_interval_mult"))
+                    Spacer()
+                    Text("\(Int(intervalMultiplierPercent))%")
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $intervalMultiplierPercent, in: 50...200, step: 1)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_hard_mult"))
+                    Spacer()
+                    Text("\(Int(hardMultiplierPercent))%")
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $hardMultiplierPercent, in: 80...200, step: 1)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_easy_mult"))
+                    Spacer()
+                    Text("\(Int(easyMultiplierPercent))%")
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $easyMultiplierPercent, in: 100...300, step: 1)
+            }
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .padding(.vertical, 10)
+    }
+
+    private var easyDaysSection: some View {
+        DisclosureGroup(L("deck_config_section_easy_days"), isExpanded: $easyDaysExpanded) {
+            ForEach(0..<7, id: \.self) { idx in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(weekdayName(idx))
+                        Spacer()
+                        Text("\(Int(easyDayPercentages[idx]))%")
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: Binding(
+                        get: { easyDayPercentages[idx] },
+                        set: { easyDayPercentages[idx] = $0 }
+                    ), in: 50...150, step: 1)
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .padding(.vertical, 10)
     }
     
     private func loadConfig() async {

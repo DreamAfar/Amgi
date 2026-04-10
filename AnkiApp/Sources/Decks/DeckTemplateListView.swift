@@ -22,109 +22,127 @@ struct DeckTemplateListView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView()
-                } else if let errorMessage {
-                    ContentUnavailableView(
-                        L("deck_template_error_title"),
-                        systemImage: "exclamationmark.triangle",
-                        description: Text(errorMessage)
-                    )
-                } else if entries.isEmpty {
-                    ContentUnavailableView(
-                        L("deck_template_empty_title"),
-                        systemImage: "square.stack.3d.up.slash",
-                        description: Text(L("deck_template_empty_desc"))
-                    )
-                } else if filteredEntries.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
-                } else {
-                    List(filteredEntries, id: \.id) { entry in
-                        Button {
-                            Task { await openPreview(for: entry.id) }
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "square.stack.3d.up")
-                                    .foregroundStyle(.accent)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(entry.name)
-                                        .font(.body)
-                                    Text("ID: \(entry.id)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.vertical, 2)
+            mainContent
+                .navigationTitle(L("deck_template_nav_title"))
+                .navigationBarTitleDisplayMode(.inline)
+                .searchable(text: $searchText, prompt: L("deck_template_search"))
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(L("common_done")) { dismiss() }
                     }
-                    .listStyle(.plain)
                 }
-            }
-            .navigationTitle(L("deck_template_nav_title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, prompt: L("deck_template_search"))
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(L("common_done")) { dismiss() }
+                .sheet(isPresented: $showPreview) {
+                    previewSheet
                 }
-            }
-            .sheet(isPresented: $showPreview) {
-                NavigationStack {
-                    Group {
-                        if isLoadingPreview {
-                            ProgressView()
-                        } else if let previewError {
-                            ContentUnavailableView(
-                                L("deck_template_error_title"),
-                                systemImage: "exclamationmark.triangle",
-                                description: Text(previewError)
-                            )
-                        } else if let selectedTemplate {
-                            List {
-                                Section(L("deck_template_preview_basic")) {
-                                    row(L("card_info_template"), selectedTemplate.name)
-                                    row("ID", "\(selectedTemplate.id)")
-                                }
-                                Section(L("deck_template_preview_counts")) {
-                                    row(L("deck_template_preview_fields"), "\(selectedTemplate.fields.count)")
-                                    row(L("deck_template_preview_cards"), "\(selectedTemplate.templates.count)")
-                                }
+                .task {
+                    await loadTemplates()
+                }
+        }
+    }
 
-                                if !selectedTemplate.fields.isEmpty {
-                                    Section(L("deck_template_preview_field_names")) {
-                                        ForEach(Array(selectedTemplate.fields.enumerated()), id: \.offset) { _, field in
-                                            Text(field.name)
-                                        }
-                                    }
-                                }
+    // MARK: - Extracted Sub-views
 
-                                if !selectedTemplate.templates.isEmpty {
-                                    Section(L("deck_template_preview_template_names")) {
-                                        ForEach(Array(selectedTemplate.templates.enumerated()), id: \.offset) { _, template in
-                                            Text(template.name)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+    @ViewBuilder
+    private var mainContent: some View {
+        if isLoading {
+            ProgressView()
+        } else if let errorMessage {
+            ContentUnavailableView(
+                L("deck_template_error_title"),
+                systemImage: "exclamationmark.triangle",
+                description: Text(errorMessage)
+            )
+        } else if entries.isEmpty {
+            ContentUnavailableView(
+                L("deck_template_empty_title"),
+                systemImage: "square.stack.3d.up.slash",
+                description: Text(L("deck_template_empty_desc"))
+            )
+        } else if filteredEntries.isEmpty {
+            ContentUnavailableView.search(text: searchText)
+        } else {
+            templateList
+        }
+    }
+
+    private var templateList: some View {
+        List(filteredEntries, id: \.id) { entry in
+            Button {
+                Task { await openPreview(for: entry.id) }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "square.stack.3d.up")
+                        .foregroundStyle(.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.name)
+                            .font(.body)
+                        Text("ID: \(entry.id)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .navigationTitle(L("deck_template_preview_title"))
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button(L("common_done")) { showPreview = false }
-                        }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.vertical, 2)
+        }
+        .listStyle(.plain)
+    }
+
+    private var previewSheet: some View {
+        NavigationStack {
+            previewContent
+                .navigationTitle(L("deck_template_preview_title"))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(L("common_done")) { showPreview = false }
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var previewContent: some View {
+        if isLoadingPreview {
+            ProgressView()
+        } else if let previewError {
+            ContentUnavailableView(
+                L("deck_template_error_title"),
+                systemImage: "exclamationmark.triangle",
+                description: Text(previewError)
+            )
+        } else if let selectedTemplate {
+            previewList(for: selectedTemplate)
+        }
+    }
+
+    private func previewList(for notetype: Anki_Notetypes_Notetype) -> some View {
+        List {
+            Section(L("deck_template_preview_basic")) {
+                row(L("card_info_template"), notetype.name)
+                row("ID", "\(notetype.id)")
+            }
+            Section(L("deck_template_preview_counts")) {
+                row(L("deck_template_preview_fields"), "\(notetype.fields.count)")
+                row(L("deck_template_preview_cards"), "\(notetype.templates.count)")
+            }
+            if !notetype.fields.isEmpty {
+                Section(L("deck_template_preview_field_names")) {
+                    ForEach(Array(notetype.fields.enumerated()), id: \.offset) { _, field in
+                        Text(field.name)
                     }
                 }
             }
-            .task {
-                await loadTemplates()
+            if !notetype.templates.isEmpty {
+                Section(L("deck_template_preview_template_names")) {
+                    ForEach(Array(notetype.templates.enumerated()), id: \.offset) { _, template in
+                        Text(template.name)
+                    }
+                }
             }
         }
     }

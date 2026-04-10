@@ -51,150 +51,18 @@ struct BrowseView: View {
             } else if notes.isEmpty && !isLoading {
                 ContentUnavailableView.search(text: searchText)
             } else {
-                List(selection: $selectedNoteIDs) {
-                    ForEach(notes, id: \.id) { note in
-                        if isEditing {
-                            NoteRowView(note: note)
-                                .tag(note.id)
-                                .onAppear {
-                                    if note.sfld == "Loading..." {
-                                        Task { await fetchNoteDetails(id: note.id) }
-                                    }
-                                    if note.id == notes.last?.id {
-                                        Task { await loadNextPage() }
-                                    }
-                                }
-                        } else {
-                            NavigationLink(value: note) {
-                                NoteRowView(note: note)
-                                    .onAppear {
-                                        if note.sfld == "Loading..." {
-                                            Task { await fetchNoteDetails(id: note.id) }
-                                        }
-                                        if note.id == notes.last?.id {
-                                            Task { await loadNextPage() }
-                                        }
-                                    }
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    selectedNoteForDelete = note
-                                    showDeleteConfirm = true
-                                } label: {
-                                    Label(L("common_delete"), systemImage: "trash")
-                                }
-                            }
-                        }
-                    }
-
-                    if isLoading {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                    }
-                }
-                .listStyle(.plain)
-                .navigationDestination(for: NoteRecord.self) { note in
-                    let resolvedNote = (note.sfld == "Loading...")
-                        ? (try? noteClient.fetch(note.id)) ?? note
-                        : note
-                    NoteEditorView(note: resolvedNote) {
-                        Task { await performSearch() }
-                    }
-                }
+                noteListContent
             }
 
             if isBatchWorking {
-                HStack(spacing: 8) {
-                    ProgressView(value: Double(batchProgressDone), total: Double(max(batchProgressTotal, 1)))
-                        .frame(maxWidth: 160)
-                    Text("\(batchProgressDone)/\(batchProgressTotal)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 6)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(Capsule())
+                batchProgressOverlay
             }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Menu {
-                    ForEach(BrowseQuickFilter.allCases, id: \.self) { filter in
-                        Button {
-                            quickFilter = filter
-                        } label: {
-                            if quickFilter == filter {
-                                Label(filter.title, systemImage: "checkmark.circle.fill")
-                            } else {
-                                Label(filter.title, systemImage: filter.symbol)
-                            }
-                        }
-                    }
-
-                    if !allDecks.isEmpty {
-                        Divider()
-                        Menu(L("browse_filter_by_deck")) {
-                            Button {
-                                parentDeck = nil
-                                activeDeck = nil
-                            } label: {
-                                if activeDeck == nil {
-                                    Label(L("browse_filter_all"), systemImage: "checkmark")
-                                } else {
-                                    Text(L("browse_filter_all"))
-                                }
-                            }
-
-                            ForEach(allDecks) { deck in
-                                Button {
-                                    parentDeck = topLevelDecks.first(where: { deck.name.hasPrefix($0.name) })
-                                    activeDeck = deck
-                                } label: {
-                                    if activeDeck?.id == deck.id {
-                                        Label(deck.name, systemImage: "checkmark.circle.fill")
-                                    } else {
-                                        Label(deck.name, systemImage: "rectangle.stack")
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if !allTags.isEmpty {
-                        Menu(L("browse_filter_by_tag")) {
-                            Button {
-                                activeTag = nil
-                            } label: {
-                                if activeTag == nil {
-                                    Label(L("browse_filter_all"), systemImage: "checkmark")
-                                } else {
-                                    Text(L("browse_filter_all"))
-                                }
-                            }
-
-                            ForEach(allTags, id: \.self) { tag in
-                                Button {
-                                    activeTag = tag
-                                } label: {
-                                    if activeTag == tag {
-                                        Label(shortTagName(tag), systemImage: "checkmark.circle.fill")
-                                    } else {
-                                        Label(shortTagName(tag), systemImage: "tag")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                }
-                .accessibilityLabel(L("browse_filter_accessibility"))
+                filterMenu
             }
 
             ToolbarItem(placement: .topBarLeading) {
@@ -215,95 +83,12 @@ struct BrowseView: View {
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    withAnimation {
-                        editMode?.wrappedValue = isEditing ? .inactive : .active
-                    }
-                } label: {
-                    Image(systemName: isEditing ? "checkmark.circle" : "checklist")
-                }
-                .accessibilityLabel(L("browse_multiselect_accessibility"))
-
-                Menu {
-                    ForEach(BrowseSortMode.allCases, id: \.self) { mode in
-                        Button {
-                            sortMode = mode
-                            applySort()
-                        } label: {
-                            if sortMode == mode {
-                                Label(mode.title, systemImage: "checkmark.circle.fill")
-                            } else {
-                                Label(mode.title, systemImage: mode.symbol)
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "arrow.up.arrow.down.circle")
-                }
-                .accessibilityLabel(L("browse_sort_accessibility"))
-
-                Button {
-                    showAddNote = true
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .accessibilityLabel(L("browse_add_accessibility"))
+                trailingToolbarButtons
             }
 
             if isEditing {
                 ToolbarItemGroup(placement: .bottomBar) {
-                    Text(L("browse_selected_count", selectedNoteIDs.count))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Button(L("browse_select_page")) {
-                        selectAllVisibleNotes()
-                    }
-                    .disabled(notes.isEmpty)
-
-                    Button(L("browse_select_filtered")) {
-                        selectAllFilteredNotes()
-                    }
-                    .disabled(allNotes.isEmpty)
-
-                    Button(L("browse_select_clear")) {
-                        selectedNoteIDs.removeAll()
-                    }
-                    .disabled(selectedNoteIDs.isEmpty)
-
-                    Menu {
-                        Button {
-                            showTagsManager = true
-                        } label: {
-                            Label(L("browse_batch_manage_tags"), systemImage: "tag")
-                        }
-
-                        Divider()
-
-                        Menu(L("browse_batch_flag_menu")) {
-                            Button(L("browse_batch_flag_1")) { Task { await batchFlag(1) } }
-                            Button(L("browse_batch_flag_2")) { Task { await batchFlag(2) } }
-                            Button(L("browse_batch_flag_3")) { Task { await batchFlag(3) } }
-                            Button(L("browse_batch_flag_4")) { Task { await batchFlag(4) } }
-                            Button(L("browse_batch_flag_5")) { Task { await batchFlag(5) } }
-                            Button(L("browse_batch_flag_6")) { Task { await batchFlag(6) } }
-                            Button(L("browse_batch_flag_7")) { Task { await batchFlag(7) } }
-                            Divider()
-                            Button(L("browse_batch_flag_clear")) { Task { await batchFlag(0) } }
-                        }
-
-                        Button(L("browse_batch_suspend")) { Task { await batchSuspend() } }
-                        Button(L("browse_batch_bury")) { Task { await batchBury() } }
-                    } label: {
-                        if isBatchWorking {
-                            ProgressView()
-                        } else {
-                            Label(L("browse_batch_menu_label"), systemImage: "slider.horizontal.3")
-                        }
-                    }
-                    .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+                    batchBottomBar
                 }
             }
         }
@@ -365,6 +150,245 @@ struct BrowseView: View {
             await loadTags()
             await performSearch()
         }
+    }
+
+    // MARK: - Extracted Sub-Views
+
+    private var noteListContent: some View {
+        List(selection: $selectedNoteIDs) {
+            ForEach(notes, id: \.id) { note in
+                if isEditing {
+                    NoteRowView(note: note)
+                        .tag(note.id)
+                        .onAppear {
+                            if note.sfld == "Loading..." {
+                                Task { await fetchNoteDetails(id: note.id) }
+                            }
+                            if note.id == notes.last?.id {
+                                Task { await loadNextPage() }
+                            }
+                        }
+                } else {
+                    NavigationLink(value: note) {
+                        NoteRowView(note: note)
+                            .onAppear {
+                                if note.sfld == "Loading..." {
+                                    Task { await fetchNoteDetails(id: note.id) }
+                                }
+                                if note.id == notes.last?.id {
+                                    Task { await loadNextPage() }
+                                }
+                            }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            selectedNoteForDelete = note
+                            showDeleteConfirm = true
+                        } label: {
+                            Label(L("common_delete"), systemImage: "trash")
+                        }
+                    }
+                }
+            }
+
+            if isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            }
+        }
+        .listStyle(.plain)
+        .navigationDestination(for: NoteRecord.self) { note in
+            let resolvedNote = (note.sfld == "Loading...")
+                ? (try? noteClient.fetch(note.id)) ?? note
+                : note
+            NoteEditorView(note: resolvedNote) {
+                Task { await performSearch() }
+            }
+        }
+    }
+
+    private var batchProgressOverlay: some View {
+        HStack(spacing: 8) {
+            ProgressView(value: Double(batchProgressDone), total: Double(max(batchProgressTotal, 1)))
+                .frame(maxWidth: 160)
+            Text("\(batchProgressDone)/\(batchProgressTotal)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 6)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(Capsule())
+    }
+
+    private var filterMenu: some View {
+        Menu {
+            ForEach(BrowseQuickFilter.allCases, id: \.self) { filter in
+                Button {
+                    quickFilter = filter
+                } label: {
+                    if quickFilter == filter {
+                        Label(filter.title, systemImage: "checkmark.circle.fill")
+                    } else {
+                        Label(filter.title, systemImage: filter.symbol)
+                    }
+                }
+            }
+
+            if !allDecks.isEmpty {
+                Divider()
+                Menu(L("browse_filter_by_deck")) {
+                    Button {
+                        parentDeck = nil
+                        activeDeck = nil
+                    } label: {
+                        if activeDeck == nil {
+                            Label(L("browse_filter_all"), systemImage: "checkmark")
+                        } else {
+                            Text(L("browse_filter_all"))
+                        }
+                    }
+
+                    ForEach(allDecks) { deck in
+                        Button {
+                            parentDeck = topLevelDecks.first(where: { deck.name.hasPrefix($0.name) })
+                            activeDeck = deck
+                        } label: {
+                            if activeDeck?.id == deck.id {
+                                Label(deck.name, systemImage: "checkmark.circle.fill")
+                            } else {
+                                Label(deck.name, systemImage: "rectangle.stack")
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !allTags.isEmpty {
+                Menu(L("browse_filter_by_tag")) {
+                    Button {
+                        activeTag = nil
+                    } label: {
+                        if activeTag == nil {
+                            Label(L("browse_filter_all"), systemImage: "checkmark")
+                        } else {
+                            Text(L("browse_filter_all"))
+                        }
+                    }
+
+                    ForEach(allTags, id: \.self) { tag in
+                        Button {
+                            activeTag = tag
+                        } label: {
+                            if activeTag == tag {
+                                Label(shortTagName(tag), systemImage: "checkmark.circle.fill")
+                            } else {
+                                Label(shortTagName(tag), systemImage: "tag")
+                            }
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+        }
+        .accessibilityLabel(L("browse_filter_accessibility"))
+    }
+
+    @ViewBuilder
+    private var trailingToolbarButtons: some View {
+        Button {
+            withAnimation {
+                editMode?.wrappedValue = isEditing ? .inactive : .active
+            }
+        } label: {
+            Image(systemName: isEditing ? "checkmark.circle" : "checklist")
+        }
+        .accessibilityLabel(L("browse_multiselect_accessibility"))
+
+        Menu {
+            ForEach(BrowseSortMode.allCases, id: \.self) { mode in
+                Button {
+                    sortMode = mode
+                    applySort()
+                } label: {
+                    if sortMode == mode {
+                        Label(mode.title, systemImage: "checkmark.circle.fill")
+                    } else {
+                        Label(mode.title, systemImage: mode.symbol)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down.circle")
+        }
+        .accessibilityLabel(L("browse_sort_accessibility"))
+
+        Button {
+            showAddNote = true
+        } label: {
+            Image(systemName: "plus")
+        }
+        .accessibilityLabel(L("browse_add_accessibility"))
+    }
+
+    @ViewBuilder
+    private var batchBottomBar: some View {
+        Text(L("browse_selected_count", selectedNoteIDs.count))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+        Spacer()
+
+        Button(L("browse_select_page")) {
+            selectAllVisibleNotes()
+        }
+        .disabled(notes.isEmpty)
+
+        Button(L("browse_select_filtered")) {
+            selectAllFilteredNotes()
+        }
+        .disabled(allNotes.isEmpty)
+
+        Button(L("browse_select_clear")) {
+            selectedNoteIDs.removeAll()
+        }
+        .disabled(selectedNoteIDs.isEmpty)
+
+        Menu {
+            Button {
+                showTagsManager = true
+            } label: {
+                Label(L("browse_batch_manage_tags"), systemImage: "tag")
+            }
+
+            Divider()
+
+            Menu(L("browse_batch_flag_menu")) {
+                Button(L("browse_batch_flag_1")) { Task { await batchFlag(1) } }
+                Button(L("browse_batch_flag_2")) { Task { await batchFlag(2) } }
+                Button(L("browse_batch_flag_3")) { Task { await batchFlag(3) } }
+                Button(L("browse_batch_flag_4")) { Task { await batchFlag(4) } }
+                Button(L("browse_batch_flag_5")) { Task { await batchFlag(5) } }
+                Button(L("browse_batch_flag_6")) { Task { await batchFlag(6) } }
+                Button(L("browse_batch_flag_7")) { Task { await batchFlag(7) } }
+                Divider()
+                Button(L("browse_batch_flag_clear")) { Task { await batchFlag(0) } }
+            }
+
+            Button(L("browse_batch_suspend")) { Task { await batchSuspend() } }
+            Button(L("browse_batch_bury")) { Task { await batchBury() } }
+        } label: {
+            if isBatchWorking {
+                ProgressView()
+            } else {
+                Label(L("browse_batch_menu_label"), systemImage: "slider.horizontal.3")
+            }
+        }
+        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
     }
 
     private var isEditing: Bool {
