@@ -19,7 +19,6 @@ struct NoteEditorView: View {
     @State private var tags: String = ""
     @State private var availableTags: [String] = []
     @State private var isSaving = false
-    @State private var showSavedConfirmation = false
     @State private var showTagPicker = false
     @State private var errorMessage: String?
     @State private var showError = false
@@ -78,20 +77,6 @@ struct NoteEditorView: View {
                     Task { await save() }
                 }
                 .disabled(isSaving)
-            }
-        }
-        .overlay {
-            if showSavedConfirmation {
-                VStack {
-                    Spacer()
-                    Text(L("note_editor_saved"))
-                        .font(.subheadline.weight(.medium))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .padding(.bottom, 32)
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .sheet(isPresented: $showTagPicker) {
@@ -200,10 +185,8 @@ struct NoteEditorView: View {
 
         do {
             try noteClient.save(updatedNote)
-            withAnimation { showSavedConfirmation = true }
-            try? await Task.sleep(for: .seconds(1.5))
-            withAnimation { showSavedConfirmation = false }
             onSave()
+            dismiss()
         } catch {
             errorMessage = L("note_editor_error_save", error.localizedDescription)
             showError = true

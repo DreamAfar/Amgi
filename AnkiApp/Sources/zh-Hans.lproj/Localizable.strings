@@ -681,3 +681,21 @@
 "browse_batch_bury" = "批量掩埋";
 "browse_batch_ops" = "批量操作";
 "browse_batch_deselect" = "清除选择";
+
+// MARK: - Media Check
+"media_check_title" = "媒体检查";
+"media_check_section_summary" = "摘要";
+"media_check_missing_count" = "%d 个缺失文件";
+"media_check_unused_count" = "%d 个未使用文件";
+"media_check_full_report" = "完整报告";
+"media_check_section_missing" = "缺失文件";
+"media_check_section_unused" = "未使用文件";
+"media_check_and_more" = "…还有 %d 个";
+"media_check_section_actions" = "操作";
+"media_check_trash_unused" = "将未使用文件移至废纸篓";
+"media_check_empty_trash" = "清空废纸篓";
+"media_check_restore_trash" = "从废纸篓恢复";
+"media_check_trash_done" = "已将 %d 个文件移至废纸篓。";
+"media_check_empty_trash_done" = "废纸篓已清空。";
+"media_check_restore_done" = "废纸篓已恢复。";
+"media_check_error" = "错误：%@";

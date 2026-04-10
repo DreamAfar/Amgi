@@ -58,7 +58,7 @@ struct BrowseView: View {
                 batchProgressOverlay
             }
         }
-        .navigationTitle("")
+        .navigationTitle(L("browse_toolbar_title_count", allNotes.count))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -72,14 +72,6 @@ struct BrowseView: View {
                     Text(L("tags_nav_title"))
                 }
                 .accessibilityLabel(L("tags_nav_title"))
-            }
-
-            ToolbarItem(placement: .principal) {
-                Text(L("browse_toolbar_title_count", allNotes.count))
-                    .font(.headline)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .monospacedDigit()
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -199,7 +191,6 @@ struct BrowseView: View {
                 }
             }
         }
-        .listStyle(.plain)
         .navigationDestination(for: NoteRecord.self) { note in
             let resolvedNote = (note.sfld == "Loading...")
                 ? (try? noteClient.fetch(note.id)) ?? note

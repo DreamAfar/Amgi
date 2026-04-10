@@ -1,6 +1,8 @@
 import SwiftUI
 import AnkiBackend
+import AnkiProto
 import Dependencies
+import SwiftProtobuf
 
 // MARK: - AppLanguage
 
@@ -44,6 +46,9 @@ struct SettingsView: View {
     @State private var showMaintenanceAlert = false
     @State private var exportedFileURL: URL?
     @State private var showShareSheet = false
+    @State private var isCheckingMedia = false
+    @State private var mediaCheckResult: MediaCheckResult?
+    @State private var showMediaCheckResult = false
 
     private var selectedLanguage: Binding<AppLanguage> {
         Binding(
@@ -112,11 +117,19 @@ struct SettingsView: View {
                 }
 
                 Button {
-                    maintenanceMessage = L("settings_check_media_not_wired")
-                    showMaintenanceAlert = true
+                    checkMedia()
                 } label: {
-                    settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
+                    if isCheckingMedia {
+                        HStack {
+                            settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
+                            Spacer()
+                            ProgressView()
+                        }
+                    } else {
+                        settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
+                    }
                 }
+                .disabled(isCheckingMedia)
 
                 Button {
                     maintenanceMessage = L("settings_empty_cards_not_wired")
@@ -151,6 +164,11 @@ struct SettingsView: View {
                 ShareSheet(items: [url])
             }
         }
+        .sheet(isPresented: $showMediaCheckResult) {
+            if let result = mediaCheckResult {
+                MediaCheckResultView(result: result)
+            }
+        }
     }
 
     private func settingsRowLabel(_ title: String, icon: String) -> some View {
@@ -181,6 +199,36 @@ struct SettingsView: View {
         } catch {
             maintenanceMessage = L("debug_check_db_error", "\(error)")
             showMaintenanceAlert = true
+        }
+    }
+
+    private func checkMedia() {
+        isCheckingMedia = true
+        Task.detached {
+            do {
+                let response: Anki_Media_CheckMediaResponse = try backend.invoke(
+                    service: AnkiBackend.Service.media,
+                    method: AnkiBackend.MediaMethod.checkMedia
+                )
+                let result = MediaCheckResult(
+                    missing: response.missing,
+                    unused: response.unused,
+                    missingNoteIds: response.missingMediaNotes,
+                    report: response.report,
+                    haveTrash: response.haveTrash
+                )
+                await MainActor.run {
+                    isCheckingMedia = false
+                    mediaCheckResult = result
+                    showMediaCheckResult = true
+                }
+            } catch {
+                await MainActor.run {
+                    isCheckingMedia = false
+                    maintenanceMessage = L("media_check_error", error.localizedDescription)
+                    showMaintenanceAlert = true
+                }
+            }
         }
     }
 }

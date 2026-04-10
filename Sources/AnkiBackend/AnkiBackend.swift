@@ -178,6 +178,7 @@ extension AnkiBackend {
         public static let cardRendering: UInt32 = 27
         public static let search: UInt32 = 29
         public static let importExport: UInt32 = 37
+        public static let media: UInt32 = 39
         public static let stats: UInt32 = 41
         public static let tags: UInt32 = 43
     }
@@ -295,6 +296,16 @@ extension AnkiBackend {
     public enum StatsMethod {
         public static let cardStats: UInt32 = 0
         public static let graphs: UInt32 = 2
+    }
+
+    // BackendMediaService (39) has no backend-specific methods;
+    // all MediaService methods are delegated with offset 0.
+    public enum MediaMethod {
+        public static let checkMedia: UInt32 = 0
+        public static let addMediaFile: UInt32 = 1
+        public static let trashMediaFiles: UInt32 = 2
+        public static let emptyTrash: UInt32 = 3
+        public static let restoreTrash: UInt32 = 4
     }
 
     public enum TagsMethod {

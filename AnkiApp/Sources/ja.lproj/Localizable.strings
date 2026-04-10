@@ -681,3 +681,21 @@
 "browse_batch_bury" = "一括埋める";
 "browse_batch_ops" = "一括操作";
 "browse_batch_deselect" = "選択をクリア";
+
+// MARK: - Media Check
+"media_check_title" = "メディアチェック";
+"media_check_section_summary" = "概要";
+"media_check_missing_count" = "不足ファイル %d 件";
+"media_check_unused_count" = "未使用ファイル %d 件";
+"media_check_full_report" = "詳細レポート";
+"media_check_section_missing" = "不足ファイル";
+"media_check_section_unused" = "未使用ファイル";
+"media_check_and_more" = "…他 %d 件";
+"media_check_section_actions" = "操作";
+"media_check_trash_unused" = "未使用をゴミ箱へ";
+"media_check_empty_trash" = "ゴミ箱を空にする";
+"media_check_restore_trash" = "ゴミ箱から復元";
+"media_check_trash_done" = "%d 件をゴミ箱に移動しました。";
+"media_check_empty_trash_done" = "ゴミ箱を空にしました。";
+"media_check_restore_done" = "ゴミ箱を復元しました。";
+"media_check_error" = "エラー: %@";

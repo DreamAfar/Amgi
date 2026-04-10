@@ -30,6 +30,7 @@ struct CardWebView: UIViewRepresentable {
         <!DOCTYPE html>
         <html>
         <head>
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         <style>
             body {
@@ -82,6 +83,19 @@ struct CardWebView: UIViewRepresentable {
                 border-radius: 8px;
                 margin: 8px 0;
             }
+            .missing-media {
+                display: inline-block;
+                background: rgba(255,60,60,0.15);
+                border: 1px dashed rgba(255,60,60,0.5);
+                border-radius: 6px;
+                padding: 6px 10px;
+                margin: 4px;
+                font-size: 13px;
+                color: rgba(255,100,100,0.9);
+            }
+            @media (prefers-color-scheme: light) {
+                .missing-media { background: rgba(255,60,60,0.08); color: rgba(200,40,40,0.8); }
+            }
         </style>
         <script>
         function playSound(btn) {
@@ -100,6 +114,27 @@ struct CardWebView: UIViewRepresentable {
         window.onload = function() {
             var first = document.querySelector('.sound-btn audio');
             if (first) { first.play(); }
+            // Detect missing images
+            document.querySelectorAll('img').forEach(function(img) {
+                img.onerror = function() {
+                    var hint = document.createElement('span');
+                    hint.className = 'missing-media';
+                    hint.textContent = '⚠ ' + (img.getAttribute('src') || 'image');
+                    img.replaceWith(hint);
+                };
+                if (img.complete && img.naturalWidth === 0 && img.src) { img.onerror(); }
+            });
+            // Detect missing audio
+            document.querySelectorAll('.sound-btn').forEach(function(span) {
+                var audio = span.querySelector('audio');
+                if (!audio) return;
+                audio.onerror = function() {
+                    var hint = document.createElement('span');
+                    hint.className = 'missing-media';
+                    hint.textContent = '⚠ ' + (audio.getAttribute('src') || 'audio');
+                    span.replaceWith(hint);
+                };
+            });
         };
         </script>
         </head>
@@ -133,10 +168,18 @@ struct CardWebView: UIViewRepresentable {
             pattern: #"\[sound:([^\]]+)\]"#, options: []
         ) else { return html }
         let range = NSRange(html.startIndex..., in: html)
-        return regex.stringByReplacingMatches(
-            in: html, range: range,
-            withTemplate: "<span class=\"sound-btn\"><audio src=\"$1\" preload=\"auto\"></audio><button class=\"replay-btn\" onclick=\"playSound(this)\">▶</button></span>"
-        )
+        let matches = regex.matches(in: html, range: range)
+        var result = html
+        // Process in reverse order to preserve character indices
+        for match in matches.reversed() {
+            guard let matchRange = Range(match.range, in: result),
+                  let filenameRange = Range(match.range(at: 1), in: result) else { continue }
+            let filename = String(result[filenameRange])
+            let encoded = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? filename
+            let replacement = "<span class=\"sound-btn\"><audio src=\"\(encoded)\" preload=\"auto\"></audio><button class=\"replay-btn\" onclick=\"playSound(this)\">▶</button></span>"
+            result.replaceSubrange(matchRange, with: replacement)
+        }
+        return result
     }
 
     /// Returns the media directory URL for the currently selected user.

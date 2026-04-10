@@ -78,10 +78,9 @@ private struct DeckRowView: View {
         } message: {
             Text(L("deck_rename_alert_message"))
         }
-        .confirmationDialog(
+        .alert(
             L("deck_delete_confirm2_title"),
-            isPresented: $showDeleteConfirm,
-            titleVisibility: .visible
+            isPresented: $showDeleteConfirm
         ) {
             Button(L("btn_confirm_delete"), role: .destructive) {
                 Task { await deleteDeck() }

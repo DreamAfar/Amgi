@@ -681,3 +681,21 @@
 "debug_dump_deck_tree" = "Dump Deck Tree";
 "debug_deck_tree_error" = "DeckTree error: %@";
 "deck_config_section_auto_advance" = "Auto-Advance";
+
+// MARK: - Media Check
+"media_check_title" = "Media Check";
+"media_check_section_summary" = "Summary";
+"media_check_missing_count" = "%d missing files";
+"media_check_unused_count" = "%d unused files";
+"media_check_full_report" = "Full Report";
+"media_check_section_missing" = "Missing Files";
+"media_check_section_unused" = "Unused Files";
+"media_check_and_more" = "…and %d more";
+"media_check_section_actions" = "Actions";
+"media_check_trash_unused" = "Move Unused to Trash";
+"media_check_empty_trash" = "Empty Trash";
+"media_check_restore_trash" = "Restore from Trash";
+"media_check_trash_done" = "Moved %d files to trash.";
+"media_check_empty_trash_done" = "Trash emptied.";
+"media_check_restore_done" = "Trash restored.";
+"media_check_error" = "Error: %@";
