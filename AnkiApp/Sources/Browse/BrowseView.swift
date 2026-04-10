@@ -29,30 +29,39 @@ struct BrowseView: View {
     @State private var batchErrorMessage: String?
     @State private var showBatchError = false
 
-                List(selection: $selectedNoteIDs) {
+    private let pageSize = 50
 
+    var body: some View {
+        Group {
+            if notes.isEmpty && !isLoading && searchText.isEmpty && activeDeck == nil {
+                ContentUnavailableView(
+                    "Browse Notes",
+                    systemImage: "magnifyingglass",
+                    description: Text("Search by content, tags, or filter by deck.")
+                )
+            } else if notes.isEmpty && !isLoading {
+                ContentUnavailableView.search(text: searchText)
+            } else {
+                List(selection: $selectedNoteIDs) {
+                    ForEach(notes, id: \.id) { note in
                         if isEditing {
                             NoteRowView(note: note)
                                 .tag(note.id)
                                 .onAppear {
-                                    // Lazy-load stub notes when they appear on screen
                                     if note.sfld == "Loading..." {
                                         Task { await fetchNoteDetails(id: note.id) }
                                     }
-                                    // Paging: load next batch near the end
                                     if note.id == notes.last?.id {
                                         Task { await loadNextPage() }
                                     }
-                                    }
+                                }
                         } else {
                             NavigationLink(value: note) {
                                 NoteRowView(note: note)
                                     .onAppear {
-                                        // Lazy-load stub notes when they appear on screen
                                         if note.sfld == "Loading..." {
                                             Task { await fetchNoteDetails(id: note.id) }
                                         }
-                                        // Paging: load next batch near the end
                                         if note.id == notes.last?.id {
                                             Task { await loadNextPage() }
                                         }
@@ -66,18 +75,6 @@ struct BrowseView: View {
                                     Label("Delete", systemImage: "trash")
                                 }
                             }
-                                    if note.id == notes.last?.id {
-                                        Task { await loadNextPage() }
-                                    }
-                                }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                selectedNoteForDelete = note
-                                showDeleteConfirm = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
                         }
                     }
 
@@ -90,7 +87,6 @@ struct BrowseView: View {
                     }
                 }
                 .navigationDestination(for: NoteRecord.self) { note in
-                    // If tapped a stub, fetch full details first
                     let resolvedNote = (note.sfld == "Loading...")
                         ? (try? noteClient.fetch(note.id)) ?? note
                         : note
@@ -110,6 +106,7 @@ struct BrowseView: View {
                     Image(systemName: "plus")
                 }
             }
+
             ToolbarItemGroup(placement: .topBarTrailing) {
                 EditButton()
 
@@ -195,7 +192,7 @@ struct BrowseView: View {
         editMode?.wrappedValue.isEditing == true
     }
 
-    // MARK: - Deck Filter
+                List(selection: $selectedNoteIDs) {
 
     private var topLevelDecks: [DeckInfo] {
         allDecks.filter { !$0.name.contains("::") }
