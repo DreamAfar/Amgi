@@ -13,7 +13,15 @@ import SwiftUI
 final class LanguageManager: ObservableObject {
     static let shared = LanguageManager()
 
-    @Published private(set) var bundle: Bundle = .main
+    /// Thread-safe access to the current bundle for localization functions.
+    nonisolated(unsafe) static var currentBundle: Bundle = .main
+
+    @Published private(set) var bundle: Bundle = .main {
+        didSet {
+            // Keep the nonisolated static in sync with the published property
+            Self.currentBundle = bundle
+        }
+    }
 
     private init() {
         applyStoredLanguage()
@@ -44,13 +52,15 @@ final class LanguageManager: ObservableObject {
 
 /// Returns the localized string for `key` using the active LanguageManager bundle.
 /// Falls back to the key itself if no translation is found.
+/// This function is nonisolated to allow calls from any context (UI or background).
 func L(_ key: String) -> String {
-    NSLocalizedString(key, bundle: LanguageManager.shared.bundle, comment: "")
+    NSLocalizedString(key, bundle: LanguageManager.currentBundle, comment: "")
 }
 
 /// Convenience overload for simple string interpolation.
 /// Example: `L("deck_count_format", deck.count)` → "3 Decks"
+/// This function is nonisolated to allow calls from any context (UI or background).
 func L(_ key: String, _ args: CVarArg...) -> String {
-    let fmt = NSLocalizedString(key, bundle: LanguageManager.shared.bundle, comment: "")
+    let fmt = NSLocalizedString(key, bundle: LanguageManager.currentBundle, comment: "")
     return String(format: fmt, arguments: args)
 }
