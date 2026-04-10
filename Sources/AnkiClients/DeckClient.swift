@@ -12,7 +12,7 @@ public struct DeckClient: Sendable {
     public var rename: @Sendable (_ deckId: Int64, _ name: String) throws -> Void
     public var delete: @Sendable (_ deckId: Int64) throws -> Void
     public var getDeckConfig: @Sendable (_ deckId: Int64) throws -> Anki_DeckConfig_DeckConfig
-    public var updateDeckConfig: @Sendable (_ deckId: Int64, _ config: Anki_DeckConfig_DeckConfig) throws -> Void
+    public var updateDeckConfig: @Sendable (_ deckId: Int64, _ config: Anki_DeckConfig_DeckConfig, _ applyToChildren: Bool) throws -> Void
 }
 
 extension DeckClient: TestDependencyKey {

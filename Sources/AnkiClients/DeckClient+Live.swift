@@ -164,12 +164,12 @@ extension DeckClient: DependencyKey {
                     throw error
                 }
             },
-            updateDeckConfig: { deckId, config in
+            updateDeckConfig: { deckId, config, applyToChildren in
                 // Update the deck configuration
                 var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
                 req.targetDeckID = deckId
                 req.configs = [config]
-                req.mode = .normal
+                req.mode = applyToChildren ? .applyToChildren : .normal
                 req.fsrs = !config.config.fsrsParams6.isEmpty
                 
                 do {

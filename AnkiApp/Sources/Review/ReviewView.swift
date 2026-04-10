@@ -96,7 +96,7 @@ struct ReviewView: View {
                     if !session.isFinished, let current = session.currentCard {
                         CardContextMenu(
                             cardId: current.card.id,
-                            onSuccess: { shouldAdvance in
+                            onActionSuccess: { shouldAdvance in
                                 if shouldAdvance {
                                     session.refreshAndAdvance()
                                 } else {

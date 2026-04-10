@@ -6,7 +6,8 @@ import Dependencies
 @MainActor
 struct CardContextMenu: View {
     let cardId: Int64
-    var onSuccess: ((_ shouldAdvance: Bool) -> Void)?
+    var onSuccess: (() -> Void)?
+    var onActionSuccess: ((_ shouldAdvance: Bool) -> Void)?
     
     @Dependency(\.cardClient) var cardClient
     
@@ -52,7 +53,8 @@ struct CardContextMenu: View {
     private func performSuspend() {
         do {
             try cardClient.suspend(cardId)
-            onSuccess?(true)
+            onSuccess?()
+            onActionSuccess?(true)
         } catch {
             errorMessage = "Failed to suspend card: \(error.localizedDescription)"
             showError = true
@@ -62,7 +64,8 @@ struct CardContextMenu: View {
     private func performBury() {
         do {
             try cardClient.bury(cardId)
-            onSuccess?(true)
+            onSuccess?()
+            onActionSuccess?(true)
         } catch {
             errorMessage = "Failed to bury card: \(error.localizedDescription)"
             showError = true
@@ -72,7 +75,8 @@ struct CardContextMenu: View {
     private func performFlag(_ value: Int32) {
         do {
             try cardClient.flag(cardId, value)
-            onSuccess?(false)
+            onSuccess?()
+            onActionSuccess?(false)
         } catch {
             errorMessage = "Failed to flag card: \(error.localizedDescription)"
             showError = true
@@ -82,7 +86,8 @@ struct CardContextMenu: View {
     private func performUndo() {
         do {
             try cardClient.undo()
-            onSuccess?(true)
+            onSuccess?()
+            onActionSuccess?(true)
         } catch {
             errorMessage = "Failed to undo: \(error.localizedDescription)"
             showError = true

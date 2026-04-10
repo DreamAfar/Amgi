@@ -59,6 +59,7 @@ struct DeckConfigView: View {
     @State private var waitForAudio = false
     @State private var skipQuestionWhenReplayingAnswer = false
     @State private var easyDayPercentages: [Double] = Array(repeating: 100, count: 7)
+    @State private var applyToChildren = false
     
     var body: some View {
         NavigationStack {
@@ -73,6 +74,7 @@ struct DeckConfigView: View {
                             Toggle("禁用自动播放音频", isOn: $disableAutoplay)
                             Toggle("等待音频播放完成", isOn: $waitForAudio)
                             Toggle("重放答案时跳过问题音频", isOn: $skipQuestionWhenReplayingAnswer)
+                            Toggle("应用到子牌组", isOn: $applyToChildren)
                         }
 
                         Section("每日上限") {
@@ -412,7 +414,7 @@ struct DeckConfigView: View {
         config.config = cfg
         
         do {
-            try deckClient.updateDeckConfig(deckId, config)
+            try deckClient.updateDeckConfig(deckId, config, applyToChildren)
             onDismiss()
         } catch {
             errorMessage = "Failed to save configuration: \(error.localizedDescription)"

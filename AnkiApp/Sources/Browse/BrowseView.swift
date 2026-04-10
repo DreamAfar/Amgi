@@ -28,6 +28,10 @@ struct BrowseView: View {
     @State private var isBatchWorking = false
     @State private var batchErrorMessage: String?
     @State private var showBatchError = false
+    @State private var batchSuccessMessage: String?
+    @State private var showBatchSuccess = false
+    @State private var batchProgressDone = 0
+    @State private var batchProgressTotal = 0
 
     private let pageSize = 50
 
@@ -95,6 +99,20 @@ struct BrowseView: View {
                     }
                 }
             }
+
+            if isBatchWorking {
+                HStack(spacing: 8) {
+                    ProgressView(value: Double(batchProgressDone), total: Double(max(batchProgressTotal, 1)))
+                        .frame(maxWidth: 160)
+                    Text("\(batchProgressDone)/\(batchProgressTotal)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 6)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(Capsule())
+            }
         }
         .navigationTitle("Browse")
         .navigationBarTitleDisplayMode(.inline)
@@ -118,20 +136,20 @@ struct BrowseView: View {
 
                 if !selectedNoteIDs.isEmpty {
                     Menu {
-                        Menu("批量标记") {
-                            Button("旗标1（红）") { Task { await batchFlag(1) } }
-                            Button("旗标2（橙）") { Task { await batchFlag(2) } }
-                            Button("旗标3（绿）") { Task { await batchFlag(3) } }
-                            Button("旗标4（蓝）") { Task { await batchFlag(4) } }
-                            Button("旗标5（粉）") { Task { await batchFlag(5) } }
-                            Button("旗标6（青）") { Task { await batchFlag(6) } }
-                            Button("旗标7（紫）") { Task { await batchFlag(7) } }
+                        Menu("Batch Flag") {
+                            Button("Flag 1 (Red)") { Task { await batchFlag(1) } }
+                            Button("Flag 2 (Orange)") { Task { await batchFlag(2) } }
+                            Button("Flag 3 (Green)") { Task { await batchFlag(3) } }
+                            Button("Flag 4 (Blue)") { Task { await batchFlag(4) } }
+                            Button("Flag 5 (Pink)") { Task { await batchFlag(5) } }
+                            Button("Flag 6 (Cyan)") { Task { await batchFlag(6) } }
+                            Button("Flag 7 (Purple)") { Task { await batchFlag(7) } }
                         }
 
-                        Button("批量暂停") { Task { await batchSuspend() } }
-                        Button("批量搁置") { Task { await batchBury() } }
+                        Button("Batch Suspend") { Task { await batchSuspend() } }
+                        Button("Batch Bury") { Task { await batchBury() } }
                         Divider()
-                        Button("清空选择", role: .cancel) { selectedNoteIDs.removeAll() }
+                        Button("Clear Selection", role: .cancel) { selectedNoteIDs.removeAll() }
                     } label: {
                         Image(systemName: isBatchWorking ? "hourglass" : "ellipsis.circle")
                     }
@@ -142,6 +160,53 @@ struct BrowseView: View {
                     Text("\(allNotes.count) notes")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            if isEditing {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Text("Selected: \(selectedNoteIDs.count)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button("Select Page") {
+                        selectAllVisibleNotes()
+                    }
+                    .disabled(notes.isEmpty)
+
+                    Button("Select Filtered") {
+                        selectAllFilteredNotes()
+                    }
+                    .disabled(allNotes.isEmpty)
+
+                    Button("Clear") {
+                        selectedNoteIDs.removeAll()
+                    }
+                    .disabled(selectedNoteIDs.isEmpty)
+
+                    Menu {
+                        Menu("Batch Flag") {
+                            Button("Flag 1 (Red)") { Task { await batchFlag(1) } }
+                            Button("Flag 2 (Orange)") { Task { await batchFlag(2) } }
+                            Button("Flag 3 (Green)") { Task { await batchFlag(3) } }
+                            Button("Flag 4 (Blue)") { Task { await batchFlag(4) } }
+                            Button("Flag 5 (Pink)") { Task { await batchFlag(5) } }
+                            Button("Flag 6 (Cyan)") { Task { await batchFlag(6) } }
+                            Button("Flag 7 (Purple)") { Task { await batchFlag(7) } }
+                        }
+
+                        Button("Batch Suspend") { Task { await batchSuspend() } }
+                        Button("Batch Bury") { Task { await batchBury() } }
+                    } label: {
+                        if isBatchWorking {
+                            ProgressView()
+                        } else {
+                            Label("Batch", systemImage: "slider.horizontal.3")
+                        }
+                    }
+                    .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
                 }
             }
         }
@@ -165,10 +230,15 @@ struct BrowseView: View {
                 Text("Are you sure you want to delete '\(note.sfld)'?")
             }
         }
-        .alert("批量操作失败", isPresented: $showBatchError) {
-            Button("知道了", role: .cancel) {}
+        .alert("Batch Action Failed", isPresented: $showBatchError) {
+            Button("OK", role: .cancel) {}
         } message: {
-            Text(batchErrorMessage ?? "未知错误")
+            Text(batchErrorMessage ?? "Unknown error")
+        }
+        .alert("Batch Action Completed", isPresented: $showBatchSuccess) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(batchSuccessMessage ?? "Completed")
         }
         .safeAreaInset(edge: .top) {
             if !allDecks.isEmpty {
@@ -191,8 +261,6 @@ struct BrowseView: View {
     private var isEditing: Bool {
         editMode?.wrappedValue.isEditing == true
     }
-
-                List(selection: $selectedNoteIDs) {
 
     private var topLevelDecks: [DeckInfo] {
         allDecks.filter { !$0.name.contains("::") }
@@ -355,7 +423,7 @@ struct BrowseView: View {
         return parts.joined(separator: " ")
     }
 
-    private func batchFlag(_ flag: Int32) async {
+    private func batchFlag(_ flag: UInt32) async {
         await performBatchAction { cardId in
             try cardClient.flag(cardId, flag)
         }
@@ -376,7 +444,12 @@ struct BrowseView: View {
     private func performBatchAction(_ action: (Int64) throws -> Void) async {
         guard !selectedNoteIDs.isEmpty else { return }
         isBatchWorking = true
-        defer { isBatchWorking = false }
+        defer {
+            isBatchWorking = false
+            batchProgressDone = 0
+            batchProgressTotal = 0
+        }
+        let selectedNotesCount = selectedNoteIDs.count
 
         do {
             var allCardIDs = Set<Int64>()
@@ -387,16 +460,36 @@ struct BrowseView: View {
                 }
             }
 
+            batchProgressDone = 0
+            batchProgressTotal = allCardIDs.count
+
             for cardId in allCardIDs {
                 try action(cardId)
+                batchProgressDone += 1
+            }
+
+            if allCardIDs.isEmpty {
+                batchErrorMessage = "No cards found under selected notes."
+                showBatchError = true
+                return
             }
 
             selectedNoteIDs.removeAll()
+            batchSuccessMessage = "Processed \(allCardIDs.count) cards from \(selectedNotesCount) notes."
+            showBatchSuccess = true
             await performSearch()
         } catch {
             batchErrorMessage = error.localizedDescription
             showBatchError = true
         }
+    }
+
+    private func selectAllVisibleNotes() {
+        selectedNoteIDs = Set(notes.map(\.id))
+    }
+
+    private func selectAllFilteredNotes() {
+        selectedNoteIDs = Set(allNotes.map(\.id))
     }
 }
 
