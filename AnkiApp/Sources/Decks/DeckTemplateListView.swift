@@ -72,7 +72,7 @@ struct DeckTemplateListView: View {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "square.stack.3d.up")
-                        .foregroundStyle(.accent)
+                        .foregroundStyle(.tint)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(entry.name)
                             .font(.body)
