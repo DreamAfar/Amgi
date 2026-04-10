@@ -49,12 +49,32 @@ struct CardWebView: UIViewRepresentable {
             .card { max-width: 600px; width: 100%; }
             hr { border: none; border-top: 1px solid rgba(255,255,255,0.2); margin: 16px 0; }
             img { max-width: 100%; height: auto; border-radius: 8px; }
-            audio {
-                width: 100%;
-                max-width: 400px;
-                margin: 8px auto;
-                display: block;
-                border-radius: 8px;
+            .sound-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin: 4px;
+            }
+            .sound-btn audio { display: none; }
+            .replay-btn {
+                background: rgba(255,255,255,0.15);
+                border: 1px solid rgba(255,255,255,0.3);
+                color: inherit;
+                border-radius: 50%;
+                width: 44px;
+                height: 44px;
+                font-size: 18px;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                -webkit-tap-highlight-color: transparent;
+            }
+            .replay-btn:active { background: rgba(255,255,255,0.3); }
+            @media (prefers-color-scheme: light) {
+                body { color: #1a1a1a; }
+                hr { border-top-color: rgba(0,0,0,0.2); }
+                .replay-btn { background: rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.2); }
             }
             video {
                 max-width: 100%;
@@ -62,11 +82,26 @@ struct CardWebView: UIViewRepresentable {
                 border-radius: 8px;
                 margin: 8px 0;
             }
-            @media (prefers-color-scheme: light) {
-                body { color: #1a1a1a; }
-                hr { border-top-color: rgba(0,0,0,0.2); }
-            }
         </style>
+        <script>
+        function playSound(btn) {
+            var audio = btn.previousElementSibling;
+            if (audio.paused || audio.ended) {
+                audio.currentTime = 0;
+                audio.play();
+                btn.textContent = '⏸';
+                audio.onended = function() { btn.textContent = '▶'; };
+            } else {
+                audio.pause();
+                audio.currentTime = 0;
+                btn.textContent = '▶';
+            }
+        }
+        window.onload = function() {
+            var first = document.querySelector('.sound-btn audio');
+            if (first) { first.play(); }
+        };
+        </script>
         </head>
         <body><div class="card">\(processedHTML)</div></body>
         </html>
@@ -79,7 +114,7 @@ struct CardWebView: UIViewRepresentable {
 
     // MARK: - Helpers
 
-    /// Converts Anki `[sound:filename.ext]` markers to HTML `<audio controls>` elements.
+    /// Converts Anki `[sound:filename.ext]` markers to a hidden `<audio>` + styled play button.
     private static func expandSoundTags(_ html: String) -> String {
         // Pattern: [sound:anything_without_closing_bracket]
         guard let regex = try? NSRegularExpression(
@@ -88,7 +123,7 @@ struct CardWebView: UIViewRepresentable {
         let range = NSRange(html.startIndex..., in: html)
         return regex.stringByReplacingMatches(
             in: html, range: range,
-            withTemplate: "<audio src=\"$1\" controls></audio>"
+            withTemplate: "<span class=\"sound-btn\"><audio src=\"$1\" preload=\"auto\"></audio><button class=\"replay-btn\" onclick=\"playSound(this)\">▶</button></span>"
         )
     }
 

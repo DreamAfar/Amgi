@@ -22,15 +22,19 @@ struct ButtonsChart: View {
         let count: Int
     }
 
-    private let buttonLabels = ["Again", "Hard", "Good", "Easy"]
-    private let cardTypes = ["Learning", "Young", "Mature"]
+    private var buttonLabels: [String] {
+        [L("review_rating_again"), L("review_rating_hard"), L("review_rating_good"), L("review_rating_easy")]
+    }
+    private var cardTypes: [String] {
+        [L("stats_card_learn"), L("stats_card_young"), L("stats_card_mature")]
+    }
 
     private var entries: [ButtonEntry] {
         let bc = buttonCounts
         let sources: [(String, [UInt32])] = [
-            ("Learning", bc.learning),
-            ("Young", bc.young),
-            ("Mature", bc.mature),
+            (L("stats_card_learn"), bc.learning),
+            (L("stats_card_young"), bc.young),
+            (L("stats_card_mature"), bc.mature),
         ]
         var result: [ButtonEntry] = []
         for (typeName, counts) in sources {
@@ -62,9 +66,9 @@ struct ButtonsChart: View {
                     .foregroundStyle(by: .value("Type", entry.cardType))
                 }
                 .chartForegroundStyleScale([
-                    "Learning": Color.blue,
-                    "Young": Color.green,
-                    "Mature": Color.purple,
+                    L("stats_card_learn"): Color.blue,
+                    L("stats_card_young"): Color.green,
+                    L("stats_card_mature"): Color.purple,
                 ])
                 .frame(height: 180)
             }

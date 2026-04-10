@@ -10,7 +10,7 @@ struct ForecastChart: View {
             Text(L("stats_forecast_title")).font(.headline)
 
             if data.isEmpty || data.allSatisfy({ $0.count == 0 }) {
-                Text("Review some cards to see forecast")
+                Text(L("stats_forecast_empty"))
                     .foregroundStyle(.secondary)
                     .frame(height: 150)
             } else {

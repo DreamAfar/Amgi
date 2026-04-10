@@ -17,11 +17,11 @@ struct ReviewsChart: View {
     private var entries: [ReviewEntry] {
         let maxDay = period.days
         let types: [(String, KeyPath<Anki_Stats_GraphsResponse.ReviewCountsAndTimes.Reviews, UInt32>, Color)] = [
-            ("Learn", \.learn, .blue),
-            ("Relearn", \.relearn, .orange),
-            ("Young", \.young, .green),
-            ("Mature", \.mature, .purple),
-            ("Filtered", \.filtered, .gray),
+            (L("stats_review_learn"), \.learn, .blue),
+            (L("stats_review_relearn"), \.relearn, .orange),
+            (L("stats_card_young"), \.young, .green),
+            (L("stats_card_mature"), \.mature, .purple),
+            (L("stats_review_filtered"), \.filtered, .gray),
         ]
         var result: [ReviewEntry] = []
         for (dayOffset, rev) in reviews.count {
@@ -62,11 +62,11 @@ struct ReviewsChart: View {
                     .foregroundStyle(by: .value("Type", entry.type))
                 }
                 .chartForegroundStyleScale([
-                    "Learn": Color.blue,
-                    "Relearn": Color.orange,
-                    "Young": Color.green,
-                    "Mature": Color.purple,
-                    "Filtered": Color.gray,
+                    L("stats_review_learn"): Color.blue,
+                    L("stats_review_relearn"): Color.orange,
+                    L("stats_card_young"): Color.green,
+                    L("stats_card_mature"): Color.purple,
+                    L("stats_review_filtered"): Color.gray,
                 ])
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 5)) { _ in

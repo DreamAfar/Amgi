@@ -76,6 +76,12 @@ private struct DeckRowView: View {
                         rowContent
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            showDeleteConfirmStep1 = true
+                        } label: {
+                            Label(L("deck_row_delete"), systemImage: "trash")
+                        }
+
                         Button {
                             renameText = node.name
                             showRenamePrompt = true
@@ -83,12 +89,6 @@ private struct DeckRowView: View {
                             Label(L("deck_row_rename"), systemImage: "pencil")
                         }
                         .tint(.blue)
-
-                        Button(role: .destructive) {
-                            showDeleteConfirmStep1 = true
-                        } label: {
-                            Label(L("deck_row_delete"), systemImage: "trash")
-                        }
                     }
                 } else {
                     NavigationLink(value: deckInfo) {
@@ -107,6 +107,12 @@ private struct DeckRowView: View {
                         }
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            showDeleteConfirmStep1 = true
+                        } label: {
+                            Label(L("deck_row_delete"), systemImage: "trash")
+                        }
+
                         Button {
                             renameText = node.name
                             showRenamePrompt = true
@@ -114,12 +120,6 @@ private struct DeckRowView: View {
                             Label(L("deck_row_rename"), systemImage: "pencil")
                         }
                         .tint(.blue)
-
-                        Button(role: .destructive) {
-                            showDeleteConfirmStep1 = true
-                        } label: {
-                            Label(L("deck_row_delete"), systemImage: "trash")
-                        }
                     }
                 } else {
                     DisclosureGroup {

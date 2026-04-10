@@ -173,7 +173,7 @@ struct SettingsView: View {
     private func checkDatabase() {
         do {
             let responseBytes = try backend.call(
-                service: AnkiBackend.Service.checkDatabase,
+                service: AnkiBackend.Service.collection,
                 method: AnkiBackend.CheckDatabaseMethod.checkDatabase
             )
             maintenanceMessage = L("debug_check_db_ok", responseBytes.count)

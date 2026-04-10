@@ -12,7 +12,6 @@ struct ReviewView: View {
 
     @State private var session: ReviewSession
     @State private var editingNote: NoteRecord?
-    @State private var showEditSheet = false
     @State private var showCardInfo = false
 
     init(deckId: Int64, onDismiss: @escaping () -> Void) {
@@ -64,12 +63,10 @@ struct ReviewView: View {
         .task {
             session.start()
         }
-        .sheet(isPresented: $showEditSheet) {
-            if let editingNote {
-                NavigationStack {
-                    NoteEditorView(note: editingNote) {
-                        Task { await session.refreshAfterCardMutation() }
-                    }
+        .sheet(item: $editingNote) { note in
+            NavigationStack {
+                NoteEditorView(note: note) {
+                    Task { await session.refreshAfterCardMutation() }
                 }
             }
         }
@@ -194,7 +191,6 @@ struct ReviewView: View {
         guard let noteId = session.currentCard?.card.noteID else { return }
         guard let note = try? noteClient.fetch(noteId) else { return }
         editingNote = note
-        showEditSheet = true
     }
 }
 

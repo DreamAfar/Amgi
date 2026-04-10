@@ -168,7 +168,6 @@ public final class AnkiBackend: Sendable {
 extension AnkiBackend {
     public enum Service {
         public static let sync: UInt32 = 1
-        public static let checkDatabase: UInt32 = 2
         public static let collection: UInt32 = 3
         public static let deckConfig: UInt32 = 6
         public static let cards: UInt32 = 5
@@ -191,7 +190,10 @@ extension AnkiBackend {
     }
 
     public enum CheckDatabaseMethod {
-        public static let checkDatabase: UInt32 = 0
+        // Delegated via BackendCollectionService (service=3); 6 backend-specific
+        // methods precede delegated CollectionService methods, so CheckDatabase
+        // (CollectionService method 0) is at index 6.
+        public static let checkDatabase: UInt32 = 6
     }
 
     public enum SyncMethod {
@@ -285,6 +287,8 @@ extension AnkiBackend {
         public static let importCollectionPackage: UInt32 = 0
         public static let exportCollectionPackage: UInt32 = 1
         public static let importAnkiPackage: UInt32 = 2
+        // ExportAnkiPackage = ImportExportService method 2 + offset 2 backend methods = 4
+        public static let exportAnkiPackage: UInt32 = 4
     }
 
     public enum StatsMethod {

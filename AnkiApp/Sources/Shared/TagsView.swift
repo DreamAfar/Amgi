@@ -10,6 +10,7 @@ import Dependencies
 struct TagsView: View {
     @Dependency(\.tagClient) var tagClient
     let targetNoteIDs: [Int64]
+    @Environment(\.dismiss) private var dismiss
 
     @State private var allTags: [String] = []
     @State private var isLoading = true
@@ -67,7 +68,7 @@ struct TagsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(L("common_done")) { /* dismiss handled by parent sheet */ }
+                    Button(L("common_done")) { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAddTag = true }) {

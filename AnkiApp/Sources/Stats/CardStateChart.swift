@@ -7,10 +7,10 @@ struct CardStateChart: View {
 
     private var chartData: [(String, Int, Color)] {
         [
-            ("New", breakdown.newCount, .blue),
-            ("Learning", breakdown.learningCount, .orange),
-            ("Review", breakdown.reviewCount, .green),
-            ("Suspended", breakdown.suspendedCount, .gray),
+            (L("stats_card_new"), breakdown.newCount, Color.blue),
+            (L("stats_card_learn"), breakdown.learningCount, Color.orange),
+            (L("stats_card_review"), breakdown.reviewCount, Color.green),
+            (L("stats_card_suspended"), breakdown.suspendedCount, Color.gray),
         ].filter { $0.1 > 0 }
     }
 

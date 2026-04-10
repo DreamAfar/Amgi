@@ -154,8 +154,16 @@ struct ContentView: View {
     }
 
     private func reloadUsers() {
+        let previousUser = selectedUser
         users = AppUserStore.loadUsers()
-        selectedUser = AppUserStore.loadSelectedUser()
+        let newUser = AppUserStore.loadSelectedUser()
+        if newUser != previousUser {
+            // User was switched inside UserManagementView; reopen backend collection
+            Task { await switchUser(to: newUser) }
+        } else {
+            selectedUser = newUser
+            refreshID = UUID()
+        }
     }
 
     private func createDeck() async {
@@ -199,7 +207,7 @@ struct ContentView: View {
             )
 
             _ = try? backend.call(
-                service: AnkiBackend.Service.checkDatabase,
+                service: AnkiBackend.Service.collection,
                 method: AnkiBackend.CheckDatabaseMethod.checkDatabase
             )
 

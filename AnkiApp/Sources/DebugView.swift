@@ -51,7 +51,7 @@ struct DebugView: View {
                 Button(L("debug_check_db")) {
                     do {
                         let responseBytes = try backend.call(
-                            service: AnkiBackend.Service.checkDatabase,
+                            service: AnkiBackend.Service.collection,
                             method: AnkiBackend.CheckDatabaseMethod.checkDatabase
                         )
                         statusMessage = L("debug_check_db_ok", responseBytes.count)

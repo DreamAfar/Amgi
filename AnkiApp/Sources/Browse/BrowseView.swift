@@ -20,6 +20,8 @@ struct BrowseView: View {
     @State private var activeDeck: DeckInfo?
     @State private var allTags: [String] = []
     @State private var activeTag: String?
+    @State private var quickFilter: BrowseQuickFilter = .all
+    @State private var sortMode: BrowseSortMode = .modifiedDesc
     @State private var isLoading = false
     @State private var hasMorePages = true
     @State private var showAddNote = false
@@ -93,6 +95,7 @@ struct BrowseView: View {
                         }
                     }
                 }
+                .listStyle(.plain)
                 .navigationDestination(for: NoteRecord.self) { note in
                     let resolvedNote = (note.sfld == "Loading...")
                         ? (try? noteClient.fetch(note.id)) ?? note
@@ -117,56 +120,125 @@ struct BrowseView: View {
                 .clipShape(Capsule())
             }
         }
-        .navigationTitle(L("browse_nav_title"))
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
+                Menu {
+                    ForEach(BrowseQuickFilter.allCases, id: \.self) { filter in
+                        Button {
+                            quickFilter = filter
+                        } label: {
+                            if quickFilter == filter {
+                                Label(filter.title, systemImage: "checkmark.circle.fill")
+                            } else {
+                                Label(filter.title, systemImage: filter.symbol)
+                            }
+                        }
+                    }
+
+                    if !allDecks.isEmpty {
+                        Divider()
+                        Menu(L("browse_filter_by_deck")) {
+                            Button {
+                                parentDeck = nil
+                                activeDeck = nil
+                            } label: {
+                                if activeDeck == nil {
+                                    Label(L("browse_filter_all"), systemImage: "checkmark")
+                                } else {
+                                    Text(L("browse_filter_all"))
+                                }
+                            }
+
+                            ForEach(allDecks) { deck in
+                                Button {
+                                    parentDeck = topLevelDecks.first(where: { deck.name.hasPrefix($0.name) })
+                                    activeDeck = deck
+                                } label: {
+                                    if activeDeck?.id == deck.id {
+                                        Label(deck.name, systemImage: "checkmark.circle.fill")
+                                    } else {
+                                        Label(deck.name, systemImage: "rectangle.stack")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if !allTags.isEmpty {
+                        Menu(L("browse_filter_by_tag")) {
+                            Button {
+                                activeTag = nil
+                            } label: {
+                                if activeTag == nil {
+                                    Label(L("browse_filter_all"), systemImage: "checkmark")
+                                } else {
+                                    Text(L("browse_filter_all"))
+                                }
+                            }
+
+                            ForEach(allTags, id: \.self) { tag in
+                                Button {
+                                    activeTag = tag
+                                } label: {
+                                    if activeTag == tag {
+                                        Label(shortTagName(tag), systemImage: "checkmark.circle.fill")
+                                    } else {
+                                        Label(shortTagName(tag), systemImage: "tag")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
+            }
+
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    showTagsManager = true
+                } label: {
+                    Text(L("tags_nav_title"))
+                }
+            }
+
+            ToolbarItem(placement: .principal) {
+                Text(L("browse_toolbar_title_count", allNotes.count))
+                    .font(.headline)
+            }
+
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    withAnimation {
+                        editMode?.wrappedValue = isEditing ? .inactive : .active
+                    }
+                } label: {
+                    Image(systemName: isEditing ? "checkmark.circle" : "checklist")
+                }
+
+                Menu {
+                    ForEach(BrowseSortMode.allCases, id: \.self) { mode in
+                        Button {
+                            sortMode = mode
+                            applySort()
+                        } label: {
+                            if sortMode == mode {
+                                Label(mode.title, systemImage: "checkmark.circle.fill")
+                            } else {
+                                Label(mode.title, systemImage: mode.symbol)
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down.circle")
+                }
+
                 Button {
                     showAddNote = true
                 } label: {
                     Image(systemName: "plus")
-                }
-            }
-
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                EditButton()
-
-                if !selectedNoteIDs.isEmpty {
-                    Menu {
-                        Button {
-                            showTagsManager = true
-                        } label: {
-                            Label(L("browse_tag_manage"), systemImage: "tag")
-                        }
-
-                        Divider()
-
-                        Menu(L("browse_batch_flags")) {
-                            Button(L("browse_flag_1")) { Task { await batchFlag(1) } }
-                            Button(L("browse_flag_2")) { Task { await batchFlag(2) } }
-                            Button(L("browse_flag_3")) { Task { await batchFlag(3) } }
-                            Button(L("browse_flag_4")) { Task { await batchFlag(4) } }
-                            Button(L("browse_flag_5")) { Task { await batchFlag(5) } }
-                            Button(L("browse_flag_6")) { Task { await batchFlag(6) } }
-                            Button(L("browse_flag_7")) { Task { await batchFlag(7) } }
-                            Divider()
-                            Button(L("browse_flag_clear")) { Task { await batchFlag(0) } }
-                        }
-
-                        Button(L("browse_batch_suspend")) { Task { await batchSuspend() } }
-                        Button(L("browse_batch_bury")) { Task { await batchBury() } }
-                        Divider()
-                        Button(L("browse_batch_clear_selection"), role: .cancel) { selectedNoteIDs.removeAll() }
-                    } label: {
-                        Image(systemName: isBatchWorking ? "hourglass" : "ellipsis.circle")
-                    }
-                    .disabled(isBatchWorking)
-                }
-
-                if !notes.isEmpty {
-                    Text(L("browse_note_count", allNotes.count))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -275,6 +347,9 @@ struct BrowseView: View {
             Task { await performSearch() }
         }
         .onChange(of: activeTag) {
+            Task { await performSearch() }
+        }
+        .onChange(of: quickFilter) {
             Task { await performSearch() }
         }
         .task {
@@ -451,8 +526,8 @@ struct BrowseView: View {
         let query = buildQuery()
         do {
             let results = try noteClient.search(query, nil)
-            allNotes = results
-            notes = Array(results.prefix(pageSize))
+            allNotes = sortNotes(results)
+            notes = Array(allNotes.prefix(pageSize))
             hasMorePages = results.count > pageSize
         } catch {
             allNotes = []
@@ -483,6 +558,9 @@ struct BrowseView: View {
 
     private func buildQuery() -> String {
         var parts: [String] = []
+        if !quickFilter.query.isEmpty {
+            parts.append(quickFilter.query)
+        }
         if let deck = activeDeck {
             parts.append("deck:\"\(deck.name)\"")
         }
@@ -494,6 +572,26 @@ struct BrowseView: View {
             parts.append(trimmed)
         }
         return parts.joined(separator: " ")
+    }
+
+    private func sortNotes(_ input: [NoteRecord]) -> [NoteRecord] {
+        input.sorted { lhs, rhs in
+            switch sortMode {
+            case .modifiedDesc:
+                return lhs.mod > rhs.mod
+            case .modifiedAsc:
+                return lhs.mod < rhs.mod
+            case .createdDesc:
+                return lhs.id > rhs.id
+            case .createdAsc:
+                return lhs.id < rhs.id
+            }
+        }
+    }
+
+    private func applySort() {
+        allNotes = sortNotes(allNotes)
+        notes = Array(allNotes.prefix(max(notes.count, pageSize)))
     }
 
     private func batchFlag(_ flag: UInt32) async {
@@ -563,6 +661,95 @@ struct BrowseView: View {
 
     private func selectAllFilteredNotes() {
         selectedNoteIDs = Set(allNotes.map(\.id))
+    }
+}
+
+private enum BrowseQuickFilter: CaseIterable {
+    case all
+    case addedToday
+    case studiedToday
+    case newCards
+    case review
+    case due
+    case flag1
+    case flag2
+    case flag3
+    case flag4
+    case flag5
+    case flag6
+    case flag7
+
+    var query: String {
+        switch self {
+        case .all: ""
+        case .addedToday: "added:1"
+        case .studiedToday: "rated:1"
+        case .newCards: "is:new"
+        case .review: "is:review"
+        case .due: "prop:due<=0"
+        case .flag1: "flag:1"
+        case .flag2: "flag:2"
+        case .flag3: "flag:3"
+        case .flag4: "flag:4"
+        case .flag5: "flag:5"
+        case .flag6: "flag:6"
+        case .flag7: "flag:7"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .all: L("browse_filter_all")
+        case .addedToday: L("browse_filter_added_today")
+        case .studiedToday: L("browse_filter_studied_today")
+        case .newCards: L("browse_filter_new_cards")
+        case .review: L("browse_filter_review")
+        case .due: L("browse_filter_due")
+        case .flag1: L("browse_filter_flag", 1)
+        case .flag2: L("browse_filter_flag", 2)
+        case .flag3: L("browse_filter_flag", 3)
+        case .flag4: L("browse_filter_flag", 4)
+        case .flag5: L("browse_filter_flag", 5)
+        case .flag6: L("browse_filter_flag", 6)
+        case .flag7: L("browse_filter_flag", 7)
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .all: "tray.full"
+        case .addedToday: "calendar.badge.plus"
+        case .studiedToday: "calendar.badge.clock"
+        case .newCards: "sparkles.rectangle.stack"
+        case .review: "arrow.clockwise.circle"
+        case .due: "clock.badge.exclamationmark"
+        case .flag1, .flag2, .flag3, .flag4, .flag5, .flag6, .flag7: "flag"
+        }
+    }
+}
+
+private enum BrowseSortMode: CaseIterable {
+    case modifiedDesc
+    case modifiedAsc
+    case createdDesc
+    case createdAsc
+
+    var title: String {
+        switch self {
+        case .modifiedDesc: L("browse_sort_modified_desc")
+        case .modifiedAsc: L("browse_sort_modified_asc")
+        case .createdDesc: L("browse_sort_created_desc")
+        case .createdAsc: L("browse_sort_created_asc")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .modifiedDesc: "arrow.down.circle"
+        case .modifiedAsc: "arrow.up.circle"
+        case .createdDesc: "clock.arrow.circlepath"
+        case .createdAsc: "clock"
+        }
     }
 }
 

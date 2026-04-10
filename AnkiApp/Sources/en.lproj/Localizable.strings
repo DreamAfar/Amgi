@@ -41,7 +41,9 @@
 "deck_list_empty_title" = "No Decks";
 "deck_list_empty_desc" = "Sync with your server to get your decks.";
 "deck_row_rename" = "Rename";
+"deck_row_export" = "Export";
 "deck_row_delete" = "Delete";
+"deck_export_error" = "Export failed: %@";
 "deck_rename_alert_title" = "Rename Deck";
 "deck_rename_alert_placeholder" = "New Name";
 "deck_rename_alert_message" = "Enter a new name for the deck";
@@ -401,6 +403,19 @@
 "browse_empty_title" = "No Notes";
 "browse_empty_description" = "Your collection is empty.";
 "browse_filter_all" = "All";
+"browse_toolbar_title_count" = "Browse (%d notes)";
+"browse_filter_added_today" = "Added Today";
+"browse_filter_studied_today" = "Studied Today";
+"browse_filter_new_cards" = "New Cards";
+"browse_filter_review" = "Review";
+"browse_filter_due" = "Due";
+"browse_filter_flag" = "Flag %d";
+"browse_filter_by_deck" = "By Deck";
+"browse_filter_by_tag" = "By Tag";
+"browse_sort_modified_desc" = "Modified (Newest)";
+"browse_sort_modified_asc" = "Modified (Oldest)";
+"browse_sort_created_desc" = "Created (Newest)";
+"browse_sort_created_asc" = "Created (Oldest)";
 
 // MARK: - TagsView (extended)
 "tags_empty_title" = "No Tags";
@@ -446,6 +461,17 @@
 // MARK: - Card Info Sheet
 "card_info_title" = "Card Info";
 "card_info_section_review_status" = "Review Status";
+"deck_template_hint" = "Deck templates will be available in a future release.";
+"deck_template_nav_title" = "Deck Templates";
+"deck_template_error_title" = "Failed to Load Templates";
+"deck_template_empty_title" = "No Templates";
+"deck_template_empty_desc" = "No templates are available in this collection.";
+"deck_template_search" = "Search templates";
+"deck_template_preview_title" = "Template Preview";
+"deck_template_preview_basic" = "Basic";
+"deck_template_preview_counts" = "Structure";
+"deck_template_preview_fields" = "Fields";
+"deck_template_preview_cards" = "Card Templates";
 "card_info_section_fsrs" = "FSRS Memory State";
 "card_info_section_ids" = "Identifiers";
 "card_info_queue" = "Queue";
@@ -478,6 +504,7 @@
 "card_due_position" = "Position %d";
 
 // MARK: - Flags
+"flag_none" = "No Flag";
 "flag_red" = "Red";
 "flag_orange" = "Orange";
 "flag_green" = "Green";
@@ -559,6 +586,16 @@
 "stats_period_3months" = "3 Months";
 "stats_period_all" = "All Time";
 "stats_period_all_short" = "All";
+"stats_card_young" = "Young";
+"stats_card_mature" = "Mature";
+"stats_card_relearning" = "Relearning";
+"stats_card_suspended" = "Suspended";
+"stats_card_buried" = "Buried";
+"stats_total_count" = "%d total";
+"stats_forecast_empty" = "Review some cards to see forecast";
+"stats_review_learn" = "Learn";
+"stats_review_relearn" = "Relearn";
+"stats_review_filtered" = "Filtered";
 
 // MARK: - UserManagementView
 "user_mgmt_title" = "User Management";

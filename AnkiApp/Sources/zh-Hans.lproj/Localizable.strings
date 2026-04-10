@@ -41,7 +41,9 @@
 "deck_list_empty_title" = "暂无牌组";
 "deck_list_empty_desc" = "与服务器同步以获取您的牌组。";
 "deck_row_rename" = "重命名";
+"deck_row_export" = "导出";
 "deck_row_delete" = "删除";
+"deck_export_error" = "导出失败：%@";
 "deck_rename_alert_title" = "重命名牌组";
 "deck_rename_alert_placeholder" = "新名称";
 "deck_rename_alert_message" = "请输入新的牌组名称";
@@ -401,6 +403,19 @@
 "browse_empty_title" = "暂无笔记";
 "browse_empty_description" = "您的卡牌库为空。";
 "browse_filter_all" = "全部";
+"browse_toolbar_title_count" = "浏览（%d条笔记）";
+"browse_filter_added_today" = "今天添加";
+"browse_filter_studied_today" = "今天学习";
+"browse_filter_new_cards" = "新卡片";
+"browse_filter_review" = "复习";
+"browse_filter_due" = "待复习";
+"browse_filter_flag" = "旗标 %d";
+"browse_filter_by_deck" = "按牌组";
+"browse_filter_by_tag" = "按标签";
+"browse_sort_modified_desc" = "按修改时间（新到旧）";
+"browse_sort_modified_asc" = "按修改时间（旧到新）";
+"browse_sort_created_desc" = "按创建时间（新到旧）";
+"browse_sort_created_asc" = "按创建时间（旧到新）";
 
 // MARK: - TagsView (extended)
 "tags_empty_title" = "暂无标签";
@@ -446,6 +461,17 @@
 // MARK: - Card Info Sheet
 "card_info_title" = "卡片信息";
 "card_info_section_review_status" = "复习状态";
+"deck_template_hint" = "牌组模板功能将在后续版本提供。";
+"deck_template_nav_title" = "牌组模板";
+"deck_template_error_title" = "加载模板失败";
+"deck_template_empty_title" = "暂无模板";
+"deck_template_empty_desc" = "当前卡牌库中没有可用模板。";
+"deck_template_search" = "搜索模板";
+"deck_template_preview_title" = "模板预览";
+"deck_template_preview_basic" = "基本信息";
+"deck_template_preview_counts" = "结构";
+"deck_template_preview_fields" = "字段数";
+"deck_template_preview_cards" = "卡片模板数";
 "card_info_section_fsrs" = "FSRS 记忆状态";
 "card_info_section_ids" = "标识符";
 "card_info_queue" = "队列";
@@ -478,6 +504,7 @@
 "card_due_position" = "位置 %d";
 
 // MARK: - Flags
+"flag_none" = "无旗标";
 "flag_red" = "红色";
 "flag_orange" = "橙色";
 "flag_green" = "绿色";
@@ -559,6 +586,16 @@
 "stats_period_3months" = "3 个月";
 "stats_period_all" = "所有时间";
 "stats_period_all_short" = "全部";
+"stats_card_young" = "年轻卡";
+"stats_card_mature" = "成熟卡";
+"stats_card_relearning" = "重新学习";
+"stats_card_suspended" = "暂停";
+"stats_card_buried" = "搁置";
+"stats_total_count" = "合计：%d";
+"stats_forecast_empty" = "复习卡片后可查看预测";
+"stats_review_learn" = "学习";
+"stats_review_relearn" = "重学";
+"stats_review_filtered" = "过滤";
 
 // MARK: - UserManagementView
 "user_mgmt_title" = "用户管理";

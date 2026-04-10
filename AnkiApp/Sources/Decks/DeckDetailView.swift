@@ -10,6 +10,7 @@ struct DeckDetailView: View {
     @State private var childDecks: [DeckTreeNode] = []
     @State private var showReview = false
     @State private var showConfig = false
+    @State private var showTemplatePicker = false
     @State private var selectedChildDeck: DeckTreeNode?
     @State private var renameText = ""
     @State private var showRenamePrompt = false
@@ -100,9 +101,15 @@ struct DeckDetailView: View {
         }
         .navigationTitle(shortTitle)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    showTemplatePicker = true
+                } label: {
+                    Image(systemName: "square.on.square")
+                }
+
                 Button(action: { showConfig = true }) {
-                    Image(systemName: "gear")
+                    Image(systemName: "slider.horizontal.3")
                 }
             }
         }
@@ -110,6 +117,9 @@ struct DeckDetailView: View {
             DeckConfigView(deckId: deck.id) {
                 showConfig = false
             }
+        }
+        .sheet(isPresented: $showTemplatePicker) {
+            DeckTemplateListView()
         }
         .fullScreenCover(isPresented: $showReview) {
             ReviewView(deckId: deck.id) {

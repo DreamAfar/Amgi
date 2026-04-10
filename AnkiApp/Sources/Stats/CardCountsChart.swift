@@ -8,13 +8,13 @@ struct CardCountsChart: View {
     private var chartData: [(name: String, count: Int, color: Color)] {
         let c = cardCounts.excludingInactive
         return [
-            ("New", Int(c.newCards), .cyan),
-            ("Learning", Int(c.learn), .blue),
-            ("Relearning", Int(c.relearn), .orange),
-            ("Young", Int(c.young), .green),
-            ("Mature", Int(c.mature), .purple),
-            ("Suspended", Int(c.suspended), .gray),
-            ("Buried", Int(c.buried), .brown),
+            (L("stats_card_new"), Int(c.newCards), .cyan),
+            (L("stats_card_learn"), Int(c.learn), .blue),
+            (L("stats_card_relearning"), Int(c.relearn), .orange),
+            (L("stats_card_young"), Int(c.young), .green),
+            (L("stats_card_mature"), Int(c.mature), .purple),
+            (L("stats_card_suspended"), Int(c.suspended), .gray),
+            (L("stats_card_buried"), Int(c.buried), .brown),
         ].filter { $0.count > 0 }
     }
 
@@ -25,7 +25,7 @@ struct CardCountsChart: View {
             HStack {
                 Text(L("stats_card_counts_title")).font(.headline)
                 Spacer()
-                Text("\(total) total").font(.caption).foregroundStyle(.secondary)
+                Text(L("stats_total_count", total)).font(.caption).foregroundStyle(.secondary)
             }
 
             if chartData.isEmpty {

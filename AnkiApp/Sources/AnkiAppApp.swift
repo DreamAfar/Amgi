@@ -38,9 +38,8 @@ struct AnkiAppApp: App {
                 )
 
                 // Run CheckDatabase to repair any inconsistencies after sync/migration
-                // CollectionService = service 2, CheckDatabase = method 0
                 _ = try? backend.call(
-                    service: AnkiBackend.Service.checkDatabase,
+                    service: AnkiBackend.Service.collection,
                     method: AnkiBackend.CheckDatabaseMethod.checkDatabase
                 )
 

@@ -25,13 +25,15 @@ struct CardContextMenu: View {
             }
             
             Menu {
-                flagButton(1, colorName: L("flag_red"))
-                flagButton(2, colorName: L("flag_orange"))
-                flagButton(3, colorName: L("flag_green"))
-                flagButton(4, colorName: L("flag_blue"))
-                flagButton(5, colorName: L("flag_pink"))
-                flagButton(6, colorName: L("flag_cyan"))
+                // Listed in reverse so iOS bottom-anchored menus display 1→7 top–to–bottom
+                flagButton(0, colorName: L("flag_none"))
                 flagButton(7, colorName: L("flag_purple"))
+                flagButton(6, colorName: L("flag_cyan"))
+                flagButton(5, colorName: L("flag_pink"))
+                flagButton(4, colorName: L("flag_blue"))
+                flagButton(3, colorName: L("flag_green"))
+                flagButton(2, colorName: L("flag_orange"))
+                flagButton(1, colorName: L("flag_red"))
             } label: {
                 Label(L("card_action_flag"), systemImage: "flag.fill")
             }
@@ -96,7 +98,11 @@ struct CardContextMenu: View {
 
     private func flagButton(_ value: UInt32, colorName: String) -> some View {
         Button(action: { performFlag(value) }) {
-            Label(L("card_flag_label", value, colorName), systemImage: "flag.fill")
+            if value == 0 {
+                Label(colorName, systemImage: "flag.slash.fill")
+            } else {
+                Label(colorName, systemImage: "flag.fill")
+            }
         }
     }
 }

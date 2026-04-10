@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct UserManagementView: View {
-    @Environment(\.dismiss) private var dismiss
-
     @State private var users: [String] = AppUserStore.loadUsers()
     @State private var selectedUser: String = AppUserStore.loadSelectedUser()
     @State private var showAddPrompt = false
@@ -56,11 +54,6 @@ struct UserManagementView: View {
             }
             .navigationTitle(L("user_mgmt_title"))
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(L("common_back")) {
-                        dismiss()
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         newUserName = ""

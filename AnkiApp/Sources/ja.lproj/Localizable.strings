@@ -41,7 +41,9 @@
 "deck_list_empty_title" = "デッキなし";
 "deck_list_empty_desc" = "サーバーと同期してデッキを取得してください。";
 "deck_row_rename" = "名前変更";
+"deck_row_export" = "エクスポート";
 "deck_row_delete" = "削除";
+"deck_export_error" = "エクスポート失敗：%@";
 "deck_rename_alert_title" = "デッキ名変更";
 "deck_rename_alert_placeholder" = "新しい名前";
 "deck_rename_alert_message" = "新しいデッキ名を入力してください";
@@ -401,6 +403,19 @@
 "browse_empty_title" = "ノートなし";
 "browse_empty_description" = "コレクションが空です。";
 "browse_filter_all" = "すべて";
+"browse_toolbar_title_count" = "ブラウズ（%d件）";
+"browse_filter_added_today" = "今日追加";
+"browse_filter_studied_today" = "今日学習";
+"browse_filter_new_cards" = "新規カード";
+"browse_filter_review" = "復習";
+"browse_filter_due" = "期限あり";
+"browse_filter_flag" = "フラグ %d";
+"browse_filter_by_deck" = "デッキで絞り込み";
+"browse_filter_by_tag" = "タグで絞り込み";
+"browse_sort_modified_desc" = "更新日時（新しい順）";
+"browse_sort_modified_asc" = "更新日時（古い順）";
+"browse_sort_created_desc" = "作成日時（新しい順）";
+"browse_sort_created_asc" = "作成日時（古い順）";
 
 // MARK: - TagsView (extended)
 "tags_empty_title" = "タグなし";
@@ -446,6 +461,17 @@
 // MARK: - Card Info Sheet
 "card_info_title" = "カード情報";
 "card_info_section_review_status" = "復習ステータス";
+"deck_template_hint" = "デッキテンプレート機能は今後のバージョンで提供予定です。";
+"deck_template_nav_title" = "デッキテンプレート";
+"deck_template_error_title" = "テンプレートの読み込みに失敗";
+"deck_template_empty_title" = "テンプレートなし";
+"deck_template_empty_desc" = "このコレクションには利用可能なテンプレートがありません。";
+"deck_template_search" = "テンプレートを検索";
+"deck_template_preview_title" = "テンプレート詳細";
+"deck_template_preview_basic" = "基本情報";
+"deck_template_preview_counts" = "構造";
+"deck_template_preview_fields" = "フィールド数";
+"deck_template_preview_cards" = "カードテンプレート数";
 "card_info_section_fsrs" = "FSRS メモリ状態";
 "card_info_section_ids" = "識別子";
 "card_info_queue" = "キュー";
@@ -478,6 +504,7 @@
 "card_due_position" = "位置 %d";
 
 // MARK: - Flags
+"flag_none" = "フラグなし";
 "flag_red" = "赤";
 "flag_orange" = "オレンジ";
 "flag_green" = "緑";
@@ -559,6 +586,16 @@
 "stats_period_3months" = "3ヶ月";
 "stats_period_all" = "全期間";
 "stats_period_all_short" = "全";
+"stats_card_young" = "若いカード";
+"stats_card_mature" = "成熟カード";
+"stats_card_relearning" = "再学習";
+"stats_card_suspended" = "停止";
+"stats_card_buried" = "埋め込み";
+"stats_total_count" = "合計：%d";
+"stats_forecast_empty" = "カードを復習すると予測が表示されます";
+"stats_review_learn" = "学習";
+"stats_review_relearn" = "再学";
+"stats_review_filtered" = "フィルター";
 
 // MARK: - UserManagementView
 "user_mgmt_title" = "ユーザー管理";
