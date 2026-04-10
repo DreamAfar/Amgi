@@ -7,7 +7,7 @@ struct DeckTemplateListView: View {
     @Dependency(\.ankiBackend) var backend
     @Environment(\.dismiss) private var dismiss
 
-    @State private var entries: [Anki_Notetypes_NotetypeNames.NameID] = []
+    @State private var entries: [Anki_Notetypes_NotetypeNameId] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var searchText = ""
@@ -16,7 +16,7 @@ struct DeckTemplateListView: View {
     @State private var previewError: String?
     @State private var showPreview = false
 
-    private var filteredEntries: [Anki_Notetypes_NotetypeNames.NameID] {
+    private var filteredEntries: [Anki_Notetypes_NotetypeNameId] {
         filterDeckTemplateEntries(entries, searchText: searchText)
     }
 
@@ -180,15 +180,15 @@ struct DeckTemplateListView: View {
 }
 
 func sortDeckTemplateEntries(
-    _ entries: [Anki_Notetypes_NotetypeNames.NameID]
-) -> [Anki_Notetypes_NotetypeNames.NameID] {
+    _ entries: [Anki_Notetypes_NotetypeNameId]
+) -> [Anki_Notetypes_NotetypeNameId] {
     entries.sorted(by: { $0.name.localizedStandardCompare($1.name) == .orderedAscending })
 }
 
 func filterDeckTemplateEntries(
-    _ entries: [Anki_Notetypes_NotetypeNames.NameID],
+    _ entries: [Anki_Notetypes_NotetypeNameId],
     searchText: String
-) -> [Anki_Notetypes_NotetypeNames.NameID] {
+) -> [Anki_Notetypes_NotetypeNameId] {
     let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return entries }
     return entries.filter { $0.name.localizedCaseInsensitiveContains(trimmed) }

@@ -26,11 +26,11 @@ final class DeckUIInteractionTests: XCTestCase {
     }
 
     func testSortDeckTemplateEntriesByName() {
-        var a = Anki_Notetypes_NotetypeNames.NameID()
+        var a = Anki_Notetypes_NotetypeNameId()
         a.id = 2
         a.name = "Basic"
 
-        var b = Anki_Notetypes_NotetypeNames.NameID()
+        var b = Anki_Notetypes_NotetypeNameId()
         b.id = 1
         b.name = "Cloze"
 
@@ -39,11 +39,11 @@ final class DeckUIInteractionTests: XCTestCase {
     }
 
     func testFilterDeckTemplateEntriesBySearchText() {
-        var a = Anki_Notetypes_NotetypeNames.NameID()
+        var a = Anki_Notetypes_NotetypeNameId()
         a.id = 1
         a.name = "Basic"
 
-        var b = Anki_Notetypes_NotetypeNames.NameID()
+        var b = Anki_Notetypes_NotetypeNameId()
         b.id = 2
         b.name = "Japanese Cloze"
 
