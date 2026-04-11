@@ -73,6 +73,19 @@ jobs:
           echo "=== Files in AnkiApp/ ==="
           ls -la ../AnkiApp/
 
+      # ── 9.2. 模拟器构建烟测（提前捕获 UI/平台编译问题）────────────
+      - name: Build Debug Simulator (Compatibility Smoke Check)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project AnkiApp/AnkiApp.xcodeproj \
+            -scheme AnkiApp \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            2>&1 | tee simulator-build.log
+
       # ── 9.5. 运行集成测试验证（Sprint 3+ 质量检查）──────────────
       - name: Run Integration Tests (Sprint 3 Quality Check)
         continue-on-error: true
@@ -172,11 +185,11 @@ jobs:
             echo "**IPA Size**: N/A (IPA not generated)" >> build-summary.md
           fi
           echo "" >> build-summary.md
-          echo "## Sprint 3 Features Included" >> build-summary.md
-          echo "- ✅ 标签管理系统 (TagClient)" >> build-summary.md
-          echo "- ✅ 卡组管理增强 (create/rename/delete)" >> build-summary.md
-          echo "- ✅ 集成测试框架 (34+ tests)" >> build-summary.md
-          echo "- ✅ UI 集成 (TagsView, Enhanced NoteEditor)" >> build-summary.md
+          echo "## Recent Features Included" >> build-summary.md
+          echo "- ✅ Review audio parity and auto-advance behavior alignment" >> build-summary.md
+          echo "- ✅ Configurable review options in Settings" >> build-summary.md
+          echo "- ✅ Rich text formatting menu in Add/Edit Note fields" >> build-summary.md
+          echo "- ✅ Integration test and simulator smoke-build checks" >> build-summary.md
           echo "" >> build-summary.md
           
           # 添加编译日志摘要

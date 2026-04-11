@@ -293,7 +293,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             from controller: UIViewController? = UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
                 .flatMap(\.windows)
-                .first(where: \ .isKeyWindow)?.rootViewController
+                .first(where: \.isKeyWindow)?.rootViewController
         ) -> UIViewController? {
             if let nav = controller as? UINavigationController {
                 return topViewController(from: nav.visibleViewController)
