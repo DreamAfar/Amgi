@@ -493,7 +493,7 @@ struct BrowseView: View {
                 .padding(.horizontal, small ? 10 : 12)
                 .padding(.vertical, small ? 4 : 6)
                 .background(isSelected ? Color.accentColor : Color(.secondarySystemFill))
-                .foregroundStyle(isSelected ? .white : .primary)
+                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
