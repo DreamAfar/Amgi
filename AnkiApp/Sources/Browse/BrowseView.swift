@@ -310,14 +310,15 @@ struct BrowseView: View {
                             selectedNoteIDs.insert(note.id)
                         }
                     }
-                        .onAppear {
-                            if note.sfld == "Loading..." {
-                                Task { await fetchNoteDetails(id: note.id) }
-                            }
-                            if note.id == notes.last?.id {
-                                Task { await loadNextPage() }
-                            }
+                    .onAppear {
+                        if note.sfld == "Loading..." {
+                            Task { await fetchNoteDetails(id: note.id) }
                         }
+                        if note.id == notes.last?.id {
+                            Task { await loadNextPage() }
+                        }
+                    }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
                 } else {
                     NavigationLink(value: note) {
                         NoteRowView(note: note)
@@ -338,8 +339,8 @@ struct BrowseView: View {
                             Label(L("common_delete"), systemImage: "trash")
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
             }
 
             if isLoading {
