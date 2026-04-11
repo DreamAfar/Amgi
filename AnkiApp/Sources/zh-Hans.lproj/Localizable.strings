@@ -226,7 +226,7 @@
 "backup_nav_title" = "备份";
 "backup_create_now" = "立即备份";
 "backup_creating" = "正在备份…";
-"backup_storage_hint" = "备份存储在应用的 Documents 文件夹中，可通过"文件"App 访问。";
+"backup_storage_hint" = "备份存储在应用的 Documents 文件夹中，可通过\"文件\" App 访问。";
 "backup_empty" = "暂无备份";
 "backup_section_list" = "备份记录";
 "backup_delete_title" = "删除备份";
