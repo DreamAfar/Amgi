@@ -527,38 +527,40 @@ private struct ReviewCardInfoSheet: View {
 
     private var forgettingCurveView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Chart(forgettingCurvePoints, id: \.day) { point in
-                LineMark(
-                    x: .value("day", point.day),
-                    y: .value("retention", point.retention * 100.0)
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(.blue)
-
-                AreaMark(
-                    x: .value("day", point.day),
-                    y: .value("retention", point.retention * 100.0)
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.blue.opacity(0.22), .blue.opacity(0.04)],
-                        startPoint: .top,
-                        endPoint: .bottom
+            Chart {
+                ForEach(forgettingCurvePoints, id: \.day) { point in
+                    LineMark(
+                        x: .value("day", point.day),
+                        y: .value("retention", point.retention * 100.0)
                     )
-                )
-            }
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(.blue)
 
-            RuleMark(y: .value("target", targetRetention * 100.0))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                .foregroundStyle(.cyan)
+                    AreaMark(
+                        x: .value("day", point.day),
+                        y: .value("retention", point.retention * 100.0)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue.opacity(0.22), .blue.opacity(0.04)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
 
-            if let latest = forgettingCurvePoints.last {
-                PointMark(
-                    x: .value("day", latest.day),
-                    y: .value("retention", latest.retention * 100.0)
-                )
-                .foregroundStyle(.blue)
+                RuleMark(y: .value("target", targetRetention * 100.0))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .foregroundStyle(.cyan)
+
+                if let latest = forgettingCurvePoints.last {
+                    PointMark(
+                        x: .value("day", latest.day),
+                        y: .value("retention", latest.retention * 100.0)
+                    )
+                    .foregroundStyle(.blue)
+                }
             }
         }
         .frame(height: 200)
