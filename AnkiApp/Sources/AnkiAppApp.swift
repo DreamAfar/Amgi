@@ -9,9 +9,14 @@ struct AnkiAppApp: App {
     @State private var onboardingCompleted = UserDefaults.standard.bool(forKey: "onboardingCompleted")
     private let startupErrorMessage: String?
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
+    @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
 
     private var currentLocale: Locale {
         (AppLanguage(rawValue: appLanguageRaw) ?? .system).locale
+    }
+
+    private var preferredColorScheme: ColorScheme? {
+        (AppTheme(rawValue: appThemeRaw) ?? .system).colorScheme
     }
 
     init() {
@@ -74,6 +79,7 @@ struct AnkiAppApp: App {
                 }
             }
             .environment(\.locale, currentLocale)
+            .preferredColorScheme(preferredColorScheme)
             .onChange(of: appLanguageRaw) { _, newValue in
                 let lang = AppLanguage(rawValue: newValue) ?? .system
                 LanguageManager.shared.apply(lang)

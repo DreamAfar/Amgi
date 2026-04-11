@@ -277,6 +277,7 @@ extension AnkiBackend {
 
     // BackendCardRenderingService (27) has 6 extra methods before renderExistingCard
     public enum CardRenderingMethod {
+        public static let getEmptyCards: UInt32 = 5
         public static let renderExistingCard: UInt32 = 6
     }
 

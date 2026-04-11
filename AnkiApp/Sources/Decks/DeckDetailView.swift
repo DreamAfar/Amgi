@@ -152,6 +152,13 @@ struct DeckDetailView: View {
                     }
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        selectedChildDeck = child
+                        showDeleteConfirm = true
+                    } label: {
+                        Label(L("deck_row_delete"), systemImage: "trash")
+                    }
+
                     Button {
                         selectedChildDeck = child
                         renameText = child.name
@@ -160,13 +167,6 @@ struct DeckDetailView: View {
                         Label(L("deck_row_rename"), systemImage: "pencil")
                     }
                     .tint(.blue)
-
-                    Button(role: .destructive) {
-                        selectedChildDeck = child
-                        showDeleteConfirm = true
-                    } label: {
-                        Label(L("deck_row_delete"), systemImage: "trash")
-                    }
                 }
             }
         }

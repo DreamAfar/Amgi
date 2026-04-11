@@ -5,6 +5,10 @@ import Foundation
 struct CardWebView: UIViewRepresentable {
     let html: String
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -18,6 +22,7 @@ struct CardWebView: UIViewRepresentable {
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
         webView.scrollView.showsVerticalScrollIndicator = false
+        webView.navigationDelegate = context.coordinator
         return webView
     }
 
@@ -99,21 +104,40 @@ struct CardWebView: UIViewRepresentable {
         </style>
         <script>
         function playSound(btn) {
+            // Stop all currently playing audio
+            document.querySelectorAll('.sound-btn audio').forEach(function(a) {
+                if (!a.paused) { a.pause(); a.currentTime = 0; }
+                var b = a.nextElementSibling;
+                if (b) b.textContent = '▶';
+                a.onended = null;
+            });
             var audio = btn.previousElementSibling;
-            if (audio.paused || audio.ended) {
-                audio.currentTime = 0;
-                audio.play();
-                btn.textContent = '⏸';
-                audio.onended = function() { btn.textContent = '▶'; };
-            } else {
-                audio.pause();
-                audio.currentTime = 0;
-                btn.textContent = '▶';
-            }
+            audio.currentTime = 0;
+            audio.play().catch(function() {});
+            btn.textContent = '⏸';
+            audio.onended = function() { btn.textContent = '▶'; };
         }
         window.onload = function() {
-            var first = document.querySelector('.sound-btn audio');
-            if (first) { first.play(); }
+            // Collect all audio elements in DOM order and play sequentially
+            var audioQueue = Array.from(document.querySelectorAll('.sound-btn audio'));
+            var currentIndex = 0;
+
+            function playNext() {
+                if (currentIndex >= audioQueue.length) return;
+                var audio = audioQueue[currentIndex];
+                var btn = audio.nextElementSibling;
+                audio.currentTime = 0;
+                audio.play().catch(function() {});
+                if (btn) btn.textContent = '⏸';
+                audio.onended = function() {
+                    if (btn) btn.textContent = '▶';
+                    currentIndex++;
+                    playNext();
+                };
+            }
+
+            if (audioQueue.length > 0) { playNext(); }
+
             // Detect missing images
             document.querySelectorAll('img').forEach(function(img) {
                 img.onerror = function() {
@@ -207,5 +231,28 @@ struct CardWebView: UIViewRepresentable {
         }
         let folder = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
         return folder.isEmpty ? "default" : folder
+    }
+
+    // MARK: - Navigation Delegate
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        ) {
+            guard let url = navigationAction.request.url else {
+                decisionHandler(.allow)
+                return
+            }
+            // Allow the initial file load and same-document navigation
+            if navigationAction.navigationType == .other || url.isFileURL {
+                decisionHandler(.allow)
+                return
+            }
+            // Open all other links (http, https, custom URL schemes) externally
+            decisionHandler(.cancel)
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+        }
     }
 }

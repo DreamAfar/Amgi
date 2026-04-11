@@ -4,6 +4,32 @@ import AnkiProto
 import Dependencies
 import SwiftProtobuf
 
+// MARK: - AppTheme
+
+enum AppTheme: String, CaseIterable, Identifiable {
+    case system = "system"
+    case light  = "light"
+    case dark   = "dark"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .system: return L("settings_theme_system")
+        case .light:  return L("settings_theme_light")
+        case .dark:   return L("settings_theme_dark")
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light:  return .light
+        case .dark:   return .dark
+        }
+    }
+}
+
 // MARK: - AppLanguage
 
 enum AppLanguage: String, CaseIterable, Identifiable {
@@ -38,17 +64,21 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 struct SettingsView: View {
     @Dependency(\.ankiBackend) var backend
 
-    @AppStorage("app_color_scheme") private var followSystem = true
-    @AppStorage("app_force_dark") private var forceDarkMode = false
+    @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
 
     @State private var maintenanceMessage: String?
     @State private var showMaintenanceAlert = false
-    @State private var exportedFileURL: URL?
-    @State private var showShareSheet = false
     @State private var isCheckingMedia = false
     @State private var mediaCheckResult: MediaCheckResult?
     @State private var showMediaCheckResult = false
+
+    private var selectedTheme: Binding<AppTheme> {
+        Binding(
+            get: { AppTheme(rawValue: appThemeRaw) ?? .system },
+            set: { appThemeRaw = $0.rawValue }
+        )
+    }
 
     private var selectedLanguage: Binding<AppLanguage> {
         Binding(
@@ -86,9 +116,12 @@ struct SettingsView: View {
             }
 
             Section(L("settings_section_display")) {
-                Toggle(L("settings_toggle_follow_system"), isOn: $followSystem)
-                Toggle(L("settings_toggle_dark_mode"), isOn: $forceDarkMode)
-                    .disabled(followSystem)
+                Picker(L("settings_picker_theme"), selection: selectedTheme) {
+                    ForEach(AppTheme.allCases) { theme in
+                        Text(theme.displayName).tag(theme)
+                    }
+                }
+                .pickerStyle(.menu)
 
                 Picker(L("settings_picker_language"), selection: selectedLanguage) {
                     ForEach(AppLanguage.allCases) { lang in
@@ -104,8 +137,8 @@ struct SettingsView: View {
             }
 
             Section(L("settings_section_maintenance")) {
-                Button {
-                    exportBackup()
+                NavigationLink {
+                    BackupView(username: AppUserStore.loadSelectedUser())
                 } label: {
                     settingsRowLabel(L("settings_row_backup"), icon: "externaldrive")
                 }
@@ -131,9 +164,8 @@ struct SettingsView: View {
                 }
                 .disabled(isCheckingMedia)
 
-                Button {
-                    maintenanceMessage = L("settings_empty_cards_not_wired")
-                    showMaintenanceAlert = true
+                NavigationLink {
+                    EmptyCardsView()
                 } label: {
                     settingsRowLabel(L("settings_row_empty_cards"), icon: "rectangle.stack.badge.minus")
                 }
@@ -159,11 +191,6 @@ struct SettingsView: View {
         } message: {
             Text(maintenanceMessage ?? L("common_unknown_error"))
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = exportedFileURL {
-                ShareSheet(items: [url])
-            }
-        }
         .sheet(isPresented: $showMediaCheckResult) {
             if let result = mediaCheckResult {
                 MediaCheckResultView(result: result)
@@ -173,19 +200,6 @@ struct SettingsView: View {
 
     private func settingsRowLabel(_ title: String, icon: String) -> some View {
         Label(title, systemImage: icon)
-    }
-
-    private func exportBackup() {
-        do {
-            let url = try ImportHelper.exportCollection()
-            exportedFileURL = url
-            showShareSheet = true
-            maintenanceMessage = L("debug_export_ready", url.lastPathComponent)
-            showMaintenanceAlert = true
-        } catch {
-            maintenanceMessage = L("debug_export_error", error.localizedDescription)
-            showMaintenanceAlert = true
-        }
     }
 
     private func checkDatabase() {

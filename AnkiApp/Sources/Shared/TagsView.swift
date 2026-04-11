@@ -55,9 +55,11 @@ struct TagsView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_done")) { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showAddTag = true }) {
-                        Image(systemName: "plus")
+                if isNoteMode {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: { showAddTag = true }) {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
             }

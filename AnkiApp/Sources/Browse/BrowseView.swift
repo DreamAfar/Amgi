@@ -191,6 +191,7 @@ struct BrowseView: View {
                 }
             }
         }
+        .listStyle(.plain)
         .navigationDestination(for: NoteRecord.self) { note in
             let resolvedNote = (note.sfld == "Loading...")
                 ? (try? noteClient.fetch(note.id)) ?? note

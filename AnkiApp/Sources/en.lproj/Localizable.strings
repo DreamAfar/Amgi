@@ -206,6 +206,10 @@
 "settings_row_review" = "Review";
 "settings_toggle_follow_system" = "Follow System Appearance";
 "settings_toggle_dark_mode" = "Dark Mode";
+"settings_picker_theme" = "Appearance";
+"settings_theme_system" = "Follow System";
+"settings_theme_light" = "Light";
+"settings_theme_dark" = "Dark";
 "settings_picker_language" = "Language";
 "settings_language_restart_hint" = "Language change will take full effect after restarting the app.";
 "settings_row_backup" = "Backup";
@@ -217,6 +221,31 @@
 "settings_language_zh_hans" = "简体中文";
 "settings_language_en" = "English";
 "settings_language_ja" = "日本語";
+
+// MARK: - Backup
+"backup_nav_title" = "Backups";
+"backup_create_now" = "Create Backup";
+"backup_creating" = "Creating Backup…";
+"backup_storage_hint" = "Backups are stored in the app's Documents folder, accessible via the Files app.";
+"backup_empty" = "No backups yet.";
+"backup_section_list" = "Backup History";
+"backup_delete_title" = "Delete Backup";
+"backup_delete_confirm" = "Delete backup from %@?";
+"backup_created_ok" = "Backup saved: %@";
+
+// MARK: - Empty Cards
+"empty_cards_title" = "Empty Cards";
+"empty_cards_none_found" = "No empty cards found.";
+"empty_cards_found_count" = "%d empty cards found.";
+"empty_cards_report" = "Report";
+"empty_cards_section_list" = "Affected Notes";
+"empty_cards_note_id" = "Note %lld";
+"empty_cards_card_count" = "%d empty card(s)";
+"empty_cards_will_delete_note" = "Deleting these cards will also delete the note.";
+"empty_cards_delete_all" = "Delete All Empty Cards";
+"empty_cards_delete_confirm_title" = "Delete Empty Cards";
+"empty_cards_delete_confirm_msg" = "Delete %d empty cards? This cannot be undone.";
+"empty_cards_deleted_ok" = "Empty cards deleted successfully.";
 
 // MARK: - SyncSheet
 "sync_nav_title" = "Sync";

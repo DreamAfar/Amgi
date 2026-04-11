@@ -7,6 +7,10 @@ struct DeckListView: View {
     @Dependency(\.deckClient) var deckClient
     @State private var tree: [DeckTreeNode] = []
     @State private var isLoading = true
+    @State private var deckToDelete: DeckTreeNode?
+    @State private var showDeleteConfirm = false
+    @State private var deleteError: String?
+    @State private var showDeleteError = false
     var onDeckChanged: (() -> Void)? = nil
 
     var body: some View {
@@ -22,10 +26,18 @@ struct DeckListView: View {
             } else {
                 List {
                     ForEach(tree) { node in
-                        DeckRowView(node: node, depth: 0, onDeckChanged: {
-                            Task { await loadDecks() }
-                            onDeckChanged?()
-                        })
+                        DeckRowView(
+                            node: node,
+                            depth: 0,
+                            onDeckChanged: {
+                                Task { await loadDecks() }
+                                onDeckChanged?()
+                            },
+                            onDeleteRequested: { node in
+                                deckToDelete = node
+                                showDeleteConfirm = true
+                            }
+                        )
                     }
                 }
                 .navigationDestination(for: DeckInfo.self) { deck in
@@ -34,6 +46,22 @@ struct DeckListView: View {
             }
         }
         .navigationTitle(L("deck_list_nav_title"))
+        .alert(
+            L("deck_delete_confirm2_title"),
+            isPresented: $showDeleteConfirm
+        ) {
+            Button(L("btn_confirm_delete"), role: .destructive) {
+                Task { await deleteDeck() }
+            }
+            Button(L("btn_cancel"), role: .cancel) {}
+        } message: {
+            Text(L("deck_delete_confirm2_message", deckToDelete?.name ?? ""))
+        }
+        .alert(L("deck_action_error_title"), isPresented: $showDeleteError) {
+            Button(L("btn_got_it"), role: .cancel) {}
+        } message: {
+            Text(deleteError ?? L("label_error_unknown"))
+        }
         .task {
             await loadDecks()
         }
@@ -51,6 +79,19 @@ struct DeckListView: View {
         }
         isLoading = false
     }
+
+    private func deleteDeck() async {
+        guard let node = deckToDelete else { return }
+        do {
+            try deckClient.delete(node.id)
+            Task { await loadDecks() }
+            onDeckChanged?()
+        } catch {
+            deleteError = error.localizedDescription
+            showDeleteError = true
+        }
+        deckToDelete = nil
+    }
 }
 
 // MARK: - DeckRowView
@@ -60,9 +101,9 @@ private struct DeckRowView: View {
     let node: DeckTreeNode
     let depth: Int
     let onDeckChanged: () -> Void
+    let onDeleteRequested: (DeckTreeNode) -> Void
 
     @State private var showRenamePrompt = false
-    @State private var showDeleteConfirm = false
     @State private var renameText = ""
     @State private var actionError: String?
     @State private var showActionError = false
@@ -77,17 +118,6 @@ private struct DeckRowView: View {
             }
         } message: {
             Text(L("deck_rename_alert_message"))
-        }
-        .alert(
-            L("deck_delete_confirm2_title"),
-            isPresented: $showDeleteConfirm
-        ) {
-            Button(L("btn_confirm_delete"), role: .destructive) {
-                Task { await deleteDeck() }
-            }
-            Button(L("btn_cancel"), role: .cancel) {}
-        } message: {
-            Text(L("deck_delete_confirm2_message", node.name))
         }
         .alert(L("deck_action_error_title"), isPresented: $showActionError) {
             Button(L("btn_got_it"), role: .cancel) {}
@@ -107,17 +137,11 @@ private struct DeckRowView: View {
 
     @ViewBuilder
     private var leafRow: some View {
-        if depth == 0 {
-            NavigationLink(value: deckInfo) {
-                rowContent
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                swipeButtons
-            }
-        } else {
-            NavigationLink(value: deckInfo) {
-                rowContent
-            }
+        NavigationLink(value: deckInfo) {
+            rowContent
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            swipeButtons
         }
     }
 
@@ -142,13 +166,16 @@ private struct DeckRowView: View {
                     rowContent
                 }
             }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                swipeButtons
+            }
         }
     }
 
     @ViewBuilder
     private var swipeButtons: some View {
         Button(role: .destructive) {
-            showDeleteConfirm = true
+            onDeleteRequested(node)
         } label: {
             Label(L("deck_row_delete"), systemImage: "trash")
         }
@@ -164,7 +191,12 @@ private struct DeckRowView: View {
 
     private var childrenList: some View {
         ForEach(node.children) { child in
-            DeckRowView(node: child, depth: depth + 1, onDeckChanged: onDeckChanged)
+            DeckRowView(
+                node: child,
+                depth: depth + 1,
+                onDeckChanged: onDeckChanged,
+                onDeleteRequested: onDeleteRequested
+            )
         }
     }
 
@@ -185,16 +217,6 @@ private struct DeckRowView: View {
         guard !trimmed.isEmpty else { return }
         do {
             try deckClient.rename(node.id, trimmed)
-            onDeckChanged()
-        } catch {
-            actionError = error.localizedDescription
-            showActionError = true
-        }
-    }
-
-    private func deleteDeck() async {
-        do {
-            try deckClient.delete(node.id)
             onDeckChanged()
         } catch {
             actionError = error.localizedDescription

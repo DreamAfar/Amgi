@@ -1,0 +1,167 @@
+import SwiftUI
+import AnkiBackend
+import AnkiProto
+import Dependencies
+import SwiftProtobuf
+
+struct EmptyCardsView: View {
+    @Dependency(\.ankiBackend) var backend
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var isLoading = true
+    @State private var report: String = ""
+    @State private var noteEntries: [NoteEntry] = []
+    @State private var isDeletingAll = false
+    @State private var showDeleteConfirm = false
+    @State private var errorMessage: String?
+    @State private var showError = false
+    @State private var showSuccess = false
+
+    struct NoteEntry: Identifiable {
+        let id: Int64
+        let cardIds: [Int64]
+        let willDeleteNote: Bool
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    resultsList
+                }
+            }
+            .navigationTitle(L("empty_cards_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done")) { dismiss() }
+                }
+            }
+            .alert(L("empty_cards_delete_confirm_title"), isPresented: $showDeleteConfirm) {
+                Button(L("common_cancel"), role: .cancel) {}
+                Button(L("common_delete"), role: .destructive) {
+                    Task { await deleteAllEmpty() }
+                }
+            } message: {
+                Text(L("empty_cards_delete_confirm_msg", noteEntries.reduce(0) { $0 + $1.cardIds.count }))
+            }
+            .alert(L("common_done"), isPresented: $showSuccess) {
+                Button(L("common_ok"), role: .cancel) { dismiss() }
+            } message: {
+                Text(L("empty_cards_deleted_ok"))
+            }
+            .alert(L("common_error"), isPresented: $showError) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
+            .task { await loadEmptyCards() }
+        }
+    }
+
+    private var resultsList: some View {
+        List {
+            if noteEntries.isEmpty {
+                Section {
+                    Label(L("empty_cards_none_found"), systemImage: "checkmark.circle")
+                        .foregroundStyle(.green)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 8)
+                }
+            } else {
+                Section {
+                    Label(
+                        L("empty_cards_found_count", noteEntries.reduce(0) { $0 + $1.cardIds.count }),
+                        systemImage: "rectangle.stack.badge.minus"
+                    )
+                    .foregroundStyle(.orange)
+
+                    if !report.isEmpty {
+                        DisclosureGroup(L("empty_cards_report")) {
+                            Text(report).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Section(L("empty_cards_section_list")) {
+                    ForEach(noteEntries) { entry in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L("empty_cards_note_id", entry.id))
+                                .font(.subheadline.monospacedDigit())
+                            Text(L("empty_cards_card_count", entry.cardIds.count))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if entry.willDeleteNote {
+                                Text(L("empty_cards_will_delete_note"))
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        if isDeletingAll {
+                            HStack {
+                                Text(L("empty_cards_delete_all"))
+                                Spacer()
+                                ProgressView()
+                            }
+                        } else {
+                            Label(L("empty_cards_delete_all"), systemImage: "trash")
+                        }
+                    }
+                    .disabled(isDeletingAll)
+                }
+            }
+        }
+    }
+
+    private func loadEmptyCards() async {
+        let capturedBackend = backend
+        do {
+            let response: Anki_CardRendering_EmptyCardsReport = try await Task.detached {
+                try capturedBackend.invoke(
+                    service: AnkiBackend.Service.cardRendering,
+                    method: AnkiBackend.CardRenderingMethod.getEmptyCards
+                )
+            }.value
+            report = response.report
+            noteEntries = response.notes.map {
+                NoteEntry(id: $0.noteID, cardIds: $0.cardIds, willDeleteNote: $0.willDeleteNote)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+        isLoading = false
+    }
+
+    private func deleteAllEmpty() async {
+        isDeletingAll = true
+        let allCardIds = noteEntries.flatMap { $0.cardIds }
+        let capturedBackend = backend
+        do {
+            var req = Anki_Cards_RemoveCardsRequest()
+            req.cardIds = allCardIds
+            try await Task.detached {
+                try capturedBackend.callVoid(
+                    service: AnkiBackend.Service.cards,
+                    method: AnkiBackend.CardsMethod.removeCards,
+                    request: req
+                )
+            }.value
+            showSuccess = true
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+        isDeletingAll = false
+    }
+}
