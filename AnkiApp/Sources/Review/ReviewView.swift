@@ -271,10 +271,10 @@ struct ReviewView: View {
         }
 
         switch rating {
-        case .again: symbol + L("review_rating_again")
-        case .hard: symbol + L("review_rating_hard")
-        case .good: symbol + L("review_rating_good")
-        case .easy: symbol + L("review_rating_easy")
+        case .again: return symbol + L("review_rating_again")
+        case .hard: return symbol + L("review_rating_hard")
+        case .good: return symbol + L("review_rating_good")
+        case .easy: return symbol + L("review_rating_easy")
         }
     }
 
@@ -527,7 +527,7 @@ private struct ReviewCardInfoSheet: View {
 
     private var forgettingCurveView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Chart(forgettingCurvePoints) { point in
+            Chart(forgettingCurvePoints, id: \.day) { point in
                 LineMark(
                     x: .value("day", point.day),
                     y: .value("retention", point.retention * 100.0)
