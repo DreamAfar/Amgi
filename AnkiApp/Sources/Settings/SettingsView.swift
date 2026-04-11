@@ -106,10 +106,7 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
-                    SettingsInfoView(
-                        title: L("settings_row_review"),
-                        message: L("settings_info_review")
-                    )
+                    ReviewOptionsView()
                 } label: {
                     settingsRowLabel(L("settings_row_review"), icon: "rectangle.on.rectangle")
                 }
@@ -259,6 +256,39 @@ private struct SettingsInfoView: View {
                 .padding()
         }
         .navigationTitle(title)
+    }
+}
+
+private struct ReviewOptionsView: View {
+    @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var autoplayAudio = true
+    @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var playAudioInSilentMode = false
+    @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var showContextMenuButton = true
+    @AppStorage(ReviewPreferences.Keys.showAudioReplayButton) private var showAudioReplayButton = true
+    @AppStorage(ReviewPreferences.Keys.showCorrectnessSymbols) private var showCorrectnessSymbols = false
+    @AppStorage(ReviewPreferences.Keys.disperseAnswerButtons) private var disperseAnswerButtons = false
+    @AppStorage(ReviewPreferences.Keys.showAnswerButtons) private var showAnswerButtons = true
+    @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var showRemainingDays = true
+    @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var showNextReviewTime = false
+
+    var body: some View {
+        List {
+            Section(L("settings_review_section_audio")) {
+                Toggle(L("settings_review_autoplay_audio"), isOn: $autoplayAudio)
+                Toggle(L("settings_review_play_audio_in_silent_mode"), isOn: $playAudioInSilentMode)
+            }
+
+            Section(L("settings_review_section_ui")) {
+                Toggle(L("settings_review_show_context_menu_button"), isOn: $showContextMenuButton)
+                Toggle(L("settings_review_show_audio_replay_button"), isOn: $showAudioReplayButton)
+                Toggle(L("settings_review_show_correctness_symbols"), isOn: $showCorrectnessSymbols)
+                Toggle(L("settings_review_disperse_answer_buttons"), isOn: $disperseAnswerButtons)
+                Toggle(L("settings_review_show_answer_buttons"), isOn: $showAnswerButtons)
+                Toggle(L("settings_review_show_remaining_days"), isOn: $showRemainingDays)
+                Toggle(L("settings_review_show_next_review_time"), isOn: $showNextReviewTime)
+            }
+        }
+        .navigationTitle(L("settings_row_review"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

@@ -12,21 +12,31 @@ final class ReviewSession {
     let deckId: Int64
 
     @ObservationIgnored @Dependency(\.deckClient) var deckClient
+    @ObservationIgnored @Dependency(\.cardClient) var cardClient
     @ObservationIgnored @Dependency(\.ankiBackend) var backend
 
     private(set) var frontHTML: String = ""
     private(set) var backHTML: String = ""
     private(set) var showAnswer: Bool = false
+    private(set) var autoplayAudio: Bool = true
+    private(set) var waitForAudioBeforeAutoAdvance: Bool = false
+    private(set) var autoAdvanceQuestionSeconds: Double = 0
+    private(set) var autoAdvanceAnswerSeconds: Double = 0
+    private(set) var includeQuestionAudioOnAnswerReplay: Bool = true
     private(set) var sessionStats: SessionStats = .init()
     private(set) var remainingCounts: DeckCounts = .zero
     private(set) var isFinished: Bool = false
     /// Next interval for each rating button (formatted string)
     private(set) var nextIntervals: [Rating: String] = [:]
+    /// Next interval in seconds for each rating button.
+    private(set) var nextIntervalSeconds: [Rating: UInt32] = [:]
     private var reviewStartTime: Date = .now
 
     /// The raw QueuedCard objects from the Rust backend — preserves scheduling states.
     private var cardQueue: [Anki_Scheduler_QueuedCards.QueuedCard] = []
     private var currentQueuedCard: Anki_Scheduler_QueuedCards.QueuedCard?
+    private var autoAdvanceQuestionAction: Anki_DeckConfig_DeckConfig.Config.QuestionAction = .showAnswer
+    private var autoAdvanceAnswerAction: Anki_DeckConfig_DeckConfig.Config.AnswerAction = .buryCard
 
     /// Public accessor for the current card
     var currentCard: Anki_Scheduler_QueuedCards.QueuedCard? {
@@ -56,6 +66,25 @@ final class ReviewSession {
                 method: AnkiBackend.SchedulerMethod.getQueuedCards,
                 request: req
             )
+
+            if let deckConfig = try? deckClient.getDeckConfig(deckId) {
+                let cfg = deckConfig.config
+                autoplayAudio = !cfg.disableAutoplay
+                waitForAudioBeforeAutoAdvance = cfg.waitForAudio
+                autoAdvanceQuestionSeconds = Double(cfg.secondsToShowQuestion)
+                autoAdvanceAnswerSeconds = Double(cfg.secondsToShowAnswer)
+                autoAdvanceQuestionAction = cfg.questionAction
+                autoAdvanceAnswerAction = cfg.answerAction
+                includeQuestionAudioOnAnswerReplay = !cfg.skipQuestionWhenReplayingAnswer
+            } else {
+                autoplayAudio = true
+                waitForAudioBeforeAutoAdvance = false
+                autoAdvanceQuestionSeconds = 0
+                autoAdvanceAnswerSeconds = 0
+                autoAdvanceQuestionAction = .showAnswer
+                autoAdvanceAnswerAction = .buryCard
+                includeQuestionAudioOnAnswerReplay = true
+            }
 
             cardQueue = response.cards
             remainingCounts = DeckCounts(
@@ -137,6 +166,48 @@ final class ReviewSession {
         showAnswer = true
     }
 
+    var currentAutoAdvanceDelay: Double? {
+        let secs = showAnswer ? autoAdvanceAnswerSeconds : autoAdvanceQuestionSeconds
+        return secs > 0 ? secs : nil
+    }
+
+    func performAutoAdvanceAction() {
+        if showAnswer {
+            performAutoAdvanceAnswerAction()
+        } else {
+            performAutoAdvanceQuestionAction()
+        }
+    }
+
+    private func performAutoAdvanceQuestionAction() {
+        switch autoAdvanceQuestionAction {
+        case .showAnswer, .showReminder, .UNRECOGNIZED:
+            revealAnswer()
+        }
+    }
+
+    private func performAutoAdvanceAnswerAction() {
+        switch autoAdvanceAnswerAction {
+        case .answerAgain:
+            answer(rating: .again)
+        case .answerHard:
+            answer(rating: .hard)
+        case .answerGood:
+            answer(rating: .good)
+        case .buryCard:
+            guard let cardId = currentQueuedCard?.card.id else { return }
+            do {
+                try cardClient.bury(cardId)
+                refreshAndAdvance()
+            } catch {
+                print("[ReviewSession] Auto-advance bury failed: \(error)")
+                refreshAndAdvance()
+            }
+        case .showReminder, .UNRECOGNIZED:
+            break
+        }
+    }
+
     func answer(rating: Rating) {
         guard let queued = currentQueuedCard else { return }
 
@@ -212,11 +283,17 @@ final class ReviewSession {
 
         // Extract next intervals from scheduling states
         let states = next.states
+        nextIntervalSeconds = [
+            .again: scheduledSecs(states.again),
+            .hard: scheduledSecs(states.hard),
+            .good: scheduledSecs(states.good),
+            .easy: scheduledSecs(states.easy),
+        ]
         nextIntervals = [
-            .again: formatInterval(scheduledSecs(states.again)),
-            .hard: formatInterval(scheduledSecs(states.hard)),
-            .good: formatInterval(scheduledSecs(states.good)),
-            .easy: formatInterval(scheduledSecs(states.easy)),
+            .again: formatInterval(nextIntervalSeconds[.again] ?? 0),
+            .hard: formatInterval(nextIntervalSeconds[.hard] ?? 0),
+            .good: formatInterval(nextIntervalSeconds[.good] ?? 0),
+            .easy: formatInterval(nextIntervalSeconds[.easy] ?? 0),
         ]
     }
 

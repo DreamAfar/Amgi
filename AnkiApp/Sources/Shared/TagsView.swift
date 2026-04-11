@@ -10,6 +10,14 @@ import Dependencies
 struct TagsView: View {
     @Dependency(\.tagClient) var tagClient
     let targetNoteIDs: [Int64]
+    /// Controls behaviour when `targetNoteIDs` is non-empty.
+    /// `.addToNotes` — tapping a tag immediately adds it to all selected notes.
+    /// `.removeFromNotes` — tapping a tag immediately removes it from all selected notes.
+    /// `.manage` (default) — tapping a tag shows a confirmation dialog.
+    let noteMode: NoteMode
+
+    enum NoteMode { case manage, addToNotes, removeFromNotes }
+
     @Environment(\.dismiss) private var dismiss
 
     @State private var allTags: [String] = []
@@ -24,8 +32,9 @@ struct TagsView: View {
     @State private var tagActionTag: String?
     @State private var isApplying = false
 
-    init(targetNoteIDs: [Int64] = []) {
+    init(targetNoteIDs: [Int64] = [], noteMode: NoteMode = .manage) {
         self.targetNoteIDs = targetNoteIDs
+        self.noteMode = noteMode
     }
 
     // Whether this view is in "apply tags to notes" mode
@@ -49,17 +58,15 @@ struct TagsView: View {
                     tagListContent
                 }
             }
-            .navigationTitle(isNoteMode ? L("tags_nav_title_note_mode") : L("tags_nav_title"))
+            .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_done")) { dismiss() }
                 }
-                if isNoteMode {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: { showAddTag = true }) {
-                            Image(systemName: "plus")
-                        }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { showAddTag = true }) {
+                        Image(systemName: "plus")
                     }
                 }
             }
@@ -86,7 +93,7 @@ struct TagsView: View {
             .confirmationDialog(
                 L("tags_action_dialog_title", tagActionTag ?? ""),
                 isPresented: Binding(
-                    get: { tagActionTag != nil && isNoteMode },
+                    get: { tagActionTag != nil && isNoteMode && noteMode == .manage },
                     set: { if !$0 { tagActionTag = nil } }
                 ),
                 titleVisibility: .visible
@@ -104,6 +111,16 @@ struct TagsView: View {
             .task {
                 await loadTags()
             }
+        }
+    }
+
+    // MARK: - Computed
+
+    private var navigationTitle: String {
+        switch noteMode {
+        case .addToNotes: return L("tags_nav_title_add_mode")
+        case .removeFromNotes: return L("tags_nav_title_remove_mode")
+        case .manage: return isNoteMode ? L("tags_nav_title_note_mode") : L("tags_nav_title")
         }
     }
 
@@ -179,7 +196,14 @@ struct TagsView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             if isNoteMode {
-                tagActionTag = tag
+                switch noteMode {
+                case .addToNotes:
+                    Task { await applyTag(tag) }
+                case .removeFromNotes:
+                    Task { await removeTagFromSelectedNotes(tag) }
+                case .manage:
+                    tagActionTag = tag
+                }
             } else {
                 selectedTag = tag
             }

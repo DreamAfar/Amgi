@@ -13,6 +13,7 @@ struct DeckConfigView: View {
     @Dependency(\.deckClient) var deckClient
     
     @State private var config: Anki_DeckConfig_DeckConfig?
+    @State private var deckConfigContext: Anki_DeckConfig_DeckConfigsForUpdate?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var showError = false
@@ -30,6 +31,10 @@ struct DeckConfigView: View {
     @State private var fsrsEnabled: Bool = false
     @State private var desiredRetentionPercent: Double = 90
     @State private var fsrsWeights: String = ""
+    @State private var isOptimizingFsrs = false
+    @State private var isSimulatingFsrs = false
+    @State private var fsrsSimulationSearch: String = ""
+    @State private var retentionWorkload: [(retention: UInt32, cost: Float)] = []
 
     @State private var newCardInsertOrder: Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder = .due
     @State private var newMix: Anki_DeckConfig_DeckConfig.Config.ReviewMix = .mixWithReviews
@@ -223,6 +228,55 @@ struct DeckConfigView: View {
                         .multilineTextAlignment(.trailing)
                         .font(.monospaced(.caption)())
                 }
+
+                Section(L("deck_config_fsrs_simulator_section")) {
+                    TextField(L("deck_config_fsrs_simulator_search_hint"), text: $fsrsSimulationSearch)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
+                    Button {
+                        Task { await runFsrsSimulation() }
+                    } label: {
+                        HStack {
+                            if isSimulatingFsrs {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                            Text(isSimulatingFsrs ? L("deck_config_fsrs_simulator_running") : L("deck_config_fsrs_simulator_run"))
+                        }
+                    }
+                    .disabled(isSimulatingFsrs)
+
+                    if !retentionWorkload.isEmpty {
+                        ForEach(retentionWorkload, id: \.retention) { row in
+                            HStack {
+                                Text("\(row.retention)%")
+                                Spacer()
+                                Text(String(format: "%.2f", row.cost))
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            .font(.caption)
+                        }
+                    } else {
+                        Text(L("deck_config_fsrs_simulator_empty"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Button {
+                    Task { await optimizeFsrsPresets() }
+                } label: {
+                    HStack {
+                        if isOptimizingFsrs {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Text(isOptimizingFsrs ? L("deck_config_fsrs_optimize_running") : L("deck_config_fsrs_optimize_presets"))
+                    }
+                }
+                .disabled(isOptimizingFsrs)
             }
         }
         .listRowBackground(Color.clear)
@@ -358,9 +412,11 @@ struct DeckConfigView: View {
     private func loadConfig() async {
         do {
             Swift.print("[DeckConfigView] Loading config for deckId=\(deckId)")
+            let context = try deckClient.fetchDeckConfigContext(deckId)
             let loadedConfig = try deckClient.getDeckConfig(deckId)
             Swift.print("[DeckConfigView] Loaded config: \(loadedConfig.name), id=\(loadedConfig.id)")
             await MainActor.run {
+                deckConfigContext = context
                 config = loadedConfig
                 let cfg = loadedConfig.config
                 configName = loadedConfig.name
@@ -406,9 +462,16 @@ struct DeckConfigView: View {
                     easyDayPercentages = Array(repeating: 100, count: 7)
                 }
                 
-                // FSRS settings
-                fsrsEnabled = !cfg.fsrsParams4.isEmpty || !cfg.fsrsParams5.isEmpty || !cfg.fsrsParams6.isEmpty
-                desiredRetentionPercent = Double(cfg.desiredRetention * 100)
+                // FSRS settings: global toggle should come from DeckConfigsForUpdate.fsrs,
+                // not from whether params arrays are empty.
+                fsrsEnabled = context.fsrs
+                if context.hasCurrentDeck,
+                   context.currentDeck.hasLimits,
+                   context.currentDeck.limits.hasDesiredRetention {
+                    desiredRetentionPercent = Double(context.currentDeck.limits.desiredRetention * 100)
+                } else {
+                    desiredRetentionPercent = Double(cfg.desiredRetention * 100)
+                }
                 if !cfg.fsrsParams6.isEmpty {
                     fsrsWeights = cfg.fsrsParams6.map { String($0) }.joined(separator: " ")
                 } else if !cfg.fsrsParams5.isEmpty {
@@ -416,6 +479,8 @@ struct DeckConfigView: View {
                 } else {
                     fsrsWeights = cfg.fsrsParams4.map { String($0) }.joined(separator: " ")
                 }
+                fsrsSimulationSearch = cfg.paramSearch
+                retentionWorkload = []
                 
                 isLoading = false
                 Swift.print("[DeckConfigView] Configuration loaded successfully")
@@ -427,6 +492,66 @@ struct DeckConfigView: View {
                 showError = true
                 isLoading = false
             }
+        }
+    }
+
+    private func optimizeFsrsPresets() async {
+        guard let config else { return }
+
+        isOptimizingFsrs = true
+        defer { isOptimizingFsrs = false }
+
+        do {
+            try deckClient.optimizeFsrsPresets(deckId, config)
+            await loadConfig()
+        } catch {
+            errorMessage = L("deck_config_error_save", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func runFsrsSimulation() async {
+        guard fsrsEnabled else { return }
+
+        isSimulatingFsrs = true
+        defer { isSimulatingFsrs = false }
+
+        do {
+            let weights = parseFloatArray(fsrsWeights)
+            let effectiveWeights: [Float]
+            if !weights.isEmpty {
+                effectiveWeights = weights
+            } else if let loaded = config {
+                let cfg = loaded.config
+                if !cfg.fsrsParams6.isEmpty {
+                    effectiveWeights = cfg.fsrsParams6
+                } else if !cfg.fsrsParams5.isEmpty {
+                    effectiveWeights = cfg.fsrsParams5
+                } else if !cfg.fsrsParams4.isEmpty {
+                    effectiveWeights = cfg.fsrsParams4
+                } else {
+                    effectiveWeights = []
+                }
+            } else {
+                effectiveWeights = []
+            }
+
+            guard !effectiveWeights.isEmpty else {
+                retentionWorkload = []
+                return
+            }
+
+            let workload = try deckClient.getRetentionWorkload(
+                effectiveWeights,
+                fsrsSimulationSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+
+            retentionWorkload = workload
+                .map { (retention: $0.key, cost: $0.value) }
+                .sorted { $0.retention < $1.retention }
+        } catch {
+            errorMessage = L("deck_config_error_save", error.localizedDescription)
+            showError = true
         }
     }
     
@@ -478,9 +603,17 @@ struct DeckConfigView: View {
 
         if fsrsEnabled {
             let weights = parseFloatArray(fsrsWeights)
-            cfg.fsrsParams6 = weights
-            cfg.fsrsParams5 = []
-            cfg.fsrsParams4 = []
+            if !weights.isEmpty {
+                cfg.fsrsParams6 = weights
+                cfg.fsrsParams5 = []
+                cfg.fsrsParams4 = []
+            } else if cfg.fsrsParams6.isEmpty && cfg.fsrsParams5.isEmpty && cfg.fsrsParams4.isEmpty {
+                // Preserve/seed params if FSRS is enabled but no explicit weights were provided.
+                let defaults = deckConfigContext?.defaults.config
+                if let defaults, !defaults.fsrsParams6.isEmpty {
+                    cfg.fsrsParams6 = defaults.fsrsParams6
+                }
+            }
         } else {
             cfg.fsrsParams6 = []
             cfg.fsrsParams5 = []
@@ -490,7 +623,7 @@ struct DeckConfigView: View {
         config.config = cfg
         
         do {
-            try deckClient.updateDeckConfig(deckId, config, applyToChildren)
+            try deckClient.updateDeckConfig(deckId, config, applyToChildren, fsrsEnabled)
             onDismiss()
         } catch {
             errorMessage = L("deck_config_error_save", error.localizedDescription)

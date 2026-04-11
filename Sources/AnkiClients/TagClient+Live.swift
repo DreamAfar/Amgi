@@ -49,34 +49,23 @@ extension TagClient: DependencyKey {
                     throw BackendError(kind: .invalidInput, message: "Tag name cannot be empty")
                 }
 
-                // Anki backend does not expose a standalone "create tag" RPC.
-                // Tags are persisted when attached to notes, so we perform a real
-                // backend read and return a clear error instead of silently succeeding.
-                let existing: Anki_Tags_TagTreeNode = try backend.invoke(
-                    service: AnkiBackend.Service.tags,
-                    method: AnkiBackend.TagsMethod.tagTree,
-                    request: Anki_Generic_Empty()
-                )
+                // Use SetTagCollapsed(collapsed: false) to create/register the tag in
+                // Anki's tag tree without attaching it to any note.
+                var req = Anki_Tags_SetTagCollapsedRequest()
+                req.name = normalized
+                req.collapsed = false
 
-                func contains(_ node: Anki_Tags_TagTreeNode, tag: String, parentPath: String) -> Bool {
-                    let fullPath = parentPath.isEmpty ? node.name : "\(parentPath)::\(node.name)"
-                    if fullPath.caseInsensitiveCompare(tag) == .orderedSame { return true }
-                    for child in node.children {
-                        if contains(child, tag: tag, parentPath: fullPath) { return true }
-                    }
-                    return false
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.tags,
+                        method: AnkiBackend.TagsMethod.setTagCollapsed,
+                        request: req
+                    )
+                    logger.info("Tag '\(normalized)' created via SetTagCollapsed")
+                } catch {
+                    logger.error("addTag failed for '\(normalized)': \(error)")
+                    throw error
                 }
-
-                if existing.children.contains(where: { contains($0, tag: normalized, parentPath: "") }) {
-                    logger.info("Tag '\(normalized)' already exists")
-                    return
-                }
-
-                logger.warning("Cannot create standalone tag '\(normalized)' via backend; tag must be attached to at least one note")
-                throw BackendError(
-                    kind: .invalidInput,
-                    message: "Standalone tag creation is not supported by backend. Please add this tag to at least one note."
-                )
             },
             addTagToNotes: { tag, noteIDs in
                 let normalized = tag.trimmingCharacters(in: .whitespacesAndNewlines)

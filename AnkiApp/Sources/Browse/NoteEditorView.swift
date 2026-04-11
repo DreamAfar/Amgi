@@ -32,9 +32,8 @@ struct NoteEditorView: View {
                         Text(name)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        TextField(name, text: fieldBinding(for: index), axis: .vertical)
-                            .lineLimit(1...10)
-                            .textInputAutocapitalization(.sentences)
+                        RichNoteFieldEditor(htmlText: fieldBinding(for: index))
+                            .frame(minHeight: 120)
                     }
                 }
             }

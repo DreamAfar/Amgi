@@ -97,6 +97,16 @@
 "browse_batch_suspend" = "一括停止";
 "browse_batch_bury" = "一括埋め込み";
 "browse_batch_clear_selection" = "選択をクリア";
+"browse_batch_delete_notes" = "ノートを削除";
+"browse_batch_delete_title" = "選択したノートを削除しますか？";
+"browse_batch_delete_confirm" = "%d 件のノートを削除しますか？";
+"browse_batch_move_deck" = "デッキを変更";
+"browse_batch_change_notetype" = "ノートタイプを変更";
+"browse_batch_flag_label" = "フラグ";
+"browse_batch_suspend_toggle" = "停止";
+"browse_batch_reset_new" = "リセット";
+"browse_batch_tags_add" = "タグを追加";
+"browse_batch_tags_remove" = "タグを削除";
 "browse_delete_note_title" = "ノートを削除しますか？";
 "browse_delete_note_message" = "「%@」を削除してもよろしいですか？";
 "browse_edit_btn_add" = "ノートを追加";
@@ -378,6 +388,13 @@
 "deck_config_desired_retention" = "目標保持率";
 "deck_config_fsrs_weights" = "FSRS ウェイト";
 "deck_config_fsrs_weights_hint" = "カンマ区切りの数値";
+"deck_config_fsrs_optimize_presets" = "全プリセットを最適化";
+"deck_config_fsrs_optimize_running" = "プリセットを最適化中...";
+"deck_config_fsrs_simulator_section" = "FSRS シミュレーター";
+"deck_config_fsrs_simulator_search_hint" = "任意の検索フィルタ（空欄=全カード）";
+"deck_config_fsrs_simulator_run" = "作業量シミュレーションを実行";
+"deck_config_fsrs_simulator_running" = "シミュレーション実行中...";
+"deck_config_fsrs_simulator_empty" = "シミュレーション結果はまだありません";
 "deck_config_bury_new" = "新規の兄弟カードを埋める";
 "deck_config_bury_reviews" = "復習の兄弟カードを埋める";
 "deck_config_bury_interday" = "跨日学習の兄弟カードを埋める";
@@ -430,7 +447,7 @@
 "browse_batch_failed_title" = "一括操作失敗";
 "browse_batch_success_title" = "一括操作完了";
 "browse_batch_no_cards" = "カードが選択されていません";
-"browse_batch_processed" = "%d 枚のカードを処理しました";
+"browse_batch_processed" = "%2$d 件のノートから %1$d 枚のカードを処理しました";
 "browse_empty_title" = "ノートなし";
 "browse_empty_description" = "コレクションが空です。";
 "browse_filter_all" = "すべて";
@@ -464,6 +481,8 @@
 "tags_section_select" = "タグを選択";
 "tags_section_all" = "すべてのタグ";
 "tags_nav_title_note_mode" = "タグの適用 / 削除";
+"tags_nav_title_add_mode" = "タグを追加";
+"tags_nav_title_remove_mode" = "タグを削除";
 "tags_nav_title" = "タグ";
 "tags_target_notes" = "対象ノート";
 "tags_new_tag_will_apply" = "新しいタグを選択した %d 件のノートに適用します。";
@@ -489,6 +508,7 @@
 "review_reviewed_count" = "復習済み：%d";
 "review_edit_button" = "編集";
 "review_show_answer" = "答えを表示";
+"review_answer_button" = "回答";
 "review_rating_again" = "もう一度";
 "review_rating_hard" = "難しい";
 "review_rating_good" = "良い";
@@ -532,6 +552,27 @@
 "card_info_deck_id" = "デッキ ID";
 "card_info_template" = "テンプレート";
 "card_info_flags" = "フラグ";
+"card_info_added" = "追加日";
+"card_info_first_review" = "初回復習日";
+"card_info_due_position" = "位置";
+"card_info_retrievability" = "想起可能性";
+"card_info_average_time" = "平均時間";
+"card_info_total_time" = "合計時間";
+"card_info_section_metadata" = "カード情報";
+"card_info_notetype" = "ノートタイプ";
+"card_info_deck" = "デッキ";
+"card_info_preset" = "プリセット";
+"card_info_original_deck" = "元デッキ";
+"card_info_section_history" = "復習履歴";
+"card_info_history_date" = "日付";
+"card_info_history_rating" = "評価";
+"card_info_history_interval" = "間隔";
+"card_info_history_time" = "時間";
+"card_info_section_forgetting_curve" = "忘却曲線";
+"card_info_curve_target" = "目標保持率: %d%%";
+"card_info_seconds_fmt" = "%d 秒";
+"card_info_minutes_fmt" = "%.1f 分";
+"card_info_hours_fmt" = "%d 時間";
 
 // MARK: - Card Queue / Interval
 "card_queue_new" = "新規";
@@ -583,6 +624,18 @@
 "note_editor_current_tags" = "現在のタグ";
 "note_editor_available_tags" = "利用可能なタグ";
 "note_editor_error_save" = "保存に失敗：%@";
+"rich_text_menu_title" = "書式";
+"rich_text_action_bold" = "太字";
+"rich_text_action_italic" = "斜体";
+"rich_text_action_underline" = "下線";
+"rich_text_action_strikethrough" = "取り消し線";
+"rich_text_action_color" = "文字色";
+"rich_text_action_clear_format" = "書式をクリア";
+"rich_text_color_red" = "赤";
+"rich_text_color_blue" = "青";
+"rich_text_color_green" = "緑";
+"rich_text_color_default" = "標準";
+"rich_text_color_custom" = "カスタム...";
 
 // MARK: - Stats (extended)
 "stats_added_title" = "追加済み";
@@ -685,6 +738,17 @@
 // MARK: - SettingsInfoView & AboutView
 "settings_info_editing" = "編集オプションは現在、ノートタイプとデッキ設定画面で処理されています。";
 "settings_info_review" = "復習動作はデッキ設定ごとに設定されます。";
+"settings_review_section_audio" = "音声";
+"settings_review_section_ui" = "復習 UI";
+"settings_review_autoplay_audio" = "音声を自動再生";
+"settings_review_play_audio_in_silent_mode" = "サイレントモードでも音声再生";
+"settings_review_show_context_menu_button" = "コンテキストメニューボタンを表示";
+"settings_review_show_audio_replay_button" = "音声リプレイボタンを表示";
+"settings_review_show_correctness_symbols" = "正誤シンボルを表示";
+"settings_review_disperse_answer_buttons" = "回答ボタンを分散表示";
+"settings_review_show_answer_buttons" = "回答ボタンを表示";
+"settings_review_show_remaining_days" = "残り日数を表示";
+"settings_review_show_next_review_time" = "次回回答時刻を表示";
 "settings_check_media_not_wired" = "メディアチェック機能はまだこのビルドで有効にされていません。";
 "settings_empty_cards_not_wired" = "空カードクリーンアップはまだこのビルドで有効にされていません。";
 

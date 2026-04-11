@@ -17,6 +17,7 @@ enum ImportError: Error, LocalizedError {
 }
 
 enum ImportHelper {
+    /// Import an .apkg or .colpkg file, preserving scheduling information.
     static func importPackage(from url: URL) throws -> String {
         // startAccessingSecurityScopedResource can return false for local files that
         // don't need a security scope — we always attempt the call but proceed either way.
@@ -39,18 +40,65 @@ enum ImportHelper {
 
         defer { try? FileManager.default.removeItem(at: tempFile) }
 
-        var req = Anki_ImportExport_ImportAnkiPackageRequest()
-        req.packagePath = tempFile.path
+        let ext = url.pathExtension.lowercased()
 
         @Dependency(\.ankiBackend) var backend
-        let response: Anki_ImportExport_ImportResponse = try backend.invoke(
-            service: AnkiBackend.Service.importExport,
-            method: AnkiBackend.ImportExportMethod.importAnkiPackage,
-            request: req
-        )
 
-        let log = response.log
-        return "Imported: \(log.new.count) new, \(log.updated.count) updated, \(log.duplicate.count) duplicates"
+        if ext == "colpkg" {
+            // .colpkg = full collection backup — replaces the entire local collection.
+            // Backend ImportCollectionPackage expects:
+            // - colPath: destination collection path
+            // - backupPath: source colpkg file path (historical field name)
+            let selectedUser = AppUserStore.loadSelectedUser()
+            let urls = AppUserStore.collectionURLs(for: selectedUser)
+
+            // The backend requires the collection to be closed before importing colpkg.
+            // After import it will reopen it automatically but we track paths ourselves.
+            try backend.closeCollection()
+            defer {
+                // Always attempt to reopen the collection after import (success or failure)
+                try? backend.openCollection(
+                    collectionPath: urls.collection.path,
+                    mediaFolderPath: urls.mediaDirectory.path,
+                    mediaDbPath: urls.mediaDB.path
+                )
+            }
+
+            var colpkgReq = Anki_ImportExport_ImportCollectionPackageRequest()
+            colpkgReq.colPath = urls.collection.path
+            colpkgReq.backupPath = tempFile.path
+            colpkgReq.mediaFolder = urls.mediaDirectory.path
+            colpkgReq.mediaDb = urls.mediaDB.path
+
+            try backend.callVoid(
+                service: AnkiBackend.Service.importExport,
+                method: AnkiBackend.ImportExportMethod.importCollectionPackage,
+                request: colpkgReq
+            )
+
+            return "Collection restored from backup. All cards and progress imported."
+        } else {
+            // .apkg = deck package — import notes/cards into the current collection.
+            // Set with_scheduling = true to preserve review history and card states.
+            var options = Anki_ImportExport_ImportAnkiPackageOptions()
+            options.withScheduling = true
+            options.withDeckConfigs = true
+            options.mergeNotetypes = true
+            // updateNotes and updateNotetypes default to .ifNewer — no change needed
+
+            var req = Anki_ImportExport_ImportAnkiPackageRequest()
+            req.packagePath = tempFile.path
+            req.options = options
+
+            let response: Anki_ImportExport_ImportResponse = try backend.invoke(
+                service: AnkiBackend.Service.importExport,
+                method: AnkiBackend.ImportExportMethod.importAnkiPackage,
+                request: req
+            )
+
+            let log = response.log
+            return "Imported: \(log.new.count) new, \(log.updated.count) updated, \(log.duplicate.count) duplicates"
+        }
     }
 
     static func exportCollection(to filename: String = "collection.colpkg") throws -> URL {

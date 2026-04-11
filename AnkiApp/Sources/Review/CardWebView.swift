@@ -1,17 +1,46 @@
 import SwiftUI
 import WebKit
 import Foundation
+import UIKit
 
 struct CardWebView: UIViewRepresentable {
+    enum ReplayMode: String {
+        case question
+        case answerOnly
+        case answerWithQuestion
+    }
+
     let html: String
+    let autoplayEnabled: Bool
+    let isAnswerSide: Bool
+    let replayRequestID: Int
+    let replayMode: ReplayMode
+    let onAudioStateChange: ((Bool) -> Void)?
+
+    init(
+        html: String,
+        autoplayEnabled: Bool = true,
+        isAnswerSide: Bool = false,
+        replayRequestID: Int = 0,
+        replayMode: ReplayMode = .question,
+        onAudioStateChange: ((Bool) -> Void)? = nil
+    ) {
+        self.html = html
+        self.autoplayEnabled = autoplayEnabled
+        self.isAnswerSide = isAnswerSide
+        self.replayRequestID = replayRequestID
+        self.replayMode = replayMode
+        self.onAudioStateChange = onAudioStateChange
+    }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(onAudioStateChange: onAudioStateChange)
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
+        config.userContentController.add(context.coordinator, name: "amgiAudioState")
         
         // Enable media playback without user interaction
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -26,12 +55,20 @@ struct CardWebView: UIViewRepresentable {
         return webView
     }
 
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiAudioState")
+    }
+
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Convert Anki [sound:filename.mp3] tags to <audio> HTML elements.
         // The Rust renderer keeps these tags literal; the client must expand them.
         let processedHTML = Self.expandSoundTags(html)
+        let loadSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(processedHTML.hashValue)"
 
-        let styledHTML = """
+        if context.coordinator.lastLoadSignature != loadSignature {
+            context.coordinator.lastLoadSignature = loadSignature
+
+            let styledHTML = """
         <!DOCTYPE html>
         <html>
         <head>
@@ -103,31 +140,73 @@ struct CardWebView: UIViewRepresentable {
             }
         </style>
         <script>
-        function playSound(btn) {
-            // Stop all currently playing audio
-            document.querySelectorAll('.sound-btn audio').forEach(function(a) {
-                if (!a.paused) { a.pause(); a.currentTime = 0; }
+        const AUTOPLAY_ENABLED = \(autoplayEnabled ? "true" : "false");
+        const IS_ANSWER_SIDE = \(isAnswerSide ? "true" : "false");
+        window.__amgiAudioPlaying = false;
+
+        function notifyAudioState(isPlaying) {
+            window.__amgiAudioPlaying = !!isPlaying;
+            try {
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiAudioState) {
+                    window.webkit.messageHandlers.amgiAudioState.postMessage(window.__amgiAudioPlaying);
+                }
+            } catch (e) {}
+        }
+
+        function stopAllSystemAudio() {
+            document.querySelectorAll('.anki-sound-audio').forEach(function(a) {
+                if (!a.paused) { a.pause(); }
+                a.currentTime = 0;
                 var b = a.nextElementSibling;
                 if (b) b.textContent = '▶';
                 a.onended = null;
             });
-            var audio = btn.previousElementSibling;
-            audio.currentTime = 0;
-            audio.play().catch(function() {});
-            btn.textContent = '⏸';
-            audio.onended = function() { btn.textContent = '▶'; };
+            notifyAudioState(false);
         }
-        window.onload = function() {
-            // Collect all audio elements in DOM order and play sequentially
-            var audioQueue = Array.from(document.querySelectorAll('.sound-btn audio'));
+
+        function collectAudioQueue(mode) {
+            var allAudio = Array.from(document.querySelectorAll('.anki-sound-audio'));
+            if (mode === 'question') {
+                return allAudio;
+            }
+
+            var answerMarker = document.getElementById('answer');
+            if (!answerMarker) {
+                return allAudio;
+            }
+
+            var afterAnswer = allAudio.filter(function(a) {
+                return !!(answerMarker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+
+            if (mode === 'answerWithQuestion') {
+                return afterAnswer.length > 0 ? allAudio : allAudio;
+            }
+
+            return afterAnswer.length > 0 ? afterAnswer : allAudio;
+        }
+
+        function replaySequential(queue) {
+            stopAllSystemAudio();
+            if (!queue || queue.length === 0) {
+                return;
+            }
+
             var currentIndex = 0;
+            notifyAudioState(true);
 
             function playNext() {
-                if (currentIndex >= audioQueue.length) return;
-                var audio = audioQueue[currentIndex];
+                if (currentIndex >= queue.length) {
+                    notifyAudioState(false);
+                    return;
+                }
+                var audio = queue[currentIndex];
                 var btn = audio.nextElementSibling;
                 audio.currentTime = 0;
-                audio.play().catch(function() {});
+                audio.play().catch(function() {
+                    currentIndex++;
+                    playNext();
+                });
                 if (btn) btn.textContent = '⏸';
                 audio.onended = function() {
                     if (btn) btn.textContent = '▶';
@@ -136,7 +215,38 @@ struct CardWebView: UIViewRepresentable {
                 };
             }
 
-            if (audioQueue.length > 0) { playNext(); }
+            playNext();
+        }
+
+        function amgiReplayAll(mode) {
+            var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
+            if (hasTemplateManagedMedia) {
+                return;
+            }
+            replaySequential(collectAudioQueue(mode));
+        }
+        window.amgiReplayAll = amgiReplayAll;
+
+        function playSound(btn) {
+            // Stop all currently playing audio
+            stopAllSystemAudio();
+            var audio = btn.previousElementSibling;
+            audio.currentTime = 0;
+            audio.play().catch(function() {});
+            notifyAudioState(true);
+            btn.textContent = '⏸';
+            audio.onended = function() {
+                btn.textContent = '▶';
+                notifyAudioState(false);
+            };
+        }
+        window.onload = function() {
+            var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
+
+            if (AUTOPLAY_ENABLED && !hasTemplateManagedMedia) {
+                // Desktop parity: question side plays question tags, answer side plays answer tags.
+                amgiReplayAll(IS_ANSWER_SIDE ? 'answerOnly' : 'question');
+            }
 
             // Detect missing images
             document.querySelectorAll('img').forEach(function(img) {
@@ -166,20 +276,26 @@ struct CardWebView: UIViewRepresentable {
         </html>
         """
 
-        // WKWebView.loadHTMLString does NOT grant file system access for local
-        // resources (images, audio). We must write the HTML to a file inside
-        // the media directory and use loadFileURL with allowingReadAccessTo so
-        // that relative src paths (e.g. <img src="image.jpg">) resolve correctly.
-        guard let mediaDir = Self.currentMediaDirectoryURL() else {
-            webView.loadHTMLString(styledHTML, baseURL: nil)
-            return
+            // WKWebView.loadHTMLString does NOT grant file system access for local
+            // resources (images, audio). We must write the HTML to a file inside
+            // the media directory and use loadFileURL with allowingReadAccessTo so
+            // that relative src paths (e.g. <img src="image.jpg">) resolve correctly.
+            guard let mediaDir = Self.currentMediaDirectoryURL() else {
+                webView.loadHTMLString(styledHTML, baseURL: nil)
+                return
+            }
+            let htmlFile = mediaDir.appendingPathComponent("_card.html")
+            do {
+                try styledHTML.write(to: htmlFile, atomically: true, encoding: .utf8)
+                webView.loadFileURL(htmlFile, allowingReadAccessTo: mediaDir)
+            } catch {
+                webView.loadHTMLString(styledHTML, baseURL: nil)
+            }
         }
-        let htmlFile = mediaDir.appendingPathComponent("_card.html")
-        do {
-            try styledHTML.write(to: htmlFile, atomically: true, encoding: .utf8)
-            webView.loadFileURL(htmlFile, allowingReadAccessTo: mediaDir)
-        } catch {
-            webView.loadHTMLString(styledHTML, baseURL: nil)
+
+        if replayRequestID != context.coordinator.lastReplayRequestID {
+            context.coordinator.lastReplayRequestID = replayRequestID
+            webView.evaluateJavaScript("window.amgiReplayAll && window.amgiReplayAll('" + replayMode.rawValue + "');", completionHandler: nil)
         }
     }
 
@@ -200,7 +316,7 @@ struct CardWebView: UIViewRepresentable {
                   let filenameRange = Range(match.range(at: 1), in: result) else { continue }
             let filename = String(result[filenameRange])
             let encoded = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? filename
-            let replacement = "<span class=\"sound-btn\"><audio src=\"\(encoded)\" preload=\"auto\"></audio><button class=\"replay-btn\" onclick=\"playSound(this)\">▶</button></span>"
+            let replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><button class=\"replay-btn\" onclick=\"playSound(this)\">▶</button></span>"
             result.replaceSubrange(matchRange, with: replacement)
         }
         return result
@@ -235,7 +351,24 @@ struct CardWebView: UIViewRepresentable {
 
     // MARK: - Navigation Delegate
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        var lastLoadSignature: String?
+        var lastReplayRequestID: Int = 0
+        private let onAudioStateChange: ((Bool) -> Void)?
+
+        init(onAudioStateChange: ((Bool) -> Void)? = nil) {
+            self.onAudioStateChange = onAudioStateChange
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == "amgiAudioState" else { return }
+            if let isPlaying = message.body as? Bool {
+                onAudioStateChange?(isPlaying)
+            } else if let number = message.body as? NSNumber {
+                onAudioStateChange?(number.boolValue)
+            }
+        }
+
         func webView(
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
@@ -245,14 +378,19 @@ struct CardWebView: UIViewRepresentable {
                 decisionHandler(.allow)
                 return
             }
-            // Allow the initial file load and same-document navigation
-            if navigationAction.navigationType == .other || url.isFileURL {
+
+            // Allow local card document loads and same-document anchors.
+            let scheme = url.scheme?.lowercased()
+            if url.isFileURL || scheme == "about" || scheme == "javascript" {
                 decisionHandler(.allow)
                 return
             }
-            // Open all other links (http, https, custom URL schemes) externally
+
+            // Open external links and custom app URL schemes outside the webview.
             decisionHandler(.cancel)
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            DispatchQueue.main.async {
+                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            }
         }
     }
 }

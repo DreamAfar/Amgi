@@ -10,8 +10,11 @@ public struct CardClient: Sendable {
     public var answer: @Sendable (_ cardId: Int64, _ rating: Rating, _ timeSpent: Int32) throws -> Void
     public var undo: @Sendable () throws -> Void
     public var suspend: @Sendable (_ cardId: Int64) throws -> Void
+    public var unsuspend: @Sendable (_ cardId: Int64) throws -> Void
     public var bury: @Sendable (_ cardId: Int64) throws -> Void
     public var flag: @Sendable (_ cardId: Int64, _ flag: UInt32) throws -> Void
+    public var moveToDeck: @Sendable (_ cardId: Int64, _ deckId: Int64) throws -> Void
+    public var resetToNew: @Sendable (_ cardId: Int64) throws -> Void
     public var search: @Sendable (_ query: String) throws -> [CardRecord]
 }
 

@@ -1,5 +1,7 @@
 import SwiftUI
 import AnkiKit
+import AnkiBackend
+import AnkiProto
 import AnkiClients
 import Dependencies
 
@@ -29,6 +31,11 @@ struct BrowseView: View {
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
     @State private var showTagsManager = false
+    @State private var tagsNoteMode: TagsView.NoteMode = .manage
+    @State private var showTagsActionSheet = false
+    @State private var showBatchDeleteConfirm = false
+    @State private var showMoveToDeck = false
+    @State private var showChangeNotetype = false
     @State private var selectedNoteIDs = Set<Int64>()
     @State private var isBatchWorking = false
     @State private var batchErrorMessage: String?
@@ -77,6 +84,26 @@ struct BrowseView: View {
                         invertSelection()
                     }
                     .disabled(allNotes.isEmpty)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showTagsActionSheet = true
+                    } label: {
+                        Image(systemName: "tag.badge.plus")
+                    }
+                    .accessibilityLabel(L("browse_batch_manage_tags"))
+                    .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(role: .destructive) {
+                        showBatchDeleteConfirm = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .accessibilityLabel(L("browse_batch_delete_notes"))
+                    .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -155,7 +182,40 @@ struct BrowseView: View {
                 await performSearch()
             }
         }) {
-            TagsView(targetNoteIDs: Array(selectedNoteIDs))
+            TagsView(targetNoteIDs: Array(selectedNoteIDs), noteMode: tagsNoteMode)
+        }
+        .confirmationDialog(
+            L("browse_batch_manage_tags"),
+            isPresented: $showTagsActionSheet,
+            titleVisibility: .visible
+        ) {
+            Button(L("browse_batch_tags_add")) {
+                tagsNoteMode = .addToNotes
+                showTagsManager = true
+            }
+            Button(L("browse_batch_tags_remove"), role: .destructive) {
+                tagsNoteMode = .removeFromNotes
+                showTagsManager = true
+            }
+            Button(L("common_cancel"), role: .cancel) {}
+        }
+        .sheet(isPresented: $showMoveToDeck) {
+            MoveToDeckSheet(decks: allDecks) { targetDeck in
+                Task { await batchMoveToDeck(deckId: targetDeck.id) }
+            }
+        }
+        .sheet(isPresented: $showChangeNotetype) {
+            ChangeNotetypeSheet(noteIDs: Array(selectedNoteIDs)) {
+                Task { await performSearch() }
+            }
+        }
+        .alert(L("browse_batch_delete_title"), isPresented: $showBatchDeleteConfirm) {
+            Button(L("common_cancel"), role: .cancel) { }
+            Button(L("common_delete"), role: .destructive) {
+                Task { await batchDeleteNotes() }
+            }
+        } message: {
+            Text(L("browse_batch_delete_confirm", selectedNoteIDs.count))
         }
         .alert(L("browse_delete_title"), isPresented: $showDeleteConfirm) {
             Button(L("common_cancel"), role: .cancel) { }
@@ -202,6 +262,7 @@ struct BrowseView: View {
             await loadTags()
             await performSearch()
         }
+        .toolbar(isEditing ? .hidden : .visible, for: .tabBar)
     }
 
     // MARK: - Extracted Sub-Views
@@ -352,41 +413,76 @@ struct BrowseView: View {
 
     @ViewBuilder
     private var batchBottomBar: some View {
-        Spacer()
-
-        Menu {
-            Button {
-                showTagsManager = true
-            } label: {
-                Label(L("browse_batch_manage_tags"), systemImage: "tag")
-            }
-
-            Divider()
-
-            Menu(L("browse_batch_flag_menu")) {
-                Button(L("browse_batch_flag_1")) { Task { await batchFlag(1) } }
-                Button(L("browse_batch_flag_2")) { Task { await batchFlag(2) } }
-                Button(L("browse_batch_flag_3")) { Task { await batchFlag(3) } }
-                Button(L("browse_batch_flag_4")) { Task { await batchFlag(4) } }
-                Button(L("browse_batch_flag_5")) { Task { await batchFlag(5) } }
-                Button(L("browse_batch_flag_6")) { Task { await batchFlag(6) } }
-                Button(L("browse_batch_flag_7")) { Task { await batchFlag(7) } }
-                Divider()
-                Button(L("browse_batch_flag_clear")) { Task { await batchFlag(0) } }
-            }
-
-            Button(L("browse_batch_suspend")) { Task { await batchSuspend() } }
-            Button(L("browse_batch_bury")) { Task { await batchBury() } }
+        // 更改牌组
+        Button {
+            showMoveToDeck = true
         } label: {
-            if isBatchWorking {
-                ProgressView()
-            } else {
-                Label(L("browse_batch_menu_label"), systemImage: "slider.horizontal.3")
+            VStack(spacing: 2) {
+                Image(systemName: "rectangle.stack.badge.plus")
+                Text(L("browse_batch_move_deck")).font(.caption2)
             }
         }
         .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
 
         Spacer()
+
+        // 更改笔记模板
+        Button {
+            showChangeNotetype = true
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: "doc.badge.gearshape")
+                Text(L("browse_batch_change_notetype")).font(.caption2)
+            }
+        }
+        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+
+        Spacer()
+
+        // 更改旗标（菜单）
+        Menu {
+            Button(L("browse_batch_flag_1")) { Task { await batchFlag(1) } }
+            Button(L("browse_batch_flag_2")) { Task { await batchFlag(2) } }
+            Button(L("browse_batch_flag_3")) { Task { await batchFlag(3) } }
+            Button(L("browse_batch_flag_4")) { Task { await batchFlag(4) } }
+            Button(L("browse_batch_flag_5")) { Task { await batchFlag(5) } }
+            Button(L("browse_batch_flag_6")) { Task { await batchFlag(6) } }
+            Button(L("browse_batch_flag_7")) { Task { await batchFlag(7) } }
+            Divider()
+            Button(L("browse_batch_flag_clear")) { Task { await batchFlag(0) } }
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: "flag.fill")
+                Text(L("browse_batch_flag_label")).font(.caption2)
+            }
+        }
+        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+
+        Spacer()
+
+        // 暂停/取消暂停
+        Button {
+            Task { await batchToggleSuspend() }
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: "pause.circle")
+                Text(L("browse_batch_suspend_toggle")).font(.caption2)
+            }
+        }
+        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+
+        Spacer()
+
+        // 重置为新卡片
+        Button {
+            Task { await batchResetToNew() }
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: "arrow.counterclockwise")
+                Text(L("browse_batch_reset_new")).font(.caption2)
+            }
+        }
+        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
     }
 
     private var isEditing: Bool {
@@ -628,6 +724,68 @@ struct BrowseView: View {
     private func batchBury() async {
         await performBatchAction { cardId in
             try cardClient.bury(cardId)
+        }
+    }
+
+    private func batchToggleSuspend() async {
+        // Collect all cards; if all are suspended (queue == -1), unsuspend all; otherwise suspend all
+        var allCardIDs = [(id: Int64, suspended: Bool)]()
+        do {
+            for noteId in selectedNoteIDs {
+                let cards = try cardClient.fetchByNote(noteId)
+                for card in cards {
+                    allCardIDs.append((id: card.id, suspended: card.queue == -1))
+                }
+            }
+        } catch { return }
+
+        let allSuspended = !allCardIDs.isEmpty && allCardIDs.allSatisfy { $0.suspended }
+        if allSuspended {
+            await performBatchAction { cardId in
+                try cardClient.unsuspend(cardId)
+            }
+        } else {
+            await performBatchAction { cardId in
+                try cardClient.suspend(cardId)
+            }
+        }
+    }
+
+    private func batchMoveToDeck(deckId: Int64) async {
+        await performBatchAction { cardId in
+            try cardClient.moveToDeck(cardId, deckId)
+        }
+    }
+
+    private func batchResetToNew() async {
+        await performBatchAction { cardId in
+            try cardClient.resetToNew(cardId)
+        }
+    }
+
+    private func batchDeleteNotes() async {
+        guard !selectedNoteIDs.isEmpty else { return }
+        isBatchWorking = true
+        batchProgressTotal = selectedNoteIDs.count
+        batchProgressDone = 0
+        defer {
+            isBatchWorking = false
+            batchProgressDone = 0
+            batchProgressTotal = 0
+        }
+        do {
+            for noteId in selectedNoteIDs {
+                try noteClient.delete(noteId)
+                batchProgressDone += 1
+            }
+            let count = selectedNoteIDs.count
+            selectedNoteIDs.removeAll()
+            batchSuccessMessage = L("browse_batch_processed", count, count)
+            showBatchSuccess = true
+            await performSearch()
+        } catch {
+            batchErrorMessage = error.localizedDescription
+            showBatchError = true
         }
     }
 
@@ -876,5 +1034,157 @@ struct NoteRowView: View {
     private func shortTagName(_ tag: String) -> String {
         // Show only the last component of a hierarchical tag (e.g. "日语::词汇" → "词汇")
         String(tag.split(separator: "::").last ?? Substring(tag))
+    }
+}
+
+// MARK: - MoveToDeckSheet
+
+struct MoveToDeckSheet: View {
+    let decks: [DeckInfo]
+    let onSelect: (DeckInfo) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(decks) { deck in
+                Button {
+                    onSelect(deck)
+                    dismiss()
+                } label: {
+                    Text(deck.name)
+                        .foregroundStyle(.primary)
+                }
+            }
+            .listStyle(.plain)
+            .navigationTitle(L("browse_batch_move_deck"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_cancel")) { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - ChangeNotetypeSheet
+
+struct ChangeNotetypeSheet: View {
+    let noteIDs: [Int64]
+    let onComplete: () -> Void
+
+    @Dependency(\.ankiBackend) var backend
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var notetypeNames: [(id: Int64, name: String)] = []
+    @State private var isLoading = true
+    @State private var isWorking = false
+    @State private var errorMessage: String?
+    @State private var showError = false
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView()
+                } else {
+                    List(notetypeNames, id: \.id) { notetype in
+                        Button {
+                            Task { await applyChangeNotetype(newNotetypeId: notetype.id) }
+                        } label: {
+                            HStack {
+                                Text(notetype.name)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if isWorking {
+                                    ProgressView()
+                                }
+                            }
+                        }
+                        .disabled(isWorking)
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .navigationTitle(L("browse_batch_change_notetype"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_cancel")) { dismiss() }
+                }
+            }
+            .alert(L("browse_batch_failed_title"), isPresented: $showError) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? L("common_unknown_error"))
+            }
+            .task { await loadNotetypes() }
+        }
+    }
+
+    private func loadNotetypes() async {
+        isLoading = true
+        do {
+            let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.getNotetypeNames
+            )
+            notetypeNames = response.entries.map { (id: $0.id, name: $0.name) }
+        } catch {
+            notetypeNames = []
+        }
+        isLoading = false
+    }
+
+    private func applyChangeNotetype(newNotetypeId: Int64) async {
+        isWorking = true
+        defer { isWorking = false }
+
+        do {
+            // Group note IDs by their current notetype (each note has only one notetype)
+            // For each distinct old notetype, get change info and apply
+            var notesByOldNotetype: [Int64: [Int64]] = [:]
+            for noteId in noteIDs {
+                var req = Anki_Notes_NoteId()
+                req.nid = noteId
+                if let note: Anki_Notes_Note = try? backend.invoke(
+                    service: AnkiBackend.Service.notes,
+                    method: AnkiBackend.NotesMethod.getNote,
+                    request: req
+                ) {
+                    notesByOldNotetype[note.notetypeID, default: []].append(noteId)
+                }
+            }
+
+            for (oldNotetypeId, groupedNoteIDs) in notesByOldNotetype {
+                if oldNotetypeId == newNotetypeId { continue }
+
+                // Get change info (default field/template mapping)
+                var infoReq = Anki_Notetypes_GetChangeNotetypeInfoRequest()
+                infoReq.oldNotetypeID = oldNotetypeId
+                infoReq.newNotetypeID = newNotetypeId
+                let info: Anki_Notetypes_ChangeNotetypeInfo = try backend.invoke(
+                    service: AnkiBackend.Service.notetypes,
+                    method: AnkiBackend.NotetypesMethod.getChangeNotetypeInfo,
+                    request: infoReq
+                )
+
+                // Build change request using the default mapping from info.input
+                var changeReq = info.input
+                changeReq.noteIds = groupedNoteIDs
+                try backend.callVoid(
+                    service: AnkiBackend.Service.notetypes,
+                    method: AnkiBackend.NotetypesMethod.changeNotetype,
+                    request: changeReq
+                )
+            }
+
+            onComplete()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
     }
 }

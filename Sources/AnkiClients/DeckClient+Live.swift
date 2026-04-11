@@ -136,48 +136,59 @@ extension DeckClient: DependencyKey {
                     throw error
                 }
             },
-            getDeckConfig: { deckId in
-                // Get the deck configuration using GetDeckConfigsForUpdate
+            fetchDeckConfigContext: { deckId in
                 var req = Anki_Decks_DeckId()
                 req.did = deckId
-                
+
+                return try backend.invoke(
+                    service: AnkiBackend.Service.deckConfig,
+                    method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
+                    request: req
+                )
+            },
+            getDeckConfig: { deckId in
+                var req = Anki_Decks_DeckId()
+                req.did = deckId
+
                 logger.info("Loading deck config for deckId=\(deckId)")
-                
+
                 do {
                     let response: Anki_DeckConfig_DeckConfigsForUpdate = try backend.invoke(
                         service: AnkiBackend.Service.deckConfig,
                         method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
                         request: req
                     )
-                    
-                    logger.info("Got response with \(response.allConfig.count) configs, currentDeck=\(response.currentDeck.name), configID=\(response.currentDeck.configID)")
-                    
-                    if response.allConfig.isEmpty {
-                        let currentConfigId = response.currentDeck.configID
-                        if currentConfigId != 0 {
-                            var configReq = Anki_DeckConfig_DeckConfigId()
-                            configReq.dcid = currentConfigId
-                            let config: Anki_DeckConfig_DeckConfig = try backend.invoke(
-                                service: AnkiBackend.Service.deckConfig,
-                                method: AnkiBackend.DeckConfigMethod.getDeckConfig,
-                                request: configReq
-                            )
-                            logger.info("Loaded deck config directly for deckId=\(deckId): configID=\(config.id), name=\(config.name)")
-                            return config
-                        }
 
-                        logger.warning("allConfig is empty for deckId=\(deckId), returning empty DeckConfig")
-                        var emptyConfig = Anki_DeckConfig_DeckConfig()
-                        emptyConfig.name = "Default"
-                        return emptyConfig
+                    logger.info("Got response with \(response.allConfig.count) configs, currentDeck=\(response.currentDeck.name), configID=\(response.currentDeck.configID), fsrs=\(response.fsrs)")
+
+                    let currentConfigId = response.currentDeck.configID
+                    if currentConfigId != 0,
+                       let matched = response.allConfig.first(where: { $0.config.id == currentConfigId })?.config {
+                        logger.info("Retrieved deck config from allConfig for deckId=\(deckId): configID=\(matched.id), name=\(matched.name)")
+                        return matched
                     }
 
-                    // Match the current deck's active config first, then fallback to first.
-                    let currentConfigId = response.currentDeck.configID
-                    let config = response.allConfig.first(where: { $0.config.id == currentConfigId })?.config
-                        ?? response.allConfig[0].config
-                    logger.info("Retrieved deck config for deckId=\(deckId): configID=\(config.id), name=\(config.name)")
-                    return config
+                    if currentConfigId != 0 {
+                        var configReq = Anki_DeckConfig_DeckConfigId()
+                        configReq.dcid = currentConfigId
+                        let config: Anki_DeckConfig_DeckConfig = try backend.invoke(
+                            service: AnkiBackend.Service.deckConfig,
+                            method: AnkiBackend.DeckConfigMethod.getDeckConfig,
+                            request: configReq
+                        )
+                        logger.info("Loaded deck config directly for deckId=\(deckId): configID=\(config.id), name=\(config.name)")
+                        return config
+                    }
+
+                    if response.hasDefaults {
+                        logger.warning("Deck \(deckId) has configID=0; using response.defaults as fallback")
+                        return response.defaults
+                    }
+
+                    throw BackendError(
+                        kind: .invalidInput,
+                        message: "Deck \(deckId) has no valid config id and no defaults returned"
+                    )
                 } catch {
                     let primaryError = error
                     logger.warning("GetDeckConfigsForUpdate failed for deckId=\(deckId), falling back to direct deck lookup: \(primaryError)")
@@ -215,13 +226,28 @@ extension DeckClient: DependencyKey {
                     }
                 }
             },
-            updateDeckConfig: { deckId, config, applyToChildren in
-                // Update the deck configuration
+            updateDeckConfig: { deckId, config, applyToChildren, fsrsEnabled in
+                // Pull context first so we don't accidentally reset global deck options.
+                var contextReq = Anki_Decks_DeckId()
+                contextReq.did = deckId
+                let context: Anki_DeckConfig_DeckConfigsForUpdate = try backend.invoke(
+                    service: AnkiBackend.Service.deckConfig,
+                    method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
+                    request: contextReq
+                )
+
                 var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
                 req.targetDeckID = deckId
                 req.configs = [config]
                 req.mode = applyToChildren ? .applyToChildren : .normal
-                req.fsrs = !config.config.fsrsParams6.isEmpty
+                req.cardStateCustomizer = context.cardStateCustomizer
+                req.newCardsIgnoreReviewLimit = context.newCardsIgnoreReviewLimit
+                req.applyAllParentLimits = context.applyAllParentLimits
+                req.fsrsHealthCheck = context.fsrsHealthCheck
+                req.fsrs = fsrsEnabled
+                if context.currentDeck.hasLimits {
+                    req.limits = context.currentDeck.limits
+                }
                 
                 do {
                     try backend.callVoid(
@@ -229,11 +255,51 @@ extension DeckClient: DependencyKey {
                         method: AnkiBackend.DeckConfigMethod.updateDeckConfigs,
                         request: req
                     )
-                    logger.info("Updated deck config for deckId=\(deckId): \(config.name)")
+                    logger.info("Updated deck config for deckId=\(deckId): \(config.name), fsrs=\(fsrsEnabled)")
                 } catch {
                     logger.error("updateDeckConfig failed for deckId=\(deckId), config=\(config.name): \(error)")
                     throw error
                 }
+            },
+            getRetentionWorkload: { weights, search in
+                var req = Anki_DeckConfig_GetRetentionWorkloadRequest()
+                req.w = weights
+                req.search = search
+
+                let response: Anki_DeckConfig_GetRetentionWorkloadResponse = try backend.invoke(
+                    service: AnkiBackend.Service.deckConfig,
+                    method: AnkiBackend.DeckConfigMethod.getRetentionWorkload,
+                    request: req
+                )
+                return response.costs
+            },
+            optimizeFsrsPresets: { deckId, selectedConfig in
+                var contextReq = Anki_Decks_DeckId()
+                contextReq.did = deckId
+                let context: Anki_DeckConfig_DeckConfigsForUpdate = try backend.invoke(
+                    service: AnkiBackend.Service.deckConfig,
+                    method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
+                    request: contextReq
+                )
+
+                var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
+                req.targetDeckID = deckId
+                req.configs = [selectedConfig]
+                req.mode = .computeAllParams
+                req.cardStateCustomizer = context.cardStateCustomizer
+                req.newCardsIgnoreReviewLimit = context.newCardsIgnoreReviewLimit
+                req.applyAllParentLimits = context.applyAllParentLimits
+                req.fsrsHealthCheck = context.fsrsHealthCheck
+                req.fsrs = true
+                if context.currentDeck.hasLimits {
+                    req.limits = context.currentDeck.limits
+                }
+
+                try backend.callVoid(
+                    service: AnkiBackend.Service.deckConfig,
+                    method: AnkiBackend.DeckConfigMethod.updateDeckConfigs,
+                    request: req
+                )
             }
         )
     }()

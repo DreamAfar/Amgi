@@ -179,6 +179,21 @@ extension CardClient: DependencyKey {
                     throw error
                 }
             },
+            unsuspend: { cardId in
+                var req = Anki_Cards_CardIds()
+                req.cids = [cardId]
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.scheduler,
+                        method: AnkiBackend.SchedulerMethod.restoreBuriedAndSuspendedCards,
+                        request: req
+                    )
+                    logger.info("Card unsuspended: \(cardId)")
+                } catch {
+                    logger.error("Unsuspend failed for cardId=\(cardId): \(error)")
+                    throw error
+                }
+            },
             bury: { cardId in
                 var req = Anki_Scheduler_BuryOrSuspendCardsRequest()
                 req.cardIds = [cardId]
@@ -208,6 +223,38 @@ extension CardClient: DependencyKey {
                     logger.info("Card flagged: \(cardId) with flag=\(flag)")
                 } catch {
                     logger.error("Flag failed for cardId=\(cardId): \(error)")
+                    throw error
+                }
+            },
+            moveToDeck: { cardId, deckId in
+                var req = Anki_Cards_SetDeckRequest()
+                req.cardIds = [cardId]
+                req.deckID = deckId
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.cards,
+                        method: AnkiBackend.CardsMethod.setDeck,
+                        request: req
+                    )
+                    logger.info("Card \(cardId) moved to deck \(deckId)")
+                } catch {
+                    logger.error("MoveToDeck failed for cardId=\(cardId): \(error)")
+                    throw error
+                }
+            },
+            resetToNew: { cardId in
+                var req = Anki_Scheduler_ScheduleCardsAsNewRequest()
+                req.cardIds = [cardId]
+                req.log = true
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.scheduler,
+                        method: AnkiBackend.SchedulerMethod.scheduleCardsAsNew,
+                        request: req
+                    )
+                    logger.info("Card reset to new: \(cardId)")
+                } catch {
+                    logger.error("ResetToNew failed for cardId=\(cardId): \(error)")
                     throw error
                 }
             },

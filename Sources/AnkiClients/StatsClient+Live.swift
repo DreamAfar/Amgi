@@ -20,6 +20,16 @@ extension StatsClient: DependencyKey {
                     request: req
                 )
                 return try response.serializedData()
+            },
+            fetchCardStats: { cardId in
+                var req = Anki_Cards_CardId()
+                req.cid = cardId
+                let response: Anki_Stats_CardStatsResponse = try backend.invoke(
+                    service: AnkiBackend.Service.stats,
+                    method: AnkiBackend.StatsMethod.cardStats,
+                    request: req
+                )
+                return try response.serializedData()
             }
         )
     }()

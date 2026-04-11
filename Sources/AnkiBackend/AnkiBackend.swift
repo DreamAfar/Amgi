@@ -214,7 +214,11 @@ extension AnkiBackend {
         public static let schedTimingToday: UInt32 = 5
         public static let countsForDeckToday: UInt32 = 10
         public static let congratsInfo: UInt32 = 11
+        // RestoreBuriedAndSuspendedCards = proto index 9 + offset 3 = 12
+        public static let restoreBuriedAndSuspendedCards: UInt32 = 12
         public static let buryOrSuspendCards: UInt32 = 14
+        // ScheduleCardsAsNew = proto index 14 + offset 3 = 17
+        public static let scheduleCardsAsNew: UInt32 = 17
     }
 
     public enum NotesMethod {
@@ -260,6 +264,8 @@ extension AnkiBackend {
         public static let getDeckConfig: UInt32 = 1
         public static let getDeckConfigsForUpdate: UInt32 = 6
         public static let updateDeckConfigs: UInt32 = 7
+        public static let getIgnoredBeforeCount: UInt32 = 8
+        public static let getRetentionWorkload: UInt32 = 9
     }
 
     public enum SearchMethod {
@@ -273,6 +279,7 @@ extension AnkiBackend {
         public static let removeCards: UInt32 = 2
         public static let setDeck: UInt32 = 3
         public static let setFlag: UInt32 = 4
+        public static let getCardByOrdinal: UInt32 = 5
     }
 
     // BackendCardRenderingService (27) has 6 extra methods before renderExistingCard
@@ -284,6 +291,11 @@ extension AnkiBackend {
     public enum NotetypesMethod {
         public static let getNotetype: UInt32 = 6
         public static let getNotetypeNames: UInt32 = 8
+        public static let getNotetypeNamesAndCounts: UInt32 = 9
+        // GetChangeNotetypeInfo = proto index 14
+        public static let getChangeNotetypeInfo: UInt32 = 14
+        // ChangeNotetype = proto index 15
+        public static let changeNotetype: UInt32 = 15
     }
 
     public enum ImportExportMethod {

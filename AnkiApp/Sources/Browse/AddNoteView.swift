@@ -51,8 +51,8 @@ struct AddNoteView: View {
                             Text(name)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            TextField(name, text: fieldBinding(for: index), axis: .vertical)
-                                .lineLimit(1...5)
+                            RichNoteFieldEditor(htmlText: fieldBinding(for: index))
+                                .frame(minHeight: 100)
                         }
                     }
                 }

@@ -97,6 +97,16 @@
 "browse_batch_suspend" = "批量暂停";
 "browse_batch_bury" = "批量掩埋";
 "browse_batch_clear_selection" = "清除选择";
+"browse_batch_delete_notes" = "删除笔记";
+"browse_batch_delete_title" = "删除所选笔记？";
+"browse_batch_delete_confirm" = "确认删除 %d 条笔记？";
+"browse_batch_move_deck" = "更改所属牌组";
+"browse_batch_change_notetype" = "更改笔记模板";
+"browse_batch_flag_label" = "旗标";
+"browse_batch_suspend_toggle" = "暂停";
+"browse_batch_reset_new" = "重置";
+"browse_batch_tags_add" = "添加标签";
+"browse_batch_tags_remove" = "删除标签";
 "browse_delete_note_title" = "删除笔记？";
 "browse_delete_note_message" = "确认删除「%@」？";
 "browse_edit_btn_add" = "添加笔记";
@@ -378,6 +388,13 @@
 "deck_config_desired_retention" = "期望记忆保留率";
 "deck_config_fsrs_weights" = "FSRS 权重";
 "deck_config_fsrs_weights_hint" = "逗号分隔的数值";
+"deck_config_fsrs_optimize_presets" = "优化全部预设参数";
+"deck_config_fsrs_optimize_running" = "正在优化预设参数...";
+"deck_config_fsrs_simulator_section" = "FSRS 模拟器";
+"deck_config_fsrs_simulator_search_hint" = "可选搜索过滤（留空=全部卡片）";
+"deck_config_fsrs_simulator_run" = "运行工作量模拟";
+"deck_config_fsrs_simulator_running" = "正在运行模拟...";
+"deck_config_fsrs_simulator_empty" = "尚无模拟结果";
 "deck_config_bury_new" = "埋藏新相关卡";
 "deck_config_bury_reviews" = "埋藏复习相关卡";
 "deck_config_bury_interday" = "埋藏跨日相关卡";
@@ -430,7 +447,7 @@
 "browse_batch_failed_title" = "批量操作失败";
 "browse_batch_success_title" = "批量操作完成";
 "browse_batch_no_cards" = "未选择卡片";
-"browse_batch_processed" = "已处理 %d 张卡片";
+"browse_batch_processed" = "已处理 %1$d 张卡片（%2$d 条笔记）";
 "browse_empty_title" = "暂无笔记";
 "browse_empty_description" = "您的卡牌库为空。";
 "browse_filter_all" = "全部";
@@ -464,6 +481,8 @@
 "tags_section_select" = "选择标签";
 "tags_section_all" = "所有标签";
 "tags_nav_title_note_mode" = "应用/移除标签";
+"tags_nav_title_add_mode" = "添加标签";
+"tags_nav_title_remove_mode" = "删除标签";
 "tags_nav_title" = "标签";
 "tags_target_notes" = "目标笔记";
 "tags_new_tag_will_apply" = "新标签将应用到已选的 %d 条笔记。";
@@ -489,6 +508,7 @@
 "review_reviewed_count" = "已复习：%d";
 "review_edit_button" = "编辑";
 "review_show_answer" = "显示答案";
+"review_answer_button" = "作答";
 "review_rating_again" = "重来";
 "review_rating_hard" = "困难";
 "review_rating_good" = "良好";
@@ -532,6 +552,27 @@
 "card_info_deck_id" = "牌组 ID";
 "card_info_template" = "模板";
 "card_info_flags" = "标记";
+"card_info_added" = "添加日期";
+"card_info_first_review" = "首次复习日期";
+"card_info_due_position" = "所在位置";
+"card_info_retrievability" = "记忆可提取性";
+"card_info_average_time" = "平均用时";
+"card_info_total_time" = "总计用时";
+"card_info_section_metadata" = "卡片元数据";
+"card_info_notetype" = "笔记模板";
+"card_info_deck" = "所属牌组";
+"card_info_preset" = "预设配置";
+"card_info_original_deck" = "原始牌组";
+"card_info_section_history" = "复习记录";
+"card_info_history_date" = "日期";
+"card_info_history_rating" = "评分";
+"card_info_history_interval" = "间隔";
+"card_info_history_time" = "时间";
+"card_info_section_forgetting_curve" = "遗忘曲线";
+"card_info_curve_target" = "目标保留率：%d%%";
+"card_info_seconds_fmt" = "%d 秒";
+"card_info_minutes_fmt" = "%.1f 分钟";
+"card_info_hours_fmt" = "%d 小时";
 
 // MARK: - Card Queue / Interval
 "card_queue_new" = "新卡";
@@ -583,6 +624,18 @@
 "note_editor_current_tags" = "当前标签";
 "note_editor_available_tags" = "可用标签";
 "note_editor_error_save" = "保存失败：%@";
+"rich_text_menu_title" = "格式";
+"rich_text_action_bold" = "加粗";
+"rich_text_action_italic" = "斜体";
+"rich_text_action_underline" = "下划线";
+"rich_text_action_strikethrough" = "删除线";
+"rich_text_action_color" = "颜色";
+"rich_text_action_clear_format" = "清除格式";
+"rich_text_color_red" = "红色";
+"rich_text_color_blue" = "蓝色";
+"rich_text_color_green" = "绿色";
+"rich_text_color_default" = "默认";
+"rich_text_color_custom" = "自定义...";
 
 // MARK: - Stats (extended)
 "stats_added_title" = "已添加";
@@ -685,6 +738,17 @@
 // MARK: - SettingsInfoView & AboutView
 "settings_info_editing" = "编辑选项目前通过笔记类型和牌组配置屏幕处理。";
 "settings_info_review" = "复习行为通过牌组设置逐个配置。";
+"settings_review_section_audio" = "音频";
+"settings_review_section_ui" = "复习界面";
+"settings_review_autoplay_audio" = "自动播放音频";
+"settings_review_play_audio_in_silent_mode" = "静音模式下播放音频";
+"settings_review_show_context_menu_button" = "显示上下文菜单按钮";
+"settings_review_show_audio_replay_button" = "显示音频重播按钮";
+"settings_review_show_correctness_symbols" = "显示对错符号";
+"settings_review_disperse_answer_buttons" = "分散显示回答按钮";
+"settings_review_show_answer_buttons" = "显示回答按钮";
+"settings_review_show_remaining_days" = "显示剩余天数";
+"settings_review_show_next_review_time" = "显示下次答题时间";
 "settings_check_media_not_wired" = "媒体检查功能尚未在此版本中启用。";
 "settings_empty_cards_not_wired" = "清理空卡功能尚未在此版本中启用。";
 
