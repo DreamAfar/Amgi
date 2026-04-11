@@ -58,29 +58,89 @@ struct BrowseView: View {
                 batchProgressOverlay
             }
         }
-        .navigationTitle(L("browse_toolbar_title_count", allNotes.count))
+        .navigationTitle(isEditing
+            ? L("browse_selected_count", selectedNoteIDs.count)
+            : L("browse_toolbar_title_count", allNotes.count))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                filterMenu
-            }
-
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    showTagsManager = true
-                } label: {
-                    Text(L("tags_nav_title"))
-                }
-                .accessibilityLabel(L("tags_nav_title"))
-            }
-
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                trailingToolbarButtons
-            }
-
             if isEditing {
+                // MARK: Multi-select toolbar
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("browse_select_all")) {
+                        selectAllFilteredNotes()
+                    }
+                    .disabled(allNotes.isEmpty)
+                }
+
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("browse_select_invert")) {
+                        invertSelection()
+                    }
+                    .disabled(allNotes.isEmpty)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done")) {
+                        withAnimation {
+                            selectedNoteIDs.removeAll()
+                            editMode?.wrappedValue = .inactive
+                        }
+                    }
+                }
+
                 ToolbarItemGroup(placement: .bottomBar) {
                     batchBottomBar
+                }
+            } else {
+                // MARK: Normal toolbar
+                ToolbarItem(placement: .topBarLeading) {
+                    filterMenu
+                }
+
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        withAnimation {
+                            editMode?.wrappedValue = .active
+                        }
+                    } label: {
+                        Image(systemName: "checklist")
+                    }
+                    .accessibilityLabel(L("browse_multiselect_accessibility"))
+                }
+
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        showAddNote = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel(L("browse_add_accessibility"))
+
+                    Menu {
+                        Button {
+                            showTagsManager = true
+                        } label: {
+                            Label(L("tags_nav_title"), systemImage: "tag")
+                        }
+
+                        Menu(L("browse_sort_menu_title")) {
+                            ForEach(BrowseSortMode.allCases, id: \.self) { mode in
+                                Button {
+                                    sortMode = mode
+                                    applySort()
+                                } label: {
+                                    if sortMode == mode {
+                                        Label(mode.title, systemImage: "checkmark.circle.fill")
+                                    } else {
+                                        Label(mode.title, systemImage: mode.symbol)
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel(L("browse_more_accessibility"))
                 }
             }
         }
@@ -291,64 +351,8 @@ struct BrowseView: View {
     }
 
     @ViewBuilder
-    private var trailingToolbarButtons: some View {
-        Button {
-            withAnimation {
-                editMode?.wrappedValue = isEditing ? .inactive : .active
-            }
-        } label: {
-            Image(systemName: isEditing ? "checkmark.circle" : "checklist")
-        }
-        .accessibilityLabel(L("browse_multiselect_accessibility"))
-
-        Menu {
-            ForEach(BrowseSortMode.allCases, id: \.self) { mode in
-                Button {
-                    sortMode = mode
-                    applySort()
-                } label: {
-                    if sortMode == mode {
-                        Label(mode.title, systemImage: "checkmark.circle.fill")
-                    } else {
-                        Label(mode.title, systemImage: mode.symbol)
-                    }
-                }
-            }
-        } label: {
-            Image(systemName: "arrow.up.arrow.down.circle")
-        }
-        .accessibilityLabel(L("browse_sort_accessibility"))
-
-        Button {
-            showAddNote = true
-        } label: {
-            Image(systemName: "plus")
-        }
-        .accessibilityLabel(L("browse_add_accessibility"))
-    }
-
-    @ViewBuilder
     private var batchBottomBar: some View {
-        Text(L("browse_selected_count", selectedNoteIDs.count))
-            .font(.caption)
-            .foregroundStyle(.secondary)
-
         Spacer()
-
-        Button(L("browse_select_page")) {
-            selectAllVisibleNotes()
-        }
-        .disabled(notes.isEmpty)
-
-        Button(L("browse_select_filtered")) {
-            selectAllFilteredNotes()
-        }
-        .disabled(allNotes.isEmpty)
-
-        Button(L("browse_select_clear")) {
-            selectedNoteIDs.removeAll()
-        }
-        .disabled(selectedNoteIDs.isEmpty)
 
         Menu {
             Button {
@@ -381,6 +385,8 @@ struct BrowseView: View {
             }
         }
         .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+
+        Spacer()
     }
 
     private var isEditing: Bool {
@@ -675,6 +681,11 @@ struct BrowseView: View {
     private func selectAllFilteredNotes() {
         selectedNoteIDs = Set(allNotes.map(\.id))
     }
+
+    private func invertSelection() {
+        let allIDs = Set(allNotes.map(\.id))
+        selectedNoteIDs = allIDs.subtracting(selectedNoteIDs)
+    }
 }
 
 enum BrowseQuickFilter: CaseIterable {
@@ -746,6 +757,8 @@ enum BrowseSortMode: CaseIterable {
     case modifiedAsc
     case createdDesc
     case createdAsc
+    case alphabetAsc
+    case alphabetDesc
 
     var title: String {
         switch self {
@@ -753,6 +766,8 @@ enum BrowseSortMode: CaseIterable {
         case .modifiedAsc: L("browse_sort_modified_asc")
         case .createdDesc: L("browse_sort_created_desc")
         case .createdAsc: L("browse_sort_created_asc")
+        case .alphabetAsc: L("browse_sort_alpha_asc")
+        case .alphabetDesc: L("browse_sort_alpha_desc")
         }
     }
 
@@ -762,6 +777,8 @@ enum BrowseSortMode: CaseIterable {
         case .modifiedAsc: "arrow.up.circle"
         case .createdDesc: "clock.arrow.circlepath"
         case .createdAsc: "clock"
+        case .alphabetAsc: "textformat.abc"
+        case .alphabetDesc: "textformat.abc"
         }
     }
 }
@@ -777,6 +794,10 @@ func sortBrowseNotes(_ input: [NoteRecord], mode: BrowseSortMode) -> [NoteRecord
             return lhs.id > rhs.id
         case .createdAsc:
             return lhs.id < rhs.id
+        case .alphabetAsc:
+            return lhs.sfld.localizedCompare(rhs.sfld) == .orderedAscending
+        case .alphabetDesc:
+            return lhs.sfld.localizedCompare(rhs.sfld) == .orderedDescending
         }
     }
 }
@@ -811,7 +832,8 @@ struct NoteRowView: View {
             HStack(alignment: .top) {
                 Text(note.sfld == "Loading..." ? L("common_loading") : note.sfld)
                     .font(.body)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .redacted(reason: note.sfld == "Loading..." ? .placeholder : [])
                 Spacer(minLength: 4)
                 if !modifiedDateString.isEmpty && note.sfld != "Loading..." {
@@ -825,21 +847,21 @@ struct NoteRowView: View {
                 let displayTags = Array(tagList.prefix(3))
                 let extra = tagList.count - displayTags.count
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         ForEach(displayTags, id: \.self) { tag in
                             Text(shortTagName(tag))
-                                .font(.caption2)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
+                                .font(.system(size: 10))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
                                 .background(Color.accentColor.opacity(0.12))
                                 .foregroundStyle(Color.accentColor)
                                 .clipShape(Capsule())
                         }
                         if extra > 0 {
                             Text("+\(extra)")
-                                .font(.caption2)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
+                                .font(.system(size: 10))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
                                 .background(Color(.secondarySystemFill))
                                 .foregroundStyle(Color(.secondaryLabel))
                                 .clipShape(Capsule())

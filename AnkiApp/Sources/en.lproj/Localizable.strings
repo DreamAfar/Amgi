@@ -49,7 +49,7 @@
 "deck_rename_alert_message" = "Enter a new name for the deck";
 "deck_delete_confirm1_title" = "Delete Deck (Step 1)";
 "deck_delete_confirm1_message" = "About to delete %@. Are you sure?";
-"deck_delete_confirm2_title" = "Delete Deck (Step 2)";
+"deck_delete_confirm2_title" = "Delete Deck";
 "deck_delete_confirm2_message" = "This cannot be undone: %@";
 "deck_action_error_title" = "Action Failed";
 
@@ -419,7 +419,9 @@
 // MARK: - BrowseView (extended)
 "browse_title" = "Browse";
 "browse_note_count" = "%d notes";
-"browse_selected_count" = "Selected: %d";
+"browse_selected_count" = "%d selected";
+"browse_select_all" = "Select All";
+"browse_select_invert" = "Invert";
 "browse_select_page" = "Select Page";
 "browse_select_filtered" = "Select Filtered";
 "browse_select_clear" = "Clear";
@@ -445,10 +447,14 @@
 "browse_sort_modified_asc" = "Modified (Oldest)";
 "browse_sort_created_desc" = "Created (Newest)";
 "browse_sort_created_asc" = "Created (Oldest)";
+"browse_sort_alpha_asc" = "Title (A → Z)";
+"browse_sort_alpha_desc" = "Title (Z → A)";
+"browse_sort_menu_title" = "Sort By";
 "browse_filter_accessibility" = "Filter";
 "browse_multiselect_accessibility" = "Multi-select";
 "browse_sort_accessibility" = "Sort";
 "browse_add_accessibility" = "Add note";
+"browse_more_accessibility" = "More";
 
 // MARK: - TagsView (extended)
 "tags_empty_title" = "No Tags";

@@ -49,7 +49,7 @@
 "deck_rename_alert_message" = "请输入新的牌组名称";
 "deck_delete_confirm1_title" = "删除牌组（第1次确认）";
 "deck_delete_confirm1_message" = "即将删除 %@，请再次确认。";
-"deck_delete_confirm2_title" = "删除牌组（第2次确认）";
+"deck_delete_confirm2_title" = "删除牌组";
 "deck_delete_confirm2_message" = "删除后不可恢复：%@";
 "deck_action_error_title" = "操作失败";
 
@@ -419,7 +419,9 @@
 // MARK: - BrowseView (extended)
 "browse_title" = "浏览";
 "browse_note_count" = "%d 条笔记";
-"browse_selected_count" = "已选：%d";
+"browse_selected_count" = "已选 %d 条";
+"browse_select_all" = "全选";
+"browse_select_invert" = "反选";
 "browse_select_page" = "选择当前页";
 "browse_select_filtered" = "选择筛选结果";
 "browse_select_clear" = "清除";
@@ -445,10 +447,14 @@
 "browse_sort_modified_asc" = "按修改时间（旧到新）";
 "browse_sort_created_desc" = "按创建时间（新到旧）";
 "browse_sort_created_asc" = "按创建时间（旧到新）";
+"browse_sort_alpha_asc" = "首字母（A → Z）";
+"browse_sort_alpha_desc" = "首字母（Z → A）";
+"browse_sort_menu_title" = "排序方式";
 "browse_filter_accessibility" = "筛选";
 "browse_multiselect_accessibility" = "多选";
 "browse_sort_accessibility" = "排序";
 "browse_add_accessibility" = "添加笔记";
+"browse_more_accessibility" = "更多";
 
 // MARK: - TagsView (extended)
 "tags_empty_title" = "暂无标签";

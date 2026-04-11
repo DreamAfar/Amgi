@@ -16,6 +16,10 @@
     <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>0.1.0</string>
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
     <key>UILaunchScreen</key>
     <dict/>
 </dict>

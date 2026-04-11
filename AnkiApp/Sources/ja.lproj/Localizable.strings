@@ -49,7 +49,7 @@
 "deck_rename_alert_message" = "新しいデッキ名を入力してください";
 "deck_delete_confirm1_title" = "デッキを削除（確認 1）";
 "deck_delete_confirm1_message" = "%@ を削除しようとしています。よろしいですか？";
-"deck_delete_confirm2_title" = "デッキを削除（確認 2）";
+"deck_delete_confirm2_title" = "デッキを削除";
 "deck_delete_confirm2_message" = "元に戻せません：%@";
 "deck_action_error_title" = "操作に失敗しました";
 
@@ -419,7 +419,9 @@
 // MARK: - BrowseView (extended)
 "browse_title" = "ブラウズ";
 "browse_note_count" = "%d 件のノート";
-"browse_selected_count" = "選択中：%d";
+"browse_selected_count" = "%d 選択中";
+"browse_select_all" = "すべて選択";
+"browse_select_invert" = "選択を反転";
 "browse_select_page" = "このページを選択";
 "browse_select_filtered" = "フィルター結果を選択";
 "browse_select_clear" = "クリア";
@@ -445,10 +447,14 @@
 "browse_sort_modified_asc" = "更新日時（古い順）";
 "browse_sort_created_desc" = "作成日時（新しい順）";
 "browse_sort_created_asc" = "作成日時（古い順）";
+"browse_sort_alpha_asc" = "タイトル（A → Z）";
+"browse_sort_alpha_desc" = "タイトル（Z → A）";
+"browse_sort_menu_title" = "並び替え";
 "browse_filter_accessibility" = "絞り込み";
 "browse_multiselect_accessibility" = "複数選択";
 "browse_sort_accessibility" = "並び替え";
 "browse_add_accessibility" = "ノートを追加";
+"browse_more_accessibility" = "その他";
 
 // MARK: - TagsView (extended)
 "tags_empty_title" = "タグなし";

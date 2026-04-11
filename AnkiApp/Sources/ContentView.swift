@@ -158,7 +158,7 @@ struct ContentView: View {
                     }
                 }
             } label: {
-                Image(systemName: "square.and.arrow.up.on.square")
+                Image(systemName: "ellipsis.circle")
             }
         }
     }

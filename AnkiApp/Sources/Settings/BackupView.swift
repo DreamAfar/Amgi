@@ -117,7 +117,8 @@ struct BackupView: View {
         guard let docs = FileManager.default.urls(
             for: .documentDirectory, in: .userDomainMask
         ).first else { return nil }
-        let dir = docs.appendingPathComponent("Backups/\(username)", isDirectory: true)
+        let folderName = "Backups for \(username)"
+        let dir = docs.appendingPathComponent(folderName, isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
