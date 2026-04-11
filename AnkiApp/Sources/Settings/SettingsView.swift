@@ -204,9 +204,10 @@ struct SettingsView: View {
 
     private func checkMedia() {
         isCheckingMedia = true
+        let capturedBackend = backend
         Task.detached {
             do {
-                let response: Anki_Media_CheckMediaResponse = try backend.invoke(
+                let response: Anki_Media_CheckMediaResponse = try capturedBackend.invoke(
                     service: AnkiBackend.Service.media,
                     method: AnkiBackend.MediaMethod.checkMedia
                 )

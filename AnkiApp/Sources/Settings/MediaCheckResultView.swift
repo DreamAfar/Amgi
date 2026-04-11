@@ -52,13 +52,13 @@ struct MediaCheckResultView: View {
                 L("media_check_missing_count", result.missing.count),
                 systemImage: "exclamationmark.triangle"
             )
-            .foregroundStyle(result.missing.isEmpty ? .secondary : .red)
+            .foregroundStyle(result.missing.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.red))
 
             Label(
                 L("media_check_unused_count", result.unused.count),
                 systemImage: "archivebox"
             )
-            .foregroundStyle(result.unused.isEmpty ? .secondary : .orange)
+            .foregroundStyle(result.unused.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.orange))
 
             if !result.report.isEmpty {
                 DisclosureGroup(L("media_check_full_report")) {
@@ -156,18 +156,20 @@ struct MediaCheckResultView: View {
 
     private func trashUnused() {
         isTrashingUnused = true
+        let capturedBackend = backend
+        let unusedFiles = result.unused
         Task.detached {
             do {
                 var req = Anki_Media_TrashMediaFilesRequest()
-                req.fnames = result.unused
-                try backend.callVoid(
+                req.fnames = unusedFiles
+                try capturedBackend.callVoid(
                     service: AnkiBackend.Service.media,
                     method: AnkiBackend.MediaMethod.trashMediaFiles,
                     request: req
                 )
                 await MainActor.run {
                     isTrashingUnused = false
-                    actionMessage = L("media_check_trash_done", result.unused.count)
+                    actionMessage = L("media_check_trash_done", unusedFiles.count)
                     showActionAlert = true
                 }
             } catch {
@@ -182,9 +184,10 @@ struct MediaCheckResultView: View {
 
     private func emptyTrash() {
         isDeletingTrash = true
+        let capturedBackend = backend
         Task.detached {
             do {
-                try backend.callVoid(
+                try capturedBackend.callVoid(
                     service: AnkiBackend.Service.media,
                     method: AnkiBackend.MediaMethod.emptyTrash
                 )
@@ -205,9 +208,10 @@ struct MediaCheckResultView: View {
 
     private func restoreTrash() {
         isRestoringTrash = true
+        let capturedBackend = backend
         Task.detached {
             do {
-                try backend.callVoid(
+                try capturedBackend.callVoid(
                     service: AnkiBackend.Service.media,
                     method: AnkiBackend.MediaMethod.restoreTrash
                 )
