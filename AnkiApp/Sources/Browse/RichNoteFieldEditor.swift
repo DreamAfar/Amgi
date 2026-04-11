@@ -13,18 +13,29 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         textView.delegate = context.coordinator
         textView.isEditable = true
         textView.isSelectable = true
-        textView.isScrollEnabled = true
+        textView.allowsEditingTextAttributes = true
+        textView.isScrollEnabled = false
         textView.backgroundColor = .secondarySystemBackground
         textView.layer.cornerRadius = 8
+        textView.textContainer.lineFragmentPadding = 0
         textView.textContainerInset = UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8)
         textView.font = UIFont.preferredFont(forTextStyle: .body)
         textView.typingAttributes = Coordinator.defaultTypingAttributes
+        textView.inputAccessoryView = context.coordinator.makeAccessoryToolbar(for: textView)
 
         let attr = Coordinator.attributedFromHTML(htmlText)
         textView.attributedText = attr
+        context.coordinator.lastRenderedHTML = htmlText
         context.coordinator.lastSerializedHTML = Coordinator.htmlFromAttributed(attr)
         context.coordinator.currentTextView = textView
         return textView
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width else { return nil }
+        let fit = uiView.sizeThatFits(CGSize(width: width, height: CGFloat.greatestFiniteMagnitude))
+        let height = min(max(56, fit.height), 220)
+        return CGSize(width: width, height: height)
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
@@ -33,18 +44,20 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             return
         }
 
-        if htmlText != context.coordinator.lastSerializedHTML {
+        if htmlText != context.coordinator.lastRenderedHTML {
             context.coordinator.isProgrammaticUpdate = true
             let selected = uiView.selectedRange
             let attr = Coordinator.attributedFromHTML(htmlText)
             uiView.attributedText = attr
             let maxLoc = max(0, min(selected.location, attr.length))
             uiView.selectedRange = NSRange(location: maxLoc, length: 0)
+            context.coordinator.lastRenderedHTML = htmlText
             context.coordinator.lastSerializedHTML = Coordinator.htmlFromAttributed(attr)
             context.coordinator.isProgrammaticUpdate = false
         }
     }
 
+    @MainActor
     final class Coordinator: NSObject, UITextViewDelegate, UIColorPickerViewControllerDelegate {
         static let defaultFont = UIFont.preferredFont(forTextStyle: .body)
         static let defaultTypingAttributes: [NSAttributedString.Key: Any] = [
@@ -54,6 +67,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
 
         @Binding var htmlText: String
         var isProgrammaticUpdate = false
+        var lastRenderedHTML: String = ""
         var lastSerializedHTML: String = ""
         weak var currentTextView: UITextView?
         private var colorPickerSelectionRange: NSRange = NSRange(location: 0, length: 0)
@@ -65,11 +79,16 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         func textViewDidChange(_ textView: UITextView) {
             guard !isProgrammaticUpdate else { return }
             let serialized = Self.htmlFromAttributed(textView.attributedText)
+            lastRenderedHTML = serialized
             lastSerializedHTML = serialized
             htmlText = serialized
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
+            currentTextView = textView
+        }
+
+        func textViewDidChangeSelection(_ textView: UITextView) {
             currentTextView = textView
         }
 
@@ -141,6 +160,78 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             let range = textView.selectedRange
             guard range.length > 0 else { return }
             applyFontTrait(in: textView, range: range, trait: .traitBold)
+        }
+
+        func makeAccessoryToolbar(for textView: UITextView) -> UIToolbar {
+            let toolbar = UIToolbar()
+            toolbar.items = [
+                UIBarButtonItem(
+                    image: UIImage(systemName: "textformat"),
+                    menu: formattingMenu(for: textView)
+                ),
+                UIBarButtonItem(systemItem: .flexibleSpace),
+                UIBarButtonItem(
+                    systemItem: .done,
+                    primaryAction: UIAction { [weak textView] _ in
+                        textView?.resignFirstResponder()
+                    }
+                ),
+            ]
+            toolbar.sizeToFit()
+            return toolbar
+        }
+
+        private func formattingMenu(for textView: UITextView) -> UIMenu {
+            UIMenu(
+                title: L("rich_text_menu_title"),
+                children: [
+                    UIAction(title: L("rich_text_action_bold")) { [weak self, weak textView] _ in
+                        guard let self, let textView else { return }
+                        self.toggleBold(in: textView)
+                    },
+                    UIAction(title: L("rich_text_action_italic")) { [weak self, weak textView] _ in
+                        guard let self, let textView else { return }
+                        self.toggleItalic(in: textView)
+                    },
+                    UIAction(title: L("rich_text_action_underline")) { [weak self, weak textView] _ in
+                        guard let self, let textView else { return }
+                        self.toggleUnderline(in: textView)
+                    },
+                    UIAction(title: L("rich_text_action_strikethrough")) { [weak self, weak textView] _ in
+                        guard let self, let textView else { return }
+                        self.toggleStrikethrough(in: textView)
+                    },
+                    UIMenu(
+                        title: L("rich_text_action_color"),
+                        children: [
+                            UIAction(title: L("rich_text_color_red")) { [weak self, weak textView] _ in
+                                guard let self, let textView else { return }
+                                self.applyColor(.systemRed, in: textView)
+                            },
+                            UIAction(title: L("rich_text_color_blue")) { [weak self, weak textView] _ in
+                                guard let self, let textView else { return }
+                                self.applyColor(.systemBlue, in: textView)
+                            },
+                            UIAction(title: L("rich_text_color_green")) { [weak self, weak textView] _ in
+                                guard let self, let textView else { return }
+                                self.applyColor(.systemGreen, in: textView)
+                            },
+                            UIAction(title: L("rich_text_color_default")) { [weak self, weak textView] _ in
+                                guard let self, let textView else { return }
+                                self.applyColor(.label, in: textView)
+                            },
+                            UIAction(title: L("rich_text_color_custom")) { [weak self, weak textView] _ in
+                                guard let self, let textView else { return }
+                                self.presentColorPicker(for: textView)
+                            },
+                        ]
+                    ),
+                    UIAction(title: L("rich_text_action_clear_format")) { [weak self, weak textView] _ in
+                        guard let self, let textView else { return }
+                        self.clearFormatting(in: textView)
+                    },
+                ]
+            )
         }
 
         private func toggleItalic(in textView: UITextView) {
@@ -324,7 +415,13 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         static func attributedFromHTML(_ html: String) -> NSAttributedString {
             guard !html.isEmpty else { return NSAttributedString(string: "", attributes: defaultTypingAttributes) }
 
-            if let data = html.data(using: .utf8),
+            guard isLikelyHTML(html) else {
+                return NSAttributedString(string: html, attributes: defaultTypingAttributes)
+            }
+
+            let normalizedHTML = wrapHTMLFragmentIfNeeded(html)
+
+            if let data = normalizedHTML.data(using: .utf8),
                let attributed = try? NSMutableAttributedString(
                    data: data,
                    options: [
@@ -341,6 +438,11 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         }
 
         static func htmlFromAttributed(_ attributed: NSAttributedString) -> String {
+            // Keep plain text as plain text to avoid writing full HTML wrappers unnecessarily.
+            if attributed.length == 0 {
+                return ""
+            }
+
             let mutable = NSMutableAttributedString(attributedString: attributed)
             normalizeFonts(in: mutable)
             let range = NSRange(location: 0, length: mutable.length)
@@ -351,9 +453,42 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                     .characterEncoding: String.Encoding.utf8.rawValue,
                 ]
             ), let html = String(data: data, encoding: .utf8) {
+                if let body = extractHTMLBodyFragment(html) {
+                    return body
+                }
                 return html
             }
             return attributed.string
+        }
+
+        private static func isLikelyHTML(_ text: String) -> Bool {
+            text.range(of: "</?[A-Za-z][^>]*>", options: .regularExpression) != nil
+            || text.range(of: "&(?:[A-Za-z]+|#[0-9]+|#x[0-9A-Fa-f]+);", options: .regularExpression) != nil
+        }
+
+        private static func wrapHTMLFragmentIfNeeded(_ html: String) -> String {
+            let trimmed = html.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return html }
+
+            if trimmed.range(of: "<html[\\s>]", options: .regularExpression) != nil {
+                return trimmed
+            }
+
+            return "<html><head><meta charset=\"utf-8\"></head><body>\(trimmed)</body></html>"
+        }
+
+        private static func extractHTMLBodyFragment(_ html: String) -> String? {
+            guard
+                let open = html.range(of: "<body[^>]*>", options: .regularExpression),
+                let close = html.range(of: "</body>", options: [.caseInsensitive, .backwards]),
+                open.upperBound <= close.lowerBound
+            else {
+                return nil
+            }
+
+            let fragment = String(html[open.upperBound..<close.lowerBound])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return fragment.isEmpty ? nil : fragment
         }
 
         private static func normalizeFonts(in attributed: NSMutableAttributedString) {

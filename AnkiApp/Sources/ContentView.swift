@@ -132,7 +132,16 @@ struct ContentView: View {
                 showUserManager = true
             }
         } label: {
-            Label(selectedUser, systemImage: isSwitchingUser ? "arrow.triangle.2.circlepath.circle" : "person.crop.circle")
+            HStack(spacing: 6) {
+                Image(systemName: isSwitchingUser ? "arrow.triangle.2.circlepath.circle" : "person.crop.circle")
+                Text(selectedUser)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemFill), in: Capsule())
         }
     }
 

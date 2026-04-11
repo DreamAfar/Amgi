@@ -113,17 +113,30 @@ struct SettingsView: View {
             }
 
             Section(L("settings_section_display")) {
-                Picker(L("settings_picker_theme"), selection: selectedTheme) {
-                    ForEach(AppTheme.allCases) { theme in
-                        Text(theme.displayName).tag(theme)
+                HStack {
+                    Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
+                    Spacer()
+                    Picker(L("settings_picker_theme"), selection: selectedTheme) {
+                        ForEach(AppTheme.allCases) { theme in
+                            Text(theme.displayName).tag(theme)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(.primary)
                 }
-                .pickerStyle(.menu)
 
-                Picker(L("settings_picker_language"), selection: selectedLanguage) {
-                    ForEach(AppLanguage.allCases) { lang in
-                        Text(lang.displayName).tag(lang)
+                HStack {
+                    Label(L("settings_picker_language"), systemImage: "globe")
+                    Spacer()
+                    Picker(L("settings_picker_language"), selection: selectedLanguage) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.displayName).tag(lang)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(.primary)
                 }
 
                 if selectedLanguage.wrappedValue != .system {
@@ -144,7 +157,9 @@ struct SettingsView: View {
                     checkDatabase()
                 } label: {
                     settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
+                        .foregroundStyle(.primary)
                 }
+                .buttonStyle(.plain)
 
                 Button {
                     checkMedia()
@@ -152,13 +167,16 @@ struct SettingsView: View {
                     if isCheckingMedia {
                         HStack {
                             settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
+                                .foregroundStyle(.primary)
                             Spacer()
                             ProgressView()
                         }
                     } else {
                         settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
+                            .foregroundStyle(.primary)
                     }
                 }
+                .buttonStyle(.plain)
                 .disabled(isCheckingMedia)
 
                 NavigationLink {
@@ -197,6 +215,7 @@ struct SettingsView: View {
 
     private func settingsRowLabel(_ title: String, icon: String) -> some View {
         Label(title, systemImage: icon)
+            .foregroundStyle(.primary)
     }
 
     private func checkDatabase() {
@@ -260,6 +279,20 @@ private struct SettingsInfoView: View {
 }
 
 private struct ReviewOptionsView: View {
+    private enum CardAlignment: String, CaseIterable, Identifiable {
+        case top
+        case center
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .top: return L("settings_review_alignment_top")
+            case .center: return L("settings_review_alignment_center")
+            }
+        }
+    }
+
     @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var autoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var playAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var showContextMenuButton = true
@@ -269,6 +302,15 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.showAnswerButtons) private var showAnswerButtons = true
     @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var showRemainingDays = true
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var showNextReviewTime = false
+    @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var openLinksExternally = true
+    @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var cardContentAlignmentRaw = CardAlignment.center.rawValue
+
+    private var cardAlignment: Binding<CardAlignment> {
+        Binding(
+            get: { CardAlignment(rawValue: cardContentAlignmentRaw) ?? .center },
+            set: { cardContentAlignmentRaw = $0.rawValue }
+        )
+    }
 
     var body: some View {
         List {
@@ -285,6 +327,15 @@ private struct ReviewOptionsView: View {
                 Toggle(L("settings_review_show_answer_buttons"), isOn: $showAnswerButtons)
                 Toggle(L("settings_review_show_remaining_days"), isOn: $showRemainingDays)
                 Toggle(L("settings_review_show_next_review_time"), isOn: $showNextReviewTime)
+                Toggle(L("settings_review_open_links_externally"), isOn: $openLinksExternally)
+
+                Picker(L("settings_review_card_alignment"), selection: cardAlignment) {
+                    ForEach(CardAlignment.allCases) { alignment in
+                        Text(alignment.title).tag(alignment)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(.primary)
             }
         }
         .navigationTitle(L("settings_row_review"))

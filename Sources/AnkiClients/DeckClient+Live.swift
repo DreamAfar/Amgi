@@ -226,28 +226,80 @@ extension DeckClient: DependencyKey {
                     }
                 }
             },
-            updateDeckConfig: { deckId, config, applyToChildren, fsrsEnabled in
-                // Pull context first so we don't accidentally reset global deck options.
-                var contextReq = Anki_Decks_DeckId()
-                contextReq.did = deckId
-                let context: Anki_DeckConfig_DeckConfigsForUpdate = try backend.invoke(
-                    service: AnkiBackend.Service.deckConfig,
-                    method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
-                    request: contextReq
+            selectDeckPreset: { deckId, config, applyToChildren in
+                let context = try deckConfigContext(backend: backend, deckId: deckId)
+                let req = makeDeckConfigUpdateRequest(
+                    deckId: deckId,
+                    context: context,
+                    configs: [config],
+                    removedConfigIds: [],
+                    mode: applyToChildren ? .applyToChildren : .normal,
+                    fsrsEnabled: context.fsrs
                 )
 
-                var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
-                req.targetDeckID = deckId
-                req.configs = [config]
-                req.mode = applyToChildren ? .applyToChildren : .normal
-                req.cardStateCustomizer = context.cardStateCustomizer
-                req.newCardsIgnoreReviewLimit = context.newCardsIgnoreReviewLimit
-                req.applyAllParentLimits = context.applyAllParentLimits
-                req.fsrsHealthCheck = context.fsrsHealthCheck
-                req.fsrs = fsrsEnabled
-                if context.currentDeck.hasLimits {
-                    req.limits = context.currentDeck.limits
+                try backend.callVoid(
+                    service: AnkiBackend.Service.deckConfig,
+                    method: AnkiBackend.DeckConfigMethod.updateDeckConfigs,
+                    request: req
+                )
+            },
+            createDeckPreset: { deckId, baseConfig, name, applyToChildren in
+                let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmedName.isEmpty else {
+                    throw BackendError(kind: .invalidInput, message: "Preset name can't be empty")
                 }
+
+                let context = try deckConfigContext(backend: backend, deckId: deckId)
+                var newConfig = baseConfig
+                newConfig.id = 0
+                newConfig.name = trimmedName
+
+                let req = makeDeckConfigUpdateRequest(
+                    deckId: deckId,
+                    context: context,
+                    configs: [newConfig],
+                    removedConfigIds: [],
+                    mode: applyToChildren ? .applyToChildren : .normal,
+                    fsrsEnabled: context.fsrs
+                )
+
+                try backend.callVoid(
+                    service: AnkiBackend.Service.deckConfig,
+                    method: AnkiBackend.DeckConfigMethod.updateDeckConfigs,
+                    request: req
+                )
+            },
+            deleteDeckPreset: { deckId, removingConfigId, fallbackConfig, applyToChildren in
+                guard removingConfigId != fallbackConfig.id else {
+                    throw BackendError(kind: .invalidInput, message: "Fallback preset must differ from removed preset")
+                }
+
+                let context = try deckConfigContext(backend: backend, deckId: deckId)
+                let req = makeDeckConfigUpdateRequest(
+                    deckId: deckId,
+                    context: context,
+                    configs: [fallbackConfig],
+                    removedConfigIds: [removingConfigId],
+                    mode: applyToChildren ? .applyToChildren : .normal,
+                    fsrsEnabled: context.fsrs
+                )
+
+                try backend.callVoid(
+                    service: AnkiBackend.Service.deckConfig,
+                    method: AnkiBackend.DeckConfigMethod.updateDeckConfigs,
+                    request: req
+                )
+            },
+            updateDeckConfig: { deckId, config, applyToChildren, fsrsEnabled in
+                let context = try deckConfigContext(backend: backend, deckId: deckId)
+                let req = makeDeckConfigUpdateRequest(
+                    deckId: deckId,
+                    context: context,
+                    configs: [config],
+                    removedConfigIds: [],
+                    mode: applyToChildren ? .applyToChildren : .normal,
+                    fsrsEnabled: fsrsEnabled
+                )
                 
                 do {
                     try backend.callVoid(
@@ -274,26 +326,15 @@ extension DeckClient: DependencyKey {
                 return response.costs
             },
             optimizeFsrsPresets: { deckId, selectedConfig in
-                var contextReq = Anki_Decks_DeckId()
-                contextReq.did = deckId
-                let context: Anki_DeckConfig_DeckConfigsForUpdate = try backend.invoke(
-                    service: AnkiBackend.Service.deckConfig,
-                    method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
-                    request: contextReq
+                let context = try deckConfigContext(backend: backend, deckId: deckId)
+                let req = makeDeckConfigUpdateRequest(
+                    deckId: deckId,
+                    context: context,
+                    configs: [selectedConfig],
+                    removedConfigIds: [],
+                    mode: .computeAllParams,
+                    fsrsEnabled: true
                 )
-
-                var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
-                req.targetDeckID = deckId
-                req.configs = [selectedConfig]
-                req.mode = .computeAllParams
-                req.cardStateCustomizer = context.cardStateCustomizer
-                req.newCardsIgnoreReviewLimit = context.newCardsIgnoreReviewLimit
-                req.applyAllParentLimits = context.applyAllParentLimits
-                req.fsrsHealthCheck = context.fsrsHealthCheck
-                req.fsrs = true
-                if context.currentDeck.hasLimits {
-                    req.limits = context.currentDeck.limits
-                }
 
                 try backend.callVoid(
                     service: AnkiBackend.Service.deckConfig,
@@ -303,6 +344,44 @@ extension DeckClient: DependencyKey {
             }
         )
     }()
+}
+
+private func deckConfigContext(
+    backend: AnkiBackend,
+    deckId: Int64
+) throws -> Anki_DeckConfig_DeckConfigsForUpdate {
+    var req = Anki_Decks_DeckId()
+    req.did = deckId
+
+    return try backend.invoke(
+        service: AnkiBackend.Service.deckConfig,
+        method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
+        request: req
+    )
+}
+
+private func makeDeckConfigUpdateRequest(
+    deckId: Int64,
+    context: Anki_DeckConfig_DeckConfigsForUpdate,
+    configs: [Anki_DeckConfig_DeckConfig],
+    removedConfigIds: [Int64],
+    mode: Anki_DeckConfig_UpdateDeckConfigsMode,
+    fsrsEnabled: Bool
+) -> Anki_DeckConfig_UpdateDeckConfigsRequest {
+    var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
+    req.targetDeckID = deckId
+    req.configs = configs
+    req.removedConfigIds = removedConfigIds
+    req.mode = mode
+    req.cardStateCustomizer = context.cardStateCustomizer
+    req.newCardsIgnoreReviewLimit = context.newCardsIgnoreReviewLimit
+    req.applyAllParentLimits = context.applyAllParentLimits
+    req.fsrsHealthCheck = context.fsrsHealthCheck
+    req.fsrs = fsrsEnabled
+    if context.currentDeck.hasLimits {
+        req.limits = context.currentDeck.limits
+    }
+    return req
 }
 
 private func flattenDeckTree(_ node: Anki_Decks_DeckTreeNode, parentPath: String = "") -> [DeckInfo] {

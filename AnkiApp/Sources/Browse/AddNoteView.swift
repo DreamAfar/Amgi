@@ -52,7 +52,7 @@ struct AddNoteView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             RichNoteFieldEditor(htmlText: fieldBinding(for: index))
-                                .frame(minHeight: 100)
+                                .frame(minHeight: 56)
                         }
                     }
                 }

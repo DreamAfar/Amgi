@@ -10,7 +10,6 @@ struct BrowseView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.cardClient) var cardClient
     @Dependency(\.tagClient) var tagClient
-    @Environment(\.editMode) private var editMode
 
     @State private var searchText = ""
     @State private var allNotes: [NoteRecord] = []
@@ -37,6 +36,7 @@ struct BrowseView: View {
     @State private var showMoveToDeck = false
     @State private var showChangeNotetype = false
     @State private var selectedNoteIDs = Set<Int64>()
+    @State private var isMultiSelecting = false
     @State private var isBatchWorking = false
     @State private var batchErrorMessage: String?
     @State private var showBatchError = false
@@ -65,11 +65,29 @@ struct BrowseView: View {
                 batchProgressOverlay
             }
         }
-        .navigationTitle(isEditing
-            ? L("browse_selected_count", selectedNoteIDs.count)
-            : L("browse_toolbar_title_count", allNotes.count))
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                if isEditing {
+                    VStack(spacing: 1) {
+                        Text(L("browse_nav_title"))
+                            .font(.headline)
+                        Text(L("browse_selected_count", selectedNoteIDs.count))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    VStack(spacing: 1) {
+                        Text(L("browse_nav_title"))
+                            .font(.headline)
+                        Text(L("browse_total_count", allNotes.count))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             if isEditing {
                 // MARK: Multi-select toolbar
                 ToolbarItem(placement: .topBarLeading) {
@@ -90,7 +108,7 @@ struct BrowseView: View {
                     Button {
                         showTagsActionSheet = true
                     } label: {
-                        Image(systemName: "tag.badge.plus")
+                        Image(systemName: "tag")
                     }
                     .accessibilityLabel(L("browse_batch_manage_tags"))
                     .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
@@ -110,14 +128,11 @@ struct BrowseView: View {
                     Button(L("common_done")) {
                         withAnimation {
                             selectedNoteIDs.removeAll()
-                            editMode?.wrappedValue = .inactive
+                            isMultiSelecting = false
                         }
                     }
                 }
 
-                ToolbarItemGroup(placement: .bottomBar) {
-                    batchBottomBar
-                }
             } else {
                 // MARK: Normal toolbar
                 ToolbarItem(placement: .topBarLeading) {
@@ -127,7 +142,7 @@ struct BrowseView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         withAnimation {
-                            editMode?.wrappedValue = .active
+                            isMultiSelecting = true
                         }
                     } label: {
                         Image(systemName: "checklist")
@@ -147,10 +162,10 @@ struct BrowseView: View {
                         Button {
                             showTagsManager = true
                         } label: {
-                            Label(L("tags_nav_title"), systemImage: "tag")
+                            Label(L("browse_tags_manage"), systemImage: "tag")
                         }
 
-                        Menu(L("browse_sort_menu_title")) {
+                        Menu {
                             ForEach(BrowseSortMode.allCases, id: \.self) { mode in
                                 Button {
                                     sortMode = mode
@@ -163,6 +178,8 @@ struct BrowseView: View {
                                     }
                                 }
                             }
+                        } label: {
+                            Label(L("browse_sort_menu_title"), systemImage: "arrow.up.arrow.down.circle")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -244,6 +261,11 @@ struct BrowseView: View {
                 deckFilterBar
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            if isEditing {
+                batchBottomBar
+            }
+        }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: L("browse_search_placeholder"))
         .onChange(of: searchText) {
             Task { await performSearch() }
@@ -268,11 +290,26 @@ struct BrowseView: View {
     // MARK: - Extracted Sub-Views
 
     private var noteListContent: some View {
-        List(selection: $selectedNoteIDs) {
+        List {
             ForEach(notes, id: \.id) { note in
                 if isEditing {
-                    NoteRowView(note: note)
-                        .tag(note.id)
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: selectedNoteIDs.contains(note.id) ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(selectedNoteIDs.contains(note.id) ? Color.accentColor : Color(.tertiaryLabel))
+                            .font(.title3)
+                            .frame(width: 24)
+                            .padding(.top, 2)
+                        NoteRowView(note: note)
+                    }
+                    .listRowBackground(selectedNoteIDs.contains(note.id) ? Color.accentColor.opacity(0.10) : Color.clear)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if selectedNoteIDs.contains(note.id) {
+                            selectedNoteIDs.remove(note.id)
+                        } else {
+                            selectedNoteIDs.insert(note.id)
+                        }
+                    }
                         .onAppear {
                             if note.sfld == "Loading..." {
                                 Task { await fetchNoteDetails(id: note.id) }
@@ -302,6 +339,7 @@ struct BrowseView: View {
                         }
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
             }
 
             if isLoading {
@@ -411,82 +449,71 @@ struct BrowseView: View {
         .accessibilityLabel(L("browse_filter_accessibility"))
     }
 
-    @ViewBuilder
     private var batchBottomBar: some View {
-        // 更改牌组
-        Button {
-            showMoveToDeck = true
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: "rectangle.stack.badge.plus")
-                Text(L("browse_batch_move_deck")).font(.caption2)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 24) {
+                batchActionButton(systemImage: "rectangle.stack.badge.plus", title: L("browse_batch_move_deck_short")) {
+                    showMoveToDeck = true
+                }
+
+                batchActionButton(systemImage: "doc.badge.gearshape", title: L("browse_batch_change_notetype_short")) {
+                    showChangeNotetype = true
+                }
+
+                Menu {
+                    Button(L("browse_batch_flag_1")) { Task { await batchFlag(1) } }
+                    Button(L("browse_batch_flag_2")) { Task { await batchFlag(2) } }
+                    Button(L("browse_batch_flag_3")) { Task { await batchFlag(3) } }
+                    Button(L("browse_batch_flag_4")) { Task { await batchFlag(4) } }
+                    Button(L("browse_batch_flag_5")) { Task { await batchFlag(5) } }
+                    Button(L("browse_batch_flag_6")) { Task { await batchFlag(6) } }
+                    Button(L("browse_batch_flag_7")) { Task { await batchFlag(7) } }
+                    Divider()
+                    Button(L("browse_batch_flag_clear")) { Task { await batchFlag(0) } }
+                } label: {
+                    batchActionLabel(systemImage: "flag.fill", title: L("browse_batch_flag_label"))
+                }
+                .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+
+                batchActionButton(systemImage: "pause.circle", title: L("browse_batch_suspend_toggle")) {
+                    Task { await batchToggleSuspend() }
+                }
+
+                batchActionButton(systemImage: "arrow.counterclockwise", title: L("browse_batch_reset_new")) {
+                    Task { await batchResetToNew() }
+                }
             }
+            .padding(.horizontal)
+            .padding(.vertical, 10)
         }
-        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
-
-        Spacer()
-
-        // 更改笔记模板
-        Button {
-            showChangeNotetype = true
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: "doc.badge.gearshape")
-                Text(L("browse_batch_change_notetype")).font(.caption2)
-            }
-        }
-        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
-
-        Spacer()
-
-        // 更改旗标（菜单）
-        Menu {
-            Button(L("browse_batch_flag_1")) { Task { await batchFlag(1) } }
-            Button(L("browse_batch_flag_2")) { Task { await batchFlag(2) } }
-            Button(L("browse_batch_flag_3")) { Task { await batchFlag(3) } }
-            Button(L("browse_batch_flag_4")) { Task { await batchFlag(4) } }
-            Button(L("browse_batch_flag_5")) { Task { await batchFlag(5) } }
-            Button(L("browse_batch_flag_6")) { Task { await batchFlag(6) } }
-            Button(L("browse_batch_flag_7")) { Task { await batchFlag(7) } }
+        .background(.bar)
+        .overlay(alignment: .top) {
             Divider()
-            Button(L("browse_batch_flag_clear")) { Task { await batchFlag(0) } }
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: "flag.fill")
-                Text(L("browse_batch_flag_label")).font(.caption2)
-            }
         }
-        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+    }
 
-        Spacer()
-
-        // 暂停/取消暂停
-        Button {
-            Task { await batchToggleSuspend() }
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: "pause.circle")
-                Text(L("browse_batch_suspend_toggle")).font(.caption2)
-            }
+    private func batchActionButton(systemImage: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            batchActionLabel(systemImage: systemImage, title: title)
         }
-        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
-
-        Spacer()
-
-        // 重置为新卡片
-        Button {
-            Task { await batchResetToNew() }
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: "arrow.counterclockwise")
-                Text(L("browse_batch_reset_new")).font(.caption2)
-            }
-        }
+        .buttonStyle(.plain)
         .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
     }
 
+    private func batchActionLabel(systemImage: String, title: String) -> some View {
+        VStack(spacing: 3) {
+            Image(systemName: systemImage)
+                .font(.body)
+            Text(title)
+                .font(.caption2)
+                .lineLimit(1)
+        }
+        .frame(minWidth: 52)
+        .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? .tertiary : .primary)
+    }
+
     private var isEditing: Bool {
-        editMode?.wrappedValue.isEditing == true
+        isMultiSelecting
     }
 
     private var topLevelDecks: [DeckInfo] {
@@ -653,6 +680,10 @@ struct BrowseView: View {
         do {
             let results = try noteClient.search(query, nil)
             allNotes = sortNotes(results)
+            if isEditing {
+                let visibleIDs = Set(allNotes.map(\.id))
+                selectedNoteIDs = selectedNoteIDs.intersection(visibleIDs)
+            }
             notes = Array(allNotes.prefix(pageSize))
             hasMorePages = results.count > pageSize
         } catch {

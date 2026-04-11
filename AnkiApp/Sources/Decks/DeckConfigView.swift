@@ -60,11 +60,17 @@ struct DeckConfigView: View {
     @State private var hardMultiplierPercent: Double = 120
     @State private var easyMultiplierPercent: Double = 130
     @State private var configName: String = ""
+    @State private var selectedPresetID: Int64 = 0
+    @State private var presetUseCount: UInt32 = 0
     @State private var disableAutoplay = false
     @State private var waitForAudio = false
     @State private var skipQuestionWhenReplayingAnswer = false
     @State private var easyDayPercentages: [Double] = Array(repeating: 100, count: 7)
     @State private var applyToChildren = false
+    @State private var isManagingPreset = false
+    @State private var showDeletePresetConfirmation = false
+    @State private var showRenamePresetPrompt = false
+    @State private var renamePresetDraft = ""
 
     // Collapsible section expanded states
     @State private var orderExpanded = false
@@ -120,19 +126,120 @@ struct DeckConfigView: View {
             } message: {
                 Text(errorMessage ?? L("common_unknown_error"))
             }
+            .alert(L("deck_config_preset_delete_title"), isPresented: $showDeletePresetConfirmation) {
+                Button(L("common_delete"), role: .destructive) {
+                    Task { await deleteSelectedPreset() }
+                }
+                Button(L("common_cancel"), role: .cancel) { }
+            } message: {
+                Text(deletePresetMessage)
+            }
+            .alert(L("deck_config_preset_rename"), isPresented: $showRenamePresetPrompt) {
+                TextField(L("deck_config_name_placeholder"), text: $renamePresetDraft)
+                Button(L("common_cancel"), role: .cancel) { }
+                Button(L("common_save")) {
+                    Task { await renameSelectedPreset() }
+                }
+            } message: {
+                Text(L("deck_config_name"))
+            }
             .task {
                 await loadConfig()
             }
         }
     }
 
+    private var presetOptions: [Anki_DeckConfig_DeckConfigsForUpdate.ConfigWithExtra] {
+        (deckConfigContext?.allConfig ?? [])
+            .sorted { $0.config.name.localizedCaseInsensitiveCompare($1.config.name) == .orderedAscending }
+    }
+
+    private var presetSelectionBinding: Binding<Int64> {
+        Binding(
+            get: { selectedPresetID },
+            set: { newValue in
+                let previousID = selectedPresetID
+                selectedPresetID = newValue
+                guard newValue != previousID else { return }
+                Task { await selectPreset(from: previousID, to: newValue) }
+            }
+        )
+    }
+
+    private var canDeleteSelectedPreset: Bool {
+        selectedPresetID != 1 && presetOptions.count > 1
+    }
+
+    private var deleteFallbackPreset: Anki_DeckConfig_DeckConfig? {
+        presetOptions.first(where: { $0.config.id == 1 && $0.config.id != selectedPresetID })?.config
+        ?? presetOptions.first(where: { $0.config.id != selectedPresetID })?.config
+    }
+
+    private var deletePresetMessage: String {
+        let presetName = config?.name ?? configName
+        let fallbackName = deleteFallbackPreset?.name ?? L("deck_config_preset_new_default_name")
+        return L("deck_config_preset_delete_message", presetName, fallbackName)
+    }
+
     // MARK: - Extracted Sections
 
     private var basicSection: some View {
         Section(L("deck_config_section_basic")) {
+            Picker(L("deck_config_preset"), selection: presetSelectionBinding) {
+                ForEach(presetOptions, id: \.config.id) { option in
+                    Text(option.config.name)
+                        .tag(option.config.id)
+                }
+            }
+            .pickerStyle(.menu)
+            .disabled(isManagingPreset || presetOptions.isEmpty)
+
+            LabeledContent(L("deck_config_preset_manage")) {
+                if isManagingPreset {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Menu {
+                        Button {
+                            Task { await createPresetFromDefaults() }
+                        } label: {
+                            Label(L("deck_config_preset_add"), systemImage: "plus")
+                        }
+
+                        Button {
+                            Task { await duplicateSelectedPreset() }
+                        } label: {
+                            Label(L("deck_config_preset_duplicate"), systemImage: "plus.square.on.square")
+                        }
+                        .disabled(config == nil)
+
+                        Button {
+                            renamePresetDraft = configName
+                            showRenamePresetPrompt = true
+                        } label: {
+                            Label(L("deck_config_preset_rename"), systemImage: "pencil")
+                        }
+                        .disabled(config == nil)
+
+                        Button(role: .destructive) {
+                            showDeletePresetConfirmation = true
+                        } label: {
+                            Label(L("common_delete"), systemImage: "trash")
+                        }
+                        .disabled(!canDeleteSelectedPreset)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+
             LabeledContent(L("deck_config_name")) {
                 TextField(L("deck_config_name_placeholder"), text: $configName)
                     .multilineTextAlignment(.trailing)
+            }
+            LabeledContent(L("deck_config_preset_usage")) {
+                Text(L("deck_config_preset_used_by", Int(presetUseCount)))
+                    .foregroundStyle(.secondary)
             }
             Toggle(L("deck_config_apply_children"), isOn: $applyToChildren)
         }
@@ -166,11 +273,15 @@ struct DeckConfigView: View {
                 Text(L("deck_config_order_due")).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
                 Text(L("deck_config_order_random")).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
             }
+            .pickerStyle(.menu)
+            .tint(.primary)
             Picker(L("deck_config_new_mix"), selection: $newMix) {
                 Text(L("deck_config_mix_with_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
                 Text(L("deck_config_mix_after_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
                 Text(L("deck_config_mix_before_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
             }
+            .pickerStyle(.menu)
+            .tint(.primary)
         }
     }
 
@@ -188,6 +299,8 @@ struct DeckConfigView: View {
                 Text(L("deck_config_leech_suspend")).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
                 Text(L("deck_config_leech_tag_only")).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
             }
+            .pickerStyle(.menu)
+            .tint(.primary)
         }
     }
 
@@ -199,11 +312,15 @@ struct DeckConfigView: View {
                 Text(L("deck_config_review_order_desc")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
                 Text(L("deck_config_order_random")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
             }
+            .pickerStyle(.menu)
+            .tint(.primary)
             Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
                 Text(L("deck_config_mix_with_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
                 Text(L("deck_config_mix_after_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
                 Text(L("deck_config_mix_before_reviews")).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
             }
+            .pickerStyle(.menu)
+            .tint(.primary)
         }
         .listRowBackground(Color.clear)
         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
@@ -245,6 +362,7 @@ struct DeckConfigView: View {
                             Text(isSimulatingFsrs ? L("deck_config_fsrs_simulator_running") : L("deck_config_fsrs_simulator_run"))
                         }
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(isSimulatingFsrs)
 
                     if !retentionWorkload.isEmpty {
@@ -276,6 +394,7 @@ struct DeckConfigView: View {
                         Text(isOptimizingFsrs ? L("deck_config_fsrs_optimize_running") : L("deck_config_fsrs_optimize_presets"))
                     }
                 }
+                .buttonStyle(.borderedProminent)
                 .disabled(isOptimizingFsrs)
             }
         }
@@ -332,6 +451,8 @@ struct DeckConfigView: View {
                 Text(L("deck_config_action_show_answer")).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
                 Text(L("deck_config_action_show_reminder")).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
             }
+            .pickerStyle(.menu)
+            .tint(.primary)
             Picker(L("deck_config_after_answer"), selection: $answerAction) {
                 Text(L("deck_config_action_bury")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
                 Text(L("deck_config_action_again")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
@@ -339,6 +460,8 @@ struct DeckConfigView: View {
                 Text(L("deck_config_action_good")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
                 Text(L("deck_config_action_show_reminder")).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
             }
+            .pickerStyle(.menu)
+            .tint(.primary)
         }
         .listRowBackground(Color.clear)
         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
@@ -414,12 +537,21 @@ struct DeckConfigView: View {
             Swift.print("[DeckConfigView] Loading config for deckId=\(deckId)")
             let context = try deckClient.fetchDeckConfigContext(deckId)
             let loadedConfig = try deckClient.getDeckConfig(deckId)
-            Swift.print("[DeckConfigView] Loaded config: \(loadedConfig.name), id=\(loadedConfig.id)")
+            let effectiveConfig: Anki_DeckConfig_DeckConfig
+            if context.currentDeck.configID != 0,
+               let matched = context.allConfig.first(where: { $0.config.id == context.currentDeck.configID })?.config {
+                effectiveConfig = matched
+            } else {
+                effectiveConfig = loadedConfig
+            }
+            Swift.print("[DeckConfigView] Loaded config: \(effectiveConfig.name), id=\(effectiveConfig.id)")
             await MainActor.run {
                 deckConfigContext = context
-                config = loadedConfig
-                let cfg = loadedConfig.config
-                configName = loadedConfig.name
+                config = effectiveConfig
+                selectedPresetID = effectiveConfig.id
+                presetUseCount = context.allConfig.first(where: { $0.config.id == effectiveConfig.id })?.useCount ?? 0
+                let cfg = effectiveConfig.config
+                configName = effectiveConfig.name
                 
                 // Extract values from config
                 newCardsPerDay = Int32(cfg.newPerDay)
@@ -495,6 +627,101 @@ struct DeckConfigView: View {
         }
     }
 
+    private func createPresetFromDefaults() async {
+        guard let defaults = deckConfigContext?.defaults else { return }
+
+        isManagingPreset = true
+        defer { isManagingPreset = false }
+
+        do {
+            try deckClient.createDeckPreset(
+                deckId,
+                defaults,
+                uniquePresetName(L("deck_config_preset_new_default_name")),
+                applyToChildren
+            )
+            await loadConfig()
+        } catch {
+            errorMessage = L("deck_config_error_save", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func duplicateSelectedPreset() async {
+        guard let editedConfig = makeEditedConfigDraft() else { return }
+
+        isManagingPreset = true
+        defer { isManagingPreset = false }
+
+        do {
+            try deckClient.createDeckPreset(
+                deckId,
+                editedConfig,
+                uniquePresetName(L("deck_config_preset_duplicate_name", editedConfig.name)),
+                applyToChildren
+            )
+            await loadConfig()
+        } catch {
+            errorMessage = L("deck_config_error_save", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func deleteSelectedPreset() async {
+        guard let currentConfig = config,
+              let fallbackConfig = deleteFallbackPreset else { return }
+
+        isManagingPreset = true
+        defer { isManagingPreset = false }
+
+        do {
+            try deckClient.deleteDeckPreset(
+                deckId,
+                currentConfig.id,
+                fallbackConfig,
+                applyToChildren
+            )
+            await loadConfig()
+        } catch {
+            errorMessage = L("deck_config_error_save", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func selectPreset(from previousID: Int64, to newID: Int64) async {
+        guard let selectedConfig = presetOptions.first(where: { $0.config.id == newID })?.config else {
+            selectedPresetID = previousID
+            return
+        }
+
+        isManagingPreset = true
+        defer { isManagingPreset = false }
+
+        do {
+            try deckClient.selectDeckPreset(deckId, selectedConfig, applyToChildren)
+            await loadConfig()
+        } catch {
+            selectedPresetID = previousID
+            errorMessage = L("deck_config_error_save", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func renameSelectedPreset() async {
+        guard var updatedConfig = makeEditedConfigDraft() else { return }
+
+        let trimmedName = renamePresetDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            errorMessage = L("deck_config_error_save", L("deck_config_name_placeholder"))
+            showError = true
+            return
+        }
+
+        updatedConfig.name = trimmedName
+        configName = trimmedName
+        await persistConfig(updatedConfig, dismissOnSuccess: false)
+    }
+
     private func optimizeFsrsPresets() async {
         guard let config else { return }
 
@@ -556,11 +783,13 @@ struct DeckConfigView: View {
     }
     
     private func saveConfig() {
-        guard var config else { return }
-        
-        isSaving = true
-        
-        // Update config with new values
+        guard let config = makeEditedConfigDraft() else { return }
+        Task { await persistConfig(config, dismissOnSuccess: true) }
+    }
+
+    private func makeEditedConfigDraft() -> Anki_DeckConfig_DeckConfig? {
+        guard var config else { return nil }
+
         var cfg = config.config
         config.name = configName.trimmingCharacters(in: .whitespacesAndNewlines)
         cfg.disableAutoplay = disableAutoplay
@@ -608,7 +837,6 @@ struct DeckConfigView: View {
                 cfg.fsrsParams5 = []
                 cfg.fsrsParams4 = []
             } else if cfg.fsrsParams6.isEmpty && cfg.fsrsParams5.isEmpty && cfg.fsrsParams4.isEmpty {
-                // Preserve/seed params if FSRS is enabled but no explicit weights were provided.
                 let defaults = deckConfigContext?.defaults.config
                 if let defaults, !defaults.fsrsParams6.isEmpty {
                     cfg.fsrsParams6 = defaults.fsrsParams6
@@ -621,15 +849,38 @@ struct DeckConfigView: View {
         }
 
         config.config = cfg
-        
+        return config
+    }
+
+    private func persistConfig(_ updatedConfig: Anki_DeckConfig_DeckConfig, dismissOnSuccess: Bool) async {
+        isSaving = true
+
         do {
-            try deckClient.updateDeckConfig(deckId, config, applyToChildren, fsrsEnabled)
-            onDismiss()
+            try deckClient.updateDeckConfig(deckId, updatedConfig, applyToChildren, fsrsEnabled)
+            if dismissOnSuccess {
+                onDismiss()
+            } else {
+                await loadConfig()
+                isSaving = false
+            }
         } catch {
             errorMessage = L("deck_config_error_save", error.localizedDescription)
             showError = true
             isSaving = false
         }
+    }
+
+    private func uniquePresetName(_ base: String) -> String {
+        let normalizedNames = Set(presetOptions.map { $0.config.name.lowercased() })
+        if !normalizedNames.contains(base.lowercased()) {
+            return base
+        }
+
+        var index = 2
+        while normalizedNames.contains("\(base) \(index)".lowercased()) {
+            index += 1
+        }
+        return "\(base) \(index)"
     }
 
     private func parseSteps(_ text: String) -> [Float] {

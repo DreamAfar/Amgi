@@ -102,11 +102,15 @@
 "browse_batch_delete_confirm" = "Delete %d note(s)?";
 "browse_batch_move_deck" = "Move to Deck";
 "browse_batch_change_notetype" = "Change Note Type";
+"browse_batch_move_deck_short" = "Deck";
+"browse_batch_change_notetype_short" = "Type";
 "browse_batch_flag_label" = "Flag";
 "browse_batch_suspend_toggle" = "Suspend";
 "browse_batch_reset_new" = "Reset";
 "browse_batch_tags_add" = "Add Tags";
 "browse_batch_tags_remove" = "Remove Tags";
+"browse_total_count" = "%d notes";
+"browse_tags_manage" = "Tag Manager";
 "browse_delete_note_title" = "Delete Note?";
 "browse_delete_note_message" = "Are you sure you want to delete '%@'?";
 "browse_edit_btn_add" = "Add Note";
@@ -355,8 +359,19 @@
 
 // MARK: - DeckConfigView (extended)
 "deck_config_title" = "Deck Settings";
+"deck_config_preset" = "Preset";
+"deck_config_preset_manage" = "Manage Presets";
+"deck_config_preset_add" = "New Preset";
+"deck_config_preset_duplicate" = "Duplicate Preset";
+"deck_config_preset_rename" = "Rename Preset";
+"deck_config_preset_new_default_name" = "New Preset";
+"deck_config_preset_duplicate_name" = "%@ Copy";
+"deck_config_preset_delete_title" = "Delete Preset?";
+"deck_config_preset_delete_message" = "Delete \"%@\" and switch this deck to \"%@\".";
 "deck_config_name" = "Preset Name";
 "deck_config_name_placeholder" = "Preset Name";
+"deck_config_preset_usage" = "Used By";
+"deck_config_preset_used_by" = "%d deck(s)";
 "deck_config_apply_children" = "Apply to Subdecks";
 "deck_config_daily_new" = "New Cards/Day";
 "deck_config_daily_review" = "Max Reviews/Day";
@@ -744,6 +759,10 @@
 "settings_review_show_answer_buttons" = "Show answer buttons";
 "settings_review_show_remaining_days" = "Show remaining days";
 "settings_review_show_next_review_time" = "Show next review time";
+"settings_review_open_links_externally" = "Open links in external browser";
+"settings_review_card_alignment" = "Card content alignment";
+"settings_review_alignment_top" = "Top";
+"settings_review_alignment_center" = "Center";
 "settings_check_media_not_wired" = "Check Media is not wired yet in this build.";
 "settings_empty_cards_not_wired" = "Empty Cards cleanup is not wired yet in this build.";
 

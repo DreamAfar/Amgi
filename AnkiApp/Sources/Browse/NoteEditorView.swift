@@ -33,7 +33,7 @@ struct NoteEditorView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         RichNoteFieldEditor(htmlText: fieldBinding(for: index))
-                            .frame(minHeight: 120)
+                            .frame(minHeight: 56)
                     }
                 }
             }

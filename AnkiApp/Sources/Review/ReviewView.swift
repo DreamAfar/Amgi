@@ -18,6 +18,7 @@ struct ReviewView: View {
     @State private var replayRequestID = 0
     @State private var isAudioPlaying = false
     @State private var autoAdvanceTask: Task<Void, Never>?
+    @State private var answerFeedbackSymbol: String?
 
     @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var prefAutoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
@@ -28,6 +29,12 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.showAnswerButtons) private var prefShowAnswerButtons = true
     @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var prefShowRemainingDays = true
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var prefShowNextReviewTime = false
+    @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var prefOpenLinksExternally = true
+    @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.center.rawValue
+
+    private var prefCardContentAlignment: CardWebView.ContentAlignment {
+        CardWebView.ContentAlignment(rawValue: prefCardContentAlignmentRaw) ?? .center
+    }
 
     init(deckId: Int64, onDismiss: @escaping () -> Void) {
         self.deckId = deckId
@@ -117,6 +124,16 @@ struct ReviewView: View {
                 ReviewCardInfoSheet(queuedCard: queued)
             }
         }
+        .overlay {
+            if let symbol = answerFeedbackSymbol {
+                Text(symbol)
+                    .font(.system(size: 72, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .padding(24)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .transition(.opacity)
+            }
+        }
     }
 
     @ViewBuilder
@@ -127,8 +144,11 @@ struct ReviewView: View {
                     html: session.backHTML,
                     autoplayEnabled: session.autoplayAudio && prefAutoplayAudio,
                     isAnswerSide: true,
+                    cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
                     replayRequestID: replayRequestID,
                     replayMode: session.includeQuestionAudioOnAnswerReplay ? .answerWithQuestion : .answerOnly,
+                    openLinksExternally: prefOpenLinksExternally,
+                    contentAlignment: prefCardContentAlignment,
                     onAudioStateChange: { isPlaying in
                         Task { @MainActor in
                             self.isAudioPlaying = isPlaying
@@ -140,8 +160,11 @@ struct ReviewView: View {
                     html: session.frontHTML,
                     autoplayEnabled: session.autoplayAudio && prefAutoplayAudio,
                     isAnswerSide: false,
+                    cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
                     replayRequestID: replayRequestID,
                     replayMode: .question,
+                    openLinksExternally: prefOpenLinksExternally,
+                    contentAlignment: prefCardContentAlignment,
                     onAudioStateChange: { isPlaying in
                         Task { @MainActor in
                             self.isAudioPlaying = isPlaying
@@ -213,7 +236,9 @@ struct ReviewView: View {
                 }
             }
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
     }
 
     private var compactAnswerMenu: some View {
@@ -234,6 +259,13 @@ struct ReviewView: View {
 
     private func ratingButton(_ rating: Rating, color: Color) -> some View {
         Button {
+            if prefShowCorrectnessSymbols {
+                answerFeedbackSymbol = feedbackSymbol(for: rating)
+                Task {
+                    try? await Task.sleep(nanoseconds: 450_000_000)
+                    await MainActor.run { answerFeedbackSymbol = nil }
+                }
+            }
             session.answer(rating: rating)
         } label: {
             VStack(spacing: 4) {
@@ -251,30 +283,28 @@ struct ReviewView: View {
                     .font(.subheadline.weight(.medium))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.bordered)
-        .tint(color)
+        .buttonStyle(.plain)
+        .foregroundStyle(color)
     }
 
     private func ratingLabel(_ rating: Rating) -> String {
-        let symbol: String
-        if prefShowCorrectnessSymbols {
-            switch rating {
-            case .again: symbol = "✗ "
-            case .hard: symbol = "△ "
-            case .good: symbol = "✓ "
-            case .easy: symbol = "✓✓ "
-            }
-        } else {
-            symbol = ""
-        }
-
         switch rating {
-        case .again: return symbol + L("review_rating_again")
-        case .hard: return symbol + L("review_rating_hard")
-        case .good: return symbol + L("review_rating_good")
-        case .easy: return symbol + L("review_rating_easy")
+        case .again: return L("review_rating_again")
+        case .hard: return L("review_rating_hard")
+        case .good: return L("review_rating_good")
+        case .easy: return L("review_rating_easy")
+        }
+    }
+
+    private func feedbackSymbol(for rating: Rating) -> String {
+        switch rating {
+        case .again: return "✗"
+        case .hard: return "△"
+        case .good: return "✓"
+        case .easy: return "✓✓"
         }
     }
 

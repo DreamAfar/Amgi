@@ -4,32 +4,48 @@ import Foundation
 import UIKit
 
 struct CardWebView: UIViewRepresentable {
+    @Environment(\.colorScheme) private var colorScheme
+
     enum ReplayMode: String {
         case question
         case answerOnly
         case answerWithQuestion
     }
 
+    enum ContentAlignment: String {
+        case top
+        case center
+    }
+
     let html: String
     let autoplayEnabled: Bool
     let isAnswerSide: Bool
+    let cardOrdinal: UInt32
     let replayRequestID: Int
     let replayMode: ReplayMode
+    let openLinksExternally: Bool
+    let contentAlignment: ContentAlignment
     let onAudioStateChange: ((Bool) -> Void)?
 
     init(
         html: String,
         autoplayEnabled: Bool = true,
         isAnswerSide: Bool = false,
+        cardOrdinal: UInt32 = 0,
         replayRequestID: Int = 0,
         replayMode: ReplayMode = .question,
+        openLinksExternally: Bool = true,
+        contentAlignment: ContentAlignment = .center,
         onAudioStateChange: ((Bool) -> Void)? = nil
     ) {
         self.html = html
         self.autoplayEnabled = autoplayEnabled
         self.isAnswerSide = isAnswerSide
+        self.cardOrdinal = cardOrdinal
         self.replayRequestID = replayRequestID
         self.replayMode = replayMode
+        self.openLinksExternally = openLinksExternally
+        self.contentAlignment = contentAlignment
         self.onAudioStateChange = onAudioStateChange
     }
 
@@ -63,34 +79,44 @@ struct CardWebView: UIViewRepresentable {
         // Convert Anki [sound:filename.mp3] tags to <audio> HTML elements.
         // The Rust renderer keeps these tags literal; the client must expand them.
         let processedHTML = Self.expandSoundTags(html)
-        let loadSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(processedHTML.hashValue)"
+        let isDarkMode = colorScheme == .dark
+        let loadSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(contentAlignment.rawValue)|\(isDarkMode)|\(processedHTML.hashValue)"
+        context.coordinator.openLinksExternally = openLinksExternally
+        webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
 
         if context.coordinator.lastLoadSignature != loadSignature {
             context.coordinator.lastLoadSignature = loadSignature
+            let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
 
             let styledHTML = """
         <!DOCTYPE html>
-        <html>
+        <html data-bs-theme="\(isDarkMode ? "dark" : "light")">
         <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         <style>
+            :root {
+                color-scheme: \(isDarkMode ? "dark" : "light");
+            }
+            html, body {
+                background: transparent !important;
+            }
             body {
                 font-family: -apple-system, system-ui;
                 font-size: 18px;
                 line-height: 1.5;
-                color: #f5f5f5;
+                color: \(isDarkMode ? "#f5f5f5" : "#1a1a1a");
                 background: transparent;
                 padding: 16px;
                 margin: 0;
                 text-align: center;
                 display: flex;
-                align-items: center;
+                align-items: \(contentAlignment == .top ? "flex-start" : "center");
                 justify-content: center;
                 min-height: 80vh;
             }
-            .card { max-width: 600px; width: 100%; }
-            hr { border: none; border-top: 1px solid rgba(255,255,255,0.2); margin: 16px 0; }
+            .card-frame { max-width: 600px; width: 100%; }
+            hr { border: none; border-top: 1px solid \(isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"); margin: 16px 0; }
             img { max-width: 100%; height: auto; border-radius: 8px; }
             .sound-btn {
                 display: inline-flex;
@@ -100,8 +126,8 @@ struct CardWebView: UIViewRepresentable {
             }
             .sound-btn audio { display: none; }
             .replay-btn {
-                background: rgba(255,255,255,0.15);
-                border: 1px solid rgba(255,255,255,0.3);
+                background: \(isDarkMode ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)");
+                border: 1px solid \(isDarkMode ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)");
                 color: inherit;
                 border-radius: 50%;
                 width: 44px;
@@ -113,12 +139,7 @@ struct CardWebView: UIViewRepresentable {
                 justify-content: center;
                 -webkit-tap-highlight-color: transparent;
             }
-            .replay-btn:active { background: rgba(255,255,255,0.3); }
-            @media (prefers-color-scheme: light) {
-                body { color: #1a1a1a; }
-                hr { border-top-color: rgba(0,0,0,0.2); }
-                .replay-btn { background: rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.2); }
-            }
+            .replay-btn:active { background: \(isDarkMode ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.16)"); }
             video {
                 max-width: 100%;
                 height: auto;
@@ -133,10 +154,14 @@ struct CardWebView: UIViewRepresentable {
                 padding: 6px 10px;
                 margin: 4px;
                 font-size: 13px;
-                color: rgba(255,100,100,0.9);
+                color: \(isDarkMode ? "rgba(255,100,100,0.9)" : "rgba(200,40,40,0.8)");
             }
-            @media (prefers-color-scheme: light) {
-                .missing-media { background: rgba(255,60,60,0.08); color: rgba(200,40,40,0.8); }
+            .nightMode,
+            .nightMode .card {
+                color: #f5f5f5;
+            }
+            .nightMode a {
+                color: #8fb8ff;
             }
         </style>
         <script>
@@ -272,7 +297,7 @@ struct CardWebView: UIViewRepresentable {
         };
         </script>
         </head>
-        <body><div class="card">\(processedHTML)</div></body>
+        <body class="\(bodyClass)"><div class="card-frame">\(processedHTML)</div></body>
         </html>
         """
 
@@ -349,11 +374,21 @@ struct CardWebView: UIViewRepresentable {
         return folder.isEmpty ? "default" : folder
     }
 
+    private static func bodyClasses(cardOrdinal: UInt32, isDarkMode: Bool) -> String {
+        var classes = ["card", "card\(Int(cardOrdinal) + 1)"]
+        if isDarkMode {
+            classes.append("nightMode")
+            classes.append("night_mode")
+        }
+        return classes.joined(separator: " ")
+    }
+
     // MARK: - Navigation Delegate
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var lastLoadSignature: String?
         var lastReplayRequestID: Int = 0
+        var openLinksExternally: Bool = true
         private let onAudioStateChange: ((Bool) -> Void)?
 
         init(onAudioStateChange: ((Bool) -> Void)? = nil) {
@@ -386,10 +421,16 @@ struct CardWebView: UIViewRepresentable {
                 return
             }
 
-            // Open external links and custom app URL schemes outside the webview.
-            decisionHandler(.cancel)
-            DispatchQueue.main.async {
-                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            // Custom app links should always go to the system.
+            let isWebLink = scheme == "http" || scheme == "https"
+            if !isWebLink || openLinksExternally {
+                decisionHandler(.cancel)
+                DispatchQueue.main.async {
+                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                }
+            } else {
+                // Keep http/https inside WKWebView when external opening is disabled.
+                decisionHandler(.allow)
             }
         }
     }

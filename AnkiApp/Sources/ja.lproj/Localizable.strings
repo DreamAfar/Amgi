@@ -102,11 +102,15 @@
 "browse_batch_delete_confirm" = "%d 件のノートを削除しますか？";
 "browse_batch_move_deck" = "デッキを変更";
 "browse_batch_change_notetype" = "ノートタイプを変更";
+"browse_batch_move_deck_short" = "デッキ";
+"browse_batch_change_notetype_short" = "タイプ";
 "browse_batch_flag_label" = "フラグ";
 "browse_batch_suspend_toggle" = "停止";
 "browse_batch_reset_new" = "リセット";
 "browse_batch_tags_add" = "タグを追加";
 "browse_batch_tags_remove" = "タグを削除";
+"browse_total_count" = "%d 件のノート";
+"browse_tags_manage" = "タグ管理";
 "browse_delete_note_title" = "ノートを削除しますか？";
 "browse_delete_note_message" = "「%@」を削除してもよろしいですか？";
 "browse_edit_btn_add" = "ノートを追加";
@@ -355,8 +359,19 @@
 
 // MARK: - DeckConfigView (extended)
 "deck_config_title" = "デッキ設定";
+"deck_config_preset" = "現在のプリセット";
+"deck_config_preset_manage" = "プリセットを管理";
+"deck_config_preset_add" = "新しいプリセット";
+"deck_config_preset_duplicate" = "プリセットを複製";
+"deck_config_preset_rename" = "プリセット名を変更";
+"deck_config_preset_new_default_name" = "新しいプリセット";
+"deck_config_preset_duplicate_name" = "%@ のコピー";
+"deck_config_preset_delete_title" = "プリセットを削除しますか？";
+"deck_config_preset_delete_message" = "\"%@\" を削除し、このデッキを \"%@\" に切り替えます。";
 "deck_config_name" = "プリセット名";
 "deck_config_name_placeholder" = "プリセット名";
+"deck_config_preset_usage" = "使用中";
+"deck_config_preset_used_by" = "%d 個のデッキで使用中";
 "deck_config_apply_children" = "サブデッキに適用";
 "deck_config_daily_new" = "1日の新規カード数";
 "deck_config_daily_review" = "1日の最大復習数";
@@ -749,6 +764,10 @@
 "settings_review_show_answer_buttons" = "回答ボタンを表示";
 "settings_review_show_remaining_days" = "残り日数を表示";
 "settings_review_show_next_review_time" = "次回回答時刻を表示";
+"settings_review_open_links_externally" = "リンクを外部ブラウザで開く";
+"settings_review_card_alignment" = "カード内容の配置";
+"settings_review_alignment_top" = "上寄せ";
+"settings_review_alignment_center" = "中央";
 "settings_check_media_not_wired" = "メディアチェック機能はまだこのビルドで有効にされていません。";
 "settings_empty_cards_not_wired" = "空カードクリーンアップはまだこのビルドで有効にされていません。";
 

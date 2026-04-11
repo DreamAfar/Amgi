@@ -11,5 +11,7 @@ enum ReviewPreferences {
         static let showAnswerButtons = "review_pref_show_answer_buttons"
         static let showRemainingDays = "review_pref_show_remaining_days"
         static let showNextReviewTime = "review_pref_show_next_review_time"
+        static let openLinksExternally = "review_pref_open_links_externally"
+        static let cardContentAlignment = "review_pref_card_content_alignment"
     }
 }

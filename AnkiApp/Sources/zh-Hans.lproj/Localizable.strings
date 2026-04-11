@@ -102,11 +102,15 @@
 "browse_batch_delete_confirm" = "确认删除 %d 条笔记？";
 "browse_batch_move_deck" = "更改所属牌组";
 "browse_batch_change_notetype" = "更改笔记模板";
+"browse_batch_move_deck_short" = "牌组";
+"browse_batch_change_notetype_short" = "模板";
 "browse_batch_flag_label" = "旗标";
 "browse_batch_suspend_toggle" = "暂停";
 "browse_batch_reset_new" = "重置";
 "browse_batch_tags_add" = "添加标签";
 "browse_batch_tags_remove" = "删除标签";
+"browse_total_count" = "%d 条笔记";
+"browse_tags_manage" = "标签管理";
 "browse_delete_note_title" = "删除笔记？";
 "browse_delete_note_message" = "确认删除「%@」？";
 "browse_edit_btn_add" = "添加笔记";
@@ -355,8 +359,19 @@
 
 // MARK: - DeckConfigView (extended)
 "deck_config_title" = "牌组设置";
+"deck_config_preset" = "当前预设";
+"deck_config_preset_manage" = "管理预设";
+"deck_config_preset_add" = "新建预设";
+"deck_config_preset_duplicate" = "复制预设";
+"deck_config_preset_rename" = "重命名预设";
+"deck_config_preset_new_default_name" = "新预设";
+"deck_config_preset_duplicate_name" = "%@ 副本";
+"deck_config_preset_delete_title" = "删除预设？";
+"deck_config_preset_delete_message" = "删除“%@”并将此牌组切换到“%@”。";
 "deck_config_name" = "预设名称";
 "deck_config_name_placeholder" = "预设名称";
+"deck_config_preset_usage" = "使用范围";
+"deck_config_preset_used_by" = "已有 %d 个牌组使用";
 "deck_config_apply_children" = "应用到子牌组";
 "deck_config_daily_new" = "每日新卡上限";
 "deck_config_daily_review" = "每日复习上限";
@@ -749,6 +764,10 @@
 "settings_review_show_answer_buttons" = "显示回答按钮";
 "settings_review_show_remaining_days" = "显示剩余天数";
 "settings_review_show_next_review_time" = "显示下次答题时间";
+"settings_review_open_links_externally" = "在外部浏览器中打开链接";
+"settings_review_card_alignment" = "模板内容对齐";
+"settings_review_alignment_top" = "顶部对齐";
+"settings_review_alignment_center" = "居中对齐";
 "settings_check_media_not_wired" = "媒体检查功能尚未在此版本中启用。";
 "settings_empty_cards_not_wired" = "清理空卡功能尚未在此版本中启用。";
 
