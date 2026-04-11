@@ -562,19 +562,19 @@ private struct ReviewCardInfoSheet: View {
                     .foregroundStyle(.blue)
                 }
             }
-        }
-        .frame(height: 200)
-        .chartYScale(domain: 0...100)
-        .chartXAxis {
-            AxisMarks(position: .bottom)
-        }
-        .chartYAxis {
-            AxisMarks(position: .leading)
-        }
+            .frame(height: 200)
+            .chartYScale(domain: 0...100)
+            .chartXAxis {
+                AxisMarks(position: .bottom)
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading)
+            }
 
-        Text(L("card_info_curve_target", Int((targetRetention * 100.0).rounded())))
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            Text(L("card_info_curve_target", Int((targetRetention * 100.0).rounded())))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var targetRetention: Double {
