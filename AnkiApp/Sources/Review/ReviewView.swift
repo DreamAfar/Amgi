@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import AVFAudio
+import AnkiBackend
 import AnkiKit
 import AnkiClients
 import AnkiProto
@@ -13,6 +14,7 @@ struct ReviewView: View {
     @Dependency(\.noteClient) var noteClient
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.cardClient) var cardClient
+    @Dependency(\.ankiBackend) var backend
 
     @State private var session: ReviewSession
     @State private var editingNote: NoteRecord?
@@ -494,7 +496,20 @@ struct ReviewView: View {
             showToolbarError = true
             return
         }
-        fieldManagerTarget = ReviewFieldManagerTarget(notetypeId: note.mid, notetypeName: note.notetypeName)
+        let notetypeName: String
+        do {
+            var request = Anki_Notetypes_NotetypeId()
+            request.ntid = note.mid
+            let notetype: Anki_Notetypes_Notetype = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.getNotetype,
+                request: request
+            )
+            notetypeName = notetype.name
+        } catch {
+            notetypeName = ""
+        }
+        fieldManagerTarget = ReviewFieldManagerTarget(notetypeId: note.mid, notetypeName: notetypeName)
     }
 
     @MainActor
