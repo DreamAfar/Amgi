@@ -114,48 +114,8 @@ struct NotetypeFieldManagerView: View {
                 ProgressView()
             } else {
                 List {
-                    Section {
-                        LabeledContent(L("notetype_field_count"), value: "\(notetype.fields.count)")
-                    }
-
-                    Section(L("notetype_field_section_fields")) {
-                        ForEach(Array(notetype.fields.enumerated()), id: \.offset) { index, field in
-                            HStack(spacing: 12) {
-                                Image(systemName: "text.cursor")
-                                    .foregroundStyle(.blue)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(field.name)
-                                    Text(L("notetype_field_position", index + 1))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                if !field.config.preventDeletion && notetype.fields.count > 1 {
-                                    Button(role: .destructive) {
-                                        deleteFieldIndex = index
-                                        showDeleteConfirm = true
-                                    } label: {
-                                        Label(L("common_delete"), systemImage: "trash")
-                                    }
-                                }
-
-                                Button {
-                                    renameFieldIndex = index
-                                    renameFieldName = field.name
-                                    showRenamePrompt = true
-                                } label: {
-                                    Label(L("user_mgmt_rename"), systemImage: "pencil")
-                                }
-                                .tint(.blue)
-                            }
-                        }
-                    } footer: {
-                        Text(L("notetype_field_footer"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    summarySection
+                    fieldsSection
                 }
             }
         }
@@ -205,6 +165,59 @@ struct NotetypeFieldManagerView: View {
         }
         .task {
             await loadNotetype()
+        }
+    }
+
+    private var summarySection: some View {
+        Section {
+            LabeledContent(L("notetype_field_count"), value: "\(notetype.fields.count)")
+        }
+    }
+
+    private var fieldsSection: some View {
+        Section {
+            ForEach(Array(notetype.fields.enumerated()), id: \.offset) { index, field in
+                fieldRow(field, at: index)
+            }
+        } header: {
+            Text(L("notetype_field_section_fields"))
+        } footer: {
+            Text(L("notetype_field_footer"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func fieldRow(_ field: Anki_Notetypes_Notetype.Field, at index: Int) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "text.cursor")
+                .foregroundStyle(.blue)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(field.name)
+                Text(L("notetype_field_position", index + 1))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if !field.config.preventDeletion && notetype.fields.count > 1 {
+                Button(role: .destructive) {
+                    deleteFieldIndex = index
+                    showDeleteConfirm = true
+                } label: {
+                    Label(L("common_delete"), systemImage: "trash")
+                }
+            }
+
+            Button {
+                renameFieldIndex = index
+                renameFieldName = field.name
+                showRenamePrompt = true
+            } label: {
+                Label(L("user_mgmt_rename"), systemImage: "pencil")
+            }
+            .tint(.blue)
         }
     }
 
