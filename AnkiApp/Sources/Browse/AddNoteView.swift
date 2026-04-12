@@ -20,6 +20,8 @@ struct AddNoteView: View {
     @State private var tags: String = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var previewErrorMessage: String?
+    @State private var showPreviewError = false
 
     let onSave: () -> Void
 
@@ -46,16 +48,41 @@ struct AddNoteView: View {
                 }
 
                 Section(L("add_note_section_fields")) {
-                    ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            RichNoteFieldEditor(htmlText: fieldBinding(for: index))
-                                .frame(minHeight: 40)
+                    VStack(spacing: 0) {
+                        ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 8) {
+                                    Text(name)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    if shouldShowAudioButton(fieldName: name, index: index) {
+                                        Button {
+                                            previewAudio(at: index)
+                                        } label: {
+                                            Image(systemName: "speaker.wave.2.fill")
+                                                .font(.caption)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .foregroundStyle(.blue)
+                                        .disabled(MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) == nil)
+                                    }
+                                }
+                                RichNoteFieldEditor(htmlText: fieldBinding(for: index))
+                                    .frame(minHeight: 32)
+                            }
+                            .padding(.vertical, 8)
+
+                            if index < fieldNames.count - 1 {
+                                Divider()
+                            }
                         }
-                        .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowBackground(Color.clear)
                 }
 
                 Section(L("add_note_section_tags")) {
@@ -87,6 +114,11 @@ struct AddNoteView: View {
             }
             .task {
                 await loadData()
+            }
+            .alert(L("common_error"), isPresented: $showPreviewError) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(previewErrorMessage ?? L("common_unknown_error"))
             }
         }
     }
@@ -135,6 +167,25 @@ struct AddNoteView: View {
             fieldValues = Array(repeating: "", count: fieldNames.count)
         } catch {
             print("[AddNote] Error loading fields: \(error)")
+        }
+    }
+
+    private func fieldValue(at index: Int) -> String {
+        guard index < fieldValues.count else { return "" }
+        return fieldValues[index]
+    }
+
+    private func shouldShowAudioButton(fieldName: String, index: Int) -> Bool {
+        MediaAudioPreview.isLikelyAudioFieldName(fieldName)
+            || MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) != nil
+    }
+
+    private func previewAudio(at index: Int) {
+        do {
+            try MediaAudioPreview.playFirstAudioTag(in: fieldValue(at: index))
+        } catch {
+            previewErrorMessage = error.localizedDescription
+            showPreviewError = true
         }
     }
 

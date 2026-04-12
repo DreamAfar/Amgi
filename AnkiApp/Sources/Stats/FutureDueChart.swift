@@ -33,7 +33,9 @@ struct FutureDueChart: View {
             Text(L("stats_future_due_title")).font(.headline)
 
             if filteredData.isEmpty {
-                Text(L("stats_future_due_empty")).foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_future_due_empty"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(filteredData, id: \.day) { item in
                     BarMark(
@@ -64,6 +66,7 @@ struct FutureDueChart: View {
             }
             .font(.caption2)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }

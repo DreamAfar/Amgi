@@ -163,11 +163,21 @@ struct SettingsView: View {
                     settingsRowLabel(L("settings_row_backup"), icon: "externaldrive")
                 }
 
+                NavigationLink {
+                    UserFileManagerView(username: AppUserStore.loadSelectedUser())
+                } label: {
+                    settingsRowLabel(L("settings_row_file_manager"), icon: "folder")
+                }
+
                 Button {
                     checkDatabase()
                 } label: {
-                    settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
-                        .foregroundStyle(.primary)
+                    HStack {
+                        settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
@@ -181,9 +191,14 @@ struct SettingsView: View {
                             Spacer()
                             ProgressView()
                         }
+                        .contentShape(Rectangle())
                     } else {
-                        settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
-                            .foregroundStyle(.primary)
+                        HStack {
+                            settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
                     }
                 }
                 .buttonStyle(.plain)
@@ -356,11 +371,11 @@ private struct ReviewOptionsView: View {
 private struct SyncSettingsView: View {
     @Dependency(\.syncClient) var syncClient
 
-    @AppStorage(SyncPreferences.Keys.mode) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
-    @AppStorage(SyncPreferences.Keys.syncMedia) private var syncMediaEnabled = true
-    @AppStorage(SyncPreferences.Keys.ioTimeoutSecs) private var ioTimeoutSecs = SyncPreferences.Timeout.defaultValue
-    @AppStorage(SyncPreferences.Keys.mediaLastLog) private var mediaLastLog = ""
-    @AppStorage(SyncPreferences.Keys.mediaLastSyncedAt) private var mediaLastSyncedAt = 0.0
+    @AppStorage(SyncPreferences.Keys.modeForCurrentUser()) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
+    @AppStorage(SyncPreferences.Keys.syncMediaForCurrentUser()) private var syncMediaEnabled = true
+    @AppStorage(SyncPreferences.Keys.ioTimeoutSecsForCurrentUser()) private var ioTimeoutSecs = SyncPreferences.Timeout.defaultValue
+    @AppStorage(SyncPreferences.Keys.mediaLastLogForCurrentUser()) private var mediaLastLog = ""
+    @AppStorage(SyncPreferences.Keys.mediaLastSyncedAtForCurrentUser()) private var mediaLastSyncedAt = 0.0
 
     @State private var showServerSetup = false
     @State private var showLogin = false
@@ -621,7 +636,7 @@ private struct SyncServerSetupSheet: View {
             url = "https://" + url
         }
         try? KeychainHelper.saveEndpoint(url)
-        UserDefaults.standard.set(SyncPreferences.Mode.custom.rawValue, forKey: SyncPreferences.Keys.mode)
+        UserDefaults.standard.set(SyncPreferences.Mode.custom.rawValue, forKey: SyncPreferences.Keys.modeForCurrentUser())
         KeychainHelper.deleteHostKey()
         KeychainHelper.deleteUsername()
         isPresented = false

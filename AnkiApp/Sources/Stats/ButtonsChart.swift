@@ -56,7 +56,9 @@ struct ButtonsChart: View {
             Text(L("stats_buttons_title")).font(.headline)
 
             if entries.isEmpty {
-                Text(L("stats_buttons_empty")).foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_buttons_empty"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(entries) { entry in
                     BarMark(
@@ -73,6 +75,7 @@ struct ButtonsChart: View {
                 .frame(height: 180)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }

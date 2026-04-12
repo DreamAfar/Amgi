@@ -572,6 +572,19 @@
 "deck_template_preview_cards" = "卡片模板数";
 "deck_template_preview_field_names" = "字段列表";
 "deck_template_preview_template_names" = "卡片模板列表";
+"deck_template_save_failed" = "保存模板失败";
+"deck_template_select_template" = "模板";
+"deck_template_edit_template" = "模板编辑";
+"deck_template_edit_template_name" = "模板名称";
+"deck_template_edit_qformat" = "正面模板";
+"deck_template_edit_aformat" = "背面模板";
+"deck_template_edit_css" = "卡片样式（CSS）";
+"deck_template_preview_rendered" = "渲染预览";
+"deck_template_preview_side" = "预览面";
+"deck_template_preview_front" = "正面";
+"deck_template_preview_back" = "背面";
+"deck_template_preview_no_template" = "未选择模板";
+"deck_template_sample_value" = "示例 %@";
 "card_info_section_fsrs" = "FSRS 记忆状态";
 "card_info_section_ids" = "标识符";
 "card_info_queue" = "队列";
@@ -718,6 +731,11 @@
 "stats_period_week" = "周";
 "stats_period_3months" = "3 个月";
 "stats_period_all" = "所有时间";
+"stats_period_day_short" = "今日";
+"stats_period_week_short" = "7天";
+"stats_period_month_short" = "1个月";
+"stats_period_3months_short" = "3个月";
+"stats_period_year_short" = "1年";
 "stats_period_all_short" = "全部";
 "stats_card_young" = "年轻卡";
 "stats_card_mature" = "成熟卡";
@@ -794,6 +812,33 @@
 "settings_review_alignment_center" = "居中对齐";
 "settings_check_media_not_wired" = "媒体检查功能尚未在此版本中启用。";
 "settings_empty_cards_not_wired" = "清理空卡功能尚未在此版本中启用。";
+"settings_row_file_manager" = "用户文件";
+
+// MARK: - UserFileManagerView
+"file_mgmt_section_summary" = "概览";
+"file_mgmt_user" = "用户";
+"file_mgmt_media_count" = "媒体文件数量";
+"file_mgmt_media_size" = "媒体总大小";
+"file_mgmt_collection_size" = "卡牌库数据库大小";
+"file_mgmt_media_db_size" = "媒体数据库大小";
+"file_mgmt_section_media" = "媒体文件";
+"file_mgmt_empty" = "暂无媒体文件。";
+"file_mgmt_no_search_result" = "没有匹配的文件。";
+"file_mgmt_footer_hint" = "重命名媒体文件可能影响笔记引用，请谨慎操作。";
+"file_mgmt_search_placeholder" = "搜索文件名";
+"file_mgmt_rename_title" = "重命名文件";
+"file_mgmt_rename_placeholder" = "新文件名";
+"file_mgmt_load_error" = "加载媒体文件失败：%@";
+"file_mgmt_rename_empty" = "文件名不能为空。";
+"file_mgmt_rename_invalid" = "文件名不能包含路径分隔符。";
+"file_mgmt_rename_exists" = "同名文件已存在。";
+"file_mgmt_rename_success" = "已将 %@ 重命名为 %@。";
+"file_mgmt_rename_failed" = "重命名失败：%@";
+"file_mgmt_preview_unavailable" = "无法预览";
+"file_mgmt_preview_load_failed" = "无法加载该文件进行预览。";
+"file_mgmt_preview_not_supported" = "该文件类型暂不支持预览。";
+"audio_preview_no_file" = "该字段中未找到音频标签。";
+"audio_preview_file_not_found" = "未找到音频文件：%@";
 
 // MARK: - AboutView
 "about_nav_title" = "关于";

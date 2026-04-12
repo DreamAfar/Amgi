@@ -18,11 +18,35 @@ enum ReviewPreferences {
 
 enum SyncPreferences {
     enum Keys {
-        static let mode = "syncMode"
-        static let syncMedia = "sync_pref_sync_media"
-        static let ioTimeoutSecs = "sync_pref_io_timeout_secs"
-        static let mediaLastLog = "sync_pref_media_last_log"
-        static let mediaLastSyncedAt = "sync_pref_media_last_synced_at"
+        static let modeBase = "syncMode"
+        static let syncMediaBase = "sync_pref_sync_media"
+        static let ioTimeoutSecsBase = "sync_pref_io_timeout_secs"
+        static let mediaLastLogBase = "sync_pref_media_last_log"
+        static let mediaLastSyncedAtBase = "sync_pref_media_last_synced_at"
+
+        static func modeForCurrentUser() -> String {
+            scoped(modeBase)
+        }
+
+        static func syncMediaForCurrentUser() -> String {
+            scoped(syncMediaBase)
+        }
+
+        static func ioTimeoutSecsForCurrentUser() -> String {
+            scoped(ioTimeoutSecsBase)
+        }
+
+        static func mediaLastLogForCurrentUser() -> String {
+            scoped(mediaLastLogBase)
+        }
+
+        static func mediaLastSyncedAtForCurrentUser() -> String {
+            scoped(mediaLastSyncedAtBase)
+        }
+
+        private static func scoped(_ base: String) -> String {
+            "\(base).\(SyncPreferences.currentProfileID())"
+        }
     }
 
     enum Mode: String, CaseIterable, Identifiable {
@@ -46,6 +70,16 @@ enum SyncPreferences {
 
     static let officialServerLabel = "AnkiWeb"
 
+    private static func currentProfileID() -> String {
+        let selectedUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "default"
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let mapped = selectedUser.unicodeScalars.map { scalar -> Character in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        }
+        let profile = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return profile.isEmpty ? "default" : profile
+    }
+
     static func resolvedMode(_ rawValue: String) -> Mode {
         Mode(rawValue: rawValue) ?? .local
     }
@@ -55,7 +89,7 @@ enum SyncPreferences {
     }
 
     static func recordMediaSyncLog(_ message: String, date: Date = .now) {
-        UserDefaults.standard.set(message, forKey: Keys.mediaLastLog)
-        UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Keys.mediaLastSyncedAt)
+        UserDefaults.standard.set(message, forKey: Keys.mediaLastLogForCurrentUser())
+        UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Keys.mediaLastSyncedAtForCurrentUser())
     }
 }

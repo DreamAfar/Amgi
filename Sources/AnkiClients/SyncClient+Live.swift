@@ -11,10 +11,28 @@ import SwiftProtobuf
 private let logger = Logger(label: "com.ankiapp.sync.client")
 
 private enum SyncPreferenceValues {
-    static let modeKey = "syncMode"
-    static let syncMediaKey = "sync_pref_sync_media"
-    static let ioTimeoutSecsKey = "sync_pref_io_timeout_secs"
+    static let modeKeyBase = "syncMode"
+    static let syncMediaKeyBase = "sync_pref_sync_media"
+    static let ioTimeoutSecsKeyBase = "sync_pref_io_timeout_secs"
     static let customMode = "custom"
+
+    static var modeKey: String { scoped(modeKeyBase) }
+    static var syncMediaKey: String { scoped(syncMediaKeyBase) }
+    static var ioTimeoutSecsKey: String { scoped(ioTimeoutSecsKeyBase) }
+
+    private static func scoped(_ base: String) -> String {
+        "\(base).\(currentProfileID())"
+    }
+
+    private static func currentProfileID() -> String {
+        let selectedUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "default"
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let mapped = selectedUser.unicodeScalars.map { scalar -> Character in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        }
+        let profile = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return profile.isEmpty ? "default" : profile
+    }
 }
 
 private func configuredSyncAuth(hostKey: String) -> Anki_Sync_SyncAuth {

@@ -12,7 +12,7 @@ struct ForecastChart: View {
             if data.isEmpty || data.allSatisfy({ $0.count == 0 }) {
                 Text(L("stats_forecast_empty"))
                     .foregroundStyle(.secondary)
-                    .frame(height: 150)
+                    .frame(maxWidth: .infinity, minHeight: 150)
             } else {
                 Chart(data, id: \.date) { item in
                     BarMark(
@@ -24,6 +24,7 @@ struct ForecastChart: View {
                 .frame(height: 180)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }

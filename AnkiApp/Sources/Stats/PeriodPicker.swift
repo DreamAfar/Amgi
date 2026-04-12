@@ -19,6 +19,15 @@ enum StatsPeriod: String, CaseIterable, Sendable {
         }
     }
 
+    var requestDays: UInt32 {
+        switch self {
+        case .all:
+            return 0
+        default:
+            return UInt32(days)
+        }
+    }
+
     var localizedLabel: String {
         switch self {
         case .day: L("stats_period_day")
@@ -32,11 +41,11 @@ enum StatsPeriod: String, CaseIterable, Sendable {
 
     var shortLabel: String {
         switch self {
-        case .day: "1D"
-        case .week: "7D"
-        case .month: "1M"
-        case .threeMonths: "3M"
-        case .year: "1Y"
+        case .day: L("stats_period_day_short")
+        case .week: L("stats_period_week_short")
+        case .month: L("stats_period_month_short")
+        case .threeMonths: L("stats_period_3months_short")
+        case .year: L("stats_period_year_short")
         case .all: L("stats_period_all_short")
         }
     }

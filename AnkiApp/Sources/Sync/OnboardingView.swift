@@ -52,7 +52,10 @@ struct OnboardingView: View {
                     .controlSize(.large)
 
                     Button {
-                        UserDefaults.standard.set("local", forKey: "syncMode")
+                        UserDefaults.standard.set(
+                            SyncPreferences.Mode.local.rawValue,
+                            forKey: SyncPreferences.Keys.modeForCurrentUser()
+                        )
                         UserDefaults.standard.set(true, forKey: "onboardingCompleted")
                         isCompleted = true
                     } label: {
@@ -79,7 +82,10 @@ struct OnboardingView: View {
             url = "https://" + url
         }
         try? KeychainHelper.saveEndpoint(url)
-        UserDefaults.standard.set("custom", forKey: "syncMode")
+        UserDefaults.standard.set(
+            SyncPreferences.Mode.custom.rawValue,
+            forKey: SyncPreferences.Keys.modeForCurrentUser()
+        )
         UserDefaults.standard.set(true, forKey: "onboardingCompleted")
         isCompleted = true
     }

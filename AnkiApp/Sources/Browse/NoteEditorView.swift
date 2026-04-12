@@ -27,16 +27,41 @@ struct NoteEditorView: View {
     var body: some View {
         Form {
             Section(L("add_note_section_fields")) {
-                ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(name)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        RichNoteFieldEditor(htmlText: fieldBinding(for: index))
-                            .frame(minHeight: 40)
+                VStack(spacing: 0) {
+                    ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 8) {
+                                Text(name)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                if shouldShowAudioButton(fieldName: name, index: index) {
+                                    Button {
+                                        previewAudio(at: index)
+                                    } label: {
+                                        Image(systemName: "speaker.wave.2.fill")
+                                            .font(.caption)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(.blue)
+                                    .disabled(MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) == nil)
+                                }
+                            }
+                            RichNoteFieldEditor(htmlText: fieldBinding(for: index))
+                                .frame(minHeight: 32)
+                        }
+                        .padding(.vertical, 8)
+
+                        if index < fieldNames.count - 1 {
+                            Divider()
+                        }
                     }
-                    .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                .listRowBackground(Color.clear)
             }
 
             Section(L("add_note_section_tags")) {
@@ -126,6 +151,25 @@ struct NoteEditorView: View {
                 if index < fieldValues.count { fieldValues[index] = newValue }
             }
         )
+    }
+
+    private func fieldValue(at index: Int) -> String {
+        guard index < fieldValues.count else { return "" }
+        return fieldValues[index]
+    }
+
+    private func shouldShowAudioButton(fieldName: String, index: Int) -> Bool {
+        MediaAudioPreview.isLikelyAudioFieldName(fieldName)
+            || MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) != nil
+    }
+
+    private func previewAudio(at index: Int) {
+        do {
+            try MediaAudioPreview.playFirstAudioTag(in: fieldValue(at: index))
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
     }
 
     private func loadNote() {

@@ -29,7 +29,9 @@ struct CardCountsChart: View {
             }
 
             if chartData.isEmpty {
-                Text(L("stats_card_counts_empty")).foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_card_counts_empty"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(chartData, id: \.name) { item in
                     SectorMark(
@@ -43,16 +45,19 @@ struct CardCountsChart: View {
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 4) {
                     ForEach(chartData, id: \.name) { item in
+                        let percentage = total > 0 ? (Double(item.count) / Double(total) * 100) : 0
                         HStack(spacing: 4) {
                             Circle().fill(item.color).frame(width: 8, height: 8)
                             Text(item.name).font(.caption)
                             Spacer()
-                            Text("\(item.count)").font(.caption.monospacedDigit().weight(.medium))
+                            Text("\(item.count)  \(String(format: \"%.2f%%\", percentage))")
+                                .font(.caption.monospacedDigit().weight(.medium))
                         }
                     }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }

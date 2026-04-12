@@ -19,6 +19,7 @@ struct ReviewView: View {
     @State private var isAudioPlaying = false
     @State private var autoAdvanceTask: Task<Void, Never>?
     @State private var answerFeedbackSymbol: String?
+    @State private var showDeckStats = false
 
     @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var prefAutoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
@@ -65,6 +66,14 @@ struct ReviewView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_done")) { onDismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showDeckStats = true
+                    } label: {
+                        Image(systemName: "chart.bar.xaxis")
+                    }
+                    .accessibilityLabel(L("stats_nav_title"))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("review_edit_button")) {
@@ -117,6 +126,11 @@ struct ReviewView: View {
                 NoteEditorView(note: note) {
                     Task { await session.refreshAfterCardMutation() }
                 }
+            }
+        }
+        .sheet(isPresented: $showDeckStats) {
+            NavigationStack {
+                StatsDashboardView(initialDeckID: deckId)
             }
         }
         .sheet(isPresented: $showCardInfo) {

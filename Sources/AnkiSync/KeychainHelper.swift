@@ -3,50 +3,64 @@ import Security
 
 public enum KeychainHelper: Sendable {
     private static let service = "com.ankiapp.sync"
-    private static let hostKeyAccount = "sync-host-key"
-    private static let usernameAccount = "sync-username"
-    private static let endpointAccount = "sync-endpoint"
+    private static let hostKeyAccountBase = "sync-host-key"
+    private static let usernameAccountBase = "sync-username"
+    private static let endpointAccountBase = "sync-endpoint"
 
     // MARK: - Host Key
 
     public static func saveHostKey(_ key: String) throws {
-        try save(account: hostKeyAccount, value: key)
+        try save(account: scopedAccount(hostKeyAccountBase), value: key)
     }
 
     public static func loadHostKey() -> String? {
-        load(account: hostKeyAccount)
+        load(account: scopedAccount(hostKeyAccountBase))
     }
 
     public static func deleteHostKey() {
-        delete(account: hostKeyAccount)
+        delete(account: scopedAccount(hostKeyAccountBase))
     }
 
     // MARK: - Username
 
     public static func saveUsername(_ username: String) throws {
-        try save(account: usernameAccount, value: username)
+        try save(account: scopedAccount(usernameAccountBase), value: username)
     }
 
     public static func loadUsername() -> String? {
-        load(account: usernameAccount)
+        load(account: scopedAccount(usernameAccountBase))
     }
 
     public static func deleteUsername() {
-        delete(account: usernameAccount)
+        delete(account: scopedAccount(usernameAccountBase))
     }
 
     // MARK: - Endpoint
 
     public static func saveEndpoint(_ url: String) throws {
-        try save(account: endpointAccount, value: url)
+        try save(account: scopedAccount(endpointAccountBase), value: url)
     }
 
     public static func loadEndpoint() -> String? {
-        load(account: endpointAccount)
+        load(account: scopedAccount(endpointAccountBase))
     }
 
     public static func deleteEndpoint() {
-        delete(account: endpointAccount)
+        delete(account: scopedAccount(endpointAccountBase))
+    }
+
+    private static func scopedAccount(_ base: String) -> String {
+        "\(base).\(currentProfileID())"
+    }
+
+    private static func currentProfileID() -> String {
+        let selectedUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "default"
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let mapped = selectedUser.unicodeScalars.map { scalar -> Character in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        }
+        let profile = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return profile.isEmpty ? "default" : profile
     }
 
     // MARK: - Internal

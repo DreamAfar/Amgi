@@ -572,6 +572,19 @@
 "deck_template_preview_cards" = "Card Templates";
 "deck_template_preview_field_names" = "Field Names";
 "deck_template_preview_template_names" = "Template Names";
+"deck_template_save_failed" = "Failed to Save Template";
+"deck_template_select_template" = "Template";
+"deck_template_edit_template" = "Template Editor";
+"deck_template_edit_template_name" = "Template Name";
+"deck_template_edit_qformat" = "Front Template";
+"deck_template_edit_aformat" = "Back Template";
+"deck_template_edit_css" = "Card Styling (CSS)";
+"deck_template_preview_rendered" = "Rendered Preview";
+"deck_template_preview_side" = "Preview Side";
+"deck_template_preview_front" = "Front";
+"deck_template_preview_back" = "Back";
+"deck_template_preview_no_template" = "No template selected";
+"deck_template_sample_value" = "Sample %@";
 "card_info_section_fsrs" = "FSRS Memory State";
 "card_info_section_ids" = "Identifiers";
 "card_info_queue" = "Queue";
@@ -718,6 +731,11 @@
 "stats_period_week" = "Week";
 "stats_period_3months" = "3 Months";
 "stats_period_all" = "All Time";
+"stats_period_day_short" = "1D";
+"stats_period_week_short" = "7D";
+"stats_period_month_short" = "1M";
+"stats_period_3months_short" = "3M";
+"stats_period_year_short" = "1Y";
 "stats_period_all_short" = "All";
 "stats_card_young" = "Young";
 "stats_card_mature" = "Mature";
@@ -789,6 +807,33 @@
 "settings_review_alignment_center" = "Center";
 "settings_check_media_not_wired" = "Check Media is not wired yet in this build.";
 "settings_empty_cards_not_wired" = "Empty Cards cleanup is not wired yet in this build.";
+"settings_row_file_manager" = "User Files";
+
+// MARK: - UserFileManagerView
+"file_mgmt_section_summary" = "Summary";
+"file_mgmt_user" = "User";
+"file_mgmt_media_count" = "Media File Count";
+"file_mgmt_media_size" = "Media Size";
+"file_mgmt_collection_size" = "Collection DB Size";
+"file_mgmt_media_db_size" = "Media DB Size";
+"file_mgmt_section_media" = "Media Files";
+"file_mgmt_empty" = "No media files yet.";
+"file_mgmt_no_search_result" = "No matching files.";
+"file_mgmt_footer_hint" = "Renaming media files may affect note references. Use with caution.";
+"file_mgmt_search_placeholder" = "Search file names";
+"file_mgmt_rename_title" = "Rename File";
+"file_mgmt_rename_placeholder" = "New file name";
+"file_mgmt_load_error" = "Failed to load media files: %@";
+"file_mgmt_rename_empty" = "File name cannot be empty.";
+"file_mgmt_rename_invalid" = "File name cannot contain path separators.";
+"file_mgmt_rename_exists" = "A file with that name already exists.";
+"file_mgmt_rename_success" = "Renamed %@ to %@.";
+"file_mgmt_rename_failed" = "Rename failed: %@";
+"file_mgmt_preview_unavailable" = "Preview Unavailable";
+"file_mgmt_preview_load_failed" = "Unable to load this file for preview.";
+"file_mgmt_preview_not_supported" = "This file type is not supported for preview.";
+"audio_preview_no_file" = "No audio file tag found in this field.";
+"audio_preview_file_not_found" = "Audio file not found: %@";
 
 // MARK: - AboutView
 "about_nav_title" = "About";

@@ -27,7 +27,9 @@ struct EaseChart: View {
             }
 
             if chartData.isEmpty {
-                Text(L("stats_ease_empty")).foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_ease_empty"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(chartData, id: \.ease) { item in
                     BarMark(
@@ -47,6 +49,7 @@ struct EaseChart: View {
                 .frame(height: 180)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }

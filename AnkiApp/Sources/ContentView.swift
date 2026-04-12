@@ -42,7 +42,8 @@ struct ContentView: View {
     @State private var showUserSwitchError = false
 
     private var isLocalMode: Bool {
-        UserDefaults.standard.string(forKey: "syncMode") == "local"
+        UserDefaults.standard.string(forKey: SyncPreferences.Keys.modeForCurrentUser())
+            == SyncPreferences.Mode.local.rawValue
     }
 
     private var isImportExportInProgress: Bool {

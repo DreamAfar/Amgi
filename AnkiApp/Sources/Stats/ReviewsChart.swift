@@ -52,7 +52,9 @@ struct ReviewsChart: View {
             Text(L("stats_reviews_title")).font(.headline)
 
             if entries.isEmpty {
-                Text(L("stats_reviews_empty")).foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_reviews_empty"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(entries) { entry in
                     BarMark(
@@ -83,6 +85,7 @@ struct ReviewsChart: View {
             }
             .font(.caption2)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }

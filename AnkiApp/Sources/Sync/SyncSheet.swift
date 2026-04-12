@@ -8,8 +8,8 @@ struct SyncSheet: View {
     @Binding var isPresented: Bool
     @Dependency(\.syncClient) var syncClient
 
-    @AppStorage(SyncPreferences.Keys.mode) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
-    @AppStorage(SyncPreferences.Keys.syncMedia) private var syncMediaEnabled = true
+    @AppStorage(SyncPreferences.Keys.modeForCurrentUser()) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
+    @AppStorage(SyncPreferences.Keys.syncMediaForCurrentUser()) private var syncMediaEnabled = true
 
     @State private var syncState: SyncState = .idle
     @State private var showLogin = false
@@ -338,7 +338,7 @@ private struct ServerSetupSheet: View {
             url = "https://" + url
         }
         try? KeychainHelper.saveEndpoint(url)
-        UserDefaults.standard.set(SyncPreferences.Mode.custom.rawValue, forKey: SyncPreferences.Keys.mode)
+        UserDefaults.standard.set(SyncPreferences.Mode.custom.rawValue, forKey: SyncPreferences.Keys.modeForCurrentUser())
         // Clear existing auth since server changed
         KeychainHelper.deleteHostKey()
         KeychainHelper.deleteUsername()

@@ -289,6 +289,7 @@ extension AnkiBackend {
     }
 
     public enum NotetypesMethod {
+        public static let updateNotetype: UInt32 = 1
         public static let getNotetype: UInt32 = 6
         public static let getNotetypeNames: UInt32 = 8
         public static let getNotetypeNamesAndCounts: UInt32 = 9

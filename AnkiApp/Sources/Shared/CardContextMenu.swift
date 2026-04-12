@@ -97,12 +97,27 @@ struct CardContextMenu: View {
     }
 
     private func flagButton(_ value: UInt32, colorName: String) -> some View {
+        let tint = flagColor(for: value)
         Button(action: { performFlag(value) }) {
-            if value == 0 {
-                Label(colorName, systemImage: "flag.slash.fill")
-            } else {
-                Label(colorName, systemImage: "flag.fill")
+            HStack(spacing: 8) {
+                Image(systemName: value == 0 ? "flag.slash.fill" : "flag.fill")
+                    .foregroundStyle(tint)
+                Text(colorName)
+                    .foregroundStyle(tint)
             }
+        }
+    }
+
+    private func flagColor(for value: UInt32) -> Color {
+        switch value {
+        case 1: return .red
+        case 2: return .orange
+        case 3: return .green
+        case 4: return .blue
+        case 5: return .pink
+        case 6: return .cyan
+        case 7: return .purple
+        default: return .secondary
         }
     }
 }

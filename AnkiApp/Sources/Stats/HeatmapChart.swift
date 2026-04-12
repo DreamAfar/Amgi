@@ -128,7 +128,7 @@ struct HeatmapChart: View {
             if dayCountMap.isEmpty {
                 Text(L("stats_heatmap_empty"))
                     .foregroundStyle(.secondary)
-                    .frame(height: 100)
+                    .frame(maxWidth: .infinity, minHeight: 100)
             } else {
                 HStack(spacing: 16) {
                     summaryItem(value: "\(totalReviews)", label: L("stats_total"))
@@ -198,6 +198,7 @@ struct HeatmapChart: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }

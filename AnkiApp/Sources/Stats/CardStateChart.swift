@@ -19,7 +19,9 @@ struct CardStateChart: View {
             Text(L("stats_card_states_title")).font(.headline)
 
             if chartData.isEmpty {
-                Text(L("stats_card_states_empty")).foregroundStyle(.secondary).frame(height: 150)
+                Text(L("stats_card_states_empty"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 150)
             } else {
                 Chart(chartData, id: \.0) { item in
                     SectorMark(angle: .value("Count", item.1), innerRadius: .ratio(0.5))
@@ -37,6 +39,7 @@ struct CardStateChart: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }

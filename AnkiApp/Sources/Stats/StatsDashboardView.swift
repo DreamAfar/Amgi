@@ -15,6 +15,11 @@ struct StatsDashboardView: View {
     @State private var period: StatsPeriod = .month
     @State private var decks: [DeckInfo] = []
     @State private var selectedDeck: DeckInfo?
+    private let initialDeckID: Int64?
+
+    init(initialDeckID: Int64? = nil) {
+        self.initialDeckID = initialDeckID
+    }
 
     var body: some View {
         ScrollView {
@@ -58,6 +63,9 @@ struct StatsDashboardView: View {
         }
         .refreshable { await loadStats() }
         .onChange(of: selectedDeck) {
+            Task { await loadStats() }
+        }
+        .onChange(of: period) {
             Task { await loadStats() }
         }
     }
@@ -125,13 +133,16 @@ struct StatsDashboardView: View {
 
     private func loadDecks() async {
         decks = (try? deckClient.fetchAll()) ?? []
+        if let initialDeckID, selectedDeck == nil {
+            selectedDeck = decks.first(where: { $0.id == initialDeckID })
+        }
     }
 
     private func loadStats() async {
         isLoading = graphs == nil
         do {
-            let search = selectedDeck.map { "deck:\"\($0.name)\"" } ?? ""
-            let data = try statsClient.fetchGraphs(search, 0)
+            let search = selectedDeck.map { "did:\($0.id)" } ?? ""
+            let data = try statsClient.fetchGraphs(search, period.requestDays)
             graphs = try Anki_Stats_GraphsResponse(serializedBytes: data)
             errorMessage = nil
         } catch {

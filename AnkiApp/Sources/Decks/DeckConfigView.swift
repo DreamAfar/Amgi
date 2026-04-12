@@ -535,21 +535,22 @@ struct DeckConfigView: View {
     private func loadConfig() async {
         do {
             Swift.print("[DeckConfigView] Loading config for deckId=\(deckId)")
-            let context = try deckClient.fetchDeckConfigContext(deckId)
+            let context = try? deckClient.fetchDeckConfigContext(deckId)
             let loadedConfig = try deckClient.getDeckConfig(deckId)
+            let effectiveContext = context ?? fallbackDeckConfigContext(from: loadedConfig)
             let effectiveConfig: Anki_DeckConfig_DeckConfig
-            if context.currentDeck.configID != 0,
-               let matched = context.allConfig.first(where: { $0.config.id == context.currentDeck.configID })?.config {
+            if effectiveContext.currentDeck.configID != 0,
+               let matched = effectiveContext.allConfig.first(where: { $0.config.id == effectiveContext.currentDeck.configID })?.config {
                 effectiveConfig = matched
             } else {
                 effectiveConfig = loadedConfig
             }
             Swift.print("[DeckConfigView] Loaded config: \(effectiveConfig.name), id=\(effectiveConfig.id)")
             await MainActor.run {
-                deckConfigContext = context
+                deckConfigContext = effectiveContext
                 config = effectiveConfig
                 selectedPresetID = effectiveConfig.id
-                presetUseCount = context.allConfig.first(where: { $0.config.id == effectiveConfig.id })?.useCount ?? 0
+                presetUseCount = effectiveContext.allConfig.first(where: { $0.config.id == effectiveConfig.id })?.useCount ?? 0
                 let cfg = effectiveConfig.config
                 configName = effectiveConfig.name
                 
@@ -596,11 +597,11 @@ struct DeckConfigView: View {
                 
                 // FSRS settings: global toggle should come from DeckConfigsForUpdate.fsrs,
                 // not from whether params arrays are empty.
-                fsrsEnabled = context.fsrs
-                if context.hasCurrentDeck,
-                   context.currentDeck.hasLimits,
-                   context.currentDeck.limits.hasDesiredRetention {
-                    desiredRetentionPercent = Double(context.currentDeck.limits.desiredRetention * 100)
+                fsrsEnabled = effectiveContext.fsrs
+                if effectiveContext.hasCurrentDeck,
+                   effectiveContext.currentDeck.hasLimits,
+                   effectiveContext.currentDeck.limits.hasDesiredRetention {
+                    desiredRetentionPercent = Double(effectiveContext.currentDeck.limits.desiredRetention * 100)
                 } else {
                     desiredRetentionPercent = Double(cfg.desiredRetention * 100)
                 }
@@ -625,6 +626,25 @@ struct DeckConfigView: View {
                 isLoading = false
             }
         }
+    }
+
+    private func fallbackDeckConfigContext(from loadedConfig: Anki_DeckConfig_DeckConfig) -> Anki_DeckConfig_DeckConfigsForUpdate {
+        var context = Anki_DeckConfig_DeckConfigsForUpdate()
+        var configWithExtra = Anki_DeckConfig_DeckConfigsForUpdate.ConfigWithExtra()
+        configWithExtra.config = loadedConfig
+        configWithExtra.useCount = 0
+
+        context.allConfig = [configWithExtra]
+        context.defaults = loadedConfig
+
+        var currentDeck = Anki_DeckConfig_DeckConfigsForUpdate.CurrentDeck()
+        currentDeck.name = loadedConfig.name
+        currentDeck.configID = loadedConfig.id
+        context.currentDeck = currentDeck
+
+        let cfg = loadedConfig.config
+        context.fsrs = !cfg.fsrsParams6.isEmpty || !cfg.fsrsParams5.isEmpty || !cfg.fsrsParams4.isEmpty
+        return context
     }
 
     private func createPresetFromDefaults() async {

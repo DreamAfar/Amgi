@@ -40,7 +40,9 @@ struct IntervalsChart: View {
             Text(L("stats_intervals_title")).font(.headline)
 
             if buckets.isEmpty {
-                Text(L("stats_intervals_empty")).foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_intervals_empty"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(buckets) { bucket in
                     BarMark(
@@ -57,6 +59,7 @@ struct IntervalsChart: View {
                 .frame(height: 180)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }

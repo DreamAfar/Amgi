@@ -37,7 +37,9 @@ struct HourlyChart: View {
             Text(L("stats_hourly_title")).font(.headline)
 
             if entries.allSatisfy({ $0.total == 0 }) {
-                Text(L("stats_hourly_empty")).foregroundStyle(.secondary).frame(height: 180)
+                Text(L("stats_hourly_empty"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(entries) { entry in
                     BarMark(
@@ -86,6 +88,7 @@ struct HourlyChart: View {
                 .frame(height: 100)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
