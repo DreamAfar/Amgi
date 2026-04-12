@@ -41,11 +41,6 @@ struct ContentView: View {
     @State private var userSwitchError: String?
     @State private var showUserSwitchError = false
 
-    private var isLocalMode: Bool {
-        UserDefaults.standard.string(forKey: SyncPreferences.Keys.modeForCurrentUser())
-            == SyncPreferences.Mode.local.rawValue
-    }
-
     private var isImportExportInProgress: Bool {
         importExportOperation != nil
     }
@@ -202,11 +197,9 @@ struct ContentView: View {
                 Button(L("menu_export_deck")) {
                     exportCollection()
                 }
-                if isLocalMode {
-                    Divider()
-                    Button(L("menu_import_apkg")) {
-                        showImport = true
-                    }
+                Divider()
+                Button(L("menu_import_apkg")) {
+                    showImport = true
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
