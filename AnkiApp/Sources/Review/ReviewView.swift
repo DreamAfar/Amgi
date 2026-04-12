@@ -11,15 +11,26 @@ struct ReviewView: View {
     let onDismiss: () -> Void
 
     @Dependency(\.noteClient) var noteClient
+    @Dependency(\.deckClient) var deckClient
+    @Dependency(\.cardClient) var cardClient
 
     @State private var session: ReviewSession
     @State private var editingNote: NoteRecord?
     @State private var showCardInfo = false
+    @State private var currentCardStatsTarget: ReviewCardStatsTarget?
     @State private var replayRequestID = 0
     @State private var isAudioPlaying = false
     @State private var autoAdvanceTask: Task<Void, Never>?
     @State private var answerFeedbackSymbol: String?
     @State private var showDeckStats = false
+    @State private var templateEditorTarget: ReviewTemplateEditorTarget?
+    @State private var showMoveToDeck = false
+    @State private var availableDecks: [DeckInfo] = []
+    @State private var showChangeNotetype = false
+    @State private var noteIDsForNotetypeChange: [Int64] = []
+    @State private var fieldManagerTarget: ReviewFieldManagerTarget?
+    @State private var toolbarErrorMessage: String?
+    @State private var showToolbarError = false
 
     @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var prefAutoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
@@ -69,16 +80,29 @@ struct ReviewView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showDeckStats = true
+                        openCurrentCardStats()
                     } label: {
                         Image(systemName: "chart.bar.xaxis")
                     }
-                    .accessibilityLabel(L("stats_nav_title"))
+                    .accessibilityLabel(L("review_current_card_stats"))
+                    .disabled(session.currentCard == nil)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(L("review_edit_button")) {
-                        Task { await openEditorForCurrentCard() }
+                    Button {
+                        Task { await openCurrentCardFieldManager() }
+                    } label: {
+                        Image(systemName: "text.badge.plus")
                     }
+                    .accessibilityLabel(L("notetype_field_manage_short"))
+                    .disabled(session.currentCard == nil)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await openEditorForCurrentCard() }
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .accessibilityLabel(L("review_edit_button"))
                     .disabled(session.currentCard == nil)
                 }
                 if prefShowAudioReplayButton {
@@ -92,12 +116,53 @@ struct ReviewView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showCardInfo = true
+                    Menu {
+                        Button {
+                            openCurrentCardStats()
+                        } label: {
+                            Label(L("review_current_card_stats"), systemImage: "chart.bar.xaxis")
+                        }
+                        .disabled(session.currentCard == nil)
+
+                        Button {
+                            showCardInfo = true
+                        } label: {
+                            Label(L("card_info_title"), systemImage: "info.circle")
+                        }
+                        .disabled(session.currentCard == nil)
+
+                        Button {
+                            Task { await openCurrentCardTemplateEditor() }
+                        } label: {
+                            Label(L("card_template_editor_title"), systemImage: "square.and.pencil")
+                        }
+                        .disabled(session.currentCard == nil)
+
+                        Button {
+                            openMoveCurrentCardToDeck()
+                        } label: {
+                            Label(L("browse_batch_move_deck"), systemImage: "rectangle.stack.badge.plus")
+                        }
+                        .disabled(session.currentCard == nil)
+
+                        Button {
+                            openChangeCurrentCardNotetype()
+                        } label: {
+                            Label(L("browse_batch_change_notetype"), systemImage: "doc.badge.gearshape")
+                        }
+                        .disabled(session.currentCard == nil)
+
+                        Divider()
+
+                        Button {
+                            showDeckStats = true
+                        } label: {
+                            Label(L("stats_nav_title"), systemImage: "chart.bar.doc.horizontal")
+                        }
                     } label: {
-                        Image(systemName: "info.circle")
+                        Image(systemName: "ellipsis.circle")
                     }
-                    .disabled(session.currentCard == nil)
+                    .accessibilityLabel(L("review_more_actions"))
                 }
             }
         }
@@ -128,6 +193,37 @@ struct ReviewView: View {
                 }
             }
         }
+        .sheet(item: $currentCardStatsTarget) { target in
+            ReviewCardStatsSheet(queuedCard: target.queuedCard)
+        }
+        .sheet(item: $templateEditorTarget) { target in
+            TemplateEditorView(
+                notetypeId: target.notetypeId,
+                initialTemplateIndex: target.templateIndex,
+                mode: .currentCard
+            )
+        }
+        .sheet(item: $fieldManagerTarget) { target in
+            NavigationStack {
+                NotetypeFieldManagerView(
+                    notetypeId: target.notetypeId,
+                    preferredName: target.notetypeName,
+                    onSaved: {
+                        await session.refreshAfterCardMutation()
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showMoveToDeck) {
+            MoveToDeckSheet(decks: availableDecks) { targetDeck in
+                Task { await moveCurrentCard(to: targetDeck) }
+            }
+        }
+        .sheet(isPresented: $showChangeNotetype) {
+            ChangeNotetypeSheet(noteIDs: noteIDsForNotetypeChange) {
+                Task { await session.refreshAfterCardMutation() }
+            }
+        }
         .sheet(isPresented: $showDeckStats) {
             NavigationStack {
                 StatsDashboardView(initialDeckID: deckId)
@@ -137,6 +233,11 @@ struct ReviewView: View {
             if let queued = session.currentCard {
                 ReviewCardInfoSheet(queuedCard: queued)
             }
+        }
+        .alert(L("common_error"), isPresented: $showToolbarError) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(toolbarErrorMessage ?? L("common_unknown_error"))
         }
         .overlay {
             if let symbol = answerFeedbackSymbol {
@@ -354,6 +455,60 @@ struct ReviewView: View {
         editingNote = note
     }
 
+    private func openCurrentCardStats() {
+        guard let queued = session.currentCard else { return }
+        currentCardStatsTarget = ReviewCardStatsTarget(queuedCard: queued)
+    }
+
+    @MainActor
+    private func openCurrentCardTemplateEditor() async {
+        guard let currentCard = session.currentCard?.card else { return }
+        guard let note = try? noteClient.fetch(currentCard.noteID) else { return }
+        templateEditorTarget = ReviewTemplateEditorTarget(
+            notetypeId: note.mid,
+            templateIndex: Int(currentCard.templateIdx)
+        )
+    }
+
+    private func openMoveCurrentCardToDeck() {
+        availableDecks = (try? deckClient.fetchAll()) ?? []
+        guard !availableDecks.isEmpty else {
+            toolbarErrorMessage = L("review_no_decks_available")
+            showToolbarError = true
+            return
+        }
+        showMoveToDeck = true
+    }
+
+    private func openChangeCurrentCardNotetype() {
+        guard let noteId = session.currentCard?.card.noteID else { return }
+        noteIDsForNotetypeChange = [noteId]
+        showChangeNotetype = true
+    }
+
+    @MainActor
+    private func openCurrentCardFieldManager() async {
+        guard let currentCard = session.currentCard?.card else { return }
+        guard let note = try? noteClient.fetch(currentCard.noteID) else {
+            toolbarErrorMessage = L("notetype_field_load_failed", L("common_unknown_error"))
+            showToolbarError = true
+            return
+        }
+        fieldManagerTarget = ReviewFieldManagerTarget(notetypeId: note.mid, notetypeName: note.notetypeName)
+    }
+
+    @MainActor
+    private func moveCurrentCard(to targetDeck: DeckInfo) async {
+        guard let cardId = session.currentCard?.card.id else { return }
+        do {
+            try cardClient.moveToDeck(cardId, targetDeck.id)
+            await session.refreshAfterCardMutation()
+        } catch {
+            toolbarErrorMessage = L("review_move_deck_failed", error.localizedDescription)
+            showToolbarError = true
+        }
+    }
+
     private func scheduleAutoAdvanceIfNeeded() {
         autoAdvanceTask?.cancel()
         guard !session.isFinished, session.currentCard != nil else { return }
@@ -390,6 +545,370 @@ struct ReviewView: View {
             try audioSession.setActive(true)
         } catch {
             print("[ReviewView] Audio session configure failed: \(error)")
+        }
+    }
+}
+
+private struct ReviewCardStatsTarget: Identifiable {
+    let queuedCard: Anki_Scheduler_QueuedCards.QueuedCard
+
+    var id: Int64 {
+        queuedCard.card.id
+    }
+}
+
+private struct ReviewTemplateEditorTarget: Identifiable {
+    let notetypeId: Int64
+    let templateIndex: Int
+
+    var id: String {
+        "\(notetypeId)-\(templateIndex)"
+    }
+}
+
+private struct ReviewFieldManagerTarget: Identifiable {
+    let notetypeId: Int64
+    let notetypeName: String
+
+    var id: Int64 {
+        notetypeId
+    }
+}
+
+private struct ReviewCardStatsSheet: View {
+    let queuedCard: Anki_Scheduler_QueuedCards.QueuedCard
+    @Dependency(\.statsClient) var statsClient
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var cardStats: Anki_Stats_CardStatsResponse?
+    @State private var isLoadingStats = true
+    @State private var statsError: String?
+
+    private var card: Anki_Cards_Card { queuedCard.card }
+
+    private var memoryState: Anki_Cards_FsrsMemoryState? {
+        if let cardStats, cardStats.hasMemoryState {
+            return cardStats.memoryState
+        }
+        if card.hasMemoryState {
+            return card.memoryState
+        }
+        return nil
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if isLoadingStats {
+                    Section {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                    }
+                }
+
+                if let statsError {
+                    Section {
+                        Text(statsError)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section(L("card_info_section_review_status")) {
+                    row(L("card_info_queue"), queueLabel(queuedCard.queue))
+
+                    if let cardStats {
+                        row(L("card_info_added"), absoluteDate(cardStats.added))
+                        if cardStats.hasFirstReview {
+                            row(L("card_info_first_review"), absoluteDate(cardStats.firstReview))
+                        }
+                        if cardStats.hasLatestReview {
+                            row(L("card_info_last_review"), absoluteDate(cardStats.latestReview))
+                        }
+                        if cardStats.hasDueDate {
+                            row(L("card_info_due"), absoluteDate(cardStats.dueDate))
+                        } else {
+                            row(L("card_info_due"), dueDateString(card.due, queue: queuedCard.queue))
+                        }
+                        if cardStats.hasDuePosition {
+                            row(L("card_info_due_position"), "\(cardStats.duePosition)")
+                        }
+                        row(L("card_info_interval"), formatInterval(Int(cardStats.interval)))
+                        if cardStats.ease > 0 {
+                            row(L("card_info_ease"), String(format: "%.0f%%", Double(cardStats.ease) / 10.0))
+                        }
+                        row(L("card_info_reps"), "\(cardStats.reviews)")
+                        row(L("card_info_lapses"), "\(cardStats.lapses)")
+                        if cardStats.averageSecs > 0 {
+                            row(L("card_info_average_time"), formatDurationSeconds(Double(cardStats.averageSecs)))
+                        }
+                        if cardStats.totalSecs > 0 {
+                            row(L("card_info_total_time"), formatDurationSeconds(Double(cardStats.totalSecs)))
+                        }
+                    } else {
+                        row(L("card_info_interval"), formatInterval(Int(card.interval)))
+                        row(L("card_info_due"), dueDateString(card.due, queue: queuedCard.queue))
+                        row(L("card_info_reps"), "\(card.reps)")
+                        row(L("card_info_lapses"), "\(card.lapses)")
+                        if card.interval > 0 {
+                            row(L("card_info_ease"), String(format: "%.0f%%", Double(card.easeFactor) / 10.0))
+                        }
+                    }
+                }
+
+                if let memoryState {
+                    Section(L("card_info_section_fsrs")) {
+                        row(L("card_info_stability"), formatStability(memoryState.stability))
+                        row(L("card_info_difficulty"), String(format: "%.0f%%", Double(memoryState.difficulty) * 10.0))
+                        if let cardStats, cardStats.hasFsrsRetrievability {
+                            row(L("card_info_retrievability"), String(format: "%.0f%%", Double(cardStats.fsrsRetrievability) * 100.0))
+                        }
+                        if let cardStats, cardStats.hasDesiredRetention {
+                            row(L("card_info_retention"), String(format: "%.0f%%", Double(cardStats.desiredRetention) * 100.0))
+                        } else if card.hasDesiredRetention {
+                            row(L("card_info_retention"), String(format: "%.0f%%", Double(card.desiredRetention) * 100))
+                        }
+                        if let cardStats, cardStats.hasLatestReview {
+                            row(L("card_info_last_review"), absoluteDate(cardStats.latestReview))
+                        } else if card.hasLastReviewTimeSecs {
+                            row(L("card_info_last_review"), absoluteDate(card.lastReviewTimeSecs))
+                        }
+                    }
+                }
+
+                if memoryState != nil {
+                    Section(L("card_info_section_forgetting_curve")) {
+                        forgettingCurveView
+                    }
+                }
+
+                if let cardStats, !cardStats.revlog.isEmpty {
+                    Section(L("card_info_section_history")) {
+                        historyHeader
+                        ForEach(Array(cardStats.revlog.prefix(30).enumerated()), id: \.offset) { _, entry in
+                            historyRow(entry)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(L("review_current_card_stats"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done")) { dismiss() }
+                }
+            }
+            .task {
+                await loadCardStats()
+            }
+        }
+    }
+
+    private var forgettingCurveView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Chart {
+                ForEach(forgettingCurvePoints, id: \.day) { point in
+                    LineMark(
+                        x: .value("day", point.day),
+                        y: .value("retention", point.retention * 100.0)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(.blue)
+
+                    AreaMark(
+                        x: .value("day", point.day),
+                        y: .value("retention", point.retention * 100.0)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue.opacity(0.22), .blue.opacity(0.04)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+
+                RuleMark(y: .value("target", targetRetention * 100.0))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .foregroundStyle(.cyan)
+
+                if let latest = forgettingCurvePoints.last {
+                    PointMark(
+                        x: .value("day", latest.day),
+                        y: .value("retention", latest.retention * 100.0)
+                    )
+                    .foregroundStyle(.blue)
+                }
+            }
+            .frame(height: 200)
+            .chartYScale(domain: 0...100)
+            .chartXAxis { AxisMarks(position: .bottom) }
+            .chartYAxis { AxisMarks(position: .leading) }
+
+            Text(L("card_info_curve_target", Int((targetRetention * 100.0).rounded())))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var targetRetention: Double {
+        if let cardStats, cardStats.hasDesiredRetention {
+            return min(max(Double(cardStats.desiredRetention), 0.0), 1.0)
+        }
+        if card.hasDesiredRetention {
+            return min(max(Double(card.desiredRetention), 0.0), 1.0)
+        }
+        return 0.80
+    }
+
+    private var forgettingCurvePoints: [(day: Double, retention: Double)] {
+        guard let memoryState else { return [] }
+
+        let stability = max(Double(memoryState.stability), 0.05)
+        let horizon = min(max(stability * 6.0, 7.0), 365.0)
+        let step = max(horizon / 40.0, 0.25)
+
+        var points: [(day: Double, retention: Double)] = []
+        var day = 0.0
+        while day <= horizon {
+            let retention = exp(log(0.9) * day / stability)
+            points.append((day: day, retention: retention))
+            day += step
+        }
+
+        if points.last?.day ?? 0 < horizon {
+            let retention = exp(log(0.9) * horizon / stability)
+            points.append((day: horizon, retention: retention))
+        }
+        return points
+    }
+
+    private var historyHeader: some View {
+        HStack {
+            Text(L("card_info_history_date"))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(L("card_info_history_rating"))
+                .frame(width: 44, alignment: .center)
+            Text(L("card_info_history_interval"))
+                .frame(width: 78, alignment: .trailing)
+            Text(L("card_info_history_time"))
+                .frame(width: 78, alignment: .trailing)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
+    private func historyRow(_ entry: Anki_Stats_CardStatsResponse.StatsRevlogEntry) -> some View {
+        HStack {
+            Text(absoluteDateFlexible(entry.time))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("\(entry.buttonChosen)")
+                .foregroundStyle(entry.buttonChosen == 1 ? .red : .primary)
+                .frame(width: 44, alignment: .center)
+            Text(formatIntervalSeconds(Int(entry.interval)))
+                .frame(width: 78, alignment: .trailing)
+            Text(formatDurationSeconds(Double(entry.takenSecs)))
+                .frame(width: 78, alignment: .trailing)
+        }
+        .font(.subheadline)
+    }
+
+    private func row(_ title: String, _ value: String) -> some View {
+        LabeledContent(title) {
+            Text(value)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+        }
+    }
+
+    private func queueLabel(_ queue: Anki_Scheduler_QueuedCards.Queue) -> String {
+        switch queue {
+        case .new: return L("card_queue_new")
+        case .learning: return L("card_queue_learning")
+        case .review: return L("card_queue_review")
+        case .UNRECOGNIZED(let v): return L("card_queue_unknown", v)
+        }
+    }
+
+    private func formatInterval(_ days: Int) -> String {
+        if days == 0 { return L("card_interval_less_than_1d") }
+        if days < 30 { return L("card_interval_days", days) }
+        if days < 365 { return L("card_interval_months", days / 30) }
+        return L("card_interval_years", Double(days) / 365.0)
+    }
+
+    private func formatIntervalSeconds(_ seconds: Int) -> String {
+        if seconds < 60 { return L("card_info_seconds_fmt", seconds) }
+        if seconds < 3600 { return L("card_info_minutes_fmt", Double(seconds) / 60.0) }
+        if seconds < 86_400 { return String(format: "%.1fh", Double(seconds) / 3600.0) }
+        return L("card_interval_days", Int(Double(seconds) / 86_400.0))
+    }
+
+    private func formatDurationSeconds(_ seconds: Double) -> String {
+        if seconds < 60 { return L("card_info_seconds_fmt", Int(seconds.rounded())) }
+        return L("card_info_minutes_fmt", seconds / 60.0)
+    }
+
+    private func formatStability(_ days: Float) -> String {
+        if days < 1 {
+            let hours = max(1, Int((Double(days) * 24.0).rounded()))
+            return L("card_info_hours_fmt", hours)
+        }
+        return String(format: L("card_info_stability_fmt"), days)
+    }
+
+    private func dueDateString(_ due: Int32, queue: Anki_Scheduler_QueuedCards.Queue) -> String {
+        switch queue {
+        case .new:
+            return L("card_due_position", due)
+        case .learning:
+            let date = Date(timeIntervalSince1970: Double(due))
+            let fmt = RelativeDateTimeFormatter()
+            fmt.locale = .current
+            return fmt.localizedString(for: date, relativeTo: Date())
+        case .review:
+            let ankiEpoch: TimeInterval = 1136073600
+            let dueDate = Date(timeIntervalSince1970: ankiEpoch + Double(due) * 86400)
+            if Calendar.current.isDateInToday(dueDate) { return L("common_today") }
+            let fmt = RelativeDateTimeFormatter()
+            fmt.locale = .current
+            return fmt.localizedString(for: dueDate, relativeTo: Date())
+        default:
+            return "\(due)"
+        }
+    }
+
+    private func absoluteDate(_ unixSecs: Int64) -> String {
+        let date = Date(timeIntervalSince1970: Double(unixSecs))
+        let fmt = DateFormatter()
+        fmt.locale = .current
+        fmt.dateFormat = "yyyy-MM-dd"
+        return fmt.string(from: date)
+    }
+
+    private func absoluteDateFlexible(_ unix: Int64) -> String {
+        let seconds = unix > 100_000_000_000 ? Double(unix) / 1000.0 : Double(unix)
+        let date = Date(timeIntervalSince1970: seconds)
+        let fmt = DateFormatter()
+        fmt.locale = .current
+        fmt.dateFormat = "yyyy-MM-dd"
+        return fmt.string(from: date)
+    }
+
+    private func loadCardStats() async {
+        isLoadingStats = true
+        defer { isLoadingStats = false }
+
+        do {
+            let data = try statsClient.fetchCardStats(card.id)
+            cardStats = try Anki_Stats_CardStatsResponse(serializedBytes: data)
+            statsError = nil
+        } catch {
+            statsError = error.localizedDescription
         }
     }
 }

@@ -6,6 +6,10 @@ import AnkiSync
 import Dependencies
 import SwiftProtobuf
 
+private enum SettingsValueStyle {
+    static let highlight = Color.blue
+}
+
 // MARK: - AppTheme
 
 enum AppTheme: String, CaseIterable, Identifiable {
@@ -127,12 +131,14 @@ struct SettingsView: View {
                     Spacer()
                     Picker(L("settings_picker_theme"), selection: selectedTheme) {
                         ForEach(AppTheme.allCases) { theme in
-                            Text(theme.displayName).tag(theme)
+                            Text(theme.displayName)
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(theme)
                         }
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(.primary)
+                    .tint(SettingsValueStyle.highlight)
                 }
 
                 HStack {
@@ -141,12 +147,14 @@ struct SettingsView: View {
                     Spacer()
                     Picker(L("settings_picker_language"), selection: selectedLanguage) {
                         ForEach(AppLanguage.allCases) { lang in
-                            Text(lang.displayName).tag(lang)
+                            Text(lang.displayName)
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(lang)
                         }
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(.primary)
+                    .tint(SettingsValueStyle.highlight)
                 }
 
                 if selectedLanguage.wrappedValue != .system {
@@ -167,6 +175,18 @@ struct SettingsView: View {
                     UserFileManagerView(username: AppUserStore.loadSelectedUser())
                 } label: {
                     settingsRowLabel(L("settings_row_file_manager"), icon: "folder")
+                }
+
+                NavigationLink {
+                    DeckTemplateListView()
+                } label: {
+                    settingsRowLabel(L("settings_row_deck_templates"), icon: "square.stack.3d.up")
+                }
+
+                NavigationLink {
+                    NotetypeFieldManagerListView()
+                } label: {
+                    settingsRowLabel(L("settings_row_field_manager"), icon: "text.badge.plus")
                 }
 
                 Button {
@@ -356,11 +376,13 @@ private struct ReviewOptionsView: View {
 
                 Picker(L("settings_review_card_alignment"), selection: cardAlignment) {
                     ForEach(CardAlignment.allCases) { alignment in
-                        Text(alignment.title).tag(alignment)
+                        Text(alignment.title)
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .tag(alignment)
                     }
                 }
                 .pickerStyle(.menu)
-                .tint(.primary)
+                .tint(SettingsValueStyle.highlight)
             }
         }
         .navigationTitle(L("settings_row_review"))
@@ -454,12 +476,18 @@ private struct SyncSettingsView: View {
         List {
             Section(L("sync_settings_section_server")) {
                 Picker(L("sync_settings_server_type"), selection: syncModeBinding) {
-                    Text(L("sync_settings_server_type_official")).tag(SyncPreferences.Mode.official)
-                    Text(L("sync_settings_server_type_custom")).tag(SyncPreferences.Mode.custom)
-                    Text(L("sync_settings_server_type_local")).tag(SyncPreferences.Mode.local)
+                    Text(L("sync_settings_server_type_official"))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .tag(SyncPreferences.Mode.official)
+                    Text(L("sync_settings_server_type_custom"))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .tag(SyncPreferences.Mode.custom)
+                    Text(L("sync_settings_server_type_local"))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .tag(SyncPreferences.Mode.local)
                 }
                 .pickerStyle(.menu)
-                .tint(.primary)
+                .tint(SettingsValueStyle.highlight)
 
                 infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
                 infoRow(title: L("sync_settings_current_server"), value: currentServerValue)
@@ -491,11 +519,13 @@ private struct SyncSettingsView: View {
 
                 Picker(L("sync_settings_timeout"), selection: timeoutBinding) {
                     ForEach(SyncPreferences.Timeout.allCases) { option in
-                        Text(L("sync_settings_timeout_seconds", option.rawValue)).tag(option)
+                        Text(L("sync_settings_timeout_seconds", option.rawValue))
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .tag(option)
                     }
                 }
                 .pickerStyle(.menu)
-                .tint(.primary)
+                .tint(SettingsValueStyle.highlight)
             }
 
             if syncMode != .local {
@@ -552,7 +582,7 @@ private struct SyncSettingsView: View {
             Text(title)
             Spacer()
             Text(value)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SettingsValueStyle.highlight)
                 .multilineTextAlignment(.trailing)
         }
     }

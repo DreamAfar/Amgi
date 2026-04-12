@@ -293,6 +293,7 @@ extension AnkiBackend {
         public static let getNotetype: UInt32 = 6
         public static let getNotetypeNames: UInt32 = 8
         public static let getNotetypeNamesAndCounts: UInt32 = 9
+        public static let removeNotetype: UInt32 = 11
         // GetChangeNotetypeInfo = proto index 14
         public static let getChangeNotetypeInfo: UInt32 = 14
         // ChangeNotetype = proto index 15

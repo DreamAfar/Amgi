@@ -11,44 +11,62 @@ struct DeckTemplateListView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var searchText = ""
-    @State private var selectedTemplate: Anki_Notetypes_Notetype = .init()
-    @State private var hasSelectedTemplate = false
-    @State private var selectedTemplateIndex = 0
-    @State private var previewSide: TemplatePreviewSide = .front
-    @State private var isLoadingPreview = false
-    @State private var previewError: String?
-    @State private var saveError: String?
-    @State private var showSaveError = false
-    @State private var isSaving = false
-    @State private var showPreview = false
+    @State private var editorTarget: TemplateEditorTarget?
+    @State private var renameTarget: Anki_Notetypes_NotetypeNameId?
+    @State private var renameText = ""
+    @State private var showRenamePrompt = false
+    @State private var deleteTarget: Anki_Notetypes_NotetypeNameId?
+    @State private var showDeleteConfirm = false
+    @State private var actionError: String?
+    @State private var showActionError = false
 
     private var filteredEntries: [Anki_Notetypes_NotetypeNameId] {
         filterDeckTemplateEntries(entries, searchText: searchText)
     }
 
     var body: some View {
-        NavigationStack {
-            mainContent
-                .navigationTitle(L("deck_template_nav_title"))
-                .navigationBarTitleDisplayMode(.inline)
-                .searchable(text: $searchText, prompt: L("deck_template_search"))
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(L("common_done")) { dismiss() }
-                    }
+        mainContent
+            .navigationTitle(L("deck_template_nav_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $searchText, prompt: L("deck_template_search"))
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done")) { dismiss() }
                 }
-                .sheet(isPresented: $showPreview) {
-                    previewSheet
+            }
+            .sheet(item: $editorTarget) { target in
+                TemplateEditorView(
+                    notetypeId: target.id,
+                    initialTemplateIndex: target.initialTemplateIndex,
+                    mode: .manager,
+                    onSaved: { await loadTemplates() }
+                )
+            }
+            .alert(L("deck_template_rename_title"), isPresented: $showRenamePrompt) {
+                TextField(L("deck_template_rename_placeholder"), text: $renameText)
+                Button(L("common_cancel"), role: .cancel) {}
+                Button(L("common_save")) {
+                    Task { await renameNotetype() }
                 }
-                .alert(L("deck_template_save_failed"), isPresented: $showSaveError) {
-                    Button(L("common_ok")) {}
-                } message: {
-                    Text(saveError ?? L("common_unknown_error"))
+            } message: {
+                Text(renameTarget?.name ?? "")
+            }
+            .alert(L("deck_template_delete_title"), isPresented: $showDeleteConfirm) {
+                Button(L("common_delete"), role: .destructive) {
+                    Task { await deleteNotetype() }
                 }
-                .task {
-                    await loadTemplates()
-                }
-        }
+                Button(L("common_cancel"), role: .cancel) {}
+            } message: {
+                Text(L("deck_template_delete_message", deleteTarget?.name ?? ""))
+            }
+            .alert(L("common_error"), isPresented: $showActionError) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(actionError ?? L("common_unknown_error"))
+            }
+            .task {
+                await loadTemplates()
+            }
     }
 
     // MARK: - Extracted Sub-views
@@ -79,7 +97,7 @@ struct DeckTemplateListView: View {
     private var templateList: some View {
         List(filteredEntries, id: \.id) { entry in
             Button {
-                Task { await openPreview(for: entry.id) }
+                editorTarget = TemplateEditorTarget(id: entry.id, initialTemplateIndex: 0)
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "square.stack.3d.up")
@@ -99,132 +117,25 @@ struct DeckTemplateListView: View {
             }
             .buttonStyle(.plain)
             .padding(.vertical, 2)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) {
+                    deleteTarget = entry
+                    showDeleteConfirm = true
+                } label: {
+                    Label(L("common_delete"), systemImage: "trash")
+                }
+
+                Button {
+                    renameTarget = entry
+                    renameText = entry.name
+                    showRenamePrompt = true
+                } label: {
+                    Label(L("user_mgmt_rename"), systemImage: "pencil")
+                }
+                .tint(.blue)
+            }
         }
         .listStyle(.plain)
-    }
-
-    private var previewSheet: some View {
-        NavigationStack {
-            previewContent
-                .navigationTitle(L("deck_template_preview_title"))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        if isSaving {
-                            ProgressView()
-                        }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(L("btn_save")) {
-                            Task { await saveTemplate() }
-                        }
-                        .disabled(!hasSelectedTemplate || isLoadingPreview || isSaving)
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(L("common_done")) { showPreview = false }
-                    }
-                }
-        }
-    }
-
-    @ViewBuilder
-    private var previewContent: some View {
-        if isLoadingPreview {
-            ProgressView()
-        } else if let previewError {
-            ContentUnavailableView(
-                L("deck_template_error_title"),
-                systemImage: "exclamationmark.triangle",
-                description: Text(previewError)
-            )
-        } else if hasSelectedTemplate {
-            previewList(for: selectedTemplate)
-        }
-    }
-
-    private func previewList(for notetype: Anki_Notetypes_Notetype) -> some View {
-        Form {
-            Section(L("deck_template_preview_basic")) {
-                row(L("card_info_template"), notetype.name)
-                row("ID", "\(notetype.id)")
-            }
-            Section(L("deck_template_preview_counts")) {
-                row(L("deck_template_preview_fields"), "\(notetype.fields.count)")
-                row(L("deck_template_preview_cards"), "\(notetype.templates.count)")
-            }
-
-            if !notetype.templates.isEmpty {
-                Section(L("deck_template_preview_template_names")) {
-                    Picker(L("deck_template_select_template"), selection: $selectedTemplateIndex) {
-                        ForEach(Array(notetype.templates.enumerated()), id: \.offset) { idx, template in
-                            Text(template.name).tag(idx)
-                        }
-                    }
-                    .pickerStyle(.navigationLink)
-                }
-            }
-
-            if !notetype.fields.isEmpty {
-                Section(L("deck_template_preview_field_names")) {
-                    ForEach(Array(notetype.fields.enumerated()), id: \.offset) { _, field in
-                        row(field.name, sampleValue(for: field.name))
-                    }
-                }
-            }
-
-            Section(L("deck_template_edit_template")) {
-                TextField(
-                    L("deck_template_edit_template_name"),
-                    text: templateNameBinding
-                )
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L("deck_template_edit_qformat"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    TextEditor(text: qFormatBinding)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 120)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L("deck_template_edit_aformat"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    TextEditor(text: aFormatBinding)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 120)
-                }
-            }
-
-            Section(L("deck_template_edit_css")) {
-                TextEditor(text: cssBinding)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 120)
-            }
-
-            Section(L("deck_template_preview_rendered")) {
-                Picker(L("deck_template_preview_side"), selection: $previewSide) {
-                    ForEach(TemplatePreviewSide.allCases, id: \.self) { side in
-                        Text(side.label).tag(side)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                CardWebView(
-                    html: renderedTemplateHTML(side: previewSide),
-                    autoplayEnabled: false,
-                    isAnswerSide: previewSide == .back,
-                    cardOrdinal: UInt32(selectedTemplateIndex),
-                    openLinksExternally: false,
-                    contentAlignment: .top
-                )
-                .frame(height: 320)
-            }
-        }
-        .onChange(of: selectedTemplate.templates.count) {
-            normalizeTemplateIndex()
-        }
     }
 
     private func loadTemplates() async {
@@ -244,77 +155,297 @@ struct DeckTemplateListView: View {
         }
     }
 
-    private func openPreview(for notetypeId: Int64) async {
-        isLoadingPreview = true
-        hasSelectedTemplate = false
-        selectedTemplate = .init()
-        selectedTemplateIndex = 0
-        previewError = nil
-        showPreview = true
+    private func renameNotetype() async {
+        guard let renameTarget else { return }
 
-        defer { isLoadingPreview = false }
+        let newName = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty, newName != renameTarget.name else { return }
 
         do {
             var req = Anki_Notetypes_NotetypeId()
-            req.ntid = notetypeId
-            let notetype: Anki_Notetypes_Notetype = try backend.invoke(
+            req.ntid = renameTarget.id
+            var notetype: Anki_Notetypes_Notetype = try backend.invoke(
                 service: AnkiBackend.Service.notetypes,
                 method: AnkiBackend.NotetypesMethod.getNotetype,
                 request: req
             )
-            selectedTemplate = notetype
-            hasSelectedTemplate = true
-            normalizeTemplateIndex()
-        } catch {
-            previewError = error.localizedDescription
-        }
-    }
-
-    private func saveTemplate() async {
-        guard hasSelectedTemplate else { return }
-        isSaving = true
-        defer { isSaving = false }
-
-        do {
+            notetype.name = newName
             try backend.callVoid(
                 service: AnkiBackend.Service.notetypes,
                 method: AnkiBackend.NotetypesMethod.updateNotetype,
-                request: selectedTemplate
+                request: notetype
             )
-
-            // Keep list entry names in sync after renaming a notetype.
             await loadTemplates()
-            previewError = nil
         } catch {
-            saveError = error.localizedDescription
-            showSaveError = true
+            actionError = L("deck_template_rename_failed", error.localizedDescription)
+            showActionError = true
         }
     }
 
-    private var templateNameBinding: Binding<String> {
-        Binding(
-            get: {
-                guard selectedTemplate.templates.indices.contains(selectedTemplateIndex) else { return "" }
-                return selectedTemplate.templates[selectedTemplateIndex].name
-            },
-            set: { newValue in
-                guard selectedTemplate.templates.indices.contains(selectedTemplateIndex) else { return }
-                selectedTemplate.templates[selectedTemplateIndex].name = newValue
+    private func deleteNotetype() async {
+        guard let deleteTarget else { return }
+
+        do {
+            var req = Anki_Notetypes_NotetypeId()
+            req.ntid = deleteTarget.id
+            try backend.callVoid(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.removeNotetype,
+                request: req
+            )
+            await loadTemplates()
+        } catch {
+            actionError = L("deck_template_delete_failed", error.localizedDescription)
+            showActionError = true
+        }
+    }
+}
+
+private struct TemplateEditorTarget: Identifiable {
+    let id: Int64
+    let initialTemplateIndex: Int
+}
+
+enum TemplateEditorMode {
+    case manager
+    case currentCard
+
+    var title: String {
+        switch self {
+        case .manager:
+            return L("card_template_editor_title")
+        case .currentCard:
+            return L("card_template_editor_title")
+        }
+    }
+
+    var allowsTemplateSelection: Bool {
+        switch self {
+        case .manager:
+            return true
+        case .currentCard:
+            return false
+        }
+    }
+}
+
+private enum TemplateEditorTab: CaseIterable {
+    case front
+    case back
+    case css
+
+    var label: String {
+        switch self {
+        case .front:
+            return L("deck_template_edit_qformat")
+        case .back:
+            return L("deck_template_edit_aformat")
+        case .css:
+            return "CSS"
+        }
+    }
+}
+
+struct TemplateEditorView: View {
+    @Dependency(\.ankiBackend) var backend
+    @Environment(\.dismiss) private var dismiss
+
+    let notetypeId: Int64
+    let initialTemplateIndex: Int
+    let mode: TemplateEditorMode
+    var onSaved: (@Sendable () async -> Void)? = nil
+
+    @State private var notetype: Anki_Notetypes_Notetype = .init()
+    @State private var isLoading = true
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @State private var showSaveError = false
+    @State private var selectedTemplateIndex = 0
+    @State private var previewSide: TemplatePreviewSide = .front
+    @State private var editorTab: TemplateEditorTab = .front
+    @State private var showFieldManager = false
+
+    private var currentTemplateName: String {
+        guard notetype.templates.indices.contains(selectedTemplateIndex) else {
+            return L("deck_template_preview_no_template")
+        }
+        return notetype.templates[selectedTemplateIndex].name
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView()
+                } else if let errorMessage {
+                    ContentUnavailableView(
+                        L("deck_template_error_title"),
+                        systemImage: "exclamationmark.triangle",
+                        description: Text(errorMessage)
+                    )
+                } else {
+                    editorContent
+                }
             }
-        )
+            .navigationTitle(mode.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_cancel")) { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showFieldManager = true
+                    } label: {
+                        Image(systemName: "text.badge.plus")
+                    }
+                    .disabled(isLoading)
+                    .accessibilityLabel(L("notetype_field_manage_short"))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button(L("btn_save")) {
+                            Task { await saveTemplate() }
+                        }
+                        .disabled(!notetype.templates.indices.contains(selectedTemplateIndex))
+                    }
+                }
+            }
+            .alert(L("deck_template_save_failed"), isPresented: $showSaveError) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? L("common_unknown_error"))
+            }
+            .sheet(isPresented: $showFieldManager) {
+                NavigationStack {
+                    NotetypeFieldManagerView(
+                        notetypeId: notetypeId,
+                        preferredName: notetype.name,
+                        onSaved: {
+                            await loadNotetype()
+                            if let onSaved {
+                                await onSaved()
+                            }
+                        }
+                    )
+                }
+            }
+            .task {
+                await loadNotetype()
+            }
+        }
+    }
+
+    private var editorContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(currentTemplateName)
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+
+                    if mode.allowsTemplateSelection, notetype.templates.count > 1 {
+                        Menu {
+                            ForEach(Array(notetype.templates.enumerated()), id: \.offset) { index, template in
+                                Button {
+                                    selectedTemplateIndex = index
+                                } label: {
+                                    if selectedTemplateIndex == index {
+                                        Label(template.name, systemImage: "checkmark")
+                                    } else {
+                                        Text(template.name)
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(currentTemplateName)
+                                    .font(.headline)
+                                Spacer()
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        }
+                    }
+
+                    Picker("Template Editor", selection: $editorTab) {
+                        ForEach(TemplateEditorTab.allCases, id: \.self) { tab in
+                            Text(tab.label).tag(tab)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(16)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+                TextEditor(text: currentEditorBinding)
+                    .font(.system(size: 16, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+                    .padding(16)
+                    .frame(minHeight: 420)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(L("deck_template_preview_rendered"))
+                        .font(.title3.weight(.semibold))
+
+                    VStack(spacing: 14) {
+                        Picker(L("deck_template_preview_side"), selection: $previewSide) {
+                            ForEach(TemplatePreviewSide.allCases, id: \.self) { side in
+                                Text(side.label).tag(side)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Divider()
+
+                        CardWebView(
+                            html: renderedTemplateHTML(side: previewSide),
+                            autoplayEnabled: false,
+                            isAnswerSide: previewSide == .back,
+                            cardOrdinal: UInt32(selectedTemplateIndex),
+                            openLinksExternally: false,
+                            contentAlignment: .top
+                        )
+                        .frame(height: 320)
+                    }
+                    .padding(16)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                }
+            }
+            .padding(20)
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+
+    private var currentEditorBinding: Binding<String> {
+        switch editorTab {
+        case .front:
+            return qFormatBinding
+        case .back:
+            return aFormatBinding
+        case .css:
+            return cssBinding
+        }
     }
 
     private var qFormatBinding: Binding<String> {
         Binding(
             get: {
-                guard selectedTemplate.templates.indices.contains(selectedTemplateIndex) else { return "" }
-                return selectedTemplate.templates[selectedTemplateIndex].config.qFormat
+                guard notetype.templates.indices.contains(selectedTemplateIndex) else { return "" }
+                return notetype.templates[selectedTemplateIndex].config.qFormat
             },
             set: { newValue in
-                guard selectedTemplate.templates.indices.contains(selectedTemplateIndex) else { return }
-                var cfg = selectedTemplate.templates[selectedTemplateIndex].config
-                cfg.qFormat = newValue
-                selectedTemplate.templates[selectedTemplateIndex].config = cfg
+                guard notetype.templates.indices.contains(selectedTemplateIndex) else { return }
+                var config = notetype.templates[selectedTemplateIndex].config
+                config.qFormat = newValue
+                notetype.templates[selectedTemplateIndex].config = config
             }
         )
     }
@@ -322,48 +453,90 @@ struct DeckTemplateListView: View {
     private var aFormatBinding: Binding<String> {
         Binding(
             get: {
-                guard selectedTemplate.templates.indices.contains(selectedTemplateIndex) else { return "" }
-                return selectedTemplate.templates[selectedTemplateIndex].config.aFormat
+                guard notetype.templates.indices.contains(selectedTemplateIndex) else { return "" }
+                return notetype.templates[selectedTemplateIndex].config.aFormat
             },
             set: { newValue in
-                guard selectedTemplate.templates.indices.contains(selectedTemplateIndex) else { return }
-                var cfg = selectedTemplate.templates[selectedTemplateIndex].config
-                cfg.aFormat = newValue
-                selectedTemplate.templates[selectedTemplateIndex].config = cfg
+                guard notetype.templates.indices.contains(selectedTemplateIndex) else { return }
+                var config = notetype.templates[selectedTemplateIndex].config
+                config.aFormat = newValue
+                notetype.templates[selectedTemplateIndex].config = config
             }
         )
     }
 
     private var cssBinding: Binding<String> {
         Binding(
-            get: { selectedTemplate.config.css },
+            get: { notetype.config.css },
             set: { newValue in
-                var cfg = selectedTemplate.config
-                cfg.css = newValue
-                selectedTemplate.config = cfg
+                var config = notetype.config
+                config.css = newValue
+                notetype.config = config
             }
         )
     }
 
-    private func normalizeTemplateIndex() {
-        if selectedTemplate.templates.isEmpty {
+    @MainActor
+    private func loadNotetype() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            var req = Anki_Notetypes_NotetypeId()
+            req.ntid = notetypeId
+            notetype = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.getNotetype,
+                request: req
+            )
+            normalizeTemplateIndex(preferred: initialTemplateIndex)
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func saveTemplate() async {
+        isSaving = true
+        defer { isSaving = false }
+
+        do {
+            try backend.callVoid(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.updateNotetype,
+                request: notetype
+            )
+            if let onSaved {
+                await onSaved()
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            showSaveError = true
+        }
+    }
+
+    private func normalizeTemplateIndex(preferred: Int? = nil) {
+        guard !notetype.templates.isEmpty else {
             selectedTemplateIndex = 0
             return
         }
-        if selectedTemplateIndex >= selectedTemplate.templates.count {
-            selectedTemplateIndex = selectedTemplate.templates.count - 1
+        if let preferred, notetype.templates.indices.contains(preferred) {
+            selectedTemplateIndex = preferred
+            return
+        }
+        if !notetype.templates.indices.contains(selectedTemplateIndex) {
+            selectedTemplateIndex = 0
         }
     }
 
     private func renderedTemplateHTML(side: TemplatePreviewSide) -> String {
-        guard selectedTemplate.templates.indices.contains(selectedTemplateIndex) else {
-            let message = L("deck_template_preview_no_template")
-            return "<p>\(message)</p>"
+        guard notetype.templates.indices.contains(selectedTemplateIndex) else {
+            return "<p>\(L("deck_template_preview_no_template"))</p>"
         }
 
-        let template = selectedTemplate.templates[selectedTemplateIndex]
-        let frontRaw = template.config.qFormat
-        let front = renderTemplate(frontRaw)
+        let template = notetype.templates[selectedTemplateIndex]
+        let front = renderTemplate(template.config.qFormat)
 
         let body: String
         switch side {
@@ -374,43 +547,28 @@ struct DeckTemplateListView: View {
             body = renderTemplate(merged)
         }
 
-        let css = selectedTemplate.config.css
-        return "<style>\(css)</style>\(body)"
+        return "<style>\(notetype.config.css)</style>\(body)"
     }
 
     private func renderTemplate(_ source: String) -> String {
         var rendered = source
 
-        for field in selectedTemplate.fields {
+        for field in notetype.fields {
             let name = field.name
-            let value = sampleValue(for: name)
+            let value = L("deck_template_sample_value", name)
             let escapedName = NSRegularExpression.escapedPattern(for: name)
-            if let regex = try? NSRegularExpression(pattern: "\\\\{\\\\{[^{}]*\(escapedName)[^{}]*\\\\}\\\\}") {
+            if let regex = try? NSRegularExpression(pattern: "\\{\\{[^{}]*\(escapedName)[^{}]*\\}\\}") {
                 let range = NSRange(rendered.startIndex..., in: rendered)
                 rendered = regex.stringByReplacingMatches(in: rendered, range: range, withTemplate: value)
             }
         }
 
-        if let regex = try? NSRegularExpression(pattern: "\\\\{\\\\{[^{}]+\\\\}\\\\}") {
+        if let regex = try? NSRegularExpression(pattern: "\\{\\{[^{}]+\\}\\}") {
             let range = NSRange(rendered.startIndex..., in: rendered)
             rendered = regex.stringByReplacingMatches(in: rendered, range: range, withTemplate: "")
         }
 
         return rendered
-    }
-
-    private func sampleValue(for fieldName: String) -> String {
-        L("deck_template_sample_value", fieldName)
-    }
-
-    private func row(_ title: String, _ value: String) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Text(value)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
-        }
     }
 }
 
