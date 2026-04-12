@@ -180,6 +180,7 @@ struct AddNoteView: View {
             || MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) != nil
     }
 
+    @MainActor
     private func previewAudio(at index: Int) {
         do {
             try MediaAudioPreview.playFirstAudioTag(in: fieldValue(at: index))

@@ -2,6 +2,7 @@ import Foundation
 import AVFAudio
 
 enum MediaAudioPreview {
+    @MainActor
     private static var player: AVAudioPlayer?
 
     static func firstAudioFileName(in text: String) -> String? {
@@ -23,6 +24,7 @@ enum MediaAudioPreview {
         return keywords.contains { lowered.contains($0) }
     }
 
+    @MainActor
     static func playFirstAudioTag(in text: String) throws {
         guard let fileName = firstAudioFileName(in: text) else {
             throw PreviewError.noAudioTag
