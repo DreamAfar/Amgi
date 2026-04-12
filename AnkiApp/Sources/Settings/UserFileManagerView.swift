@@ -114,19 +114,23 @@ struct UserFileManagerView: View {
 
     @ViewBuilder
     private var summarySection: some View {
-        Section(L("file_mgmt_section_summary")) {
+        Section {
             LabeledContent(L("file_mgmt_user"), value: username)
             LabeledContent(L("file_mgmt_media_count"), value: "\(mediaFiles.count)")
             LabeledContent(L("file_mgmt_media_size"), value: totalMediaSizeText)
             LabeledContent(L("file_mgmt_collection_size"), value: collectionDBSizeText)
             LabeledContent(L("file_mgmt_media_db_size"), value: mediaDBSizeText)
+        } header: {
+            Text(L("file_mgmt_section_summary"))
         }
     }
 
     @ViewBuilder
     private var mediaSection: some View {
-        Section(L("file_mgmt_section_media")) {
+        Section {
             mediaSectionContent
+        } header: {
+            Text(L("file_mgmt_section_media"))
         } footer: {
             Text(L("file_mgmt_footer_hint"))
                 .font(.caption)
