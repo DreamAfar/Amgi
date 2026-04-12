@@ -47,13 +47,14 @@ struct AddNoteView: View {
 
                 Section(L("add_note_section_fields")) {
                     ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(name)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             RichNoteFieldEditor(htmlText: fieldBinding(for: index))
-                                .frame(minHeight: 56)
+                                .frame(minHeight: 40)
                         }
+                        .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
                     }
                 }
 

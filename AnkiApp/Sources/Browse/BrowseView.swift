@@ -474,8 +474,7 @@ struct BrowseView: View {
                 } label: {
                     batchActionLabel(systemImage: "flag.fill", title: L("browse_batch_flag_label"))
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
+                .buttonStyle(.plain)
                 .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
 
                 batchActionButton(systemImage: "pause.circle", title: L("browse_batch_suspend_toggle")) {
@@ -497,16 +496,33 @@ struct BrowseView: View {
 
     private func batchActionButton(systemImage: String, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
+            VStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
+                    .background(Color(.secondarySystemBackground), in: Circle())
+                Text(title)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+            }
+            .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? .tertiary : .primary)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
+        .buttonStyle(.plain)
         .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
     }
 
     private func batchActionLabel(systemImage: String, title: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .labelStyle(.titleAndIcon)
+        VStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.title3)
+                .frame(width: 44, height: 44)
+                .background(Color(.secondarySystemBackground), in: Circle())
+            Text(title)
+                .font(.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.9)
+        }
             .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? .tertiary : .primary)
     }
 

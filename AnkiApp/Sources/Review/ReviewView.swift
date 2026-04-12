@@ -191,7 +191,6 @@ struct ReviewView: View {
                     compactAnswerMenu
                 }
             }
-            .background(.ultraThinMaterial)
         } else {
             Button {
                 session.revealAnswer()
@@ -203,7 +202,6 @@ struct ReviewView: View {
             }
             .buttonStyle(.borderedProminent)
             .padding()
-            .background(.ultraThinMaterial)
         }
     }
 

@@ -22,7 +22,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         textView.backgroundColor = .secondarySystemBackground
         textView.layer.cornerRadius = 8
         textView.textContainer.lineFragmentPadding = 0
-        textView.textContainerInset = UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8)
+        textView.textContainerInset = UIEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
         textView.font = UIFont.preferredFont(forTextStyle: .body)
         textView.textColor = .label
         textView.inputAccessoryView = makeDoneToolbar(for: textView)
@@ -36,7 +36,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         guard let width = proposal.width, width > 0 else { return nil }
         let fit = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-        let height = min(max(56, fit.height), 220)
+        let height = min(max(40, fit.height), 160)
         return CGSize(width: width, height: height)
     }
 
