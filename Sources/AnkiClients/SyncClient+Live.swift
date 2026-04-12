@@ -52,7 +52,7 @@ extension SyncClient: DependencyKey {
 
                 logger.info("Starting sync via Rust backend")
 
-                let auth = configuredSyncAuth(hostKey: hostKey)
+                var auth = configuredSyncAuth(hostKey: hostKey)
 
                 var req = Anki_Sync_SyncCollectionRequest()
                 req.auth = auth
