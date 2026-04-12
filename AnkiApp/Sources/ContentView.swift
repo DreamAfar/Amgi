@@ -101,6 +101,9 @@ struct ContentView: View {
         .sheet(isPresented: $showUserManager, onDismiss: reloadUsers) {
             UserManagementView()
         }
+        .onReceive(NotificationCenter.default.publisher(for: AppUserStore.didChangeNotification)) { _ in
+            reloadUsers()
+        }
         .fileImporter(isPresented: $showImport, allowedContentTypes: [.data]) { result in
             handleImport(result)
         }
@@ -165,23 +168,8 @@ struct ContentView: View {
     }
 
     private var userMenu: some View {
-        Menu {
-            ForEach(users, id: \.self) { user in
-                Button {
-                    Task { await switchUser(to: user) }
-                } label: {
-                    if selectedUser == user {
-                        Label(user, systemImage: "checkmark")
-                    } else {
-                        Text(user)
-                    }
-                }
-                .disabled(isSwitchingUser)
-            }
-            Divider()
-            Button(L("menu_user_settings")) {
-                showUserManager = true
-            }
+        Button {
+            showUserManager = true
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: isSwitchingUser ? "arrow.triangle.2.circlepath.circle" : "person.crop.circle")
@@ -194,6 +182,8 @@ struct ContentView: View {
             .padding(.vertical, 6)
             .background(Color(.secondarySystemFill), in: Capsule())
         }
+        .buttonStyle(.plain)
+        .disabled(isSwitchingUser)
     }
 
     private var trailingActions: some View {

@@ -219,6 +219,7 @@
 "settings_section_maintenance" = "维护";
 "settings_section_other" = "其他";
 "settings_row_account" = "账户";
+"settings_row_sync" = "同步";
 "settings_row_editing" = "编辑";
 "settings_row_review" = "复习";
 "settings_toggle_follow_system" = "与系统保持一致";
@@ -290,6 +291,26 @@
 "sync_btn_upload" = "上传到服务器";
 "sync_full_downloading" = "正在下载完整卡牌集…";
 "sync_full_uploading" = "正在上传完整卡牌集…";
+"sync_settings_section_server" = "服务器";
+"sync_settings_section_options" = "选项";
+"sync_settings_section_media" = "媒体";
+"sync_settings_server_type" = "服务器类型";
+"sync_settings_server_type_official" = "Anki 官方服务器";
+"sync_settings_server_type_custom" = "自托管服务器";
+"sync_settings_server_type_local" = "仅本地";
+"sync_settings_current_server" = "当前服务器";
+"sync_settings_account" = "账户";
+"sync_settings_not_logged_in" = "未登录";
+"sync_settings_change_server" = "更改服务器";
+"sync_settings_sync_media" = "同步音频和图片";
+"sync_settings_timeout" = "网络超时";
+"sync_settings_timeout_seconds" = "%d 秒";
+"sync_settings_sync_media_now" = "立即同步媒体";
+"sync_settings_last_media_sync" = "上次媒体同步";
+"sync_settings_media_log" = "媒体日志";
+"sync_settings_media_log_success" = "媒体同步已完成。";
+"sync_settings_media_log_failed" = "媒体同步失败：%@";
+"sync_settings_logged_out" = "已退出同步账户登录。";
 
 // MARK: - LoginSheet
 "login_nav_title" = "登录";

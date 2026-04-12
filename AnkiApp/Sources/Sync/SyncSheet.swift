@@ -8,12 +8,26 @@ struct SyncSheet: View {
     @Binding var isPresented: Bool
     @Dependency(\.syncClient) var syncClient
 
+    @AppStorage(SyncPreferences.Keys.mode) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
+    @AppStorage(SyncPreferences.Keys.syncMedia) private var syncMediaEnabled = true
+
     @State private var syncState: SyncState = .idle
     @State private var showLogin = false
     @State private var showServerSetup = false
 
-    private var syncMode: String {
-        UserDefaults.standard.string(forKey: "syncMode") ?? "local"
+    private var syncMode: SyncPreferences.Mode {
+        SyncPreferences.resolvedMode(syncModeRaw)
+    }
+
+    private var displayedServer: String {
+        switch syncMode {
+        case .official:
+            return SyncPreferences.officialServerLabel
+        case .custom:
+            return KeychainHelper.loadEndpoint() ?? L("common_none")
+        case .local:
+            return L("sync_local_mode_label")
+        }
     }
 
     enum SyncState {
@@ -73,13 +87,13 @@ struct SyncSheet: View {
     @ViewBuilder
     private var serverConfigSection: some View {
         VStack(spacing: 8) {
-            if let endpoint = KeychainHelper.loadEndpoint() {
+            if syncMode != .local {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(L("sync_label_server"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text(endpoint)
+                        Text(displayedServer)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -91,20 +105,26 @@ struct SyncSheet: View {
                         }
                     }
                     Spacer()
-                    Menu {
-                        Button(L("sync_menu_change_server")) {
-                            showServerSetup = true
+                    if syncMode == .custom || KeychainHelper.loadHostKey() != nil {
+                        Menu {
+                            if syncMode == .custom {
+                                Button(L("sync_menu_change_server")) {
+                                    showServerSetup = true
+                                }
+                            }
+                            if KeychainHelper.loadHostKey() != nil {
+                                Button(L("sync_menu_logout"), role: .destructive) {
+                                    logout()
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .foregroundStyle(.secondary)
                         }
-                        Button(L("sync_menu_logout"), role: .destructive) {
-                            logout()
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.horizontal)
-            } else if syncMode == "local" {
+            } else {
                 HStack {
                     Label(L("sync_local_mode_label"), systemImage: "iphone")
                         .font(.caption)
@@ -121,7 +141,12 @@ struct SyncSheet: View {
     }
 
     private func startSync() async {
-        guard KeychainHelper.loadEndpoint() != nil else {
+        guard syncMode != .local else {
+            syncState = .noServer
+            return
+        }
+
+        guard syncMode != .custom || KeychainHelper.loadEndpoint() != nil else {
             syncState = .noServer
             return
         }
@@ -135,8 +160,17 @@ struct SyncSheet: View {
 
         do {
             let summary = try await syncClient.sync()
-            syncState = .syncing(L("sync_syncing_media"))
-            _ = try? await syncClient.syncMedia()
+            if syncMediaEnabled {
+                syncState = .syncing(L("sync_syncing_media"))
+                do {
+                    _ = try await syncClient.syncMedia()
+                    SyncPreferences.recordMediaSyncLog(L("sync_settings_media_log_success"))
+                } catch {
+                    SyncPreferences.recordMediaSyncLog(
+                        L("sync_settings_media_log_failed", error.localizedDescription)
+                    )
+                }
+            }
             syncState = .success(summary)
         } catch let syncError as SyncError where syncError == .authFailed {
             showLogin = true
@@ -304,9 +338,10 @@ private struct ServerSetupSheet: View {
             url = "https://" + url
         }
         try? KeychainHelper.saveEndpoint(url)
-        UserDefaults.standard.set("custom", forKey: "syncMode")
+        UserDefaults.standard.set(SyncPreferences.Mode.custom.rawValue, forKey: SyncPreferences.Keys.mode)
         // Clear existing auth since server changed
         KeychainHelper.deleteHostKey()
+        KeychainHelper.deleteUsername()
         isPresented = false
         onComplete()
     }

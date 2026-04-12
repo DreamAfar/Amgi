@@ -219,6 +219,7 @@
 "settings_section_maintenance" = "Maintenance";
 "settings_section_other" = "Other";
 "settings_row_account" = "Account";
+"settings_row_sync" = "Sync";
 "settings_row_editing" = "Editing";
 "settings_row_review" = "Review";
 "settings_toggle_follow_system" = "Follow System Appearance";
@@ -290,6 +291,26 @@
 "sync_btn_upload" = "Upload to Server";
 "sync_full_downloading" = "Downloading full collection...";
 "sync_full_uploading" = "Uploading full collection...";
+"sync_settings_section_server" = "Server";
+"sync_settings_section_options" = "Options";
+"sync_settings_section_media" = "Media";
+"sync_settings_server_type" = "Server Type";
+"sync_settings_server_type_official" = "Official Anki server";
+"sync_settings_server_type_custom" = "Self-hosted server";
+"sync_settings_server_type_local" = "Local only";
+"sync_settings_current_server" = "Current Server";
+"sync_settings_account" = "Account";
+"sync_settings_not_logged_in" = "Not signed in";
+"sync_settings_change_server" = "Change Server";
+"sync_settings_sync_media" = "Sync audio and images";
+"sync_settings_timeout" = "Network Timeout";
+"sync_settings_timeout_seconds" = "%d seconds";
+"sync_settings_sync_media_now" = "Sync Media Now";
+"sync_settings_last_media_sync" = "Last Media Sync";
+"sync_settings_media_log" = "Media Log";
+"sync_settings_media_log_success" = "Media sync completed.";
+"sync_settings_media_log_failed" = "Media sync failed: %@";
+"sync_settings_logged_out" = "Signed out from sync account.";
 
 // MARK: - LoginSheet
 "login_nav_title" = "Login";

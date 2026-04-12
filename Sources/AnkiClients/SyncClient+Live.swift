@@ -10,6 +10,37 @@ import SwiftProtobuf
 
 private let logger = Logger(label: "com.ankiapp.sync.client")
 
+private enum SyncPreferenceValues {
+    static let modeKey = "syncMode"
+    static let syncMediaKey = "sync_pref_sync_media"
+    static let ioTimeoutSecsKey = "sync_pref_io_timeout_secs"
+    static let customMode = "custom"
+}
+
+private func configuredSyncAuth(hostKey: String) -> Anki_Sync_SyncAuth {
+    var auth = Anki_Sync_SyncAuth()
+    auth.hkey = hostKey
+
+    let syncMode = UserDefaults.standard.string(forKey: SyncPreferenceValues.modeKey) ?? "local"
+    if syncMode == SyncPreferenceValues.customMode, let endpoint = KeychainHelper.loadEndpoint() {
+        auth.endpoint = endpoint
+    }
+
+    let timeout = UserDefaults.standard.integer(forKey: SyncPreferenceValues.ioTimeoutSecsKey)
+    if timeout > 0 {
+        auth.ioTimeoutSecs = UInt32(timeout)
+    }
+
+    return auth
+}
+
+private func syncMediaEnabled() -> Bool {
+    if UserDefaults.standard.object(forKey: SyncPreferenceValues.syncMediaKey) == nil {
+        return true
+    }
+    return UserDefaults.standard.bool(forKey: SyncPreferenceValues.syncMediaKey)
+}
+
 extension SyncClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
@@ -21,15 +52,11 @@ extension SyncClient: DependencyKey {
 
                 logger.info("Starting sync via Rust backend")
 
-                var auth = Anki_Sync_SyncAuth()
-                auth.hkey = hostKey
-                if let endpoint = KeychainHelper.loadEndpoint() {
-                    auth.endpoint = endpoint
-                }
+                let auth = configuredSyncAuth(hostKey: hostKey)
 
                 var req = Anki_Sync_SyncCollectionRequest()
                 req.auth = auth
-                req.syncMedia = true
+                req.syncMedia = syncMediaEnabled()
 
                 do {
                     let responseBytes = try backend.call(
@@ -113,11 +140,7 @@ extension SyncClient: DependencyKey {
                 let hostKey = KeychainHelper.loadHostKey() ?? ""
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }
 
-                var auth = Anki_Sync_SyncAuth()
-                auth.hkey = hostKey
-                if let endpoint = KeychainHelper.loadEndpoint() {
-                    auth.endpoint = endpoint
-                }
+                let auth = configuredSyncAuth(hostKey: hostKey)
 
                 var req = Anki_Sync_FullUploadOrDownloadRequest()
                 req.auth = auth
@@ -138,11 +161,7 @@ extension SyncClient: DependencyKey {
                 let hostKey = KeychainHelper.loadHostKey() ?? ""
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }
 
-                var auth = Anki_Sync_SyncAuth()
-                auth.hkey = hostKey
-                if let endpoint = KeychainHelper.loadEndpoint() {
-                    auth.endpoint = endpoint
-                }
+                let auth = configuredSyncAuth(hostKey: hostKey)
 
                 do {
                     try backend.callVoid(
@@ -172,8 +191,9 @@ extension SyncClient: DependencyKey {
         var req = Anki_Sync_SyncLoginRequest()
         req.username = username
         req.password = password
-        if let endpoint = KeychainHelper.loadEndpoint() {
-            req.endpoint = endpoint
+        let auth = configuredSyncAuth(hostKey: "")
+        if auth.hasEndpoint {
+            req.endpoint = auth.endpoint
         }
 
         do {

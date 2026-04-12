@@ -1,6 +1,8 @@
 import Foundation
 
 enum AppUserStore {
+    static let didChangeNotification = Notification.Name("amgi.app-user-store.did-change")
+
     private static let usersKey = "amgi.users"
     private static let selectedUserKey = "amgi.selectedUser"
     private static let defaultUsers = ["用户1"]
@@ -17,6 +19,7 @@ enum AppUserStore {
         if let selected = UserDefaults.standard.string(forKey: selectedUserKey), !users.contains(selected) {
             UserDefaults.standard.set(users.first ?? defaultUsers[0], forKey: selectedUserKey)
         }
+        NotificationCenter.default.post(name: didChangeNotification, object: nil)
     }
 
     static func loadSelectedUser() -> String {
@@ -30,6 +33,7 @@ enum AppUserStore {
 
     static func setSelectedUser(_ user: String) {
         UserDefaults.standard.set(user, forKey: selectedUserKey)
+        NotificationCenter.default.post(name: didChangeNotification, object: nil)
     }
 
     static func collectionURLs(for user: String) -> (directory: URL, collection: URL, mediaDirectory: URL, mediaDB: URL) {

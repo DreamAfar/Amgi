@@ -219,6 +219,7 @@
 "settings_section_maintenance" = "メンテナンス";
 "settings_section_other" = "その他";
 "settings_row_account" = "アカウント";
+"settings_row_sync" = "同期";
 "settings_row_editing" = "編集";
 "settings_row_review" = "学習";
 "settings_toggle_follow_system" = "システムに合わせる";
@@ -290,6 +291,26 @@
 "sync_btn_upload" = "サーバーにアップロード";
 "sync_full_downloading" = "完全なコレクションをダウンロード中…";
 "sync_full_uploading" = "完全なコレクションをアップロード中…";
+"sync_settings_section_server" = "サーバー";
+"sync_settings_section_options" = "オプション";
+"sync_settings_section_media" = "メディア";
+"sync_settings_server_type" = "サーバー種別";
+"sync_settings_server_type_official" = "Anki公式サーバー";
+"sync_settings_server_type_custom" = "セルフホストサーバー";
+"sync_settings_server_type_local" = "ローカルのみ";
+"sync_settings_current_server" = "現在のサーバー";
+"sync_settings_account" = "アカウント";
+"sync_settings_not_logged_in" = "未サインイン";
+"sync_settings_change_server" = "サーバーを変更";
+"sync_settings_sync_media" = "音声と画像を同期";
+"sync_settings_timeout" = "ネットワークタイムアウト";
+"sync_settings_timeout_seconds" = "%d 秒";
+"sync_settings_sync_media_now" = "今すぐメディア同期";
+"sync_settings_last_media_sync" = "前回のメディア同期";
+"sync_settings_media_log" = "メディアログ";
+"sync_settings_media_log_success" = "メディア同期が完了しました。";
+"sync_settings_media_log_failed" = "メディア同期に失敗しました：%@";
+"sync_settings_logged_out" = "同期アカウントからログアウトしました。";
 
 // MARK: - LoginSheet
 "login_nav_title" = "ログイン";

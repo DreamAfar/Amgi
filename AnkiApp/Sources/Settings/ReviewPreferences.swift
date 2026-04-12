@@ -15,3 +15,47 @@ enum ReviewPreferences {
         static let cardContentAlignment = "review_pref_card_content_alignment"
     }
 }
+
+enum SyncPreferences {
+    enum Keys {
+        static let mode = "syncMode"
+        static let syncMedia = "sync_pref_sync_media"
+        static let ioTimeoutSecs = "sync_pref_io_timeout_secs"
+        static let mediaLastLog = "sync_pref_media_last_log"
+        static let mediaLastSyncedAt = "sync_pref_media_last_synced_at"
+    }
+
+    enum Mode: String, CaseIterable, Identifiable {
+        case official
+        case custom
+        case local
+
+        var id: String { rawValue }
+    }
+
+    enum Timeout: Int, CaseIterable, Identifiable {
+        case seconds15 = 15
+        case seconds30 = 30
+        case seconds60 = 60
+        case seconds120 = 120
+
+        static let defaultValue = seconds60.rawValue
+
+        var id: Int { rawValue }
+    }
+
+    static let officialServerLabel = "AnkiWeb"
+
+    static func resolvedMode(_ rawValue: String) -> Mode {
+        Mode(rawValue: rawValue) ?? .local
+    }
+
+    static func resolvedTimeout(_ rawValue: Int) -> Timeout {
+        Timeout(rawValue: rawValue) ?? .seconds60
+    }
+
+    static func recordMediaSyncLog(_ message: String, date: Date = .now) {
+        UserDefaults.standard.set(message, forKey: Keys.mediaLastLog)
+        UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Keys.mediaLastSyncedAt)
+    }
+}

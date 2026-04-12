@@ -1,6 +1,8 @@
 import SwiftUI
 import AnkiBackend
+import AnkiClients
 import AnkiProto
+import AnkiSync
 import Dependencies
 import SwiftProtobuf
 
@@ -94,6 +96,12 @@ struct SettingsView: View {
                     UserManagementView()
                 } label: {
                     settingsRowLabel(L("settings_row_account"), icon: "person.crop.circle")
+                }
+
+                NavigationLink {
+                    SyncSettingsView()
+                } label: {
+                    settingsRowLabel(L("settings_row_sync"), icon: "arrow.triangle.2.circlepath")
                 }
 
                 NavigationLink {
@@ -342,6 +350,281 @@ private struct ReviewOptionsView: View {
         }
         .navigationTitle(L("settings_row_review"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct SyncSettingsView: View {
+    @Dependency(\.syncClient) var syncClient
+
+    @AppStorage(SyncPreferences.Keys.mode) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
+    @AppStorage(SyncPreferences.Keys.syncMedia) private var syncMediaEnabled = true
+    @AppStorage(SyncPreferences.Keys.ioTimeoutSecs) private var ioTimeoutSecs = SyncPreferences.Timeout.defaultValue
+    @AppStorage(SyncPreferences.Keys.mediaLastLog) private var mediaLastLog = ""
+    @AppStorage(SyncPreferences.Keys.mediaLastSyncedAt) private var mediaLastSyncedAt = 0.0
+
+    @State private var showServerSetup = false
+    @State private var showLogin = false
+    @State private var isSyncingMedia = false
+    @State private var syncMessage: String?
+    @State private var showSyncAlert = false
+
+    private var syncMode: SyncPreferences.Mode {
+        SyncPreferences.resolvedMode(syncModeRaw)
+    }
+
+    private var timeout: SyncPreferences.Timeout {
+        SyncPreferences.resolvedTimeout(ioTimeoutSecs)
+    }
+
+    private var syncModeBinding: Binding<SyncPreferences.Mode> {
+        Binding(
+            get: { syncMode },
+            set: { newMode in
+                let previousMode = syncMode
+                if newMode == .custom && KeychainHelper.loadEndpoint() == nil {
+                    showServerSetup = true
+                    return
+                }
+                syncModeRaw = newMode.rawValue
+                if newMode != previousMode {
+                    KeychainHelper.deleteHostKey()
+                    KeychainHelper.deleteUsername()
+                }
+            }
+        )
+    }
+
+    private var timeoutBinding: Binding<SyncPreferences.Timeout> {
+        Binding(
+            get: { timeout },
+            set: { ioTimeoutSecs = $0.rawValue }
+        )
+    }
+
+    private var serverTypeLabel: String {
+        switch syncMode {
+        case .official:
+            return L("sync_settings_server_type_official")
+        case .custom:
+            return L("sync_settings_server_type_custom")
+        case .local:
+            return L("sync_settings_server_type_local")
+        }
+    }
+
+    private var currentServerValue: String {
+        switch syncMode {
+        case .official:
+            return SyncPreferences.officialServerLabel
+        case .custom:
+            return KeychainHelper.loadEndpoint() ?? L("common_none")
+        case .local:
+            return L("sync_local_mode_label")
+        }
+    }
+
+    private var currentAccountValue: String {
+        KeychainHelper.loadUsername() ?? L("sync_settings_not_logged_in")
+    }
+
+    private var formattedLastMediaSync: String {
+        guard mediaLastSyncedAt > 0 else { return L("common_none") }
+        return Date(timeIntervalSince1970: mediaLastSyncedAt).formatted(
+            date: .abbreviated,
+            time: .shortened
+        )
+    }
+
+    var body: some View {
+        List {
+            Section(L("sync_settings_section_server")) {
+                Picker(L("sync_settings_server_type"), selection: syncModeBinding) {
+                    Text(L("sync_settings_server_type_official")).tag(SyncPreferences.Mode.official)
+                    Text(L("sync_settings_server_type_custom")).tag(SyncPreferences.Mode.custom)
+                    Text(L("sync_settings_server_type_local")).tag(SyncPreferences.Mode.local)
+                }
+                .pickerStyle(.menu)
+                .tint(.primary)
+
+                infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
+                infoRow(title: L("sync_settings_current_server"), value: currentServerValue)
+                infoRow(title: L("sync_settings_account"), value: currentAccountValue)
+
+                if syncMode == .custom {
+                    Button(L("sync_settings_change_server")) {
+                        showServerSetup = true
+                    }
+                    .foregroundStyle(.primary)
+                }
+
+                if syncMode != .local {
+                    if KeychainHelper.loadHostKey() == nil {
+                        Button(L("login_btn_sign_in")) {
+                            showLogin = true
+                        }
+                        .foregroundStyle(.primary)
+                    } else {
+                        Button(L("sync_menu_logout"), role: .destructive) {
+                            logout()
+                        }
+                    }
+                }
+            }
+
+            Section(L("sync_settings_section_options")) {
+                Toggle(L("sync_settings_sync_media"), isOn: $syncMediaEnabled)
+
+                Picker(L("sync_settings_timeout"), selection: timeoutBinding) {
+                    ForEach(SyncPreferences.Timeout.allCases) { option in
+                        Text(L("sync_settings_timeout_seconds", option.rawValue)).tag(option)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(.primary)
+            }
+
+            if syncMode != .local {
+                Section(L("sync_settings_section_media")) {
+                    Button {
+                        Task { await syncMediaNow() }
+                    } label: {
+                        HStack {
+                            Label(L("sync_settings_sync_media_now"), systemImage: "photo.on.rectangle")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if isSyncingMedia {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSyncingMedia)
+
+                    infoRow(title: L("sync_settings_last_media_sync"), value: formattedLastMediaSync)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L("sync_settings_media_log"))
+                            .font(.subheadline.weight(.medium))
+                        Text(mediaLastLog.isEmpty ? L("common_none") : mediaLastLog)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .navigationTitle(L("settings_row_sync"))
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showServerSetup) {
+            SyncServerSetupSheet(isPresented: $showServerSetup)
+        }
+        .sheet(isPresented: $showLogin) {
+            LoginSheet(isPresented: $showLogin) {
+                syncMessage = L("common_done")
+                showSyncAlert = true
+            }
+        }
+        .alert(L("settings_row_sync"), isPresented: $showSyncAlert) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(syncMessage ?? L("common_none"))
+        }
+    }
+
+    private func infoRow(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func logout() {
+        KeychainHelper.deleteHostKey()
+        KeychainHelper.deleteUsername()
+        syncMessage = L("sync_settings_logged_out")
+        showSyncAlert = true
+    }
+
+    private func syncMediaNow() async {
+        guard syncMode != .local else { return }
+        guard KeychainHelper.loadHostKey() != nil else {
+            showLogin = true
+            return
+        }
+
+        isSyncingMedia = true
+        defer { isSyncingMedia = false }
+
+        do {
+            _ = try await syncClient.syncMedia()
+            let message = L("sync_settings_media_log_success")
+            SyncPreferences.recordMediaSyncLog(message)
+            mediaLastLog = message
+            mediaLastSyncedAt = Date.now.timeIntervalSince1970
+            syncMessage = message
+        } catch {
+            let message = L("sync_settings_media_log_failed", error.localizedDescription)
+            SyncPreferences.recordMediaSyncLog(message)
+            mediaLastLog = message
+            mediaLastSyncedAt = Date.now.timeIntervalSince1970
+            syncMessage = message
+        }
+
+        showSyncAlert = true
+    }
+}
+
+private struct SyncServerSetupSheet: View {
+    @Binding var isPresented: Bool
+    @State private var serverURL: String = KeychainHelper.loadEndpoint() ?? ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField(L("onboarding_server_url_placeholder"), text: $serverURL)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                } header: {
+                    Text(L("sync_label_server"))
+                } footer: {
+                    Text(L("onboarding_footer"))
+                }
+
+                Section {
+                    Button(L("common_save")) {
+                        save()
+                    }
+                    .disabled(serverURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .navigationTitle(L("sync_menu_change_server"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common_cancel")) {
+                        isPresented = false
+                    }
+                }
+            }
+        }
+    }
+
+    private func save() {
+        var url = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !url.hasPrefix("http://") && !url.hasPrefix("https://") {
+            url = "https://" + url
+        }
+        try? KeychainHelper.saveEndpoint(url)
+        UserDefaults.standard.set(SyncPreferences.Mode.custom.rawValue, forKey: SyncPreferences.Keys.mode)
+        KeychainHelper.deleteHostKey()
+        KeychainHelper.deleteUsername()
+        isPresented = false
     }
 }
 
