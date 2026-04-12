@@ -474,6 +474,8 @@ struct BrowseView: View {
                 } label: {
                     batchActionLabel(systemImage: "flag.fill", title: L("browse_batch_flag_label"))
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
                 .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
 
                 batchActionButton(systemImage: "pause.circle", title: L("browse_batch_suspend_toggle")) {
@@ -495,22 +497,17 @@ struct BrowseView: View {
 
     private func batchActionButton(systemImage: String, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            batchActionLabel(systemImage: systemImage, title: title)
+            Label(title, systemImage: systemImage)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.bordered)
+        .controlSize(.regular)
         .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
     }
 
     private func batchActionLabel(systemImage: String, title: String) -> some View {
-        VStack(spacing: 3) {
-            Image(systemName: systemImage)
-                .font(.body)
-            Text(title)
-                .font(.caption2)
-                .lineLimit(1)
-        }
-        .frame(minWidth: 52)
-        .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? .tertiary : .primary)
+        Label(title, systemImage: systemImage)
+            .labelStyle(.titleAndIcon)
+            .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? .tertiary : .primary)
     }
 
     private var isEditing: Bool {

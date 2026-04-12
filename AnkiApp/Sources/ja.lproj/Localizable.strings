@@ -35,6 +35,9 @@
 "alert_import_title" = "インポート";
 "alert_export_deck_title" = "デッキをエクスポート";
 "alert_export_deck_message" = "エクスポート機能は近日対応予定です。";
+"import_export_progress_importing" = "パッケージをインポート中...";
+"import_export_progress_exporting" = "コレクションをエクスポート中...";
+"import_export_progress_detail" = "大きなパッケージは時間がかかることがあります。アプリを閉じずにお待ちください。";
 
 // MARK: - DeckListView
 "deck_list_nav_title" = "デッキ";

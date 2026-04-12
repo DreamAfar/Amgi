@@ -419,7 +419,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 return NSAttributedString(string: html, attributes: defaultTypingAttributes)
             }
 
-            let normalizedHTML = wrapHTMLFragmentIfNeeded(html)
+            let normalizedHTML = sanitizeHTMLForEditing(wrapHTMLFragmentIfNeeded(html))
 
             if let data = normalizedHTML.data(using: .utf8),
                let attributed = try? NSMutableAttributedString(
@@ -475,6 +475,30 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             }
 
             return "<html><head><meta charset=\"utf-8\"></head><body>\(trimmed)</body></html>"
+        }
+
+        private static func sanitizeHTMLForEditing(_ html: String) -> String {
+            var sanitized = html
+            let patterns = [
+                #"<script\b[^>]*>[\s\S]*?</script>"#,
+                #"<style\b[^>]*>[\s\S]*?</style>"#,
+                #"<iframe\b[^>]*>[\s\S]*?</iframe>"#,
+                #"<audio\b[^>]*>[\s\S]*?</audio>"#,
+                #"<video\b[^>]*>[\s\S]*?</video>"#,
+                #"<source\b[^>]*>"#,
+                #"<track\b[^>]*>"#,
+                #"<img\b[^>]*>"#,
+            ]
+
+            for pattern in patterns {
+                sanitized = sanitized.replacingOccurrences(
+                    of: pattern,
+                    with: "",
+                    options: .regularExpression
+                )
+            }
+
+            return sanitized
         }
 
         private static func extractHTMLBodyFragment(_ html: String) -> String? {

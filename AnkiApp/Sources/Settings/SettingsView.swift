@@ -115,6 +115,7 @@ struct SettingsView: View {
             Section(L("settings_section_display")) {
                 HStack {
                     Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
+                        .foregroundStyle(.primary)
                     Spacer()
                     Picker(L("settings_picker_theme"), selection: selectedTheme) {
                         ForEach(AppTheme.allCases) { theme in
@@ -128,6 +129,7 @@ struct SettingsView: View {
 
                 HStack {
                     Label(L("settings_picker_language"), systemImage: "globe")
+                        .foregroundStyle(.primary)
                     Spacer()
                     Picker(L("settings_picker_language"), selection: selectedLanguage) {
                         ForEach(AppLanguage.allCases) { lang in

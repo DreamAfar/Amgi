@@ -35,6 +35,9 @@
 "alert_import_title" = "导入";
 "alert_export_deck_title" = "导出牌组";
 "alert_export_deck_message" = "导出功能将在下一步完善。";
+"import_export_progress_importing" = "正在导入牌组…";
+"import_export_progress_exporting" = "正在导出牌组…";
+"import_export_progress_detail" = "大牌组可能需要一些时间，请保持应用处于打开状态。";
 
 // MARK: - DeckListView
 "deck_list_nav_title" = "牌组";

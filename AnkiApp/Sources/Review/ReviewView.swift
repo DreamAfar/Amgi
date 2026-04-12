@@ -283,11 +283,10 @@ struct ReviewView: View {
                     .font(.subheadline.weight(.medium))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
+            .padding(.vertical, 10)
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(color)
+        .buttonStyle(.borderedProminent)
+        .tint(color)
     }
 
     private func ratingLabel(_ rating: Rating) -> String {

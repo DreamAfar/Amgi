@@ -1,6 +1,5 @@
 import AnkiBackend
 import AnkiProto
-import Dependencies
 import Foundation
 import SwiftProtobuf
 
@@ -18,7 +17,7 @@ enum ImportError: Error, LocalizedError {
 
 enum ImportHelper {
     /// Import an .apkg or .colpkg file, preserving scheduling information.
-    static func importPackage(from url: URL) throws -> String {
+    static func importPackage(from url: URL, backend: AnkiBackend) throws -> String {
         // startAccessingSecurityScopedResource can return false for local files that
         // don't need a security scope — we always attempt the call but proceed either way.
         let needsRelease = url.startAccessingSecurityScopedResource()
@@ -41,8 +40,6 @@ enum ImportHelper {
         defer { try? FileManager.default.removeItem(at: tempFile) }
 
         let ext = url.pathExtension.lowercased()
-
-        @Dependency(\.ankiBackend) var backend
 
         if ext == "colpkg" {
             // .colpkg = full collection backup — replaces the entire local collection.
@@ -101,7 +98,7 @@ enum ImportHelper {
         }
     }
 
-    static func exportCollection(to filename: String = "collection.colpkg") throws -> URL {
+    static func exportCollection(backend: AnkiBackend, to filename: String = "collection.colpkg") throws -> URL {
         let tempDir = FileManager.default.temporaryDirectory
         let outPath = tempDir.appendingPathComponent(filename)
         try? FileManager.default.removeItem(at: outPath)
@@ -111,7 +108,6 @@ enum ImportHelper {
         req.includeMedia = true
         req.legacy = false
 
-        @Dependency(\.ankiBackend) var backend
         try backend.callVoid(
             service: AnkiBackend.Service.importExport,
             method: AnkiBackend.ImportExportMethod.exportCollectionPackage,

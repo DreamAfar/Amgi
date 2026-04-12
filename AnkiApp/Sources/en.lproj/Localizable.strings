@@ -35,6 +35,9 @@
 "alert_import_title" = "Import";
 "alert_export_deck_title" = "Export Deck";
 "alert_export_deck_message" = "Export functionality will be available soon.";
+"import_export_progress_importing" = "Importing package...";
+"import_export_progress_exporting" = "Exporting collection...";
+"import_export_progress_detail" = "Large packages can take a while. Please keep the app open.";
 
 // MARK: - DeckListView
 "deck_list_nav_title" = "Decks";

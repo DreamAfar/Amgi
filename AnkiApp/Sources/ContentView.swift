@@ -6,6 +6,20 @@ import Dependencies
 import Foundation
 
 struct ContentView: View {
+    private enum ImportExportOperation {
+        case importing
+        case exporting
+
+        var titleKey: String {
+            switch self {
+            case .importing:
+                return "import_export_progress_importing"
+            case .exporting:
+                return "import_export_progress_exporting"
+            }
+        }
+    }
+
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.ankiBackend) var backend
 
@@ -17,6 +31,7 @@ struct ContentView: View {
     @State private var showExportNotice = false
     @State private var exportedFileURL: URL?
     @State private var showExportShareSheet = false
+    @State private var importExportOperation: ImportExportOperation?
     @State private var showAddDeckPrompt = false
     @State private var newDeckName = ""
     @State private var showUserManager = false
@@ -30,41 +45,52 @@ struct ContentView: View {
         UserDefaults.standard.string(forKey: "syncMode") == "local"
     }
 
+    private var isImportExportInProgress: Bool {
+        importExportOperation != nil
+    }
+
     var body: some View {
-        TabView {
-            Tab(L("tab_decks"), systemImage: "rectangle.stack") {
-                NavigationStack {
-                    DeckListView {
-                        refreshID = UUID()
-                    }
-                        .id(refreshID)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarLeading) {
-                                userMenu
-                            }
-                            ToolbarItem(placement: .topBarTrailing) {
-                                trailingActions
-                            }
+        ZStack {
+            TabView {
+                Tab(L("tab_decks"), systemImage: "rectangle.stack") {
+                    NavigationStack {
+                        DeckListView {
+                            refreshID = UUID()
                         }
+                            .id(refreshID)
+                            .toolbar {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    userMenu
+                                }
+                                ToolbarItem(placement: .topBarTrailing) {
+                                    trailingActions
+                                }
+                            }
+                    }
+                }
+                Tab(role: .search) {
+                    NavigationStack {
+                        BrowseView()
+                            .id(refreshID)
+                    }
+                }
+                Tab(L("tab_stats"), systemImage: "chart.bar") {
+                    NavigationStack {
+                        StatsDashboardView()
+                            .id(refreshID)
+                    }
+                }
+                Tab(L("tab_settings"), systemImage: "gearshape") {
+                    NavigationStack {
+                        SettingsView()
+                            .id(refreshID)
+                    }
                 }
             }
-            Tab(role: .search) {
-                NavigationStack {
-                    BrowseView()
-                        .id(refreshID)
-                }
-            }
-            Tab(L("tab_stats"), systemImage: "chart.bar") {
-                NavigationStack {
-                    StatsDashboardView()
-                        .id(refreshID)
-                }
-            }
-            Tab(L("tab_settings"), systemImage: "gearshape") {
-                NavigationStack {
-                    SettingsView()
-                        .id(refreshID)
-                }
+            .disabled(isImportExportInProgress)
+
+            if let importExportOperation {
+                importExportOverlay(for: importExportOperation)
             }
         }
         .sheet(isPresented: $showSync) {
@@ -112,6 +138,31 @@ struct ContentView: View {
     }
 
     // MARK: - Extracted Sub-Views
+
+    @ViewBuilder
+    private func importExportOverlay(for operation: ImportExportOperation) -> some View {
+        ZStack {
+            Color.black.opacity(0.18)
+                .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                ProgressView()
+                    .controlSize(.large)
+                Text(L(operation.titleKey))
+                    .font(.headline)
+                Text(L("import_export_progress_detail"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .frame(maxWidth: 300)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .shadow(color: Color.black.opacity(0.12), radius: 18, y: 8)
+        }
+        .transition(.opacity)
+    }
 
     private var userMenu: some View {
         Menu {
@@ -240,13 +291,21 @@ struct ContentView: View {
     }
 
     private func exportCollection() {
-        do {
-            let url = try ImportHelper.exportCollection()
-            exportedFileURL = url
-            showExportShareSheet = true
-        } catch {
-            importMessage = L("debug_export_error", error.localizedDescription)
-            showExportNotice = true
+        guard !isImportExportInProgress else { return }
+
+        importExportOperation = .exporting
+        Task {
+            defer { importExportOperation = nil }
+            do {
+                let url = try await Task.detached(priority: .userInitiated) {
+                    try ImportHelper.exportCollection(backend: backend)
+                }.value
+                exportedFileURL = url
+                showExportShareSheet = true
+            } catch {
+                importMessage = L("debug_export_error", error.localizedDescription)
+                showExportNotice = true
+            }
         }
     }
 
@@ -259,17 +318,32 @@ struct ContentView: View {
                 showImportAlert = true
                 return
             }
+            startImport(from: url)
+        case .failure(let error):
+            importMessage = "Could not select file: \(error.localizedDescription)"
+            showImportAlert = true
+        }
+    }
+
+    private func startImport(from url: URL) {
+        guard !isImportExportInProgress else { return }
+
+        importExportOperation = .importing
+        Task {
+            defer {
+                importExportOperation = nil
+                showImportAlert = true
+            }
+
             do {
-                let summary = try ImportHelper.importPackage(from: url)
+                let summary = try await Task.detached(priority: .userInitiated) {
+                    try ImportHelper.importPackage(from: url, backend: backend)
+                }.value
                 importMessage = summary
                 refreshID = UUID()
             } catch {
                 importMessage = "Import failed: \(error.localizedDescription)"
             }
-            showImportAlert = true
-        case .failure(let error):
-            importMessage = "Could not select file: \(error.localizedDescription)"
-            showImportAlert = true
         }
     }
 }

@@ -57,6 +57,7 @@ struct CardWebView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.userContentController.add(context.coordinator, name: "amgiAudioState")
+        config.userContentController.add(context.coordinator, name: "amgiOpenLink")
         
         // Enable media playback without user interaction
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -73,6 +74,7 @@ struct CardWebView: UIViewRepresentable {
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiAudioState")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiOpenLink")
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
@@ -82,6 +84,7 @@ struct CardWebView: UIViewRepresentable {
         let isDarkMode = colorScheme == .dark
         let loadSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(contentAlignment.rawValue)|\(isDarkMode)|\(processedHTML.hashValue)"
         context.coordinator.openLinksExternally = openLinksExternally
+        context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
 
         if context.coordinator.lastLoadSignature != loadSignature {
@@ -252,6 +255,43 @@ struct CardWebView: UIViewRepresentable {
         }
         window.amgiReplayAll = amgiReplayAll;
 
+        function postOpenLink(rawHref) {
+            if (!rawHref) {
+                return;
+            }
+
+            var resolvedHref = rawHref;
+            try {
+                resolvedHref = new URL(rawHref, document.baseURI).toString();
+            } catch (e) {}
+
+            try {
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiOpenLink) {
+                    window.webkit.messageHandlers.amgiOpenLink.postMessage(resolvedHref);
+                }
+            } catch (e) {}
+        }
+
+        document.addEventListener('click', function(event) {
+            var anchor = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+            if (!anchor) {
+                return;
+            }
+
+            var href = anchor.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
+                return;
+            }
+
+            event.preventDefault();
+            postOpenLink(anchor.href || href);
+        }, true);
+
+        window.open = function(url) {
+            postOpenLink(url);
+            return null;
+        };
+
         function playSound(btn) {
             // Stop all currently playing audio
             stopAllSystemAudio();
@@ -389,6 +429,7 @@ struct CardWebView: UIViewRepresentable {
         var lastLoadSignature: String?
         var lastReplayRequestID: Int = 0
         var openLinksExternally: Bool = true
+        weak var currentWebView: WKWebView?
         private let onAudioStateChange: ((Bool) -> Void)?
 
         init(onAudioStateChange: ((Bool) -> Void)? = nil) {
@@ -396,11 +437,43 @@ struct CardWebView: UIViewRepresentable {
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard message.name == "amgiAudioState" else { return }
-            if let isPlaying = message.body as? Bool {
-                onAudioStateChange?(isPlaying)
-            } else if let number = message.body as? NSNumber {
-                onAudioStateChange?(number.boolValue)
+            if message.name == "amgiAudioState" {
+                if let isPlaying = message.body as? Bool {
+                    onAudioStateChange?(isPlaying)
+                } else if let number = message.body as? NSNumber {
+                    onAudioStateChange?(number.boolValue)
+                }
+                return
+            }
+
+            guard message.name == "amgiOpenLink" else { return }
+            let href: String?
+            if let string = message.body as? String {
+                href = string
+            } else {
+                href = nil
+            }
+
+            guard let href, !href.isEmpty else { return }
+            openLink(href)
+        }
+
+        private func openLink(_ href: String) {
+            let resolvedURL = URL(string: href, relativeTo: currentWebView?.url)?.absoluteURL
+                ?? URL(string: href)
+
+            guard let url = resolvedURL else { return }
+
+            let scheme = url.scheme?.lowercased()
+            let isWebLink = scheme == "http" || scheme == "https"
+
+            if isWebLink, !openLinksExternally {
+                currentWebView?.load(URLRequest(url: url))
+                return
+            }
+
+            DispatchQueue.main.async {
+                UIApplication.shared.open(url, options: [:], completionHandler: nil)
             }
         }
 
