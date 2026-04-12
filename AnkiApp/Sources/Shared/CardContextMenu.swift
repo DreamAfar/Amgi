@@ -98,7 +98,7 @@ struct CardContextMenu: View {
 
     private func flagButton(_ value: UInt32, colorName: String) -> some View {
         let tint = flagColor(for: value)
-        Button(action: { performFlag(value) }) {
+        return Button(action: { performFlag(value) }) {
             HStack(spacing: 8) {
                 Image(systemName: value == 0 ? "flag.slash.fill" : "flag.fill")
                     .foregroundStyle(tint)
