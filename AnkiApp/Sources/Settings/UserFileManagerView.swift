@@ -286,19 +286,6 @@ private struct MediaFileEntry: Identifiable {
     let sizeBytes: Int64
     let modifiedAt: Date
 
-    private static let sizeFormatter: ByteCountFormatter = {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        return formatter
-    }()
-
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter
-    }()
-
     var fileName: String {
         url.lastPathComponent
     }
@@ -308,11 +295,11 @@ private struct MediaFileEntry: Identifiable {
     }
 
     var formattedSize: String {
-        Self.sizeFormatter.string(fromByteCount: sizeBytes)
+        sizeBytes.formatted(.byteCount(style: .file))
     }
 
     var formattedDate: String {
-        Self.dateFormatter.string(from: modifiedAt)
+        modifiedAt.formatted(date: .numeric, time: .shortened)
     }
 
     var symbolName: String {
