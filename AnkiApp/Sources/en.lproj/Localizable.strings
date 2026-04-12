@@ -832,6 +832,7 @@
 "file_mgmt_preview_unavailable" = "Preview Unavailable";
 "file_mgmt_preview_load_failed" = "Unable to load this file for preview.";
 "file_mgmt_preview_not_supported" = "This file type is not supported for preview.";
+"file_mgmt_load_more" = "Load %d more";
 "audio_preview_no_file" = "No audio file tag found in this field.";
 "audio_preview_file_not_found" = "Audio file not found: %@";
 

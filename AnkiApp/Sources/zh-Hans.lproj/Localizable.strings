@@ -837,6 +837,7 @@
 "file_mgmt_preview_unavailable" = "无法预览";
 "file_mgmt_preview_load_failed" = "无法加载该文件进行预览。";
 "file_mgmt_preview_not_supported" = "该文件类型暂不支持预览。";
+"file_mgmt_load_more" = "再加载 %d 条";
 "audio_preview_no_file" = "该字段中未找到音频标签。";
 "audio_preview_file_not_found" = "未找到音频文件：%@";
 

@@ -4,10 +4,18 @@ import UIKit
 
 struct UserFileManagerView: View {
     let username: String
+    private let pageSize = 200
+
+    private static let summarySizeFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter
+    }()
 
     @State private var mediaFiles: [MediaFileEntry] = []
     @State private var totalMediaSizeBytes: Int64 = 0
     @State private var searchText = ""
+    @State private var displayLimit = 200
     @State private var isLoading = false
 
     @State private var renameTarget: MediaFileEntry?
@@ -30,77 +38,36 @@ struct UserFileManagerView: View {
         return mediaFiles.filter { $0.fileName.localizedCaseInsensitiveContains(keyword) }
     }
 
+    private var visibleFiles: [MediaFileEntry] {
+        Array(filteredFiles.prefix(displayLimit))
+    }
+
+    private var remainingFileCount: Int {
+        max(0, filteredFiles.count - visibleFiles.count)
+    }
+
     private var totalMediaSizeText: String {
-        ByteCountFormatter.string(fromByteCount: totalMediaSizeBytes, countStyle: .file)
+        Self.summarySizeFormatter.string(fromByteCount: totalMediaSizeBytes)
     }
 
     private var mediaDBSizeText: String {
         let bytes = fileSize(for: urls.mediaDB)
-        return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        return Self.summarySizeFormatter.string(fromByteCount: bytes)
     }
 
     private var collectionDBSizeText: String {
         let bytes = fileSize(for: urls.collection)
-        return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        return Self.summarySizeFormatter.string(fromByteCount: bytes)
     }
 
     var body: some View {
-        List {
-            Section(L("file_mgmt_section_summary")) {
-                LabeledContent(L("file_mgmt_user"), value: username)
-                LabeledContent(L("file_mgmt_media_count"), value: "\(mediaFiles.count)")
-                LabeledContent(L("file_mgmt_media_size"), value: totalMediaSizeText)
-                LabeledContent(L("file_mgmt_collection_size"), value: collectionDBSizeText)
-                LabeledContent(L("file_mgmt_media_db_size"), value: mediaDBSizeText)
-            }
+        contentList
+    }
 
-            Section(L("file_mgmt_section_media")) {
-                if isLoading {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                } else if filteredFiles.isEmpty {
-                    Text(L(searchText.isEmpty ? "file_mgmt_empty" : "file_mgmt_no_search_result"))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 8)
-                } else {
-                    ForEach(filteredFiles) { entry in
-                        HStack(spacing: 10) {
-                            Image(systemName: entry.symbolName)
-                                .foregroundStyle(entry.tintColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.fileName)
-                                    .lineLimit(1)
-                                Text(entry.subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            previewTarget = entry
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button {
-                                renameTarget = entry
-                                renameText = entry.fileName
-                                showRenamePrompt = true
-                            } label: {
-                                Label(L("user_mgmt_rename"), systemImage: "pencil")
-                            }
-                            .tint(.blue)
-                        }
-                    }
-                }
-            } footer: {
-                Text(L("file_mgmt_footer_hint"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+    private var contentList: some View {
+        List {
+            summarySection
+            mediaSection
         }
         .navigationTitle(L("settings_row_file_manager"))
         .navigationBarTitleDisplayMode(.inline)
@@ -137,8 +104,93 @@ struct UserFileManagerView: View {
         .sheet(item: $previewTarget) { entry in
             MediaFilePreviewView(entry: entry)
         }
+        .onChange(of: searchText) {
+            displayLimit = pageSize
+        }
         .task {
             loadMediaFiles()
+        }
+    }
+
+    @ViewBuilder
+    private var summarySection: some View {
+        Section(L("file_mgmt_section_summary")) {
+            LabeledContent(L("file_mgmt_user"), value: username)
+            LabeledContent(L("file_mgmt_media_count"), value: "\(mediaFiles.count)")
+            LabeledContent(L("file_mgmt_media_size"), value: totalMediaSizeText)
+            LabeledContent(L("file_mgmt_collection_size"), value: collectionDBSizeText)
+            LabeledContent(L("file_mgmt_media_db_size"), value: mediaDBSizeText)
+        }
+    }
+
+    @ViewBuilder
+    private var mediaSection: some View {
+        Section(L("file_mgmt_section_media")) {
+            mediaSectionContent
+        } footer: {
+            Text(L("file_mgmt_footer_hint"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var mediaSectionContent: some View {
+        if isLoading {
+            HStack {
+                Spacer()
+                ProgressView()
+                Spacer()
+            }
+        } else if filteredFiles.isEmpty {
+            Text(L(searchText.isEmpty ? "file_mgmt_empty" : "file_mgmt_no_search_result"))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 8)
+        } else {
+            ForEach(visibleFiles) { entry in
+                mediaRow(for: entry)
+            }
+
+            if remainingFileCount > 0 {
+                Button {
+                    displayLimit += pageSize
+                } label: {
+                    Text(L("file_mgmt_load_more", min(pageSize, remainingFileCount)))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .padding(.vertical, 6)
+            }
+        }
+    }
+
+    private func mediaRow(for entry: MediaFileEntry) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: entry.symbolName)
+                .foregroundStyle(entry.tintColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.fileName)
+                    .lineLimit(1)
+                Text(entry.subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            previewTarget = entry
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                renameTarget = entry
+                renameText = entry.fileName
+                showRenamePrompt = true
+            } label: {
+                Label(L("user_mgmt_rename"), systemImage: "pencil")
+            }
+            .tint(.blue)
         }
     }
 
@@ -172,6 +224,7 @@ struct UserFileManagerView: View {
                 }
                 return lhs.modifiedAt > rhs.modifiedAt
             }
+            displayLimit = pageSize
             totalMediaSizeBytes = totalBytes
         } catch {
             errorMessage = L("file_mgmt_load_error", error.localizedDescription)
@@ -228,10 +281,23 @@ private struct MediaFileEntry: Identifiable {
         case other
     }
 
-    let id = UUID()
+    var id: String { url.lastPathComponent }
     let url: URL
     let sizeBytes: Int64
     let modifiedAt: Date
+
+    private static let sizeFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter
+    }()
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     var fileName: String {
         url.lastPathComponent
@@ -242,14 +308,11 @@ private struct MediaFileEntry: Identifiable {
     }
 
     var formattedSize: String {
-        ByteCountFormatter.string(fromByteCount: sizeBytes, countStyle: .file)
+        Self.sizeFormatter.string(fromByteCount: sizeBytes)
     }
 
     var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter.string(from: modifiedAt)
+        Self.dateFormatter.string(from: modifiedAt)
     }
 
     var symbolName: String {
