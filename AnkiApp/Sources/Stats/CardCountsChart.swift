@@ -46,11 +46,12 @@ struct CardCountsChart: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 4) {
                     ForEach(chartData, id: \.name) { item in
                         let percentage = total > 0 ? (Double(item.count) / Double(total) * 100) : 0
+                        let formattedPercentage = String(format: "%.2f%%", percentage)
                         HStack(spacing: 4) {
                             Circle().fill(item.color).frame(width: 8, height: 8)
                             Text(item.name).font(.caption)
                             Spacer()
-                            Text("\(item.count)  \(String(format: \"%.2f%%\", percentage))")
+                            Text("\(item.count)  \(formattedPercentage)")
                                 .font(.caption.monospacedDigit().weight(.medium))
                         }
                     }

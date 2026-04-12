@@ -357,7 +357,8 @@ struct DeckTemplateListView: View {
 
     private func renderedTemplateHTML(side: TemplatePreviewSide) -> String {
         guard selectedTemplate.templates.indices.contains(selectedTemplateIndex) else {
-            return "<p>\(L(\"deck_template_preview_no_template\"))</p>"
+            let message = L("deck_template_preview_no_template")
+            return "<p>\(message)</p>"
         }
 
         let template = selectedTemplate.templates[selectedTemplateIndex]
