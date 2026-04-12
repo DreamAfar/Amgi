@@ -284,6 +284,7 @@ struct ContentView: View {
         guard !isImportExportInProgress else { return }
 
         importExportOperation = .exporting
+        let backend = self.backend
         Task {
             defer { importExportOperation = nil }
             do {
@@ -319,6 +320,7 @@ struct ContentView: View {
         guard !isImportExportInProgress else { return }
 
         importExportOperation = .importing
+        let backend = self.backend
         Task {
             defer {
                 importExportOperation = nil

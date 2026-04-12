@@ -37,7 +37,7 @@ struct DebugView: View {
             Section(L("debug_section_import_export")) {
                 Button(L("debug_export_button")) {
                     do {
-                        let url = try ImportHelper.exportCollection()
+                        let url = try ImportHelper.exportCollection(backend: backend)
                         exportedFileURL = url
                         showShareSheet = true
                         statusMessage = L("debug_export_ready", url.lastPathComponent)
