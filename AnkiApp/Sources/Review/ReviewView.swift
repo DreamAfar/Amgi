@@ -138,44 +138,35 @@ struct ReviewView: View {
 
     @ViewBuilder
     private var cardView: some View {
-        VStack(spacing: 0) {
-            if session.showAnswer {
-                CardWebView(
-                    html: session.backHTML,
-                    autoplayEnabled: session.autoplayAudio && prefAutoplayAudio,
-                    isAnswerSide: true,
-                    cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
-                    replayRequestID: replayRequestID,
-                    replayMode: session.includeQuestionAudioOnAnswerReplay ? .answerWithQuestion : .answerOnly,
-                    openLinksExternally: prefOpenLinksExternally,
-                    contentAlignment: prefCardContentAlignment,
-                    onAudioStateChange: { isPlaying in
-                        Task { @MainActor in
-                            self.isAudioPlaying = isPlaying
-                        }
-                    }
-                )
-            } else {
-                CardWebView(
-                    html: session.frontHTML,
-                    autoplayEnabled: session.autoplayAudio && prefAutoplayAudio,
-                    isAnswerSide: false,
-                    cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
-                    replayRequestID: replayRequestID,
-                    replayMode: .question,
-                    openLinksExternally: prefOpenLinksExternally,
-                    contentAlignment: prefCardContentAlignment,
-                    onAudioStateChange: { isPlaying in
-                        Task { @MainActor in
-                            self.isAudioPlaying = isPlaying
-                        }
-                    }
-                )
+        let cardHTML = session.showAnswer ? session.backHTML : session.frontHTML
+        let replayMode: CardWebView.ReplayMode = session.showAnswer
+            ? (session.includeQuestionAudioOnAnswerReplay ? .answerWithQuestion : .answerOnly)
+            : .question
+
+        CardWebView(
+            html: cardHTML,
+            autoplayEnabled: session.autoplayAudio && prefAutoplayAudio,
+            isAnswerSide: session.showAnswer,
+            cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
+            replayRequestID: replayRequestID,
+            replayMode: replayMode,
+            openLinksExternally: prefOpenLinksExternally,
+            contentAlignment: prefCardContentAlignment,
+            onAudioStateChange: { isPlaying in
+                Task { @MainActor in
+                    self.isAudioPlaying = isPlaying
+                }
             }
+        )
+        .overlay(alignment: .bottom) {
+            cardActionBar
+        }
+    }
 
-            Spacer()
-
-            if session.showAnswer {
+    @ViewBuilder
+    private var cardActionBar: some View {
+        if session.showAnswer {
+            VStack(spacing: 0) {
                 HStack {
                     Spacer()
                     if prefShowContextMenuButton, !session.isFinished, let current = session.currentCard {
@@ -199,18 +190,20 @@ struct ReviewView: View {
                 } else {
                     compactAnswerMenu
                 }
-            } else {
-                Button {
-                    session.revealAnswer()
-                } label: {
-                    Text(L("review_show_answer"))
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                }
-                .buttonStyle(.borderedProminent)
-                .padding()
             }
+            .background(.ultraThinMaterial)
+        } else {
+            Button {
+                session.revealAnswer()
+            } label: {
+                Text(L("review_show_answer"))
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            }
+            .buttonStyle(.borderedProminent)
+            .padding()
+            .background(.ultraThinMaterial)
         }
     }
 
