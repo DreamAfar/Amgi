@@ -284,15 +284,15 @@ struct ReviewView: View {
                         CardContextMenu(
                             cardId: current.card.id,
                             noteId: current.card.noteID,
-                            onRequestSetDueDate: { _ in
-                                openSetDueDateForCurrentCard()
-                            },
                             onActionSuccess: { shouldAdvance in
                                 if shouldAdvance {
                                     session.refreshAndAdvance()
                                 } else {
                                     Task { await session.refreshAfterCardMutation() }
                                 }
+                            },
+                            onRequestSetDueDate: { _ in
+                                openSetDueDateForCurrentCard()
                             }
                         )
                     }
