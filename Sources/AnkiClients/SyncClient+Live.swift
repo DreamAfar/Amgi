@@ -93,7 +93,7 @@ private actor SyncProgressEmitter {
         continuation = nil
     }
 
-    func finish(throwing error: Error) {
+    func finish(throwing error: any Error) {
         continuation?.finish(throwing: error)
         continuation = nil
     }

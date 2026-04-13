@@ -91,7 +91,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
         }
 
         func applySearch(_ query: String, in textView: UITextView) {
-            let key = "\(query)|\(textView.text ?? \"\")"
+            let key = "\(query)|\(textView.text ?? "")"
             guard key != lastSearchKey else { return }
             lastSearchKey = key
 

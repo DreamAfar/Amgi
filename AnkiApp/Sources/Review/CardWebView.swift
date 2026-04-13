@@ -88,8 +88,8 @@ struct CardWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Convert Anki [sound:filename.mp3] tags to <audio> HTML elements.
         // The Rust renderer keeps these tags literal; the client must expand them.
-        let processedHTML = Self.expandSoundTags(html)
         let isDarkMode = colorScheme == .dark
+        let processedHTML = Self.expandSoundTags(html, isDarkMode: isDarkMode)
         let loadSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(contentAlignment.rawValue)|\(isDarkMode)|\(processedHTML.hashValue)"
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.currentWebView = webView
@@ -98,6 +98,8 @@ struct CardWebView: UIViewRepresentable {
         if context.coordinator.lastLoadSignature != loadSignature {
             context.coordinator.lastLoadSignature = loadSignature
             let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
+            let playIconHTML = Self.audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
+            let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.circle", alt: "Pause", isDarkMode: isDarkMode)
 
             let styledHTML = """
         <!DOCTYPE html>
@@ -178,6 +180,11 @@ struct CardWebView: UIViewRepresentable {
                 -webkit-tap-highlight-color: transparent;
             }
             .replay-btn:active { background: \(isDarkMode ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.16)"); }
+            .replay-btn img {
+                width: 24px;
+                height: 24px;
+                display: block;
+            }
             video {
                 max-width: 100%;
                 height: auto;
@@ -205,7 +212,16 @@ struct CardWebView: UIViewRepresentable {
         <script>
         const AUTOPLAY_ENABLED = \(autoplayEnabled ? "true" : "false");
         const IS_ANSWER_SIDE = \(isAnswerSide ? "true" : "false");
+        const PLAY_ICON_HTML = \(Self.jsStringLiteral(playIconHTML));
+        const PAUSE_ICON_HTML = \(Self.jsStringLiteral(pauseIconHTML));
         window.__amgiAudioPlaying = false;
+
+        function setAudioButtonState(btn, state) {
+            if (!btn) {
+                return;
+            }
+            btn.innerHTML = state === 'pause' ? PAUSE_ICON_HTML : PLAY_ICON_HTML;
+        }
 
         function notifyAudioState(isPlaying) {
             window.__amgiAudioPlaying = !!isPlaying;
@@ -221,7 +237,7 @@ struct CardWebView: UIViewRepresentable {
                 if (!a.paused) { a.pause(); }
                 a.currentTime = 0;
                 var b = a.nextElementSibling;
-                if (b) b.textContent = '▶';
+                setAudioButtonState(b, 'play');
                 a.onended = null;
             });
             notifyAudioState(false);
@@ -270,9 +286,9 @@ struct CardWebView: UIViewRepresentable {
                     currentIndex++;
                     playNext();
                 });
-                if (btn) btn.textContent = '⏸';
+                setAudioButtonState(btn, 'pause');
                 audio.onended = function() {
-                    if (btn) btn.textContent = '▶';
+                    setAudioButtonState(btn, 'play');
                     currentIndex++;
                     playNext();
                 };
@@ -334,9 +350,9 @@ struct CardWebView: UIViewRepresentable {
             audio.currentTime = 0;
             audio.play().catch(function() {});
             notifyAudioState(true);
-            btn.textContent = '⏸';
+            setAudioButtonState(btn, 'pause');
             audio.onended = function() {
-                btn.textContent = '▶';
+                setAudioButtonState(btn, 'play');
                 notifyAudioState(false);
             };
         }
@@ -446,7 +462,7 @@ struct CardWebView: UIViewRepresentable {
     // MARK: - Helpers
 
     /// Converts Anki `[sound:filename.ext]` markers to a hidden `<audio>` + styled play button.
-    private static func expandSoundTags(_ html: String) -> String {
+    private static func expandSoundTags(_ html: String, isDarkMode: Bool) -> String {
         // Pattern: [sound:anything_without_closing_bracket]
         guard let regex = try? NSRegularExpression(
             pattern: #"\[sound:([^\]]+)\]"#, options: []
@@ -460,10 +476,40 @@ struct CardWebView: UIViewRepresentable {
                   let filenameRange = Range(match.range(at: 1), in: result) else { continue }
             let filename = String(result[filenameRange])
             let encoded = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? filename
-            let replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><button class=\"replay-btn\" onclick=\"playSound(this)\">▶</button></span>"
+            let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
+            let replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><button class=\"replay-btn\" onclick=\"playSound(this)\">\(iconHTML)</button></span>"
             result.replaceSubrange(matchRange, with: replacement)
         }
         return result
+    }
+
+    private static func audioButtonIconHTML(systemName: String, alt: String, isDarkMode: Bool) -> String {
+        let configuration = UIImage.SymbolConfiguration(pointSize: 24, weight: .regular, scale: .medium)
+        let tint = isDarkMode ? UIColor.white : UIColor(red: 26 / 255, green: 26 / 255, blue: 26 / 255, alpha: 1)
+        guard let baseImage = UIImage(systemName: systemName, withConfiguration: configuration) else {
+            return alt
+        }
+
+        let image = baseImage.withTintColor(tint, renderingMode: .alwaysOriginal)
+        let renderer = UIGraphicsImageRenderer(size: image.size)
+        let rendered = renderer.image { _ in
+            image.draw(at: .zero)
+        }
+
+        guard let data = rendered.pngData() else {
+            return alt
+        }
+
+        return "<img src=\"data:image/png;base64,\(data.base64EncodedString())\" alt=\"\(alt)\" />"
+    }
+
+    private static func jsStringLiteral(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "")
+            .replacingOccurrences(of: "\r", with: "")
+        return "'\(escaped)'"
     }
 
     /// Returns the media directory URL for the currently selected user.
