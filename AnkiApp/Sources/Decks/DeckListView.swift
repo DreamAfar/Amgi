@@ -1,11 +1,16 @@
 import SwiftUI
 import AnkiKit
+import AnkiBackend
 import AnkiClients
+import AnkiProto
 import Dependencies
 
 struct DeckListView: View {
+    @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
-    @AppStorage("show_deck_list_heatmap") private var showDeckListHeatmap = true
+    @AppStorage(DeckListHeatmapSettings.showKey) private var showDeckListHeatmap = true
+    @AppStorage(DeckListHeatmapSettings.scopeKey) private var heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
+    @AppStorage(DeckListHeatmapSettings.selectedDeckIDKey) private var heatmapSelectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
 
     @State private var tree: [DeckTreeNode] = []
     @State private var isLoading = true
@@ -20,35 +25,44 @@ struct DeckListView: View {
         Group {
             if isLoading {
                 ProgressView()
-            } else if tree.isEmpty {
-                ContentUnavailableView(
-                    L("deck_list_empty_title"),
-                    systemImage: "rectangle.stack",
-                    description: Text(L("deck_list_empty_desc"))
-                )
             } else {
-                List {
-                    if showDeckListHeatmap {
+                VStack(spacing: 0) {
+                    if showDeckListHeatmap && !tree.isEmpty {
                         DeckListHeatmapCard(refreshID: heatmapRefreshID)
-                            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 12)
+                            .padding(.bottom, 4)
                     }
 
-                    ForEach(tree) { node in
-                        DeckRowView(
-                            node: node,
-                            depth: 0,
-                            onDeckChanged: {
-                                Task { await loadDecks() }
-                                refreshHeatmap()
-                                onDeckChanged?()
-                            },
-                            onDeleteRequested: { node in
-                                deckToDelete = node
-                                showDeleteConfirm = true
-                            }
+                    if tree.isEmpty {
+                        ContentUnavailableView(
+                            L("deck_list_empty_title"),
+                            systemImage: "rectangle.stack",
+                            description: Text(L("deck_list_empty_desc"))
                         )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List {
+                            ForEach(tree) { node in
+                                DeckRowView(
+                                    node: node,
+                                    depth: 0,
+                                    onDeckChanged: {
+                                        Task { await loadDecks() }
+                                        refreshHeatmap()
+                                        onDeckChanged?()
+                                    },
+                                    onDeleteRequested: { node in
+                                        deckToDelete = node
+                                        showDeleteConfirm = true
+                                    }
+                                )
+                            }
+                        }
+                        .refreshable {
+                            await loadDecks()
+                            refreshHeatmap()
+                        }
                     }
                 }
                 .navigationDestination(for: DeckInfo.self) { deck in
@@ -59,6 +73,18 @@ struct DeckListView: View {
         .navigationTitle(L("deck_list_nav_title"))
         .onAppear {
             refreshHeatmap()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AppUserStore.didChangeNotification)) { _ in
+            Task {
+                await loadDecks()
+                refreshHeatmap()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didResetNotification)) { _ in
+            Task {
+                await loadDecks()
+                refreshHeatmap()
+            }
         }
         .alert(
             L("deck_delete_confirm2_title"),
@@ -78,9 +104,6 @@ struct DeckListView: View {
         }
         .task {
             await loadDecks()
-        }
-        .refreshable {
-            await loadDecks()
             refreshHeatmap()
         }
     }
@@ -99,7 +122,15 @@ struct DeckListView: View {
         guard let node = deckToDelete else { return }
         do {
             try deckClient.delete(node.id)
-            Task { await loadDecks() }
+            clearDeletedHeatmapSelection(ifNeeded: node.id)
+
+            do {
+                try cleanupUnusedMedia()
+            } catch {
+                print("[DeckListView] Media cleanup after deck deletion failed: \(error)")
+            }
+
+            await loadDecks()
             refreshHeatmap()
             onDeckChanged?()
         } catch {
@@ -112,6 +143,37 @@ struct DeckListView: View {
     private func refreshHeatmap() {
         guard showDeckListHeatmap else { return }
         heatmapRefreshID += 1
+    }
+
+    private func clearDeletedHeatmapSelection(ifNeeded deletedDeckID: Int64) {
+        let scope = DeckListHeatmapScope(rawValue: heatmapScopeRaw) ?? .allDecks
+        guard scope == .selectedDeck, Int64(heatmapSelectedDeckID) == deletedDeckID else { return }
+        heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
+        heatmapSelectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
+    }
+
+    private func cleanupUnusedMedia() throws {
+        let response: Anki_Media_CheckMediaResponse = try backend.invoke(
+            service: AnkiBackend.Service.media,
+            method: AnkiBackend.MediaMethod.checkMedia
+        )
+
+        if !response.unused.isEmpty {
+            var request = Anki_Media_TrashMediaFilesRequest()
+            request.fnames = response.unused
+            try backend.callVoid(
+                service: AnkiBackend.Service.media,
+                method: AnkiBackend.MediaMethod.trashMediaFiles,
+                request: request
+            )
+        }
+
+        if response.haveTrash || !response.unused.isEmpty {
+            try backend.callVoid(
+                service: AnkiBackend.Service.media,
+                method: AnkiBackend.MediaMethod.emptyTrash
+            )
+        }
     }
 }
 

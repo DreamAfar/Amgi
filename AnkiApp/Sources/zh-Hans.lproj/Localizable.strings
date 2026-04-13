@@ -259,6 +259,7 @@
 "settings_row_sync" = "同步";
 "settings_row_editing" = "编辑";
 "settings_row_review" = "复习";
+"settings_row_home_heatmap" = "首页热力图";
 "settings_toggle_follow_system" = "与系统保持一致";
 "settings_toggle_dark_mode" = "夜间模式";
 "settings_picker_theme" = "外观模式";
@@ -270,6 +271,11 @@
 "settings_display_show_deck_heatmap" = "在牌组上方显示复习热力图";
 "settings_display_deck_heatmap_height" = "牌组热力图高度";
 "settings_display_deck_heatmap_height_value" = "%d 点";
+"settings_display_heatmap_scope" = "热力图数据范围";
+"settings_display_heatmap_scope_all" = "全部当前牌组";
+"settings_display_heatmap_scope_selected" = "指定牌组";
+"settings_display_heatmap_selected_deck" = "热力图牌组";
+"settings_display_heatmap_selected_deck_none" = "暂无可选牌组";
 "settings_row_backup" = "备份";
 "settings_row_check_database" = "检查数据库";
 "settings_row_check_media" = "检查媒体文件";
@@ -749,6 +755,7 @@
 "card_action_bury" = "埋藏";
 "card_action_suspend_note" = "暂停笔记";
 "card_action_bury_note" = "埋藏笔记";
+"card_action_note_menu" = "笔记";
 "card_action_reset_to_new" = "遗忘卡片";
 "card_action_set_due_date" = "设置到期日期";
 "card_action_mark_note" = "标记笔记";

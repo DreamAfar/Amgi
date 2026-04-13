@@ -141,7 +141,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             fieldButtonTitle: String,
             doneButtonTitle: String
         ) -> UIView {
-            let container = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 48))
+            let container = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 44))
             container.backgroundColor = .secondarySystemBackground
 
             let divider = UIView()
@@ -158,7 +158,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             stackView.translatesAutoresizingMaskIntoConstraints = false
             stackView.axis = .horizontal
             stackView.alignment = .center
-            stackView.spacing = 8
+            stackView.spacing = 6
             scrollView.addSubview(stackView)
 
             let undoButton = makeSymbolButton(systemName: "arrow.uturn.backward") { [weak self] in
@@ -205,11 +205,11 @@ struct TemplateSourceEditor: UIViewRepresentable {
                 scrollView.topAnchor.constraint(equalTo: divider.bottomAnchor),
                 scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
 
-                stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 12),
-                stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -12),
-                stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 8),
-                stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -8),
-                stackView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -16)
+                stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 10),
+                stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -10),
+                stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 6),
+                stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -6),
+                stackView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -12)
             ])
 
             return container
@@ -229,10 +229,13 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.setImage(UIImage(systemName: systemName), for: .normal)
             button.tintColor = .label
             button.layer.cornerRadius = 8
-            button.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
-            var configuration = button.configuration ?? .plain()
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6)
+            button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
+            var configuration = UIButton.Configuration.plain()
+            configuration.buttonSize = .small
+            configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
             button.configuration = configuration
+            button.heightAnchor.constraint(equalToConstant: 30).isActive = true
             button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             return button
         }
@@ -244,9 +247,11 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.setTitleColor(.label, for: .normal)
             button.layer.cornerRadius = 8
             button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
-            var configuration = button.configuration ?? .plain()
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8)
+            var configuration = UIButton.Configuration.plain()
+            configuration.buttonSize = .small
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
             button.configuration = configuration
+            button.heightAnchor.constraint(equalToConstant: 30).isActive = true
             if let action {
                 button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             }

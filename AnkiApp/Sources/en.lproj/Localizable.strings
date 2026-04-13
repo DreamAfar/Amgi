@@ -259,6 +259,7 @@
 "settings_row_sync" = "Sync";
 "settings_row_editing" = "Editing";
 "settings_row_review" = "Review";
+"settings_row_home_heatmap" = "Home Heatmap";
 "settings_toggle_follow_system" = "Follow System Appearance";
 "settings_toggle_dark_mode" = "Dark Mode";
 "settings_picker_theme" = "Appearance";
@@ -270,6 +271,11 @@
 "settings_display_show_deck_heatmap" = "Show review heatmap above decks";
 "settings_display_deck_heatmap_height" = "Deck heatmap height";
 "settings_display_deck_heatmap_height_value" = "%d pt";
+"settings_display_heatmap_scope" = "Heatmap data range";
+"settings_display_heatmap_scope_all" = "All current decks";
+"settings_display_heatmap_scope_selected" = "Selected deck";
+"settings_display_heatmap_selected_deck" = "Heatmap deck";
+"settings_display_heatmap_selected_deck_none" = "No decks available";
 "settings_row_backup" = "Backup";
 "settings_row_check_database" = "Check Database";
 "settings_row_check_media" = "Check Media";
@@ -749,6 +755,7 @@
 "card_action_bury" = "Bury";
 "card_action_suspend_note" = "Suspend Note";
 "card_action_bury_note" = "Bury Note";
+"card_action_note_menu" = "Note";
 "card_action_reset_to_new" = "Forget Card";
 "card_action_set_due_date" = "Set Due Date";
 "card_action_mark_note" = "Mark Note";

@@ -10,11 +10,11 @@ struct HeatmapChart: View {
     }
 
     private var cellSpacing: CGFloat {
-        isCompact ? 1.5 : 2
+        isCompact ? 1.25 : 2
     }
 
     private var weekdayLabelWidth: CGFloat {
-        isCompact ? 18 : 22
+        isCompact ? 16 : 22
     }
 
     private var cellSize: CGFloat {
@@ -219,7 +219,7 @@ struct HeatmapChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(isCompact ? 12 : 16)
+        .padding(isCompact ? 10 : 16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 

@@ -44,16 +44,6 @@ struct CardContextMenu: View {
                 Label(L("card_action_bury"), systemImage: "books.vertical")
             }
 
-            if noteId != nil {
-                Button(action: performSuspendNote) {
-                    Label(L("card_action_suspend_note"), systemImage: "pause.circle.fill")
-                }
-
-                Button(action: performBuryNote) {
-                    Label(L("card_action_bury_note"), systemImage: "books.vertical.fill")
-                }
-            }
-
             Button(action: performResetToNew) {
                 Label(L("card_action_reset_to_new"), systemImage: "arrow.counterclockwise")
             }
@@ -67,19 +57,29 @@ struct CardContextMenu: View {
             }
 
             if noteId != nil {
-                Button(action: performToggleMarkedNote) {
-                    Label(
-                        isMarkedNote ? L("card_action_unmark_note") : L("card_action_mark_note"),
-                        systemImage: isMarkedNote ? "star.slash" : "star"
-                    )
-                }
-            }
+                Menu {
+                    Button(action: performToggleMarkedNote) {
+                        Label(
+                            isMarkedNote ? L("card_action_unmark_note") : L("card_action_mark_note"),
+                            systemImage: isMarkedNote ? "star.slash" : "star"
+                        )
+                    }
 
-            if noteId != nil {
-                Button(role: .destructive) {
-                    showDeleteConfirmation = true
+                    Button(action: performSuspendNote) {
+                        Label(L("card_action_suspend_note"), systemImage: "pause.circle.fill")
+                    }
+
+                    Button(action: performBuryNote) {
+                        Label(L("card_action_bury_note"), systemImage: "books.vertical.fill")
+                    }
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label(L("card_action_delete_note"), systemImage: "trash")
+                    }
                 } label: {
-                    Label(L("card_action_delete_note"), systemImage: "trash")
+                    Label(L("card_action_note_menu"), systemImage: "note.text")
                 }
             }
             

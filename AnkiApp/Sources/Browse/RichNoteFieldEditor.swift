@@ -62,7 +62,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
     // MARK: - Toolbar
 
     private func makeInputToolbar(for textView: UITextView, coordinator: Coordinator) -> UIView {
-        let container = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 56))
+        let container = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 44))
         container.backgroundColor = .secondarySystemBackground
 
         let divider = UIView()
@@ -79,7 +79,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .horizontal
         stackView.alignment = .center
-        stackView.spacing = 8
+        stackView.spacing = 6
         scrollView.addSubview(stackView)
 
         stackView.addArrangedSubview(
@@ -118,11 +118,11 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             scrollView.topAnchor.constraint(equalTo: divider.bottomAnchor),
             scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
 
-            stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 12),
-            stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -12),
-            stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 8),
-            stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -8),
-            stackView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -16),
+            stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 10),
+            stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -10),
+            stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 6),
+            stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -6),
+            stackView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -12),
         ])
 
         return container
@@ -135,9 +135,13 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.tintColor = .label
         button.backgroundColor = .tertiarySystemFill
         button.layer.cornerRadius = 10
-        var configuration = button.configuration ?? .plain()
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
+        var configuration = UIButton.Configuration.plain()
+        configuration.buttonSize = .small
+        configuration.baseBackgroundColor = .tertiarySystemFill
+        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
         button.configuration = configuration
+        button.heightAnchor.constraint(equalToConstant: 30).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -149,10 +153,13 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.setTitleColor(.label, for: .normal)
         button.backgroundColor = .tertiarySystemFill
         button.layer.cornerRadius = 10
-        button.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-        var configuration = button.configuration ?? .plain()
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
+        button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
+        var configuration = UIButton.Configuration.plain()
+        configuration.buttonSize = .small
+        configuration.baseBackgroundColor = .tertiarySystemFill
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
         button.configuration = configuration
+        button.heightAnchor.constraint(equalToConstant: 30).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }

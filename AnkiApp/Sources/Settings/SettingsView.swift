@@ -72,8 +72,6 @@ struct SettingsView: View {
 
     @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
-    @AppStorage("show_deck_list_heatmap") private var showDeckListHeatmap = true
-    @AppStorage("deck_list_heatmap_height") private var deckListHeatmapHeight = 164.0
 
     @State private var maintenanceMessage: String?
     @State private var showMaintenanceAlert = false
@@ -165,21 +163,10 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Toggle(isOn: $showDeckListHeatmap) {
-                    Label(L("settings_display_show_deck_heatmap"), systemImage: "chart.bar.xaxis")
-                }
-
-                if showDeckListHeatmap {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Label(L("settings_display_deck_heatmap_height"), systemImage: "arrow.up.and.down")
-                            Spacer()
-                            Text(L("settings_display_deck_heatmap_height_value", Int(deckListHeatmapHeight)))
-                                .foregroundStyle(SettingsValueStyle.highlight)
-                        }
-
-                        Slider(value: $deckListHeatmapHeight, in: 136...220, step: 4)
-                    }
+                NavigationLink {
+                    DeckListHeatmapSettingsView()
+                } label: {
+                    settingsRowLabel(L("settings_row_home_heatmap"), icon: "chart.bar.xaxis")
                 }
             }
 
@@ -406,6 +393,110 @@ private struct ReviewOptionsView: View {
         }
         .navigationTitle(L("settings_row_review"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct DeckListHeatmapSettingsView: View {
+    @Dependency(\.deckClient) var deckClient
+
+    @AppStorage(DeckListHeatmapSettings.showKey) private var showDeckListHeatmap = true
+    @AppStorage(DeckListHeatmapSettings.heightKey) private var deckListHeatmapHeight = DeckListHeatmapSettings.defaultHeight
+    @AppStorage(DeckListHeatmapSettings.scopeKey) private var heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
+    @AppStorage(DeckListHeatmapSettings.selectedDeckIDKey) private var selectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
+
+    @State private var decks: [DeckInfo] = []
+
+    private var heatmapScope: Binding<DeckListHeatmapScope> {
+        Binding(
+            get: { DeckListHeatmapScope(rawValue: heatmapScopeRaw) ?? .allDecks },
+            set: { heatmapScopeRaw = $0.rawValue }
+        )
+    }
+
+    var body: some View {
+        List {
+            Section(L("deck_list_heatmap_title")) {
+                Toggle(L("settings_display_show_deck_heatmap"), isOn: $showDeckListHeatmap)
+
+                if showDeckListHeatmap {
+                    Picker(L("settings_display_heatmap_scope"), selection: heatmapScope) {
+                        Text(L("settings_display_heatmap_scope_all"))
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .tag(DeckListHeatmapScope.allDecks)
+                        Text(L("settings_display_heatmap_scope_selected"))
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .tag(DeckListHeatmapScope.selectedDeck)
+                    }
+                    .pickerStyle(.menu)
+                    .tint(SettingsValueStyle.highlight)
+
+                    if heatmapScope.wrappedValue == .selectedDeck {
+                        HStack {
+                            Label(L("settings_display_heatmap_selected_deck"), systemImage: "rectangle.stack")
+                            Spacer()
+                            Picker(
+                                L("settings_display_heatmap_selected_deck"),
+                                selection: $selectedDeckID
+                            ) {
+                                if decks.isEmpty {
+                                    Text(L("settings_display_heatmap_selected_deck_none"))
+                                        .foregroundStyle(SettingsValueStyle.highlight)
+                                        .tag(DeckListHeatmapSettings.defaultSelectedDeckID)
+                                } else {
+                                    ForEach(decks) { deck in
+                                        Text(deck.name)
+                                            .foregroundStyle(SettingsValueStyle.highlight)
+                                            .tag(Int(deck.id))
+                                    }
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .tint(SettingsValueStyle.highlight)
+                            .disabled(decks.isEmpty)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Label(L("settings_display_deck_heatmap_height"), systemImage: "arrow.up.and.down")
+                            Spacer()
+                            Text(L("settings_display_deck_heatmap_height_value", Int(deckListHeatmapHeight)))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                        }
+
+                        Slider(value: $deckListHeatmapHeight, in: 136...220, step: 4)
+                    }
+                }
+            }
+        }
+        .navigationTitle(L("settings_row_home_heatmap"))
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadDecks()
+        }
+        .onChange(of: heatmapScope.wrappedValue) {
+            normalizeSelectedDeck()
+        }
+    }
+
+    private func loadDecks() async {
+        decks = (try? deckClient.fetchAll()) ?? []
+        normalizeSelectedDeck()
+    }
+
+    private func normalizeSelectedDeck() {
+        guard heatmapScope.wrappedValue == .selectedDeck else { return }
+
+        let validDeckIDs = Set(decks.map { Int($0.id) })
+        if validDeckIDs.isEmpty {
+            selectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
+            return
+        }
+
+        if !validDeckIDs.contains(selectedDeckID), let fallback = decks.first {
+            selectedDeckID = Int(fallback.id)
+        }
     }
 }
 

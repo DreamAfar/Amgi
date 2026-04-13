@@ -259,6 +259,7 @@
 "settings_row_sync" = "同期";
 "settings_row_editing" = "編集";
 "settings_row_review" = "学習";
+"settings_row_home_heatmap" = "ホームヒートマップ";
 "settings_toggle_follow_system" = "システムに合わせる";
 "settings_toggle_dark_mode" = "ダークモード";
 "settings_picker_theme" = "外観";
@@ -270,6 +271,11 @@
 "settings_display_show_deck_heatmap" = "デッキ上部に復習ヒートマップを表示";
 "settings_display_deck_heatmap_height" = "デッキのヒートマップ高さ";
 "settings_display_deck_heatmap_height_value" = "%d pt";
+"settings_display_heatmap_scope" = "ヒートマップの対象範囲";
+"settings_display_heatmap_scope_all" = "現在の全デッキ";
+"settings_display_heatmap_scope_selected" = "特定のデッキ";
+"settings_display_heatmap_selected_deck" = "対象デッキ";
+"settings_display_heatmap_selected_deck_none" = "選択できるデッキがありません";
 "settings_row_backup" = "バックアップ";
 "settings_row_check_database" = "データベース確認";
 "settings_row_check_media" = "メディア確認";
@@ -751,6 +757,7 @@
 "card_action_bury" = "埋める";
 "card_action_suspend_note" = "ノートを一時停止";
 "card_action_bury_note" = "ノートを埋める";
+"card_action_note_menu" = "ノート";
 "card_action_reset_to_new" = "新規カードに戻す";
 "card_action_set_due_date" = "期日を設定";
 "card_action_mark_note" = "ノートにマーク";

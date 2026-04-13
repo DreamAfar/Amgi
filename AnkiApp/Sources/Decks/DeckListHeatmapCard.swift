@@ -6,7 +6,10 @@ import SwiftProtobuf
 
 struct DeckListHeatmapCard: View {
     @Dependency(\.statsClient) var statsClient
-    @AppStorage("deck_list_heatmap_height") private var deckListHeatmapHeight = 164.0
+    @Dependency(\.deckClient) var deckClient
+    @AppStorage(DeckListHeatmapSettings.heightKey) private var deckListHeatmapHeight = DeckListHeatmapSettings.defaultHeight
+    @AppStorage(DeckListHeatmapSettings.scopeKey) private var heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
+    @AppStorage(DeckListHeatmapSettings.selectedDeckIDKey) private var selectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
 
     let refreshID: Int
 
@@ -45,12 +48,35 @@ struct DeckListHeatmapCard: View {
         defer { isLoading = false }
 
         do {
-            let data = try statsClient.fetchGraphs("", StatsPeriod.all.requestDays)
+            let data = try statsClient.fetchGraphs(resolvedSearchQuery(), StatsPeriod.all.requestDays)
             graphs = try Anki_Stats_GraphsResponse(serializedBytes: data)
             loadError = false
         } catch {
             graphs = nil
             loadError = true
         }
+    }
+
+    @MainActor
+    private func resolvedSearchQuery() throws -> String {
+        let scope = DeckListHeatmapScope(rawValue: heatmapScopeRaw) ?? .allDecks
+        guard scope == .selectedDeck else {
+            return DeckListHeatmapSettings.allDecksSearch
+        }
+
+        let selectedID = Int64(selectedDeckID)
+        guard selectedID > 0 else {
+            heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
+            return DeckListHeatmapSettings.allDecksSearch
+        }
+
+        let availableDeckIDs = Set(try deckClient.fetchAll().map(\.id))
+        guard availableDeckIDs.contains(selectedID) else {
+            heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
+            selectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
+            return DeckListHeatmapSettings.allDecksSearch
+        }
+
+        return "did:\(selectedID)"
     }
 }
