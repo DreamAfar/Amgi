@@ -242,16 +242,14 @@ struct CardContextMenu: View {
 
         do {
             let note = try noteClient.fetch(noteId)
-            isMarkedNote = note.map(noteHasMarkedTag) ?? false
+            isMarkedNote = note.map {
+                $0.tags
+                    .split(separator: " ")
+                    .contains { $0.caseInsensitiveCompare(markedTag) == .orderedSame }
+            } ?? false
         } catch {
             isMarkedNote = false
         }
-    }
-
-    private func noteHasMarkedTag(_ note: NoteRecord) -> Bool {
-        note.tags
-            .split(separator: " ")
-            .contains { $0.caseInsensitiveCompare(markedTag) == .orderedSame }
     }
 
     private func flagColor(for value: UInt32) -> Color {
