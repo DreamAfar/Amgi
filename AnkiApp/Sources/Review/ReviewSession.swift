@@ -13,6 +13,7 @@ final class ReviewSession {
 
     @ObservationIgnored @Dependency(\.deckClient) var deckClient
     @ObservationIgnored @Dependency(\.cardClient) var cardClient
+    @ObservationIgnored @Dependency(\.noteClient) var noteClient
     @ObservationIgnored @Dependency(\.ankiBackend) var backend
 
     private(set) var frontHTML: String = ""
@@ -37,10 +38,25 @@ final class ReviewSession {
     private var currentQueuedCard: Anki_Scheduler_QueuedCards.QueuedCard?
     private var autoAdvanceQuestionAction: Anki_DeckConfig_DeckConfig.Config.QuestionAction = .showAnswer
     private var autoAdvanceAnswerAction: Anki_DeckConfig_DeckConfig.Config.AnswerAction = .buryCard
+    private var renderedFrontHTML: String = ""
+    private var renderedBackHTML: String = ""
+    private var typedAnswerState: TypedAnswerState?
+
+    private struct TypedAnswerState {
+        let placeholder: String
+        let expected: String
+        let fontName: String
+        let fontSize: UInt32
+        let combining: Bool
+    }
 
     /// Public accessor for the current card
     var currentCard: Anki_Scheduler_QueuedCards.QueuedCard? {
         currentQueuedCard
+    }
+
+    var requiresTypedAnswerInput: Bool {
+        typedAnswerState != nil && !showAnswer
     }
 
     init(deckId: Int64) {
@@ -162,7 +178,12 @@ final class ReviewSession {
         }
     }
 
-    func revealAnswer() {
+    func revealAnswer(typedAnswer: String? = nil) {
+        if let typedAnswerState {
+            backHTML = makeTypedAnswerBackHTML(typedAnswerState: typedAnswerState, typedAnswer: typedAnswer ?? "")
+        } else {
+            backHTML = strippingTypedAnswerPlaceholders(from: renderedBackHTML)
+        }
         showAnswer = true
     }
 
@@ -309,11 +330,17 @@ final class ReviewSession {
                 request: renderReq
             )
 
-            frontHTML = renderNodes(rendered.questionNodes)
-            backHTML = renderNodes(rendered.answerNodes)
+            renderedFrontHTML = renderNodes(rendered.questionNodes)
+            renderedBackHTML = renderNodes(rendered.answerNodes)
+
+            typedAnswerState = resolveTypedAnswerState(for: queued, frontHTML: renderedFrontHTML)
+            frontHTML = makeTypedAnswerFrontHTML(typedAnswerState: typedAnswerState)
+            backHTML = renderedBackHTML
 
             if !rendered.css.isEmpty {
                 let cssTag = "<style>\(rendered.css)</style>"
+                renderedFrontHTML = cssTag + renderedFrontHTML
+                renderedBackHTML = cssTag + renderedBackHTML
                 frontHTML = cssTag + frontHTML
                 backHTML = cssTag + backHTML
             }
@@ -321,6 +348,9 @@ final class ReviewSession {
             print("[ReviewSession] Render failed for card \(queued.card.id): \(error)")
             frontHTML = "<p>Error rendering card</p>"
             backHTML = "<p>Error rendering card</p>"
+            renderedFrontHTML = frontHTML
+            renderedBackHTML = backHTML
+            typedAnswerState = nil
         }
     }
 
@@ -370,5 +400,169 @@ final class ReviewSession {
             case .none: return ""
             }
         }.joined()
+    }
+
+    private func resolveTypedAnswerState(
+        for queued: Anki_Scheduler_QueuedCards.QueuedCard,
+        frontHTML: String
+    ) -> TypedAnswerState? {
+        guard let placeholder = firstTypedAnswerPlaceholder(in: frontHTML) else {
+            return nil
+        }
+
+        do {
+            guard let note = try noteClient.fetch(queued.card.noteID) else {
+                return TypedAnswerState(
+                    placeholder: placeholder.rawToken,
+                    expected: "",
+                    fontName: "-apple-system",
+                    fontSize: 18,
+                    combining: true
+                )
+            }
+
+            var req = Anki_Notetypes_NotetypeId()
+            req.ntid = note.mid
+            let notetype: Anki_Notetypes_Notetype = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.getNotetype,
+                request: req
+            )
+
+            guard let field = notetype.fields.first(where: { $0.name == placeholder.fieldName }) else {
+                return nil
+            }
+
+            let fieldIndex = Int(field.ord.val)
+            let fieldValues = note.flds.components(separatedBy: "\u{1f}")
+            guard fieldValues.indices.contains(fieldIndex) else {
+                return nil
+            }
+
+            var expected = fieldValues[fieldIndex]
+            if let clozeOrdinal = placeholder.clozeOrdinal {
+                var extractReq = Anki_CardRendering_ExtractClozeForTypingRequest()
+                extractReq.text = expected
+                extractReq.ordinal = clozeOrdinal
+                let extracted: Anki_Generic_String = try backend.invoke(
+                    service: AnkiBackend.Service.cardRendering,
+                    method: AnkiBackend.CardRenderingMethod.extractClozeForTyping,
+                    request: extractReq
+                )
+                expected = extracted.val
+            }
+
+            return TypedAnswerState(
+                placeholder: placeholder.rawToken,
+                expected: expected,
+                fontName: field.config.fontName.isEmpty ? "-apple-system" : field.config.fontName,
+                fontSize: field.config.fontSize == 0 ? 18 : field.config.fontSize,
+                combining: placeholder.combining
+            )
+        } catch {
+            print("[ReviewSession] Typed answer resolution failed for card \(queued.card.id): \(error)")
+            return nil
+        }
+    }
+
+    private func makeTypedAnswerFrontHTML(typedAnswerState: TypedAnswerState?) -> String {
+        guard let typedAnswerState,
+              renderedFrontHTML.contains(typedAnswerState.placeholder)
+        else {
+            return strippingTypedAnswerPlaceholders(from: renderedFrontHTML)
+        }
+
+        if typedAnswerState.expected.isEmpty {
+            return renderedFrontHTML.replacingOccurrences(of: typedAnswerState.placeholder, with: "")
+        }
+
+        let inputHTML = """
+        <center>
+        <input type=\"text\" id=\"typeans\" autocapitalize=\"none\" autocomplete=\"off\" autocorrect=\"off\" spellcheck=\"false\" onkeypress=\"return amgiHandleTypeAnswerKey(event);\" style=\"font-family: '\(typedAnswerState.fontName)'; font-size: \(typedAnswerState.fontSize)px;\">
+        </center>
+        """
+        return renderedFrontHTML.replacingOccurrences(of: typedAnswerState.placeholder, with: inputHTML)
+    }
+
+    private func makeTypedAnswerBackHTML(typedAnswerState: TypedAnswerState, typedAnswer: String) -> String {
+        guard renderedBackHTML.contains(typedAnswerState.placeholder) else {
+            return renderedBackHTML
+        }
+
+        if typedAnswerState.expected.isEmpty {
+            return renderedBackHTML.replacingOccurrences(of: typedAnswerState.placeholder, with: "")
+        }
+
+        var compareReq = Anki_CardRendering_CompareAnswerRequest()
+        compareReq.expected = typedAnswerState.expected
+        compareReq.provided = typedAnswer
+        compareReq.combining = typedAnswerState.combining
+
+        do {
+            let compared: Anki_Generic_String = try backend.invoke(
+                service: AnkiBackend.Service.cardRendering,
+                method: AnkiBackend.CardRenderingMethod.compareAnswer,
+                request: compareReq
+            )
+            let comparisonHTML = "<div style=\"font-family: '\(typedAnswerState.fontName)'; font-size: \(typedAnswerState.fontSize)px\">\(compared.val)</div>"
+            return renderedBackHTML.replacingOccurrences(of: typedAnswerState.placeholder, with: comparisonHTML)
+        } catch {
+            print("[ReviewSession] Compare answer failed: \(error)")
+            return renderedBackHTML.replacingOccurrences(of: typedAnswerState.placeholder, with: "")
+        }
+    }
+
+    private func strippingTypedAnswerPlaceholders(from html: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: #"\[\[type:.+?\]\]"#) else {
+            return html
+        }
+        let range = NSRange(html.startIndex..., in: html)
+        return regex.stringByReplacingMatches(in: html, range: range, withTemplate: "")
+    }
+
+    private func firstTypedAnswerPlaceholder(in html: String) -> TypedAnswerPlaceholder? {
+        guard let regex = try? NSRegularExpression(pattern: #"\[\[type:(.+?)\]\]"#) else {
+            return nil
+        }
+        let nsRange = NSRange(html.startIndex..., in: html)
+        guard let match = regex.firstMatch(in: html, range: nsRange),
+              let rawRange = Range(match.range(at: 0), in: html),
+              let specRange = Range(match.range(at: 1), in: html)
+        else {
+            return nil
+        }
+
+        var spec = String(html[specRange])
+        var combining = true
+        var clozeOrdinal: UInt32?
+
+        if spec.hasPrefix("cloze:") {
+            spec.removeFirst("cloze:".count)
+            clozeOrdinal = queuedClozeOrdinal()
+        }
+        if spec.hasPrefix("nc:") {
+            spec.removeFirst("nc:".count)
+            combining = false
+        }
+
+        guard !spec.isEmpty else { return nil }
+
+        return TypedAnswerPlaceholder(
+            rawToken: String(html[rawRange]),
+            fieldName: spec,
+            combining: combining,
+            clozeOrdinal: clozeOrdinal
+        )
+    }
+
+    private func queuedClozeOrdinal() -> UInt32 {
+        (currentQueuedCard?.card.templateIdx ?? 0) + 1
+    }
+
+    private struct TypedAnswerPlaceholder {
+        let rawToken: String
+        let fieldName: String
+        let combining: Bool
+        let clozeOrdinal: UInt32?
     }
 }

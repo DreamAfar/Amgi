@@ -15,6 +15,7 @@ public struct CardClient: Sendable {
     public var flag: @Sendable (_ cardId: Int64, _ flag: UInt32) throws -> Void
     public var moveToDeck: @Sendable (_ cardId: Int64, _ deckId: Int64) throws -> Void
     public var resetToNew: @Sendable (_ cardId: Int64) throws -> Void
+    public var setDueDate: @Sendable (_ cardId: Int64, _ days: String) throws -> Void
     public var search: @Sendable (_ query: String) throws -> [CardRecord]
 }
 

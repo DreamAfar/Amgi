@@ -5,12 +5,15 @@ import Dependencies
 
 struct DeckListView: View {
     @Dependency(\.deckClient) var deckClient
+    @AppStorage("show_deck_list_heatmap") private var showDeckListHeatmap = true
+
     @State private var tree: [DeckTreeNode] = []
     @State private var isLoading = true
     @State private var deckToDelete: DeckTreeNode?
     @State private var showDeleteConfirm = false
     @State private var deleteError: String?
     @State private var showDeleteError = false
+    @State private var heatmapRefreshID = 0
     var onDeckChanged: (() -> Void)? = nil
 
     var body: some View {
@@ -25,12 +28,20 @@ struct DeckListView: View {
                 )
             } else {
                 List {
+                    if showDeckListHeatmap {
+                        DeckListHeatmapCard(refreshID: heatmapRefreshID)
+                            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+
                     ForEach(tree) { node in
                         DeckRowView(
                             node: node,
                             depth: 0,
                             onDeckChanged: {
                                 Task { await loadDecks() }
+                                refreshHeatmap()
                                 onDeckChanged?()
                             },
                             onDeleteRequested: { node in
@@ -46,6 +57,9 @@ struct DeckListView: View {
             }
         }
         .navigationTitle(L("deck_list_nav_title"))
+        .onAppear {
+            refreshHeatmap()
+        }
         .alert(
             L("deck_delete_confirm2_title"),
             isPresented: $showDeleteConfirm
@@ -67,6 +81,7 @@ struct DeckListView: View {
         }
         .refreshable {
             await loadDecks()
+            refreshHeatmap()
         }
     }
 
@@ -85,12 +100,18 @@ struct DeckListView: View {
         do {
             try deckClient.delete(node.id)
             Task { await loadDecks() }
+            refreshHeatmap()
             onDeckChanged?()
         } catch {
             deleteError = error.localizedDescription
             showDeleteError = true
         }
         deckToDelete = nil
+    }
+
+    private func refreshHeatmap() {
+        guard showDeckListHeatmap else { return }
+        heatmapRefreshID += 1
     }
 }
 

@@ -8,6 +8,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
     let insertableTokens: [String]
     let fieldButtonTitle: String
     let doneButtonTitle: String
+    let searchQuery: String
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text)
@@ -40,6 +41,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             fieldButtonTitle: fieldButtonTitle,
             doneButtonTitle: doneButtonTitle
         )
+        context.coordinator.applySearch(searchQuery, in: textView)
         return textView
     }
 
@@ -59,6 +61,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             fieldButtonTitle: fieldButtonTitle,
             doneButtonTitle: doneButtonTitle
         )
+        context.coordinator.applySearch(searchQuery, in: uiView)
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {
@@ -67,6 +70,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
         weak var textView: UITextView?
         var lastValue: String = ""
         var isHandlingProgrammaticChange = false
+        private var lastSearchKey = ""
 
         private var lastFieldNames: [String] = []
         private var lastInsertableTokens: [String] = []
@@ -84,6 +88,22 @@ struct TemplateSourceEditor: UIViewRepresentable {
         func textViewDidChange(_ textView: UITextView) {
             lastValue = textView.text
             text = textView.text
+        }
+
+        func applySearch(_ query: String, in textView: UITextView) {
+            let key = "\(query)|\(textView.text ?? \"\")"
+            guard key != lastSearchKey else { return }
+            lastSearchKey = key
+
+            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+
+            let nsText = textView.text as NSString? ?? ""
+            let range = nsText.range(of: trimmed, options: [.caseInsensitive])
+            guard range.location != NSNotFound else { return }
+
+            textView.selectedRange = range
+            textView.scrollRangeToVisible(range)
         }
 
         func configureAccessoryView(
@@ -121,7 +141,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             fieldButtonTitle: String,
             doneButtonTitle: String
         ) -> UIView {
-            let container = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 56))
+            let container = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 48))
             container.backgroundColor = .secondarySystemBackground
 
             let divider = UIView()
@@ -208,9 +228,9 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.translatesAutoresizingMaskIntoConstraints = false
             button.setImage(UIImage(systemName: systemName), for: .normal)
             button.tintColor = .label
-            button.backgroundColor = .tertiarySystemFill
-            button.layer.cornerRadius = 10
-            button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+            button.layer.cornerRadius = 8
+            button.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
+            button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 6, bottom: 6, right: 6)
             button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             return button
         }
@@ -220,10 +240,9 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.translatesAutoresizingMaskIntoConstraints = false
             button.setTitle(title, for: .normal)
             button.setTitleColor(.label, for: .normal)
-            button.backgroundColor = .tertiarySystemFill
-            button.layer.cornerRadius = 10
-            button.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-            button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+            button.layer.cornerRadius = 8
+            button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
+            button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
             if let action {
                 button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             }

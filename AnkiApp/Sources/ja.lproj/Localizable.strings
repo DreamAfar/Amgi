@@ -27,22 +27,52 @@
 "tab_browse" = "ブラウズ";
 "menu_user_settings" = "ユーザー設定";
 "menu_add_deck" = "デッキを追加";
-"menu_export_deck" = "デッキをエクスポート";
+"menu_export_deck" = "エクスポート";
 "menu_import_apkg" = ".apkg/.colpkg をインポート";
 "alert_new_deck_title" = "新しいデッキ";
 "alert_new_deck_placeholder" = "デッキ名";
 "alert_new_deck_message" = "新しいデッキ名を入力してください";
 "alert_import_title" = "インポート";
-"alert_export_deck_title" = "デッキをエクスポート";
+"alert_export_deck_title" = "エクスポート";
 "alert_export_deck_message" = "エクスポート機能は近日対応予定です。";
 "import_export_progress_importing" = "パッケージをインポート中...";
-"import_export_progress_exporting" = "コレクションをエクスポート中...";
+"import_export_progress_exporting" = "パッケージをエクスポート中...";
 "import_export_progress_detail" = "大きなパッケージは時間がかかることがあります。アプリを閉じずにお待ちください。";
+"export_config_scope" = "エクスポート範囲";
+"export_config_scope_collection" = "コレクション全体（.colpkg）";
+"export_config_scope_deck" = "単一デッキ（.apkg）";
+"export_config_scope_selected_notes" = "選択したノート（.apkg）";
+"export_config_selected_notes_count" = "%d 件のノートを選択中";
+"export_config_deck" = "デッキ";
+"export_config_options" = "エクスポート設定";
+"export_config_include_media" = "メディアを含める";
+"export_config_include_scheduling" = "学習進捗を含める";
+"export_config_include_deck_configs" = "デッキ設定を含める";
+"export_config_legacy_support" = "古い Anki バージョンに対応";
+"export_config_export_button" = "エクスポート";
+"import_config_file" = "ファイル";
+"import_config_file_type_collection" = "コレクションパッケージ（.colpkg）";
+"import_config_file_type_apkg" = "Anki パッケージ（.apkg）";
+"import_config_collection_title" = "コレクションを復元";
+"import_config_collection_message" = "選択したバックアップで現在のローカルコレクションを置き換えます。";
+"import_config_options" = "インポート設定";
+"import_config_include_scheduling" = "学習進捗を取り込む";
+"import_config_include_deck_configs" = "デッキ設定を取り込む";
+"import_config_merge_notetypes" = "ノートタイプを統合する";
+"import_config_update_policy" = "更新ポリシー";
+"import_config_update_notes" = "既存ノート";
+"import_config_update_notetypes" = "既存ノートタイプ";
+"import_config_update_if_newer" = "新しい場合のみ更新";
+"import_config_update_always" = "常に更新";
+"import_config_update_never" = "更新しない";
+"import_config_import_button" = "インポート";
 
 // MARK: - DeckListView
 "deck_list_nav_title" = "デッキ";
 "deck_list_empty_title" = "デッキなし";
 "deck_list_empty_desc" = "サーバーと同期してデッキを取得してください。";
+"deck_list_heatmap_title" = "復習ヒートマップ";
+"deck_list_heatmap_load_failed" = "復習ヒートマップを読み込めませんでした。";
 "deck_row_rename" = "名前変更";
 "deck_row_export" = "エクスポート";
 "deck_row_delete" = "削除";
@@ -110,7 +140,8 @@
 "browse_batch_flag_label" = "フラグ";
 "browse_batch_suspend_toggle" = "停止";
 "browse_batch_reset_new" = "リセット";
-"browse_batch_manage_tags_short" = "タグ管理";
+"browse_batch_manage_tags_short" = "タグ";
+"browse_batch_export_short" = "エクスポート";
 "browse_batch_suspend_confirm_title" = "カードを停止しますか？";
 "browse_batch_suspend_confirm_msg" = "選択した %d 枚のカードを停止しますか？";
 "browse_batch_reset_confirm_title" = "新規にリセットしますか？";
@@ -236,6 +267,9 @@
 "settings_theme_dark" = "ダーク";
 "settings_picker_language" = "言語";
 "settings_language_restart_hint" = "言語の変更はアプリ再起動後に完全に反映されます。";
+"settings_display_show_deck_heatmap" = "デッキ上部に復習ヒートマップを表示";
+"settings_display_deck_heatmap_height" = "デッキのヒートマップ高さ";
+"settings_display_deck_heatmap_height_value" = "%d pt";
 "settings_row_backup" = "バックアップ";
 "settings_row_check_database" = "データベース確認";
 "settings_row_check_media" = "メディア確認";
@@ -614,6 +648,8 @@
 "deck_template_preview_rendered" = "レンダリングプレビュー";
 "card_template_preview_btn" = "プレビュー";
 "card_template_fields_short" = "フィールド";
+"card_template_search_title" = "内容を検索";
+"card_template_search_placeholder" = "表面・裏面・CSS のテキストを検索";
 "deck_template_preview_side" = "プレビュー面";
 "deck_template_preview_front" = "表面";
 "deck_template_preview_back" = "裏面";
@@ -713,13 +749,31 @@
 // MARK: - CardContextMenu (extended)
 "card_action_suspend" = "一時停止";
 "card_action_bury" = "埋める";
+"card_action_suspend_note" = "ノートを一時停止";
+"card_action_bury_note" = "ノートを埋める";
+"card_action_reset_to_new" = "新規カードに戻す";
+"card_action_set_due_date" = "期日を設定";
+"card_action_mark_note" = "ノートにマーク";
+"card_action_unmark_note" = "ノートのマークを解除";
+"card_action_delete_note" = "ノートを削除";
 "card_action_flag" = "フラグ";
 "card_action_undo" = "元に戻す";
 "card_action_error_title" = "操作失敗";
 "card_action_error_suspend" = "カードの一時停止に失敗しました";
 "card_action_error_bury" = "カードを埋めるのに失敗しました";
+"card_action_error_suspend_note" = "ノートの一時停止に失敗しました";
+"card_action_error_bury_note" = "ノートを埋めるのに失敗しました";
+"card_action_error_reset_to_new" = "カードを新規に戻すのに失敗しました";
+"card_action_error_mark_note" = "ノートのマーク更新に失敗しました";
+"card_action_error_delete_note" = "ノートの削除に失敗しました";
 "card_action_error_flag" = "カードのフラグ設定に失敗しました";
 "card_action_error_undo" = "元に戻すのに失敗しました";
+
+"review_set_due_title" = "期日を設定";
+"review_set_due_prompt" = "現在のカードの新しい期日を入力してください。";
+"review_set_due_placeholder" = "例: 0、1、3-5、7!";
+"review_set_due_hint" = "0、3-5、7! のような Anki の期日構文が使えます。";
+"review_set_due_failed" = "期日の設定に失敗しました: %@";
 
 // MARK: - AddNoteView (extended)
 "add_note_title" = "ノートを追加";

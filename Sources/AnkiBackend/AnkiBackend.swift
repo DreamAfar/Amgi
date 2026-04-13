@@ -219,6 +219,8 @@ extension AnkiBackend {
         public static let buryOrSuspendCards: UInt32 = 14
         // ScheduleCardsAsNew = proto index 14 + offset 3 = 17
         public static let scheduleCardsAsNew: UInt32 = 17
+        // SetDueDate = proto index 16 + offset 3 = 19
+        public static let setDueDate: UInt32 = 19
     }
 
     public enum NotesMethod {
@@ -286,6 +288,8 @@ extension AnkiBackend {
     public enum CardRenderingMethod {
         public static let getEmptyCards: UInt32 = 5
         public static let renderExistingCard: UInt32 = 6
+        public static let compareAnswer: UInt32 = 15
+        public static let extractClozeForTyping: UInt32 = 16
     }
 
     public enum NotetypesMethod {

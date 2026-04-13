@@ -3,10 +3,28 @@ import AnkiProto
 
 struct HeatmapChart: View {
     let reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes
+    var compactHeight: CGFloat? = nil
 
-    private let cellSize: CGFloat = 12
-    private let cellSpacing: CGFloat = 2
-    private let weekdayLabelWidth: CGFloat = 22
+    private var isCompact: Bool {
+        compactHeight != nil
+    }
+
+    private var cellSpacing: CGFloat {
+        isCompact ? 1.5 : 2
+    }
+
+    private var weekdayLabelWidth: CGFloat {
+        isCompact ? 18 : 22
+    }
+
+    private var cellSize: CGFloat {
+        guard let compactHeight else { return 12 }
+
+        let reservedHeight: CGFloat = 92
+        let availableGridHeight = max(56, compactHeight - reservedHeight)
+        let computed = (availableGridHeight - (cellSpacing * 6)) / 7
+        return min(12, max(7, computed))
+    }
 
     // MARK: - Day Count Map (dayOffset -> total reviews)
 
@@ -128,13 +146,15 @@ struct HeatmapChart: View {
             if dayCountMap.isEmpty {
                 Text(L("stats_heatmap_empty"))
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 100)
+                    .frame(maxWidth: .infinity, minHeight: isCompact ? 72 : 100)
             } else {
-                HStack(spacing: 16) {
-                    summaryItem(value: "\(totalReviews)", label: L("stats_total"))
-                    summaryItem(value: "\(reviewsThisMonth)", label: L("stats_this_month"))
-                    summaryItem(value: "\(reviewsThisWeek)", label: L("stats_this_week"))
-                    summaryItem(value: "\(dayCountMap[0] ?? 0)", label: L("common_today"))
+                if !isCompact {
+                    HStack(spacing: 16) {
+                        summaryItem(value: "\(totalReviews)", label: L("stats_total"))
+                        summaryItem(value: "\(reviewsThisMonth)", label: L("stats_this_month"))
+                        summaryItem(value: "\(reviewsThisWeek)", label: L("stats_this_week"))
+                        summaryItem(value: "\(dayCountMap[0] ?? 0)", label: L("common_today"))
+                    }
                 }
 
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -186,7 +206,7 @@ struct HeatmapChart: View {
                 }
                 .defaultScrollAnchor(.trailing)
 
-                HStack(spacing: 4) {
+                HStack(spacing: isCompact ? 3 : 4) {
                     Spacer()
                     Text(L("stats_heatmap_less")).font(.caption2).foregroundStyle(.secondary)
                     ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
@@ -199,7 +219,7 @@ struct HeatmapChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
+        .padding(isCompact ? 12 : 16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 

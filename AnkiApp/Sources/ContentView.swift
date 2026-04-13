@@ -2,6 +2,7 @@ import SwiftUI
 import AnkiSync
 import AnkiClients
 import AnkiBackend
+import AnkiKit
 import Dependencies
 import Foundation
 
@@ -26,12 +27,15 @@ struct ContentView: View {
 
     @State private var showSync = false
     @State private var showImport = false
+    @State private var showImportOptions = false
     @State private var refreshID = UUID()
     @State private var importMessage: String?
     @State private var showImportAlert = false
     @State private var showExportNotice = false
     @State private var exportedFileURL: URL?
+    @State private var pendingImportURL: URL?
     @State private var showExportShareSheet = false
+    @State private var showExportOptions = false
     @State private var importExportOperation: ImportExportOperation?
     @State private var showAddDeckPrompt = false
     @State private var newDeckName = ""
@@ -42,6 +46,9 @@ struct ContentView: View {
     @State private var userSwitchError: String?
     @State private var showUserSwitchError = false
     @State private var showSyncBadge = false
+    @State private var exportDecks: [DeckInfo] = []
+    @State private var exportDraft = ExportPackageDraft()
+    @State private var importDraft = ImportPackageDraft()
 
     private var isImportExportInProgress: Bool {
         importExportOperation != nil
@@ -100,8 +107,55 @@ struct ContentView: View {
         .sheet(isPresented: $showUserManager, onDismiss: reloadUsers) {
             UserManagementView()
         }
+        .sheet(isPresented: $showExportOptions) {
+            NavigationStack {
+                ExportOptionsView(
+                    draft: $exportDraft,
+                    availableKinds: [.collectionPackage, .deckPackage],
+                    decks: exportDecks,
+                    selectedNotesCount: nil,
+                    onCancel: { showExportOptions = false },
+                    onExport: {
+                        showExportOptions = false
+                        startExport(using: exportDraft)
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showImportOptions) {
+            if let pendingImportURL {
+                NavigationStack {
+                    ImportOptionsView(
+                        fileName: pendingImportURL.lastPathComponent,
+                        fileExtension: pendingImportURL.pathExtension,
+                        draft: $importDraft,
+                        onCancel: {
+                            self.pendingImportURL = nil
+                            showImportOptions = false
+                        },
+                        onImport: {
+                            let url = pendingImportURL
+                            self.pendingImportURL = nil
+                            showImportOptions = false
+                            startImport(
+                                from: url,
+                                configuration: url.pathExtension.lowercased() == "colpkg"
+                                    ? .collection
+                                    : importDraft.configuration
+                            )
+                        }
+                    )
+                }
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: AppUserStore.didChangeNotification)) { _ in
             reloadUsers()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didResetNotification)) { _ in
+            Task { await reopenCurrentCollectionAfterReset() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AppSyncAuthEvents.didChangeNotification)) { _ in
+            updateSyncBadge()
         }
         .task {
             updateSyncBadge()
@@ -210,7 +264,7 @@ struct ContentView: View {
                     showAddDeckPrompt = true
                 }
                 Button(L("menu_export_deck")) {
-                    exportCollection()
+                    presentExportOptions()
                 }
                 Divider()
                 Button(L("menu_import_apkg")) {
@@ -273,28 +327,7 @@ struct ContentView: View {
         defer { isSwitchingUser = false }
 
         do {
-            let urls = AppUserStore.collectionURLs(for: user)
-            try? backend.closeCollection()
-
-            try FileManager.default.createDirectory(
-                at: urls.directory,
-                withIntermediateDirectories: true
-            )
-            try FileManager.default.createDirectory(
-                at: urls.mediaDirectory,
-                withIntermediateDirectories: true
-            )
-
-            try backend.openCollection(
-                collectionPath: urls.collection.path,
-                mediaFolderPath: urls.mediaDirectory.path,
-                mediaDbPath: urls.mediaDB.path
-            )
-
-            _ = try? backend.call(
-                service: AnkiBackend.Service.collection,
-                method: AnkiBackend.CheckDatabaseMethod.checkDatabase
-            )
+            try reopenCollection(for: user)
 
             selectedUser = user
             AppUserStore.setSelectedUser(user)
@@ -305,8 +338,86 @@ struct ContentView: View {
         }
     }
 
-    private func exportCollection() {
+    @MainActor
+    private func reopenCurrentCollectionAfterReset() async {
+        do {
+            try reopenCollection(for: selectedUser)
+            refreshID = UUID()
+        } catch {
+            userSwitchError = error.localizedDescription
+            showUserSwitchError = true
+        }
+    }
+
+    private func reopenCollection(for user: String) throws {
+        let urls = AppUserStore.collectionURLs(for: user)
+        try? backend.closeCollection()
+
+        try FileManager.default.createDirectory(
+            at: urls.directory,
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(
+            at: urls.mediaDirectory,
+            withIntermediateDirectories: true
+        )
+
+        try backend.openCollection(
+            collectionPath: urls.collection.path,
+            mediaFolderPath: urls.mediaDirectory.path,
+            mediaDbPath: urls.mediaDB.path
+        )
+
+        _ = try? backend.call(
+            service: AnkiBackend.Service.collection,
+            method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+        )
+    }
+
+    private func presentExportOptions() {
         guard !isImportExportInProgress else { return }
+
+        Task {
+            let decks = ((try? deckClient.fetchAll()) ?? []).sorted { $0.name < $1.name }
+            await MainActor.run {
+                exportDecks = decks
+                if !decks.contains(where: { $0.id == exportDraft.selectedDeckID }) {
+                    exportDraft.selectedDeckID = decks.first?.id
+                }
+                showExportOptions = true
+            }
+        }
+    }
+
+    private func startExport(using draft: ExportPackageDraft) {
+        guard !isImportExportInProgress else { return }
+
+        let configuration: ImportHelper.ExportPackageConfiguration
+        switch draft.kind {
+        case .collectionPackage:
+            configuration = .collection(
+                includeMedia: draft.includeMedia,
+                legacy: draft.legacySupport
+            )
+        case .deckPackage:
+            guard let deck = exportDecks.first(where: { $0.id == draft.selectedDeckID }) else {
+                importMessage = L("review_no_decks_available")
+                showExportNotice = true
+                return
+            }
+            configuration = .deck(
+                deckID: deck.id,
+                deckName: deck.name,
+                includeScheduling: draft.includeScheduling,
+                includeDeckConfigs: draft.includeDeckConfigs,
+                includeMedia: draft.includeMedia,
+                legacy: draft.legacySupport
+            )
+        case .selectedNotesPackage:
+            importMessage = L("common_unknown_error")
+            showExportNotice = true
+            return
+        }
 
         importExportOperation = .exporting
         let backend = self.backend
@@ -314,7 +425,7 @@ struct ContentView: View {
             defer { importExportOperation = nil }
             do {
                 let url = try await Task.detached(priority: .userInitiated) {
-                    try ImportHelper.exportCollection(backend: backend)
+                    try ImportHelper.exportPackage(backend: backend, configuration: configuration)
                 }.value
                 exportedFileURL = url
                 showExportShareSheet = true
@@ -334,14 +445,16 @@ struct ContentView: View {
                 showImportAlert = true
                 return
             }
-            startImport(from: url)
+            pendingImportURL = url
+            importDraft = ImportPackageDraft()
+            showImportOptions = true
         case .failure(let error):
             importMessage = "Could not select file: \(error.localizedDescription)"
             showImportAlert = true
         }
     }
 
-    private func startImport(from url: URL) {
+    private func startImport(from url: URL, configuration: ImportHelper.ImportPackageConfiguration) {
         guard !isImportExportInProgress else { return }
 
         importExportOperation = .importing
@@ -354,8 +467,15 @@ struct ContentView: View {
 
             do {
                 let summary = try await Task.detached(priority: .userInitiated) {
-                    try ImportHelper.importPackage(from: url, backend: backend)
+                    try ImportHelper.importPackage(from: url, backend: backend, configuration: configuration)
                 }.value
+
+                do {
+                    try reopenCollection(for: selectedUser)
+                    Swift.print("[ContentView] Reopened collection after import for user=\(selectedUser)")
+                } catch {
+                    Swift.print("[ContentView] Failed to reopen collection after import for user=\(selectedUser): \(error)")
+                }
                 importMessage = summary
                 refreshID = UUID()
             } catch {

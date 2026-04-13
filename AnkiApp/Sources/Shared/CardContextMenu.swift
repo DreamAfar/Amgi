@@ -6,13 +6,19 @@ import Dependencies
 @MainActor
 struct CardContextMenu: View {
     let cardId: Int64
+    let noteId: Int64? = nil
     var onSuccess: (() -> Void)?
     var onActionSuccess: ((_ shouldAdvance: Bool) -> Void)?
+    var onRequestSetDueDate: ((_ cardId: Int64) -> Void)?
     
     @Dependency(\.cardClient) var cardClient
+    @Dependency(\.noteClient) var noteClient
+    @Dependency(\.tagClient) var tagClient
     
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var showDeleteConfirmation = false
+    @State private var isMarkedNote = false
     
     var body: some View {
         Menu {
@@ -22,6 +28,45 @@ struct CardContextMenu: View {
             
             Button(action: performBury) {
                 Label(L("card_action_bury"), systemImage: "books.vertical")
+            }
+
+            if noteId != nil {
+                Button(action: performSuspendNote) {
+                    Label(L("card_action_suspend_note"), systemImage: "pause.circle.fill")
+                }
+
+                Button(action: performBuryNote) {
+                    Label(L("card_action_bury_note"), systemImage: "books.vertical.fill")
+                }
+            }
+
+            Button(action: performResetToNew) {
+                Label(L("card_action_reset_to_new"), systemImage: "arrow.counterclockwise")
+            }
+
+            if let onRequestSetDueDate {
+                Button {
+                    onRequestSetDueDate(cardId)
+                } label: {
+                    Label(L("card_action_set_due_date"), systemImage: "calendar.badge.clock")
+                }
+            }
+
+            if noteId != nil {
+                Button(action: performToggleMarkedNote) {
+                    Label(
+                        isMarkedNote ? L("card_action_unmark_note") : L("card_action_mark_note"),
+                        systemImage: isMarkedNote ? "star.slash" : "star"
+                    )
+                }
+            }
+
+            if noteId != nil {
+                Button(role: .destructive) {
+                    showDeleteConfirmation = true
+                } label: {
+                    Label(L("card_action_delete_note"), systemImage: "trash")
+                }
             }
             
             Menu {
@@ -50,6 +95,15 @@ struct CardContextMenu: View {
         } message: {
             Text(errorMessage ?? L("common_unknown_error"))
         }
+        .confirmationDialog(L("browse_delete_title"), isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button(L("common_delete"), role: .destructive, action: performDeleteNote)
+            Button(L("common_cancel"), role: .cancel) { }
+        } message: {
+            Text(L("browse_delete_confirm"))
+        }
+        .task(id: noteId) {
+            await loadMarkedState()
+        }
     }
     
     private func performSuspend() {
@@ -70,6 +124,78 @@ struct CardContextMenu: View {
             onActionSuccess?(true)
         } catch {
             errorMessage = L("card_action_error_bury", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func performSuspendNote() {
+        performNoteAction(
+            action: { cardId in try cardClient.suspend(cardId) },
+            errorKey: "card_action_error_suspend_note"
+        )
+    }
+
+    private func performBuryNote() {
+        performNoteAction(
+            action: { cardId in try cardClient.bury(cardId) },
+            errorKey: "card_action_error_bury_note"
+        )
+    }
+
+    private func performResetToNew() {
+        do {
+            try cardClient.resetToNew(cardId)
+            onSuccess?()
+            onActionSuccess?(true)
+        } catch {
+            errorMessage = L("card_action_error_reset_to_new", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func performDeleteNote() {
+        guard let noteId else { return }
+        do {
+            try noteClient.delete(noteId)
+            onSuccess?()
+            onActionSuccess?(true)
+        } catch {
+            errorMessage = L("card_action_error_delete_note", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func performToggleMarkedNote() {
+        guard let noteId else { return }
+        do {
+            if isMarkedNote {
+                try tagClient.removeTagFromNotes(markedTag, [noteId])
+            } else {
+                try tagClient.addTagToNotes(markedTag, [noteId])
+            }
+            isMarkedNote.toggle()
+            onSuccess?()
+            onActionSuccess?(false)
+        } catch {
+            errorMessage = L("card_action_error_mark_note", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func performNoteAction(
+        action: (Int64) throws -> Void,
+        errorKey: String
+    ) {
+        guard let noteId else { return }
+        do {
+            let cards = try cardClient.fetchByNote(noteId)
+            for card in cards {
+                try action(card.id)
+            }
+            onSuccess?()
+            onActionSuccess?(true)
+        } catch {
+            errorMessage = L(errorKey, error.localizedDescription)
             showError = true
         }
     }
@@ -108,6 +234,26 @@ struct CardContextMenu: View {
         }
     }
 
+    private func loadMarkedState() async {
+        guard let noteId else {
+            isMarkedNote = false
+            return
+        }
+
+        do {
+            let note = try noteClient.fetch(noteId)
+            isMarkedNote = note.map(noteHasMarkedTag) ?? false
+        } catch {
+            isMarkedNote = false
+        }
+    }
+
+    private func noteHasMarkedTag(_ note: NoteRecord) -> Bool {
+        note.tags
+            .split(separator: " ")
+            .contains { $0.caseInsensitiveCompare(markedTag) == .orderedSame }
+    }
+
     private func flagColor(for value: UInt32) -> Color {
         switch value {
         case 1: return .red
@@ -121,6 +267,8 @@ struct CardContextMenu: View {
         }
     }
 }
+
+private let markedTag = "marked"
 
 
 #Preview {

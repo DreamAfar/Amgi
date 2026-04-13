@@ -72,6 +72,8 @@ struct SettingsView: View {
 
     @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
+    @AppStorage("show_deck_list_heatmap") private var showDeckListHeatmap = true
+    @AppStorage("deck_list_heatmap_height") private var deckListHeatmapHeight = 164.0
 
     @State private var maintenanceMessage: String?
     @State private var showMaintenanceAlert = false
@@ -161,6 +163,23 @@ struct SettingsView: View {
                     Label(L("settings_language_restart_hint"), systemImage: "info.circle")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+
+                Toggle(isOn: $showDeckListHeatmap) {
+                    Label(L("settings_display_show_deck_heatmap"), systemImage: "chart.bar.xaxis")
+                }
+
+                if showDeckListHeatmap {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Label(L("settings_display_deck_heatmap_height"), systemImage: "arrow.up.and.down")
+                            Spacer()
+                            Text(L("settings_display_deck_heatmap_height_value", Int(deckListHeatmapHeight)))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                        }
+
+                        Slider(value: $deckListHeatmapHeight, in: 136...220, step: 4)
+                    }
                 }
             }
 
@@ -424,8 +443,7 @@ private struct SyncSettingsView: View {
                 }
                 syncModeRaw = newMode.rawValue
                 if newMode != previousMode {
-                    KeychainHelper.deleteHostKey()
-                    KeychainHelper.deleteUsername()
+                    AppSyncAuthEvents.clearCredentials()
                 }
             }
         )
@@ -588,8 +606,7 @@ private struct SyncSettingsView: View {
     }
 
     private func logout() {
-        KeychainHelper.deleteHostKey()
-        KeychainHelper.deleteUsername()
+        AppSyncAuthEvents.clearCredentials()
         syncMessage = L("sync_settings_logged_out")
         showSyncAlert = true
     }
@@ -667,8 +684,7 @@ private struct SyncServerSetupSheet: View {
         }
         try? KeychainHelper.saveEndpoint(url)
         UserDefaults.standard.set(SyncPreferences.Mode.custom.rawValue, forKey: SyncPreferences.Keys.modeForCurrentUser())
-        KeychainHelper.deleteHostKey()
-        KeychainHelper.deleteUsername()
+        AppSyncAuthEvents.clearCredentials()
         isPresented = false
     }
 }

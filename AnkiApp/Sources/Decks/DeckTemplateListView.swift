@@ -268,6 +268,7 @@ struct TemplateEditorView: View {
     @State private var editorTab: TemplateEditorTab = .front
     @State private var showFieldManager = false
     @State private var showPreviewSheet = false
+    @State private var editorSearchText = ""
 
     private var currentTemplateName: String {
         guard notetype.templates.indices.contains(selectedTemplateIndex) else {
@@ -347,7 +348,7 @@ struct TemplateEditorView: View {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(currentTemplateName)
-                        .font(.headline)
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
 
                     if mode.allowsTemplateSelection, notetype.templates.count > 1 {
@@ -366,7 +367,7 @@ struct TemplateEditorView: View {
                         } label: {
                             HStack {
                                 Text(currentTemplateName)
-                                    .font(.headline)
+                                    .font(.subheadline.weight(.medium))
                                 Spacer()
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.caption)
@@ -384,6 +385,7 @@ struct TemplateEditorView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .controlSize(.small)
                     .onChange(of: editorTab) { old, new in
                         if new == .preview {
                             showPreviewSheet = true
@@ -393,44 +395,46 @@ struct TemplateEditorView: View {
                 }
                 .padding(16)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                }
 
                 TemplateSourceEditor(
                     text: currentEditorBinding,
                     fieldNames: currentFieldNames,
                     insertableTokens: currentInsertableTokens,
                     fieldButtonTitle: L("card_template_fields_short"),
-                    doneButtonTitle: L("common_done")
+                    doneButtonTitle: L("common_done"),
+                    searchQuery: editorSearchText
                 )
                 .padding(16)
                 .frame(minHeight: 420)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                }
 
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(L("deck_template_preview_rendered"))
-                        .font(.title3.weight(.semibold))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(L("card_template_search_title"))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
 
-                    VStack(spacing: 14) {
-                        Picker(L("deck_template_preview_side"), selection: $previewSide) {
-                            ForEach(TemplatePreviewSide.allCases, id: \.self) { side in
-                                Text(side.label).tag(side)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        Divider()
-
-                        CardWebView(
-                            html: renderedTemplateHTML(side: previewSide),
-                            autoplayEnabled: false,
-                            isAnswerSide: previewSide == .back,
-                            cardOrdinal: UInt32(selectedTemplateIndex),
-                            openLinksExternally: false,
-                            contentAlignment: .top
-                        )
-                        .frame(height: 320)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField(L("card_template_search_placeholder"), text: $editorSearchText)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
                     }
-                    .padding(16)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                    }
                 }
             }
             .padding(20)
@@ -447,6 +451,7 @@ struct TemplateEditorView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+                .controlSize(.small)
                 .padding()
 
                 CardWebView(
@@ -457,6 +462,10 @@ struct TemplateEditorView: View {
                     openLinksExternally: false,
                     contentAlignment: .top
                 )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 1, style: .continuous)
+                        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                }
             }
             .background(Color(.secondarySystemBackground))
             .navigationTitle(L("deck_template_preview_rendered"))

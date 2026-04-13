@@ -33,6 +33,10 @@ struct ReviewView: View {
     @State private var fieldManagerTarget: ReviewFieldManagerTarget?
     @State private var toolbarErrorMessage: String?
     @State private var showToolbarError = false
+    @State private var showSetDueDateSheet = false
+    @State private var setDueDateInput = ""
+    @State private var setDueDateCardID: Int64?
+    @State private var typedAnswerRequestID = 0
 
     @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var prefAutoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
@@ -149,6 +153,7 @@ struct ReviewView: View {
             session.start()
             configureAudioSession()
             scheduleAutoAdvanceIfNeeded()
+            await preloadAvailableDecks()
         }
         .onChange(of: prefPlayAudioInSilentMode) { _, _ in
             configureAudioSession()
@@ -203,6 +208,14 @@ struct ReviewView: View {
                 Task { await session.refreshAfterCardMutation() }
             }
         }
+        .sheet(isPresented: $showSetDueDateSheet) {
+            ReviewSetDueDateSheet(
+                dueDays: $setDueDateInput,
+                onSave: {
+                    Task { await applySetDueDate() }
+                }
+            )
+        }
         .sheet(isPresented: $showDeckStats) {
             NavigationStack {
                 StatsDashboardView(initialDeckID: deckId)
@@ -243,9 +256,13 @@ struct ReviewView: View {
             isAnswerSide: session.showAnswer,
             cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
             replayRequestID: replayRequestID,
+            typedAnswerRequestID: typedAnswerRequestID,
             replayMode: replayMode,
             openLinksExternally: prefOpenLinksExternally,
             contentAlignment: prefCardContentAlignment,
+            onTypedAnswerSubmitted: { typedAnswer in
+                session.revealAnswer(typedAnswer: typedAnswer)
+            },
             onAudioStateChange: { isPlaying in
                 Task { @MainActor in
                     self.isAudioPlaying = isPlaying
@@ -266,6 +283,10 @@ struct ReviewView: View {
                     if prefShowContextMenuButton, !session.isFinished, let current = session.currentCard {
                         CardContextMenu(
                             cardId: current.card.id,
+                            noteId: current.card.noteID,
+                            onRequestSetDueDate: { _ in
+                                openSetDueDateForCurrentCard()
+                            },
                             onActionSuccess: { shouldAdvance in
                                 if shouldAdvance {
                                     session.refreshAndAdvance()
@@ -287,7 +308,11 @@ struct ReviewView: View {
             }
         } else {
             Button {
-                session.revealAnswer()
+                if session.requiresTypedAnswerInput {
+                    typedAnswerRequestID += 1
+                } else {
+                    session.revealAnswer()
+                }
             } label: {
                 Text(L("review_show_answer"))
                     .font(.headline)
@@ -452,13 +477,14 @@ struct ReviewView: View {
     @MainActor
     private func openMoveCurrentCardToDeck() async {
         do {
-            let decks = try deckClient.fetchAll()
-            guard !decks.isEmpty else {
+            if availableDecks.isEmpty {
+                availableDecks = try deckClient.fetchAll().sorted(by: { $0.name < $1.name })
+            }
+            guard !availableDecks.isEmpty else {
                 toolbarErrorMessage = L("review_no_decks_available")
                 showToolbarError = true
                 return
             }
-            availableDecks = decks
             showMoveToDeck = true
         } catch {
             toolbarErrorMessage = L("review_move_deck_failed", error.localizedDescription)
@@ -466,10 +492,26 @@ struct ReviewView: View {
         }
     }
 
+    @MainActor
+    private func preloadAvailableDecks() async {
+        do {
+            availableDecks = try deckClient.fetchAll().sorted(by: { $0.name < $1.name })
+        } catch {
+            availableDecks = []
+        }
+    }
+
     private func openChangeCurrentCardNotetype() {
         guard let noteId = session.currentCard?.card.noteID else { return }
         noteIDsForNotetypeChange = [noteId]
         showChangeNotetype = true
+    }
+
+    private func openSetDueDateForCurrentCard() {
+        guard let cardId = session.currentCard?.card.id else { return }
+        setDueDateCardID = cardId
+        setDueDateInput = ""
+        showSetDueDateSheet = true
     }
 
     @MainActor
@@ -504,6 +546,23 @@ struct ReviewView: View {
             await session.refreshAfterCardMutation()
         } catch {
             toolbarErrorMessage = L("review_move_deck_failed", error.localizedDescription)
+            showToolbarError = true
+        }
+    }
+
+    @MainActor
+    private func applySetDueDate() async {
+        guard let cardId = setDueDateCardID else { return }
+        let days = setDueDateInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !days.isEmpty else { return }
+
+        do {
+            try cardClient.setDueDate(cardId, days)
+            showSetDueDateSheet = false
+            setDueDateCardID = nil
+            session.refreshAndAdvance()
+        } catch {
+            toolbarErrorMessage = L("review_set_due_failed", error.localizedDescription)
             showToolbarError = true
         }
     }
@@ -571,6 +630,50 @@ private struct ReviewFieldManagerTarget: Identifiable {
 
     var id: Int64 {
         notetypeId
+    }
+}
+
+private struct ReviewSetDueDateSheet: View {
+    @Binding var dueDays: String
+    let onSave: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var trimmedDueDays: String {
+        dueDays.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(L("review_set_due_prompt"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    TextField(L("review_set_due_placeholder"), text: $dueDays)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                } footer: {
+                    Text(L("review_set_due_hint"))
+                }
+            }
+            .navigationTitle(L("review_set_due_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common_cancel")) {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L("common_save")) {
+                        onSave()
+                    }
+                    .disabled(trimmedDueDays.isEmpty)
+                }
+            }
+        }
     }
 }
 

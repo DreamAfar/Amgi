@@ -27,22 +27,52 @@
 "tab_browse" = "Browse";
 "menu_user_settings" = "User Settings";
 "menu_add_deck" = "Add Deck";
-"menu_export_deck" = "Export Deck";
+"menu_export_deck" = "Export";
 "menu_import_apkg" = "Import .apkg/.colpkg";
 "alert_new_deck_title" = "New Deck";
 "alert_new_deck_placeholder" = "Deck Name";
 "alert_new_deck_message" = "Enter a name for the new deck";
 "alert_import_title" = "Import";
-"alert_export_deck_title" = "Export Deck";
+"alert_export_deck_title" = "Export";
 "alert_export_deck_message" = "Export functionality will be available soon.";
 "import_export_progress_importing" = "Importing package...";
-"import_export_progress_exporting" = "Exporting collection...";
+"import_export_progress_exporting" = "Exporting package...";
 "import_export_progress_detail" = "Large packages can take a while. Please keep the app open.";
+"export_config_scope" = "Export Scope";
+"export_config_scope_collection" = "Collection (.colpkg)";
+"export_config_scope_deck" = "Single Deck (.apkg)";
+"export_config_scope_selected_notes" = "Selected Notes (.apkg)";
+"export_config_selected_notes_count" = "%d notes selected";
+"export_config_deck" = "Deck";
+"export_config_options" = "Options";
+"export_config_include_media" = "Include media";
+"export_config_include_scheduling" = "Include scheduling";
+"export_config_include_deck_configs" = "Include deck options";
+"export_config_legacy_support" = "Support older Anki versions";
+"export_config_export_button" = "Export";
+"import_config_file" = "File";
+"import_config_file_type_collection" = "Collection package (.colpkg)";
+"import_config_file_type_apkg" = "Anki package (.apkg)";
+"import_config_collection_title" = "Collection Restore";
+"import_config_collection_message" = "This will replace the current local collection with the selected backup package.";
+"import_config_options" = "Import Options";
+"import_config_include_scheduling" = "Import scheduling";
+"import_config_include_deck_configs" = "Import deck options";
+"import_config_merge_notetypes" = "Merge notetypes";
+"import_config_update_policy" = "Update Policy";
+"import_config_update_notes" = "Existing notes";
+"import_config_update_notetypes" = "Existing notetypes";
+"import_config_update_if_newer" = "Update if newer";
+"import_config_update_always" = "Always update";
+"import_config_update_never" = "Never update";
+"import_config_import_button" = "Import";
 
 // MARK: - DeckListView
 "deck_list_nav_title" = "Decks";
 "deck_list_empty_title" = "No Decks";
 "deck_list_empty_desc" = "Sync with your server to get your decks.";
+"deck_list_heatmap_title" = "Review Heatmap";
+"deck_list_heatmap_load_failed" = "Unable to load the review heatmap right now.";
 "deck_row_rename" = "Rename";
 "deck_row_export" = "Export";
 "deck_row_delete" = "Delete";
@@ -111,6 +141,7 @@
 "browse_batch_suspend_toggle" = "Suspend";
 "browse_batch_reset_new" = "Reset";
 "browse_batch_manage_tags_short" = "Tags";
+"browse_batch_export_short" = "Export";
 "browse_batch_suspend_confirm_title" = "Suspend Cards?";
 "browse_batch_suspend_confirm_msg" = "Suspend %d selected card(s)?";
 "browse_batch_reset_confirm_title" = "Reset to New?";
@@ -236,6 +267,9 @@
 "settings_theme_dark" = "Dark";
 "settings_picker_language" = "Language";
 "settings_language_restart_hint" = "Language change will take full effect after restarting the app.";
+"settings_display_show_deck_heatmap" = "Show review heatmap above decks";
+"settings_display_deck_heatmap_height" = "Deck heatmap height";
+"settings_display_deck_heatmap_height_value" = "%d pt";
 "settings_row_backup" = "Backup";
 "settings_row_check_database" = "Check Database";
 "settings_row_check_media" = "Check Media";
@@ -614,6 +648,8 @@
 "deck_template_preview_rendered" = "Rendered Preview";
 "card_template_preview_btn" = "Preview";
 "card_template_fields_short" = "Fields";
+"card_template_search_title" = "Search Content";
+"card_template_search_placeholder" = "Search front, back, or CSS text";
 "deck_template_preview_side" = "Preview Side";
 "deck_template_preview_front" = "Front";
 "deck_template_preview_back" = "Back";
@@ -711,13 +747,31 @@
 // MARK: - CardContextMenu (extended)
 "card_action_suspend" = "Suspend";
 "card_action_bury" = "Bury";
+"card_action_suspend_note" = "Suspend Note";
+"card_action_bury_note" = "Bury Note";
+"card_action_reset_to_new" = "Forget Card";
+"card_action_set_due_date" = "Set Due Date";
+"card_action_mark_note" = "Mark Note";
+"card_action_unmark_note" = "Unmark Note";
+"card_action_delete_note" = "Delete Note";
 "card_action_flag" = "Flag";
 "card_action_undo" = "Undo";
 "card_action_error_title" = "Action Failed";
 "card_action_error_suspend" = "Failed to suspend card";
 "card_action_error_bury" = "Failed to bury card";
+"card_action_error_suspend_note" = "Failed to suspend note";
+"card_action_error_bury_note" = "Failed to bury note";
+"card_action_error_reset_to_new" = "Failed to reset card to new";
+"card_action_error_mark_note" = "Failed to update note mark";
+"card_action_error_delete_note" = "Failed to delete note";
 "card_action_error_flag" = "Failed to flag card";
 "card_action_error_undo" = "Failed to undo";
+
+"review_set_due_title" = "Set Due Date";
+"review_set_due_prompt" = "Enter the new due value for the current card.";
+"review_set_due_placeholder" = "Examples: 0, 1, 3-5, 7!";
+"review_set_due_hint" = "Use Anki due-date syntax such as 0, 3-5, or 7!.";
+"review_set_due_failed" = "Failed to set due date: %@";
 
 // MARK: - AddNoteView (extended)
 "add_note_title" = "Add Note";

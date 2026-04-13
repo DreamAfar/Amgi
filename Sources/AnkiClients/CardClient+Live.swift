@@ -258,6 +258,25 @@ extension CardClient: DependencyKey {
                     throw error
                 }
             },
+            setDueDate: { cardId, days in
+                var req = Anki_Scheduler_SetDueDateRequest()
+                req.cardIds = [cardId]
+                req.days = days
+                var configKey = Anki_Config_OptionalStringConfigKey()
+                configKey.key = .setDueReviewer
+                req.configKey = configKey
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.scheduler,
+                        method: AnkiBackend.SchedulerMethod.setDueDate,
+                        request: req
+                    )
+                    logger.info("Card due date set: \(cardId) -> \(days)")
+                } catch {
+                    logger.error("SetDueDate failed for cardId=\(cardId), days=\(days): \(error)")
+                    throw error
+                }
+            },
             search: { query in
                 // Search cards using the search service
                 var req = Anki_Search_SearchRequest()

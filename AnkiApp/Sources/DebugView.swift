@@ -29,7 +29,7 @@ struct DebugView: View {
                         .foregroundStyle(.secondary)
                 }
                 Button(L("debug_logout"), role: .destructive) {
-                    KeychainHelper.deleteHostKey()
+                    AppSyncAuthEvents.clearCredentials()
                     statusMessage = L("debug_logged_out_msg")
                 }
             }
@@ -121,7 +121,7 @@ struct DebugView: View {
 
     private func resetEverything() {
         // Clear keychain
-        KeychainHelper.deleteHostKey()
+        AppSyncAuthEvents.clearCredentials()
 
         // Close collection
         try? backend.closeCollection()
@@ -135,5 +135,6 @@ struct DebugView: View {
 
         // Remove migration marker so it recreates fresh
         statusMessage = L("debug_reset_complete")
+        NotificationCenter.default.post(name: AppCollectionEvents.didResetNotification, object: nil)
     }
 }

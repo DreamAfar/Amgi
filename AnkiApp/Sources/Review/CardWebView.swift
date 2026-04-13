@@ -22,9 +22,11 @@ struct CardWebView: UIViewRepresentable {
     let isAnswerSide: Bool
     let cardOrdinal: UInt32
     let replayRequestID: Int
+    let typedAnswerRequestID: Int
     let replayMode: ReplayMode
     let openLinksExternally: Bool
     let contentAlignment: ContentAlignment
+    let onTypedAnswerSubmitted: ((String?) -> Void)?
     let onAudioStateChange: ((Bool) -> Void)?
 
     init(
@@ -33,9 +35,11 @@ struct CardWebView: UIViewRepresentable {
         isAnswerSide: Bool = false,
         cardOrdinal: UInt32 = 0,
         replayRequestID: Int = 0,
+        typedAnswerRequestID: Int = 0,
         replayMode: ReplayMode = .question,
         openLinksExternally: Bool = true,
         contentAlignment: ContentAlignment = .center,
+        onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
         onAudioStateChange: ((Bool) -> Void)? = nil
     ) {
         self.html = html
@@ -43,9 +47,11 @@ struct CardWebView: UIViewRepresentable {
         self.isAnswerSide = isAnswerSide
         self.cardOrdinal = cardOrdinal
         self.replayRequestID = replayRequestID
+        self.typedAnswerRequestID = typedAnswerRequestID
         self.replayMode = replayMode
         self.openLinksExternally = openLinksExternally
         self.contentAlignment = contentAlignment
+        self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
         self.onAudioStateChange = onAudioStateChange
     }
 
@@ -58,6 +64,7 @@ struct CardWebView: UIViewRepresentable {
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.userContentController.add(context.coordinator, name: "amgiAudioState")
         config.userContentController.add(context.coordinator, name: "amgiOpenLink")
+        config.userContentController.add(context.coordinator, name: "amgiSubmitTypedAnswer")
         
         // Enable media playback without user interaction
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -75,6 +82,7 @@ struct CardWebView: UIViewRepresentable {
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiAudioState")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiOpenLink")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSubmitTypedAnswer")
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
@@ -128,6 +136,33 @@ struct CardWebView: UIViewRepresentable {
                 margin: 4px;
             }
             .sound-btn audio { display: none; }
+            #typeans {
+                width: min(100%, 280px);
+                padding: 10px 12px;
+                border-radius: 10px;
+                border: 1px solid \(isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)");
+                background: \(isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.9)");
+                color: inherit;
+                outline: none;
+            }
+            #typeans:focus {
+                border-color: \(isDarkMode ? "rgba(143,184,255,0.9)" : "rgba(0,122,255,0.9)");
+                box-shadow: 0 0 0 3px \(isDarkMode ? "rgba(143,184,255,0.18)" : "rgba(0,122,255,0.15)");
+            }
+            code#typeans {
+                display: inline-block;
+                white-space: pre-wrap;
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: 0.95em;
+                line-height: 1.5;
+                padding: 10px 12px;
+                border-radius: 10px;
+                background: \(isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)");
+            }
+            .typeGood { color: \(isDarkMode ? "#7ddc6f" : "#177d1a"); }
+            .typeBad { color: \(isDarkMode ? "#ff8d8d" : "#c62828"); }
+            .typeMissed { color: \(isDarkMode ? "#8ab4ff" : "#1565c0"); }
+            #typearrow { opacity: 0.7; }
             .replay-btn {
                 background: \(isDarkMode ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)");
                 border: 1px solid \(isDarkMode ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)");
@@ -305,6 +340,32 @@ struct CardWebView: UIViewRepresentable {
                 notifyAudioState(false);
             };
         }
+
+        function amgiGetTypedAnswer() {
+            var input = document.getElementById('typeans');
+            return input ? input.value : null;
+        }
+        window.amgiGetTypedAnswer = amgiGetTypedAnswer;
+
+        function amgiSubmitTypedAnswer() {
+            try {
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiSubmitTypedAnswer) {
+                    window.webkit.messageHandlers.amgiSubmitTypedAnswer.postMessage(amgiGetTypedAnswer());
+                }
+            } catch (e) {}
+        }
+        window.amgiSubmitTypedAnswer = amgiSubmitTypedAnswer;
+
+        function amgiHandleTypeAnswerKey(event) {
+            if (event && event.key === 'Enter') {
+                event.preventDefault();
+                amgiSubmitTypedAnswer();
+                return false;
+            }
+            return true;
+        }
+        window.amgiHandleTypeAnswerKey = amgiHandleTypeAnswerKey;
+
         window.onload = function() {
             var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
 
@@ -334,6 +395,11 @@ struct CardWebView: UIViewRepresentable {
                     span.replaceWith(hint);
                 };
             });
+
+            var typeInput = document.getElementById('typeans');
+            if (typeInput) {
+                typeInput.focus();
+            }
         };
         </script>
         </head>
@@ -361,6 +427,19 @@ struct CardWebView: UIViewRepresentable {
         if replayRequestID != context.coordinator.lastReplayRequestID {
             context.coordinator.lastReplayRequestID = replayRequestID
             webView.evaluateJavaScript("window.amgiReplayAll && window.amgiReplayAll('" + replayMode.rawValue + "');", completionHandler: nil)
+        }
+
+        if typedAnswerRequestID != context.coordinator.lastTypedAnswerRequestID {
+            context.coordinator.lastTypedAnswerRequestID = typedAnswerRequestID
+            webView.evaluateJavaScript("window.amgiGetTypedAnswer ? window.amgiGetTypedAnswer() : null") { value, _ in
+                let typedAnswer: String?
+                if let string = value as? String {
+                    typedAnswer = string
+                } else {
+                    typedAnswer = nil
+                }
+                context.coordinator.onTypedAnswerSubmitted?(typedAnswer)
+            }
         }
     }
 
@@ -428,11 +507,17 @@ struct CardWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var lastLoadSignature: String?
         var lastReplayRequestID: Int = 0
+        var lastTypedAnswerRequestID: Int = 0
         var openLinksExternally: Bool = true
         weak var currentWebView: WKWebView?
+        let onTypedAnswerSubmitted: ((String?) -> Void)?
         private let onAudioStateChange: ((Bool) -> Void)?
 
-        init(onAudioStateChange: ((Bool) -> Void)? = nil) {
+        init(
+            onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
+            onAudioStateChange: ((Bool) -> Void)? = nil
+        ) {
+            self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
             self.onAudioStateChange = onAudioStateChange
         }
 
@@ -442,6 +527,17 @@ struct CardWebView: UIViewRepresentable {
                     onAudioStateChange?(isPlaying)
                 } else if let number = message.body as? NSNumber {
                     onAudioStateChange?(number.boolValue)
+                }
+                return
+            }
+
+            if message.name == "amgiSubmitTypedAnswer" {
+                if let string = message.body as? String {
+                    onTypedAnswerSubmitted?(string)
+                } else if message.body is NSNull {
+                    onTypedAnswerSubmitted?(nil)
+                } else {
+                    onTypedAnswerSubmitted?(nil)
                 }
                 return
             }

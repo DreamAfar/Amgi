@@ -271,9 +271,10 @@ struct SyncSheet: View {
     }
 
     private func logout() {
-        KeychainHelper.deleteHostKey()
-        KeychainHelper.deleteUsername()
+        AppSyncAuthEvents.clearCredentials()
+        logEntries.removeAll()
         syncState = .idle
+        isPresented = false
     }
 
     // MARK: - No Server (Setup) View
@@ -536,8 +537,7 @@ private struct ServerSetupSheet: View {
             SyncPreferences.Mode.custom.rawValue,
             forKey: SyncPreferences.Keys.modeForCurrentUser()
         )
-        KeychainHelper.deleteHostKey()
-        KeychainHelper.deleteUsername()
+        AppSyncAuthEvents.clearCredentials()
         isPresented = false
         onComplete()
     }

@@ -30,7 +30,9 @@ class CardOperationsIntegrationTests: XCTestCase {
             "undo",
             "suspend",
             "bury",
-            "flag"
+            "flag",
+            "resetToNew",
+            "setDueDate"
         ]
         
         for method in methods {

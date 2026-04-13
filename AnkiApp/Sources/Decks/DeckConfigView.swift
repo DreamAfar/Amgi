@@ -554,9 +554,16 @@ struct DeckConfigView: View {
     private func loadConfig() async {
         do {
             Swift.print("[DeckConfigView] Loading config for deckId=\(deckId)")
-            let context = try? deckClient.fetchDeckConfigContext(deckId)
+            let initialContext = try? deckClient.fetchDeckConfigContext(deckId)
+            if initialContext == nil {
+                Swift.print("[DeckConfigView] Initial deck config context fetch failed for deckId=\(deckId); retrying after config load")
+            }
             let loadedConfig = try deckClient.getDeckConfig(deckId)
-            let effectiveContext = context ?? fallbackDeckConfigContext(from: loadedConfig)
+            let retryContext = initialContext ?? (try? deckClient.fetchDeckConfigContext(deckId))
+            if retryContext == nil {
+                Swift.print("[DeckConfigView] Using fallback deck config context for deckId=\(deckId), configId=\(loadedConfig.id), configName=\(loadedConfig.name)")
+            }
+            let effectiveContext = retryContext ?? fallbackDeckConfigContext(from: loadedConfig)
             let effectiveConfig: Anki_DeckConfig_DeckConfig
             if effectiveContext.currentDeck.configID != 0,
                let matched = effectiveContext.allConfig.first(where: { $0.config.id == effectiveContext.currentDeck.configID })?.config {

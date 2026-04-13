@@ -10,6 +10,7 @@ struct BrowseView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.cardClient) var cardClient
     @Dependency(\.tagClient) var tagClient
+    @Dependency(\.ankiBackend) var backend
 
     @State private var searchText = ""
     @State private var allNotes: [NoteRecord] = []
@@ -46,6 +47,11 @@ struct BrowseView: View {
     @State private var showResetNewConfirm = false
     @State private var batchProgressDone = 0
     @State private var batchProgressTotal = 0
+    @State private var showExportOptions = false
+    @State private var showExportShareSheet = false
+    @State private var exportedFileURL: URL?
+    @State private var exportDraft = ExportPackageDraft(kind: .selectedNotesPackage)
+    @State private var isExportingSelection = false
 
     private let pageSize = 50
 
@@ -65,6 +71,10 @@ struct BrowseView: View {
 
             if isBatchWorking {
                 batchProgressOverlay
+            }
+
+            if isExportingSelection {
+                exportProgressOverlay
             }
         }
         .navigationTitle("")
@@ -218,6 +228,26 @@ struct BrowseView: View {
                 Task { await performSearch() }
             }
         }
+        .sheet(isPresented: $showExportOptions) {
+            NavigationStack {
+                ExportOptionsView(
+                    draft: $exportDraft,
+                    availableKinds: [.selectedNotesPackage],
+                    decks: [],
+                    selectedNotesCount: selectedNoteIDs.count,
+                    onCancel: { showExportOptions = false },
+                    onExport: {
+                        showExportOptions = false
+                        startSelectedNotesExport(using: exportDraft)
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showExportShareSheet) {
+            if let exportedFileURL {
+                ShareSheet(items: [exportedFileURL])
+            }
+        }
         .alert(L("browse_batch_delete_title"), isPresented: $showBatchDeleteConfirm) {
             Button(L("common_cancel"), role: .cancel) { }
             Button(L("common_delete"), role: .destructive) {
@@ -366,6 +396,28 @@ struct BrowseView: View {
         .clipShape(Capsule())
     }
 
+    private var exportProgressOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.16)
+                .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                ProgressView()
+                    .controlSize(.large)
+                Text(L("import_export_progress_exporting"))
+                    .font(.headline)
+                Text(L("import_export_progress_detail"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .frame(maxWidth: 300)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+    }
+
     private var filterMenu: some View {
         Menu {
             ForEach(BrowseQuickFilter.allCases, id: \.self) { filter in
@@ -469,6 +521,10 @@ struct BrowseView: View {
 
                 batchActionButton(systemImage: "tag", title: L("browse_batch_manage_tags_short")) {
                     showTagsActionSheet = true
+                }
+
+                batchActionButton(systemImage: "square.and.arrow.up", title: L("browse_batch_export_short")) {
+                    presentSelectedNotesExportOptions()
                 }
 
                 batchActionButton(systemImage: "pause.circle", title: L("browse_batch_suspend_toggle")) {
@@ -712,6 +768,49 @@ struct BrowseView: View {
             allTags = []
             activeTag = nil
         }
+    }
+
+    private func presentSelectedNotesExportOptions() {
+        guard !selectedNoteIDs.isEmpty, !isBatchWorking, !isExportingSelection else { return }
+        exportDraft = ExportPackageDraft(kind: .selectedNotesPackage)
+        showExportOptions = true
+    }
+
+    private func startSelectedNotesExport(using draft: ExportPackageDraft) {
+        guard !selectedNoteIDs.isEmpty, !isExportingSelection else { return }
+
+        let configuration = ImportHelper.ExportPackageConfiguration.noteIDs(
+            noteIDs: selectedNoteIDs.sorted(),
+            filenameStem: selectedNotesExportFilenameStem(),
+            includeScheduling: draft.includeScheduling,
+            includeDeckConfigs: draft.includeDeckConfigs,
+            includeMedia: draft.includeMedia,
+            legacy: draft.legacySupport
+        )
+
+        isExportingSelection = true
+        let backend = self.backend
+        Task {
+            defer { isExportingSelection = false }
+            do {
+                let url = try await Task.detached(priority: .userInitiated) {
+                    try ImportHelper.exportPackage(backend: backend, configuration: configuration)
+                }.value
+                exportedFileURL = url
+                showExportShareSheet = true
+            } catch {
+                batchErrorMessage = error.localizedDescription
+                showBatchError = true
+            }
+        }
+    }
+
+    private func selectedNotesExportFilenameStem() -> String {
+        if selectedNoteIDs.count == 1,
+           let note = allNotes.first(where: { selectedNoteIDs.contains($0.id) }) {
+            return note.sfld
+        }
+        return "selected-notes-\(selectedNoteIDs.count)"
     }
 
     private func deleteNote(_ note: NoteRecord) async {
