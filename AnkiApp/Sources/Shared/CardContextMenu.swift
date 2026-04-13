@@ -6,7 +6,7 @@ import Dependencies
 @MainActor
 struct CardContextMenu: View {
     let cardId: Int64
-    let noteId: Int64? = nil
+    let noteId: Int64?
     var onSuccess: (() -> Void)?
     var onActionSuccess: ((_ shouldAdvance: Bool) -> Void)?
     var onRequestSetDueDate: ((_ cardId: Int64) -> Void)?
