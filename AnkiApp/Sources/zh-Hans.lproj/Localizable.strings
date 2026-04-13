@@ -654,6 +654,7 @@
 "deck_template_preview_rendered" = "渲染预览";
 "card_template_preview_btn" = "预览";
 "card_template_fields_short" = "字段";
+"card_template_insert_short" = "插入";
 "card_template_search_title" = "搜索内容";
 "card_template_search_placeholder" = "搜索正面、背面或 CSS 文本";
 "deck_template_preview_side" = "预览面";

@@ -654,6 +654,7 @@
 "deck_template_preview_rendered" = "レンダリングプレビュー";
 "card_template_preview_btn" = "プレビュー";
 "card_template_fields_short" = "フィールド";
+"card_template_insert_short" = "挿入";
 "card_template_search_title" = "内容を検索";
 "card_template_search_placeholder" = "表面・裏面・CSS のテキストを検索";
 "deck_template_preview_side" = "プレビュー面";

@@ -25,7 +25,7 @@ struct DeckListHeatmapCard: View {
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             } else if let graphs {
-                HeatmapChart(reviews: graphs.reviews, compactHeight: deckListHeatmapHeight)
+                HomeHeatmapChart(reviews: graphs.reviews, preferredHeight: deckListHeatmapHeight)
             } else if loadError {
                 ContentUnavailableView(
                     L("deck_list_heatmap_title"),

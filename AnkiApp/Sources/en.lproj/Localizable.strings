@@ -654,6 +654,7 @@
 "deck_template_preview_rendered" = "Rendered Preview";
 "card_template_preview_btn" = "Preview";
 "card_template_fields_short" = "Fields";
+"card_template_insert_short" = "Insert";
 "card_template_search_title" = "Search Content";
 "card_template_search_placeholder" = "Search front, back, or CSS text";
 "deck_template_preview_side" = "Preview Side";

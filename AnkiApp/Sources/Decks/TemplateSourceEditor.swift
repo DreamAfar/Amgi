@@ -141,78 +141,71 @@ struct TemplateSourceEditor: UIViewRepresentable {
             fieldButtonTitle: String,
             doneButtonTitle: String
         ) -> UIView {
-            let container = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 44))
-            container.backgroundColor = .secondarySystemBackground
+            let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: 0, height: 50))
+            toolbar.backgroundColor = .secondarySystemBackground
+            toolbar.barTintColor = .secondarySystemBackground
+            toolbar.tintColor = .label
 
-            let divider = UIView()
-            divider.translatesAutoresizingMaskIntoConstraints = false
-            divider.backgroundColor = .separator
-            container.addSubview(divider)
-
-            let scrollView = UIScrollView()
-            scrollView.translatesAutoresizingMaskIntoConstraints = false
-            scrollView.showsHorizontalScrollIndicator = false
-            container.addSubview(scrollView)
-
-            let stackView = UIStackView()
-            stackView.translatesAutoresizingMaskIntoConstraints = false
-            stackView.axis = .horizontal
-            stackView.alignment = .center
-            stackView.spacing = 6
-            scrollView.addSubview(stackView)
-
-            let undoButton = makeSymbolButton(systemName: "arrow.uturn.backward") { [weak self] in
-                self?.textView?.undoManager?.undo()
-            }
-            let redoButton = makeSymbolButton(systemName: "arrow.uturn.forward") { [weak self] in
-                self?.textView?.undoManager?.redo()
-            }
-            stackView.addArrangedSubview(undoButton)
-            stackView.addArrangedSubview(redoButton)
+            var items: [UIBarButtonItem] = [
+                UIBarButtonItem(
+                    customView: makeToolbarIconButton(systemName: "arrow.uturn.backward") { [weak self] in
+                        self?.textView?.undoManager?.undo()
+                    }
+                ),
+                fixedSpaceItem(8),
+                UIBarButtonItem(
+                    customView: makeToolbarIconButton(systemName: "arrow.uturn.forward") { [weak self] in
+                        self?.textView?.undoManager?.redo()
+                    }
+                )
+            ]
 
             if !fieldNames.isEmpty {
-                let actions = fieldNames.map { fieldName in
+                let fieldActions = fieldNames.map { fieldName in
                     UIAction(title: fieldName) { [weak self] _ in
                         self?.insert("{{\(fieldName)}}")
                     }
                 }
-                let fieldButton = makeTextButton(title: fieldButtonTitle)
-                fieldButton.menu = UIMenu(children: actions)
-                fieldButton.showsMenuAsPrimaryAction = true
-                stackView.addArrangedSubview(fieldButton)
+                items.append(fixedSpaceItem(8))
+                items.append(
+                    UIBarButtonItem(
+                        customView: makeToolbarMenuButton(
+                            title: fieldButtonTitle,
+                            menu: UIMenu(children: fieldActions)
+                        )
+                    )
+                )
             }
 
-            for token in insertableTokens {
-                let button = makeTextButton(title: token) { [weak self] in
-                    self?.insert(token)
+            if !insertableTokens.isEmpty {
+                let tokenActions = insertableTokens.map { token in
+                    UIAction(title: token) { [weak self] _ in
+                        self?.insert(token)
+                    }
                 }
-                stackView.addArrangedSubview(button)
+                items.append(fixedSpaceItem(8))
+                items.append(
+                    UIBarButtonItem(
+                        customView: makeToolbarMenuButton(
+                            title: L("card_template_insert_short"),
+                            menu: UIMenu(children: tokenActions)
+                        )
+                    )
+                )
             }
 
-            let doneButton = makeTextButton(title: doneButtonTitle) { [weak self] in
-                self?.textView?.resignFirstResponder()
-            }
-            stackView.addArrangedSubview(doneButton)
+            items.append(.flexibleSpace())
+            items.append(
+                UIBarButtonItem(
+                    customView: makeToolbarActionButton(title: doneButtonTitle) { [weak self] in
+                        self?.textView?.resignFirstResponder()
+                    }
+                )
+            )
 
-            NSLayoutConstraint.activate([
-                divider.topAnchor.constraint(equalTo: container.topAnchor),
-                divider.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-                divider.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-                divider.heightAnchor.constraint(equalToConstant: 0.5),
-
-                scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-                scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-                scrollView.topAnchor.constraint(equalTo: divider.bottomAnchor),
-                scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-
-                stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 10),
-                stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -10),
-                stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 6),
-                stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -6),
-                stackView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -12)
-            ])
-
-            return container
+            toolbar.items = items
+            toolbar.sizeToFit()
+            return toolbar
         }
 
         private func insert(_ string: String) {
@@ -223,47 +216,56 @@ struct TemplateSourceEditor: UIViewRepresentable {
             textViewDidChange(textView)
         }
 
-        private func makeSymbolButton(systemName: String, action: @escaping () -> Void) -> UIButton {
+        private func makeToolbarIconButton(systemName: String, action: @escaping () -> Void) -> UIButton {
             let button = UIButton(type: .system)
             button.translatesAutoresizingMaskIntoConstraints = false
             button.setImage(UIImage(systemName: systemName), for: .normal)
             button.tintColor = .label
-            button.backgroundColor = .tertiarySystemFill
-            button.layer.cornerRadius = 8
-            button.layer.borderWidth = 1
-            button.layer.borderColor = UIColor.separator.withAlphaComponent(0.24).cgColor
-            button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
-            var configuration = UIButton.Configuration.plain()
+            var configuration = UIButton.Configuration.bordered()
             configuration.buttonSize = .small
-            configuration.baseBackgroundColor = .tertiarySystemFill
             configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8)
             button.configuration = configuration
-            button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+            button.widthAnchor.constraint(equalToConstant: 36).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 32).isActive = true
             button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             return button
         }
 
-        private func makeTextButton(title: String, action: (() -> Void)? = nil) -> UIButton {
+        private func makeToolbarMenuButton(title: String, menu: UIMenu) -> UIButton {
             let button = UIButton(type: .system)
             button.translatesAutoresizingMaskIntoConstraints = false
-            button.setTitle(title, for: .normal)
-            button.setTitleColor(.label, for: .normal)
-            button.backgroundColor = .tertiarySystemFill
-            button.layer.cornerRadius = 8
-            button.layer.borderWidth = 1
-            button.layer.borderColor = UIColor.separator.withAlphaComponent(0.24).cgColor
-            button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
-            var configuration = UIButton.Configuration.plain()
+            var configuration = UIButton.Configuration.bordered()
             configuration.buttonSize = .small
-            configuration.baseBackgroundColor = .tertiarySystemFill
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
+            configuration.title = title
+            configuration.image = UIImage(systemName: "chevron.down")
+            configuration.imagePlacement = .trailing
+            configuration.imagePadding = 6
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10)
             button.configuration = configuration
-            button.heightAnchor.constraint(equalToConstant: 30).isActive = true
-            if let action {
-                button.addAction(UIAction { _ in action() }, for: .touchUpInside)
-            }
+            button.menu = menu
+            button.showsMenuAsPrimaryAction = true
+            button.heightAnchor.constraint(equalToConstant: 32).isActive = true
             return button
+        }
+
+        private func makeToolbarActionButton(title: String, action: @escaping () -> Void) -> UIButton {
+            let button = UIButton(type: .system)
+            button.translatesAutoresizingMaskIntoConstraints = false
+            var configuration = UIButton.Configuration.borderedTinted()
+            configuration.buttonSize = .small
+            configuration.title = title
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
+            button.configuration = configuration
+            button.heightAnchor.constraint(equalToConstant: 32).isActive = true
+            button.addAction(UIAction { _ in action() }, for: .touchUpInside)
+            return button
+        }
+
+        private func fixedSpaceItem(_ width: CGFloat) -> UIBarButtonItem {
+            let item = UIBarButtonItem(systemItem: .fixedSpace)
+            item.width = width
+            return item
         }
     }
 }
