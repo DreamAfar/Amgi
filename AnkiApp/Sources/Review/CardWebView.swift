@@ -174,20 +174,19 @@ struct CardWebView: UIViewRepresentable {
             .typeMissed { color: \(isDarkMode ? "#8ab4ff" : "#1565c0"); }
             #typearrow { opacity: 0.7; }
             .replay-btn {
-                background: \(isDarkMode ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)");
-                border: 1px solid \(isDarkMode ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)");
+                background: transparent;
+                border: none;
                 color: inherit;
-                border-radius: 50%;
-                width: 44px;
-                height: 44px;
-                font-size: 18px;
+                padding: 0;
+                line-height: 0;
                 cursor: pointer;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
                 -webkit-tap-highlight-color: transparent;
+                appearance: none;
             }
-            .replay-btn:active { background: \(isDarkMode ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.16)"); }
+            .replay-btn:active { opacity: 0.7; }
             .replay-btn img {
                 width: 24px;
                 height: 24px;

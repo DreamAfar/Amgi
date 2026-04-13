@@ -228,18 +228,28 @@ struct ContentView: View {
             showUserManager = true
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: isSwitchingUser ? "arrow.triangle.2.circlepath.circle" : "person.crop.circle")
-                Text(selectedUser)
-                    .lineLimit(1)
+                Label(
+                    currentUserDisplayName,
+                    systemImage: isSwitchingUser ? "arrow.triangle.2.circlepath.circle" : "person.crop.circle"
+                )
+                .labelStyle(.titleAndIcon)
+                .lineLimit(1)
+                .layoutPriority(1)
                 Image(systemName: "chevron.down")
                     .font(.caption2)
             }
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(Color(.secondarySystemFill), in: Capsule())
         }
         .buttonStyle(.plain)
         .disabled(isSwitchingUser)
+    }
+
+    private var currentUserDisplayName: String {
+        let trimmed = selectedUser.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? AppUserStore.loadSelectedUser() : trimmed
     }
 
     private var trailingActions: some View {

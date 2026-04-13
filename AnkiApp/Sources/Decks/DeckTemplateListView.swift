@@ -298,6 +298,11 @@ struct TemplateEditorView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
                 }
+                ToolbarItem(placement: .principal) {
+                    Text(mode.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("card_template_fields_short")) {
                         showFieldManager = true
@@ -624,7 +629,7 @@ struct TemplateEditorView: View {
 
         for field in notetype.fields {
             let name = field.name
-            let value = L("deck_template_sample_value", name)
+            let value = name
             let escapedName = NSRegularExpression.escapedPattern(for: name)
             if let regex = try? NSRegularExpression(pattern: "\\{\\{[^{}]*\(escapedName)[^{}]*\\}\\}") {
                 let range = NSRange(rendered.startIndex..., in: rendered)

@@ -142,26 +142,29 @@ struct SettingsView: View {
                     .tint(SettingsValueStyle.highlight)
                 }
 
-                HStack {
-                    Label(L("settings_picker_language"), systemImage: "globe")
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Picker(L("settings_picker_language"), selection: selectedLanguage) {
-                        ForEach(AppLanguage.allCases) { lang in
-                            Text(lang.displayName)
-                                .foregroundStyle(SettingsValueStyle.highlight)
-                                .tag(lang)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Label(L("settings_picker_language"), systemImage: "globe")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Picker(L("settings_picker_language"), selection: selectedLanguage) {
+                            ForEach(AppLanguage.allCases) { lang in
+                                Text(lang.displayName)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(lang)
+                            }
                         }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .tint(SettingsValueStyle.highlight)
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .tint(SettingsValueStyle.highlight)
-                }
 
-                if selectedLanguage.wrappedValue != .system {
-                    Label(L("settings_language_restart_hint"), systemImage: "info.circle")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    if selectedLanguage.wrappedValue != .system {
+                        Text(L("settings_language_restart_hint"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 28)
+                    }
                 }
 
                 NavigationLink {
