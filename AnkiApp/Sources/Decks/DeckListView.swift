@@ -32,7 +32,7 @@ struct DeckListView: View {
                 List {
                     if showDeckListHeatmap {
                         DeckListHeatmapCard(refreshID: heatmapRefreshID)
-                            .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 8, trailing: 12))
+                            .padding(.vertical, 4)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                     }

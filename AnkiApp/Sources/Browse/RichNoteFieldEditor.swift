@@ -142,6 +142,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
         button.configuration = configuration
         button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        button.widthAnchor.constraint(equalToConstant: 40).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -160,6 +161,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
         button.configuration = configuration
         button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        button.widthAnchor.constraint(equalToConstant: 40).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }

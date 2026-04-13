@@ -228,10 +228,14 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.translatesAutoresizingMaskIntoConstraints = false
             button.setImage(UIImage(systemName: systemName), for: .normal)
             button.tintColor = .label
+            button.backgroundColor = .tertiarySystemFill
             button.layer.cornerRadius = 8
+            button.layer.borderWidth = 1
+            button.layer.borderColor = UIColor.separator.withAlphaComponent(0.24).cgColor
             button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
             var configuration = UIButton.Configuration.plain()
             configuration.buttonSize = .small
+            configuration.baseBackgroundColor = .tertiarySystemFill
             configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
             configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
             button.configuration = configuration
@@ -245,10 +249,14 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.translatesAutoresizingMaskIntoConstraints = false
             button.setTitle(title, for: .normal)
             button.setTitleColor(.label, for: .normal)
+            button.backgroundColor = .tertiarySystemFill
             button.layer.cornerRadius = 8
+            button.layer.borderWidth = 1
+            button.layer.borderColor = UIColor.separator.withAlphaComponent(0.24).cgColor
             button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
             var configuration = UIButton.Configuration.plain()
             configuration.buttonSize = .small
+            configuration.baseBackgroundColor = .tertiarySystemFill
             configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
             button.configuration = configuration
             button.heightAnchor.constraint(equalToConstant: 30).isActive = true
