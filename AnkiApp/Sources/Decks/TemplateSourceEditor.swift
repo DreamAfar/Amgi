@@ -230,7 +230,9 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.tintColor = .label
             button.layer.cornerRadius = 8
             button.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
-            button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 6, bottom: 6, right: 6)
+            var configuration = button.configuration ?? .plain()
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6)
+            button.configuration = configuration
             button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             return button
         }
@@ -242,7 +244,9 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.setTitleColor(.label, for: .normal)
             button.layer.cornerRadius = 8
             button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
-            button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
+            var configuration = button.configuration ?? .plain()
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8)
+            button.configuration = configuration
             if let action {
                 button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             }

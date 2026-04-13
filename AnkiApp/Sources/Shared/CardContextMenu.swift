@@ -19,6 +19,20 @@ struct CardContextMenu: View {
     @State private var showError = false
     @State private var showDeleteConfirmation = false
     @State private var isMarkedNote = false
+
+    init(
+        cardId: Int64,
+        noteId: Int64? = nil,
+        onSuccess: (() -> Void)? = nil,
+        onActionSuccess: ((_ shouldAdvance: Bool) -> Void)? = nil,
+        onRequestSetDueDate: ((_ cardId: Int64) -> Void)? = nil
+    ) {
+        self.cardId = cardId
+        self.noteId = noteId
+        self.onSuccess = onSuccess
+        self.onActionSuccess = onActionSuccess
+        self.onRequestSetDueDate = onRequestSetDueDate
+    }
     
     var body: some View {
         Menu {

@@ -223,7 +223,7 @@ final class TagClientIntegrationTests: XCTestCase {
         // Scenario: Multiple simultaneous tag operations
         
         let tagNames = ["Concurrent1", "Concurrent2", "Concurrent3"]
-        var errors: [Error] = []
+        var errors: [any Error] = []
         
         // Add multiple tags
         for name in tagNames {

@@ -135,7 +135,9 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.tintColor = .label
         button.backgroundColor = .tertiarySystemFill
         button.layer.cornerRadius = 10
-        button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+        var configuration = button.configuration ?? .plain()
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
+        button.configuration = configuration
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -148,7 +150,9 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.backgroundColor = .tertiarySystemFill
         button.layer.cornerRadius = 10
         button.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-        button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+        var configuration = button.configuration ?? .plain()
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
+        button.configuration = configuration
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
