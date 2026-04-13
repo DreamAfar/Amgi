@@ -110,6 +110,12 @@
 "browse_batch_flag_label" = "Flag";
 "browse_batch_suspend_toggle" = "Suspend";
 "browse_batch_reset_new" = "Reset";
+"browse_batch_manage_tags_short" = "Tags";
+"browse_batch_suspend_confirm_title" = "Suspend Cards?";
+"browse_batch_suspend_confirm_msg" = "Suspend %d selected card(s)?";
+"browse_batch_reset_confirm_title" = "Reset to New?";
+"browse_batch_reset_confirm_msg" = "Reset %d selected card(s) to new state?";
+"browse_batch_reset_confirm_action" = "Reset";
 "browse_batch_tags_add" = "Add Tags";
 "browse_batch_tags_remove" = "Remove Tags";
 "browse_total_count" = "%d notes";
@@ -314,6 +320,25 @@
 "sync_settings_media_log_failed" = "Media sync failed: %@";
 "sync_settings_logged_out" = "Signed out from sync account.";
 
+// MARK: - SyncSheet progress log
+"sync_log_section_title" = "Sync Log";
+"sync_log_connecting" = "Connecting to server...";
+"sync_log_syncing_changes" = "Syncing changes...";
+"sync_log_checking_db" = "Verifying database integrity...";
+"sync_log_media_stats" = "Media: %@ checked, %@ added, %@ removed";
+"sync_log_complete" = "All done";
+"sync_log_notes_added" = "\u2191 %d note(s) added";
+"sync_log_notes_removed" = "\u2193 %d note(s) removed";
+"sync_log_notes_stats_both" = "\u2191 %d added, \u2193 %d removed";
+"sync_log_no_note_changes" = "No note changes";
+
+// MARK: - SyncSheet server setup
+"sync_setup_title" = "Set Up Sync";
+"sync_setup_subtitle" = "Choose how to sync your collection across devices";
+"sync_setup_ankiweb_desc" = "Free official sync service by Anki";
+"sync_setup_self_hosted_desc" = "Use your own AnkiSync v2 server";
+"sync_setup_offline" = "Continue Offline";
+
 // MARK: - LoginSheet
 "login_nav_title" = "Login";
 "login_field_username" = "Username";
@@ -361,6 +386,7 @@
 "common_ok" = "OK";
 "common_save" = "Save";
 "common_done" = "Done";
+"common_add" = "Add";
 "common_delete" = "Delete";
 "common_back" = "Back";
 "common_loading" = "Loading...";
@@ -586,6 +612,8 @@
 "deck_template_edit_aformat" = "Back Template";
 "deck_template_edit_css" = "Card Styling (CSS)";
 "deck_template_preview_rendered" = "Rendered Preview";
+"card_template_preview_btn" = "Preview";
+"card_template_fields_short" = "Fields";
 "deck_template_preview_side" = "Preview Side";
 "deck_template_preview_front" = "Front";
 "deck_template_preview_back" = "Back";
@@ -670,13 +698,13 @@
 
 // MARK: - Flags
 "flag_none" = "No Flag";
-"flag_red" = "Red";
-"flag_orange" = "Orange";
-"flag_green" = "Green";
-"flag_blue" = "Blue";
-"flag_pink" = "Pink";
-"flag_cyan" = "Cyan";
-"flag_purple" = "Purple";
+"flag_red" = "Flag (Red)";
+"flag_orange" = "Flag (Orange)";
+"flag_green" = "Flag (Green)";
+"flag_blue" = "Flag (Blue)";
+"flag_pink" = "Flag (Pink)";
+"flag_cyan" = "Flag (Cyan)";
+"flag_purple" = "Flag (Purple)";
 "flag_other" = "Flag %d";
 "card_flag_label" = "Flag %d (%@)";
 

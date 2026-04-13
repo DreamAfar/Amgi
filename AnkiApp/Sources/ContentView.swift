@@ -22,6 +22,7 @@ struct ContentView: View {
 
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.syncClient) var syncClient
 
     @State private var showSync = false
     @State private var showImport = false
@@ -40,6 +41,7 @@ struct ContentView: View {
     @State private var isSwitchingUser = false
     @State private var userSwitchError: String?
     @State private var showUserSwitchError = false
+    @State private var showSyncBadge = false
 
     private var isImportExportInProgress: Bool {
         importExportOperation != nil
@@ -90,6 +92,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showSync) {
+            updateSyncBadge()
             refreshID = UUID()
         } content: {
             SyncSheet(isPresented: $showSync)
@@ -99,6 +102,9 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: AppUserStore.didChangeNotification)) { _ in
             reloadUsers()
+        }
+        .task {
+            updateSyncBadge()
         }
         .fileImporter(isPresented: $showImport, allowedContentTypes: [.data]) { result in
             handleImport(result)
@@ -187,7 +193,16 @@ struct ContentView: View {
             Button {
                 showSync = true
             } label: {
-                Image(systemName: "arrow.triangle.2.circlepath")
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .padding(.top, 3)
+                        .padding(.trailing, 3)
+                    if showSyncBadge {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 7, height: 7)
+                    }
+                }
             }
 
             Menu {
@@ -217,6 +232,22 @@ struct ContentView: View {
         } else {
             selectedUser = newUser
             refreshID = UUID()
+        }
+        updateSyncBadge()
+    }
+
+    private func updateSyncBadge() {
+        guard KeychainHelper.loadHostKey() != nil else {
+            showSyncBadge = false
+            return
+        }
+        let key = SyncPreferences.Keys.lastCollectionSyncedAtForCurrentUser()
+        let ts = UserDefaults.standard.double(forKey: key)
+        if ts == 0 {
+            showSyncBadge = true // never synced
+        } else {
+            let hoursSince = (Date().timeIntervalSince1970 - ts) / 3600
+            showSyncBadge = hoursSince > 12
         }
     }
 

@@ -233,6 +233,7 @@ private enum TemplateEditorTab: CaseIterable {
     case front
     case back
     case css
+    case preview
 
     var label: String {
         switch self {
@@ -242,6 +243,8 @@ private enum TemplateEditorTab: CaseIterable {
             return L("deck_template_edit_aformat")
         case .css:
             return "CSS"
+        case .preview:
+            return L("card_template_preview_btn")
         }
     }
 }
@@ -264,6 +267,7 @@ struct TemplateEditorView: View {
     @State private var previewSide: TemplatePreviewSide = .front
     @State private var editorTab: TemplateEditorTab = .front
     @State private var showFieldManager = false
+    @State private var showPreviewSheet = false
 
     private var currentTemplateName: String {
         guard notetype.templates.indices.contains(selectedTemplateIndex) else {
@@ -294,13 +298,10 @@ struct TemplateEditorView: View {
                     Button(L("common_cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
+                    Button(L("card_template_fields_short")) {
                         showFieldManager = true
-                    } label: {
-                        Image(systemName: "text.badge.plus")
                     }
                     .disabled(isLoading)
-                    .accessibilityLabel(L("notetype_field_manage_short"))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if isSaving {
@@ -331,6 +332,9 @@ struct TemplateEditorView: View {
                         }
                     )
                 }
+            }
+            .sheet(isPresented: $showPreviewSheet) {
+                previewSheet
             }
             .task {
                 await loadNotetype()
@@ -380,16 +384,26 @@ struct TemplateEditorView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .onChange(of: editorTab) { old, new in
+                        if new == .preview {
+                            showPreviewSheet = true
+                            editorTab = old
+                        }
+                    }
                 }
                 .padding(16)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
-                TextEditor(text: currentEditorBinding)
-                    .font(.system(size: 16, design: .monospaced))
-                    .scrollContentBackground(.hidden)
-                    .padding(16)
-                    .frame(minHeight: 420)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                TemplateSourceEditor(
+                    text: currentEditorBinding,
+                    fieldNames: currentFieldNames,
+                    insertableTokens: currentInsertableTokens,
+                    fieldButtonTitle: L("card_template_fields_short"),
+                    doneButtonTitle: L("common_done")
+                )
+                .padding(16)
+                .frame(minHeight: 420)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 14) {
                     Text(L("deck_template_preview_rendered"))
@@ -424,6 +438,50 @@ struct TemplateEditorView: View {
         .background(Color(.systemGroupedBackground))
     }
 
+    private var previewSheet: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Picker(L("deck_template_preview_side"), selection: $previewSide) {
+                    ForEach(TemplatePreviewSide.allCases, id: \.self) { side in
+                        Text(side.label).tag(side)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding()
+
+                CardWebView(
+                    html: renderedTemplateHTML(side: previewSide),
+                    autoplayEnabled: false,
+                    isAnswerSide: previewSide == .back,
+                    cardOrdinal: UInt32(selectedTemplateIndex),
+                    openLinksExternally: false,
+                    contentAlignment: .top
+                )
+            }
+            .background(Color(.secondarySystemBackground))
+            .navigationTitle(L("deck_template_preview_rendered"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done")) { showPreviewSheet = false }
+                }
+            }
+        }
+    }
+
+    private var currentFieldNames: [String] {
+        editorTab == .css ? [] : notetype.fields.map(\.name)
+    }
+
+    private var currentInsertableTokens: [String] {
+        switch editorTab {
+        case .front, .back, .preview:
+            return ["(", ")", ".", "=", "#", "<br>", "{{FrontSide}}"]
+        case .css:
+            return ["{", "}", ":", ";", ".", "#"]
+        }
+    }
+
     private var currentEditorBinding: Binding<String> {
         switch editorTab {
         case .front:
@@ -432,6 +490,8 @@ struct TemplateEditorView: View {
             return aFormatBinding
         case .css:
             return cssBinding
+        case .preview:
+            return qFormatBinding
         }
     }
 

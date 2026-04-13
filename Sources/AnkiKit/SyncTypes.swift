@@ -50,3 +50,16 @@ public struct MediaSyncSummary: Sendable, Equatable {
         self.filesDeleted = filesDeleted
     }
 }
+
+/// Events emitted by SyncClient.syncWithProgress() as sync progresses through stages.
+public enum SyncProgressEvent: Sendable {
+    case connecting
+    case normalSync
+    case fullDownloading
+    case fullUploading
+    case checkingDatabase
+    case syncingMedia
+    case noteStats(added: Int, removed: Int)
+    case mediaStats(checked: String, added: String, removed: String)
+    case completed(SyncSummary)
+}

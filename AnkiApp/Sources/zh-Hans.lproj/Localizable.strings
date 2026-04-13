@@ -109,8 +109,12 @@
 "browse_batch_change_notetype_short" = "模板";
 "browse_batch_flag_label" = "旗标";
 "browse_batch_suspend_toggle" = "暂停";
-"browse_batch_reset_new" = "重置";
-"browse_batch_tags_add" = "添加标签";
+"browse_batch_reset_new" = "重置";"browse_batch_manage_tags_short" = "管理标签";
+"browse_batch_suspend_confirm_title" = "暂停卡片？";
+"browse_batch_suspend_confirm_msg" = "确认暂停所选的 %d 张卡片？";
+"browse_batch_reset_confirm_title" = "重置为新卡片？";
+"browse_batch_reset_confirm_msg" = "将所选的 %d 张卡片重置为新卡片状态？";
+"browse_batch_reset_confirm_action" = "重置";"browse_batch_tags_add" = "添加标签";
 "browse_batch_tags_remove" = "删除标签";
 "browse_total_count" = "%d 条笔记";
 "browse_tags_manage" = "标签管理";
@@ -314,6 +318,25 @@
 "sync_settings_media_log_failed" = "媒体同步失败：%@";
 "sync_settings_logged_out" = "已退出同步账户登录。";
 
+// MARK: - SyncSheet progress log
+"sync_log_section_title" = "同步日志";
+"sync_log_connecting" = "正在连接服务器…";
+"sync_log_syncing_changes" = "正在同步变更…";
+"sync_log_checking_db" = "正在验证数据库完整性…";
+"sync_log_media_stats" = "媒体：已检查 %@，已新增 %@，已删除 %@";
+"sync_log_complete" = "全部完成";
+"sync_log_notes_added" = "\u2191 已添加 %d 条笔记";
+"sync_log_notes_removed" = "\u2193 已删除 %d 条笔记";
+"sync_log_notes_stats_both" = "\u2191 已添加 %d 条，\u2193 已删除 %d 条";
+"sync_log_no_note_changes" = "笔记无变动";
+
+// MARK: - SyncSheet server setup
+"sync_setup_title" = "设置同步";
+"sync_setup_subtitle" = "选择如何在设备间同步您的卡牌集";
+"sync_setup_ankiweb_desc" = "Anki 官方免费同步服务";
+"sync_setup_self_hosted_desc" = "使用您自己的 AnkiSync v2 服务器";
+"sync_setup_offline" = "继续离线使用";
+
 // MARK: - LoginSheet
 "login_nav_title" = "登录";
 "login_field_username" = "用户名";
@@ -361,6 +384,7 @@
 "common_ok" = "确定";
 "common_save" = "保存";
 "common_done" = "完成";
+"common_add" = "添加";
 "common_delete" = "删除";
 "common_back" = "返回";
 "common_loading" = "加载中…";
@@ -586,6 +610,8 @@
 "deck_template_edit_aformat" = "背面模板";
 "deck_template_edit_css" = "卡片样式（CSS）";
 "deck_template_preview_rendered" = "渲染预览";
+"card_template_preview_btn" = "预览";
+"card_template_fields_short" = "字段";
 "deck_template_preview_side" = "预览面";
 "deck_template_preview_front" = "正面";
 "deck_template_preview_back" = "背面";
@@ -670,13 +696,13 @@
 
 // MARK: - Flags
 "flag_none" = "无旗标";
-"flag_red" = "红色";
-"flag_orange" = "橙色";
-"flag_green" = "绿色";
-"flag_blue" = "蓝色";
-"flag_pink" = "粉色";
-"flag_cyan" = "青色";
-"flag_purple" = "紫色";
+"flag_red" = "旗标 (红色)";
+"flag_orange" = "旗标 (橙色)";
+"flag_green" = "旗标 (绿色)";
+"flag_blue" = "旗标 (蓝色)";
+"flag_pink" = "旗标 (粉色)";
+"flag_cyan" = "旗标 (青色)";
+"flag_purple" = "旗标 (紫色)";
 "flag_other" = "标记 %d";
 "card_flag_label" = "标记 %d（%@）";
 

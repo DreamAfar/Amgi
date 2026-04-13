@@ -15,10 +15,12 @@ private enum SyncPreferenceValues {
     static let syncMediaKeyBase = "sync_pref_sync_media"
     static let ioTimeoutSecsKeyBase = "sync_pref_io_timeout_secs"
     static let customMode = "custom"
+    static let lastCollectionSyncBase = "sync_pref_collection_last_synced_at"
 
     static var modeKey: String { scoped(modeKeyBase) }
     static var syncMediaKey: String { scoped(syncMediaKeyBase) }
     static var ioTimeoutSecsKey: String { scoped(ioTimeoutSecsKeyBase) }
+    static var lastCollectionSyncKey: String { scoped(lastCollectionSyncBase) }
 
     private static func scoped(_ base: String) -> String {
         "\(base).\(currentProfileID())"
@@ -57,6 +59,22 @@ private func syncMediaEnabled() -> Bool {
         return true
     }
     return UserDefaults.standard.bool(forKey: SyncPreferenceValues.syncMediaKey)
+}
+
+/// Returns total note count, or -1 on failure (non-fatal).
+private func countNotes(backend: AnkiBackend) -> Int {
+    do {
+        var req = Anki_Search_SearchRequest()
+        req.search = "deck:*"
+        let resp: Anki_Search_SearchResponse = try backend.invoke(
+            service: AnkiBackend.Service.search,
+            method: AnkiBackend.SearchMethod.searchNotes,
+            request: req
+        )
+        return resp.ids.count
+    } catch {
+        return -1
+    }
 }
 
 extension SyncClient: DependencyKey {
@@ -154,6 +172,133 @@ extension SyncClient: DependencyKey {
                     throw SyncError(message: error.message)
                 }
             },
+            syncWithProgress: {
+                AsyncThrowingStream<SyncProgressEvent, Error> { continuation in
+                    let task = Task {
+                        do {
+                            let hostKey = KeychainHelper.loadHostKey() ?? ""
+                            guard !hostKey.isEmpty else { throw SyncError.authFailed }
+
+                            continuation.yield(.connecting)
+
+                            // Count notes before sync to compute delta
+                            let noteCountBefore = countNotes(backend: backend)
+
+                            var auth = configuredSyncAuth(hostKey: hostKey)
+                            var req = Anki_Sync_SyncCollectionRequest()
+                            req.auth = auth
+                            req.syncMedia = false
+
+                            let responseBytes: Data
+                            do {
+                                responseBytes = try backend.call(
+                                    service: AnkiBackend.Service.sync,
+                                    method: AnkiBackend.SyncMethod.syncCollection,
+                                    request: req
+                                )
+                            } catch let error as BackendError {
+                                if error.isSyncAuthError { throw SyncError.authFailed }
+                                throw SyncError(message: error.message)
+                            }
+
+                            let response = try Anki_Sync_SyncCollectionResponse(serializedBytes: responseBytes)
+                            logger.info("syncWithProgress: required=\(response.required), serverMessage='\(response.serverMessage)'")
+
+                            if response.hasNewEndpoint, !response.newEndpoint.isEmpty {
+                                auth.endpoint = response.newEndpoint
+                            }
+
+                            switch response.required {
+                            case .noChanges:
+                                break
+
+                            case .normalSync:
+                                continuation.yield(.normalSync)
+
+                            case .fullSync, .fullDownload:
+                                continuation.yield(.fullDownloading)
+                                var dlReq = Anki_Sync_FullUploadOrDownloadRequest()
+                                dlReq.auth = auth
+                                dlReq.upload = false
+                                dlReq.serverUsn = response.serverMediaUsn
+                                do {
+                                    try backend.callVoid(
+                                        service: AnkiBackend.Service.sync,
+                                        method: AnkiBackend.SyncMethod.fullUploadOrDownload,
+                                        request: dlReq
+                                    )
+                                } catch let error as BackendError {
+                                    if error.isSyncAuthError { throw SyncError.authFailed }
+                                    throw SyncError(message: error.message)
+                                }
+                                continuation.yield(.checkingDatabase)
+                                do {
+                                    _ = try backend.call(
+                                        service: AnkiBackend.Service.collection,
+                                        method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+                                    )
+                                } catch {
+                                    logger.warning("CheckDatabase failed after full download: \(error)")
+                                }
+
+                            case .fullUpload:
+                                continuation.yield(.fullUploading)
+                                var ulReq = Anki_Sync_FullUploadOrDownloadRequest()
+                                ulReq.auth = auth
+                                ulReq.upload = true
+                                ulReq.serverUsn = response.serverMediaUsn
+                                do {
+                                    try backend.callVoid(
+                                        service: AnkiBackend.Service.sync,
+                                        method: AnkiBackend.SyncMethod.fullUploadOrDownload,
+                                        request: ulReq
+                                    )
+                                } catch let error as BackendError {
+                                    if error.isSyncAuthError { throw SyncError.authFailed }
+                                    throw SyncError(message: error.message)
+                                }
+
+                            case .UNRECOGNIZED(let v):
+                                logger.warning("Unrecognized sync required value: \(v)")
+                            }
+
+                            if syncMediaEnabled() {
+                                continuation.yield(.syncingMedia)
+                                let mediaAuth = configuredSyncAuth(hostKey: hostKey)
+                                do {
+                                    try backend.callVoid(
+                                        service: AnkiBackend.Service.sync,
+                                        method: AnkiBackend.SyncMethod.syncMedia,
+                                        request: mediaAuth
+                                    )
+                                } catch let error as BackendError {
+                                    if error.isSyncAuthError { throw SyncError.authFailed }
+                                    logger.warning("Media sync failed (non-fatal): \(error.message)")
+                                }
+                            }
+
+                            UserDefaults.standard.set(
+                                Date().timeIntervalSince1970,
+                                forKey: SyncPreferenceValues.lastCollectionSyncKey
+                            )
+
+                            // Emit note count delta
+                            let noteCountAfter = countNotes(backend: backend)
+                            if noteCountBefore >= 0, noteCountAfter >= 0 {
+                                let added = max(0, noteCountAfter - noteCountBefore)
+                                let removed = max(0, noteCountBefore - noteCountAfter)
+                                continuation.yield(.noteStats(added: added, removed: removed))
+                            }
+
+                            continuation.yield(.completed(SyncSummary()))
+                            continuation.finish()
+                        } catch {
+                            continuation.finish(throwing: error)
+                        }
+                    }
+                    continuation.onTermination = { @Sendable _ in task.cancel() }
+                }
+            },
             fullSync: { direction in
                 let hostKey = KeychainHelper.loadHostKey() ?? ""
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }
@@ -194,7 +339,11 @@ extension SyncClient: DependencyKey {
 
                 return MediaSyncSummary()
             },
-            lastSyncDate: { nil }
+            lastSyncDate: {
+                let ts = UserDefaults.standard.double(forKey: SyncPreferenceValues.lastCollectionSyncKey)
+                guard ts > 0 else { return nil }
+                return Date(timeIntervalSince1970: ts)
+            }
         )
     }()
 

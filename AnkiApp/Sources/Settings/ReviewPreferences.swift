@@ -23,6 +23,7 @@ enum SyncPreferences {
         static let ioTimeoutSecsBase = "sync_pref_io_timeout_secs"
         static let mediaLastLogBase = "sync_pref_media_last_log"
         static let mediaLastSyncedAtBase = "sync_pref_media_last_synced_at"
+        static let lastCollectionSyncedAtBase = "sync_pref_collection_last_synced_at"
 
         static func modeForCurrentUser() -> String {
             scoped(modeBase)
@@ -42,6 +43,10 @@ enum SyncPreferences {
 
         static func mediaLastSyncedAtForCurrentUser() -> String {
             scoped(mediaLastSyncedAtBase)
+        }
+
+        static func lastCollectionSyncedAtForCurrentUser() -> String {
+            scoped(lastCollectionSyncedAtBase)
         }
 
         private static func scoped(_ base: String) -> String {

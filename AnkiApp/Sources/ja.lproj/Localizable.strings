@@ -110,6 +110,12 @@
 "browse_batch_flag_label" = "フラグ";
 "browse_batch_suspend_toggle" = "停止";
 "browse_batch_reset_new" = "リセット";
+"browse_batch_manage_tags_short" = "タグ管理";
+"browse_batch_suspend_confirm_title" = "カードを停止しますか？";
+"browse_batch_suspend_confirm_msg" = "選択した %d 枚のカードを停止しますか？";
+"browse_batch_reset_confirm_title" = "新規にリセットしますか？";
+"browse_batch_reset_confirm_msg" = "選択した %d 枚のカードを新規状態にリセットしますか？";
+"browse_batch_reset_confirm_action" = "リセット";
 "browse_batch_tags_add" = "タグを追加";
 "browse_batch_tags_remove" = "タグを削除";
 "browse_total_count" = "%d 件のノート";
@@ -314,6 +320,25 @@
 "sync_settings_media_log_failed" = "メディア同期に失敗しました：%@";
 "sync_settings_logged_out" = "同期アカウントからログアウトしました。";
 
+// MARK: - SyncSheet progress log
+"sync_log_section_title" = "同期ログ";
+"sync_log_connecting" = "サーバーに接続中…";
+"sync_log_syncing_changes" = "変更を同期中…";
+"sync_log_checking_db" = "データベース整合性を確認中…";
+"sync_log_media_stats" = "メディア：%@ 確認済み、%@ 追加済み、%@ 削除済み";
+"sync_log_complete" = "完了";
+"sync_log_notes_added" = "\u2191 %d 件のノートが追加されました";
+"sync_log_notes_removed" = "\u2193 %d 件のノートが削除されました";
+"sync_log_notes_stats_both" = "\u2191 %d 件追加、\u2193 %d 件削除";
+"sync_log_no_note_changes" = "ノートの変更なし";
+
+// MARK: - SyncSheet server setup
+"sync_setup_title" = "同期を設定";
+"sync_setup_subtitle" = "デバイス間でコレクションを同期する方法を選択";
+"sync_setup_ankiweb_desc" = "Anki 公式の無料同期サービス";
+"sync_setup_self_hosted_desc" = "独自の AnkiSync v2 サーバーを使用";
+"sync_setup_offline" = "オフラインで続行";
+
 // MARK: - LoginSheet
 "login_nav_title" = "ログイン";
 "login_field_username" = "ユーザー名";
@@ -361,6 +386,7 @@
 "common_ok" = "OK";
 "common_save" = "保存";
 "common_done" = "完了";
+"common_add" = "追加";
 "common_delete" = "削除";
 "common_back" = "戻る";
 "common_loading" = "読み込み中…";
@@ -586,6 +612,8 @@
 "deck_template_edit_aformat" = "裏面テンプレート";
 "deck_template_edit_css" = "カードスタイル（CSS）";
 "deck_template_preview_rendered" = "レンダリングプレビュー";
+"card_template_preview_btn" = "プレビュー";
+"card_template_fields_short" = "フィールド";
 "deck_template_preview_side" = "プレビュー面";
 "deck_template_preview_front" = "表面";
 "deck_template_preview_back" = "裏面";
@@ -615,6 +643,7 @@
 "notetype_field_name_duplicate" = "同じ名前のフィールドが既に存在します。";
 "notetype_field_delete_last_error" = "少なくとも 1 つのフィールドを残す必要があります。";
 "notetype_field_load_failed" = "フィールド管理の読み込みに失敗: %@";
+"card_template_editor_title" = "カードテンプレートエディタ";
 "audio_preview_no_file" = "このフィールドに音声タグが見つかりません。";
 "audio_preview_file_not_found" = "音声ファイルが見つかりません: %@";
 "card_info_section_fsrs" = "FSRS メモリ状態";
@@ -670,14 +699,14 @@
 "card_due_position" = "位置 %d";
 
 // MARK: - Flags
-"flag_none" = "フラグなし";
-"flag_red" = "赤";
-"flag_orange" = "オレンジ";
-"flag_green" = "緑";
-"flag_blue" = "青";
-"flag_pink" = "ピンク";
-"flag_cyan" = "シアン";
-"flag_purple" = "紫";
+"flag_none" = "旗標なし";
+"flag_red" = "旗標 (赤)";
+"flag_orange" = "旗標 (オレンジ)";
+"flag_green" = "旗標 (緑)";
+"flag_blue" = "旗標 (青)";
+"flag_pink" = "旗標 (ピンク)";
+"flag_cyan" = "旗標 (シアン)";
+"flag_purple" = "旗標 (紫)";
 "flag_other" = "フラグ %d";
 "card_flag_label" = "フラグ %d（%@）";
 
@@ -763,6 +792,11 @@
 "stats_period_week" = "週";
 "stats_period_3months" = "3ヶ月";
 "stats_period_all" = "全期間";
+"stats_period_day_short" = "1D";
+"stats_period_week_short" = "7D";
+"stats_period_month_short" = "1M";
+"stats_period_3months_short" = "3M";
+"stats_period_year_short" = "1Y";
 "stats_period_all_short" = "全";
 "stats_card_young" = "若いカード";
 "stats_card_mature" = "成熟カード";
@@ -839,6 +873,32 @@
 "settings_review_alignment_center" = "中央";
 "settings_check_media_not_wired" = "メディアチェック機能はまだこのビルドで有効にされていません。";
 "settings_empty_cards_not_wired" = "空カードクリーンアップはまだこのビルドで有効にされていません。";
+"settings_row_file_manager" = "ユーザーファイル";
+
+// MARK: - UserFileManagerView
+"file_mgmt_section_summary" = "概要";
+"file_mgmt_user" = "ユーザー";
+"file_mgmt_media_count" = "メディアファイル数";
+"file_mgmt_media_size" = "メディア合計サイズ";
+"file_mgmt_collection_size" = "コレクションDBサイズ";
+"file_mgmt_media_db_size" = "メディアDBサイズ";
+"file_mgmt_section_media" = "メディアファイル";
+"file_mgmt_empty" = "メディアファイルはまだありません。";
+"file_mgmt_no_search_result" = "一致するファイルがありません。";
+"file_mgmt_footer_hint" = "メディアファイルの名前変更はノートの参照に影響する場合があります。慎重に操作してください。";
+"file_mgmt_search_placeholder" = "ファイル名を検索";
+"file_mgmt_rename_title" = "ファイル名を変更";
+"file_mgmt_rename_placeholder" = "新しいファイル名";
+"file_mgmt_load_error" = "メディアファイルの読み込みに失敗: %@";
+"file_mgmt_rename_empty" = "ファイル名は空にできません。";
+"file_mgmt_rename_invalid" = "ファイル名にパス区切り文字を含めることはできません。";
+"file_mgmt_rename_exists" = "同じ名前のファイルが既に存在します。";
+"file_mgmt_rename_success" = "%@ を %@ に名前変更しました。";
+"file_mgmt_rename_failed" = "名前変更に失敗: %@";
+"file_mgmt_preview_unavailable" = "プレビュー不可";
+"file_mgmt_preview_load_failed" = "このファイルのプレビュー読み込みに失敗しました。";
+"file_mgmt_preview_not_supported" = "このファイル形式はプレビューに対応していません。";
+"file_mgmt_load_more" = "さらに %d 件読み込む";
 
 // MARK: - AboutView
 "about_nav_title" = "について";

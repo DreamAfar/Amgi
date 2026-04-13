@@ -42,6 +42,8 @@ struct BrowseView: View {
     @State private var showBatchError = false
     @State private var batchSuccessMessage: String?
     @State private var showBatchSuccess = false
+    @State private var showSuspendConfirm = false
+    @State private var showResetNewConfirm = false
     @State private var batchProgressDone = 0
     @State private var batchProgressTotal = 0
 
@@ -102,16 +104,6 @@ struct BrowseView: View {
                         invertSelection()
                     }
                     .disabled(allNotes.isEmpty)
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showTagsActionSheet = true
-                    } label: {
-                        Image(systemName: "tag")
-                    }
-                    .accessibilityLabel(L("browse_batch_manage_tags"))
-                    .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -256,6 +248,18 @@ struct BrowseView: View {
         } message: {
             Text(batchSuccessMessage ?? L("common_completed"))
         }
+        .alert(L("browse_batch_suspend_confirm_title"), isPresented: $showSuspendConfirm) {
+            Button(L("common_ok")) { Task { await batchToggleSuspend() } }
+            Button(L("common_cancel"), role: .cancel) {}
+        } message: {
+            Text(L("browse_batch_suspend_confirm_msg", selectedNoteIDs.count))
+        }
+        .alert(L("browse_batch_reset_confirm_title"), isPresented: $showResetNewConfirm) {
+            Button(L("browse_batch_reset_confirm_action"), role: .destructive) { Task { await batchResetToNew() } }
+            Button(L("common_cancel"), role: .cancel) {}
+        } message: {
+            Text(L("browse_batch_reset_confirm_msg", selectedNoteIDs.count))
+        }
         .safeAreaInset(edge: .top) {
             if !allDecks.isEmpty || !allTags.isEmpty {
                 deckFilterBar
@@ -290,35 +294,20 @@ struct BrowseView: View {
     // MARK: - Extracted Sub-Views
 
     private var noteListContent: some View {
-        List {
+        List(selection: $selectedNoteIDs) {
             ForEach(notes, id: \.id) { note in
                 if isEditing {
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: selectedNoteIDs.contains(note.id) ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(selectedNoteIDs.contains(note.id) ? Color.accentColor : Color(.tertiaryLabel))
-                            .font(.title3)
-                            .frame(width: 24)
-                            .padding(.top, 2)
-                        NoteRowView(note: note)
-                    }
-                    .listRowBackground(selectedNoteIDs.contains(note.id) ? Color.accentColor.opacity(0.10) : Color.clear)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if selectedNoteIDs.contains(note.id) {
-                            selectedNoteIDs.remove(note.id)
-                        } else {
-                            selectedNoteIDs.insert(note.id)
+                    NoteRowView(note: note)
+                        .listRowBackground(selectedNoteIDs.contains(note.id) ? Color.accentColor.opacity(0.10) : Color.clear)
+                        .onAppear {
+                            if note.sfld == "Loading..." {
+                                Task { await fetchNoteDetails(id: note.id) }
+                            }
+                            if note.id == notes.last?.id {
+                                Task { await loadNextPage() }
+                            }
                         }
-                    }
-                    .onAppear {
-                        if note.sfld == "Loading..." {
-                            Task { await fetchNoteDetails(id: note.id) }
-                        }
-                        if note.id == notes.last?.id {
-                            Task { await loadNextPage() }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
+                        .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
                 } else {
                     NavigationLink(value: note) {
                         NoteRowView(note: note)
@@ -351,6 +340,7 @@ struct BrowseView: View {
                 }
             }
         }
+        .environment(\.editMode, editModeBinding)
         .listStyle(.plain)
         .navigationDestination(for: NoteRecord.self) { note in
             let resolvedNote = (note.sfld == "Loading...")
@@ -462,27 +452,31 @@ struct BrowseView: View {
                 }
 
                 Menu {
-                    Button(L("browse_batch_flag_1")) { Task { await batchFlag(1) } }
-                    Button(L("browse_batch_flag_2")) { Task { await batchFlag(2) } }
-                    Button(L("browse_batch_flag_3")) { Task { await batchFlag(3) } }
-                    Button(L("browse_batch_flag_4")) { Task { await batchFlag(4) } }
-                    Button(L("browse_batch_flag_5")) { Task { await batchFlag(5) } }
-                    Button(L("browse_batch_flag_6")) { Task { await batchFlag(6) } }
-                    Button(L("browse_batch_flag_7")) { Task { await batchFlag(7) } }
+                    browseFlagButton(1) { Task { await batchFlag(1) } }
+                    browseFlagButton(2) { Task { await batchFlag(2) } }
+                    browseFlagButton(3) { Task { await batchFlag(3) } }
+                    browseFlagButton(4) { Task { await batchFlag(4) } }
+                    browseFlagButton(5) { Task { await batchFlag(5) } }
+                    browseFlagButton(6) { Task { await batchFlag(6) } }
+                    browseFlagButton(7) { Task { await batchFlag(7) } }
                     Divider()
-                    Button(L("browse_batch_flag_clear")) { Task { await batchFlag(0) } }
+                    browseFlagButton(0) { Task { await batchFlag(0) } }
                 } label: {
                     batchActionLabel(systemImage: "flag.fill", title: L("browse_batch_flag_label"))
                 }
                 .buttonStyle(.plain)
                 .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
 
+                batchActionButton(systemImage: "tag", title: L("browse_batch_manage_tags_short")) {
+                    showTagsActionSheet = true
+                }
+
                 batchActionButton(systemImage: "pause.circle", title: L("browse_batch_suspend_toggle")) {
-                    Task { await batchToggleSuspend() }
+                    showSuspendConfirm = true
                 }
 
                 batchActionButton(systemImage: "arrow.counterclockwise", title: L("browse_batch_reset_new")) {
-                    Task { await batchResetToNew() }
+                    showResetNewConfirm = true
                 }
             }
             .padding(.horizontal)
@@ -526,8 +520,54 @@ struct BrowseView: View {
             .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? .tertiary : .primary)
     }
 
+    private func browseFlagButton(_ value: UInt32, action: @escaping () -> Void) -> some View {
+        let color = browseFlagColor(for: value)
+        let icon = value == 0 ? "flag.slash.fill" : "flag.fill"
+        let label = value == 0 ? L("flag_none") : L("flag_\(browseFlagKey(for: value))")
+        return Button(action: action) {
+            Label {
+                Text(label).foregroundStyle(color)
+            } icon: {
+                Image(systemName: icon).foregroundStyle(color)
+            }
+        }
+    }
+
+    private func browseFlagColor(for value: UInt32) -> Color {
+        switch value {
+        case 1: return .red
+        case 2: return .orange
+        case 3: return .green
+        case 4: return .blue
+        case 5: return .pink
+        case 6: return .cyan
+        case 7: return .purple
+        default: return .secondary
+        }
+    }
+
+    private func browseFlagKey(for value: UInt32) -> String {
+        switch value {
+        case 1: return "red"
+        case 2: return "orange"
+        case 3: return "green"
+        case 4: return "blue"
+        case 5: return "pink"
+        case 6: return "cyan"
+        case 7: return "purple"
+        default: return "none"
+        }
+    }
+
     private var isEditing: Bool {
         isMultiSelecting
+    }
+
+    private var editModeBinding: Binding<EditMode> {
+        Binding(
+            get: { isMultiSelecting ? .active : .inactive },
+            set: { newMode in isMultiSelecting = (newMode == .active) }
+        )
     }
 
     private var topLevelDecks: [DeckInfo] {

@@ -82,21 +82,11 @@ struct ReviewView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        openCurrentCardStats()
+                        showDeckStats = true
                     } label: {
-                        Image(systemName: "chart.bar.xaxis")
+                        Image(systemName: "chart.bar.doc.horizontal")
                     }
-                    .accessibilityLabel(L("review_current_card_stats"))
-                    .disabled(session.currentCard == nil)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await openCurrentCardFieldManager() }
-                    } label: {
-                        Image(systemName: "text.badge.plus")
-                    }
-                    .accessibilityLabel(L("notetype_field_manage_short"))
-                    .disabled(session.currentCard == nil)
+                    .accessibilityLabel(L("stats_nav_title"))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -118,21 +108,16 @@ struct ReviewView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showCardInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel(L("card_info_title"))
+                    .disabled(session.currentCard == nil)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button {
-                            openCurrentCardStats()
-                        } label: {
-                            Label(L("review_current_card_stats"), systemImage: "chart.bar.xaxis")
-                        }
-                        .disabled(session.currentCard == nil)
-
-                        Button {
-                            showCardInfo = true
-                        } label: {
-                            Label(L("card_info_title"), systemImage: "info.circle")
-                        }
-                        .disabled(session.currentCard == nil)
-
                         Button {
                             Task { await openCurrentCardTemplateEditor() }
                         } label: {
@@ -141,7 +126,7 @@ struct ReviewView: View {
                         .disabled(session.currentCard == nil)
 
                         Button {
-                            openMoveCurrentCardToDeck()
+                            Task { await openMoveCurrentCardToDeck() }
                         } label: {
                             Label(L("browse_batch_move_deck"), systemImage: "rectangle.stack.badge.plus")
                         }
@@ -153,14 +138,6 @@ struct ReviewView: View {
                             Label(L("browse_batch_change_notetype"), systemImage: "doc.badge.gearshape")
                         }
                         .disabled(session.currentCard == nil)
-
-                        Divider()
-
-                        Button {
-                            showDeckStats = true
-                        } label: {
-                            Label(L("stats_nav_title"), systemImage: "chart.bar.doc.horizontal")
-                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
@@ -472,14 +449,21 @@ struct ReviewView: View {
         )
     }
 
-    private func openMoveCurrentCardToDeck() {
-        availableDecks = (try? deckClient.fetchAll()) ?? []
-        guard !availableDecks.isEmpty else {
-            toolbarErrorMessage = L("review_no_decks_available")
+    @MainActor
+    private func openMoveCurrentCardToDeck() async {
+        do {
+            let decks = try deckClient.fetchAll()
+            guard !decks.isEmpty else {
+                toolbarErrorMessage = L("review_no_decks_available")
+                showToolbarError = true
+                return
+            }
+            availableDecks = decks
+            showMoveToDeck = true
+        } catch {
+            toolbarErrorMessage = L("review_move_deck_failed", error.localizedDescription)
             showToolbarError = true
-            return
         }
-        showMoveToDeck = true
     }
 
     private func openChangeCurrentCardNotetype() {
