@@ -225,7 +225,7 @@ enum ImportHelper {
             try exportAnkiPackage(
                 backend: backend,
                 outPath: outPath.path,
-                limit: .deckID(deckID),
+                exportLimit: .deckID(deckID),
                 includeScheduling: includeScheduling,
                 includeDeckConfigs: includeDeckConfigs,
                 includeMedia: includeMedia,
@@ -244,7 +244,7 @@ enum ImportHelper {
             try exportAnkiPackage(
                 backend: backend,
                 outPath: outPath.path,
-                limit: .noteIds(noteIDsMessage),
+                exportLimit: .noteIds(noteIDsMessage),
                 includeScheduling: includeScheduling,
                 includeDeckConfigs: includeDeckConfigs,
                 includeMedia: includeMedia,
