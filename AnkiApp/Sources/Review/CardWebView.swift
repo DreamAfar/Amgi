@@ -93,6 +93,7 @@ struct CardWebView: UIViewRepresentable {
         // The Rust renderer keeps these tags literal; the client must expand them.
         let isDarkMode = colorScheme == .dark
         let processedHTML = Self.expandSoundTags(html, isDarkMode: isDarkMode)
+        let hasTypedAnswerInput = !isAnswerSide && processedHTML.contains("id=\"typeans\"")
         let loadSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(contentAlignment.rawValue)|\(isDarkMode)|\(processedHTML.hashValue)"
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.currentWebView = webView
@@ -123,15 +124,19 @@ struct CardWebView: UIViewRepresentable {
                 line-height: 1.5;
                 color: \(isDarkMode ? "#f5f5f5" : "#1a1a1a");
                 background: transparent;
-                padding: 16px;
+                padding: 16px 16px \(hasTypedAnswerInput ? 148 : 16)px;
                 margin: 0;
                 text-align: center;
                 display: flex;
-                align-items: \(contentAlignment == .top ? "flex-start" : "center");
+                align-items: \((hasTypedAnswerInput || contentAlignment == .top) ? "flex-start" : "center");
                 justify-content: center;
                 min-height: 80vh;
             }
-            .card-frame { max-width: 600px; width: 100%; }
+            .card-frame {
+                max-width: 600px;
+                width: 100%;
+                padding-bottom: \(hasTypedAnswerInput ? 96 : 0)px;
+            }
             hr { border: none; border-top: 1px solid \(isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"); margin: 16px 0; }
             img { max-width: 100%; height: auto; border-radius: 8px; }
             .sound-btn {
@@ -385,6 +390,19 @@ struct CardWebView: UIViewRepresentable {
         }
         window.amgiHandleTypeAnswerKey = amgiHandleTypeAnswerKey;
 
+        function amgiEnsureTypedAnswerVisible() {
+            var input = document.getElementById('typeans');
+            if (!input) {
+                return;
+            }
+            try {
+                input.scrollIntoView({ block: 'center', inline: 'nearest' });
+            } catch (e) {
+                input.scrollIntoView();
+            }
+        }
+        window.amgiEnsureTypedAnswerVisible = amgiEnsureTypedAnswerVisible;
+
         window.onload = function() {
             var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
 
@@ -417,7 +435,14 @@ struct CardWebView: UIViewRepresentable {
 
             var typeInput = document.getElementById('typeans');
             if (typeInput) {
+                var ensureVisible = function() {
+                    window.setTimeout(amgiEnsureTypedAnswerVisible, 180);
+                };
+                typeInput.addEventListener('focus', ensureVisible);
+                typeInput.addEventListener('click', ensureVisible);
+                typeInput.addEventListener('input', ensureVisible);
                 typeInput.focus();
+                ensureVisible();
             }
         };
         </script>

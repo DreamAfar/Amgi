@@ -22,48 +22,45 @@ struct DeckListView: View {
         Group {
             if isLoading {
                 ProgressView()
+            } else if tree.isEmpty {
+                ContentUnavailableView(
+                    L("deck_list_empty_title"),
+                    systemImage: "rectangle.stack",
+                    description: Text(L("deck_list_empty_desc"))
+                )
             } else {
-                VStack(spacing: 0) {
-                    if showDeckListHeatmap && !tree.isEmpty {
+                List {
+                    if showDeckListHeatmap {
                         DeckListHeatmapCard(refreshID: heatmapRefreshID)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 12)
-                            .padding(.bottom, 4)
+                            .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 8, trailing: 12))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                     }
 
-                    if tree.isEmpty {
-                        ContentUnavailableView(
-                            L("deck_list_empty_title"),
-                            systemImage: "rectangle.stack",
-                            description: Text(L("deck_list_empty_desc"))
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        List {
-                            ForEach(tree) { node in
-                                DeckRowView(
-                                    node: node,
-                                    depth: 0,
-                                    onDeckChanged: {
-                                        Task { await loadDecks() }
-                                        refreshHeatmap()
-                                        onDeckChanged?()
-                                    },
-                                    onDeleteRequested: { node in
-                                        deckToDelete = node
-                                        showDeleteConfirm = true
-                                    }
-                                )
-                            }
-                        }
-                        .refreshable {
-                            await loadDecks()
-                            refreshHeatmap()
+                    Section {
+                        ForEach(tree) { node in
+                            DeckRowView(
+                                node: node,
+                                depth: 0,
+                                onDeckChanged: {
+                                    Task { await loadDecks() }
+                                    refreshHeatmap()
+                                    onDeckChanged?()
+                                },
+                                onDeleteRequested: { node in
+                                    deckToDelete = node
+                                    showDeleteConfirm = true
+                                }
+                            )
                         }
                     }
                 }
                 .navigationDestination(for: DeckInfo.self) { deck in
                     DeckDetailView(deck: deck)
+                }
+                .refreshable {
+                    await loadDecks()
+                    refreshHeatmap()
                 }
             }
         }

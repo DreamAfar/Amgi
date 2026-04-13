@@ -751,10 +751,10 @@
 "card_flag_label" = "标记 %d（%@）";
 
 // MARK: - CardContextMenu (extended)
-"card_action_suspend" = "暂停";
-"card_action_bury" = "埋藏";
-"card_action_suspend_note" = "暂停笔记";
-"card_action_bury_note" = "埋藏笔记";
+"card_action_suspend" = "暂停当前卡片";
+"card_action_bury" = "埋藏当前卡片";
+"card_action_suspend_note" = "暂停这条笔记的全部卡片";
+"card_action_bury_note" = "埋藏这条笔记的全部卡片";
 "card_action_note_menu" = "笔记";
 "card_action_reset_to_new" = "遗忘卡片";
 "card_action_set_due_date" = "设置到期日期";

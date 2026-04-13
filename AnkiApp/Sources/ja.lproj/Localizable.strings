@@ -753,10 +753,10 @@
 "card_flag_label" = "フラグ %d（%@）";
 
 // MARK: - CardContextMenu (extended)
-"card_action_suspend" = "一時停止";
-"card_action_bury" = "埋める";
-"card_action_suspend_note" = "ノートを一時停止";
-"card_action_bury_note" = "ノートを埋める";
+"card_action_suspend" = "現在のカードを一時停止";
+"card_action_bury" = "現在のカードを埋める";
+"card_action_suspend_note" = "このノートの全カードを一時停止";
+"card_action_bury_note" = "このノートの全カードを埋める";
 "card_action_note_menu" = "ノート";
 "card_action_reset_to_new" = "新規カードに戻す";
 "card_action_set_due_date" = "期日を設定";

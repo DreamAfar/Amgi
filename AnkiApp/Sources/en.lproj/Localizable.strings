@@ -751,10 +751,10 @@
 "card_flag_label" = "Flag %d (%@)";
 
 // MARK: - CardContextMenu (extended)
-"card_action_suspend" = "Suspend";
-"card_action_bury" = "Bury";
-"card_action_suspend_note" = "Suspend Note";
-"card_action_bury_note" = "Bury Note";
+"card_action_suspend" = "Suspend Current Card";
+"card_action_bury" = "Bury Current Card";
+"card_action_suspend_note" = "Suspend All Note Cards";
+"card_action_bury_note" = "Bury All Note Cards";
 "card_action_note_menu" = "Note";
 "card_action_reset_to_new" = "Forget Card";
 "card_action_set_due_date" = "Set Due Date";

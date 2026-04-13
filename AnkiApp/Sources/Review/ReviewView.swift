@@ -6,6 +6,7 @@ import AnkiKit
 import AnkiClients
 import AnkiProto
 import Dependencies
+import UIKit
 
 struct ReviewView: View {
     let deckId: Int64
@@ -37,6 +38,7 @@ struct ReviewView: View {
     @State private var setDueDateInput = ""
     @State private var setDueDateCardID: Int64?
     @State private var typedAnswerRequestID = 0
+    @State private var isKeyboardVisible = false
 
     @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var prefAutoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
@@ -169,6 +171,12 @@ struct ReviewView: View {
         }
         .onDisappear {
             autoAdvanceTask?.cancel()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardVisible = false
         }
         .sheet(item: $editingNote) { note in
             NavigationStack {
@@ -307,20 +315,37 @@ struct ReviewView: View {
                 }
             }
         } else {
-            Button {
-                if session.requiresTypedAnswerInput {
-                    typedAnswerRequestID += 1
-                } else {
-                    session.revealAnswer()
+            let usesCompactShowAnswerButton = session.requiresTypedAnswerInput && isKeyboardVisible
+
+            HStack {
+                if usesCompactShowAnswerButton {
+                    Spacer()
                 }
-            } label: {
-                Text(L("review_show_answer"))
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
+
+                Button {
+                    if session.requiresTypedAnswerInput {
+                        typedAnswerRequestID += 1
+                    } else {
+                        session.revealAnswer()
+                    }
+                } label: {
+                    Text(L("review_show_answer"))
+                        .font(usesCompactShowAnswerButton ? .footnote.weight(.semibold) : .headline)
+                        .frame(maxWidth: usesCompactShowAnswerButton ? nil : .infinity)
+                        .padding(.horizontal, usesCompactShowAnswerButton ? 12 : 16)
+                        .padding(.vertical, usesCompactShowAnswerButton ? 8 : 16)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(usesCompactShowAnswerButton ? .small : .regular)
+                .clipShape(Capsule())
+
+                if usesCompactShowAnswerButton {
+                    Spacer()
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .padding()
+            .padding(.horizontal, 16)
+            .padding(.vertical, usesCompactShowAnswerButton ? 8 : 16)
+            .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
         }
     }
 
