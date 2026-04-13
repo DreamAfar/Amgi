@@ -2,15 +2,12 @@ import SwiftUI
 import AnkiKit
 import AnkiBackend
 import AnkiClients
-import AnkiProto
 import Dependencies
 
 struct DeckListView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
     @AppStorage(DeckListHeatmapSettings.showKey) private var showDeckListHeatmap = true
-    @AppStorage(DeckListHeatmapSettings.scopeKey) private var heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
-    @AppStorage(DeckListHeatmapSettings.selectedDeckIDKey) private var heatmapSelectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
 
     @State private var tree: [DeckTreeNode] = []
     @State private var isLoading = true
@@ -122,10 +119,10 @@ struct DeckListView: View {
         guard let node = deckToDelete else { return }
         do {
             try deckClient.delete(node.id)
-            clearDeletedHeatmapSelection(ifNeeded: node.id)
+            DeckDeletionMaintenance.resetHeatmapSelectionIfNeeded(deletedDeckID: node.id)
 
             do {
-                try cleanupUnusedMedia()
+                try DeckDeletionMaintenance.cleanupUnusedMedia(using: backend)
             } catch {
                 print("[DeckListView] Media cleanup after deck deletion failed: \(error)")
             }
@@ -143,37 +140,6 @@ struct DeckListView: View {
     private func refreshHeatmap() {
         guard showDeckListHeatmap else { return }
         heatmapRefreshID += 1
-    }
-
-    private func clearDeletedHeatmapSelection(ifNeeded deletedDeckID: Int64) {
-        let scope = DeckListHeatmapScope(rawValue: heatmapScopeRaw) ?? .allDecks
-        guard scope == .selectedDeck, Int64(heatmapSelectedDeckID) == deletedDeckID else { return }
-        heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
-        heatmapSelectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
-    }
-
-    private func cleanupUnusedMedia() throws {
-        let response: Anki_Media_CheckMediaResponse = try backend.invoke(
-            service: AnkiBackend.Service.media,
-            method: AnkiBackend.MediaMethod.checkMedia
-        )
-
-        if !response.unused.isEmpty {
-            var request = Anki_Media_TrashMediaFilesRequest()
-            request.fnames = response.unused
-            try backend.callVoid(
-                service: AnkiBackend.Service.media,
-                method: AnkiBackend.MediaMethod.trashMediaFiles,
-                request: request
-            )
-        }
-
-        if response.haveTrash || !response.unused.isEmpty {
-            try backend.callVoid(
-                service: AnkiBackend.Service.media,
-                method: AnkiBackend.MediaMethod.emptyTrash
-            )
-        }
     }
 }
 

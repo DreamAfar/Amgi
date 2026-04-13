@@ -56,7 +56,10 @@ struct CardWebView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onAudioStateChange: onAudioStateChange)
+        Coordinator(
+            onTypedAnswerSubmitted: onTypedAnswerSubmitted,
+            onAudioStateChange: onAudioStateChange
+        )
     }
 
     func makeUIView(context: Context) -> WKWebView {

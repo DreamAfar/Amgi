@@ -1,10 +1,12 @@
 import SwiftUI
 import AnkiKit
+import AnkiBackend
 import AnkiClients
 import Dependencies
 
 struct DeckDetailView: View {
     let deck: DeckInfo
+    @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
     @State private var counts: DeckCounts = .zero
     @State private var childDecks: [DeckTreeNode] = []
@@ -221,6 +223,14 @@ struct DeckDetailView: View {
         guard let child = selectedChildDeck else { return }
         do {
             try deckClient.delete(child.id)
+            DeckDeletionMaintenance.resetHeatmapSelectionIfNeeded(deletedDeckID: child.id)
+
+            do {
+                try DeckDeletionMaintenance.cleanupUnusedMedia(using: backend)
+            } catch {
+                print("[DeckDetailView] Media cleanup after deck deletion failed: \(error)")
+            }
+
             selectedChildDeck = nil
             await loadChildren()
             await loadCounts()

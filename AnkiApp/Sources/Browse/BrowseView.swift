@@ -420,7 +420,7 @@ struct BrowseView: View {
 
     private var filterMenu: some View {
         Menu {
-            ForEach(BrowseQuickFilter.allCases, id: \.self) { filter in
+            ForEach(BrowseQuickFilter.primaryCases, id: \.self) { filter in
                 Button {
                     quickFilter = filter
                 } label: {
@@ -429,6 +429,26 @@ struct BrowseView: View {
                     } else {
                         Label(filter.title, systemImage: filter.symbol)
                     }
+                }
+            }
+
+            Menu {
+                ForEach(BrowseQuickFilter.flagCases, id: \.self) { filter in
+                    Button {
+                        quickFilter = filter
+                    } label: {
+                        if quickFilter == filter {
+                            Label(filter.title, systemImage: "checkmark.circle.fill")
+                        } else {
+                            Label(filter.title, systemImage: "flag.fill")
+                        }
+                    }
+                }
+            } label: {
+                if quickFilter.isFlagFilter {
+                    Label(L("browse_batch_flag_label"), systemImage: "checkmark.circle.fill")
+                } else {
+                    Label(L("browse_batch_flag_label"), systemImage: "flag.fill")
                 }
             }
 
@@ -1044,6 +1064,18 @@ enum BrowseQuickFilter: CaseIterable {
     case flag5
     case flag6
     case flag7
+
+    static var primaryCases: [BrowseQuickFilter] {
+        [.all, .addedToday, .studiedToday, .newCards, .review, .due]
+    }
+
+    static var flagCases: [BrowseQuickFilter] {
+        [.flag1, .flag2, .flag3, .flag4, .flag5, .flag6, .flag7]
+    }
+
+    var isFlagFilter: Bool {
+        Self.flagCases.contains(self)
+    }
 
     var query: String {
         switch self {
