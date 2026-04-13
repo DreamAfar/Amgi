@@ -77,9 +77,32 @@ private func countNotes(backend: AnkiBackend) -> Int {
     }
 }
 
+private actor SyncProgressEmitter {
+    private var continuation: AsyncThrowingStream<SyncProgressEvent, any Error>.Continuation?
+
+    init(_ continuation: AsyncThrowingStream<SyncProgressEvent, any Error>.Continuation) {
+        self.continuation = continuation
+    }
+
+    func yield(_ event: SyncProgressEvent) {
+        continuation?.yield(event)
+    }
+
+    func finish() {
+        continuation?.finish()
+        continuation = nil
+    }
+
+    func finish(throwing error: Error) {
+        continuation?.finish(throwing: error)
+        continuation = nil
+    }
+}
+
 extension SyncClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
+        let syncBackend = backend
 
         return Self(
             sync: {
@@ -95,7 +118,7 @@ extension SyncClient: DependencyKey {
                 req.syncMedia = syncMediaEnabled()
 
                 do {
-                    let responseBytes = try backend.call(
+                    let responseBytes = try syncBackend.call(
                         service: AnkiBackend.Service.sync,
                         method: AnkiBackend.SyncMethod.syncCollection,
                         request: req
@@ -127,7 +150,7 @@ extension SyncClient: DependencyKey {
                         dlReq.upload = false
                         dlReq.serverUsn = response.serverMediaUsn
 
-                        try backend.callVoid(
+                        try syncBackend.callVoid(
                             service: AnkiBackend.Service.sync,
                             method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                             request: dlReq
@@ -136,7 +159,7 @@ extension SyncClient: DependencyKey {
 
                         // Run CheckDatabase to repair any inconsistencies
                         do {
-                            let checkResult = try backend.call(
+                            let checkResult = try syncBackend.call(
                                 service: AnkiBackend.Service.collection,
                                 method: AnkiBackend.CheckDatabaseMethod.checkDatabase
                             )
@@ -154,7 +177,7 @@ extension SyncClient: DependencyKey {
                         ulReq.upload = true
                         ulReq.serverUsn = response.serverMediaUsn
 
-                        try backend.callVoid(
+                        try syncBackend.callVoid(
                             service: AnkiBackend.Service.sync,
                             method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                             request: ulReq
@@ -173,16 +196,17 @@ extension SyncClient: DependencyKey {
                 }
             },
             syncWithProgress: {
-                AsyncThrowingStream<SyncProgressEvent, Error> { continuation in
-                    let task = Task {
+                AsyncThrowingStream<SyncProgressEvent, any Error> { continuation in
+                    let emitter = SyncProgressEmitter(continuation)
+                    let task = Task { [syncBackend, emitter] in
                         do {
                             let hostKey = KeychainHelper.loadHostKey() ?? ""
                             guard !hostKey.isEmpty else { throw SyncError.authFailed }
 
-                            continuation.yield(.connecting)
+                            await emitter.yield(.connecting)
 
                             // Count notes before sync to compute delta
-                            let noteCountBefore = countNotes(backend: backend)
+                            let noteCountBefore = countNotes(backend: syncBackend)
 
                             var auth = configuredSyncAuth(hostKey: hostKey)
                             var req = Anki_Sync_SyncCollectionRequest()
@@ -191,7 +215,7 @@ extension SyncClient: DependencyKey {
 
                             let responseBytes: Data
                             do {
-                                responseBytes = try backend.call(
+                                responseBytes = try syncBackend.call(
                                     service: AnkiBackend.Service.sync,
                                     method: AnkiBackend.SyncMethod.syncCollection,
                                     request: req
@@ -213,16 +237,16 @@ extension SyncClient: DependencyKey {
                                 break
 
                             case .normalSync:
-                                continuation.yield(.normalSync)
+                                await emitter.yield(.normalSync)
 
                             case .fullSync, .fullDownload:
-                                continuation.yield(.fullDownloading)
+                                await emitter.yield(.fullDownloading)
                                 var dlReq = Anki_Sync_FullUploadOrDownloadRequest()
                                 dlReq.auth = auth
                                 dlReq.upload = false
                                 dlReq.serverUsn = response.serverMediaUsn
                                 do {
-                                    try backend.callVoid(
+                                    try syncBackend.callVoid(
                                         service: AnkiBackend.Service.sync,
                                         method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                                         request: dlReq
@@ -231,9 +255,9 @@ extension SyncClient: DependencyKey {
                                     if error.isSyncAuthError { throw SyncError.authFailed }
                                     throw SyncError(message: error.message)
                                 }
-                                continuation.yield(.checkingDatabase)
+                                await emitter.yield(.checkingDatabase)
                                 do {
-                                    _ = try backend.call(
+                                    _ = try syncBackend.call(
                                         service: AnkiBackend.Service.collection,
                                         method: AnkiBackend.CheckDatabaseMethod.checkDatabase
                                     )
@@ -242,13 +266,13 @@ extension SyncClient: DependencyKey {
                                 }
 
                             case .fullUpload:
-                                continuation.yield(.fullUploading)
+                                await emitter.yield(.fullUploading)
                                 var ulReq = Anki_Sync_FullUploadOrDownloadRequest()
                                 ulReq.auth = auth
                                 ulReq.upload = true
                                 ulReq.serverUsn = response.serverMediaUsn
                                 do {
-                                    try backend.callVoid(
+                                    try syncBackend.callVoid(
                                         service: AnkiBackend.Service.sync,
                                         method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                                         request: ulReq
@@ -263,10 +287,10 @@ extension SyncClient: DependencyKey {
                             }
 
                             if syncMediaEnabled() {
-                                continuation.yield(.syncingMedia)
+                                await emitter.yield(.syncingMedia)
                                 let mediaAuth = configuredSyncAuth(hostKey: hostKey)
                                 do {
-                                    try backend.callVoid(
+                                    try syncBackend.callVoid(
                                         service: AnkiBackend.Service.sync,
                                         method: AnkiBackend.SyncMethod.syncMedia,
                                         request: mediaAuth
@@ -283,17 +307,17 @@ extension SyncClient: DependencyKey {
                             )
 
                             // Emit note count delta
-                            let noteCountAfter = countNotes(backend: backend)
+                            let noteCountAfter = countNotes(backend: syncBackend)
                             if noteCountBefore >= 0, noteCountAfter >= 0 {
                                 let added = max(0, noteCountAfter - noteCountBefore)
                                 let removed = max(0, noteCountBefore - noteCountAfter)
-                                continuation.yield(.noteStats(added: added, removed: removed))
+                                await emitter.yield(.noteStats(added: added, removed: removed))
                             }
 
-                            continuation.yield(.completed(SyncSummary()))
-                            continuation.finish()
+                            await emitter.yield(.completed(SyncSummary()))
+                            await emitter.finish()
                         } catch {
-                            continuation.finish(throwing: error)
+                            await emitter.finish(throwing: error)
                         }
                     }
                     continuation.onTermination = { @Sendable _ in task.cancel() }
@@ -310,7 +334,7 @@ extension SyncClient: DependencyKey {
                 req.upload = (direction == .upload)
 
                 do {
-                    try backend.callVoid(
+                    try syncBackend.callVoid(
                         service: AnkiBackend.Service.sync,
                         method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                         request: req
@@ -327,7 +351,7 @@ extension SyncClient: DependencyKey {
                 let auth = configuredSyncAuth(hostKey: hostKey)
 
                 do {
-                    try backend.callVoid(
+                    try syncBackend.callVoid(
                         service: AnkiBackend.Service.sync,
                         method: AnkiBackend.SyncMethod.syncMedia,
                         request: auth

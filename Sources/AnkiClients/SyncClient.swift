@@ -7,7 +7,7 @@ public import Foundation
 public struct SyncClient: Sendable {
     public var sync: @Sendable () async throws -> SyncSummary
     /// Streams sync progress events; final event is `.completed(SyncSummary)`.
-    public var syncWithProgress: @Sendable () -> AsyncThrowingStream<SyncProgressEvent, Error> = {
+    public var syncWithProgress: @Sendable () -> AsyncThrowingStream<SyncProgressEvent, any Error> = {
         AsyncThrowingStream { $0.finish(throwing: SyncError(message: "SyncClient.syncWithProgress unimplemented")) }
     }
     public var fullSync: @Sendable (_ direction: SyncDirection) async throws -> Void
