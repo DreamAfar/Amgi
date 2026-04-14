@@ -9,3 +9,4 @@ anki-upstream/target/
 .claude/settings.local.json
 .superpowers/
 docs/
+.qwen/

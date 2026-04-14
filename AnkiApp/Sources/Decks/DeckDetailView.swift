@@ -59,10 +59,11 @@ struct DeckDetailView: View {
         }
         .sheet(isPresented: $showAddNote) {
             AddNoteView(
+                onSave: {
+                    Task { await loadCounts() }
+                },
                 preselectedDeckId: deck.id
-            ) {
-                Task { await loadCounts() }
-            }
+            )
         }
         .sheet(isPresented: $showConfig) {
             DeckConfigView(deckId: deck.id) {
