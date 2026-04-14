@@ -219,15 +219,13 @@ struct TemplateSourceEditor: UIViewRepresentable {
         private func makeToolbarIconButton(systemName: String, action: @escaping () -> Void) -> UIButton {
             let button = UIButton(type: .system)
             button.translatesAutoresizingMaskIntoConstraints = false
-            button.setImage(UIImage(systemName: systemName), for: .normal)
-            button.tintColor = .label
-            var configuration = UIButton.Configuration.bordered()
-            configuration.buttonSize = .small
+            var configuration = UIButton.Configuration.plain()
+            configuration.image = UIImage(systemName: systemName)
             configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8)
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
             button.configuration = configuration
-            button.widthAnchor.constraint(equalToConstant: 36).isActive = true
-            button.heightAnchor.constraint(equalToConstant: 32).isActive = true
+            button.tintColor = .label
+            button.heightAnchor.constraint(equalToConstant: 28).isActive = true
             button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             return button
         }
@@ -235,29 +233,29 @@ struct TemplateSourceEditor: UIViewRepresentable {
         private func makeToolbarMenuButton(title: String, menu: UIMenu) -> UIButton {
             let button = UIButton(type: .system)
             button.translatesAutoresizingMaskIntoConstraints = false
-            var configuration = UIButton.Configuration.bordered()
-            configuration.buttonSize = .small
+            var configuration = UIButton.Configuration.plain()
             configuration.title = title
             configuration.image = UIImage(systemName: "chevron.down")
             configuration.imagePlacement = .trailing
-            configuration.imagePadding = 6
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10)
+            configuration.imagePadding = 4
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
             button.configuration = configuration
+            button.tintColor = .label
             button.menu = menu
             button.showsMenuAsPrimaryAction = true
-            button.heightAnchor.constraint(equalToConstant: 32).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 28).isActive = true
             return button
         }
 
         private func makeToolbarActionButton(title: String, action: @escaping () -> Void) -> UIButton {
             let button = UIButton(type: .system)
             button.translatesAutoresizingMaskIntoConstraints = false
-            var configuration = UIButton.Configuration.borderedTinted()
-            configuration.buttonSize = .small
+            var configuration = UIButton.Configuration.plain()
             configuration.title = title
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)
             button.configuration = configuration
-            button.heightAnchor.constraint(equalToConstant: 32).isActive = true
+            button.tintColor = .systemBlue
+            button.heightAnchor.constraint(equalToConstant: 28).isActive = true
             button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             return button
         }

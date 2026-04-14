@@ -22,10 +22,10 @@ struct DeckListHeatmapCard: View {
             if isLoading {
                 ProgressView(L("stats_loading"))
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.vertical, 24)
             } else if let graphs {
-                HomeHeatmapChart(reviews: graphs.reviews, preferredHeight: deckListHeatmapHeight)
+                HeatmapChart(reviews: graphs.reviews, compactHeight: deckListHeatmapHeight)
+                    .frame(maxWidth: .infinity)
             } else if loadError {
                 ContentUnavailableView(
                     L("deck_list_heatmap_title"),
@@ -33,8 +33,7 @@ struct DeckListHeatmapCard: View {
                     description: Text(L("deck_list_heatmap_load_failed"))
                 )
                 .frame(maxWidth: .infinity)
-                .padding()
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .padding(.vertical, 24)
             }
         }
         .task(id: refreshID) {

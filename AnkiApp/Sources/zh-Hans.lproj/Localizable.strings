@@ -32,6 +32,7 @@
 "alert_new_deck_title" = "新建牌组";
 "alert_new_deck_placeholder" = "牌组名称";
 "alert_new_deck_message" = "请输入新牌组名称";
+"alert_new_deck_failed" = "创建牌组失败：%@";
 "alert_import_title" = "导入";
 "alert_export_deck_title" = "导出";
 "alert_export_deck_message" = "导出功能将在下一步完善。";

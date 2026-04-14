@@ -325,7 +325,7 @@ struct ContentView: View {
             showImportAlert = true
             newDeckName = ""
         } catch {
-            importMessage = "Create deck failed: \(error.localizedDescription)"
+            importMessage = L("alert_new_deck_failed", error.localizedDescription)
             showImportAlert = true
         }
     }

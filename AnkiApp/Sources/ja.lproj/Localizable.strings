@@ -32,6 +32,7 @@
 "alert_new_deck_title" = "新しいデッキ";
 "alert_new_deck_placeholder" = "デッキ名";
 "alert_new_deck_message" = "新しいデッキ名を入力してください";
+"alert_new_deck_failed" = "デッキの作成に失敗しました：%@";
 "alert_import_title" = "インポート";
 "alert_export_deck_title" = "エクスポート";
 "alert_export_deck_message" = "エクスポート機能は近日対応予定です。";

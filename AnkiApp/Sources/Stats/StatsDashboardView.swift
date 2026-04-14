@@ -141,7 +141,12 @@ struct StatsDashboardView: View {
     private func loadStats() async {
         isLoading = graphs == nil
         do {
-            let search = selectedDeck.map { "did:\($0.id)" } ?? ""
+            let search: String
+            if let deck = selectedDeck {
+                search = "deck:\"\(deck.name)\""
+            } else {
+                search = "deck:*"
+            }
             let data = try statsClient.fetchGraphs(search, period.requestDays)
             graphs = try Anki_Stats_GraphsResponse(serializedBytes: data)
             errorMessage = nil

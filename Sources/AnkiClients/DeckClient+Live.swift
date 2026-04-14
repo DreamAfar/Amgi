@@ -87,6 +87,8 @@ extension DeckClient: DependencyKey {
                 // Create a new deck using AddDeck
                 var deck = Anki_Decks_Deck()
                 deck.name = name
+                // Backend requires deck.kind to be set.
+                deck.normal = Anki_Decks_Deck.Normal()
                 
                 do {
                     let resp: Anki_Collection_OpChangesWithId = try backend.invoke(

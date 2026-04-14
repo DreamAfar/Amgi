@@ -9,8 +9,12 @@ import UIKit
 struct RichNoteFieldEditor: UIViewRepresentable {
     @Binding var htmlText: String
 
-    private let commonSymbols = ["(", ")", ".", ",", ":", "#"]
     private let doneButtonTitle = L("common_done")
+    private let boldTitle = L("rich_text_action_bold")
+    private let italicTitle = L("rich_text_action_italic")
+    private let underlineTitle = L("rich_text_action_underline")
+    private let strikeTitle = L("rich_text_action_strikethrough")
+    private let clearFormatTitle = L("rich_text_action_clear_format")
 
     func makeCoordinator() -> Coordinator {
         Coordinator(htmlText: $htmlText)
@@ -93,13 +97,31 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             }
         )
 
-        for symbol in commonSymbols {
-            stackView.addArrangedSubview(
-                makeTextButton(title: symbol) {
-                    coordinator.insert(symbol)
-                }
-            )
-        }
+        stackView.addArrangedSubview(
+            makeFormatButton(systemName: "bold", title: boldTitle) {
+                coordinator.wrapSelection(prefix: "<b>", suffix: "</b>")
+            }
+        )
+        stackView.addArrangedSubview(
+            makeFormatButton(systemName: "italic", title: italicTitle) {
+                coordinator.wrapSelection(prefix: "<i>", suffix: "</i>")
+            }
+        )
+        stackView.addArrangedSubview(
+            makeFormatButton(systemName: "underline", title: underlineTitle) {
+                coordinator.wrapSelection(prefix: "<u>", suffix: "</u>")
+            }
+        )
+        stackView.addArrangedSubview(
+            makeFormatButton(systemName: "strikethrough", title: strikeTitle) {
+                coordinator.wrapSelection(prefix: "<s>", suffix: "</s>")
+            }
+        )
+        stackView.addArrangedSubview(
+            makeFormatButton(systemName: "textformat", title: clearFormatTitle) {
+                coordinator.clearFormattingInSelection()
+            }
+        )
 
         stackView.addArrangedSubview(
             makeTextButton(title: doneButtonTitle) {
@@ -139,6 +161,26 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .tertiarySystemFill
         configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
+        button.configuration = configuration
+        button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        button.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        button.addAction(UIAction { _ in action() }, for: .touchUpInside)
+        return button
+    }
+
+    private func makeFormatButton(systemName: String, title: String, action: @escaping () -> Void) -> UIButton {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setImage(UIImage(systemName: systemName), for: .normal)
+        button.tintColor = .systemBlue
+        button.backgroundColor = .tertiarySystemFill
+        button.layer.cornerRadius = 10
+        button.accessibilityLabel = title
+        var configuration = UIButton.Configuration.plain()
+        configuration.buttonSize = .small
+        configuration.baseBackgroundColor = .tertiarySystemFill
+        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
         button.configuration = configuration
         button.heightAnchor.constraint(equalToConstant: 30).isActive = true
@@ -208,6 +250,50 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             commit(textView.text ?? "")
         }
 
+        func wrapSelection(prefix: String, suffix: String) {
+            guard let textView else { return }
+            let selected = textView.selectedRange
+            let original = textView.text ?? ""
+            let source = original as NSString
+            let selectedText = source.substring(with: selected)
+            let replacement = "\(prefix)\(selectedText)\(suffix)"
+            let updated = source.replacingCharacters(in: selected, with: replacement)
+            textView.text = updated
+
+            if selected.length == 0 {
+                let cursor = selected.location + (prefix as NSString).length
+                textView.selectedRange = NSRange(location: cursor, length: 0)
+            } else {
+                let rangeStart = selected.location + (prefix as NSString).length
+                textView.selectedRange = NSRange(location: rangeStart, length: selected.length)
+            }
+
+            commit(updated)
+        }
+
+        func clearFormattingInSelection() {
+            guard let textView else { return }
+            let selected = textView.selectedRange
+            let original = textView.text ?? ""
+            let source = original as NSString
+
+            let targetRange: NSRange
+            if selected.length > 0 {
+                targetRange = selected
+            } else {
+                targetRange = NSRange(location: 0, length: source.length)
+            }
+
+            let target = source.substring(with: targetRange)
+            let cleaned = Self.removeInlineHTMLFormatting(from: target)
+            let updated = source.replacingCharacters(in: targetRange, with: cleaned)
+            textView.text = updated
+
+            let cursor = targetRange.location + (cleaned as NSString).length
+            textView.selectedRange = NSRange(location: cursor, length: 0)
+            commit(updated)
+        }
+
         // MARK: - HTML strip
 
         /// Strips HTML tags and decodes common entities to produce editable plain text.
@@ -240,6 +326,23 @@ struct RichNoteFieldEditor: UIViewRepresentable {
 
         private static func isLikelyHTML(_ text: String) -> Bool {
             text.contains("<") && text.contains(">")
+        }
+
+        private static func removeInlineHTMLFormatting(from text: String) -> String {
+            var output = text
+            let patterns = [
+                "(?i)</?(b|strong|i|em|u|s|strike|del)>",
+                "(?i)</?font[^>]*>",
+                "(?i)</?span[^>]*>"
+            ]
+            for pattern in patterns {
+                output = output.replacingOccurrences(
+                    of: pattern,
+                    with: "",
+                    options: .regularExpression
+                )
+            }
+            return output
         }
     }
 }

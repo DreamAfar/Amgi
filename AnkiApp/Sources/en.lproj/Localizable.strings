@@ -32,6 +32,7 @@
 "alert_new_deck_title" = "New Deck";
 "alert_new_deck_placeholder" = "Deck Name";
 "alert_new_deck_message" = "Enter a name for the new deck";
+"alert_new_deck_failed" = "Create deck failed: %@";
 "alert_import_title" = "Import";
 "alert_export_deck_title" = "Export";
 "alert_export_deck_message" = "Export functionality will be available soon.";
