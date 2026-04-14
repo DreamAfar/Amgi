@@ -29,31 +29,32 @@ struct DeckListView: View {
                     description: Text(L("deck_list_empty_desc"))
                 )
             } else {
-                List {
-                    if showDeckListHeatmap {
-                        DeckListHeatmapCard(refreshID: heatmapRefreshID)
-                            .padding(.vertical, 4)
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                    }
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        if showDeckListHeatmap {
+                            DeckListHeatmapCard(refreshID: heatmapRefreshID)
+                                .padding(.horizontal)
+                                .padding(.vertical, 8)
+                        }
 
-                    ForEach(tree) { node in
-                        DeckRowView(
-                            node: node,
-                            depth: 0,
-                            onDeckChanged: {
-                                Task { await loadDecks() }
-                                refreshHeatmap()
-                                onDeckChanged?()
-                            },
-                            onDeleteRequested: { node in
-                                deckToDelete = node
-                                showDeleteConfirm = true
-                            }
-                        )
+                        ForEach(tree) { node in
+                            DeckRowView(
+                                node: node,
+                                depth: 0,
+                                onDeckChanged: {
+                                    Task { await loadDecks() }
+                                    refreshHeatmap()
+                                    onDeckChanged?()
+                                },
+                                onDeleteRequested: { node in
+                                    deckToDelete = node
+                                    showDeleteConfirm = true
+                                }
+                            )
+                        }
                     }
                 }
+                .background(Color(.systemGroupedBackground))
                 .navigationDestination(for: DeckInfo.self) { deck in
                     DeckDetailView(deck: deck)
                 }
