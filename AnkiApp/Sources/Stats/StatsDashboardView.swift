@@ -23,7 +23,7 @@ struct StatsDashboardView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
+            LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
                 if isLoading {
                     ProgressView(L("stats_loading"))
                         .padding(.top, 40)
@@ -34,24 +34,28 @@ struct StatsDashboardView: View {
                         description: Text(error)
                     )
                 } else if let graphs {
-                    // Filters row
-                    HStack(spacing: 8) {
-                        deckMenu
-                        periodMenu
-                        Spacer()
+                    Section {
+                        TodayStatsCard(today: graphs.today)
+                        FutureDueChart(futureDue: graphs.futureDue, period: period)
+                        HeatmapChart(reviews: graphs.reviews)
+                        ReviewsChart(reviews: graphs.reviews, period: period)
+                        CardCountsChart(cardCounts: graphs.cardCounts)
+                        IntervalsChart(intervals: graphs.intervals)
+                        EaseChart(eases: graphs.eases)
+                        HourlyChart(hours: graphs.hours, period: period)
+                        ButtonsChart(buttons: graphs.buttons, period: period)
+                        AddedChart(added: graphs.added, period: period)
+                        RetentionChart(trueRetention: graphs.trueRetention)
+                    } header: {
+                        HStack(spacing: 8) {
+                            deckMenu
+                            periodMenu
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemBackground))
                     }
-
-                    TodayStatsCard(today: graphs.today)
-                    FutureDueChart(futureDue: graphs.futureDue, period: period)
-                    HeatmapChart(reviews: graphs.reviews)
-                    ReviewsChart(reviews: graphs.reviews, period: period)
-                    CardCountsChart(cardCounts: graphs.cardCounts)
-                    IntervalsChart(intervals: graphs.intervals)
-                    EaseChart(eases: graphs.eases)
-                    HourlyChart(hours: graphs.hours, period: period)
-                    ButtonsChart(buttons: graphs.buttons, period: period)
-                    AddedChart(added: graphs.added, period: period)
-                    RetentionChart(trueRetention: graphs.trueRetention)
                 }
             }
             .padding()

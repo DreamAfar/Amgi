@@ -252,6 +252,7 @@ private enum TemplateEditorTab: CaseIterable {
 struct TemplateEditorView: View {
     @Dependency(\.ankiBackend) var backend
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     let notetypeId: Int64
     let initialTemplateIndex: Int
@@ -269,6 +270,13 @@ struct TemplateEditorView: View {
     @State private var showFieldManager = false
     @State private var showPreviewSheet = false
     @State private var editorSearchText = ""
+
+    private var separatorBorderColor: Color {
+        // 浅色主题需要更高的不透明度以获得足够的对比度
+        colorScheme == .light
+            ? Color(.separator).opacity(0.6)
+            : Color(.separator).opacity(0.35)
+    }
 
     private var currentTemplateName: String {
         guard notetype.templates.indices.contains(selectedTemplateIndex) else {
@@ -352,36 +360,41 @@ struct TemplateEditorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(currentTemplateName)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-
                     if mode.allowsTemplateSelection, notetype.templates.count > 1 {
-                        Menu {
-                            ForEach(Array(notetype.templates.enumerated()), id: \.offset) { index, template in
-                                Button {
-                                    selectedTemplateIndex = index
-                                } label: {
-                                    if selectedTemplateIndex == index {
-                                        Label(template.name, systemImage: "checkmark")
-                                    } else {
-                                        Text(template.name)
+                        HStack(spacing: 12) {
+                            Text(currentTemplateName)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.secondary)
+                            
+                            Spacer()
+                            
+                            Menu {
+                                ForEach(Array(notetype.templates.enumerated()), id: \.offset) { index, template in
+                                    Button {
+                                        selectedTemplateIndex = index
+                                    } label: {
+                                        if selectedTemplateIndex == index {
+                                            Label(template.name, systemImage: "checkmark")
+                                        } else {
+                                            Text(template.name)
+                                        }
                                     }
                                 }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             }
-                        } label: {
-                            HStack {
-                                Text(currentTemplateName)
-                                    .font(.subheadline.weight(.medium))
-                                Spacer()
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                         }
+                    } else {
+                        Text(currentTemplateName)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
                     }
 
                     Picker("Template Editor", selection: $editorTab) {
@@ -402,7 +415,7 @@ struct TemplateEditorView: View {
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                        .stroke(separatorBorderColor, lineWidth: 1)
                 }
 
                 TemplateSourceEditor(
@@ -418,7 +431,7 @@ struct TemplateEditorView: View {
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                        .stroke(separatorBorderColor, lineWidth: 1)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -438,7 +451,7 @@ struct TemplateEditorView: View {
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                            .stroke(separatorBorderColor, lineWidth: 1)
                     }
                 }
             }
@@ -469,7 +482,7 @@ struct TemplateEditorView: View {
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: 1, style: .continuous)
-                        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                        .stroke(separatorBorderColor, lineWidth: 1)
                 }
             }
             .background(Color(.secondarySystemBackground))
