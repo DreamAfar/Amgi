@@ -15,6 +15,7 @@ struct SyncSheet: View {
     @State private var showLogin = false
     @State private var showServerSetup = false
     @State private var logEntries: [SyncLogEntry] = []
+    @State private var mediaProgress: (total: Int, downloaded: Int) = (0, 0)
 
     private var syncMode: SyncPreferences.Mode {
         SyncPreferences.resolvedMode(syncModeRaw)
@@ -34,6 +35,7 @@ struct SyncSheet: View {
     enum SyncState {
         case idle
         case syncing(String)
+        case syncingMedia(total: Int, downloaded: Int)
         case success(SyncSummary)
         case error(String)
         case needsFullSync
@@ -60,6 +62,8 @@ struct SyncSheet: View {
                     ProgressView(L("sync_preparing"))
                 case .syncing(let message):
                     syncingView(message: message)
+                case .syncingMedia(let total, let downloaded):
+                    mediaProgressView(total: total, downloaded: downloaded)
                 case .success(let summary):
                     successView(summary)
                 case .error(let message):
@@ -146,6 +150,88 @@ struct SyncSheet: View {
         }
     }
 
+    @ViewBuilder
+    private func mediaProgressView(total: Int, downloaded: Int) -> some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 8) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("sync_syncing_media"))
+                            .font(.headline.weight(.semibold))
+                        Text(L("sync_media_size_info", downloaded, total))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+
+                if total > 0 {
+                    ProgressView(value: Double(downloaded), total: Double(total))
+                        .tint(.blue)
+
+                    HStack {
+                        Text("\(downloaded) / \(total)")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        let percentage = total > 0 ? Int(Double(downloaded) * 100 / Double(total)) : 0
+                        Text("\(percentage)%")
+                            .font(.caption2.monospacedDigit().weight(.semibold))
+                            .foregroundStyle(.blue)
+                    }
+                }
+            }
+            .padding()
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: 12)
+            )
+
+            if !logEntries.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L("sync_log_section_title"))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 3) {
+                                ForEach(logEntries) { entry in
+                                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                        Text(entry.date, style: .time)
+                                            .font(.caption2.monospacedDigit())
+                                            .foregroundStyle(.tertiary)
+                                            .fixedSize()
+                                        Text(entry.message)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .id(entry.id)
+                                }
+                            }
+                            .padding(.vertical, 6)
+                        }
+                        .frame(maxHeight: 120)
+                        .background(
+                            Color(.systemGroupedBackground),
+                            in: RoundedRectangle(cornerRadius: 10)
+                        )
+                        .onChange(of: logEntries.count) { _, _ in
+                            if let last = logEntries.last {
+                                withAnimation(.linear(duration: 0.15)) {
+                                    proxy.scrollTo(last.id, anchor: .bottom)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Server Config Header
 
     @ViewBuilder
@@ -212,6 +298,11 @@ struct SyncSheet: View {
         do {
             for try await event in syncClient.syncWithProgress() {
                 switch event {
+                case .mediaProgress(let total, let downloaded):
+                    mediaProgress = (total, downloaded)
+                    syncState = .syncingMedia(total: total, downloaded: downloaded)
+                    let msg = L("sync_media_progress", downloaded, total)
+                    logEntries.append(SyncLogEntry(date: .now, message: msg))
                 case .completed(let summary):
                     if syncMediaEnabled {
                         SyncPreferences.recordMediaSyncLog(L("sync_settings_media_log_success"))
@@ -253,6 +344,10 @@ struct SyncSheet: View {
             return L("sync_log_checking_db")
         case .syncingMedia:
             return L("sync_syncing_media")
+        case .mediaProgress(let total, let downloaded):
+            return L("sync_media_progress", downloaded, total)
+        case .mediaRetry(let failed, let attempt, let delay):
+            return L("sync_media_retry", failed, attempt, delay)
         case .noteStats(let added, let removed):
             if added > 0 && removed > 0 {
                 return L("sync_log_notes_stats_both", added, removed)

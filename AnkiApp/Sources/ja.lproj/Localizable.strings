@@ -361,6 +361,13 @@
 "sync_settings_media_log_failed" = "メディア同期に失敗しました：%@";
 "sync_settings_logged_out" = "同期アカウントからログアウトしました。";
 
+// MARK: - Media Sync Progress
+"sync_media_progress" = "ダウンロード済み：%d/%d ファイル";
+"sync_media_size_info" = "%d ファイルをダウンロード（全 %d ファイル）";
+"sync_media_retry" = "失敗ファイルを再試行 (%d 個)：試行 %d、遅延 %d 秒";
+"sync_media_batch_status" = "バッチ %d をダウンロード中 (%d ファイル)…";
+"sync_media_resume_from_checkpoint" = "チェックポイントから再開 (%d/%d ダウンロード済み)";
+
 // MARK: - SyncSheet progress log
 "sync_log_section_title" = "同期ログ";
 "sync_log_connecting" = "サーバーに接続中…";
@@ -871,6 +878,16 @@
 "stats_review_learn" = "学習";
 "stats_review_relearn" = "再学";
 "stats_review_filtered" = "フィルター";
+
+// MARK: - Stats Heatmap Optimization
+"stats_range_30" = "過去 30 日間";
+"stats_range_90" = "過去 90 日間";
+"stats_range_180" = "過去 6 か月";
+"stats_range_365" = "過去 1 年";
+"stats_range_730" = "全期間";
+"stats_heatmap_loading_more" = "履歴データを読み込み中…";
+"stats_heatmap_load_complete" = "すべてのデータが読み込まれました";
+"deck_list_heatmap_title" = "復習ヒートマップ";
 
 // MARK: - UserManagementView
 "user_mgmt_title" = "ユーザー管理";

@@ -1,0 +1,339 @@
+import SwiftUI
+import AnkiProto
+
+/// Optimized heatmap with incremental loading
+/// - Initially loads 6 months of data
+/// - Loads more when scrolling to edges
+/// - Configurable via settings
+struct HeatmapChartOptimized: View {
+    let reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes
+    
+    @State private var loadingManager: HeatmapLoadingManager?
+    @State private var shouldShowLoadingIndicator = false
+    @State private var scrollPosition: CGFloat = 0
+    @State private var selectedDateRange: Int = 180
+    
+    var compactHeight: CGFloat? = nil
+
+    private var isCompact: Bool {
+        compactHeight != nil
+    }
+
+    private var cellSpacing: CGFloat {
+        isCompact ? 1.25 : 2
+    }
+
+    private var weekdayLabelWidth: CGFloat {
+        isCompact ? 16 : 22
+    }
+
+    private var cellSize: CGFloat {
+        guard let compactHeight else { return 12 }
+        let reservedHeight: CGFloat = 92
+        let availableGridHeight = max(56, compactHeight - reservedHeight)
+        let computed = (availableGridHeight - (cellSpacing * 6)) / 7
+        return min(12, max(7, computed))
+    }
+
+    // MARK: - Computed Properties
+
+    private var visibleData: [Int: Int] {
+        guard let manager = loadingManager else { return [:] }
+        
+        var result: [Int: Int] = [:]
+        for (offset, review) in manager.getVisibleData() {
+            result[offset] = review.total
+        }
+        return result
+    }
+
+    private var maxCount: Int {
+        visibleData.values.max() ?? 1
+    }
+
+    private var totalReviews: Int {
+        visibleData.values.reduce(0, +)
+    }
+
+    private var currentStreak: Int {
+        var streak = 0
+        var offset = 0
+        if visibleData[0] == nil || visibleData[0] == 0 {
+            offset = -1
+        }
+        while let count = visibleData[offset], count > 0 {
+            streak += 1
+            offset -= 1
+        }
+        return streak
+    }
+
+    private var reviewsThisWeek: Int {
+        let today = Calendar.current.startOfDay(for: Date())
+        let weekday = Calendar.current.component(.weekday, from: today)
+        let daysFromMonday = (weekday + 5) % 7
+        return (0...daysFromMonday).reduce(0) { $0 + (visibleData[-$1] ?? 0) }
+    }
+
+    private var reviewsThisMonth: Int {
+        let day = Calendar.current.component(.day, from: Date())
+        return (0..<day).reduce(0) { $0 + (visibleData[-$1] ?? 0) }
+    }
+
+    // MARK: - Grid Data
+
+    private var weeksToShow: Int {
+        guard let minOffset = visibleData.keys.min() else { return 26 }
+        let totalDays = abs(minOffset) + 7
+        let weeksNeeded = totalDays / 7 + 1
+        return max(weeksNeeded, 26)
+    }
+
+    private var weeks: [[Date]] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let startDate = calendar.date(byAdding: .weekOfYear, value: -(weeksToShow - 1), to: today)!
+        let startOfWeek = calendar.date(
+            from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: startDate)
+        )!
+
+        var result: [[Date]] = []
+        var current = startOfWeek
+        while current <= today {
+            var week: [Date] = []
+            for dayOff in 0..<7 {
+                week.append(calendar.date(byAdding: .day, value: dayOff, to: current)!)
+            }
+            result.append(week)
+            current = calendar.date(byAdding: .weekOfYear, value: 1, to: current)!
+        }
+        return result
+    }
+
+    private var monthLabels: [(String, Int)] {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MMM"
+        var labels: [(String, Int)] = []
+        var lastMonth = -1
+        for (weekIdx, week) in weeks.enumerated() {
+            let month = Calendar.current.component(.month, from: week[0])
+            if month != lastMonth {
+                labels.append((fmt.string(from: week[0]), weekIdx))
+                lastMonth = month
+            }
+        }
+        return labels
+    }
+
+    // MARK: - Body
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(L("stats_heatmap_title"))
+                    .font(.headline)
+                Spacer()
+                
+                // Date range picker (when not compact)
+                if !isCompact {
+                    Menu {
+                        ForEach([30, 90, 180, 365, 730], id: \.self) { days in
+                            Button(dateRangeLabel(days)) {
+                                Task {
+                                    await updateDateRange(days)
+                                }
+                            }
+                        }
+                    } label: {
+                        Label(L("stats_range_\(selectedDateRange)"), systemImage: "line.horizontal.3.decrease.circle")
+                            .font(.caption)
+                            .foregroundStyle(.blue)
+                    }
+                }
+                
+                if currentStreak > 0 {
+                    Label(L("stats_heatmap_streak", currentStreak), systemImage: "flame.fill")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.orange)
+                }
+            }
+
+            if visibleData.isEmpty {
+                Text(L("stats_heatmap_empty"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: isCompact ? 72 : 100)
+            } else {
+                if !isCompact {
+                    HStack(spacing: 16) {
+                        summaryItem(value: "\(totalReviews)", label: L("stats_total"))
+                        summaryItem(value: "\(reviewsThisMonth)", label: L("stats_this_month"))
+                        summaryItem(value: "\(reviewsThisWeek)", label: L("stats_this_week"))
+                        summaryItem(value: "\(visibleData[0] ?? 0)", label: L("common_today"))
+                    }
+                }
+
+                // Scroll view with edge detection for loading more
+                ScrollViewReader { scrollProxy in
+                    ScrollView(.horizontal, showsIndicators: !isCompact) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            monthHeaderView()
+                            gridView()
+                        }
+                        .id("heatmapContent")
+                    }
+                    .defaultScrollAnchor(.trailing)
+                    .onScrollGeometryChange(
+                        for: CGFloat.self,
+                        of: { geometry in geometry.contentOffset.x },
+                        action: { _, newValue in
+                            handleScroll(offset: newValue)
+                        }
+                    )
+                }
+
+                legendView()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(isCompact ? 10 : 16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .task {
+            await initializeLoadingManager()
+        }
+    }
+
+    // MARK: - View Components
+
+    private func monthHeaderView() -> some View {
+        HStack(spacing: 0) {
+            Spacer().frame(width: weekdayLabelWidth)
+            ForEach(0..<weeks.count, id: \.self) { weekIdx in
+                if let label = monthLabels.first(where: { $0.1 == weekIdx }) {
+                    Text(label.0)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                        .frame(width: cellSize + cellSpacing, alignment: .leading)
+                } else {
+                    Spacer().frame(width: cellSize + cellSpacing)
+                }
+            }
+        }
+        .frame(height: 14)
+    }
+
+    private func gridView() -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            VStack(spacing: cellSpacing) {
+                ForEach(0..<7, id: \.self) { day in
+                    Text(weekdayLabel(day))
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
+                        .frame(width: weekdayLabelWidth, height: cellSize)
+                }
+            }
+
+            HStack(spacing: cellSpacing) {
+                ForEach(0..<weeks.count, id: \.self) { weekIdx in
+                    VStack(spacing: cellSpacing) {
+                        ForEach(0..<7, id: \.self) { dayIdx in
+                            let date = weeks[weekIdx][dayIdx]
+                            let offset = dayOffset(for: date)
+                            let count = visibleData[offset] ?? 0
+                            let isFuture = date > Date()
+
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(isFuture ? Color.clear : heatColor(count: count))
+                                .frame(width: cellSize, height: cellSize)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func legendView() -> some View {
+        HStack(spacing: isCompact ? 3 : 4) {
+            Spacer()
+            Text(L("stats_heatmap_less")).font(.caption2).foregroundStyle(.secondary)
+            ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.green.opacity(max(0.1, intensity)))
+                    .frame(width: cellSize, height: cellSize)
+            }
+            Text(L("stats_heatmap_more")).font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func summaryItem(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func weekdayLabel(_ index: Int) -> String {
+        switch index {
+        case 1: "M"
+        case 3: "W"
+        case 5: "F"
+        default: ""
+        }
+    }
+
+    private func heatColor(count: Int) -> Color {
+        if count == 0 { return Color(.systemGray6) }
+        let intensity = min(1.0, Double(count) / Double(max(maxCount, 1)))
+        return .green.opacity(max(0.2, intensity))
+    }
+
+    private func dayOffset(for date: Date) -> Int {
+        let today = Calendar.current.startOfDay(for: Date())
+        let target = Calendar.current.startOfDay(for: date)
+        return Calendar.current.dateComponents([.day], from: today, to: target).day ?? 0
+    }
+
+    private func dateRangeLabel(_ days: Int) -> String {
+        switch days {
+        case 30: return L("stats_range_30")
+        case 90: return L("stats_range_90")
+        case 180: return L("stats_range_180")
+        case 365: return L("stats_range_365")
+        case 730: return L("stats_range_730")
+        default: return "\(days) days"
+        }
+    }
+
+    // MARK: - State Management
+
+    private func initializeLoadingManager() async {
+        let manager = HeatmapLoadingManager()
+        await manager.loadAllData(reviews)
+        self.loadingManager = manager
+    }
+
+    private func updateDateRange(_ days: Int) async {
+        selectedDateRange = days
+        guard let manager = loadingManager else { return }
+        await manager.setDateRange(days: days)
+    }
+
+    private func handleScroll(offset: CGFloat) {
+        // Detect if user scrolled to edges and load more
+        let scrollThreshold: CGFloat = 100
+        let contentWidth = CGFloat(weeksToShow) * (cellSize + cellSpacing)
+        let isNearEnd = contentWidth - offset < scrollThreshold
+        
+        if isNearEnd {
+            Task {
+                await loadingManager?.expandDateRange()
+            }
+        }
+    }
+}

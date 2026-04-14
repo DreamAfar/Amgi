@@ -41,12 +41,34 @@ struct AddedChart: View {
                     .foregroundStyle(.cyan.gradient)
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                        AxisGridLine()
-                        AxisValueLabel()
+                    AxisMarks(values: .automatic(desiredCount: 10)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                            .foregroundStyle(Color.gray.opacity(0.2))
+                        if let day = value.as(Int.self), day % 3 == 0 {
+                            AxisValueLabel(format: "%d", anchor: .top)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
-                .frame(height: 180)
+                .chartYAxis {
+                    AxisMarks(
+                        preset: .aligned,
+                        position: .leading,
+                        values: .automatic(desiredCount: 4)
+                    ) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                            .foregroundStyle(Color.gray.opacity(0.2))
+                        AxisValueLabel()
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(height: 200)
+                .chartPlotAreaStyle(AxisMarkDimensions(
+                    horizontal: .absolute(60),
+                    vertical: .absolute(40)
+                ))
             }
 
             HStack(spacing: 16) {

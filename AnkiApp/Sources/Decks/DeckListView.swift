@@ -16,6 +16,7 @@ struct DeckListView: View {
     @State private var deleteError: String?
     @State private var showDeleteError = false
     @State private var heatmapRefreshID = 0
+    @State private var showSyncSheet = false
     var onDeckChanged: (() -> Void)? = nil
 
     var body: some View {
@@ -65,6 +66,18 @@ struct DeckListView: View {
             }
         }
         .navigationTitle(L("deck_list_nav_title"))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showSyncSheet = true
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                }
+            }
+        }
+        .sheet(isPresented: $showSyncSheet) {
+            SyncSheet(isPresented: $showSyncSheet)
+        }
         .onAppear {
             refreshHeatmap()
         }

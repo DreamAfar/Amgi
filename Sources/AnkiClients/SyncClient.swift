@@ -12,6 +12,10 @@ public struct SyncClient: Sendable {
     }
     public var fullSync: @Sendable (_ direction: SyncDirection) async throws -> Void
     public var syncMedia: @Sendable () async throws -> MediaSyncSummary
+    /// Syncs media in batches with progress events
+    public var syncMediaWithProgress: @Sendable () -> AsyncThrowingStream<SyncProgressEvent, any Error> = {
+        AsyncThrowingStream { $0.finish(throwing: SyncError(message: "SyncClient.syncMediaWithProgress unimplemented")) }
+    }
     public var lastSyncDate: @Sendable () -> Date? = { nil }
 }
 

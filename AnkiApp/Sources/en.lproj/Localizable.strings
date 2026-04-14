@@ -361,6 +361,13 @@
 "sync_settings_media_log_failed" = "Media sync failed: %@";
 "sync_settings_logged_out" = "Signed out from sync account.";
 
+// MARK: - Media Sync Progress
+"sync_media_progress" = "Downloaded: %d/%d files";
+"sync_media_size_info" = "%d files downloaded of %d";
+"sync_media_retry" = "Retrying failed files (%d): Attempt %d, delay %d sec";
+"sync_media_batch_status" = "Downloading batch %d (%d files)...";
+"sync_media_resume_from_checkpoint" = "Resuming from checkpoint (%d/%d downloaded)";
+
 // MARK: - SyncSheet progress log
 "sync_log_section_title" = "Sync Log";
 "sync_log_connecting" = "Connecting to server...";
@@ -869,6 +876,16 @@
 "stats_review_learn" = "Learn";
 "stats_review_relearn" = "Relearn";
 "stats_review_filtered" = "Filtered";
+
+// MARK: - Stats Heatmap Optimization
+"stats_range_30" = "Last 30 days";
+"stats_range_90" = "Last 90 days";
+"stats_range_180" = "Last 6 months";
+"stats_range_365" = "Last 1 year";
+"stats_range_730" = "All time";
+"stats_heatmap_loading_more" = "Loading more historical data...";
+"stats_heatmap_load_complete" = "All data loaded";
+"deck_list_heatmap_title" = "Review Heatmap";
 
 // MARK: - UserManagementView
 "user_mgmt_title" = "User Management";

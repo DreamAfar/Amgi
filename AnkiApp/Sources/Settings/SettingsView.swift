@@ -652,6 +652,7 @@ private struct SyncSettingsView: View {
                             Spacer()
                             if isSyncingMedia {
                                 ProgressView()
+                                    .scaleEffect(0.8)
                             }
                         }
                     }
@@ -667,6 +668,12 @@ private struct SyncSettingsView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
+                            .background(
+                                Color(.systemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 8)
+                            )
                     }
                     .padding(.vertical, 4)
                 }
