@@ -235,6 +235,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.translatesAutoresizingMaskIntoConstraints = false
             var configuration = UIButton.Configuration.plain()
             configuration.title = title
+            configuration.titleLineBreakMode = .byClipping
             configuration.image = UIImage(systemName: "chevron.down")
             configuration.imagePlacement = .trailing
             configuration.imagePadding = 4
@@ -252,6 +253,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             button.translatesAutoresizingMaskIntoConstraints = false
             var configuration = UIButton.Configuration.plain()
             configuration.title = title
+            configuration.titleLineBreakMode = .byClipping
             configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)
             button.configuration = configuration
             button.tintColor = .systemBlue

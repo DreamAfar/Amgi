@@ -13,7 +13,7 @@ struct AddNoteView: View {
 
     @State private var decks: [DeckInfo] = []
     @State private var notetypeNames: [(Int64, String)] = []
-    @State private var selectedDeckId: Int64 = 1
+    @State private var selectedDeckId: Int64
     @State private var selectedNotetypeId: Int64 = 0
     @State private var fieldNames: [String] = []
     @State private var fieldValues: [String] = []
@@ -24,6 +24,13 @@ struct AddNoteView: View {
     @State private var showPreviewError = false
 
     let onSave: () -> Void
+    let preselectedDeckId: Int64?
+
+    init(onSave: @escaping () -> Void, preselectedDeckId: Int64? = nil) {
+        self.onSave = onSave
+        self.preselectedDeckId = preselectedDeckId
+        _selectedDeckId = State(initialValue: preselectedDeckId ?? 1)
+    }
 
     var body: some View {
         NavigationStack {
@@ -136,7 +143,16 @@ struct AddNoteView: View {
 
     private func loadData() async {
         decks = (try? deckClient.fetchAll()) ?? []
-        if let first = decks.first { selectedDeckId = first.id }
+        
+        // 如果没有预设置的牌组，选择第一个牌组
+        if preselectedDeckId == nil, let first = decks.first {
+            selectedDeckId = first.id
+        } else if let preselectedDeckId, !decks.contains(where: { $0.id == preselectedDeckId }) {
+            // 如果预设置的牌组不在列表中，选择第一个牌组
+            if let first = decks.first {
+                selectedDeckId = first.id
+            }
+        }
 
         do {
             let resp: Anki_Notetypes_NotetypeNames = try backend.invoke(

@@ -13,6 +13,7 @@ struct DeckDetailView: View {
     @State private var showReview = false
     @State private var showConfig = false
     @State private var showTemplateManager = false
+    @State private var showAddNote = false
     @State private var selectedChildDeck: DeckTreeNode?
     @State private var renameText = ""
     @State private var showRenamePrompt = false
@@ -37,6 +38,13 @@ struct DeckDetailView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
+                    showAddNote = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel(L("browse_add_accessibility"))
+
+                Button {
                     showTemplateManager = true
                 } label: {
                     Image(systemName: "square.on.square")
@@ -47,6 +55,13 @@ struct DeckDetailView: View {
                     Image(systemName: "slider.horizontal.3")
                 }
                 .accessibilityLabel(L("deck_detail_config"))
+            }
+        }
+        .sheet(isPresented: $showAddNote) {
+            AddNoteView(
+                preselectedDeckId: deck.id
+            ) {
+                Task { await loadCounts() }
             }
         }
         .sheet(isPresented: $showConfig) {

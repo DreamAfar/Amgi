@@ -33,26 +33,25 @@ struct DeckListView: View {
                     if showDeckListHeatmap {
                         DeckListHeatmapCard(refreshID: heatmapRefreshID)
                             .padding(.vertical, 4)
+                            .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                     }
 
-                    Section {
-                        ForEach(tree) { node in
-                            DeckRowView(
-                                node: node,
-                                depth: 0,
-                                onDeckChanged: {
-                                    Task { await loadDecks() }
-                                    refreshHeatmap()
-                                    onDeckChanged?()
-                                },
-                                onDeleteRequested: { node in
-                                    deckToDelete = node
-                                    showDeleteConfirm = true
-                                }
-                            )
-                        }
+                    ForEach(tree) { node in
+                        DeckRowView(
+                            node: node,
+                            depth: 0,
+                            onDeckChanged: {
+                                Task { await loadDecks() }
+                                refreshHeatmap()
+                                onDeckChanged?()
+                            },
+                            onDeleteRequested: { node in
+                                deckToDelete = node
+                                showDeleteConfirm = true
+                            }
+                        )
                     }
                 }
                 .navigationDestination(for: DeckInfo.self) { deck in
