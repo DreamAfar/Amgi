@@ -19,8 +19,14 @@ public actor MediaDownloadQueue: Sendable {
         self.downloadedKey = "sync.media.downloaded.\(userProfileID)"
         self.failedKey = "sync.media.failed.\(userProfileID)"
         
-        // Load persisted state
-        self.loadFromPersistence()
+        let loaded = Self.loadFromPersistence(
+            queueKey: "sync.media.queue.\(userProfileID)",
+            downloadedKey: "sync.media.downloaded.\(userProfileID)",
+            failedKey: "sync.media.failed.\(userProfileID)"
+        )
+        self.pendingFiles = loaded.pendingFiles
+        self.downloadedHashes = loaded.downloadedHashes
+        self.failedFiles = loaded.failedFiles
     }
     
     // MARK: - Public API
@@ -113,28 +119,35 @@ public actor MediaDownloadQueue: Sendable {
         }
     }
     
-    private func loadFromPersistence() {
+    private static func loadFromPersistence(
+        queueKey: String,
+        downloadedKey: String,
+        failedKey: String
+    ) -> (pendingFiles: [MediaFileInfo], downloadedHashes: Set<String>, failedFiles: [MediaFileInfo: Int]) {
         let decoder = JSONDecoder()
         
-        // Load pending
+        var pendingFiles: [MediaFileInfo] = []
+        var downloadedHashes: Set<String> = []
+        var failedFiles: [MediaFileInfo: Int] = [:]
+        
         if let data = UserDefaults.standard.data(forKey: queueKey),
            let decoded = try? decoder.decode([MediaFileInfo].self, from: data) {
             pendingFiles = decoded
         }
         
-        // Load downloaded
         if let data = UserDefaults.standard.data(forKey: downloadedKey),
            let decoded = try? decoder.decode([String].self, from: data) {
             downloadedHashes = Set(decoded)
         }
         
-        // Load failed
         if let data = UserDefaults.standard.data(forKey: failedKey),
            let decoded = try? decoder.decode([MediaFileInfo].self, from: data) {
             for file in decoded {
                 failedFiles[file] = 0
             }
         }
+        
+        return (pendingFiles, downloadedHashes, failedFiles)
     }
     
     private func clearPersistence() {

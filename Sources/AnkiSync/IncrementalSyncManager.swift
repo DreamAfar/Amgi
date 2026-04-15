@@ -8,17 +8,17 @@ private let logger = Logger(label: "com.ankiapp.sync.incremental")
 /// Enables skipping already-verified files in subsequent syncs
 public actor IncrementalSyncManager: Sendable {
     private let userProfileID: String
+    private let storageKey: String
     
     /// Maps SHA256 hash → (filename, lastSyncTime)
-    private var syncedFilesHashMap: [String: (filename: String, timestamp: TimeInterval)] = [:]
-    
-    /// Persistent storage key
-    private var storageKey: String { "incremental_sync_\(userProfileID)" }
+    private var syncedFilesHashMap: [String: (filename: String, timestamp: TimeInterval)] = []
     
     public init(userProfileID: String) {
         self.userProfileID = userProfileID
-        self.syncedFilesHashMap = Self.loadFromStorage(key: storageKey)
-        logger.info("Incremental sync manager initialized with \(self.syncedFilesHashMap.count) known files")
+        self.storageKey = "incremental_sync_\(userProfileID)"
+        let loaded = Self.loadFromStorage(key: self.storageKey)
+        self.syncedFilesHashMap = loaded
+        logger.info("Incremental sync manager initialized with \(loaded.count) known files")
     }
     
     // MARK: - Public API

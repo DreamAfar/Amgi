@@ -35,7 +35,7 @@ public actor BackgroundSyncManager: Sendable {
     public func startBackgroundDownload(
         url: URL,
         filename: String,
-        completion: @escaping (Result<URL, Error>) -> Void
+        completion: @escaping (Result<URL, any Error>) -> Void
     ) -> URLSessionDownloadTask {
         guard let session = backgroundSession else {
             completion(.failure(SyncError(message: "Background session not available")))
@@ -122,7 +122,7 @@ private final class BackgroundSessionDelegate: NSObject, URLSessionDelegate, URL
     func urlSession(
         _ session: URLSession,
         task: URLSessionTask,
-        didCompleteWithError error: Error?
+        didCompleteWithError error: (any Error)?
     ) {
         if let error = error {
             logger.error("Background task failed: \(task.taskIdentifier) - \(error.localizedDescription)")

@@ -28,7 +28,7 @@ public actor MediaDownloader: Sendable {
     public func syncMediaWithRetry(
         auth: Anki_Sync_SyncAuth,
         maxAttempts: Int = 5
-    ) async -> AsyncThrowingStream<MediaSyncProgressEvent, Error> {
+    ) async -> AsyncThrowingStream<MediaSyncProgressEvent, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task { [weak self] in
                 do {
