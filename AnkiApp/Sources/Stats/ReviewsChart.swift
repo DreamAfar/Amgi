@@ -98,7 +98,11 @@ struct ReviewsChart: View {
                     }
                 }
                 .frame(height: 200)
-                .chartPlotAreaInsets(EdgeInsets(top: 40, leading: 60, bottom: 0, trailing: 0))
+                .chartPlotStyle { plotArea in
+                    plotArea
+                        .padding(.top, 40)
+                        .padding(.leading, 60)
+                }
             }
 
             HStack(spacing: 16) {
