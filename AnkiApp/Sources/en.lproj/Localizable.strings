@@ -115,6 +115,7 @@
 // MARK: - BrowseView
 "browse_nav_title" = "Browse";
 "browse_search_placeholder" = "Search notes…";
+"browse_loading" = "Loading notes...";
 "browse_empty_desc" = "Your collection is empty.";
 "browse_no_results_title" = "No Results";
 "browse_no_results_desc" = "Try a different search term.";

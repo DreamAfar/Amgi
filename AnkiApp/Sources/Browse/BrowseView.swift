@@ -13,7 +13,7 @@ struct BrowseView: View {
     @Dependency(\.ankiBackend) var backend
 
     @State private var searchText = ""
-    @State private var allNotes: [NoteRecord] = []
+    @State private var allNoteIDs: [Int64] = []
     @State private var notes: [NoteRecord] = []
     @State private var allDecks: [DeckInfo] = []
     /// The top-level parent deck selected (stays set even when drilling into subdecks)
@@ -59,7 +59,18 @@ struct BrowseView: View {
 
     var body: some View {
         Group {
-            if notes.isEmpty && !isLoading && searchText.isEmpty && activeDeck == nil {
+            if isLoading && notes.isEmpty {
+                // 初始加载中：居中显示转圈动画
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .controlSize(.large)
+                    Text(L("browse_loading"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+            } else if notes.isEmpty && !isLoading && searchText.isEmpty && activeDeck == nil {
                 ContentUnavailableView(
                     L("browse_nav_title"),
                     systemImage: "magnifyingglass",
@@ -95,7 +106,7 @@ struct BrowseView: View {
                     VStack(spacing: 1) {
                         Text(L("browse_nav_title"))
                             .font(.headline)
-                        Text(L("browse_total_count", allNotes.count))
+                        Text(L("browse_total_count", allNoteIDs.count))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -108,14 +119,14 @@ struct BrowseView: View {
                     Button(L("browse_select_all")) {
                         selectAllFilteredNotes()
                     }
-                    .disabled(allNotes.isEmpty)
+                    .disabled(allNoteIDs.isEmpty)
                 }
 
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("browse_select_invert")) {
                         invertSelection()
                     }
-                    .disabled(allNotes.isEmpty)
+                    .disabled(allNoteIDs.isEmpty)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -334,9 +345,6 @@ struct BrowseView: View {
                     NoteRowView(note: note)
                         .listRowBackground(selectedNoteIDs.contains(note.id) ? Color.accentColor.opacity(0.10) : Color.clear)
                         .onAppear {
-                            if note.sfld == "Loading..." {
-                                Task { await fetchNoteDetails(id: note.id) }
-                            }
                             if note.id == notes.last?.id {
                                 Task { await loadNextPage() }
                             }
@@ -346,9 +354,6 @@ struct BrowseView: View {
                     NavigationLink(value: note) {
                         NoteRowView(note: note)
                             .onAppear {
-                                if note.sfld == "Loading..." {
-                                    Task { await fetchNoteDetails(id: note.id) }
-                                }
                                 if note.id == notes.last?.id {
                                     Task { await loadNextPage() }
                                 }
@@ -377,10 +382,7 @@ struct BrowseView: View {
         .environment(\.editMode, editModeBinding)
         .listStyle(.plain)
         .navigationDestination(for: NoteRecord.self) { note in
-            let resolvedNote = (note.sfld == "Loading...")
-                ? (try? noteClient.fetch(note.id)) ?? note
-                : note
-            NoteEditorView(note: resolvedNote) {
+            NoteEditorView(note: note) {
                 scheduleSearch()
             }
         }
@@ -831,7 +833,7 @@ struct BrowseView: View {
 
     private func selectedNotesExportFilenameStem() -> String {
         if selectedNoteIDs.count == 1,
-           let note = allNotes.first(where: { selectedNoteIDs.contains($0.id) }) {
+           let note = notes.first(where: { selectedNoteIDs.contains($0.id) }) {
             return note.sfld
         }
         return "selected-notes-\(selectedNoteIDs.count)"
@@ -874,22 +876,26 @@ struct BrowseView: View {
         let query = buildQuery()
         let client = noteClient
         do {
-            let results = try await Task.detached(priority: .userInitiated) {
-                try client.search(query, nil)
+            let ids = try await Task.detached(priority: .userInitiated) {
+                try client.searchIds(query)
             }.value
             try Task.checkCancellation()
-            allNotes = sortNotes(results)
+            allNoteIDs = ids
             if isEditing {
-                let visibleIDs = Set(allNotes.map(\.id))
+                let visibleIDs = Set(allNoteIDs)
                 selectedNoteIDs = selectedNoteIDs.intersection(visibleIDs)
             }
-            notes = Array(allNotes.prefix(pageSize))
-            hasMorePages = results.count > pageSize
+            let firstBatch = try await Task.detached(priority: .userInitiated) {
+                try client.fetchBatch(Array(ids.prefix(pageSize)))
+            }.value
+            try Task.checkCancellation()
+            notes = sortNotes(firstBatch)
+            hasMorePages = ids.count > pageSize
         } catch is CancellationError {
             isLoading = false
             return
         } catch {
-            allNotes = []
+            allNoteIDs = []
             notes = []
             hasMorePages = false
         }
@@ -899,20 +905,14 @@ struct BrowseView: View {
     private func loadNextPage() async {
         guard hasMorePages, !isLoading else { return }
         let loaded = notes.count
-        let nextBatch = Array(allNotes.dropFirst(loaded).prefix(pageSize))
-        notes.append(contentsOf: nextBatch)
-        hasMorePages = notes.count < allNotes.count
-    }
-
-    /// Lazy-fetch full note details for a stub and update the arrays in place.
-    private func fetchNoteDetails(id: Int64) async {
-        guard let fullNote = try? noteClient.fetch(id) else { return }
-        if let idx = notes.firstIndex(where: { $0.id == id }) {
-            notes[idx] = fullNote
-        }
-        if let idx = allNotes.firstIndex(where: { $0.id == id }) {
-            allNotes[idx] = fullNote
-        }
+        let nextIDs = Array(allNoteIDs.dropFirst(loaded).prefix(pageSize))
+        guard !nextIDs.isEmpty else { return }
+        let client = noteClient
+        let batch = (try? await Task.detached(priority: .userInitiated) {
+            try client.fetchBatch(nextIDs)
+        }.value) ?? []
+        notes.append(contentsOf: batch)
+        hasMorePages = notes.count < allNoteIDs.count
     }
 
     private func buildQuery() -> String {
@@ -938,8 +938,7 @@ struct BrowseView: View {
     }
 
     private func applySort() {
-        allNotes = sortNotes(allNotes)
-        notes = Array(allNotes.prefix(max(notes.count, pageSize)))
+        notes = sortNotes(notes)
     }
 
     private func batchFlag(_ flag: UInt32) async {
@@ -1070,11 +1069,11 @@ struct BrowseView: View {
     }
 
     private func selectAllFilteredNotes() {
-        selectedNoteIDs = Set(allNotes.map(\.id))
+        selectedNoteIDs = Set(allNoteIDs)
     }
 
     private func invertSelection() {
-        let allIDs = Set(allNotes.map(\.id))
+        let allIDs = Set(allNoteIDs)
         selectedNoteIDs = allIDs.subtracting(selectedNoteIDs)
     }
 }
@@ -1233,20 +1232,19 @@ struct NoteRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top) {
-                Text(note.sfld == "Loading..." ? L("common_loading") : note.sfld)
+                Text(note.sfld)
                     .font(.body)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .redacted(reason: note.sfld == "Loading..." ? .placeholder : [])
                 Spacer(minLength: 4)
-                if !modifiedDateString.isEmpty && note.sfld != "Loading..." {
+                if !modifiedDateString.isEmpty {
                     Text(modifiedDateString)
                         .font(.caption2)
                         .foregroundStyle(Color(.tertiaryLabel))
                 }
             }
 
-            if !tagList.isEmpty && note.sfld != "Loading..." {
+            if !tagList.isEmpty {
                 let displayTags = Array(tagList.prefix(3))
                 let extra = tagList.count - displayTags.count
                 ScrollView(.horizontal, showsIndicators: false) {

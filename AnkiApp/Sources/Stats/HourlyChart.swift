@@ -111,3 +111,5 @@ struct HourlyChart: View {
         if hour == 0  { return "0" }
         if hour == 12 { return "12" }
         return "\(hour)"
+    }
+}

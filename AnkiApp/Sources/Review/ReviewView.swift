@@ -39,7 +39,6 @@ struct ReviewView: View {
     @State private var setDueDateCardID: Int64?
     @State private var typedAnswerRequestID = 0
     @State private var isKeyboardVisible = false
-    @State private var answerButtonsHeight: CGFloat = 0
 
     @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var prefAutoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
@@ -278,10 +277,7 @@ struct ReviewView: View {
                 }
             }
         )
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: answerButtonsHeight)
-        }
-        .overlay(alignment: .bottom) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             cardActionBar
         }
     }
@@ -353,13 +349,7 @@ struct ReviewView: View {
                 .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
             }
         }
-        .background(
-            GeometryReader { geo in
-                Color.clear
-                    .onAppear { answerButtonsHeight = geo.size.height }
-                    .onChange(of: geo.size.height) { _, newHeight in answerButtonsHeight = newHeight }
-            }
-        )
+        .background(Color.clear)
     }
 
     private var answerButtons: some View {

@@ -115,6 +115,7 @@
 // MARK: - BrowseView
 "browse_nav_title" = "ブラウズ";
 "browse_search_placeholder" = "ノートを検索…";
+"browse_loading" = "ノートを読み込んでいます…";
 "browse_empty_desc" = "コレクションが空です。";
 "browse_no_results_title" = "結果なし";
 "browse_no_results_desc" = "別の検索ワードをお試しください。";
