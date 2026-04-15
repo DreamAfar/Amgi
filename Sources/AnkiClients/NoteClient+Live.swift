@@ -8,7 +8,7 @@ extension NoteClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
 
-        func noteRecordFromProto(_ note: Anki_Notes_Note) -> NoteRecord {
+        @Sendable func noteRecordFromProto(_ note: Anki_Notes_Note) -> NoteRecord {
             NoteRecord(
                 id: note.id, guid: note.guid, mid: note.notetypeID,
                 mod: Int64(note.mtimeSecs), usn: note.usn,
@@ -19,7 +19,7 @@ extension NoteClient: DependencyKey {
             )
         }
 
-        func backendSearchNoteIds(_ query: String) throws -> [Int64] {
+        @Sendable func backendSearchNoteIds(_ query: String) throws -> [Int64] {
             var req = Anki_Search_SearchRequest()
             req.search = query.isEmpty ? "deck:*" : query
             let response: Anki_Search_SearchResponse = try backend.invoke(
@@ -30,7 +30,7 @@ extension NoteClient: DependencyKey {
             return response.ids
         }
 
-        func backendFetchBatch(_ ids: [Int64]) -> [NoteRecord] {
+        @Sendable func backendFetchBatch(_ ids: [Int64]) -> [NoteRecord] {
             var results: [NoteRecord] = []
             results.reserveCapacity(ids.count)
             for nid in ids {
