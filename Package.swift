@@ -72,6 +72,10 @@ let package = Package(
             name: "AnkiSync",
             dependencies: [
                 "AnkiKit",
+                "AnkiBackend",
+                "AnkiProto",
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+                .product(name: "Logging", package: "swift-log"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
