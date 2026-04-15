@@ -85,7 +85,6 @@ let package = Package(
                 "AnkiSync",
                 "AnkiKit",
             ],
-            path: "Tests/AnkiSyncTests",
             swiftSettings: sharedSwiftSettings
         ),
     ],
