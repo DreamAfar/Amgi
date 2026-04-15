@@ -1,5 +1,4 @@
 public import Foundation
-import CryptoKit
 import Logging
 public import AnkiKit
 
@@ -56,7 +55,7 @@ public actor IncrementalSyncManager: Sendable {
         
         for file in allFiles {
             // For efficiency, compute hash only if needed
-            if wasFileSynced(hash: file.sha256) {
+            if wasFileSynced(hash: file.checksum) {
                 skipped += 1
                 // Could additionally verify hash hasn't changed on server
                 // For now, trust server hasn't re-served same hash with different content

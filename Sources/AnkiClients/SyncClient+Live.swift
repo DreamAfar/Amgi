@@ -410,7 +410,7 @@ extension SyncClient: DependencyKey {
                             
                             // Record successful sync
                             let logMessage = attemptCount == 0 ? "Media sync completed." : "Media sync completed after \(attemptCount) attempts."
-                            SyncPreferences.recordMediaSyncLog(logMessage)
+                            logger.info("\(logMessage)")
                             
                             // Record incremental sync state for next time
                             let stats = await incrementalManager.getSyncStats()
@@ -423,7 +423,6 @@ extension SyncClient: DependencyKey {
                             await emitter.finish()
                         } catch let error as SyncError {
                             logger.error("Media sync error: \(error.message)")
-                            SyncPreferences.recordMediaSyncLog("Media sync failed: \(error.message)")
                             await emitter.finish(throwing: error)
                         } catch let error as BackendError {
                             let syncError: SyncError
@@ -433,7 +432,6 @@ extension SyncClient: DependencyKey {
                                 syncError = SyncError(message: error.message)
                             }
                             logger.error("Backend error during media sync: \(error.message)")
-                            SyncPreferences.recordMediaSyncLog("Media sync failed: \(error.message)")
                             await emitter.finish(throwing: syncError)
                         } catch {
                             logger.error("Unexpected error during media sync: \(error)")

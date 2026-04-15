@@ -69,7 +69,9 @@ public actor BackgroundSyncManager: Sendable {
         }
     }
     
-    // MARK: - URLSession Delegate
+}
+
+// MARK: - URLSession Delegate
 
 private final class BackgroundSessionDelegate: NSObject, URLSessionDelegate, URLSessionDownloadDelegate {
     static let shared = BackgroundSessionDelegate()
@@ -164,8 +166,3 @@ extension NSNotification.Name {
     public static let backgroundMediaDownloadSessionComplete = NSNotification.Name("BackgroundMediaDownloadSessionComplete")
 }
 
-// MARK: - Placeholder SyncError
-
-extension SyncError {
-    // Already defined in AnkiKit
-}

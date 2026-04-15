@@ -79,6 +79,14 @@ let package = Package(
             ],
             swiftSettings: sharedSwiftSettings
         ),
+        .testTarget(
+            name: "AnkiSyncTests",
+            dependencies: [
+                "AnkiSync",
+                "AnkiKit",
+            ],
+            swiftSettings: sharedSwiftSettings
+        ),
     ],
     swiftLanguageModes: [.v6]
 )

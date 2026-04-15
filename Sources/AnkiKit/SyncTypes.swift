@@ -87,7 +87,7 @@ public struct AdaptiveThrottleConfig: Sendable {
 }
 
 /// Metadata about a media file for download
-public struct MediaFileInfo: Sendable, Hashable {
+public struct MediaFileInfo: Sendable, Hashable, Codable {
     public let filename: String
     public let checksum: String  // SHA-1 hash
     public let size: Int?

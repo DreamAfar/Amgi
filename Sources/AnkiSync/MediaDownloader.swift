@@ -39,7 +39,6 @@ public actor MediaDownloader: Sendable {
                         
                         // Delay before attempt
                         if attempt > 1 {
-                            await self.session.yield(.retrying(attempt: attempt, delayMs: delayMs))
                             try await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
                         }
                         
@@ -48,7 +47,7 @@ public actor MediaDownloader: Sendable {
                             try await self.callBackendSyncMedia(auth: auth)
                             
                             // Success
-                            await self.session.yield(.completed)
+                            continuation.finish()
                             return
                         } catch let error as BackendError {
                             if error.isSyncAuthError {
@@ -58,8 +57,6 @@ public actor MediaDownloader: Sendable {
                             // Check if retryable
                             if error.message.contains("429") {
                                 await self.session.handleHTTP429()
-                            } else {
-                                await self.session.recordFailure()
                             }
                             
                             if attempt == maxAttempts {
@@ -104,17 +101,5 @@ public enum MediaSyncProgressEvent: Sendable {
     case progress(downloaded: Int, total: Int)
     case retrying(attempt: Int, delayMs: Int)
     case completed
-}
-
-// MARK: - Extension for Session
-
-extension MediaSyncSession {
-    fileprivate func recordFailure() {
-        // Already present in session
-    }
-    
-    fileprivate func yield(_ event: MediaSyncProgressEvent) {
-        // Would update progress externally
-    }
 }
 
