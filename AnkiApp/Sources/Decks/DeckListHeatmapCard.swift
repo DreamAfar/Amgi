@@ -22,23 +22,31 @@ struct DeckListHeatmapCard: View {
 
     var body: some View {
         Group {
-            if isLoading {
-                ProgressView(L("stats_loading"))
+            if let graphs {
+                // Always show heatmap; overlay spinner during refresh or full-history load
+                HeatmapChart(reviews: graphs.reviews, compactHeight: deckListHeatmapHeight)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-            } else if let graphs {
-                VStack(spacing: 0) {
-                    HeatmapChart(reviews: graphs.reviews, compactHeight: deckListHeatmapHeight)
-                        .frame(maxWidth: .infinity)
-
-                    HStack(spacing: 5) {
-                        if isLoadingMoreHistory {
+                    .overlay(alignment: .center) {
+                        if isLoading {
                             ProgressView()
-                                .scaleEffect(0.65)
-                                .frame(width: 14, height: 14)
-                            Text(L("heatmap_loading_full_history"))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .padding(10)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                    }
+                    .overlay(alignment: .bottomLeading) {
+                        if isLoadingMoreHistory {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .scaleEffect(0.65)
+                                    .frame(width: 14, height: 14)
+                                Text(L("heatmap_loading_full_history"))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                            .padding(8)
                         } else if !hasLoadedFullHistory {
                             Button {
                                 Task { await loadFullHistory() }
@@ -49,15 +57,22 @@ struct DeckListHeatmapCard: View {
                                 }
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
                             }
                             .buttonStyle(.plain)
+                            .padding(8)
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 6)
-                    .transition(.opacity)
-                }
+                    .animation(.easeInOut(duration: 0.2), value: isLoading)
+                    .animation(.easeInOut(duration: 0.2), value: isLoadingMoreHistory)
+                    .animation(.easeInOut(duration: 0.2), value: hasLoadedFullHistory)
+            } else if isLoading {
+                // First load only — no cached data yet
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
             } else if loadError {
                 ContentUnavailableView(
                     L("deck_list_heatmap_title"),
@@ -68,8 +83,6 @@ struct DeckListHeatmapCard: View {
                 .padding(.vertical, 24)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: isLoadingMoreHistory)
-        .animation(.easeInOut(duration: 0.2), value: hasLoadedFullHistory)
         .task(id: refreshID) {
             await loadStats()
         }

@@ -114,10 +114,22 @@ struct DeckConfigView: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Button(L("common_save")) {
-                            saveConfig()
+                        Menu {
+                            Button {
+                                saveConfig(applyToChildren: false)
+                            } label: {
+                                Label(L("common_save"), systemImage: "checkmark")
+                            }
+                            Button {
+                                saveConfig(applyToChildren: true)
+                            } label: {
+                                Label(L("deck_config_apply_children"), systemImage: "rectangle.stack")
+                            }
+                        } label: {
+                            Text(L("common_save")).bold()
+                        } primaryAction: {
+                            saveConfig(applyToChildren: false)
                         }
-                        .bold()
                     }
                 }
             }
@@ -243,7 +255,6 @@ struct DeckConfigView: View {
                 Text(L("deck_config_preset_used_by", Int(presetUseCount)))
                     .foregroundStyle(.blue)
             }
-            Toggle(L("deck_config_apply_children"), isOn: $applyToChildren)
         }
     }
 
@@ -828,9 +839,9 @@ struct DeckConfigView: View {
         }
     }
     
-    private func saveConfig() {
+    private func saveConfig(applyToChildren: Bool = false) {
         guard let config = makeEditedConfigDraft() else { return }
-        Task { await persistConfig(config, dismissOnSuccess: true) }
+        Task { await persistConfig(config, applyToChildren: applyToChildren, dismissOnSuccess: true) }
     }
 
     private func makeEditedConfigDraft() -> Anki_DeckConfig_DeckConfig? {
@@ -898,7 +909,7 @@ struct DeckConfigView: View {
         return config
     }
 
-    private func persistConfig(_ updatedConfig: Anki_DeckConfig_DeckConfig, dismissOnSuccess: Bool) async {
+    private func persistConfig(_ updatedConfig: Anki_DeckConfig_DeckConfig, applyToChildren: Bool = false, dismissOnSuccess: Bool) async {
         isSaving = true
 
         do {
