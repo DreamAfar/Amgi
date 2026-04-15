@@ -45,9 +45,11 @@ struct AddedChart: View {
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.gray.opacity(0.2))
                         if let day = value.as(Int.self), day % 3 == 0 {
-                            AxisValueLabel(format: "%d", anchor: .top)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                            AxisValueLabel(anchor: .top) {
+                                Text("\(day)")
+                            }
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -65,10 +67,7 @@ struct AddedChart: View {
                     }
                 }
                 .frame(height: 200)
-                .chartPlotAreaStyle(AxisMarkDimensions(
-                    horizontal: .absolute(60),
-                    vertical: .absolute(40)
-                ))
+                .chartPlotAreaInsets(EdgeInsets(top: 40, leading: 60, bottom: 0, trailing: 0))
             }
 
             HStack(spacing: 16) {
