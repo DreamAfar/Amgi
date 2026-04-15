@@ -98,8 +98,6 @@ struct AddedChart: View {
     }
 }
 
-
-            if filteredData.isEmpty {
                 Text(L("stats_added_empty"))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
