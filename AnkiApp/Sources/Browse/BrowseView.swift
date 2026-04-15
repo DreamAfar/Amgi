@@ -52,6 +52,8 @@ struct BrowseView: View {
     @State private var exportedFileURL: URL?
     @State private var exportDraft = ExportPackageDraft(kind: .selectedNotesPackage)
     @State private var isExportingSelection = false
+    @State private var activeSearchTask: Task<Void, Never>?
+    @State private var searchDebounceTask: Task<Void, Never>?
 
     private let pageSize = 50
 
@@ -192,11 +194,13 @@ struct BrowseView: View {
         }
         .sheet(isPresented: $showAddNote) {
             AddNoteView {
-                Task { await performSearch() }
+                scheduleSearch()
             }
         }
         .sheet(isPresented: $showTagsManager, onDismiss: {
-            Task {
+            activeSearchTask?.cancel()
+            activeSearchTask = nil
+            activeSearchTask = Task {
                 await loadTags()
                 await performSearch()
             }
@@ -225,7 +229,7 @@ struct BrowseView: View {
         }
         .sheet(isPresented: $showChangeNotetype) {
             ChangeNotetypeSheet(noteIDs: Array(selectedNoteIDs)) {
-                Task { await performSearch() }
+                scheduleSearch()
             }
         }
         .sheet(isPresented: $showExportOptions) {
@@ -302,16 +306,16 @@ struct BrowseView: View {
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: L("browse_search_placeholder"))
         .onChange(of: searchText) {
-            Task { await performSearch() }
+            scheduleSearch(debounce: true)
         }
         .onChange(of: activeDeck) {
-            Task { await performSearch() }
+            scheduleSearch()
         }
         .onChange(of: activeTag) {
-            Task { await performSearch() }
+            scheduleSearch()
         }
         .onChange(of: quickFilter) {
-            Task { await performSearch() }
+            scheduleSearch()
         }
         .task {
             await loadDecks()
@@ -377,7 +381,7 @@ struct BrowseView: View {
                 ? (try? noteClient.fetch(note.id)) ?? note
                 : note
             NoteEditorView(note: resolvedNote) {
-                Task { await performSearch() }
+                scheduleSearch()
             }
         }
     }
@@ -847,11 +851,33 @@ struct BrowseView: View {
         }
     }
 
+    /// Cancel any in-flight search and start a new one.
+    /// Pass `debounce: true` to delay 300 ms (for live search-text typing).
+    private func scheduleSearch(debounce: Bool = false) {
+        searchDebounceTask?.cancel()
+        searchDebounceTask = nil
+        activeSearchTask?.cancel()
+        activeSearchTask = nil
+        if debounce {
+            searchDebounceTask = Task {
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled else { return }
+                await performSearch()
+            }
+        } else {
+            activeSearchTask = Task { await performSearch() }
+        }
+    }
+
     private func performSearch() async {
         isLoading = true
         let query = buildQuery()
+        let client = noteClient
         do {
-            let results = try noteClient.search(query, nil)
+            let results = try await Task.detached(priority: .userInitiated) {
+                try client.search(query, nil)
+            }.value
+            try Task.checkCancellation()
             allNotes = sortNotes(results)
             if isEditing {
                 let visibleIDs = Set(allNotes.map(\.id))
@@ -859,6 +885,9 @@ struct BrowseView: View {
             }
             notes = Array(allNotes.prefix(pageSize))
             hasMorePages = results.count > pageSize
+        } catch is CancellationError {
+            isLoading = false
+            return
         } catch {
             allNotes = []
             notes = []

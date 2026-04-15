@@ -1,5 +1,5 @@
 public import Foundation
-public import AnkiKit
+import AnkiKit
 import Logging
 
 private let logger = Logger(label: "com.ankiapp.background.sync")

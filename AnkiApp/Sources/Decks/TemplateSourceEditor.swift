@@ -48,8 +48,8 @@ struct TemplateSourceEditor: UIViewRepresentable {
 
     func updateUIView(_ uiView: UITextView, context: Context) {
         // Apply font size change
-        if uiView.font?.pointSize != fontSize {
-            uiView.font = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        if uiView.font?.pointSize != CGFloat(fontSize) {
+            uiView.font = .monospacedSystemFont(ofSize: CGFloat(fontSize), weight: .regular)
         }
 
         if uiView.text != text, !context.coordinator.isHandlingProgrammaticChange {
