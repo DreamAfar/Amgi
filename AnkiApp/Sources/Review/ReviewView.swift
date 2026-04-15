@@ -362,7 +362,6 @@ struct ReviewView: View {
             }
         }
     }
-    }
 
     private var answerButtons: some View {
         Group {
