@@ -98,7 +98,6 @@ struct AddedChart: View {
     }
 }
 
-                Text(L("stats_added_empty"))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
