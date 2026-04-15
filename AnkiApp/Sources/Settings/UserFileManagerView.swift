@@ -200,39 +200,46 @@ struct UserFileManagerView: View {
 
     private func loadMediaFiles() {
         isLoading = true
-        defer { isLoading = false }
+        let dir = urls.mediaDirectory
+        Task.detached(priority: .userInitiated) {
+            do {
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                let files = try FileManager.default.contentsOfDirectory(
+                    at: dir,
+                    includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey],
+                    options: [.skipsHiddenFiles]
+                )
 
-        do {
-            let dir = urls.mediaDirectory
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let files = try FileManager.default.contentsOfDirectory(
-                at: dir,
-                includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey],
-                options: [.skipsHiddenFiles]
-            )
-
-            var entries: [MediaFileEntry] = []
-            var totalBytes: Int64 = 0
-            for url in files {
-                let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey])
-                guard values?.isRegularFile == true else { continue }
-                let size = Int64(values?.fileSize ?? 0)
-                let modifiedAt = values?.contentModificationDate ?? Date.distantPast
-                entries.append(MediaFileEntry(url: url, sizeBytes: size, modifiedAt: modifiedAt))
-                totalBytes += size
-            }
-
-            mediaFiles = entries.sorted { lhs, rhs in
-                if lhs.modifiedAt == rhs.modifiedAt {
-                    return lhs.fileName.localizedCaseInsensitiveCompare(rhs.fileName) == .orderedAscending
+                var entries: [MediaFileEntry] = []
+                var totalBytes: Int64 = 0
+                for url in files {
+                    let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey])
+                    guard values?.isRegularFile == true else { continue }
+                    let size = Int64(values?.fileSize ?? 0)
+                    let modifiedAt = values?.contentModificationDate ?? Date.distantPast
+                    entries.append(MediaFileEntry(url: url, sizeBytes: size, modifiedAt: modifiedAt))
+                    totalBytes += size
                 }
-                return lhs.modifiedAt > rhs.modifiedAt
+
+                let sorted = entries.sorted { lhs, rhs in
+                    if lhs.modifiedAt == rhs.modifiedAt {
+                        return lhs.fileName.localizedCaseInsensitiveCompare(rhs.fileName) == .orderedAscending
+                    }
+                    return lhs.modifiedAt > rhs.modifiedAt
+                }
+                await MainActor.run {
+                    mediaFiles = sorted
+                    displayLimit = pageSize
+                    totalMediaSizeBytes = totalBytes
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = L("file_mgmt_load_error", error.localizedDescription)
+                    showError = true
+                    isLoading = false
+                }
             }
-            displayLimit = pageSize
-            totalMediaSizeBytes = totalBytes
-        } catch {
-            errorMessage = L("file_mgmt_load_error", error.localizedDescription)
-            showError = true
         }
     }
 

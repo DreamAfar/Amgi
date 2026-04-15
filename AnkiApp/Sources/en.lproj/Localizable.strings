@@ -75,6 +75,7 @@
 "deck_list_heatmap_title" = "Review Heatmap";
 "deck_list_heatmap_load_failed" = "Unable to load the review heatmap right now.";
 "heatmap_loading_full_history" = "Loading full history…";
+"heatmap_load_all_history" = "Load full history";
 "deck_row_rename" = "Rename";
 "deck_row_export" = "Export";
 "deck_row_delete" = "Delete";
@@ -837,13 +838,15 @@
 "stats_card_states_empty" = "No data available";
 "stats_ease_title" = "Ease";
 "stats_ease_empty" = "No data available";
-"stats_ease_avg" = "Avg: %.0f%%";
+"stats_ease_avg" = "Avg";
+"stats_ease_avg_fmt" = "Avg: %@";
+"stats_difficulty_title" = "Card Difficulty";
 "stats_forecast_title" = "Forecast";
 "stats_future_due_title" = "Future Due";
 "stats_future_due_empty" = "No cards due";
 "stats_future_due_backlog" = "Show Backlog";
-"stats_future_due_tomorrow" = "Tomorrow: %d";
-"stats_future_due_daily_load" = "Daily load: %.1f";
+"stats_future_due_tomorrow" = "Tomorrow";
+"stats_future_due_daily_load" = "Daily load";
 "stats_heatmap_title" = "Review Heatmap";
 "stats_heatmap_streak" = "🔥 %d day streak";
 "stats_heatmap_empty" = "No reviews yet";

@@ -16,6 +16,7 @@ struct DeckListView: View {
     @State private var deleteError: String?
     @State private var showDeleteError = false
     @State private var heatmapRefreshID = 0
+    @State private var hasLoadedHeatmap = false
     var onDeckChanged: (() -> Void)? = nil
 
     var body: some View {
@@ -31,26 +32,29 @@ struct DeckListView: View {
             } else {
                 List {
                     if showDeckListHeatmap {
-                        DeckListHeatmapCard(refreshID: heatmapRefreshID)
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+                        Section {
+                            DeckListHeatmapCard(refreshID: heatmapRefreshID)
+                                .listRowInsets(EdgeInsets())
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
                     }
-
-                    ForEach(tree) { node in
-                        DeckRowView(
-                            node: node,
-                            depth: 0,
-                            onDeckChanged: {
-                                Task { await loadDecks() }
-                                refreshHeatmap()
-                                onDeckChanged?()
-                            },
-                            onDeleteRequested: { node in
-                                deckToDelete = node
-                                showDeleteConfirm = true
-                            }
-                        )
+                    Section {
+                        ForEach(tree) { node in
+                            DeckRowView(
+                                node: node,
+                                depth: 0,
+                                onDeckChanged: {
+                                    Task { await loadDecks() }
+                                    refreshHeatmap()
+                                    onDeckChanged?()
+                                },
+                                onDeleteRequested: { node in
+                                    deckToDelete = node
+                                    showDeleteConfirm = true
+                                }
+                            )
+                        }
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -64,9 +68,6 @@ struct DeckListView: View {
             }
         }
         .navigationTitle(L("deck_list_nav_title"))
-        .onAppear {
-            refreshHeatmap()
-        }
         .onReceive(NotificationCenter.default.publisher(for: AppUserStore.didChangeNotification)) { _ in
             Task {
                 await loadDecks()
@@ -97,7 +98,10 @@ struct DeckListView: View {
         }
         .task {
             await loadDecks()
-            refreshHeatmap()
+            if !hasLoadedHeatmap {
+                hasLoadedHeatmap = true
+                refreshHeatmap()
+            }
         }
     }
 

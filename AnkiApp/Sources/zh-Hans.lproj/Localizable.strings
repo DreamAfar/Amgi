@@ -75,6 +75,7 @@
 "deck_list_heatmap_title" = "复习热力图";
 "deck_list_heatmap_load_failed" = "暂时无法加载复习热力图。";
 "heatmap_loading_full_history" = "正在加载完整历史…";
+"heatmap_load_all_history" = "加载完整历史";
 "deck_row_rename" = "重命名";
 "deck_row_export" = "导出";
 "deck_row_delete" = "删除";
@@ -837,13 +838,15 @@
 "stats_card_states_empty" = "暂无数据";
 "stats_ease_title" = "容易度分布";
 "stats_ease_empty" = "暂无数据";
-"stats_ease_avg" = "平均：%.0f%%";
+"stats_ease_avg" = "平均";
+"stats_ease_avg_fmt" = "平均：%@";
+"stats_difficulty_title" = "卡片难度";
 "stats_forecast_title" = "到期预测";
 "stats_future_due_title" = "未来到期";
 "stats_future_due_empty" = "没有到期卡片";
 "stats_future_due_backlog" = "显示积压";
-"stats_future_due_tomorrow" = "明天：%d";
-"stats_future_due_daily_load" = "日均负荷：%.1f";
+"stats_future_due_tomorrow" = "明天到期";
+"stats_future_due_daily_load" = "每日工作量";
 "stats_heatmap_title" = "复习热力图";
 "stats_heatmap_streak" = "🔥 连续 %d 天";
 "stats_heatmap_empty" = "暂无复习记录";

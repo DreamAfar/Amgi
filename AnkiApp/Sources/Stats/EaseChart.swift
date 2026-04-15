@@ -4,24 +4,35 @@ import AnkiProto
 
 struct EaseChart: View {
     let eases: Anki_Stats_GraphsResponse.Eases
+    let difficulty: Anki_Stats_GraphsResponse.Eases
+    let isFSRS: Bool
+
+    /// Active dataset: difficulty for FSRS decks, eases for SM-2
+    private var activeData: Anki_Stats_GraphsResponse.Eases {
+        isFSRS ? difficulty : eases
+    }
 
     private var chartData: [(ease: Int, count: Int)] {
-        eases.eases
+        activeData.eases
             .map { (ease: Int($0.key), count: Int($0.value)) }
             .sorted(by: { $0.ease < $1.ease })
     }
 
     private var averageEase: String {
-        guard eases.average > 0 else { return "---" }
-        return String(format: "%.0f%%", eases.average / 10)
+        guard activeData.average > 0 else { return "---" }
+        if isFSRS {
+            return String(format: "%.0f%%", activeData.average / 10)
+        } else {
+            return String(format: "%.0f%%", activeData.average / 10)
+        }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(L("stats_ease_title")).font(.headline)
+                Text(isFSRS ? L("stats_difficulty_title") : L("stats_ease_title")).font(.headline)
                 Spacer()
-                Text(L("stats_ease_avg", averageEase))
+                Text(L("stats_ease_avg_fmt", averageEase))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -36,7 +47,7 @@ struct EaseChart: View {
                         x: .value("Ease", item.ease),
                         y: .value("Cards", item.count)
                     )
-                    .foregroundStyle(.indigo.gradient)
+                    .foregroundStyle((isFSRS ? Color.red : Color.indigo).gradient)
                 }
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 5)) { value in
