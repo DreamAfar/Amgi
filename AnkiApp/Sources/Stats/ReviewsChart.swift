@@ -95,7 +95,8 @@ struct ReviewsChart: View {
     private var barWidth: MarkDimension {
         let numBars = period.days / max(bucketSize, 1)
         if numBars <= 30 { return .automatic }
-        return .fixed(max(2, min(8, 300.0 / Double(numBars))))
+        let width: Double = max(2.0, min(8.0, 300.0 / Double(numBars)))
+        return .fixed(width)
     }
 
     var body: some View {

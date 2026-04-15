@@ -90,7 +90,8 @@ struct IntervalsChart: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                let barW: MarkDimension = bins.count <= 30 ? .automatic : .fixed(max(2, min(8, 280.0 / Double(bins.count))))
+                let barWVal: Double = max(2.0, min(8.0, 280.0 / Double(bins.count)))
+                let barW: MarkDimension = bins.count <= 30 ? .automatic : .fixed(barWVal)
                 Chart(bins, id: \.x) { bin in
                     BarMark(
                         x: .value(L("stats_intervals_days"), bin.x),

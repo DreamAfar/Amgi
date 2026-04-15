@@ -55,10 +55,12 @@ struct AddedChart: View {
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(filteredData, id: \.day) { item in
+                    let bw: Double = filteredData.count <= 30 ? 0 : max(2.0, min(8.0, 280.0 / Double(filteredData.count)))
+                    let barW: MarkDimension = filteredData.count <= 30 ? .automatic : .fixed(bw)
                     BarMark(
                         x: .value("Day", item.day),
                         y: .value("Cards", item.count),
-                        width: filteredData.count <= 30 ? .automatic : .fixed(max(2, min(8, 280.0 / Double(filteredData.count))))
+                        width: barW
                     )
                     .foregroundStyle(.cyan.gradient)
                 }

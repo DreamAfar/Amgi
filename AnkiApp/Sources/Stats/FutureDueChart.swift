@@ -29,7 +29,9 @@ struct FutureDueChart: View {
     }
 
     private var barWidth: MarkDimension {
-        filteredData.count <= 30 ? .automatic : .fixed(max(2, min(8, 280.0 / Double(filteredData.count))))
+        if filteredData.count <= 30 { return .automatic }
+        let w: Double = max(2.0, min(8.0, 280.0 / Double(filteredData.count)))
+        return .fixed(w)
     }
 
     var body: some View {
