@@ -12,7 +12,7 @@ struct StatsDashboardView: View {
     @State private var graphs: Anki_Stats_GraphsResponse?
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var period: StatsPeriod = .month
+    @State private var revlogRange: RevlogRange = .year
     @State private var decks: [DeckInfo] = []
     @State private var selectedDeck: DeckInfo?
     private let initialDeckID: Int64?
@@ -36,21 +36,23 @@ struct StatsDashboardView: View {
                 } else if let graphs {
                     Section {
                         TodayStatsCard(today: graphs.today)
-                        FutureDueChart(futureDue: graphs.futureDue, period: period)
+                        FutureDueChart(futureDue: graphs.futureDue)
                         HeatmapChart(reviews: graphs.reviews)
-                        ReviewsChart(reviews: graphs.reviews, period: period)
+                        ReviewsChart(reviews: graphs.reviews, revlogRange: revlogRange)
                         CardCountsChart(cardCounts: graphs.cardCounts)
-                        IntervalsChart(intervals: graphs.intervals)
+                        IntervalsChart(intervals: graphs.intervals, isFSRS: graphs.fsrs)
                         EaseChart(eases: graphs.eases, difficulty: graphs.difficulty, isFSRS: graphs.fsrs)
-                        HourlyChart(hours: graphs.hours, period: period)
-                        ButtonsChart(buttons: graphs.buttons, period: period)
-                        AddedChart(added: graphs.added, period: period)
-                        RetentionChart(trueRetention: graphs.trueRetention)
+                        HourlyChart(hours: graphs.hours, revlogRange: revlogRange)
+                        ButtonsChart(buttons: graphs.buttons, revlogRange: revlogRange)
+                        AddedChart(added: graphs.added)
+                        RetentionChart(trueRetention: graphs.trueRetention, revlogRange: revlogRange)
                     } header: {
-                        HStack(spacing: 8) {
-                            deckMenu
-                            periodMenu
-                            Spacer()
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 8) {
+                                deckMenu
+                                Spacer()
+                                revlogRangePicker
+                            }
                         }
                         .padding(.vertical, 4)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -69,7 +71,7 @@ struct StatsDashboardView: View {
         .onChange(of: selectedDeck) {
             Task { await loadStats() }
         }
-        .onChange(of: period) {
+        .onChange(of: revlogRange) {
             Task { await loadStats() }
         }
     }
@@ -97,23 +99,19 @@ struct StatsDashboardView: View {
         }
     }
 
-    // MARK: - Period Menu
+    // MARK: - RevlogRange Picker
 
-    private var periodMenu: some View {
-        Menu {
-            ForEach(StatsPeriod.allCases, id: \.self) { p in
-                Button { period = p } label: {
-                    if period == p { Label(p.localizedLabel, systemImage: "checkmark") }
-                    else { Text(p.localizedLabel) }
-                }
+    private var revlogRangePicker: some View {
+        Picker("", selection: $revlogRange) {
+            ForEach(RevlogRange.allCases, id: \.self) { r in
+                Text(r.localizedLabel).tag(r)
             }
-        } label: {
-            filterCapsule(
-                icon: "calendar",
-                label: period.shortLabel
-            )
         }
+        .pickerStyle(.segmented)
+        .fixedSize()
     }
+
+    // MARK: - (period menu removed — charts manage their own display range)
 
     // MARK: - Shared Capsule
 
@@ -151,7 +149,7 @@ struct StatsDashboardView: View {
             } else {
                 search = "deck:*"
             }
-            let data = try statsClient.fetchGraphs(search, period.requestDays)
+            let data = try statsClient.fetchGraphs(search, revlogRange.requestDays)
             graphs = try Anki_Stats_GraphsResponse(serializedBytes: data)
             errorMessage = nil
         } catch {

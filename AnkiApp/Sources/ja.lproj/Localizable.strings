@@ -856,17 +856,32 @@
 "stats_heatmap_more" = "多";
 "stats_this_month" = "今月：%d";
 "stats_this_week" = "今週：%d";
-"stats_hourly_title" = "時間帯別";
-"stats_hourly_empty" = "データなし";
-"stats_intervals_title" = "間隔分布";
-"stats_intervals_empty" = "データなし";
 "stats_reviews_title" = "復習回数";
 "stats_reviews_empty" = "データなし";
+"stats_reviews_show_time" = "時間";
+"stats_reviews_cumulative" = "累積";
+"stats_study_days" = "学習日数";
+"stats_avg_day_all" = "日平均（全日）";
+"stats_avg_day_studied" = "日平均（学習日）";
 "stats_retention_title" = "保持率";
 "stats_retention_period" = "期間";
 "stats_retention_young" = "若いカード";
 "stats_retention_mature" = "成熟カード";
+"stats_retention_passed" = "正解";
+"stats_retention_failed" = "不正解";
+"stats_retention_rate" = "正解率";
 "stats_retention_yesterday" = "昨日";
+"stats_intervals_title" = "間隔分布";
+"stats_intervals_empty" = "データなし";
+"stats_intervals_median" = "中央値";
+"stats_intervals_days" = "日数";
+"stats_intervals_days_fmt" = "%d 日";
+"stats_stability_title" = "安定性";
+"stats_card_count" = "カード数";
+"stats_hourly_title" = "時間帯別";
+"stats_hourly_empty" = "データなし";
+"stats_hourly_reviews" = "復習回数";
+"stats_hourly_correct_pct" = "正解率";
 "stats_period_day" = "日";
 "stats_period_week" = "週";
 "stats_period_3months" = "3ヶ月";
@@ -889,6 +904,8 @@
 "stats_review_filtered" = "フィルター";
 
 // MARK: - Stats Heatmap Optimization
+"stats_range_year" = "過去1年";
+"stats_range_all" = "すべて";
 "stats_range_30" = "過去 30 日間";
 "stats_range_90" = "過去 90 日間";
 "stats_range_180" = "過去 6 か月";

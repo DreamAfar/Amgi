@@ -854,17 +854,32 @@
 "stats_heatmap_more" = "More";
 "stats_this_month" = "This month: %d";
 "stats_this_week" = "This week: %d";
-"stats_hourly_title" = "Hourly Breakdown";
-"stats_hourly_empty" = "No data available";
-"stats_intervals_title" = "Intervals";
-"stats_intervals_empty" = "No data available";
 "stats_reviews_title" = "Review Count";
 "stats_reviews_empty" = "No data available";
+"stats_reviews_show_time" = "Time";
+"stats_reviews_cumulative" = "Cumulative";
+"stats_study_days" = "Study Days";
+"stats_avg_day_all" = "Avg (all days)";
+"stats_avg_day_studied" = "Avg (study days)";
 "stats_retention_title" = "Retention";
 "stats_retention_period" = "Period";
 "stats_retention_young" = "Young";
 "stats_retention_mature" = "Mature";
+"stats_retention_passed" = "Passed";
+"stats_retention_failed" = "Failed";
+"stats_retention_rate" = "Rate";
 "stats_retention_yesterday" = "Yesterday";
+"stats_intervals_title" = "Intervals";
+"stats_intervals_empty" = "No data available";
+"stats_intervals_median" = "Median";
+"stats_intervals_days" = "Days";
+"stats_intervals_days_fmt" = "%d days";
+"stats_stability_title" = "Stability";
+"stats_card_count" = "Cards";
+"stats_hourly_title" = "Hourly Breakdown";
+"stats_hourly_empty" = "No data available";
+"stats_hourly_reviews" = "Reviews";
+"stats_hourly_correct_pct" = "Correct %";
 "stats_period_day" = "Day";
 "stats_period_week" = "Week";
 "stats_period_3months" = "3 Months";
@@ -887,6 +902,8 @@
 "stats_review_filtered" = "Filtered";
 
 // MARK: - Stats Heatmap Optimization
+"stats_range_year" = "Past Year";
+"stats_range_all" = "All Time";
 "stats_range_30" = "Last 30 days";
 "stats_range_90" = "Last 90 days";
 "stats_range_180" = "Last 6 months";

@@ -4,7 +4,8 @@ import AnkiProto
 
 struct ButtonsChart: View {
     let buttons: Anki_Stats_GraphsResponse.Buttons
-    let period: StatsPeriod
+    let revlogRange: RevlogRange
+    @State private var period: StatsPeriod = .year
 
     private var buttonCounts: Anki_Stats_GraphsResponse.Buttons.ButtonCounts {
         switch period {
@@ -54,6 +55,20 @@ struct ButtonsChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("stats_buttons_title")).font(.headline)
+
+            Picker("", selection: $period) {
+                Text(L("stats_period_month")).tag(StatsPeriod.month)
+                Text(L("stats_period_3months")).tag(StatsPeriod.threeMonths)
+                Text(L("stats_period_year")).tag(StatsPeriod.year)
+                if revlogRange == .all {
+                    Text(L("stats_period_all")).tag(StatsPeriod.all)
+                }
+            }
+            .pickerStyle(.segmented)
+            .font(.caption2)
+            .onChange(of: revlogRange) {
+                if revlogRange == .year && period == .all { period = .year }
+            }
 
             if entries.isEmpty {
                 Text(L("stats_buttons_empty"))

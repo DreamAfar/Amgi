@@ -854,17 +854,32 @@
 "stats_heatmap_more" = "多";
 "stats_this_month" = "本月：%d";
 "stats_this_week" = "本周：%d";
-"stats_hourly_title" = "每小时分布";
-"stats_hourly_empty" = "暂无数据";
-"stats_intervals_title" = "间隔分布";
-"stats_intervals_empty" = "暂无数据";
 "stats_reviews_title" = "复习次数";
 "stats_reviews_empty" = "暂无数据";
+"stats_reviews_show_time" = "用时";
+"stats_reviews_cumulative" = "累计";
+"stats_study_days" = "学习天数";
+"stats_avg_day_all" = "日均（所有）";
+"stats_avg_day_studied" = "日均（学习日）";
 "stats_retention_title" = "记忆保留率";
 "stats_retention_period" = "时段";
 "stats_retention_young" = "年轻卡";
 "stats_retention_mature" = "成熟卡";
+"stats_retention_passed" = "通过";
+"stats_retention_failed" = "未通过";
+"stats_retention_rate" = "保留率";
 "stats_retention_yesterday" = "昨天";
+"stats_intervals_title" = "间隔分布";
+"stats_intervals_empty" = "暂无数据";
+"stats_intervals_median" = "中位数";
+"stats_intervals_days" = "天数";
+"stats_intervals_days_fmt" = "%d 天";
+"stats_stability_title" = "稳定性分布";
+"stats_card_count" = "卡片数";
+"stats_hourly_title" = "每小时分布";
+"stats_hourly_empty" = "暂无数据";
+"stats_hourly_reviews" = "复习次数";
+"stats_hourly_correct_pct" = "正确率";
 "stats_period_day" = "日";
 "stats_period_week" = "周";
 "stats_period_3months" = "3 个月";
@@ -887,6 +902,8 @@
 "stats_review_filtered" = "过滤";
 
 // MARK: - Stats Heatmap Optimization
+"stats_range_year" = "近一年";
+"stats_range_all" = "全部";
 "stats_range_30" = "过去 30 天";
 "stats_range_90" = "过去 90 天";
 "stats_range_180" = "过去 6 个月";

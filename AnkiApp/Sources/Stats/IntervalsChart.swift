@@ -4,63 +4,137 @@ import AnkiProto
 
 struct IntervalsChart: View {
     let intervals: Anki_Stats_GraphsResponse.Intervals
+    let isFSRS: Bool
 
-    private struct Bucket: Identifiable {
-        let id: String
-        let label: String
-        let count: Int
-        let order: Int
+    enum IntervalRange: String, CaseIterable, Identifiable {
+        case month       = "1个月"
+        case percentile50 = "50%"
+        case percentile95 = "95%"
+        case all         = "全部"
+        var id: String { rawValue }
     }
 
-    private var buckets: [Bucket] {
-        let bucketDefs: [(label: String, range: ClosedRange<UInt32>)] = [
-            ("1d", 0...1),
-            ("2d", 2...2),
-            ("3-7d", 3...7),
-            ("1-2w", 8...14),
-            ("2w-1m", 15...30),
-            ("1-3m", 31...90),
-            ("3-6m", 91...180),
-            ("6-12m", 181...365),
-            ("1y+", 366...UInt32.max),
-        ]
+    @State private var range: IntervalRange = .month
 
-        return bucketDefs.enumerated().map { index, def in
-            let count = intervals.intervals
-                .filter { def.range.contains($0.key) }
-                .values
-                .reduce(0, +)
-            return Bucket(id: def.label, label: def.label, count: Int(count), order: index)
+    // Flat sorted array of all intervals (each card = one entry)
+    private var flatIntervals: [Int] {
+        var arr: [Int] = []
+        for (day, cnt) in intervals.intervals {
+            let n = Int(cnt)
+            arr.append(contentsOf: repeatElement(Int(day), count: n))
         }
-        .filter { $0.count > 0 }
+        return arr.sorted()
+    }
+
+    private func quantile(_ sorted: [Int], _ p: Double) -> Int {
+        guard !sorted.isEmpty else { return 0 }
+        let idx = max(0, min(sorted.count - 1, Int(Double(sorted.count - 1) * p)))
+        return sorted[idx]
+    }
+
+    // Returns (bins, xMax) where bins = [(label, midpoint, count)]
+    private var histogramData: (bins: [(label: String, x: Int, count: Int)], xMax: Int) {
+        let sorted = flatIntervals
+        guard !sorted.isEmpty else { return ([], 0) }
+
+        let xMax: Int
+        switch range {
+        case .month:       xMax = 30
+        case .percentile50: xMax = max(1, quantile(sorted, 0.5))
+        case .percentile95: xMax = max(1, quantile(sorted, 0.95))
+        case .all:          xMax = sorted.last ?? 1
+        }
+
+        let desiredBars = min(70, xMax)
+        let binSize = max(1, xMax / desiredBars)
+
+        var buckets: [Int: Int] = [:]
+        for v in sorted {
+            guard v <= xMax else { continue }
+            let b = (v / binSize) * binSize
+            buckets[b, default: 0] += 1
+        }
+
+        let bins = buckets.sorted(by: { $0.key < $1.key }).map { (k, cnt) in
+            let label: String
+            if binSize == 1 {
+                label = "\(k)"
+            } else {
+                label = "\(k)-\(k + binSize - 1)"
+            }
+            return (label: label, x: k, count: cnt)
+        }
+        return (bins, xMax)
+    }
+
+    private var medianInterval: Int {
+        let s = flatIntervals
+        return s.isEmpty ? 0 : quantile(s, 0.5)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(L("stats_intervals_title")).font(.headline)
+            Text(isFSRS ? L("stats_stability_title") : L("stats_intervals_title")).font(.headline)
 
-            if buckets.isEmpty {
+            Picker("", selection: $range) {
+                ForEach(IntervalRange.allCases) { r in
+                    Text(r.rawValue).tag(r)
+                }
+            }
+            .pickerStyle(.segmented)
+            .font(.caption2)
+
+            let (bins, _) = histogramData
+            if bins.isEmpty {
                 Text(L("stats_intervals_empty"))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart(buckets) { bucket in
+                let barW: MarkDimension = bins.count <= 30 ? .automatic : .fixed(max(2, min(8, 280.0 / Double(bins.count))))
+                Chart(bins, id: \.x) { bin in
                     BarMark(
-                        x: .value("Interval", bucket.label),
-                        y: .value("Cards", bucket.count)
+                        x: .value(L("stats_intervals_days"), bin.x),
+                        y: .value(L("stats_card_count"), bin.count),
+                        width: barW
                     )
-                    .foregroundStyle(.teal.gradient)
+                    .foregroundStyle(Color.teal.gradient)
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic) { _ in
+                    AxisMarks(values: .automatic(desiredCount: 6)) { _ in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                            .foregroundStyle(Color.gray.opacity(0.2))
                         AxisValueLabel()
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .frame(height: 180)
+                .chartYAxis {
+                    AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                            .foregroundStyle(Color.gray.opacity(0.2))
+                        AxisValueLabel()
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(height: 200)
             }
+
+            HStack(spacing: 16) {
+                footerItem(L("stats_intervals_median"), value: L("stats_intervals_days_fmt", medianInterval))
+            }
+            .font(.caption2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func footerItem(_ label: String, value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(.caption.weight(.semibold).monospacedDigit())
+            Text(label).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }

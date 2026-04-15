@@ -4,9 +4,9 @@ import AnkiProto
 
 struct AddedChart: View {
     let added: Anki_Stats_GraphsResponse.Added
-    let period: StatsPeriod
+    @State private var period: StatsPeriod = .month
 
-    /// Number of days per bar bucket based on period
+    /// Number of days per bar bucket — capped at ~70 bars
     private var bucketSize: Int {
         switch period {
         case .day, .week, .month: return 1
@@ -40,6 +40,15 @@ struct AddedChart: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("stats_added_title")).font(.headline)
 
+            Picker("", selection: $period) {
+                Text(L("stats_period_month")).tag(StatsPeriod.month)
+                Text(L("stats_period_3months")).tag(StatsPeriod.threeMonths)
+                Text(L("stats_period_year")).tag(StatsPeriod.year)
+                Text(L("stats_period_all")).tag(StatsPeriod.all)
+            }
+            .pickerStyle(.segmented)
+            .font(.caption2)
+
             if filteredData.isEmpty {
                 Text(L("stats_added_empty"))
                     .foregroundStyle(.secondary)
@@ -49,7 +58,7 @@ struct AddedChart: View {
                     BarMark(
                         x: .value("Day", item.day),
                         y: .value("Cards", item.count),
-                        width: bucketSize == 1 ? .automatic : .fixed(max(4, 200.0 / Double(period.days / bucketSize)))
+                        width: filteredData.count <= 30 ? .automatic : .fixed(max(2, min(8, 280.0 / Double(filteredData.count))))
                     )
                     .foregroundStyle(.cyan.gradient)
                 }
