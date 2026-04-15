@@ -16,7 +16,6 @@ struct DeckListView: View {
     @State private var deleteError: String?
     @State private var showDeleteError = false
     @State private var heatmapRefreshID = 0
-    @State private var showSyncSheet = false
     var onDeckChanged: (() -> Void)? = nil
 
     var body: some View {
@@ -30,32 +29,31 @@ struct DeckListView: View {
                     description: Text(L("deck_list_empty_desc"))
                 )
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        if showDeckListHeatmap {
-                            DeckListHeatmapCard(refreshID: heatmapRefreshID)
-                                .padding(.horizontal)
-                                .padding(.vertical, 8)
-                        }
+                List {
+                    if showDeckListHeatmap {
+                        DeckListHeatmapCard(refreshID: heatmapRefreshID)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
 
-                        ForEach(tree) { node in
-                            DeckRowView(
-                                node: node,
-                                depth: 0,
-                                onDeckChanged: {
-                                    Task { await loadDecks() }
-                                    refreshHeatmap()
-                                    onDeckChanged?()
-                                },
-                                onDeleteRequested: { node in
-                                    deckToDelete = node
-                                    showDeleteConfirm = true
-                                }
-                            )
-                        }
+                    ForEach(tree) { node in
+                        DeckRowView(
+                            node: node,
+                            depth: 0,
+                            onDeckChanged: {
+                                Task { await loadDecks() }
+                                refreshHeatmap()
+                                onDeckChanged?()
+                            },
+                            onDeleteRequested: { node in
+                                deckToDelete = node
+                                showDeleteConfirm = true
+                            }
+                        )
                     }
                 }
-                .background(Color(.systemGroupedBackground))
+                .listStyle(.insetGrouped)
                 .navigationDestination(for: DeckInfo.self) { deck in
                     DeckDetailView(deck: deck)
                 }
@@ -66,18 +64,6 @@ struct DeckListView: View {
             }
         }
         .navigationTitle(L("deck_list_nav_title"))
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showSyncSheet = true
-                } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                }
-            }
-        }
-        .sheet(isPresented: $showSyncSheet) {
-            SyncSheet(isPresented: $showSyncSheet)
-        }
         .onAppear {
             refreshHeatmap()
         }

@@ -74,6 +74,7 @@
 "deck_list_empty_desc" = "サーバーと同期してデッキを取得してください。";
 "deck_list_heatmap_title" = "復習ヒートマップ";
 "deck_list_heatmap_load_failed" = "復習ヒートマップを読み込めませんでした。";
+"heatmap_loading_full_history" = "完全な履歴を読み込み中…";
 "deck_row_rename" = "名前変更";
 "deck_row_export" = "エクスポート";
 "deck_row_delete" = "削除";
@@ -259,6 +260,11 @@
 "settings_row_account" = "アカウント";
 "settings_row_sync" = "同期";
 "settings_row_editing" = "編集";
+"code_editor_section_font" = "フォント";
+"code_editor_font_size" = "フォントサイズ";
+"code_editor_font_size_pt" = "%d pt";
+"code_editor_font_family" = "フォントファミリ";
+"code_editor_preview_label" = "プレビュー：";
 "settings_row_review" = "学習";
 "settings_row_home_heatmap" = "ホームヒートマップ";
 "settings_toggle_follow_system" = "システムに合わせる";
@@ -823,8 +829,8 @@
 // MARK: - Stats (extended)
 "stats_added_title" = "追加済み";
 "stats_added_empty" = "データなし";
-"stats_total" = "合計：%d";
-"stats_avg_day" = "日平均：%.1f";
+"stats_total" = "合計";
+"stats_avg_day" = "日平均";
 "stats_buttons_title" = "回答ボタン";
 "stats_buttons_empty" = "データなし";
 "stats_card_counts_title" = "カード数";

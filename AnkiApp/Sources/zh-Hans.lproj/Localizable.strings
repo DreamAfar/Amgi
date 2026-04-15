@@ -74,6 +74,7 @@
 "deck_list_empty_desc" = "与服务器同步以获取您的牌组。";
 "deck_list_heatmap_title" = "复习热力图";
 "deck_list_heatmap_load_failed" = "暂时无法加载复习热力图。";
+"heatmap_loading_full_history" = "正在加载完整历史…";
 "deck_row_rename" = "重命名";
 "deck_row_export" = "导出";
 "deck_row_delete" = "删除";
@@ -259,6 +260,11 @@
 "settings_row_account" = "账户";
 "settings_row_sync" = "同步";
 "settings_row_editing" = "编辑";
+"code_editor_section_font" = "字体";
+"code_editor_font_size" = "字体大小";
+"code_editor_font_size_pt" = "%d pt";
+"code_editor_font_family" = "字体族";
+"code_editor_preview_label" = "预览：";
 "settings_row_review" = "复习";
 "settings_row_home_heatmap" = "首页热力图";
 "settings_toggle_follow_system" = "与系统保持一致";
@@ -821,8 +827,8 @@
 // MARK: - Stats (extended)
 "stats_added_title" = "已添加";
 "stats_added_empty" = "暂无数据";
-"stats_total" = "合计：%d";
-"stats_avg_day" = "日均：%.1f";
+"stats_total" = "合计";
+"stats_avg_day" = "日均";
 "stats_buttons_title" = "答题按钮";
 "stats_buttons_empty" = "暂无数据";
 "stats_card_counts_title" = "卡片数量";

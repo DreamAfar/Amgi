@@ -15,6 +15,8 @@ struct DeckListHeatmapCard: View {
 
     @State private var graphs: Anki_Stats_GraphsResponse?
     @State private var isLoading = true
+    /// True while the background full-history fetch is running
+    @State private var isLoadingFull = false
     @State private var loadError = false
 
     var body: some View {
@@ -24,8 +26,25 @@ struct DeckListHeatmapCard: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
             } else if let graphs {
-                HeatmapChart(reviews: graphs.reviews, compactHeight: deckListHeatmapHeight)
-                    .frame(maxWidth: .infinity)
+                VStack(spacing: 0) {
+                    HeatmapChart(reviews: graphs.reviews, compactHeight: deckListHeatmapHeight)
+                        .frame(maxWidth: .infinity)
+
+                    if isLoadingFull {
+                        HStack(spacing: 5) {
+                            ProgressView()
+                                .scaleEffect(0.65)
+                                .frame(width: 14, height: 14)
+                            Text(L("heatmap_loading_full_history"))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 6)
+                        .transition(.opacity)
+                    }
+                }
             } else if loadError {
                 ContentUnavailableView(
                     L("deck_list_heatmap_title"),
@@ -36,6 +55,7 @@ struct DeckListHeatmapCard: View {
                 .padding(.vertical, 24)
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: isLoadingFull)
         .task(id: refreshID) {
             await loadStats()
         }
@@ -44,15 +64,38 @@ struct DeckListHeatmapCard: View {
     @MainActor
     private func loadStats() async {
         isLoading = true
-        defer { isLoading = false }
+        isLoadingFull = false
+        loadError = false
 
         do {
-            let data = try statsClient.fetchGraphs(resolvedSearchQuery(), StatsPeriod.all.requestDays)
-            graphs = try Anki_Stats_GraphsResponse(serializedBytes: data)
-            loadError = false
+            let query = try resolvedSearchQuery()
+            // Capture the Sendable closure to safely use from a detached task
+            let client = statsClient
+
+            // ── Phase 1: load 6 months (≈50 ms) off the MainActor ─────────────
+            let fastBytes = try await Task.detached(priority: .userInitiated) {
+                try client.fetchGraphs(query, 180)
+            }.value
+            try Task.checkCancellation()
+            graphs = try Anki_Stats_GraphsResponse(serializedBytes: fastBytes)
+            isLoading = false   // Show immediately – no UI freeze
+
+            // ── Phase 2: load full history silently in background ──────────────
+            isLoadingFull = true
+            let fullBytes = try await Task.detached(priority: .background) {
+                try client.fetchGraphs(query, 0)    // 0 = all-time
+            }.value
+            try Task.checkCancellation()
+            graphs = try Anki_Stats_GraphsResponse(serializedBytes: fullBytes)
+            isLoadingFull = false
+
         } catch {
-            graphs = nil
-            loadError = true
+            isLoading = false
+            isLoadingFull = false
+            // Only show error state if we have no partial data to fall back to
+            if graphs == nil {
+                loadError = true
+            }
         }
     }
 

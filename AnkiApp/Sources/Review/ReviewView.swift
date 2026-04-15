@@ -288,79 +288,78 @@ struct ReviewView: View {
 
     @ViewBuilder
     private var cardActionBar: some View {
-        GeometryReader { geo in
-            Group {
-                if session.showAnswer {
-                    VStack(spacing: 0) {
-                        HStack {
-                            Spacer()
-                            if prefShowContextMenuButton, !session.isFinished, let current = session.currentCard {
-                                CardContextMenu(
-                                    cardId: current.card.id,
-                                    noteId: current.card.noteID,
-                                    onActionSuccess: { shouldAdvance in
-                                        if shouldAdvance {
-                                            session.refreshAndAdvance()
-                                        } else {
-                                            Task { await session.refreshAfterCardMutation() }
-                                        }
-                                    },
-                                    onRequestSetDueDate: { _ in
-                                        openSetDueDateForCurrentCard()
-                                    }
-                                )
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-
-                        if prefShowAnswerButtons {
-                            answerButtons
-                        } else {
-                            compactAnswerMenu
-                        }
-                    }
-                } else {
-                    let usesCompactShowAnswerButton = session.requiresTypedAnswerInput && isKeyboardVisible
-
+        Group {
+            if session.showAnswer {
+                VStack(spacing: 0) {
                     HStack {
-                        if usesCompactShowAnswerButton {
-                            Spacer()
-                        }
-
-                        Button {
-                            if session.requiresTypedAnswerInput {
-                                typedAnswerRequestID += 1
-                            } else {
-                                session.revealAnswer()
-                            }
-                        } label: {
-                            Text(L("review_show_answer"))
-                                .font(usesCompactShowAnswerButton ? .footnote.weight(.semibold) : .headline)
-                                .frame(maxWidth: usesCompactShowAnswerButton ? nil : .infinity)
-                                .padding(.horizontal, usesCompactShowAnswerButton ? 12 : 16)
-                                .padding(.vertical, usesCompactShowAnswerButton ? 8 : 16)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(usesCompactShowAnswerButton ? .small : .regular)
-                        .clipShape(Capsule())
-
-                        if usesCompactShowAnswerButton {
-                            Spacer()
+                        Spacer()
+                        if prefShowContextMenuButton, !session.isFinished, let current = session.currentCard {
+                            CardContextMenu(
+                                cardId: current.card.id,
+                                noteId: current.card.noteID,
+                                onActionSuccess: { shouldAdvance in
+                                    if shouldAdvance {
+                                        session.refreshAndAdvance()
+                                    } else {
+                                        Task { await session.refreshAfterCardMutation() }
+                                    }
+                                },
+                                onRequestSetDueDate: { _ in
+                                    openSetDueDateForCurrentCard()
+                                }
+                            )
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, usesCompactShowAnswerButton ? 8 : 16)
-                    .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                    if prefShowAnswerButtons {
+                        answerButtons
+                    } else {
+                        compactAnswerMenu
+                    }
                 }
-            }
-            .onAppear {
-                answerButtonsHeight = geo.size.height
-            }
-            .onChange(of: geo.size.height) { oldHeight, newHeight in
-                answerButtonsHeight = newHeight
+            } else {
+                let usesCompactShowAnswerButton = session.requiresTypedAnswerInput && isKeyboardVisible
+
+                HStack {
+                    if usesCompactShowAnswerButton {
+                        Spacer()
+                    }
+
+                    Button {
+                        if session.requiresTypedAnswerInput {
+                            typedAnswerRequestID += 1
+                        } else {
+                            session.revealAnswer()
+                        }
+                    } label: {
+                        Text(L("review_show_answer"))
+                            .font(usesCompactShowAnswerButton ? .footnote.weight(.semibold) : .headline)
+                            .frame(maxWidth: usesCompactShowAnswerButton ? nil : .infinity)
+                            .padding(.horizontal, usesCompactShowAnswerButton ? 12 : 16)
+                            .padding(.vertical, usesCompactShowAnswerButton ? 8 : 16)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(usesCompactShowAnswerButton ? .small : .regular)
+                    .clipShape(Capsule())
+
+                    if usesCompactShowAnswerButton {
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, usesCompactShowAnswerButton ? 8 : 16)
+                .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
             }
         }
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { answerButtonsHeight = geo.size.height }
+                    .onChange(of: geo.size.height) { _, newHeight in answerButtonsHeight = newHeight }
+            }
+        )
     }
 
     private var answerButtons: some View {

@@ -259,6 +259,8 @@ struct TemplateEditorView: View {
     let mode: TemplateEditorMode
     var onSaved: (@Sendable () async -> Void)? = nil
 
+    @AppStorage("codeEditor_fontSize") private var codeEditorFontSize: Double = 14.0
+
     @State private var notetype: Anki_Notetypes_Notetype = .init()
     @State private var isLoading = true
     @State private var isSaving = false
@@ -424,7 +426,8 @@ struct TemplateEditorView: View {
                     insertableTokens: currentInsertableTokens,
                     fieldButtonTitle: L("card_template_fields_short"),
                     doneButtonTitle: L("common_done"),
-                    searchQuery: editorSearchText
+                    searchQuery: editorSearchText,
+                    fontSize: codeEditorFontSize
                 )
                 .padding(16)
                 .frame(minHeight: 420)

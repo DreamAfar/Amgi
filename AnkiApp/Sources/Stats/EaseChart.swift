@@ -41,7 +41,7 @@ struct EaseChart: View {
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 5)) { value in
                         AxisGridLine()
-                        if let v = value.as(UInt32.self) {
+                        if let v = value.as(Int.self) {
                             AxisValueLabel("\(v / 10)%")
                         }
                     }

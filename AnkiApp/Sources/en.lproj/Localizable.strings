@@ -74,6 +74,7 @@
 "deck_list_empty_desc" = "Sync with your server to get your decks.";
 "deck_list_heatmap_title" = "Review Heatmap";
 "deck_list_heatmap_load_failed" = "Unable to load the review heatmap right now.";
+"heatmap_loading_full_history" = "Loading full history…";
 "deck_row_rename" = "Rename";
 "deck_row_export" = "Export";
 "deck_row_delete" = "Delete";
@@ -259,6 +260,11 @@
 "settings_row_account" = "Account";
 "settings_row_sync" = "Sync";
 "settings_row_editing" = "Editing";
+"code_editor_section_font" = "Font";
+"code_editor_font_size" = "Font Size";
+"code_editor_font_size_pt" = "%d pt";
+"code_editor_font_family" = "Font Family";
+"code_editor_preview_label" = "Preview:";
 "settings_row_review" = "Review";
 "settings_row_home_heatmap" = "Home Heatmap";
 "settings_toggle_follow_system" = "Follow System Appearance";
@@ -821,8 +827,8 @@
 // MARK: - Stats (extended)
 "stats_added_title" = "Added";
 "stats_added_empty" = "No data available";
-"stats_total" = "Total: %d";
-"stats_avg_day" = "Daily avg: %.1f";
+"stats_total" = "Total";
+"stats_avg_day" = "Daily avg";
 "stats_buttons_title" = "Answer Buttons";
 "stats_buttons_empty" = "No data available";
 "stats_card_counts_title" = "Card Counts";

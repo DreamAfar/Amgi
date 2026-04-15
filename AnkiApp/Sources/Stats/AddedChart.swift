@@ -67,11 +67,6 @@ struct AddedChart: View {
                     }
                 }
                 .frame(height: 200)
-                .chartPlotStyle { plotArea in
-                    plotArea
-                        .padding(.top, 40)
-                        .padding(.leading, 60)
-                }
             }
 
             HStack(spacing: 16) {
