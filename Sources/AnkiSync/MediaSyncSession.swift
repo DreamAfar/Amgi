@@ -1,5 +1,5 @@
 import Foundation
-import AnkiKit
+public import AnkiKit
 
 /// Manages a single media sync session with retry and progress tracking.
 public actor MediaSyncSession: Sendable {

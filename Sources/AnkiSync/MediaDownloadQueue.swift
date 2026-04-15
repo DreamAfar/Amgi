@@ -1,5 +1,5 @@
 import Foundation
-import AnkiKit
+public import AnkiKit
 
 /// Manages a queue of media files to download, supporting persistence and batch operations.
 public actor MediaDownloadQueue: Sendable {

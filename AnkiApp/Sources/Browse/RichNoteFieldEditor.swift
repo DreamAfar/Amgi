@@ -156,15 +156,15 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.setImage(UIImage(systemName: systemName), for: .normal)
         button.tintColor = .label
         button.backgroundColor = .tertiarySystemFill
-        button.layer.cornerRadius = 10
+        button.layer.cornerRadius = 8
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .tertiarySystemFill
         configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 30).isActive = true
-        button.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -175,16 +175,16 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.setImage(UIImage(systemName: systemName), for: .normal)
         button.tintColor = .systemBlue
         button.backgroundColor = .tertiarySystemFill
-        button.layer.cornerRadius = 10
+        button.layer.cornerRadius = 8
         button.accessibilityLabel = title
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .tertiarySystemFill
         configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 30).isActive = true
-        button.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -195,15 +195,18 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.setTitle(title, for: .normal)
         button.setTitleColor(.label, for: .normal)
         button.backgroundColor = .tertiarySystemFill
-        button.layer.cornerRadius = 10
-        button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
+        button.layer.cornerRadius = 8
+        button.titleLabel?.font = .systemFont(ofSize: 11, weight: .medium)
+        button.titleLabel?.adjustsFontSizeToFitWidth = true
+        button.titleLabel?.minimumScaleFactor = 0.8
+        button.titleLabel?.numberOfLines = 1
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .tertiarySystemFill
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 30).isActive = true
-        button.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }

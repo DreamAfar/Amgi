@@ -1,5 +1,5 @@
 import XCTest
-@testable import AnkiKit
+public import AnkiKit
 @testable import AnkiSync
 
 final class MediaDownloadQueueTests: XCTestCase {

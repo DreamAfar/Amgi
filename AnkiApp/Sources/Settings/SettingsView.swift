@@ -110,10 +110,7 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
-                    SettingsInfoView(
-                        title: L("settings_row_editing"),
-                        message: L("settings_info_editing")
-                    )
+                    CodeEditorSettingsView()
                 } label: {
                     settingsRowLabel(L("settings_row_editing"), icon: "pencil.and.scribble")
                 }

@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import Logging
+public import AnkiKit
 
 private let logger = Logger(label: "com.ankiapp.sync.incremental")
 
