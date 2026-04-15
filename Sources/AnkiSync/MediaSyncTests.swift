@@ -1,6 +1,5 @@
 import XCTest
-public import AnkiKit
-@testable import AnkiSync
+import AnkiKit
 
 final class MediaDownloadQueueTests: XCTestCase {
     private var queue: MediaDownloadQueue?

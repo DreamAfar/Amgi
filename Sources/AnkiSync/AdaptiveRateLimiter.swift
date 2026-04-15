@@ -1,5 +1,5 @@
 import Foundation
-import AnkiKit
+public import AnkiKit
 
 /// Adapts request rate based on failure patterns and server responses.
 public actor AdaptiveRateLimiter: Sendable {

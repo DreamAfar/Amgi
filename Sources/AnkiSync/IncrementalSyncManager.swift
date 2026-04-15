@@ -1,4 +1,4 @@
-import Foundation
+public import Foundation
 import CryptoKit
 import Logging
 public import AnkiKit
@@ -194,7 +194,7 @@ extension MediaDownloadQueue {
         files: [MediaFileInfo]
     ) async {
         let records = files.map { file in
-            (filename: file.filename, hash: file.sha256)
+            (filename: file.filename, hash: file.checksum)
         }
         await manager.recordSyncedFiles(records)
     }

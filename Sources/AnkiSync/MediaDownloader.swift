@@ -1,8 +1,7 @@
 import Foundation
-import AnkiBackend
-import AnkiSync
+public import AnkiBackend
+public import AnkiProto
 import AnkiKit
-import AnkiProto
 import Logging
 
 private let logger = Logger(label: "com.ankiapp.media.downloader")

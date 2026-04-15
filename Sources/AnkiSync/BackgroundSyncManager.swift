@@ -1,4 +1,5 @@
-import Foundation
+public import Foundation
+public import AnkiKit
 import Logging
 
 private let logger = Logger(label: "com.ankiapp.background.sync")
@@ -12,7 +13,20 @@ public actor BackgroundSyncManager: Sendable {
     private var downloadTasksInProgress: [Int: (filename: String, progress: Double)] = [:]
     
     private init() {
-        setupBackgroundSession()
+        let config = URLSessionConfiguration.background(withIdentifier: backgroundSessionID)
+        config.isDiscretionary = false
+        config.sessionSendsLaunchEvents = true
+        config.waitsForConnectivity = true
+        config.shouldUseExtendedBackgroundIdleMode = true
+        config.timeoutIntervalForRequest = 3600
+        config.timeoutIntervalForResource = 86400
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        self.backgroundSession = URLSession(
+            configuration: config,
+            delegate: BackgroundSessionDelegate.shared,
+            delegateQueue: OperationQueue()
+        )
     }
     
     // MARK: - Public API
@@ -55,38 +69,9 @@ public actor BackgroundSyncManager: Sendable {
         }
     }
     
-    // MARK: - Private Helpers
-    
-    private func setupBackgroundSession() {
-        let config = URLSessionConfiguration.background(withIdentifier: backgroundSessionID)
-        
-        // Configure for reliability and user experience
-        config.isDiscretionary = false  // Important for user-initiated syncs
-        config.sessionSendsLaunchEvents = true  // Relaunch app if needed
-        config.waitsForConnectivity = true  // Wait for network
-        config.shouldUseExtendedBackgroundIdleMode = true
-        
-        // Configure timeout
-        config.timeoutIntervalForRequest = 3600  // 1 hour
-        config.timeoutIntervalForResource = 86400  // 24 hours
-        
-        // Memory management
-        config.urlCache = nil  // Disable caching to save memory
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        
-        backgroundSession = URLSession(
-            configuration: config,
-            delegate: BackgroundSessionDelegate.shared,
-            delegateQueue: OperationQueue()
-        )
-        
-        logger.info("Background session configured: \(backgroundSessionID)")
-    }
-}
+    // MARK: - URLSession Delegate
 
-// MARK: - URLSession Delegate
-
-private class BackgroundSessionDelegate: NSObject, URLSessionDelegate, URLSessionDownloadDelegate {
+private final class BackgroundSessionDelegate: NSObject, URLSessionDelegate, URLSessionDownloadDelegate {
     static let shared = BackgroundSessionDelegate()
     
     private override init() {

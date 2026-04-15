@@ -19,36 +19,36 @@ public actor MediaSyncSession: Sendable {
     
     // MARK: - Session Management
     
-    public func start() {
-        limiter.resetStats()
-        queue.clear()
+    public func start() async {
+        await limiter.resetStats()
+        await queue.clear()
     }
     
-    public func initializeWithFiles(_ files: [MediaFileInfo]) {
+    public func initializeWithFiles(_ files: [MediaFileInfo]) async {
         totalFiles = files.count
-        queue.initialize(with: files)
+        await queue.initialize(with: files)
     }
     
     // MARK: - Batch Operations
     
     /// Get next batch of files to download
-    public func getNextBatch() -> [MediaFileInfo]? {
-        let batchSize = limiter.getCurrentBatchSize()
-        let batch = queue.nextBatch(size: batchSize)
+    public func getNextBatch() async -> [MediaFileInfo]? {
+        let batchSize = await limiter.getCurrentBatchSize()
+        let batch = await queue.nextBatch(size: batchSize)
         return batch.isEmpty ? nil : batch
     }
     
     /// Mark batch as successfully downloaded
-    public func markBatchDownloaded(_ files: [MediaFileInfo]) {
-        queue.markDownloaded(files)
+    public func markBatchDownloaded(_ files: [MediaFileInfo]) async {
+        await queue.markDownloaded(files)
         processedFiles += files.count
-        files.forEach { limiter.recordSuccess() }
+        for _ in files { await limiter.recordSuccess() }
     }
     
     /// Handle failed file, returns retry delay in milliseconds (0 if should not retry)
-    public func handleFailedFile(_ file: MediaFileInfo) -> Int {
-        let shouldRetry = queue.markFailed(file)
-        limiter.recordFailure()
+    public func handleFailedFile(_ file: MediaFileInfo) async -> Int {
+        let shouldRetry = await queue.markFailed(file)
+        await limiter.recordFailure()
         
         if shouldRetry {
             let retryAttempt = (retryDelays[file]?.count ?? 0) + 1
@@ -65,31 +65,31 @@ public actor MediaSyncSession: Sendable {
     }
     
     /// Handle HTTP 429 response (server rate limiting)
-    public func handleHTTP429() {
-        limiter.recordHTTP429()
+    public func handleHTTP429() async {
+        await limiter.recordHTTP429()
     }
     
     /// Get current progress
-    public func getProgress() -> (total: Int, downloaded: Int) {
-        return queue.getProgress()
+    public func getProgress() async -> (total: Int, downloaded: Int) {
+        return await queue.getProgress()
     }
     
     /// Check if session is complete
-    public func isComplete() -> Bool {
-        return queue.isComplete()
+    public func isComplete() async -> Bool {
+        return await queue.isComplete()
     }
     
     /// Get failed files for final report
-    public func getFailedFiles() -> [String] {
-        return queue.getFailedFiles()
+    public func getFailedFiles() async -> [String] {
+        return await queue.getFailedFiles()
     }
     
     /// Get current delay (includes backoff)
-    public func getCurrentDelayMs() -> Int {
-        var baseDelay = limiter.getCurrentDelayMs()
+    public func getCurrentDelayMs() async -> Int {
+        var baseDelay = await limiter.getCurrentDelayMs()
         
         // Additional delay if aggressive backoff triggered
-        if limiter.shouldAggressiveBackoff() {
+        if await limiter.shouldAggressiveBackoff() {
             baseDelay = Int(Double(baseDelay) * 1.5)
         }
         
@@ -97,9 +97,9 @@ public actor MediaSyncSession: Sendable {
     }
     
     /// Get diagnostic information
-    public func getDiagnostics() -> String {
-        let info = limiter.getDiagnostics()
-        let progress = queue.getProgress()
+    public func getDiagnostics() async -> String {
+        let info = await limiter.getDiagnostics()
+        let progress = await queue.getProgress()
         return """
         Media Sync Diagnostics:
         - Progress: \(progress.downloaded)/\(progress.total)
