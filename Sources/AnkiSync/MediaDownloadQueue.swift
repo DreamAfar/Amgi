@@ -20,9 +20,9 @@ public actor MediaDownloadQueue: Sendable {
         self.failedKey = "sync.media.failed.\(userProfileID)"
         
         let loaded = Self.loadFromPersistence(
-            queueKey: "sync.media.queue.\(userProfileID)",
-            downloadedKey: "sync.media.downloaded.\(userProfileID)",
-            failedKey: "sync.media.failed.\(userProfileID)"
+            queueKey: self.queueKey,
+            downloadedKey: self.downloadedKey,
+            failedKey: self.failedKey
         )
         self.pendingFiles = loaded.pendingFiles
         self.downloadedHashes = loaded.downloadedHashes

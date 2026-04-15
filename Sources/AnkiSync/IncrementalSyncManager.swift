@@ -11,7 +11,7 @@ public actor IncrementalSyncManager: Sendable {
     private let storageKey: String
     
     /// Maps SHA256 hash → (filename, lastSyncTime)
-    private var syncedFilesHashMap: [String: (filename: String, timestamp: TimeInterval)] = []
+    private var syncedFilesHashMap: [String: (filename: String, timestamp: TimeInterval)] = [:]
     
     public init(userProfileID: String) {
         self.userProfileID = userProfileID
