@@ -105,7 +105,7 @@ public actor AdaptiveRateLimiter: Sendable {
     
     // MARK: - Diagnostic Info
     
-    public struct DiagnosticInfo {
+    public struct DiagnosticInfo: Sendable {
         let delayMs: Int
         let batchSize: Int
         let failureRate: Double
