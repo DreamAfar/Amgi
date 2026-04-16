@@ -262,8 +262,8 @@
 "settings_row_account" = "アカウント";
 "settings_row_sync" = "同期";
 "settings_row_editing" = "編集";
-"code_editor_section_font" = "フォント";
-"code_editor_font_size" = "フォントサイズ";
+"code_editor_section_font" = "カードテンプレートコードのフォント";
+"code_editor_font_size" = "コードフォントサイズ";
 "code_editor_font_size_pt" = "%d pt";
 "code_editor_font_family" = "フォントファミリ";
 "code_editor_preview_label" = "プレビュー：";

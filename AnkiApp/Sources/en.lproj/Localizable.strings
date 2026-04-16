@@ -262,8 +262,8 @@
 "settings_row_account" = "Account";
 "settings_row_sync" = "Sync";
 "settings_row_editing" = "Editing";
-"code_editor_section_font" = "Font";
-"code_editor_font_size" = "Font Size";
+"code_editor_section_font" = "Card Template Code Font";
+"code_editor_font_size" = "Code Font Size";
 "code_editor_font_size_pt" = "%d pt";
 "code_editor_font_family" = "Font Family";
 "code_editor_preview_label" = "Preview:";

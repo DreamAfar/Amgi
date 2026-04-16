@@ -262,8 +262,8 @@
 "settings_row_account" = "账户";
 "settings_row_sync" = "同步";
 "settings_row_editing" = "编辑";
-"code_editor_section_font" = "字体";
-"code_editor_font_size" = "字体大小";
+"code_editor_section_font" = "卡片模板代码字体";
+"code_editor_font_size" = "代码字体大小";
 "code_editor_font_size_pt" = "%d pt";
 "code_editor_font_family" = "字体族";
 "code_editor_preview_label" = "预览：";

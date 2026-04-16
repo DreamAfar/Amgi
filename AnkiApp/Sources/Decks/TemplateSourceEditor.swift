@@ -47,6 +47,12 @@ struct TemplateSourceEditor: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
+        // CRITICAL: Update the coordinator's binding reference on every render so it always
+        // points to the currently active tab's binding (front/back/css). makeCoordinator()
+        // runs only once, so without this the coordinator keeps writing to the original
+        // (front) binding regardless of which tab is shown.
+        context.coordinator._text = _text
+
         // Apply font size change
         if uiView.font?.pointSize != CGFloat(fontSize) {
             uiView.font = .monospacedSystemFont(ofSize: CGFloat(fontSize), weight: .regular)

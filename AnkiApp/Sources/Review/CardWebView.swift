@@ -26,6 +26,7 @@ struct CardWebView: UIViewRepresentable {
     let replayMode: ReplayMode
     let openLinksExternally: Bool
     let contentAlignment: ContentAlignment
+    let bottomContentInset: CGFloat
     let onTypedAnswerSubmitted: ((String?) -> Void)?
     let onAudioStateChange: ((Bool) -> Void)?
 
@@ -39,6 +40,7 @@ struct CardWebView: UIViewRepresentable {
         replayMode: ReplayMode = .question,
         openLinksExternally: Bool = true,
         contentAlignment: ContentAlignment = .center,
+        bottomContentInset: CGFloat = 0,
         onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
         onAudioStateChange: ((Bool) -> Void)? = nil
     ) {
@@ -51,6 +53,7 @@ struct CardWebView: UIViewRepresentable {
         self.replayMode = replayMode
         self.openLinksExternally = openLinksExternally
         self.contentAlignment = contentAlignment
+        self.bottomContentInset = bottomContentInset
         self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
         self.onAudioStateChange = onAudioStateChange
     }
@@ -526,6 +529,10 @@ struct CardWebView: UIViewRepresentable {
         function amgiSetupImageOcclusion() {
             var container = document.getElementById('image-occlusion-container');
             if (!container) return;
+            // Idempotency guard — template may call anki.setupImageCloze() and
+            // window.onload both call this; only set up once per page load.
+            if (container._amgiSetup) return;
+            container._amgiSetup = true;
             var img = container.querySelector('img');
             if (!img) return;
             var canvas = document.getElementById('image-occlusion-canvas');
@@ -596,6 +603,19 @@ struct CardWebView: UIViewRepresentable {
                     }
                     if (hit) redraw();
                 });
+
+                // Support the "toggle" button that Anki PC templates inject on
+                // the back side (id="toggle" / class="toggle").
+                var toggleBtn = document.getElementById('toggle') ||
+                                document.querySelector('.toggle');
+                if (toggleBtn) {
+                    var allRevealed = false;
+                    toggleBtn.addEventListener('click', function() {
+                        allRevealed = !allRevealed;
+                        allShapes.forEach(function(s) { s._revealed = allRevealed; });
+                        redraw();
+                    });
+                }
             }
 
             if (img.complete && img.naturalWidth > 0) {
@@ -605,6 +625,12 @@ struct CardWebView: UIViewRepresentable {
             }
         }
         window.amgiSetupImageOcclusion = amgiSetupImageOcclusion;
+
+        // Compatibility shim: Anki PC-generated image occlusion templates call
+        // `anki.setupImageCloze()`. We provide the `anki` namespace so the
+        // template's try-catch succeeds instead of showing an error message.
+        window.anki = window.anki || {};
+        window.anki.setupImageCloze = function() { amgiSetupImageOcclusion(); };
         // ────────────────────────────────────────────────────────────────
 
         window.onload = function() {
@@ -690,6 +716,16 @@ struct CardWebView: UIViewRepresentable {
                 }
                 context.coordinator.onTypedAnswerSubmitted?(typedAnswer)
             }
+        }
+
+        // Force bottom content inset so card content can always scroll above the floating
+        // action bar. WKWebView does not reliably inherit SwiftUI safeAreaInset changes,
+        // so we set it explicitly via DispatchQueue.main.async to override any WebKit-internal
+        // layout pass that might run after updateUIView.
+        let targetInset = bottomContentInset
+        DispatchQueue.main.async {
+            webView.scrollView.contentInset.bottom = targetInset
+            webView.scrollView.scrollIndicatorInsets.bottom = targetInset
         }
     }
 

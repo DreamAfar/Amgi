@@ -5,6 +5,9 @@ import AnkiBackend
 import AnkiKit
 import Dependencies
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "amgi", category: "startup")
 
 struct ContentView: View {
     private enum ImportExportOperation {
@@ -159,6 +162,21 @@ struct ContentView: View {
         }
         .task {
             updateSyncBadge()
+            // CheckDatabase runs in background after UI is visible — avoids blocking cold start
+            Task.detached(priority: .background) {
+                @Dependency(\.ankiBackend) var backend
+                let start = Date()
+                do {
+                    let result = try backend.call(
+                        service: AnkiBackend.Service.collection,
+                        method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+                    )
+                    let elapsed = Date().timeIntervalSince(start)
+                    logger.info("CheckDatabase completed in \(elapsed, format: .fixed(precision: 2))s (\(result.count) bytes)")
+                } catch {
+                    logger.warning("CheckDatabase failed: \(error)")
+                }
+            }
         }
         .fileImporter(isPresented: $showImport, allowedContentTypes: [.data]) { result in
             handleImport(result)

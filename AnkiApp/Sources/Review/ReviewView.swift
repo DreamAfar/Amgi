@@ -52,6 +52,7 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var prefOpenLinksExternally = true
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.center.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
+    @State private var actionBarHeight: CGFloat = 0
 
     private var prefCardContentAlignment: CardWebView.ContentAlignment {
         CardWebView.ContentAlignment(rawValue: prefCardContentAlignmentRaw) ?? .center
@@ -269,6 +270,7 @@ struct ReviewView: View {
             replayMode: replayMode,
             openLinksExternally: prefOpenLinksExternally,
             contentAlignment: prefCardContentAlignment,
+            bottomContentInset: actionBarHeight,
             onTypedAnswerSubmitted: { typedAnswer in
                 session.revealAnswer(typedAnswer: typedAnswer)
             },
@@ -280,6 +282,11 @@ struct ReviewView: View {
         )
         .safeAreaInset(edge: .bottom, spacing: 0) {
             cardActionBar
+                .onGeometryChange(for: CGFloat.self) { geo in
+                    geo.size.height
+                } action: { height in
+                    actionBarHeight = height
+                }
         }
     }
 
@@ -316,6 +323,7 @@ struct ReviewView: View {
                         compactAnswerMenu
                     }
                 }
+                .background(.clear)
             } else {
                 let usesCompactShowAnswerButton = session.requiresTypedAnswerInput && isKeyboardVisible
 
@@ -347,10 +355,11 @@ struct ReviewView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, usesCompactShowAnswerButton ? 8 : 16)
+                .background(.clear)
                 .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
             }
         }
-        .background(Color.clear)
+        .background(.clear)
     }
 
     private var answerButtons: some View {
@@ -404,7 +413,7 @@ struct ReviewView: View {
             } label: {
                 ratingButtonLabel(rating)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.glassProminent)
             .tint(color)
         } else {
             Button {
