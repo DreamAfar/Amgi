@@ -43,7 +43,7 @@ extension ImageOcclusionClient: DependencyKey {
             getNote: { noteId in
                 var req = Anki_ImageOcclusion_GetImageOcclusionNoteRequest()
                 req.noteID = noteId
-                let resp: Anki_ImageOcclusion_GetImageOcclusionNoteResponse = try backend.call(
+                let resp: Anki_ImageOcclusion_GetImageOcclusionNoteResponse = try backend.invoke(
                     service: AnkiBackend.Service.imageOcclusion,
                     method: AnkiBackend.ImageOcclusionMethod.getImageOcclusionNote,
                     request: req

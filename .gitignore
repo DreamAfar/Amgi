@@ -11,3 +11,4 @@ anki-upstream/target/
 docs/
 .qwen/
 Tests/
+.vscode
