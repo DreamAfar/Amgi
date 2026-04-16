@@ -115,6 +115,8 @@ struct CardWebView: UIViewRepresentable {
             let htmlClass = Self.htmlClasses(isDarkMode: isDarkMode)
             let playIconHTML = Self.audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
             let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.circle", alt: "Pause", isDarkMode: isDarkMode)
+            let mediaDir = Self.currentMediaDirectoryURL()
+            let baseTag = Self.mediaBaseTag(for: mediaDir)
 
             let styledHTML = """
         <!DOCTYPE html>
@@ -122,6 +124,7 @@ struct CardWebView: UIViewRepresentable {
         <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+        \(baseTag)
         <style>
             :root {
                 color-scheme: \(isDarkMode ? "dark" : "light");
@@ -257,6 +260,7 @@ struct CardWebView: UIViewRepresentable {
         <script>
         const AUTOPLAY_ENABLED = \(autoplayEnabled ? "true" : "false");
         const IS_ANSWER_SIDE = \(isAnswerSide ? "true" : "false");
+        const DEFAULT_REPLAY_MODE = \(Self.jsStringLiteral(replayMode.rawValue));
         const PLAY_ICON_HTML = \(Self.jsStringLiteral(playIconHTML));
         const PAUSE_ICON_HTML = \(Self.jsStringLiteral(pauseIconHTML));
         window.__amgiAudioPlaying = false;
@@ -462,7 +466,7 @@ struct CardWebView: UIViewRepresentable {
             }
 
             if (command === 'replay') {
-                amgiReplayAll(IS_ANSWER_SIDE ? 'answerWithQuestion' : 'question');
+                amgiReplayAll(DEFAULT_REPLAY_MODE);
                 return false;
             }
 
@@ -913,8 +917,8 @@ struct CardWebView: UIViewRepresentable {
             var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
 
             if (AUTOPLAY_ENABLED && !hasTemplateManagedMedia) {
-                // Desktop parity: question side plays question tags, answer side plays answer tags.
-                amgiReplayAll(IS_ANSWER_SIDE ? 'answerOnly' : 'question');
+                // Keep autoplay and replay commands on the same mode selection path.
+                amgiReplayAll(DEFAULT_REPLAY_MODE);
             }
 
             // Detect missing images
@@ -969,12 +973,17 @@ struct CardWebView: UIViewRepresentable {
             // resources (images, audio). We must write the HTML to a file inside
             // the media directory and use loadFileURL with allowingReadAccessTo so
             // that relative src paths (e.g. <img src="image.jpg">) resolve correctly.
-            guard let mediaDir = Self.currentMediaDirectoryURL() else {
+            guard let mediaDir else {
                 webView.loadHTMLString(styledHTML, baseURL: nil)
                 return
             }
-            let htmlFile = mediaDir.appendingPathComponent("_card.html")
+            let renderCacheDir = Self.cardWrapperDirectoryURL(in: mediaDir)
+            let htmlFile = Self.cardWrapperFileURL(in: mediaDir)
             do {
+                try FileManager.default.createDirectory(
+                    at: renderCacheDir,
+                    withIntermediateDirectories: true
+                )
                 try styledHTML.write(to: htmlFile, atomically: true, encoding: .utf8)
                 webView.loadFileURL(htmlFile, allowingReadAccessTo: mediaDir)
             } catch {
@@ -1071,6 +1080,18 @@ struct CardWebView: UIViewRepresentable {
             .replacingOccurrences(of: "\n", with: "")
             .replacingOccurrences(of: "\r", with: "")
         return "'\(escaped)'"
+    }
+
+    static func mediaBaseTag(for mediaDir: URL?) -> String {
+        mediaDir.map { #"<base href="\#($0.absoluteString)">"# } ?? ""
+    }
+
+    static func cardWrapperDirectoryURL(in mediaDir: URL) -> URL {
+        mediaDir.appendingPathComponent(".amgi-render-cache", isDirectory: true)
+    }
+
+    static func cardWrapperFileURL(in mediaDir: URL) -> URL {
+        cardWrapperDirectoryURL(in: mediaDir).appendingPathComponent("card.html")
     }
 
     /// Returns the media directory URL for the currently selected user.
