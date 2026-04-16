@@ -1,5 +1,6 @@
 public import Dependencies
 import DependenciesMacros
+public import Foundation
 
 @DependencyClient
 public struct ImageOcclusionClient: Sendable {
