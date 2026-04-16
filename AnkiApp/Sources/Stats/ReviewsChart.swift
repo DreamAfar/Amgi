@@ -131,72 +131,80 @@ struct ReviewsChart: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart {
-                    ForEach(entries) { entry in
-                        BarMark(
-                            x: .value("Day", entry.bucket),
-                            y: .value("Value", entry.value),
-                            width: barWidth
-                        )
-                        .foregroundStyle(by: .value("Type", entry.type))
-                        .stacked(using: .standard)
-                    }
-                    ForEach(cumulativePoints) { pt in
-                        LineMark(
-                            x: .value("Day", pt.bucket),
-                            y: .value(L("stats_reviews_cumulative"), pt.cumulative),
-                            series: .value("Series", "cumulative")
-                        )
-                        .foregroundStyle(.secondary.opacity(0.7))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5))
-                        .interpolationMethod(.monotone)
-                        .accessibilityHidden(true)
-                    }
-                }
-                .chartForegroundStyleScale([
-                    L("stats_review_learn"):    Color.blue,
-                    L("stats_review_relearn"):  Color.orange,
-                    L("stats_card_young"):      Color.green,
-                    L("stats_card_mature"):     Color.purple,
-                    L("stats_review_filtered"): Color.gray,
-                ])
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 6)) { _ in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.gray.opacity(0.2))
-                        AxisValueLabel()
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(
-                        preset: .aligned,
-                        position: .leading,
-                        values: .automatic(desiredCount: 4)
-                    ) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.gray.opacity(0.2))
-                        AxisValueLabel()
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(height: 200)
+                reviewChart
             }
 
             // Footer stats
             HStack(spacing: 0) {
                 footerItem(L("stats_study_days"), value: "\(uniqueStudyDays)")
                 footerItem(L("stats_total"), value: totalValue > 3600 ? formatTime(totalValue) : "\(totalValue)")
-                footerItem(L("stats_avg_day_all"), value: showTime ? formatTime(Int(avgAllDays)) : String(format: "%.1f", avgAllDays))
-                footerItem(L("stats_avg_day_studied"), value: showTime ? formatTime(Int(avgStudyDays)) : String(format: "%.1f", avgStudyDays))
+                let avgAllStr = showTime ? formatTime(Int(avgAllDays)) : String(format: "%.1f", avgAllDays)
+                let avgStudyStr = showTime ? formatTime(Int(avgStudyDays)) : String(format: "%.1f", avgStudyDays)
+                footerItem(L("stats_avg_day_all"), value: avgAllStr)
+                footerItem(L("stats_avg_day_studied"), value: avgStudyStr)
             }
             .font(.caption2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private var reviewChart: some View {
+        let colorScale: KeyValuePairs<String, Color> = [
+            L("stats_review_learn"):    .blue,
+            L("stats_review_relearn"):  .orange,
+            L("stats_card_young"):      .green,
+            L("stats_card_mature"):     .purple,
+            L("stats_review_filtered"): .gray,
+        ]
+        Chart {
+            ForEach(entries) { entry in
+                BarMark(
+                    x: .value("Day", entry.bucket),
+                    y: .value("Value", entry.value),
+                    width: barWidth
+                )
+                .foregroundStyle(by: .value("Type", entry.type))
+                .stacked(using: .standard)
+            }
+            ForEach(cumulativePoints) { pt in
+                LineMark(
+                    x: .value("Day", pt.bucket),
+                    y: .value(L("stats_reviews_cumulative"), pt.cumulative),
+                    series: .value("Series", "cumulative")
+                )
+                .foregroundStyle(.secondary.opacity(0.7))
+                .lineStyle(StrokeStyle(lineWidth: 1.5))
+                .interpolationMethod(.monotone)
+                .accessibilityHidden(true)
+            }
+        }
+        .chartForegroundStyleScale(colorScale)
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 6)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.gray.opacity(0.2))
+                AxisValueLabel()
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(
+                preset: .aligned,
+                position: .leading,
+                values: .automatic(desiredCount: 4)
+            ) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.gray.opacity(0.2))
+                AxisValueLabel()
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(height: 200)
     }
 
     private func footerItem(_ label: String, value: String) -> some View {

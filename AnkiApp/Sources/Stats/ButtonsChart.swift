@@ -75,23 +75,29 @@ struct ButtonsChart: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart(entries) { entry in
-                    BarMark(
-                        x: .value("Button", entry.button),
-                        y: .value("Count", entry.count)
-                    )
-                    .foregroundStyle(by: .value("Type", entry.cardType))
-                }
-                .chartForegroundStyleScale([
-                    L("stats_card_learn"): Color.blue,
-                    L("stats_card_young"): Color.green,
-                    L("stats_card_mature"): Color.purple,
-                ])
-                .frame(height: 180)
+                buttonsChart
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private var buttonsChart: some View {
+        let colorScale: KeyValuePairs<String, Color> = [
+            L("stats_card_learn"):  .blue,
+            L("stats_card_young"):  .green,
+            L("stats_card_mature"): .purple,
+        ]
+        Chart(entries) { entry in
+            BarMark(
+                x: .value("Button", entry.button),
+                y: .value("Count", entry.count)
+            )
+            .foregroundStyle(by: .value("Type", entry.cardType))
+        }
+        .chartForegroundStyleScale(colorScale)
+        .frame(height: 180)
     }
 }

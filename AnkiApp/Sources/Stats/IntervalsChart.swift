@@ -90,35 +90,7 @@ struct IntervalsChart: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                let barWVal: Double = max(2.0, min(8.0, 280.0 / Double(bins.count)))
-                let barW: MarkDimension = bins.count <= 30 ? .automatic : .fixed(barWVal)
-                Chart(bins, id: \.x) { bin in
-                    BarMark(
-                        x: .value(L("stats_intervals_days"), bin.x),
-                        y: .value(L("stats_card_count"), bin.count),
-                        width: barW
-                    )
-                    .foregroundStyle(Color.teal.gradient)
-                }
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 6)) { _ in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.gray.opacity(0.2))
-                        AxisValueLabel()
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.gray.opacity(0.2))
-                        AxisValueLabel()
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(height: 200)
+                intervalsChart(bins: bins)
             }
 
             HStack(spacing: 16) {
@@ -137,5 +109,38 @@ struct IntervalsChart: View {
             Text(label).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func intervalsChart(bins: [(label: String, x: Int, count: Int)]) -> some View {
+        let barWVal: Double = max(2.0, min(8.0, 280.0 / Double(bins.count)))
+        let barW: MarkDimension = bins.count <= 30 ? .automatic : .fixed(barWVal)
+        Chart(bins, id: \.x) { bin in
+            BarMark(
+                x: .value(L("stats_intervals_days"), bin.x),
+                y: .value(L("stats_card_count"), bin.count),
+                width: barW
+            )
+            .foregroundStyle(Color.teal.gradient)
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 6)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.gray.opacity(0.2))
+                AxisValueLabel()
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.gray.opacity(0.2))
+                AxisValueLabel()
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(height: 200)
     }
 }
