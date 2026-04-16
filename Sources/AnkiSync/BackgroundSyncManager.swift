@@ -39,7 +39,9 @@ public actor BackgroundSyncManager: Sendable {
     ) -> URLSessionDownloadTask {
         guard let session = backgroundSession else {
             completion(.failure(SyncError(message: "Background session not available")))
-            return URLSessionDownloadTask()
+            let fallbackTask = URLSession.shared.downloadTask(with: URLRequest(url: url))
+            fallbackTask.cancel()
+            return fallbackTask
         }
         
         var request = URLRequest(url: url)

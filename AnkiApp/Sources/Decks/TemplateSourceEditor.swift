@@ -51,7 +51,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
         // points to the currently active tab's binding (front/back/css). makeCoordinator()
         // runs only once, so without this the coordinator keeps writing to the original
         // (front) binding regardless of which tab is shown.
-        context.coordinator._text = _text
+        context.coordinator.updateBinding($text)
 
         // Apply font size change
         if uiView.font?.pointSize != CGFloat(fontSize) {
@@ -95,6 +95,12 @@ struct TemplateSourceEditor: UIViewRepresentable {
 
         func attach(textView: UITextView) {
             self.textView = textView
+        }
+
+        /// Called by `updateUIView` on every SwiftUI render to keep the binding
+        /// pointing to the currently active tab (front / back / css).
+        func updateBinding(_ binding: Binding<String>) {
+            _text = binding
         }
 
         func textViewDidChange(_ textView: UITextView) {
