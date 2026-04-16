@@ -27,6 +27,7 @@ struct ContentView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.syncClient) var syncClient
+    @ObservedObject private var syncCoordinator = AppSyncCoordinator.shared
 
     @State private var showSync = false
     @State private var showImport = false
@@ -160,6 +161,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: AppSyncAuthEvents.didChangeNotification)) { _ in
             updateSyncBadge()
         }
+        .onReceive(syncCoordinator.$state) { _ in
+            updateSyncBadge()
+        }
         .task {
             updateSyncBadge()
             // CheckDatabase runs in background after UI is visible — avoids blocking cold start
@@ -275,14 +279,23 @@ struct ContentView: View {
             Button {
                 showSync = true
             } label: {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .padding(.top, 3)
-                        .padding(.trailing, 3)
-                    if showSyncBadge {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 7, height: 7)
+                if syncCoordinator.isRunning {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(L("sync_syncing"))
+                            .font(.footnote.weight(.medium))
+                    }
+                } else {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .padding(.top, 3)
+                            .padding(.trailing, 3)
+                        if showSyncBadge {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 7, height: 7)
+                        }
                     }
                 }
             }

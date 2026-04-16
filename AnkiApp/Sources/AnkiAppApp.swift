@@ -32,24 +32,7 @@ struct AnkiAppApp: App {
             Group {
                 switch startupPhase {
                 case .loading:
-                    Color(uiColor: .systemBackground)
-                        .ignoresSafeArea()
-                        .overlay {
-                            VStack(spacing: 20) {
-                                if let icon = UIImage(named: "AppIcon") {
-                                    Image(uiImage: icon)
-                                        .resizable()
-                                        .frame(width: 96, height: 96)
-                                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                                        .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
-                                }
-                                Text("Amgi")
-                                    .font(.title2.bold())
-                                    .foregroundStyle(.primary)
-                                ProgressView()
-                                    .padding(.top, 4)
-                            }
-                        }
+                    startupLoadingView
                 case .failed(let message):
                     VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -78,6 +61,34 @@ struct AnkiAppApp: App {
                 let lang = AppLanguage(rawValue: newValue) ?? .system
                 LanguageManager.shared.apply(lang)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var startupLoadingView: some View {
+        let cachedTree = DeckTreeCache.load()
+
+        if onboardingCompleted, !cachedTree.isEmpty {
+            StartupDeckSnapshotView(tree: cachedTree)
+        } else {
+            Color(uiColor: .systemBackground)
+                .ignoresSafeArea()
+                .overlay {
+                    VStack(spacing: 20) {
+                        if let icon = UIImage(named: "AppIcon") {
+                            Image(uiImage: icon)
+                                .resizable()
+                                .frame(width: 96, height: 96)
+                                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                                .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
+                        }
+                        Text("Amgi")
+                            .font(.title2.bold())
+                            .foregroundStyle(.primary)
+                        ProgressView()
+                            .padding(.top, 4)
+                    }
+                }
         }
     }
 
@@ -115,4 +126,59 @@ struct AnkiAppApp: App {
             startupPhase = .failed("Startup failed: \(error.localizedDescription)")
         }
     }
+}
+
+private struct StartupDeckSnapshotView: View {
+    let tree: [DeckTreeNode]
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(flattenedTree) { item in
+                        HStack(spacing: 12) {
+                            Image(systemName: item.node.children.isEmpty ? "rectangle.stack" : "folder")
+                                .foregroundStyle(.secondary)
+                            Text(item.node.name)
+                                .lineLimit(1)
+                            Spacer()
+                            if item.node.counts.total > 0 {
+                                Text("\(item.node.counts.total)")
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.leading, CGFloat(item.depth) * 14)
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .disabled(true)
+            .overlay(alignment: .top) {
+                ProgressView()
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(.top, 8)
+            }
+            .navigationTitle(L("deck_list_nav_title"))
+        }
+    }
+
+    private var flattenedTree: [StartupDeckSnapshotItem] {
+        flatten(nodes: tree, depth: 0)
+    }
+
+    private func flatten(nodes: [DeckTreeNode], depth: Int) -> [StartupDeckSnapshotItem] {
+        nodes.flatMap { node in
+            [StartupDeckSnapshotItem(node: node, depth: depth)] + flatten(nodes: node.children, depth: depth + 1)
+        }
+    }
+}
+
+private struct StartupDeckSnapshotItem: Identifiable {
+    let node: DeckTreeNode
+    let depth: Int
+
+    var id: Int64 { node.id }
 }

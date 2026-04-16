@@ -600,6 +600,7 @@ struct TemplateEditorView: View {
             if let onSaved {
                 await onSaved()
             }
+            dismiss()
         } catch {
             errorMessage = error.localizedDescription
             showSaveError = true

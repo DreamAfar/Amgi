@@ -1,4 +1,4 @@
-public struct DeckInfo: Sendable, Equatable, Identifiable, Hashable {
+public struct DeckInfo: Sendable, Equatable, Identifiable, Hashable, Codable {
     public let id: Int64
     public var name: String
     public var counts: DeckCounts
@@ -10,7 +10,7 @@ public struct DeckInfo: Sendable, Equatable, Identifiable, Hashable {
     }
 }
 
-public struct DeckTreeNode: Sendable, Equatable, Identifiable {
+public struct DeckTreeNode: Sendable, Equatable, Identifiable, Codable {
     public let id: Int64
     public var name: String
     public var fullName: String
@@ -32,7 +32,7 @@ public struct DeckTreeNode: Sendable, Equatable, Identifiable {
     }
 }
 
-public struct DeckCounts: Sendable, Equatable, Hashable {
+public struct DeckCounts: Sendable, Equatable, Hashable, Codable {
     public var newCount: Int
     public var learnCount: Int
     public var reviewCount: Int

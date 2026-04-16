@@ -330,6 +330,7 @@
 // MARK: - SyncSheet
 "sync_nav_title" = "Sync";
 "sync_btn_done" = "Done";
+"sync_btn_background" = "Background Download";
 "sync_label_server" = "Server";
 "sync_menu_change_server" = "Change Server";
 "sync_menu_logout" = "Logout";
@@ -384,7 +385,7 @@
 // MARK: - SyncSheet progress log
 "sync_log_section_title" = "Sync Log";
 "sync_log_connecting" = "Connecting to server...";
-"sync_log_syncing_changes" = "Syncing changes...";
+"sync_log_syncing_changes" = "Syncing notes...";
 "sync_log_checking_db" = "Verifying database integrity...";
 "sync_log_media_stats" = "Media: %@ checked, %@ added, %@ removed";
 "sync_log_complete" = "All done";

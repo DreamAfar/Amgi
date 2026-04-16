@@ -441,12 +441,60 @@ struct CardWebView: UIViewRepresentable {
                     rx: parseFloat(el.dataset.rx || '0'),
                     ry: parseFloat(el.dataset.ry || '0'),
                     angle: parseFloat(el.dataset.angle || '0'),
+                    text: el.dataset.text || '',
+                    scale: parseFloat(el.dataset.scale || '1'),
+                    fontSize: parseFloat(el.dataset.fs || '0'),
+                    fill: el.dataset.fill || '#000000',
                     points: points,
                 };
             });
         }
 
         function amgiDrawIOShape(ctx, shape, size, fill, stroke) {
+            if (shape.type === 'text') {
+                var fontSize = (shape.fontSize > 0 ? shape.fontSize * size.height : 40);
+                var scale = shape.scale > 0 ? shape.scale : 1;
+                var leftText = shape.left * size.width;
+                var topText = shape.top * size.height;
+                var angleText = shape.angle * Math.PI / 180;
+                var padding = 5;
+                ctx.save();
+                ctx.font = fontSize + 'px Arial';
+                ctx.textBaseline = 'top';
+                ctx.scale(scale, scale);
+                var lines = (shape.text || '').split('\n');
+                var baseMetrics = ctx.measureText('M');
+                var fontHeight = baseMetrics.actualBoundingBoxAscent + baseMetrics.actualBoundingBoxDescent;
+                var lineHeight = 1.5 * fontHeight;
+                var maxWidth = 0;
+                var scaledLeft = leftText / scale;
+                var scaledTop = topText / scale;
+
+                for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                    var lineMetrics = ctx.measureText(lines[lineIndex]);
+                    if (lineMetrics.width > maxWidth) {
+                        maxWidth = lineMetrics.width;
+                    }
+                }
+
+                if (angleText) {
+                    ctx.translate(scaledLeft, scaledTop);
+                    ctx.rotate(angleText);
+                    ctx.translate(-scaledLeft, -scaledTop);
+                }
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(scaledLeft, scaledTop, maxWidth + padding, lines.length * lineHeight + padding);
+                ctx.fillStyle = shape.fill || '#000000';
+
+                for (var textIndex = 0; textIndex < lines.length; textIndex++) {
+                    ctx.fillText(lines[textIndex], scaledLeft, scaledTop + textIndex * lineHeight);
+                }
+
+                ctx.restore();
+                return;
+            }
+
             var left = shape.left * size.width;
             var top = shape.top * size.height;
             var angle = shape.angle * Math.PI / 180;
@@ -521,6 +569,29 @@ struct CardWebView: UIViewRepresentable {
                     }
                 }
                 return inside;
+            } else if (shape.type === 'text') {
+                var scale = shape.scale > 0 ? shape.scale : 1;
+                var fontSize = (shape.fontSize > 0 ? shape.fontSize * size.height : 40);
+                var textCanvas = document.createElement('canvas');
+                var textCtx = textCanvas.getContext('2d');
+                if (!textCtx) {
+                    return false;
+                }
+                textCtx.font = fontSize + 'px Arial';
+                var lines = (shape.text || '').split('\n');
+                var baseMetrics = textCtx.measureText('M');
+                var fontHeight = baseMetrics.actualBoundingBoxAscent + baseMetrics.actualBoundingBoxDescent;
+                var lineHeight = 1.5 * fontHeight;
+                var maxWidth = 0;
+                for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                    var lineMetrics = textCtx.measureText(lines[lineIndex]);
+                    if (lineMetrics.width > maxWidth) {
+                        maxWidth = lineMetrics.width;
+                    }
+                }
+                var boxWidth = (maxWidth + 5) * scale;
+                var boxHeight = (lines.length * lineHeight + 5) * scale;
+                return lx >= 0 && lx <= boxWidth && ly >= 0 && ly <= boxHeight;
             }
             return false;
         }
@@ -545,6 +616,7 @@ struct CardWebView: UIViewRepresentable {
 
             // All shapes (collected once after load)
             var allShapes = [];
+            var masksHidden = false;
 
             function collectShapes() {
                 allShapes = [];
@@ -567,7 +639,16 @@ struct CardWebView: UIViewRepresentable {
                 canvasRef.height = h * dpr;
                 var ctx = canvasRef.getContext('2d');
                 ctx.scale(dpr, dpr);
+                canvasRef.style.pointerEvents = masksHidden ? 'none' : 'auto';
                 var size = { width: w, height: h };
+                if (masksHidden) {
+                    allShapes.forEach(function(s) {
+                        if (!s._revealed && s.type === 'text') {
+                            amgiDrawIOShape(ctx, s, size, '#ffffff', null);
+                        }
+                    });
+                    return;
+                }
                 var style = getComputedStyle(document.documentElement);
                 var inactiveColor  = style.getPropertyValue('--inactive-shape-color').trim()  || '#ffeba2';
                 var activeColor    = style.getPropertyValue('--active-shape-color').trim()    || '#ff8e8e';
@@ -587,6 +668,9 @@ struct CardWebView: UIViewRepresentable {
 
                 // Click-to-reveal interaction
                 canvasRef.addEventListener('click', function(e) {
+                    if (masksHidden) {
+                        return;
+                    }
                     var rect = canvasRef.getBoundingClientRect();
                     var px = (e.clientX - rect.left);
                     var py = (e.clientY - rect.top);
@@ -609,12 +693,36 @@ struct CardWebView: UIViewRepresentable {
                 var toggleBtn = document.getElementById('toggle') ||
                                 document.querySelector('.toggle');
                 if (toggleBtn) {
-                    var allRevealed = false;
-                    toggleBtn.addEventListener('click', function() {
-                        allRevealed = !allRevealed;
-                        allShapes.forEach(function(s) { s._revealed = allRevealed; });
-                        redraw();
-                    });
+                    toggleBtn.type = 'button';
+                    var hasInactiveMasks = allShapes.some(function(s) {
+                        return s._cls === 'cloze-inactive';
+                    }) || !!document.querySelector('[data-occludeinactive="1"]');
+
+                    if (!hasInactiveMasks) {
+                        toggleBtn.style.display = 'none';
+                    } else {
+                        var toggleMasks = function(event) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            masksHidden = !masksHidden;
+                            toggleBtn.setAttribute('aria-pressed', masksHidden ? 'true' : 'false');
+                            if (!masksHidden) {
+                                canvasRef.style.pointerEvents = 'auto';
+                            }
+                            redraw();
+                        };
+
+                        toggleBtn.addEventListener('click', toggleMasks);
+
+                        if (!window.__amgiIOKeyHandlerInstalled) {
+                            window.addEventListener('keydown', function(event) {
+                                if (toggleBtn.style.display !== 'none' && (event.key === 'M' || event.key === 'm')) {
+                                    toggleMasks(event);
+                                }
+                            });
+                            window.__amgiIOKeyHandlerInstalled = true;
+                        }
+                    }
                 }
             }
 

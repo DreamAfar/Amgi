@@ -19,9 +19,16 @@ struct DeckListView: View {
     @State private var hasLoadedHeatmap = false
     var onDeckChanged: (() -> Void)? = nil
 
+    init(onDeckChanged: (() -> Void)? = nil) {
+        self.onDeckChanged = onDeckChanged
+        let cachedTree = DeckTreeCache.load()
+        _tree = State(initialValue: cachedTree)
+        _isLoading = State(initialValue: true)
+    }
+
     var body: some View {
         Group {
-            if isLoading {
+            if isLoading && tree.isEmpty {
                 ProgressView()
             } else if tree.isEmpty {
                 ContentUnavailableView(
@@ -65,6 +72,15 @@ struct DeckListView: View {
                     await loadDecks()
                     refreshHeatmap()
                 }
+                .overlay(alignment: .top) {
+                    if isLoading {
+                        ProgressView()
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .padding(.top, 8)
+                    }
+                }
             }
         }
         .navigationTitle(L("deck_list_nav_title"))
@@ -106,11 +122,13 @@ struct DeckListView: View {
     }
 
     private func loadDecks() async {
+        isLoading = true
         do {
-            tree = try deckClient.fetchTree()
+            let freshTree = try deckClient.fetchTree()
+            tree = freshTree
+            DeckTreeCache.save(freshTree)
         } catch {
             print("[DeckListView] Error loading decks: \(error)")
-            tree = []
         }
         isLoading = false
     }

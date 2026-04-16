@@ -288,16 +288,57 @@ extension SyncClient: DependencyKey {
 
                             if syncMediaEnabled() {
                                 await emitter.yield(.syncingMedia)
+
+                                let currentUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "default"
+                                let queue = MediaDownloadQueue(userProfileID: currentUser)
+                                let limiter = AdaptiveRateLimiter()
+                                let session = MediaSyncSession(queue: queue, limiter: limiter)
+                                let downloader = MediaDownloader(backend: syncBackend, session: session)
+                                let incrementalManager = IncrementalSyncManager(userProfileID: currentUser)
+
+                                let incrementalStats = await incrementalManager.getSyncStats()
+                                logger.info("Incremental sync: \(incrementalStats.knownFileCount) known files from previous syncs")
+
+                                await session.start()
+
                                 let mediaAuth = configuredSyncAuth(hostKey: hostKey)
+                                var attemptCount = 0
+
                                 do {
-                                    try syncBackend.callVoid(
-                                        service: AnkiBackend.Service.sync,
-                                        method: AnkiBackend.SyncMethod.syncMedia,
-                                        request: mediaAuth
-                                    )
+                                    for try await event in await downloader.syncMediaWithRetry(auth: mediaAuth) {
+                                        switch event {
+                                        case .connecting:
+                                            break
+                                        case .fetchingIndex:
+                                            break
+                                        case .progress(let downloaded, let total):
+                                            await emitter.yield(.mediaProgress(total: total, downloaded: downloaded))
+                                        case .retrying(let attempt, let delayMs):
+                                            attemptCount = attempt
+                                            await emitter.yield(.mediaRetry(failedCount: 0, attempt: attempt, delaySeconds: delayMs / 1000))
+                                        case .completed:
+                                            break
+                                        }
+                                    }
+
+                                    let logMessage = attemptCount == 0
+                                        ? "Media sync completed."
+                                        : "Media sync completed after \(attemptCount) attempts."
+                                    logger.info("\(logMessage)")
+
+                                    let stats = await incrementalManager.getSyncStats()
+                                    logger.info("Incremental sync: recorded \(stats.knownFileCount) synced files, will skip on next run")
+                                    await incrementalManager.cleanupOldRecords(retentionDays: 30)
+                                } catch let error as SyncError {
+                                    if error == .authFailed {
+                                        throw error
+                                    }
+                                    logger.warning("Media sync failed (non-fatal): \(error.message)")
                                 } catch let error as BackendError {
                                     if error.isSyncAuthError { throw SyncError.authFailed }
                                     logger.warning("Media sync failed (non-fatal): \(error.message)")
+                                } catch {
+                                    logger.warning("Media sync failed (non-fatal): \(error)")
                                 }
                             }
 

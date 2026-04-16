@@ -7,15 +7,13 @@ import Dependencies
 struct SyncSheet: View {
     @Binding var isPresented: Bool
     @Dependency(\.syncClient) var syncClient
+    @ObservedObject private var syncCoordinator = AppSyncCoordinator.shared
 
     @AppStorage(SyncPreferences.Keys.modeForCurrentUser()) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
     @AppStorage(SyncPreferences.Keys.syncMediaForCurrentUser()) private var syncMediaEnabled = true
 
-    @State private var syncState: SyncState = .idle
     @State private var showLogin = false
     @State private var showServerSetup = false
-    @State private var logEntries: [SyncLogEntry] = []
-    @State private var mediaProgress: (total: Int, downloaded: Int) = (0, 0)
 
     private var syncMode: SyncPreferences.Mode {
         SyncPreferences.resolvedMode(syncModeRaw)
@@ -32,22 +30,6 @@ struct SyncSheet: View {
         }
     }
 
-    enum SyncState {
-        case idle
-        case syncing(String)
-        case syncingMedia(total: Int, downloaded: Int)
-        case success(SyncSummary)
-        case error(String)
-        case needsFullSync
-        case noServer
-    }
-
-    private struct SyncLogEntry: Identifiable {
-        let id = UUID()
-        let date: Date
-        let message: String
-    }
-
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
@@ -57,7 +39,7 @@ struct SyncSheet: View {
                 }
 
                 Spacer()
-                switch syncState {
+                switch syncCoordinator.state {
                 case .idle:
                     ProgressView(L("sync_preparing"))
                 case .syncing(let message):
@@ -80,7 +62,19 @@ struct SyncSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L("sync_btn_done")) { isPresented = false }
+                    Button(syncCoordinator.isRunning ? L("btn_cancel") : L("sync_btn_done")) {
+                        if syncCoordinator.isRunning {
+                            syncCoordinator.cancel()
+                        }
+                        isPresented = false
+                    }
+                }
+                if syncCoordinator.isRunning {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(L("sync_btn_background")) {
+                            isPresented = false
+                        }
+                    }
                 }
             }
         }
@@ -94,6 +88,11 @@ struct SyncSheet: View {
                 Task { await startSync() }
             }
         }
+        .onReceive(syncCoordinator.$requiresLogin) { needsLogin in
+            guard needsLogin else { return }
+            syncCoordinator.consumeLoginRequest()
+            showLogin = true
+        }
         .task { await startSync() }
     }
 
@@ -102,10 +101,17 @@ struct SyncSheet: View {
     @ViewBuilder
     private func syncingView(message: String) -> some View {
         VStack(spacing: 16) {
-            ProgressView(message)
-                .progressViewStyle(.circular)
+            VStack(spacing: 8) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                Text(L("sync_syncing"))
+                    .font(.title3.weight(.semibold))
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
-            if !logEntries.isEmpty {
+            if !syncCoordinator.logEntries.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L("sync_log_section_title"))
                         .font(.caption2.weight(.semibold))
@@ -115,7 +121,7 @@ struct SyncSheet: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(alignment: .leading, spacing: 3) {
-                                ForEach(logEntries) { entry in
+                                ForEach(syncCoordinator.logEntries) { entry in
                                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                                         Text(entry.date, style: .time)
                                             .font(.caption2.monospacedDigit())
@@ -137,8 +143,8 @@ struct SyncSheet: View {
                             Color(.systemGroupedBackground),
                             in: RoundedRectangle(cornerRadius: 10)
                         )
-                        .onChange(of: logEntries.count) { _, _ in
-                            if let last = logEntries.last {
+                        .onChange(of: syncCoordinator.logEntries.count) { _, _ in
+                            if let last = syncCoordinator.logEntries.last {
                                 withAnimation(.linear(duration: 0.15)) {
                                     proxy.scrollTo(last.id, anchor: .bottom)
                                 }
@@ -153,6 +159,9 @@ struct SyncSheet: View {
     @ViewBuilder
     private func mediaProgressView(total: Int, downloaded: Int) -> some View {
         VStack(spacing: 16) {
+            Text(L("sync_syncing"))
+                .font(.title3.weight(.semibold))
+
             VStack(spacing: 8) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -187,7 +196,7 @@ struct SyncSheet: View {
                 in: RoundedRectangle(cornerRadius: 12)
             )
 
-            if !logEntries.isEmpty {
+            if !syncCoordinator.logEntries.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L("sync_log_section_title"))
                         .font(.caption2.weight(.semibold))
@@ -197,7 +206,7 @@ struct SyncSheet: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(alignment: .leading, spacing: 3) {
-                                ForEach(logEntries) { entry in
+                                ForEach(syncCoordinator.logEntries) { entry in
                                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                                         Text(entry.date, style: .time)
                                             .font(.caption2.monospacedDigit())
@@ -219,8 +228,8 @@ struct SyncSheet: View {
                             Color(.systemGroupedBackground),
                             in: RoundedRectangle(cornerRadius: 10)
                         )
-                        .onChange(of: logEntries.count) { _, _ in
-                            if let last = logEntries.last {
+                        .onChange(of: syncCoordinator.logEntries.count) { _, _ in
+                            if let last = syncCoordinator.logEntries.last {
                                 withAnimation(.linear(duration: 0.15)) {
                                     proxy.scrollTo(last.id, anchor: .bottom)
                                 }
@@ -278,97 +287,29 @@ struct SyncSheet: View {
 
     private func startSync() async {
         guard syncMode != .local else {
-            syncState = .noServer
+            syncCoordinator.reset()
+            syncCoordinator.setState(.noServer)
             return
         }
 
         guard syncMode != .custom || KeychainHelper.loadEndpoint() != nil else {
-            syncState = .noServer
+            syncCoordinator.reset()
+            syncCoordinator.setState(.noServer)
             return
         }
 
         guard KeychainHelper.loadHostKey() != nil else {
+            syncCoordinator.reset()
             showLogin = true
             return
         }
 
-        logEntries.removeAll()
-        syncState = .syncing(L("sync_preparing"))
-
-        do {
-            for try await event in syncClient.syncWithProgress() {
-                switch event {
-                case .mediaProgress(let total, let downloaded):
-                    mediaProgress = (total, downloaded)
-                    syncState = .syncingMedia(total: total, downloaded: downloaded)
-                    let msg = L("sync_media_progress", downloaded, total)
-                    logEntries.append(SyncLogEntry(date: .now, message: msg))
-                case .completed(let summary):
-                    if syncMediaEnabled {
-                        SyncPreferences.recordMediaSyncLog(L("sync_settings_media_log_success"))
-                    }
-                    syncState = .success(summary)
-                    return
-                default:
-                    let msg = logMessage(for: event)
-                    logEntries.append(SyncLogEntry(date: .now, message: msg))
-                    syncState = .syncing(msg)
-                }
-            }
-        } catch let err as SyncError where err == .authFailed {
-            showLogin = true
-            syncState = .idle
-        } catch let err as SyncError where err == .fullSyncRequired {
-            syncState = .needsFullSync
-        } catch {
-            if syncMediaEnabled {
-                SyncPreferences.recordMediaSyncLog(
-                    L("sync_settings_media_log_failed", error.localizedDescription)
-                )
-            }
-            syncState = .error(error.localizedDescription)
-        }
-    }
-
-    private func logMessage(for event: SyncProgressEvent) -> String {
-        switch event {
-        case .connecting:
-            return L("sync_log_connecting")
-        case .normalSync:
-            return L("sync_log_syncing_changes")
-        case .fullDownloading:
-            return L("sync_full_downloading")
-        case .fullUploading:
-            return L("sync_full_uploading")
-        case .checkingDatabase:
-            return L("sync_log_checking_db")
-        case .syncingMedia:
-            return L("sync_syncing_media")
-        case .mediaProgress(let total, let downloaded):
-            return L("sync_media_progress", downloaded, total)
-        case .mediaRetry(let failed, let attempt, let delay):
-            return L("sync_media_retry", failed, attempt, delay)
-        case .noteStats(let added, let removed):
-            if added > 0 && removed > 0 {
-                return L("sync_log_notes_stats_both", added, removed)
-            } else if added > 0 {
-                return L("sync_log_notes_added", added)
-            } else if removed > 0 {
-                return L("sync_log_notes_removed", removed)
-            } else {
-                return L("sync_log_no_note_changes")
-            }
-        case .mediaStats(let checked, let added, let removed):
-            return L("sync_log_media_stats", checked, added, removed)
-        case .completed:
-            return L("sync_log_complete")
-        }
+        syncCoordinator.startSync(syncClient: syncClient, syncMediaEnabled: syncMediaEnabled)
     }
 
     private func logout() {
         AppSyncAuthEvents.clearCredentials()
-        logEntries.removeAll()
-        syncState = .idle
+        syncCoordinator.reset()
         isPresented = false
     }
 
@@ -478,7 +419,7 @@ struct SyncSheet: View {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-            if !logEntries.isEmpty {
+            if !syncCoordinator.logEntries.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L("sync_log_section_title"))
                         .font(.caption2.weight(.semibold))
@@ -486,7 +427,7 @@ struct SyncSheet: View {
                         .padding(.horizontal, 4)
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 3) {
-                            ForEach(logEntries) { entry in
+                            ForEach(syncCoordinator.logEntries) { entry in
                                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                                     Text(entry.date, style: .time)
                                         .font(.caption2.monospacedDigit())
@@ -569,17 +510,7 @@ struct SyncSheet: View {
     }
 
     private func fullSync(_ direction: SyncDirection) async {
-        logEntries.removeAll()
-        let msg = direction == .download ? L("sync_full_downloading") : L("sync_full_uploading")
-        logEntries.append(SyncLogEntry(date: .now, message: msg))
-        syncState = .syncing(msg)
-        do {
-            try await syncClient.fullSync(direction)
-            logEntries.append(SyncLogEntry(date: .now, message: L("sync_log_complete")))
-            syncState = .success(SyncSummary())
-        } catch {
-            syncState = .error(error.localizedDescription)
-        }
+        syncCoordinator.startFullSync(direction, syncClient: syncClient)
     }
 }
 

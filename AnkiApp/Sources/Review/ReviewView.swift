@@ -280,7 +280,7 @@ struct ReviewView: View {
                 }
             }
         )
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .overlay(alignment: .bottom) {
             cardActionBar
                 .onGeometryChange(for: CGFloat.self) { geo in
                     geo.size.height
