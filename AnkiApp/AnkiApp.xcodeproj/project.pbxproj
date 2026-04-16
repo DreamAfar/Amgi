@@ -17,6 +17,8 @@
 		225158C73F92195729D274D0 /* DeckListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8BCE5F7A1620D00F69AFDC1 /* DeckListView.swift */; };
 		34F00C71BBA07AE73683E392 /* TodayStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA6EA7DA097219C6A75765D /* TodayStatsCard.swift */; };
 		3D5B46712FE4B7D4B8719875 /* AddNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EED5A3D98F7F2D9B863B9DA /* AddNoteView.swift */; };
+		AA22BB33CC44DD55EE66FF77 /* AddImageOcclusionNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB33CC44DD55EE66FF77AA22 /* AddImageOcclusionNoteView.swift */; };
+		CC44DDEE55FF6677AA88BB11 /* EditImageOcclusionNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD55EEFF6677AA88BB1122CC /* EditImageOcclusionNoteView.swift */; };
 		4460A2301DE97E0780D2E762 /* PeriodPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900500C20165285B716ACB46 /* PeriodPicker.swift */; };
 		4AB30C478F568F0641B6028E /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E6B120889D7FD1AC7C994AD /* OnboardingView.swift */; };
 		574DF8913BAB353B9983FCF1 /* IntervalsChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADE35FA95A53774E43356440 /* IntervalsChart.swift */; };
@@ -51,6 +53,8 @@
 		0E6C72E8E55B163E1F9B14E4 /* StatsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsDashboardView.swift; sourceTree = "<group>"; };
 		182FC74C5BB359AB8817CA3A /* HourlyChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HourlyChart.swift; sourceTree = "<group>"; };
 		1EED5A3D98F7F2D9B863B9DA /* AddNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddNoteView.swift; sourceTree = "<group>"; };
+		BB33CC44DD55EE66FF77AA22 /* AddImageOcclusionNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddImageOcclusionNoteView.swift; sourceTree = "<group>"; };
+		DD55EEFF6677AA88BB1122CC /* EditImageOcclusionNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditImageOcclusionNoteView.swift; sourceTree = "<group>"; };
 		244155888877C7D1CC697ED1 /* AddedChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddedChart.swift; sourceTree = "<group>"; };
 		3BA4253570515B2919185E72 /* RetentionChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionChart.swift; sourceTree = "<group>"; };
 		3E282F6876B5D6249582FFF8 /* ReviewsChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewsChart.swift; sourceTree = "<group>"; };
@@ -143,8 +147,7 @@
 		8856B169CCAAB64DDC1808E4 /* Browse */ = {
 			isa = PBXGroup;
 			children = (
-				1EED5A3D98F7F2D9B863B9DA /* AddNoteView.swift */,
-				7B2B1D1A27A4E6006627BF7B /* BrowseView.swift */,
+				1EED5A3D98F7F2D9B863B9DA /* AddNoteView.swift */,					BB33CC44DD55EE66FF77AA22 /* AddImageOcclusionNoteView.swift */,				DD55EEFF6677AA88BB1122CC /* EditImageOcclusionNoteView.swift */,				7B2B1D1A27A4E6006627BF7B /* BrowseView.swift */,
 				6C2B9450B8065B8BB0C86780 /* NoteEditorView.swift */,
 			);
 			path = Browse;
@@ -268,6 +271,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				3D5B46712FE4B7D4B8719875 /* AddNoteView.swift in Sources */,
+					AA22BB33CC44DD55EE66FF77 /* AddImageOcclusionNoteView.swift in Sources */,
+					CC44DDEE55FF6677AA88BB11 /* EditImageOcclusionNoteView.swift in Sources */,
 				C2A1AE8CAE0E0B48CD733FB3 /* AddedChart.swift in Sources */,
 				982708AA843E1E7A17B0A215 /* AnkiAppApp.swift in Sources */,
 				C20D662F27A068D4781013BB /* BrowseView.swift in Sources */,

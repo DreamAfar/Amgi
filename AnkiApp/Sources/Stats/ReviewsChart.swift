@@ -167,7 +167,6 @@ struct ReviewsChart: View {
                     width: barWidth
                 )
                 .foregroundStyle(by: .value("Type", entry.type))
-                .stacked(using: .standard)
             }
             ForEach(cumulativePoints) { pt in
                 LineMark(

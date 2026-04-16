@@ -177,6 +177,7 @@ extension AnkiBackend {
         public static let notes: UInt32 = 25
         public static let cardRendering: UInt32 = 27
         public static let search: UInt32 = 29
+        public static let imageOcclusion: UInt32 = 35
         public static let importExport: UInt32 = 37
         public static let media: UInt32 = 39
         public static let stats: UInt32 = 41
@@ -342,5 +343,18 @@ extension AnkiBackend {
 
         // Backward-compatible aliases
         public static let getTagTree: UInt32 = tagTree
+    }
+
+    public enum ImageOcclusionMethod {
+        // BackendImageOcclusionService (service 35) — all delegated from ImageOcclusionService.
+        // Method order in ImageOcclusionService:
+        //   0=GetImageForOcclusion, 1=GetImageOcclusionNote, 2=GetImageOcclusionFields,
+        //   3=AddImageOcclusionNotetype, 4=AddImageOcclusionNote, 5=UpdateImageOcclusionNote
+        public static let getImageForOcclusion: UInt32 = 0
+        public static let getImageOcclusionNote: UInt32 = 1
+        public static let getImageOcclusionFields: UInt32 = 2
+        public static let addImageOcclusionNotetype: UInt32 = 3
+        public static let addImageOcclusionNote: UInt32 = 4
+        public static let updateImageOcclusionNote: UInt32 = 5
     }
 }

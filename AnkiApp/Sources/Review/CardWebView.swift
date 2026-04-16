@@ -198,6 +198,21 @@ struct CardWebView: UIViewRepresentable {
                 border-radius: 8px;
                 margin: 8px 0;
             }
+            /* Image occlusion */
+            .cloze, .cloze-inactive, .cloze-highlight { display: none; }
+            #image-occlusion-container {
+                position: relative;
+                display: inline-block;
+                line-height: 0;
+            }
+            #image-occlusion-canvas {
+                position: absolute;
+                top: 0;
+                left: 0;
+                pointer-events: auto;
+                cursor: pointer;
+                border-radius: 8px;
+            }
             .missing-media {
                 display: inline-block;
                 background: rgba(255,60,60,0.15);
@@ -402,6 +417,196 @@ struct CardWebView: UIViewRepresentable {
         }
         window.amgiEnsureTypedAnswerVisible = amgiEnsureTypedAnswerVisible;
 
+        // ── Image Occlusion ──────────────────────────────────────────────
+        function amgiExtractIOShapes(selector) {
+            return Array.from(document.querySelectorAll(selector)).map(function(el) {
+                var pointsRaw = el.dataset.points;
+                var points = null;
+                if (pointsRaw) {
+                    var nums = pointsRaw.split(',').map(Number);
+                    points = [];
+                    for (var i = 0; i + 1 < nums.length; i += 2) {
+                        points.push({ x: nums[i], y: nums[i + 1] });
+                    }
+                }
+                return {
+                    type: el.dataset.shape,
+                    left: parseFloat(el.dataset.left || '0'),
+                    top: parseFloat(el.dataset.top || '0'),
+                    width: parseFloat(el.dataset.width || '0'),
+                    height: parseFloat(el.dataset.height || '0'),
+                    rx: parseFloat(el.dataset.rx || '0'),
+                    ry: parseFloat(el.dataset.ry || '0'),
+                    angle: parseFloat(el.dataset.angle || '0'),
+                    points: points,
+                };
+            });
+        }
+
+        function amgiDrawIOShape(ctx, shape, size, fill, stroke) {
+            var left = shape.left * size.width;
+            var top = shape.top * size.height;
+            var angle = shape.angle * Math.PI / 180;
+            ctx.save();
+            ctx.translate(left, top);
+            ctx.rotate(angle);
+            if (shape.type === 'rect') {
+                var sw = shape.width * size.width;
+                var sh = shape.height * size.height;
+                ctx.fillStyle = fill;
+                ctx.fillRect(0, 0, sw, sh);
+                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.strokeRect(0, 0, sw, sh); }
+            } else if (shape.type === 'ellipse') {
+                var rx = shape.rx * size.width;
+                var ry = shape.ry * size.height;
+                ctx.beginPath();
+                ctx.ellipse(rx, ry, rx, ry, 0, 0, 2 * Math.PI);
+                ctx.fillStyle = fill;
+                ctx.fill();
+                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+            } else if (shape.type === 'polygon' && shape.points && shape.points.length >= 2) {
+                ctx.beginPath();
+                ctx.moveTo(shape.points[0].x * size.width, shape.points[0].y * size.height);
+                for (var i = 1; i < shape.points.length; i++) {
+                    ctx.lineTo(shape.points[i].x * size.width, shape.points[i].y * size.height);
+                }
+                ctx.closePath();
+                ctx.fillStyle = fill;
+                ctx.fill();
+                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+            }
+            ctx.restore();
+        }
+
+        function amgiDrawIOShapes(ctx, size) {
+            var style = getComputedStyle(document.documentElement);
+            var inactiveColor  = style.getPropertyValue('--inactive-shape-color').trim()  || '#ffeba2';
+            var activeColor    = style.getPropertyValue('--active-shape-color').trim()    || '#ff8e8e';
+            var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
+            var border = '#212121';
+            amgiExtractIOShapes('.cloze-inactive').forEach(function(s) { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, inactiveColor, border); } });
+            amgiExtractIOShapes('.cloze').forEach(function(s)           { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, activeColor, border); } });
+            amgiExtractIOShapes('.cloze-highlight').forEach(function(s) { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, highlightColor, border); } });
+        }
+
+        // Hit-test: is canvas point (px, py) inside a shape?
+        function amgiHitTestShape(shape, px, py, size) {
+            var angle = shape.angle * Math.PI / 180;
+            var originX = shape.left * size.width;
+            var originY = shape.top * size.height;
+            // Transform to shape's local coordinate system
+            var dx = px - originX, dy = py - originY;
+            var lx = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+            var ly = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+
+            if (shape.type === 'rect') {
+                var sw = shape.width * size.width, sh = shape.height * size.height;
+                return lx >= 0 && lx <= sw && ly >= 0 && ly <= sh;
+            } else if (shape.type === 'ellipse') {
+                var rx = shape.rx * size.width, ry = shape.ry * size.height;
+                var ex = lx - rx, ey = ly - ry;
+                return (rx > 0 && ry > 0) ? ((ex*ex)/(rx*rx) + (ey*ey)/(ry*ry)) <= 1 : false;
+            } else if (shape.type === 'polygon' && shape.points && shape.points.length >= 3) {
+                // Ray casting
+                var pts = shape.points;
+                var inside = false;
+                for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+                    var xi = pts[i].x * size.width, yi = pts[i].y * size.height;
+                    var xj = pts[j].x * size.width, yj = pts[j].y * size.height;
+                    if (((yi > ly) !== (yj > ly)) && (lx < (xj - xi) * (ly - yi) / (yj - yi) + xi)) {
+                        inside = !inside;
+                    }
+                }
+                return inside;
+            }
+            return false;
+        }
+
+
+        function amgiSetupImageOcclusion() {
+            var container = document.getElementById('image-occlusion-container');
+            if (!container) return;
+            var img = container.querySelector('img');
+            if (!img) return;
+            var canvas = document.getElementById('image-occlusion-canvas');
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                canvas.id = 'image-occlusion-canvas';
+                container.appendChild(canvas);
+            }
+            var canvasRef = canvas;
+
+            // All shapes (collected once after load)
+            var allShapes = [];
+
+            function collectShapes() {
+                allShapes = [];
+                ['cloze-inactive', 'cloze', 'cloze-highlight'].forEach(function(cls) {
+                    amgiExtractIOShapes('.' + cls).forEach(function(s) {
+                        s._cls = cls;
+                        s._revealed = false;
+                        allShapes.push(s);
+                    });
+                });
+            }
+
+            function redraw() {
+                var dpr = window.devicePixelRatio || 1;
+                var w = img.offsetWidth, h = img.offsetHeight;
+                if (w === 0 || h === 0) return;
+                canvasRef.style.width = w + 'px';
+                canvasRef.style.height = h + 'px';
+                canvasRef.width = w * dpr;
+                canvasRef.height = h * dpr;
+                var ctx = canvasRef.getContext('2d');
+                ctx.scale(dpr, dpr);
+                var size = { width: w, height: h };
+                var style = getComputedStyle(document.documentElement);
+                var inactiveColor  = style.getPropertyValue('--inactive-shape-color').trim()  || '#ffeba2';
+                var activeColor    = style.getPropertyValue('--active-shape-color').trim()    || '#ff8e8e';
+                var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
+                var border = '#212121';
+                allShapes.forEach(function(s) {
+                    if (s._revealed) return;
+                    var fill = s._cls === 'cloze-inactive' ? inactiveColor :
+                               s._cls === 'cloze'          ? activeColor   : highlightColor;
+                    amgiDrawIOShape(ctx, s, size, fill, border);
+                });
+            }
+
+            function setupAndDraw() {
+                collectShapes();
+                redraw();
+
+                // Click-to-reveal interaction
+                canvasRef.addEventListener('click', function(e) {
+                    var rect = canvasRef.getBoundingClientRect();
+                    var px = (e.clientX - rect.left);
+                    var py = (e.clientY - rect.top);
+                    var size = { width: img.offsetWidth, height: img.offsetHeight };
+                    var hit = false;
+                    // Test in reverse order (top shapes first)
+                    for (var i = allShapes.length - 1; i >= 0; i--) {
+                        var s = allShapes[i];
+                        if (amgiHitTestShape(s, px, py, size)) {
+                            s._revealed = !s._revealed;
+                            hit = true;
+                            break;
+                        }
+                    }
+                    if (hit) redraw();
+                });
+            }
+
+            if (img.complete && img.naturalWidth > 0) {
+                setupAndDraw();
+            } else {
+                img.addEventListener('load', setupAndDraw);
+            }
+        }
+        window.amgiSetupImageOcclusion = amgiSetupImageOcclusion;
+        // ────────────────────────────────────────────────────────────────
+
         window.onload = function() {
             var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
 
@@ -443,6 +648,8 @@ struct CardWebView: UIViewRepresentable {
                 typeInput.focus();
                 ensureVisible();
             }
+
+            amgiSetupImageOcclusion();
         };
         </script>
         </head>

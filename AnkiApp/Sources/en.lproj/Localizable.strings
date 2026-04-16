@@ -594,6 +594,33 @@
 "browse_multiselect_accessibility" = "Multi-select";
 "browse_sort_accessibility" = "Sort";
 "browse_add_accessibility" = "Add note";
+"browse_add_note" = "Add Note";
+"browse_add_image_occlusion" = "Image Occlusion";
+
+// MARK: - AddImageOcclusionNoteView
+"io_nav_title" = "Image Occlusion";
+"io_section_image" = "Image";
+"io_pick_image" = "Choose Image";
+"io_section_masks" = "Masks";
+"io_masks_hint" = "Tap and drag on the image to draw a mask rectangle.";
+"io_shape_picker_label" = "Shape";
+"io_shape_rect" = "Rect";
+"io_shape_ellipse" = "Ellipse";
+"io_shape_polygon" = "Polygon";
+"io_hint_rect" = "Drag to draw a rectangle mask.";
+"io_hint_ellipse" = "Drag to draw an ellipse mask.";
+"io_hint_polygon" = "Tap to add vertices. Double-tap to finish polygon.";
+"io_edit_action" = "Edit Occlusion";
+"io_edit_nav_title" = "Edit Image Occlusion";
+"io_mask_count" = "%d mask(s)";
+"io_remove_last" = "Undo Last";
+"io_section_content" = "Content";
+"io_header_placeholder" = "Header (question prompt)";
+"io_back_extra_placeholder" = "Back Extra (optional)";
+"io_section_tags" = "Tags";
+"io_tags_placeholder" = "Tags (space separated)";
+"io_tags_hint" = "Enter tags separated by spaces.";
+
 "browse_more_accessibility" = "More";
 
 // MARK: - TagsView (extended)

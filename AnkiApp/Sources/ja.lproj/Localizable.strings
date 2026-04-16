@@ -594,6 +594,33 @@
 "browse_multiselect_accessibility" = "複数選択";
 "browse_sort_accessibility" = "並び替え";
 "browse_add_accessibility" = "ノートを追加";
+"browse_add_note" = "ノートを追加";
+"browse_add_image_occlusion" = "画像オクルージョン";
+
+// MARK: - AddImageOcclusionNoteView
+"io_nav_title" = "画像オクルージョン";
+"io_section_image" = "画像";
+"io_pick_image" = "画像を選択";
+"io_section_masks" = "マスク";
+"io_masks_hint" = "画像上でドラッグしてマスクを描いてください。";
+"io_shape_picker_label" = "形状";
+"io_shape_rect" = "矩形";
+"io_shape_ellipse" = "楕円";
+"io_shape_polygon" = "多角形";
+"io_hint_rect" = "ドラッグで矩形マスクを描いてください。";
+"io_hint_ellipse" = "ドラッグで楕円マスクを描いてください。";
+"io_hint_polygon" = "タップで頂点を追加、ダブルタップで確定。";
+"io_edit_action" = "オクルージョン編集";
+"io_edit_nav_title" = "イメージオクルージョン編集";
+"io_mask_count" = "%dつのマスク";
+"io_remove_last" = "最後を元に戻す";
+"io_section_content" = "内容";
+"io_header_placeholder" = "ヘッダー（質問プロンプト）";
+"io_back_extra_placeholder" = "裏面追加（任意）";
+"io_section_tags" = "タグ";
+"io_tags_placeholder" = "タグ（スペース区切り）";
+"io_tags_hint" = "スペースで区切って複数のタグを入力してください。";
+
 "browse_more_accessibility" = "その他";
 
 // MARK: - TagsView (extended)

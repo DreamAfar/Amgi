@@ -27,6 +27,8 @@ struct BrowseView: View {
     @State private var isLoading = false
     @State private var hasMorePages = true
     @State private var showAddNote = false
+    @State private var showAddImageOcclusion = false
+    @State private var editIOItem: IONoteEditItem?
     @State private var selectedNoteForDelete: NoteRecord?
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
@@ -166,8 +168,17 @@ struct BrowseView: View {
                 }
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        showAddNote = true
+                    Menu {
+                        Button {
+                            showAddNote = true
+                        } label: {
+                            Label(L("browse_add_note"), systemImage: "note.text.badge.plus")
+                        }
+                        Button {
+                            showAddImageOcclusion = true
+                        } label: {
+                            Label(L("browse_add_image_occlusion"), systemImage: "rectangle.dashed.badge.record")
+                        }
                     } label: {
                         Image(systemName: "plus")
                     }
@@ -208,7 +219,16 @@ struct BrowseView: View {
                 scheduleSearch()
             }
         }
-        .sheet(isPresented: $showTagsManager, onDismiss: {
+        .sheet(isPresented: $showAddImageOcclusion) {
+            AddImageOcclusionNoteView {
+                scheduleSearch()
+            }
+        }
+        .sheet(item: $editIOItem) { item in
+            EditImageOcclusionNoteView(noteId: item.noteId) {
+                scheduleSearch()
+            }
+        }        .sheet(isPresented: $showTagsManager, onDismiss: {
             activeSearchTask?.cancel()
             activeSearchTask = nil
             activeSearchTask = Task {
@@ -365,6 +385,16 @@ struct BrowseView: View {
                             showDeleteConfirm = true
                         } label: {
                             Label(L("common_delete"), systemImage: "trash")
+                        }
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        if note.flds.contains("image-occlusion:") {
+                            Button {
+                                editIOItem = IONoteEditItem(noteId: note.id)
+                            } label: {
+                                Label(L("io_edit_action"), systemImage: "pencil.and.scribble")
+                            }
+                            .tint(.indigo)
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
@@ -1430,4 +1460,11 @@ struct ChangeNotetypeSheet: View {
             showError = true
         }
     }
+}
+
+// MARK: - IONoteEditItem
+
+struct IONoteEditItem: Identifiable {
+    let id = UUID()
+    let noteId: Int64
 }

@@ -594,6 +594,33 @@
 "browse_multiselect_accessibility" = "多选";
 "browse_sort_accessibility" = "排序";
 "browse_add_accessibility" = "添加笔记";
+"browse_add_note" = "添加笔记";
+"browse_add_image_occlusion" = "图片遮罩";
+
+// MARK: - AddImageOcclusionNoteView
+"io_nav_title" = "图片遮罩";
+"io_section_image" = "图片";
+"io_pick_image" = "选择图片";
+"io_section_masks" = "遮罩";
+"io_masks_hint" = "在图片上拖动以绘制遮罩矩形。";
+"io_shape_picker_label" = "形状";
+"io_shape_rect" = "矩形";
+"io_shape_ellipse" = "椭圆";
+"io_shape_polygon" = "多边形";
+"io_hint_rect" = "拖动以绘制矩形遮罩。";
+"io_hint_ellipse" = "拖动以绘制椭圆遮罩。";
+"io_hint_polygon" = "点击添加顶点，双击完成多边形。";
+"io_edit_action" = "编辑遮罩";
+"io_edit_nav_title" = "编辑图片遮罩";
+"io_mask_count" = "%d 个遮罩";
+"io_remove_last" = "撤销上一步";
+"io_section_content" = "内容";
+"io_header_placeholder" = "标题（问题提示）";
+"io_back_extra_placeholder" = "背面附加（可选）";
+"io_section_tags" = "标签";
+"io_tags_placeholder" = "标签（空格分隔）";
+"io_tags_hint" = "用空格分隔多个标签。";
+
 "browse_more_accessibility" = "更多";
 
 // MARK: - TagsView (extended)
