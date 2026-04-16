@@ -977,13 +977,8 @@ struct CardWebView: UIViewRepresentable {
                 webView.loadHTMLString(styledHTML, baseURL: nil)
                 return
             }
-            let renderCacheDir = Self.cardWrapperDirectoryURL(in: mediaDir)
             let htmlFile = Self.cardWrapperFileURL(in: mediaDir)
             do {
-                try FileManager.default.createDirectory(
-                    at: renderCacheDir,
-                    withIntermediateDirectories: true
-                )
                 try styledHTML.write(to: htmlFile, atomically: true, encoding: .utf8)
                 webView.loadFileURL(htmlFile, allowingReadAccessTo: mediaDir)
             } catch {
@@ -1086,12 +1081,8 @@ struct CardWebView: UIViewRepresentable {
         mediaDir.map { #"<base href="\#($0.absoluteString)">"# } ?? ""
     }
 
-    static func cardWrapperDirectoryURL(in mediaDir: URL) -> URL {
-        mediaDir.appendingPathComponent(".amgi-render-cache", isDirectory: true)
-    }
-
     static func cardWrapperFileURL(in mediaDir: URL) -> URL {
-        cardWrapperDirectoryURL(in: mediaDir).appendingPathComponent("card.html")
+        mediaDir.appendingPathComponent(".amgi-card-wrapper.html")
     }
 
     /// Returns the media directory URL for the currently selected user.

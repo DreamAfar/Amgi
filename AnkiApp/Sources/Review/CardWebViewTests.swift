@@ -11,14 +11,11 @@ final class CardWebViewTests: XCTestCase {
         )
     }
 
-    func testCardWrapperFileUsesPrivateRenderCacheDirectory() {
+    func testCardWrapperFileUsesHiddenFileInMediaRoot() {
         let mediaDir = URL(fileURLWithPath: "/tmp/anki-media", isDirectory: true)
-        let wrapperDirectory = CardWebView.cardWrapperDirectoryURL(in: mediaDir)
         let wrapperFile = CardWebView.cardWrapperFileURL(in: mediaDir)
 
-        XCTAssertEqual(wrapperDirectory.lastPathComponent, ".amgi-render-cache")
-        XCTAssertEqual(wrapperFile.lastPathComponent, "card.html")
-        XCTAssertEqual(wrapperFile.deletingLastPathComponent(), wrapperDirectory)
-        XCTAssertEqual(wrapperDirectory.deletingLastPathComponent(), mediaDir)
+        XCTAssertEqual(wrapperFile.lastPathComponent, ".amgi-card-wrapper.html")
+        XCTAssertEqual(wrapperFile.deletingLastPathComponent(), mediaDir)
     }
 }
