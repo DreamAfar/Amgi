@@ -653,6 +653,21 @@ struct CardWebView: UIViewRepresentable {
                 return;
             }
 
+            if (shape.type === 'polygon' && shape.points && shape.points.length >= 2) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(shape.points[0].x * size.width, shape.points[0].y * size.height);
+                for (var polygonIndex = 1; polygonIndex < shape.points.length; polygonIndex++) {
+                    ctx.lineTo(shape.points[polygonIndex].x * size.width, shape.points[polygonIndex].y * size.height);
+                }
+                ctx.closePath();
+                ctx.fillStyle = fill;
+                ctx.fill();
+                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+                ctx.restore();
+                return;
+            }
+
             var left = shape.left * size.width;
             var top = shape.top * size.height;
             var angle = shape.angle * Math.PI / 180;
@@ -673,16 +688,6 @@ struct CardWebView: UIViewRepresentable {
                 ctx.fillStyle = fill;
                 ctx.fill();
                 if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
-            } else if (shape.type === 'polygon' && shape.points && shape.points.length >= 2) {
-                ctx.beginPath();
-                ctx.moveTo(shape.points[0].x * size.width, shape.points[0].y * size.height);
-                for (var i = 1; i < shape.points.length; i++) {
-                    ctx.lineTo(shape.points[i].x * size.width, shape.points[i].y * size.height);
-                }
-                ctx.closePath();
-                ctx.fillStyle = fill;
-                ctx.fill();
-                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
             }
             ctx.restore();
         }
@@ -700,6 +705,20 @@ struct CardWebView: UIViewRepresentable {
 
         // Hit-test: is canvas point (px, py) inside a shape?
         function amgiHitTestShape(shape, px, py, size) {
+            if (shape.type === 'polygon' && shape.points && shape.points.length >= 3) {
+                var polygonInside = false;
+                for (var polygonIndex = 0, polygonPrev = shape.points.length - 1; polygonIndex < shape.points.length; polygonPrev = polygonIndex++) {
+                    var polygonXi = shape.points[polygonIndex].x * size.width;
+                    var polygonYi = shape.points[polygonIndex].y * size.height;
+                    var polygonXj = shape.points[polygonPrev].x * size.width;
+                    var polygonYj = shape.points[polygonPrev].y * size.height;
+                    if (((polygonYi > py) !== (polygonYj > py)) && (px < (polygonXj - polygonXi) * (py - polygonYi) / (polygonYj - polygonYi) + polygonXi)) {
+                        polygonInside = !polygonInside;
+                    }
+                }
+                return polygonInside;
+            }
+
             var angle = shape.angle * Math.PI / 180;
             var originX = shape.left * size.width;
             var originY = shape.top * size.height;
@@ -715,18 +734,6 @@ struct CardWebView: UIViewRepresentable {
                 var rx = shape.rx * size.width, ry = shape.ry * size.height;
                 var ex = lx - rx, ey = ly - ry;
                 return (rx > 0 && ry > 0) ? ((ex*ex)/(rx*rx) + (ey*ey)/(ry*ry)) <= 1 : false;
-            } else if (shape.type === 'polygon' && shape.points && shape.points.length >= 3) {
-                // Ray casting
-                var pts = shape.points;
-                var inside = false;
-                for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-                    var xi = pts[i].x * size.width, yi = pts[i].y * size.height;
-                    var xj = pts[j].x * size.width, yj = pts[j].y * size.height;
-                    if (((yi > ly) !== (yj > ly)) && (lx < (xj - xi) * (ly - yi) / (yj - yi) + xi)) {
-                        inside = !inside;
-                    }
-                }
-                return inside;
             } else if (shape.type === 'text') {
                 var scale = shape.scale > 0 ? shape.scale : 1;
                 var fontSize = (shape.fontSize > 0 ? shape.fontSize * size.height : 40);
@@ -775,6 +782,7 @@ struct CardWebView: UIViewRepresentable {
             // All shapes (collected once after load)
             var allShapes = [];
             var masksHidden = false;
+            var allowsMaskReveal = IS_ANSWER_SIDE;
 
             function collectShapes() {
                 allShapes = [];
@@ -797,7 +805,8 @@ struct CardWebView: UIViewRepresentable {
                 canvasRef.height = h * dpr;
                 var ctx = canvasRef.getContext('2d');
                 ctx.scale(dpr, dpr);
-                canvasRef.style.pointerEvents = masksHidden ? 'none' : 'auto';
+                canvasRef.style.pointerEvents = allowsMaskReveal && !masksHidden ? 'auto' : 'none';
+                canvasRef.style.cursor = allowsMaskReveal && !masksHidden ? 'pointer' : 'default';
                 var size = { width: w, height: h };
                 if (masksHidden) {
                     allShapes.forEach(function(s) {
@@ -826,7 +835,7 @@ struct CardWebView: UIViewRepresentable {
 
                 // Click-to-reveal interaction
                 canvasRef.addEventListener('click', function(e) {
-                    if (masksHidden) {
+                    if (!allowsMaskReveal || masksHidden) {
                         return;
                     }
                     var rect = canvasRef.getBoundingClientRect();
@@ -852,20 +861,25 @@ struct CardWebView: UIViewRepresentable {
                                 document.querySelector('.toggle');
                 if (toggleBtn) {
                     toggleBtn.type = 'button';
+                    toggleBtn.setAttribute('aria-pressed', 'false');
                     var hasInactiveMasks = allShapes.some(function(s) {
                         return s._cls === 'cloze-inactive';
                     }) || !!document.querySelector('[data-occludeinactive="1"]');
 
-                    if (!hasInactiveMasks) {
+                    if (!IS_ANSWER_SIDE || !hasInactiveMasks) {
                         toggleBtn.style.display = 'none';
                     } else {
                         var toggleMasks = function(event) {
-                            event.preventDefault();
-                            event.stopPropagation();
+                            if (event) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                            }
                             masksHidden = !masksHidden;
                             toggleBtn.setAttribute('aria-pressed', masksHidden ? 'true' : 'false');
                             if (!masksHidden) {
-                                canvasRef.style.pointerEvents = 'auto';
+                                allShapes.forEach(function(s) {
+                                    s._revealed = false;
+                                });
                             }
                             redraw();
                         };
