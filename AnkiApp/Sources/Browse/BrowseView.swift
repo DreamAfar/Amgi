@@ -228,7 +228,8 @@ struct BrowseView: View {
             EditImageOcclusionNoteView(noteId: item.noteId) {
                 scheduleSearch()
             }
-        }        .sheet(isPresented: $showTagsManager, onDismiss: {
+        }
+        .sheet(isPresented: $showTagsManager, onDismiss: {
             activeSearchTask?.cancel()
             activeSearchTask = nil
             activeSearchTask = Task {

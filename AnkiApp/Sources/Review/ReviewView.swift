@@ -51,6 +51,7 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var prefShowNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var prefOpenLinksExternally = true
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.center.rawValue
+    @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
 
     private var prefCardContentAlignment: CardWebView.ContentAlignment {
         CardWebView.ContentAlignment(rawValue: prefCardContentAlignmentRaw) ?? .center
@@ -395,36 +396,56 @@ struct ReviewView: View {
         .padding()
     }
 
+    @ViewBuilder
     private func ratingButton(_ rating: Rating, color: Color) -> some View {
-        Button {
-            if prefShowCorrectnessSymbols {
-                answerFeedbackSymbol = feedbackSymbol(for: rating)
-                Task {
-                    try? await Task.sleep(nanoseconds: 450_000_000)
-                    await MainActor.run { answerFeedbackSymbol = nil }
-                }
+        if #available(iOS 26.0, *), prefGlassAnswerButtons {
+            Button {
+                ratingButtonAction(rating)
+            } label: {
+                ratingButtonLabel(rating)
             }
-            session.answer(rating: rating)
-        } label: {
-            VStack(spacing: 4) {
-                if prefShowRemainingDays {
-                    Text(session.nextIntervals[rating] ?? "")
-                        .font(.caption2)
-                }
-                if prefShowNextReviewTime,
-                   let seconds = session.nextIntervalSeconds[rating] {
-                    Text(formatNextReviewTime(seconds))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Text(ratingLabel(rating))
-                    .font(.subheadline.weight(.medium))
+            .buttonStyle(.glass)
+            .tint(color)
+        } else {
+            Button {
+                ratingButtonAction(rating)
+            } label: {
+                ratingButtonLabel(rating)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .buttonStyle(.borderedProminent)
+            .tint(color)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(color)
+    }
+
+    private func ratingButtonAction(_ rating: Rating) {
+        if prefShowCorrectnessSymbols {
+            answerFeedbackSymbol = feedbackSymbol(for: rating)
+            Task {
+                try? await Task.sleep(nanoseconds: 450_000_000)
+                await MainActor.run { answerFeedbackSymbol = nil }
+            }
+        }
+        session.answer(rating: rating)
+    }
+
+    @ViewBuilder
+    private func ratingButtonLabel(_ rating: Rating) -> some View {
+        VStack(spacing: 4) {
+            if prefShowRemainingDays {
+                Text(session.nextIntervals[rating] ?? "")
+                    .font(.caption2)
+            }
+            if prefShowNextReviewTime,
+               let seconds = session.nextIntervalSeconds[rating] {
+                Text(formatNextReviewTime(seconds))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Text(ratingLabel(rating))
+                .font(.subheadline.weight(.medium))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
     }
 
     private func ratingLabel(_ rating: Rating) -> String {

@@ -110,7 +110,7 @@ private func copyImageToMedia(imageURL: URL) throws -> String {
     }
 
     let ext = imageURL.pathExtension.isEmpty ? "jpg" : imageURL.pathExtension
-    let filename = "io_\(Int(Date().timeIntervalSince1970)).\(ext)"
+    let filename = "io_\(UUID().uuidString).\(ext)"
     let dest = mediaDir.appendingPathComponent(filename)
 
     if !FileManager.default.fileExists(atPath: mediaDir.path) {

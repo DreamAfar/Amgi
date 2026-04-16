@@ -10,6 +10,7 @@ struct DeckListHeatmapCard: View {
     @AppStorage(DeckListHeatmapSettings.heightKey) private var deckListHeatmapHeight = DeckListHeatmapSettings.defaultHeight
     @AppStorage(DeckListHeatmapSettings.scopeKey) private var heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
     @AppStorage(DeckListHeatmapSettings.selectedDeckIDKey) private var selectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
+    @AppStorage(DeckListHeatmapSettings.initialDaysKey) private var initialDaysRaw = DeckListHeatmapSettings.defaultInitialDays
 
     let refreshID: Int
 
@@ -98,23 +99,19 @@ struct DeckListHeatmapCard: View {
         do {
             let query = try resolvedSearchQuery()
             let client = statsClient
+            let days = initialDaysRaw  // 0 = all history
 
-            // Load 6 months of data off the MainActor
             let bytes = try await Task.detached(priority: .userInitiated) {
-                try client.fetchGraphs(query, 180)
+                try client.fetchGraphs(query, days)
             }.value
             try Task.checkCancellation()
             graphs = try Anki_Stats_GraphsResponse(serializedBytes: bytes)
-
-        } catch is CancellationError {
-            isLoading = false
-            return
-        } catch {
-            isLoading = false
-            if graphs == nil {
-                loadError = true
+            // If user already chose "all history" in settings, mark as loaded
+            if days == HeatmapInitialDays.allHistory.rawValue {
+                hasLoadedFullHistory = true
             }
-            return
+        } catch {
+            loadError = true
         }
         isLoading = false
     }

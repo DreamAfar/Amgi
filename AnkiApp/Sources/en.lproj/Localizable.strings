@@ -280,6 +280,11 @@
 "settings_display_show_deck_heatmap" = "Show review heatmap above decks";
 "settings_display_deck_heatmap_height" = "Deck heatmap height";
 "settings_display_deck_heatmap_height_value" = "%d pt";
+"settings_heatmap_initial_range" = "Initial Range";
+"heatmap_range_3_months" = "3 Months";
+"heatmap_range_6_months" = "6 Months";
+"heatmap_range_1_year" = "1 Year";
+"heatmap_range_all" = "All History";
 "settings_display_heatmap_scope" = "Heatmap data range";
 "settings_display_heatmap_scope_all" = "All current decks";
 "settings_display_heatmap_scope_selected" = "Selected deck";
@@ -995,6 +1000,7 @@
 "settings_review_show_remaining_days" = "Show remaining days";
 "settings_review_show_next_review_time" = "Show next review time";
 "settings_review_open_links_externally" = "Open links in external browser";
+"settings_review_glass_answer_buttons" = "Liquid Glass Buttons (iOS 26+)";
 "settings_review_card_alignment" = "Card content alignment";
 "settings_review_alignment_top" = "Top";
 "settings_review_alignment_center" = "Center";

@@ -58,11 +58,11 @@ struct EditImageOcclusionNoteView: View {
 
                             Section {
                                 OcclusionCanvasView(
-                            image: img,
-                            masks: $masks,
-                            shapeType: shapeType,
-                            onAppend: appendMask(_:)
-                        )
+                                    image: img,
+                                    masks: $masks,
+                                    shapeType: shapeType,
+                                    onAppend: appendMask(_:)
+                                )
                                     .frame(height: canvasHeight(for: img))
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
 

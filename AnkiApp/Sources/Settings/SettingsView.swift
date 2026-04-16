@@ -356,6 +356,7 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var showNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var openLinksExternally = true
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var cardContentAlignmentRaw = CardAlignment.center.rawValue
+    @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var glassAnswerButtons = false
 
     private var cardAlignment: Binding<CardAlignment> {
         Binding(
@@ -381,6 +382,10 @@ private struct ReviewOptionsView: View {
                 Toggle(L("settings_review_show_next_review_time"), isOn: $showNextReviewTime)
                 Toggle(L("settings_review_open_links_externally"), isOn: $openLinksExternally)
 
+                if #available(iOS 26.0, *) {
+                    Toggle(L("settings_review_glass_answer_buttons"), isOn: $glassAnswerButtons)
+                }
+
                 Picker(L("settings_review_card_alignment"), selection: cardAlignment) {
                     ForEach(CardAlignment.allCases) { alignment in
                         Text(alignment.title)
@@ -404,6 +409,7 @@ private struct DeckListHeatmapSettingsView: View {
     @AppStorage(DeckListHeatmapSettings.heightKey) private var deckListHeatmapHeight = DeckListHeatmapSettings.defaultHeight
     @AppStorage(DeckListHeatmapSettings.scopeKey) private var heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
     @AppStorage(DeckListHeatmapSettings.selectedDeckIDKey) private var selectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
+    @AppStorage(DeckListHeatmapSettings.initialDaysKey) private var initialDaysRaw = DeckListHeatmapSettings.defaultInitialDays
 
     @State private var decks: [DeckInfo] = []
 
@@ -467,6 +473,21 @@ private struct DeckListHeatmapSettingsView: View {
                         }
 
                         Slider(value: $deckListHeatmapHeight, in: 136...220, step: 4)
+                    }
+
+                    HStack {
+                        Label(L("settings_heatmap_initial_range"), systemImage: "calendar")
+                        Spacer()
+                        Picker(L("settings_heatmap_initial_range"), selection: $initialDaysRaw) {
+                            ForEach(HeatmapInitialDays.allCases) { option in
+                                Text(option.localizedLabel)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(option.rawValue)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .tint(SettingsValueStyle.highlight)
                     }
                 }
             }

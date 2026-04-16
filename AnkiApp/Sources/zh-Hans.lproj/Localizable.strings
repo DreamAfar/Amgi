@@ -280,6 +280,11 @@
 "settings_display_show_deck_heatmap" = "在牌组上方显示复习热力图";
 "settings_display_deck_heatmap_height" = "牌组热力图高度";
 "settings_display_deck_heatmap_height_value" = "%d 点";
+"settings_heatmap_initial_range" = "初始加载范围";
+"heatmap_range_3_months" = "近3个月";
+"heatmap_range_6_months" = "近半年";
+"heatmap_range_1_year" = "近1年";
+"heatmap_range_all" = "全部历史";
 "settings_display_heatmap_scope" = "热力图数据范围";
 "settings_display_heatmap_scope_all" = "全部当前牌组";
 "settings_display_heatmap_scope_selected" = "指定牌组";
@@ -1000,6 +1005,7 @@
 "settings_review_show_remaining_days" = "显示剩余天数";
 "settings_review_show_next_review_time" = "显示下次答题时间";
 "settings_review_open_links_externally" = "在外部浏览器中打开链接";
+"settings_review_glass_answer_buttons" = "液态玻璃按钮（iOS 26+）";
 "settings_review_card_alignment" = "模板内容对齐";
 "settings_review_alignment_top" = "顶部对齐";
 "settings_review_alignment_center" = "居中对齐";

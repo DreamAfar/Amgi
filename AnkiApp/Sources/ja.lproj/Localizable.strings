@@ -280,6 +280,11 @@
 "settings_display_show_deck_heatmap" = "デッキ上部に復習ヒートマップを表示";
 "settings_display_deck_heatmap_height" = "デッキのヒートマップ高さ";
 "settings_display_deck_heatmap_height_value" = "%d pt";
+"settings_heatmap_initial_range" = "初期表示範囲";
+"heatmap_range_3_months" = "3ヶ月";
+"heatmap_range_6_months" = "6ヶ月";
+"heatmap_range_1_year" = "1年";
+"heatmap_range_all" = "全履歴";
 "settings_display_heatmap_scope" = "ヒートマップの対象範囲";
 "settings_display_heatmap_scope_all" = "現在の全デッキ";
 "settings_display_heatmap_scope_selected" = "特定のデッキ";
@@ -1002,6 +1007,7 @@
 "settings_review_show_remaining_days" = "残り日数を表示";
 "settings_review_show_next_review_time" = "次回回答時刻を表示";
 "settings_review_open_links_externally" = "リンクを外部ブラウザで開く";
+"settings_review_glass_answer_buttons" = "液状ガラスボタン（iOS 26+）";
 "settings_review_card_alignment" = "カード内容の配置";
 "settings_review_alignment_top" = "上寄せ";
 "settings_review_alignment_center" = "中央";

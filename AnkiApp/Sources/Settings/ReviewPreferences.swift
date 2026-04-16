@@ -13,6 +13,7 @@ enum ReviewPreferences {
         static let showNextReviewTime = "review_pref_show_next_review_time"
         static let openLinksExternally = "review_pref_open_links_externally"
         static let cardContentAlignment = "review_pref_card_content_alignment"
+        static let glassAnswerButtons = "review_pref_glass_answer_buttons"
     }
 }
 
