@@ -24,6 +24,7 @@ struct CardWebView: UIViewRepresentable {
     let replayRequestID: Int
     let typedAnswerRequestID: Int
     let replayMode: ReplayMode
+    let showInlineAudioReplayButtons: Bool
     let openLinksExternally: Bool
     let contentAlignment: ContentAlignment
     let bottomContentInset: CGFloat
@@ -38,6 +39,7 @@ struct CardWebView: UIViewRepresentable {
         replayRequestID: Int = 0,
         typedAnswerRequestID: Int = 0,
         replayMode: ReplayMode = .question,
+        showInlineAudioReplayButtons: Bool = true,
         openLinksExternally: Bool = true,
         contentAlignment: ContentAlignment = .center,
         bottomContentInset: CGFloat = 0,
@@ -51,6 +53,7 @@ struct CardWebView: UIViewRepresentable {
         self.replayRequestID = replayRequestID
         self.typedAnswerRequestID = typedAnswerRequestID
         self.replayMode = replayMode
+        self.showInlineAudioReplayButtons = showInlineAudioReplayButtons
         self.openLinksExternally = openLinksExternally
         self.contentAlignment = contentAlignment
         self.bottomContentInset = bottomContentInset
@@ -95,9 +98,13 @@ struct CardWebView: UIViewRepresentable {
         // Convert Anki [sound:filename.mp3] tags to <audio> HTML elements.
         // The Rust renderer keeps these tags literal; the client must expand them.
         let isDarkMode = colorScheme == .dark
-        let processedHTML = Self.expandSoundTags(html, isDarkMode: isDarkMode)
+        let processedHTML = Self.expandSoundTags(
+            html,
+            isDarkMode: isDarkMode,
+            showReplayButtons: showInlineAudioReplayButtons
+        )
         let hasTypedAnswerInput = !isAnswerSide && processedHTML.contains("id=\"typeans\"")
-        let loadSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(contentAlignment.rawValue)|\(isDarkMode)|\(processedHTML.hashValue)"
+        let loadSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(showInlineAudioReplayButtons)|\(contentAlignment.rawValue)|\(isDarkMode)|\(processedHTML.hashValue)"
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
@@ -105,12 +112,13 @@ struct CardWebView: UIViewRepresentable {
         if context.coordinator.lastLoadSignature != loadSignature {
             context.coordinator.lastLoadSignature = loadSignature
             let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
+            let htmlClass = Self.htmlClasses(isDarkMode: isDarkMode)
             let playIconHTML = Self.audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
             let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.circle", alt: "Pause", isDarkMode: isDarkMode)
 
             let styledHTML = """
         <!DOCTYPE html>
-        <html data-bs-theme="\(isDarkMode ? "dark" : "light")">
+        <html class="\(htmlClass)" data-bs-theme="\(isDarkMode ? "dark" : "light")">
         <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -201,8 +209,17 @@ struct CardWebView: UIViewRepresentable {
                 border-radius: 8px;
                 margin: 8px 0;
             }
+            .cloze:not([data-shape]) {
+                display: inline !important;
+                font-weight: 600;
+                color: #1565c0;
+            }
+            .cloze-inactive:not([data-shape]),
+            .cloze-highlight:not([data-shape]) {
+                display: inline !important;
+            }
             /* Image occlusion */
-            .cloze, .cloze-inactive, .cloze-highlight { display: none; }
+            .cloze[data-shape], .cloze-inactive[data-shape], .cloze-highlight[data-shape] { display: none; }
             #image-occlusion-container {
                 position: relative;
                 display: inline-block;
@@ -230,6 +247,9 @@ struct CardWebView: UIViewRepresentable {
             .nightMode .card {
                 color: #f5f5f5;
             }
+            .nightMode .cloze:not([data-shape]) {
+                color: #8fb8ff;
+            }
             .nightMode a {
                 color: #8fb8ff;
             }
@@ -240,6 +260,66 @@ struct CardWebView: UIViewRepresentable {
         const PLAY_ICON_HTML = \(Self.jsStringLiteral(playIconHTML));
         const PAUSE_ICON_HTML = \(Self.jsStringLiteral(pauseIconHTML));
         window.__amgiAudioPlaying = false;
+        window.onUpdateHook = window.onUpdateHook || [];
+        window.onShownHook = window.onShownHook || [];
+
+        function amgiRunHooks(hooks) {
+            if (!Array.isArray(hooks)) {
+                return;
+            }
+            hooks.forEach(function(hook) {
+                try {
+                    if (typeof hook === 'function') {
+                        hook();
+                    }
+                } catch (error) {
+                    console.error('Hook failed', error);
+                }
+            });
+        }
+
+        function amgiAddBrowserClasses() {
+            var ua = navigator.userAgent.toLowerCase();
+
+            function addClass(name) {
+                if (name) {
+                    document.documentElement.classList.add(name);
+                }
+            }
+
+            if (/ipad/.test(ua)) {
+                addClass('ipad');
+            } else if (/iphone/.test(ua)) {
+                addClass('iphone');
+            } else if (/android/.test(ua)) {
+                addClass('android');
+            }
+
+            if (/ipad|iphone|ipod/.test(ua)) {
+                addClass('ios');
+            }
+
+            if (/ipad|iphone|ipod|android/.test(ua)) {
+                addClass('mobile');
+            } else if (/linux/.test(ua)) {
+                addClass('linux');
+            } else if (/windows/.test(ua)) {
+                addClass('win');
+            } else if (/mac/.test(ua)) {
+                addClass('mac');
+            }
+
+            if (/firefox\\//.test(ua)) {
+                addClass('firefox');
+            } else if (/chrome\\//.test(ua)) {
+                addClass('chrome');
+            } else if (/safari\\//.test(ua)) {
+                addClass('safari');
+            }
+        }
+
+        window.ankiPlatform = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) ? 'ios' : 'other';
+        globalThis.ankiPlatform = window.ankiPlatform;
 
         function setAudioButtonState(btn, state) {
             if (!btn) {
@@ -290,6 +370,29 @@ struct CardWebView: UIViewRepresentable {
             return afterAnswer.length > 0 ? afterAnswer : allAudio;
         }
 
+        function splitAudioQueue() {
+            var allAudio = Array.from(document.querySelectorAll('.anki-sound-audio'));
+            var answerMarker = document.getElementById('answer');
+            if (!answerMarker) {
+                return {
+                    question: allAudio,
+                    answer: allAudio,
+                };
+            }
+
+            var answer = allAudio.filter(function(a) {
+                return !!(answerMarker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+            var question = allAudio.filter(function(a) {
+                return !(answerMarker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+
+            return {
+                question: question.length > 0 ? question : allAudio,
+                answer: answer.length > 0 ? answer : allAudio,
+            };
+        }
+
         function replaySequential(queue) {
             stopAllSystemAudio();
             if (!queue || queue.length === 0) {
@@ -331,6 +434,57 @@ struct CardWebView: UIViewRepresentable {
         }
         window.amgiReplayAll = amgiReplayAll;
 
+        function amgiPlayAudioElement(audio) {
+            if (!audio) {
+                return false;
+            }
+
+            stopAllSystemAudio();
+            notifyAudioState(true);
+
+            var btn = audio.nextElementSibling;
+            audio.currentTime = 0;
+            audio.play().catch(function() {
+                setAudioButtonState(btn, 'play');
+                notifyAudioState(false);
+            });
+            setAudioButtonState(btn, 'pause');
+            audio.onended = function() {
+                setAudioButtonState(btn, 'play');
+                notifyAudioState(false);
+            };
+            return false;
+        }
+
+        function pycmd(command) {
+            if (!command || typeof command !== 'string') {
+                return false;
+            }
+
+            if (command === 'replay') {
+                amgiReplayAll(IS_ANSWER_SIDE ? 'answerWithQuestion' : 'question');
+                return false;
+            }
+
+            if (command.startsWith('play:')) {
+                var parts = command.split(':');
+                var side = parts[1];
+                var index = parseInt(parts[2] || '0', 10);
+                if (Number.isNaN(index) || index < 0) {
+                    return false;
+                }
+
+                var queues = splitAudioQueue();
+                var queue = side === 'a' ? queues.answer : queues.question;
+                return amgiPlayAudioElement(queue[index]);
+            }
+
+            return false;
+        }
+
+        globalThis.pycmd = pycmd;
+        window.pycmd = pycmd;
+
         function postOpenLink(rawHref) {
             if (!rawHref) {
                 return;
@@ -361,7 +515,7 @@ struct CardWebView: UIViewRepresentable {
 
             event.preventDefault();
             postOpenLink(anchor.href || href);
-        }, true);
+        });
 
         window.open = function(url) {
             postOpenLink(url);
@@ -369,24 +523,18 @@ struct CardWebView: UIViewRepresentable {
         };
 
         function playSound(btn) {
-            // Stop all currently playing audio
-            stopAllSystemAudio();
-            var audio = btn.previousElementSibling;
-            audio.currentTime = 0;
-            audio.play().catch(function() {});
-            notifyAudioState(true);
-            setAudioButtonState(btn, 'pause');
-            audio.onended = function() {
-                setAudioButtonState(btn, 'play');
-                notifyAudioState(false);
-            };
+            return amgiPlayAudioElement(btn ? btn.previousElementSibling : null);
         }
+        window.playSound = playSound;
+        globalThis.playSound = playSound;
 
         function amgiGetTypedAnswer() {
             var input = document.getElementById('typeans');
             return input ? input.value : null;
         }
         window.amgiGetTypedAnswer = amgiGetTypedAnswer;
+        window.getTypedAnswer = amgiGetTypedAnswer;
+        globalThis.getTypedAnswer = amgiGetTypedAnswer;
 
         function amgiSubmitTypedAnswer() {
             try {
@@ -406,6 +554,10 @@ struct CardWebView: UIViewRepresentable {
             return true;
         }
         window.amgiHandleTypeAnswerKey = amgiHandleTypeAnswerKey;
+        window._typeAnsPress = function() {
+            return amgiHandleTypeAnswerKey(window.event || null);
+        };
+        globalThis._typeAnsPress = window._typeAnsPress;
 
         function amgiEnsureTypedAnswerVisible() {
             var input = document.getElementById('typeans');
@@ -426,7 +578,9 @@ struct CardWebView: UIViewRepresentable {
                 var pointsRaw = el.dataset.points;
                 var points = null;
                 if (pointsRaw) {
-                    var nums = pointsRaw.split(',').map(Number);
+                    var nums = pointsRaw.trim().split(/[\\s,]+/).map(Number).filter(function(value) {
+                        return !Number.isNaN(value);
+                    });
                     points = [];
                     for (var i = 0; i + 1 < nums.length; i += 2) {
                         points.push({ x: nums[i], y: nums[i + 1] });
@@ -443,7 +597,7 @@ struct CardWebView: UIViewRepresentable {
                     angle: parseFloat(el.dataset.angle || '0'),
                     text: el.dataset.text || '',
                     scale: parseFloat(el.dataset.scale || '1'),
-                    fontSize: parseFloat(el.dataset.fs || '0'),
+                    fontSize: parseFloat(el.dataset.fontSize || '0'),
                     fill: el.dataset.fill || '#000000',
                     points: points,
                 };
@@ -462,7 +616,7 @@ struct CardWebView: UIViewRepresentable {
                 ctx.font = fontSize + 'px Arial';
                 ctx.textBaseline = 'top';
                 ctx.scale(scale, scale);
-                var lines = (shape.text || '').split('\n');
+                var lines = (shape.text || '').split('\\n');
                 var baseMetrics = ctx.measureText('M');
                 var fontHeight = baseMetrics.actualBoundingBoxAscent + baseMetrics.actualBoundingBoxDescent;
                 var lineHeight = 1.5 * fontHeight;
@@ -535,9 +689,9 @@ struct CardWebView: UIViewRepresentable {
             var activeColor    = style.getPropertyValue('--active-shape-color').trim()    || '#ff8e8e';
             var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
             var border = '#212121';
-            amgiExtractIOShapes('.cloze-inactive').forEach(function(s) { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, inactiveColor, border); } });
-            amgiExtractIOShapes('.cloze').forEach(function(s)           { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, activeColor, border); } });
-            amgiExtractIOShapes('.cloze-highlight').forEach(function(s) { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, highlightColor, border); } });
+            amgiExtractIOShapes('.cloze-inactive[data-shape]').forEach(function(s) { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, inactiveColor, border); } });
+            amgiExtractIOShapes('.cloze[data-shape]').forEach(function(s)           { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, activeColor, border); } });
+            amgiExtractIOShapes('.cloze-highlight[data-shape]').forEach(function(s) { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, highlightColor, border); } });
         }
 
         // Hit-test: is canvas point (px, py) inside a shape?
@@ -578,7 +732,7 @@ struct CardWebView: UIViewRepresentable {
                     return false;
                 }
                 textCtx.font = fontSize + 'px Arial';
-                var lines = (shape.text || '').split('\n');
+                var lines = (shape.text || '').split('\\n');
                 var baseMetrics = textCtx.measureText('M');
                 var fontHeight = baseMetrics.actualBoundingBoxAscent + baseMetrics.actualBoundingBoxDescent;
                 var lineHeight = 1.5 * fontHeight;
@@ -621,7 +775,7 @@ struct CardWebView: UIViewRepresentable {
             function collectShapes() {
                 allShapes = [];
                 ['cloze-inactive', 'cloze', 'cloze-highlight'].forEach(function(cls) {
-                    amgiExtractIOShapes('.' + cls).forEach(function(s) {
+                    amgiExtractIOShapes('.' + cls + '[data-shape]').forEach(function(s) {
                         s._cls = cls;
                         s._revealed = false;
                         allShapes.push(s);
@@ -735,13 +889,27 @@ struct CardWebView: UIViewRepresentable {
         window.amgiSetupImageOcclusion = amgiSetupImageOcclusion;
 
         // Compatibility shim: Anki PC-generated image occlusion templates call
-        // `anki.setupImageCloze()`. We provide the `anki` namespace so the
-        // template's try-catch succeeds instead of showing an error message.
-        window.anki = window.anki || {};
-        window.anki.setupImageCloze = function() { amgiSetupImageOcclusion(); };
+        // either `anki.imageOcclusion.setup()` or the older
+        // `anki.setupImageCloze()`. We provide both shims so the template's
+        // try-catch succeeds instead of showing an error message.
+        var anki = globalThis.anki || window.anki || {};
+        globalThis.anki = anki;
+        window.anki = anki;
+        anki.addBrowserClasses = amgiAddBrowserClasses;
+        anki.imageOcclusion = anki.imageOcclusion || {};
+        anki.imageOcclusion.setup = function() { amgiSetupImageOcclusion(); };
+        anki.setupImageCloze = function() { amgiSetupImageOcclusion(); };
+        amgiAddBrowserClasses();
         // ────────────────────────────────────────────────────────────────
 
-        window.onload = function() {
+        function amgiHandleWindowLoad() {
+            if (window.__amgiWindowLoadHandled) {
+                return;
+            }
+            window.__amgiWindowLoadHandled = true;
+
+            amgiRunHooks(window.onUpdateHook);
+
             var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
 
             if (AUTOPLAY_ENABLED && !hasTemplateManagedMedia) {
@@ -784,10 +952,16 @@ struct CardWebView: UIViewRepresentable {
             }
 
             amgiSetupImageOcclusion();
-        };
+            amgiRunHooks(window.onShownHook);
+        }
+
+        window.addEventListener('load', amgiHandleWindowLoad);
+        if (document.readyState === 'complete') {
+            amgiHandleWindowLoad();
+        }
         </script>
         </head>
-        <body class="\(bodyClass)"><div class="card-frame">\(processedHTML)</div></body>
+        <body class="\(bodyClass)"><div id="qa" class="card-frame">\(processedHTML)</div></body>
         </html>
         """
 
@@ -840,7 +1014,11 @@ struct CardWebView: UIViewRepresentable {
     // MARK: - Helpers
 
     /// Converts Anki `[sound:filename.ext]` markers to a hidden `<audio>` + styled play button.
-    private static func expandSoundTags(_ html: String, isDarkMode: Bool) -> String {
+    private static func expandSoundTags(
+        _ html: String,
+        isDarkMode: Bool,
+        showReplayButtons: Bool
+    ) -> String {
         // Pattern: [sound:anything_without_closing_bracket]
         guard let regex = try? NSRegularExpression(
             pattern: #"\[sound:([^\]]+)\]"#, options: []
@@ -854,8 +1032,13 @@ struct CardWebView: UIViewRepresentable {
                   let filenameRange = Range(match.range(at: 1), in: result) else { continue }
             let filename = String(result[filenameRange])
             let encoded = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? filename
-            let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
-            let replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><button class=\"replay-btn\" onclick=\"playSound(this)\">\(iconHTML)</button></span>"
+            let replacement: String
+            if showReplayButtons {
+                let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
+                replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><button type=\"button\" class=\"replay-button replay-btn soundLink\" onclick=\"return playSound(this)\">\(iconHTML)</button></span>"
+            } else {
+                replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio></span>"
+            }
             result.replaceSubrange(matchRange, with: replacement)
         }
         return result
@@ -923,6 +1106,30 @@ struct CardWebView: UIViewRepresentable {
             classes.append("nightMode")
             classes.append("night_mode")
         }
+        return classes.joined(separator: " ")
+    }
+
+    private static func htmlClasses(isDarkMode: Bool) -> String {
+        var classes: [String] = []
+
+        switch UIDevice.current.userInterfaceIdiom {
+        case .pad:
+            classes.append("ios")
+            classes.append("ipad")
+            classes.append("mobile")
+        case .phone:
+            classes.append("ios")
+            classes.append("iphone")
+            classes.append("mobile")
+        default:
+            break
+        }
+
+        if isDarkMode {
+            classes.append("nightMode")
+            classes.append("night_mode")
+        }
+
         return classes.joined(separator: " ")
     }
 

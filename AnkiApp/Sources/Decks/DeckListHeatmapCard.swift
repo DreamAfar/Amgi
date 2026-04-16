@@ -21,6 +21,16 @@ struct DeckListHeatmapCard: View {
     @State private var hasLoadedFullHistory = false
     @State private var loadError = false
 
+    init(refreshID: Int) {
+        self.refreshID = refreshID
+        _graphs = State(initialValue: DeckListHeatmapCache.load())
+        _isLoading = State(initialValue: true)
+        _hasLoadedFullHistory = State(
+            initialValue: UserDefaults.standard.integer(forKey: DeckListHeatmapSettings.initialDaysKey)
+                == HeatmapInitialDays.allHistory.rawValue
+        )
+    }
+
     var body: some View {
         Group {
             if let graphs {
@@ -98,20 +108,16 @@ struct DeckListHeatmapCard: View {
 
         do {
             let query = try resolvedSearchQuery()
-            let client = statsClient
             let days = initialDaysRaw  // 0 = all history
-
-            let bytes = try await Task.detached(priority: .userInitiated) {
-                try client.fetchGraphs(query, UInt32(days))
-            }.value
-            try Task.checkCancellation()
-            graphs = try Anki_Stats_GraphsResponse(serializedBytes: bytes)
+            let response = try await fetchGraphsResponse(query: query, days: UInt32(days), priority: .userInitiated)
+            graphs = response
+            DeckListHeatmapCache.save(response)
             // If user already chose "all history" in settings, mark as loaded
             if days == HeatmapInitialDays.allHistory.rawValue {
                 hasLoadedFullHistory = true
             }
         } catch {
-            loadError = true
+            loadError = (graphs == nil)
         }
         isLoading = false
     }
@@ -122,16 +128,39 @@ struct DeckListHeatmapCard: View {
         isLoadingMoreHistory = true
         do {
             let query = try resolvedSearchQuery()
-            let client = statsClient
-            let bytes = try await Task.detached(priority: .background) {
-                try client.fetchGraphs(query, 0)
-            }.value
-            graphs = try Anki_Stats_GraphsResponse(serializedBytes: bytes)
+            let response = try await fetchGraphsResponse(query: query, days: 0, priority: .background)
+            graphs = response
+            DeckListHeatmapCache.save(response)
             hasLoadedFullHistory = true
         } catch {
             // keep existing 180-day data on failure
         }
         isLoadingMoreHistory = false
+    }
+
+    private func fetchGraphsResponse(
+        query: String,
+        days: UInt32,
+        priority: TaskPriority
+    ) async throws -> Anki_Stats_GraphsResponse {
+        let client = statsClient
+        var lastError: Error?
+
+        for attempt in 0..<2 {
+            do {
+                let bytes = try await Task.detached(priority: priority) {
+                    try client.fetchGraphs(query, days)
+                }.value
+                try Task.checkCancellation()
+                return try Anki_Stats_GraphsResponse(serializedBytes: bytes)
+            } catch {
+                lastError = error
+                guard attempt == 0 else { break }
+                try? await Task.sleep(nanoseconds: 250_000_000)
+            }
+        }
+
+        throw lastError ?? CancellationError()
     }
 
     @MainActor

@@ -268,6 +268,7 @@ struct ReviewView: View {
             replayRequestID: replayRequestID,
             typedAnswerRequestID: typedAnswerRequestID,
             replayMode: replayMode,
+            showInlineAudioReplayButtons: prefShowAudioReplayButton,
             openLinksExternally: prefOpenLinksExternally,
             contentAlignment: prefCardContentAlignment,
             bottomContentInset: actionBarHeight,

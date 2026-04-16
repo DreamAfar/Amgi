@@ -1,6 +1,7 @@
 import SwiftUI
 import AnkiBackend
 import AnkiKit
+import AnkiProto
 import AnkiSync
 import Dependencies
 import Foundation
@@ -68,9 +69,10 @@ struct AnkiAppApp: App {
     @ViewBuilder
     private var startupLoadingView: some View {
         let cachedTree = DeckTreeCache.load()
+        let cachedHeatmap = DeckListHeatmapCache.load()
 
-        if onboardingCompleted, !cachedTree.isEmpty {
-            StartupDeckSnapshotView(tree: cachedTree)
+        if onboardingCompleted, (!cachedTree.isEmpty || cachedHeatmap != nil) {
+            StartupDeckSnapshotView(tree: cachedTree, heatmapReviews: cachedHeatmap?.reviews)
         } else {
             Color(uiColor: .systemBackground)
                 .ignoresSafeArea()
@@ -131,10 +133,22 @@ struct AnkiAppApp: App {
 
 private struct StartupDeckSnapshotView: View {
     let tree: [DeckTreeNode]
+    let heatmapReviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes?
+
+    @AppStorage(DeckListHeatmapSettings.showKey) private var showDeckListHeatmap = true
+    @AppStorage(DeckListHeatmapSettings.heightKey) private var deckListHeatmapHeight = DeckListHeatmapSettings.defaultHeight
 
     var body: some View {
         NavigationStack {
             List {
+                if showDeckListHeatmap, let heatmapReviews {
+                    Section {
+                        HomeHeatmapChart(reviews: heatmapReviews, preferredHeight: deckListHeatmapHeight)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+                }
                 Section {
                     ForEach(flattenedTree) { item in
                         HStack(spacing: 12) {
