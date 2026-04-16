@@ -102,7 +102,7 @@ struct DeckListHeatmapCard: View {
             let days = initialDaysRaw  // 0 = all history
 
             let bytes = try await Task.detached(priority: .userInitiated) {
-                try client.fetchGraphs(query, days)
+                try client.fetchGraphs(query, UInt32(days))
             }.value
             try Task.checkCancellation()
             graphs = try Anki_Stats_GraphsResponse(serializedBytes: bytes)

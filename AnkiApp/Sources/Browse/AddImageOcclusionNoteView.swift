@@ -209,7 +209,7 @@ struct AddImageOcclusionNoteView: View {
     private func removeLast() {
         guard !masks.isEmpty else { return }
         let removed = masks.removeLast()
-        undoManager?.registerUndo(withTarget: UIApplication.shared) { [masks] _ in
+        undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
             self.masks.append(removed)
             self.undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
                 _ = self.masks.popLast()
