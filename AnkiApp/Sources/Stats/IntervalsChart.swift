@@ -6,6 +6,12 @@ struct IntervalsChart: View {
     let intervals: Anki_Stats_GraphsResponse.Intervals
     let isFSRS: Bool
 
+    private struct CumulativePoint: Identifiable {
+        let id: Int
+        let x: Int
+        let cumulative: Int
+    }
+
     enum IntervalRange: String, CaseIterable, Identifiable {
         case month       = "1个月"
         case percentile50 = "50%"
@@ -71,6 +77,21 @@ struct IntervalsChart: View {
         let s = flatIntervals
         return s.isEmpty ? 0 : quantile(s, 0.5)
     }
+    private func cumulativePoints(for bins: [(label: String, x: Int, count: Int)]) -> [CumulativePoint] {
+        var runningTotal = 0
+        return bins.map { bin in
+            runningTotal += bin.count
+            return CumulativePoint(id: bin.x, x: bin.x, cumulative: runningTotal)
+        }
+    }
+
+    private func rightAxisTicks(total: Int, plottedMax: Int) -> [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: Double(total),
+            plottedMax: Double(plottedMax),
+            formatter: { value in String(Int(value.rounded())) }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
@@ -121,6 +142,10 @@ struct IntervalsChart: View {
     private func intervalsChart(bins: [(label: String, x: Int, count: Int)]) -> some View {
         let barWVal: Double = max(2.0, min(8.0, 280.0 / Double(bins.count)))
         let barW: MarkDimension = bins.count <= 30 ? .automatic : .fixed(barWVal)
+        let cumulative = cumulativePoints(for: bins)
+        let total = cumulative.last?.cumulative ?? 0
+        let maxCount = bins.map(\.count).max() ?? 0
+        let trailingTicks = rightAxisTicks(total: total, plottedMax: maxCount)
         Chart(bins, id: \.x) { bin in
             BarMark(
                 x: .value(L("stats_intervals_days"), bin.x),
@@ -128,6 +153,37 @@ struct IntervalsChart: View {
                 width: barW
             )
             .foregroundStyle(Color.teal.gradient)
+
+            ForEach(cumulative) { point in
+                AreaMark(
+                    x: .value(L("stats_intervals_days"), point.x),
+                    y: .value(
+                        "Cumulative",
+                        StatsDualAxisSupport.plottedValue(
+                            Double(point.cumulative),
+                            domainMax: Double(total),
+                            plottedMax: Double(maxCount)
+                        )
+                    )
+                )
+                .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+                .interpolationMethod(.monotone)
+
+                LineMark(
+                    x: .value(L("stats_intervals_days"), point.x),
+                    y: .value(
+                        "Cumulative",
+                        StatsDualAxisSupport.plottedValue(
+                            Double(point.cumulative),
+                            domainMax: Double(total),
+                            plottedMax: Double(maxCount)
+                        )
+                    )
+                )
+                .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
+                .lineStyle(StrokeStyle(lineWidth: 1.5))
+                .interpolationMethod(.monotone)
+            }
         }
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 6)) { _ in
@@ -145,6 +201,17 @@ struct IntervalsChart: View {
                 AxisValueLabel()
                     .font(AmgiFont.micro.font)
                     .foregroundStyle(Color.amgiTextSecondary)
+            }
+
+            AxisMarks(position: .trailing, values: trailingTicks.map(\.plottedValue)) { value in
+                if let raw = value.as(Double.self),
+                   let tick = trailingTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                    AxisValueLabel {
+                        Text(tick.label)
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                }
             }
         }
         .frame(height: 200)

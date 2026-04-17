@@ -35,6 +35,14 @@ struct HourlyChart: View {
     }
 
     private var isEmpty: Bool { entries.allSatisfy { $0.total == 0 } }
+    private var maxReviewCount: Int { entries.map(\.total).max() ?? 0 }
+    private var rightAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: 100,
+            plottedMax: Double(maxReviewCount),
+            formatter: { value in "\(Int(value.rounded()))%" }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
@@ -62,7 +70,6 @@ struct HourlyChart: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                let maxTotal = entries.map(\.total).max() ?? 1
                 Chart(entries) { entry in
                     BarMark(
                         x: .value("Hour", entry.hour),
@@ -70,11 +77,33 @@ struct HourlyChart: View {
                         width: .fixed(9)
                     )
                     .foregroundStyle(
-                        Color(hue: 0.58, saturation: 0.5 + 0.5 * Double(entry.total) / Double(max(maxTotal, 1)), brightness: 0.7).gradient
+                        Color(hue: 0.58, saturation: 0.5 + 0.5 * Double(entry.total) / Double(max(maxReviewCount, 1)), brightness: 0.7).gradient
                     )
+
+                    AreaMark(
+                        x: .value("Hour", entry.hour),
+                        y: .value(
+                            L("stats_hourly_correct_pct"),
+                            StatsDualAxisSupport.plottedValue(
+                                entry.correctPct,
+                                domainMax: 100,
+                                plottedMax: Double(maxReviewCount)
+                            )
+                        )
+                    )
+                    .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+                    .interpolationMethod(.catmullRom)
+
                     LineMark(
                         x: .value("Hour", entry.hour),
-                        y: .value(L("stats_hourly_correct_pct"), entry.correctPct),
+                        y: .value(
+                            L("stats_hourly_correct_pct"),
+                            StatsDualAxisSupport.plottedValue(
+                                entry.correctPct,
+                                domainMax: 100,
+                                plottedMax: Double(maxReviewCount)
+                            )
+                        ),
                         series: .value("Series", "pct")
                     )
                     .foregroundStyle(.green.opacity(0.8))
@@ -100,6 +129,17 @@ struct HourlyChart: View {
                         AxisValueLabel()
                             .font(AmgiFont.micro.font)
                             .foregroundStyle(Color.amgiTextSecondary)
+                    }
+
+                    AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
+                        if let raw = value.as(Double.self),
+                           let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                            AxisValueLabel {
+                                Text(tick.label)
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
                     }
                 }
                 .frame(height: 200)

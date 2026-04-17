@@ -6,6 +6,12 @@ struct AddedChart: View {
     let added: Anki_Stats_GraphsResponse.Added
     @State private var period: StatsPeriod = .month
 
+    private struct CumulativePoint: Identifiable {
+        let id: Int
+        let day: Int
+        let cumulative: Int
+    }
+
     /// Number of days per bar bucket — capped at ~70 bars
     private var bucketSize: Int {
         switch period {
@@ -30,6 +36,21 @@ struct AddedChart: View {
     }
 
     private var totalAdded: Int { filteredData.reduce(0) { $0 + $1.count } }
+    private var maxDailyCount: Int { filteredData.map(\.count).max() ?? 0 }
+    private var cumulativePoints: [CumulativePoint] {
+        var runningTotal = 0
+        return filteredData.map { item in
+            runningTotal += item.count
+            return CumulativePoint(id: item.day, day: item.day, cumulative: runningTotal)
+        }
+    }
+    private var rightAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: Double(totalAdded),
+            plottedMax: Double(maxDailyCount),
+            formatter: { value in String(Int(value.rounded())) }
+        )
+    }
     private var avgPerDay: Double {
         guard !filteredData.isEmpty else { return 0 }
         let span = filteredData.count * bucketSize
@@ -66,6 +87,37 @@ struct AddedChart: View {
                         width: barW
                     )
                     .foregroundStyle(Color.amgiInfo.gradient)
+
+                    ForEach(cumulativePoints) { point in
+                        AreaMark(
+                            x: .value("Day", point.day),
+                            y: .value(
+                                "Cumulative",
+                                StatsDualAxisSupport.plottedValue(
+                                    Double(point.cumulative),
+                                    domainMax: Double(totalAdded),
+                                    plottedMax: Double(maxDailyCount)
+                                )
+                            )
+                        )
+                        .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+                        .interpolationMethod(.monotone)
+
+                        LineMark(
+                            x: .value("Day", point.day),
+                            y: .value(
+                                "Cumulative",
+                                StatsDualAxisSupport.plottedValue(
+                                    Double(point.cumulative),
+                                    domainMax: Double(totalAdded),
+                                    plottedMax: Double(maxDailyCount)
+                                )
+                            )
+                        )
+                        .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .interpolationMethod(.monotone)
+                    }
                 }
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 8)) { value in
@@ -93,6 +145,17 @@ struct AddedChart: View {
                                 Text("\(count)")
                                     .amgiFont(.micro)
                                     .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
+
+                        AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
+                            if let raw = value.as(Double.self),
+                               let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                                AxisValueLabel {
+                                    Text(tick.label)
+                                        .amgiFont(.micro)
+                                        .foregroundStyle(Color.amgiTextSecondary)
+                                }
                             }
                         }
                     }

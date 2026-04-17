@@ -80,6 +80,20 @@ struct ReviewsChart: View {
     }
 
     private var totalValue: Int { entries.reduce(0) { $0 + $1.value } }
+    private var maxBucketValue: Int {
+        var bucketSum: [Int: Int] = [:]
+        for entry in entries {
+            bucketSum[entry.bucket, default: 0] += entry.value
+        }
+        return bucketSum.values.max() ?? 0
+    }
+    private var rightAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: Double(totalValue),
+            plottedMax: Double(maxBucketValue),
+            formatter: { value in String(Int(value.rounded())) }
+        )
+    }
     private var uniqueStudyDays: Int { Set(entries.map(\.bucket)).count }
 
     private var avgAllDays: Double {
@@ -170,9 +184,30 @@ struct ReviewsChart: View {
                 .foregroundStyle(by: .value("Type", entry.type))
             }
             ForEach(cumulativePoints) { pt in
+                AreaMark(
+                    x: .value("Day", pt.bucket),
+                    y: .value(
+                        L("stats_reviews_cumulative"),
+                        StatsDualAxisSupport.plottedValue(
+                            Double(pt.cumulative),
+                            domainMax: Double(totalValue),
+                            plottedMax: Double(maxBucketValue)
+                        )
+                    )
+                )
+                .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+                .interpolationMethod(.monotone)
+
                 LineMark(
                     x: .value("Day", pt.bucket),
-                    y: .value(L("stats_reviews_cumulative"), pt.cumulative),
+                    y: .value(
+                        L("stats_reviews_cumulative"),
+                        StatsDualAxisSupport.plottedValue(
+                            Double(pt.cumulative),
+                            domainMax: Double(totalValue),
+                            plottedMax: Double(maxBucketValue)
+                        )
+                    ),
                     series: .value("Series", "cumulative")
                 )
                 .foregroundStyle(.secondary.opacity(0.7))
@@ -202,6 +237,17 @@ struct ReviewsChart: View {
                 AxisValueLabel()
                     .font(AmgiFont.micro.font)
                     .foregroundStyle(Color.amgiTextSecondary)
+            }
+
+            AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
+                if let raw = value.as(Double.self),
+                   let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                    AxisValueLabel {
+                        Text(tick.label)
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                }
             }
         }
         .frame(height: 200)

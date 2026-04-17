@@ -7,6 +7,12 @@ struct FutureDueChart: View {
     @State private var period: StatsPeriod = .month
     @State private var includeBacklog = false
 
+    private struct CumulativePoint: Identifiable {
+        let id: Int
+        let day: Int
+        let cumulative: Int
+    }
+
     private var filteredData: [(day: Int, count: Int)] {
         let maxDay = period.days
         return futureDue.futureDue
@@ -20,6 +26,21 @@ struct FutureDueChart: View {
     }
 
     private var totalDue: Int { filteredData.reduce(0) { $0 + $1.count } }
+    private var maxDailyCount: Int { filteredData.map(\.count).max() ?? 0 }
+    private var cumulativePoints: [CumulativePoint] {
+        var runningTotal = 0
+        return filteredData.map { item in
+            runningTotal += item.count
+            return CumulativePoint(id: item.day, day: item.day, cumulative: runningTotal)
+        }
+    }
+    private var rightAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: Double(totalDue),
+            plottedMax: Double(maxDailyCount),
+            formatter: { value in String(Int(value.rounded())) }
+        )
+    }
     private var dueTomorrow: Int { filteredData.first(where: { $0.day == 1 })?.count ?? 0 }
     private var avgPerDay: Double {
         let positiveDays = filteredData.filter { $0.day >= 0 }
@@ -62,6 +83,37 @@ struct FutureDueChart: View {
                         width: barWidth
                     )
                     .foregroundStyle(item.day < 0 ? Color.red.gradient : Color.blue.gradient)
+
+                    ForEach(cumulativePoints) { point in
+                        AreaMark(
+                            x: .value("Day", point.day),
+                            y: .value(
+                                "Cumulative",
+                                StatsDualAxisSupport.plottedValue(
+                                    Double(point.cumulative),
+                                    domainMax: Double(totalDue),
+                                    plottedMax: Double(maxDailyCount)
+                                )
+                            )
+                        )
+                        .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+                        .interpolationMethod(.monotone)
+
+                        LineMark(
+                            x: .value("Day", point.day),
+                            y: .value(
+                                "Cumulative",
+                                StatsDualAxisSupport.plottedValue(
+                                    Double(point.cumulative),
+                                    domainMax: Double(totalDue),
+                                    plottedMax: Double(maxDailyCount)
+                                )
+                            )
+                        )
+                        .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .interpolationMethod(.monotone)
+                    }
                 }
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 6)) { value in
@@ -83,6 +135,17 @@ struct FutureDueChart: View {
                         if let count = value.as(Int.self) {
                             AxisValueLabel {
                                 Text("\(count)")
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
+                    }
+
+                    AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
+                        if let raw = value.as(Double.self),
+                           let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                            AxisValueLabel {
+                                Text(tick.label)
                                     .amgiFont(.micro)
                                     .foregroundStyle(Color.amgiTextSecondary)
                             }
