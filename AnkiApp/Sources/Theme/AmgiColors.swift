@@ -5,6 +5,7 @@ extension Color {
     static let amgiBackground = Color(light: .systemGroupedBackground, dark: .black)
     static let amgiSurface = Color(light: .secondarySystemGroupedBackground, dark: .secondarySystemBackground)
     static let amgiSurfaceElevated = Color(light: .systemBackground, dark: UIColor(red: 0.14, green: 0.15, blue: 0.18, alpha: 1.0))
+    static let amgiBorder = Color(light: .separator, dark: UIColor(white: 1.0, alpha: 0.12))
 
     static let amgiTextPrimary = Color(light: .label, dark: .white)
     static let amgiTextSecondary = Color(light: .secondaryLabel, dark: UIColor(white: 0.82, alpha: 1.0))

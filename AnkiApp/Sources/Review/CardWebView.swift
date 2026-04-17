@@ -809,11 +809,6 @@ struct CardWebView: UIViewRepresentable {
                 canvasRef.style.cursor = allowsMaskReveal && !masksHidden ? 'pointer' : 'default';
                 var size = { width: w, height: h };
                 if (masksHidden) {
-                    allShapes.forEach(function(s) {
-                        if (!s._revealed && s.type === 'text') {
-                            amgiDrawIOShape(ctx, s, size, '#ffffff', null);
-                        }
-                    });
                     return;
                 }
                 var style = getComputedStyle(document.documentElement);

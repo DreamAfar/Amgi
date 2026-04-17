@@ -10,6 +10,10 @@ struct AmgiCardModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(elevated ? Color.amgiSurfaceElevated : Color.amgiSurface)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.amgiBorder.opacity(elevated ? 0.32 : 0.18), lineWidth: 1)
+            )
             .modifier(ConditionalShadow(enabled: elevated))
     }
 }
