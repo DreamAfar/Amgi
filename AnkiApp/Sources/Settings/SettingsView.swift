@@ -19,7 +19,7 @@ private struct SettingsOptionCapsuleLabel: View {
     var body: some View {
         HStack(spacing: AmgiSpacing.xs) {
             Text(title)
-                .amgiFont(.captionBold)
+                .amgiFont(.body)
                 .foregroundStyle(SettingsValueStyle.primary)
                 .lineLimit(1)
             Image(systemName: "chevron.up.chevron.down")
@@ -838,7 +838,7 @@ private struct SyncSettingsView: View {
                 .foregroundStyle(SettingsValueStyle.primary)
             Spacer()
             Text(value)
-                .amgiFont(.captionBold)
+                .amgiFont(.body)
                 .foregroundStyle(SettingsValueStyle.highlight)
                 .multilineTextAlignment(.trailing)
         }

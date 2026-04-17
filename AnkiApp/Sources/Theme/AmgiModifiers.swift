@@ -147,8 +147,7 @@ extension View {
     }
 
     func amgiToolbarTextButton(tone: AmgiStatusTone = .accent) -> some View {
-        amgiFont(.captionBold)
-            .foregroundStyle(tone.foregroundColor)
+        foregroundStyle(tone.foregroundColor)
     }
 
     func amgiStatusText(_ tone: AmgiStatusTone, font: AmgiFont = .captionBold) -> some View {

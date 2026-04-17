@@ -292,7 +292,7 @@ struct DeckConfigView: View {
     private func optionCapsule(_ title: String) -> some View {
         HStack(spacing: AmgiSpacing.xs) {
             Text(title)
-                .amgiFont(.captionBold)
+                .amgiFont(.body)
                 .foregroundStyle(Color.amgiTextPrimary)
                 .lineLimit(1)
             Image(systemName: "chevron.up.chevron.down")

@@ -5,25 +5,23 @@ enum AmgiFont {
     case sectionHeading
     case cardTitle
     case body
-    case bodyEmphasis
     case caption
+    case bodyEmphasis
+            return .body
     case captionBold
-    case micro
-
-    var font: Font {
         switch self {
         case .displayHero:
             return .system(size: 32, weight: .bold, design: .rounded)
         case .sectionHeading:
             return .system(size: 18, weight: .semibold, design: .default)
         case .cardTitle:
-            return .system(size: 16, weight: .semibold, design: .default)
+            return .system(size: 17, weight: .semibold, design: .default)
         case .body:
-            return .system(size: 15, weight: .regular, design: .default)
+            return .system(size: 17, weight: .regular, design: .default)
         case .bodyEmphasis:
-            return .system(size: 15, weight: .medium, design: .default)
+            return .body
         case .caption:
-            return .system(size: 13, weight: .regular, design: .default)
+            return .body.weight(.medium)
         case .captionBold:
             return .system(size: 13, weight: .semibold, design: .default)
         case .micro:
