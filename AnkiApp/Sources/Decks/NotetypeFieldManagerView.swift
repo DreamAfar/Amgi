@@ -136,6 +136,7 @@ struct NotetypeFieldManagerView: View {
                     showAddPrompt = true
                 } label: {
                     Image(systemName: "plus")
+                        .amgiToolbarIconButton()
                 }
                 .disabled(isLoading || isSaving)
             }

@@ -165,8 +165,7 @@ struct AddImageOcclusionNoteView: View {
                 if let err = errorMessage {
                     Section {
                         Text(err)
-                            .foregroundStyle(Color.amgiDanger)
-                            .amgiFont(.caption)
+                            .amgiStatusBadge(.danger)
                     }
                 }
             }
@@ -177,12 +176,14 @@ struct AddImageOcclusionNoteView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItemGroup(placement: .bottomBar) {
                     Button {
                         undoManager?.undo()
                     } label: {
                         Image(systemName: "arrow.uturn.backward")
+                            .amgiToolbarIconButton()
                     }
                     .disabled(!(undoManager?.canUndo ?? false))
                     Spacer()
@@ -190,6 +191,7 @@ struct AddImageOcclusionNoteView: View {
                         undoManager?.redo()
                     } label: {
                         Image(systemName: "arrow.uturn.forward")
+                            .amgiToolbarIconButton()
                     }
                     .disabled(!(undoManager?.canRedo ?? false))
                 }
@@ -197,6 +199,7 @@ struct AddImageOcclusionNoteView: View {
                     Button(L("common_save")) {
                         Task { await save() }
                     }
+                    .amgiToolbarTextButton()
                     .disabled(!canSave || isSaving)
                     .overlay {
                         if isSaving { ProgressView().scaleEffect(0.7) }

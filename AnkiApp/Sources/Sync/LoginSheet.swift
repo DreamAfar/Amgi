@@ -23,8 +23,7 @@ struct LoginSheet: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .foregroundStyle(Color.amgiDanger)
-                            .amgiFont(.caption)
+                            .amgiStatusBadge(.danger)
                     }
                 }
                 Section {
@@ -48,7 +47,7 @@ struct LoginSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L("btn_cancel")) { isPresented = false }
-                        .foregroundStyle(Color.amgiAccent)
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

@@ -123,6 +123,7 @@ struct BrowseView: View {
                     Button(L("browse_select_all")) {
                         selectAllFilteredNotes()
                     }
+                    .amgiToolbarTextButton()
                     .disabled(allNoteIDs.isEmpty)
                 }
 
@@ -130,6 +131,7 @@ struct BrowseView: View {
                     Button(L("browse_select_invert")) {
                         invertSelection()
                     }
+                    .amgiToolbarTextButton(tone: .neutral)
                     .disabled(allNoteIDs.isEmpty)
                 }
 
@@ -138,6 +140,7 @@ struct BrowseView: View {
                         showBatchDeleteConfirm = true
                     } label: {
                         Image(systemName: "trash")
+                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("browse_batch_delete_notes"))
                     .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
@@ -150,6 +153,7 @@ struct BrowseView: View {
                             isMultiSelecting = false
                         }
                     }
+                    .amgiToolbarTextButton()
                 }
 
             } else {
@@ -165,6 +169,7 @@ struct BrowseView: View {
                         }
                     } label: {
                         Image(systemName: "checklist")
+                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("browse_multiselect_accessibility"))
                 }
@@ -1346,6 +1351,7 @@ struct MoveToDeckSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }
@@ -1396,6 +1402,7 @@ struct ChangeNotetypeSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
             .alert(L("browse_batch_failed_title"), isPresented: $showError) {

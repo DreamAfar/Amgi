@@ -104,6 +104,7 @@ struct NoteEditorView: View {
                 Button(L("note_editor_save")) {
                     Task { await save() }
                 }
+                .amgiToolbarTextButton()
                 .disabled(isSaving)
             }
         }
@@ -142,6 +143,7 @@ struct NoteEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { showTagPicker = false }
+                        .amgiToolbarTextButton()
                 }
             }
         }

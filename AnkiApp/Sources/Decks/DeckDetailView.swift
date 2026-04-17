@@ -43,6 +43,7 @@ struct DeckDetailView: View {
                     showAddNote = true
                 } label: {
                     Image(systemName: "plus")
+                        .amgiToolbarIconButton()
                 }
                 .accessibilityLabel(L("browse_add_accessibility"))
 
@@ -50,11 +51,13 @@ struct DeckDetailView: View {
                     showTemplateManager = true
                 } label: {
                     Image(systemName: "square.on.square")
+                        .amgiToolbarIconButton()
                 }
                 .accessibilityLabel(L("deck_template_nav_title"))
 
                 Button(action: { showConfig = true }) {
                     Image(systemName: "slider.horizontal.3")
+                        .amgiToolbarIconButton()
                 }
                 .accessibilityLabel(L("deck_detail_config"))
             }
@@ -124,8 +127,7 @@ struct DeckDetailView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                     Text("\(counts.newCount)")
-                        .amgiFont(.sectionHeading)
-                        .foregroundStyle(Color.amgiAccent)
+                        .amgiStatusBadge(.accent)
                 }
                 Spacer()
                 VStack(alignment: .leading) {
@@ -133,8 +135,7 @@ struct DeckDetailView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                     Text("\(counts.learnCount)")
-                        .amgiFont(.sectionHeading)
-                        .foregroundStyle(Color.amgiWarning)
+                        .amgiStatusBadge(.warning)
                 }
                 Spacer()
                 VStack(alignment: .leading) {
@@ -142,8 +143,7 @@ struct DeckDetailView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                     Text("\(counts.reviewCount)")
-                        .amgiFont(.sectionHeading)
-                        .foregroundStyle(Color.amgiPositive)
+                        .amgiStatusBadge(.positive)
                 }
             }
             .padding(.vertical, 8)

@@ -25,8 +25,9 @@ struct UserManagementView: View {
                                 .foregroundStyle(Color.amgiTextPrimary)
                             Spacer()
                             if selectedUser == user {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(Color.amgiPositive)
+                                Label(L("common_selected"), systemImage: "checkmark.circle.fill")
+                                    .labelStyle(.iconOnly)
+                                    .amgiStatusBadge(.positive)
                             }
                         }
                         .contentShape(Rectangle())
@@ -64,6 +65,7 @@ struct UserManagementView: View {
                         showAddPrompt = true
                     } label: {
                         Image(systemName: "plus")
+                            .amgiToolbarIconButton()
                     }
                 }
             }

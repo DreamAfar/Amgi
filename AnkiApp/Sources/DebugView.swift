@@ -75,6 +75,8 @@ struct DebugView: View {
                     Text(statusMessage)
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .amgiStatusPanel(.info)
                 }
             }
 

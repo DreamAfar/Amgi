@@ -41,19 +41,15 @@ struct AnkiAppApp: App {
                             .ignoresSafeArea()
 
                         VStack(spacing: AmgiSpacing.md) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 40, weight: .semibold))
-                                .foregroundStyle(Color.amgiWarning)
-                            Text(L("app_unable_to_start"))
-                                .amgiFont(.sectionHeading)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                            Label(L("app_unable_to_start"), systemImage: "exclamationmark.triangle.fill")
+                                .amgiStatusBadge(.warning, horizontalPadding: 12, verticalPadding: 8)
                             Text(message)
                                 .amgiFont(.caption)
                                 .foregroundStyle(Color.amgiTextSecondary)
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: 360)
-                        .amgiCard(elevated: true)
+                        .amgiStatusPanel(.warning, elevated: true)
                         .padding(.horizontal, AmgiSpacing.lg)
                     }
                 case .ready:

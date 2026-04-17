@@ -38,6 +38,7 @@ struct MediaCheckResultView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
+                        .amgiToolbarTextButton()
                 }
             }
             .alert(L("common_done"), isPresented: $showActionAlert) {
@@ -54,13 +55,13 @@ struct MediaCheckResultView: View {
                 L("media_check_missing_count", result.missing.count),
                 systemImage: "exclamationmark.triangle"
             )
-            .foregroundStyle(result.missing.isEmpty ? AnyShapeStyle(Color.amgiTextSecondary) : AnyShapeStyle(Color.amgiDanger))
+            .amgiStatusBadge(result.missing.isEmpty ? .neutral : .danger)
 
             Label(
                 L("media_check_unused_count", result.unused.count),
                 systemImage: "archivebox"
             )
-            .foregroundStyle(result.unused.isEmpty ? AnyShapeStyle(Color.amgiTextSecondary) : AnyShapeStyle(Color.amgiWarning))
+            .amgiStatusBadge(result.unused.isEmpty ? .neutral : .warning)
 
             if !result.report.isEmpty {
                 DisclosureGroup(L("media_check_full_report")) {
@@ -76,8 +77,7 @@ struct MediaCheckResultView: View {
         Section(L("media_check_section_missing")) {
             ForEach(result.missing.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "questionmark.circle")
-                    .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiDanger)
+                    .amgiStatusBadge(.danger)
             }
             if result.missing.count > 200 {
                 Text(L("media_check_and_more", result.missing.count - 200))
@@ -91,8 +91,7 @@ struct MediaCheckResultView: View {
         Section(L("media_check_section_unused")) {
             ForEach(result.unused.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "tray")
-                    .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiWarning)
+                    .amgiStatusBadge(.warning)
             }
             if result.unused.count > 200 {
                 Text(L("media_check_and_more", result.unused.count - 200))

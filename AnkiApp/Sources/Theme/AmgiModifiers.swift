@@ -1,5 +1,57 @@
 import SwiftUI
 
+enum AmgiStatusTone {
+    case accent
+    case positive
+    case warning
+    case danger
+    case info
+    case neutral
+
+    fileprivate var foregroundColor: Color {
+        switch self {
+        case .accent:
+            return Color.amgiAccent
+        case .positive:
+            return Color.amgiPositive
+        case .warning:
+            return Color.amgiWarning
+        case .danger:
+            return Color.amgiDanger
+        case .info:
+            return Color.amgiInfo
+        case .neutral:
+            return Color.amgiTextSecondary
+        }
+    }
+
+    fileprivate var backgroundColor: Color {
+        switch self {
+        case .accent:
+            return Color.amgiAccent.opacity(0.12)
+        case .positive:
+            return Color.amgiPositive.opacity(0.14)
+        case .warning:
+            return Color.amgiWarning.opacity(0.16)
+        case .danger:
+            return Color.amgiDanger.opacity(0.14)
+        case .info:
+            return Color.amgiInfo.opacity(0.14)
+        case .neutral:
+            return Color.amgiSurface
+        }
+    }
+
+    fileprivate var borderColor: Color {
+        switch self {
+        case .neutral:
+            return Color.amgiBorder.opacity(0.32)
+        default:
+            return foregroundColor.opacity(0.28)
+        }
+    }
+}
+
 struct AmgiCardModifier: ViewModifier {
     let elevated: Bool
 
@@ -62,6 +114,22 @@ extension View {
         modifier(AmgiCardModifier(elevated: elevated))
     }
 
+    func amgiToolbarIconButton(size: CGFloat = 32) -> some View {
+        frame(width: size, height: size)
+            .foregroundStyle(Color.amgiTextPrimary)
+            .background(Color.amgiSurfaceElevated)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    func amgiToolbarTextButton(tone: AmgiStatusTone = .accent) -> some View {
+        amgiFont(.captionBold)
+            .foregroundStyle(tone.foregroundColor)
+    }
+
     func amgiCapsuleControl(horizontalPadding: CGFloat = 10, verticalPadding: CGFloat = 6) -> some View {
         padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
@@ -71,6 +139,36 @@ extension View {
                     .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
             )
             .clipShape(Capsule())
+    }
+
+    func amgiStatusBadge(_ tone: AmgiStatusTone, horizontalPadding: CGFloat = 8, verticalPadding: CGFloat = 4) -> some View {
+        amgiFont(.captionBold)
+            .foregroundStyle(tone.foregroundColor)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .background(tone.backgroundColor)
+            .overlay(
+                Capsule()
+                    .stroke(tone.borderColor, lineWidth: 1)
+            )
+            .clipShape(Capsule())
+    }
+
+    func amgiStatusPanel(_ tone: AmgiStatusTone, elevated: Bool = false) -> some View {
+        padding(AmgiSpacing.lg)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.amgiSurfaceElevated)
+            )
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(tone.backgroundColor)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(tone.borderColor, lineWidth: 1)
+            )
+            .modifier(ConditionalShadow(enabled: elevated))
     }
 
     func amgiSegmentedPicker() -> some View {

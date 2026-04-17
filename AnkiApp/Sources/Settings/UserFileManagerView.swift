@@ -80,6 +80,7 @@ struct UserFileManagerView: View {
                     loadMediaFiles()
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .amgiToolbarIconButton()
                 }
                 .disabled(isLoading)
             }
@@ -421,6 +422,7 @@ private struct MediaFilePreviewView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_done")) { dismiss() }
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

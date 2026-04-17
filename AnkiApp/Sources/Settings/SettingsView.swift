@@ -887,6 +887,7 @@ private struct SyncServerSetupSheet: View {
                     Button(L("common_cancel")) {
                         isPresented = false
                     }
+                    .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

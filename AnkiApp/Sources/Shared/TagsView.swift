@@ -64,13 +64,13 @@ struct TagsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_done")) { dismiss() }
-                        .foregroundStyle(Color.amgiAccent)
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAddTag = true }) {
                         Image(systemName: "plus")
+                            .amgiToolbarIconButton()
                     }
-                    .foregroundStyle(Color.amgiAccent)
                 }
             }
             .sheet(isPresented: $showAddTag) {
@@ -178,7 +178,7 @@ struct TagsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { showAddTag = false }
-                        .foregroundStyle(Color.amgiAccent)
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

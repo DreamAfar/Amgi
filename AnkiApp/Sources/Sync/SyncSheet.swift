@@ -69,12 +69,14 @@ struct SyncSheet: View {
                         }
                         isPresented = false
                     }
+                    .amgiToolbarTextButton(tone: syncCoordinator.isRunning ? .danger : .neutral)
                 }
                 if syncCoordinator.isRunning {
                     ToolbarItem(placement: .confirmationAction) {
                         Button(L("sync_btn_background")) {
                             isPresented = false
                         }
+                        .amgiToolbarTextButton()
                     }
                 }
             }
@@ -408,12 +410,8 @@ struct SyncSheet: View {
     @ViewBuilder
     private func successView(_ summary: SyncSummary) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.amgiPositive)
-            Text(L("sync_complete_title"))
-                .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+            Label(L("sync_complete_title"), systemImage: "checkmark.circle.fill")
+                .amgiStatusBadge(.positive, horizontalPadding: 12, verticalPadding: 8)
             VStack(alignment: .leading, spacing: 4) {
                 if summary.cardsPulled > 0 { Text(L("sync_cards_received", summary.cardsPulled)) }
                 if summary.cardsPushed > 0 { Text(L("sync_cards_sent", summary.cardsPushed)) }
@@ -459,6 +457,7 @@ struct SyncSheet: View {
                 .padding(.top, 4)
             }
         }
+        .amgiStatusPanel(.positive, elevated: true)
     }
 
     // MARK: - Error View
@@ -466,12 +465,8 @@ struct SyncSheet: View {
     @ViewBuilder
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.amgiWarning)
-            Text(L("sync_failed_title"))
-                .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+            Label(L("sync_failed_title"), systemImage: "exclamationmark.triangle.fill")
+                .amgiStatusBadge(.warning, horizontalPadding: 12, verticalPadding: 8)
             Text(message)
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
@@ -482,18 +477,15 @@ struct SyncSheet: View {
             .buttonStyle(.borderedProminent)
             .tint(Color.amgiAccent)
         }
+        .amgiStatusPanel(.warning, elevated: true)
     }
 
     // MARK: - Full Sync Choice View
 
     private var fullSyncChoiceView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.amgiWarning)
-            Text(L("sync_full_required_title"))
-                .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+            Label(L("sync_full_required_title"), systemImage: "arrow.triangle.2.circlepath")
+                .amgiStatusBadge(.warning, horizontalPadding: 12, verticalPadding: 8)
             Text(L("sync_full_required_desc"))
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
@@ -519,6 +511,7 @@ struct SyncSheet: View {
                 .tint(Color.amgiAccent)
             }
         }
+        .amgiStatusPanel(.warning, elevated: true)
     }
 
     private func fullSync(_ direction: SyncDirection) async {
@@ -564,7 +557,7 @@ private struct ServerSetupSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L("btn_cancel")) { isPresented = false }
-                        .foregroundStyle(Color.amgiAccent)
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

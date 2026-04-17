@@ -101,8 +101,7 @@ struct AddNoteView: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .foregroundStyle(Color.amgiDanger)
-                            .amgiFont(.caption)
+                            .amgiStatusBadge(.danger)
                     }
                 }
             }
@@ -113,11 +112,13 @@ struct AddNoteView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L("common_cancel")) { dismiss() }
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L("add_note_button")) {
                         Task { await save() }
                     }
+                    .amgiToolbarTextButton()
                     .disabled(isSaving || fieldValues.allSatisfy(\.isEmpty))
                 }
             }

@@ -39,6 +39,7 @@ struct EmptyCardsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
+                        .amgiToolbarTextButton()
                 }
             }
             .alert(L("empty_cards_delete_confirm_title"), isPresented: $showDeleteConfirm) {
@@ -68,7 +69,7 @@ struct EmptyCardsView: View {
             if noteEntries.isEmpty {
                 Section {
                     Label(L("empty_cards_none_found"), systemImage: "checkmark.circle")
-                        .foregroundStyle(Color.amgiPositive)
+                        .amgiStatusBadge(.positive)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 8)
                 }
@@ -78,7 +79,7 @@ struct EmptyCardsView: View {
                         L("empty_cards_found_count", noteEntries.reduce(0) { $0 + $1.cardIds.count }),
                         systemImage: "rectangle.stack.badge.minus"
                     )
-                    .foregroundStyle(Color.amgiWarning)
+                    .amgiStatusBadge(.warning)
 
                     if !report.isEmpty {
                         DisclosureGroup(L("empty_cards_report")) {
@@ -100,8 +101,7 @@ struct EmptyCardsView: View {
                                 .foregroundStyle(Color.amgiTextSecondary)
                             if entry.willDeleteNote {
                                 Text(L("empty_cards_will_delete_note"))
-                                    .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiDanger)
+                                    .amgiStatusBadge(.danger)
                             }
                         }
                     }

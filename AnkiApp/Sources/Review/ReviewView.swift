@@ -87,12 +87,14 @@ struct ReviewView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_done")) { onDismiss() }
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showDeckStats = true
                     } label: {
                         Image(systemName: "chart.bar.doc.horizontal")
+                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("stats_nav_title"))
                 }
@@ -101,6 +103,7 @@ struct ReviewView: View {
                         Task { await openEditorForCurrentCard() }
                     } label: {
                         Image(systemName: "pencil")
+                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("review_edit_button"))
                     .disabled(session.currentCard == nil)
@@ -111,6 +114,7 @@ struct ReviewView: View {
                             replayRequestID += 1
                         } label: {
                             Image(systemName: "speaker.wave.2")
+                                .amgiToolbarIconButton()
                         }
                         .disabled(session.currentCard == nil)
                     }
@@ -120,6 +124,7 @@ struct ReviewView: View {
                         showCardInfo = true
                     } label: {
                         Image(systemName: "info.circle")
+                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("card_info_title"))
                     .disabled(session.currentCard == nil)
@@ -496,11 +501,8 @@ struct ReviewView: View {
     private var finishedView: some View {
         VStack(spacing: 16) {
             Spacer()
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-            Text(L("review_finished_title"))
-                .font(.title2.weight(.semibold))
+            Label(L("review_finished_title"), systemImage: "checkmark.circle.fill")
+                .amgiStatusBadge(.positive, horizontalPadding: 12, verticalPadding: 8)
             Text(L("review_finished_count", session.sessionStats.reviewed))
                 .foregroundStyle(.secondary)
             if session.sessionStats.reviewed > 0 {
@@ -726,11 +728,13 @@ private struct ReviewSetDueDateSheet: View {
                     Button(L("common_cancel")) {
                         dismiss()
                     }
+                    .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L("common_save")) {
                         onSave()
                     }
+                    .amgiToolbarTextButton()
                     .disabled(trimmedDueDays.isEmpty)
                 }
             }
@@ -862,6 +866,7 @@ private struct ReviewCardStatsSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
+                        .amgiToolbarTextButton()
                 }
             }
             .task {
@@ -1233,6 +1238,7 @@ private struct ReviewCardInfoSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
+                        .amgiToolbarTextButton()
                 }
             }
             .task {

@@ -33,6 +33,7 @@ struct DeckTemplateListView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
+                        .amgiToolbarTextButton()
                 }
             }
             .sheet(item: $editorTarget) { target in
@@ -311,6 +312,7 @@ struct TemplateEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
+                        .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .principal) {
                     Text(mode.title)
@@ -322,6 +324,7 @@ struct TemplateEditorView: View {
                     Button(L("card_template_fields_short")) {
                         showFieldManager = true
                     }
+                    .amgiToolbarTextButton(tone: .neutral)
                     .disabled(isLoading)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -331,6 +334,7 @@ struct TemplateEditorView: View {
                         Button(L("btn_save")) {
                             Task { await saveTemplate() }
                         }
+                        .amgiToolbarTextButton()
                         .disabled(!notetype.templates.indices.contains(selectedTemplateIndex))
                     }
                 }
@@ -497,6 +501,7 @@ struct TemplateEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { showPreviewSheet = false }
+                        .amgiToolbarTextButton()
                 }
             }
         }
