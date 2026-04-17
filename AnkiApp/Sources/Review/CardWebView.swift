@@ -98,24 +98,47 @@ struct CardWebView: UIViewRepresentable {
         // Convert Anki [sound:filename.mp3] tags to <audio> HTML elements.
         // The Rust renderer keeps these tags literal; the client must expand them.
         let isDarkMode = colorScheme == .dark
-        let processedHTML = Self.expandSoundTags(
-            html,
-            isDarkMode: isDarkMode,
-            showReplayButtons: showInlineAudioReplayButtons
+        let mediaDir = Self.currentMediaDirectoryURL()
+        let processedHTML = Self.deferCardScripts(in:
+            Self.expandSoundTags(
+                html,
+                isDarkMode: isDarkMode,
+                showReplayButtons: showInlineAudioReplayButtons
+            )
         )
         let hasTypedAnswerInput = !isAnswerSide && processedHTML.contains("id=\"typeans\"")
-        let loadSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(showInlineAudioReplayButtons)|\(contentAlignment.rawValue)|\(isDarkMode)|\(processedHTML.hashValue)"
+        let bodyPaddingBottom = hasTypedAnswerInput ? 148 : 16
+        let cardPaddingBottom = hasTypedAnswerInput ? 96 : 0
+        let alignTop = hasTypedAnswerInput || contentAlignment == .top
+        let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
+        let pageSignature = "\(isDarkMode)|\(mediaDir?.absoluteString ?? \"none\")"
+        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(processedHTML.hashValue)"
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
 
-        if context.coordinator.lastLoadSignature != loadSignature {
-            context.coordinator.lastLoadSignature = loadSignature
-            let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
+        let cardStateLiteral = Self.cardStateLiteral(
+            autoplayEnabled: autoplayEnabled,
+            isAnswerSide: isAnswerSide,
+            replayMode: replayMode.rawValue,
+            bodyClass: bodyClass,
+            alignTop: alignTop,
+            bodyPaddingBottom: bodyPaddingBottom,
+            cardPaddingBottom: cardPaddingBottom
+        )
+        let updateCardScript = Self.updateCardScript(
+            html: processedHTML,
+            cardStateLiteral: cardStateLiteral
+        )
+
+        if context.coordinator.lastPageSignature != pageSignature {
+            context.coordinator.lastPageSignature = pageSignature
+            context.coordinator.lastContentSignature = contentSignature
+            context.coordinator.isPageLoaded = false
+            context.coordinator.pendingUpdateScript = nil
             let htmlClass = Self.htmlClasses(isDarkMode: isDarkMode)
             let playIconHTML = Self.audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
             let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.circle", alt: "Pause", isDarkMode: isDarkMode)
-            let mediaDir = Self.currentMediaDirectoryURL()
             let baseTag = Self.mediaBaseTag(for: mediaDir)
 
             let styledHTML = """
@@ -138,18 +161,18 @@ struct CardWebView: UIViewRepresentable {
                 line-height: 1.5;
                 color: \(isDarkMode ? "#f5f5f5" : "#1a1a1a");
                 background: transparent;
-                padding: 16px 16px \(hasTypedAnswerInput ? 148 : 16)px;
+                padding: 16px 16px var(--amgi-body-padding-bottom, 16px);
                 margin: 0;
                 text-align: center;
                 display: flex;
-                align-items: \((hasTypedAnswerInput || contentAlignment == .top) ? "flex-start" : "center");
+                align-items: var(--amgi-body-align-items, center);
                 justify-content: center;
                 min-height: 80vh;
             }
             .card-frame {
                 max-width: 600px;
                 width: 100%;
-                padding-bottom: \(hasTypedAnswerInput ? 96 : 0)px;
+                padding-bottom: var(--amgi-card-padding-bottom, 0px);
             }
             hr { border: none; border-top: 1px solid \(isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"); margin: 16px 0; }
             img { max-width: 100%; height: auto; border-radius: 8px; }
@@ -263,9 +286,45 @@ struct CardWebView: UIViewRepresentable {
         const DEFAULT_REPLAY_MODE = \(Self.jsStringLiteral(replayMode.rawValue));
         const PLAY_ICON_HTML = \(Self.jsStringLiteral(playIconHTML));
         const PAUSE_ICON_HTML = \(Self.jsStringLiteral(pauseIconHTML));
+        const INITIAL_CARD_HTML = \(Self.jsStringLiteral(processedHTML));
+        const INITIAL_CARD_STATE = \(cardStateLiteral);
         window.__amgiAudioPlaying = false;
         window.onUpdateHook = window.onUpdateHook || [];
         window.onShownHook = window.onShownHook || [];
+        window.__amgiCardState = window.__amgiCardState || {};
+
+        function amgiCardState() {
+            return window.__amgiCardState || {};
+        }
+
+        function amgiAutoplayEnabled() {
+            var state = amgiCardState();
+            return typeof state.autoplayEnabled === 'boolean' ? state.autoplayEnabled : AUTOPLAY_ENABLED;
+        }
+
+        function amgiIsAnswerSide() {
+            var state = amgiCardState();
+            return typeof state.isAnswerSide === 'boolean' ? state.isAnswerSide : IS_ANSWER_SIDE;
+        }
+
+        function amgiReplayModeValue() {
+            var state = amgiCardState();
+            return typeof state.replayMode === 'string' ? state.replayMode : DEFAULT_REPLAY_MODE;
+        }
+
+        function amgiApplyCardState(state) {
+            window.__amgiCardState = Object.assign({}, window.__amgiCardState || {}, state || {});
+            var currentState = amgiCardState();
+            var qa = document.getElementById('qa');
+
+            document.body.className = currentState.bodyClass || document.body.className;
+            document.body.style.setProperty('--amgi-body-padding-bottom', String(currentState.bodyPaddingBottom || 16) + 'px');
+            document.body.style.setProperty('--amgi-body-align-items', currentState.alignTop ? 'flex-start' : 'center');
+
+            if (qa) {
+                qa.style.setProperty('--amgi-card-padding-bottom', String(currentState.cardPaddingBottom || 0) + 'px');
+            }
+        }
 
         function amgiRunHooks(hooks) {
             if (!Array.isArray(hooks)) {
@@ -280,6 +339,40 @@ struct CardWebView: UIViewRepresentable {
                     console.error('Hook failed', error);
                 }
             });
+        }
+
+        function amgiReplaceDeferredScript(oldScript) {
+            return new Promise(function(resolve) {
+                var newScript = document.createElement('script');
+                var src = oldScript.getAttribute('src');
+                var mustWaitForNetwork = !!src;
+
+                oldScript.getAttributeNames().forEach(function(name) {
+                    if (name === 'type' || name === 'data-amgi-card-script') {
+                        return;
+                    }
+                    var value = oldScript.getAttribute(name);
+                    if (value !== null) {
+                        newScript.setAttribute(name, value);
+                    }
+                });
+
+                newScript.addEventListener('load', function() { resolve(); });
+                newScript.addEventListener('error', function() { resolve(); });
+                newScript.appendChild(document.createTextNode(oldScript.textContent || ''));
+                oldScript.replaceWith(newScript);
+
+                if (!mustWaitForNetwork) {
+                    resolve();
+                }
+            });
+        }
+
+        async function amgiExecuteDeferredCardScripts() {
+            var scripts = Array.from(document.querySelectorAll('#qa script[type="application/x-amgi-card-script"]'));
+            for (const script of scripts) {
+                await amgiReplaceDeferredScript(script);
+            }
         }
 
         function amgiAddBrowserClasses() {
@@ -466,7 +559,7 @@ struct CardWebView: UIViewRepresentable {
             }
 
             if (command === 'replay') {
-                amgiReplayAll(DEFAULT_REPLAY_MODE);
+                amgiReplayAll(amgiReplayModeValue());
                 return false;
             }
 
@@ -874,8 +967,8 @@ struct CardWebView: UIViewRepresentable {
                         ctx.scale(dpr, dpr);
 
                         var masksHidden = !!container._amgiMasksHidden;
-                        canvasRef.style.pointerEvents = IS_ANSWER_SIDE && !masksHidden ? 'auto' : 'none';
-                        canvasRef.style.cursor = IS_ANSWER_SIDE && !masksHidden ? 'pointer' : 'default';
+                        canvasRef.style.pointerEvents = amgiIsAnswerSide() && !masksHidden ? 'auto' : 'none';
+                        canvasRef.style.cursor = amgiIsAnswerSide() && !masksHidden ? 'pointer' : 'default';
 
                         var style = getComputedStyle(document.documentElement);
                         var inactiveColor = style.getPropertyValue('--inactive-shape-color').trim() || '#ffeba2';
@@ -896,7 +989,7 @@ struct CardWebView: UIViewRepresentable {
 
                     if (!canvasRef.dataset.amgiRevealBound) {
                         canvasRef.addEventListener('click', function(event) {
-                            if (!IS_ANSWER_SIDE || container._amgiMasksHidden) {
+                            if (!amgiIsAnswerSide() || container._amgiMasksHidden) {
                                 return;
                             }
                             var rect = canvasRef.getBoundingClientRect();
@@ -942,7 +1035,7 @@ struct CardWebView: UIViewRepresentable {
                     if (toggleBtn) {
                         toggleBtn.type = 'button';
                         toggleBtn.setAttribute('aria-pressed', container._amgiMasksHidden ? 'true' : 'false');
-                        if (!IS_ANSWER_SIDE || !hasInactiveMasks) {
+                        if (!amgiIsAnswerSide() || !hasInactiveMasks) {
                             toggleBtn.style.display = 'none';
                         } else {
                             toggleBtn.style.display = '';
@@ -983,19 +1076,16 @@ struct CardWebView: UIViewRepresentable {
         amgiAddBrowserClasses();
         // ────────────────────────────────────────────────────────────────
 
-        function amgiHandleWindowLoad() {
-            if (window.__amgiWindowLoadHandled) {
-                return;
-            }
-            window.__amgiWindowLoadHandled = true;
+        async function amgiFinalizeCardContent() {
+            await amgiExecuteDeferredCardScripts();
 
             amgiRunHooks(window.onUpdateHook);
 
             var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
 
-            if (AUTOPLAY_ENABLED && !hasTemplateManagedMedia) {
+            if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) {
                 // Keep autoplay and replay commands on the same mode selection path.
-                amgiReplayAll(DEFAULT_REPLAY_MODE);
+                amgiReplayAll(amgiReplayModeValue());
             }
 
             // Detect missing images
@@ -1036,13 +1126,37 @@ struct CardWebView: UIViewRepresentable {
             amgiRunHooks(window.onShownHook);
         }
 
+        async function amgiUpdateQAContent(html, state) {
+            var qa = document.getElementById('qa');
+            if (!qa) {
+                return;
+            }
+
+            stopAllSystemAudio();
+            window.onUpdateHook = [];
+            window.onShownHook = [];
+            amgiApplyCardState(state);
+            qa.innerHTML = html || '';
+            await amgiFinalizeCardContent();
+        }
+
+        window.amgiUpdateQAContent = amgiUpdateQAContent;
+
+        async function amgiHandleWindowLoad() {
+            if (window.__amgiWindowLoadHandled) {
+                return;
+            }
+            window.__amgiWindowLoadHandled = true;
+            await amgiUpdateQAContent(INITIAL_CARD_HTML, INITIAL_CARD_STATE);
+        }
+
         window.addEventListener('load', amgiHandleWindowLoad);
         if (document.readyState === 'complete') {
             amgiHandleWindowLoad();
         }
         </script>
         </head>
-        <body class="\(bodyClass)"><div id="qa" class="card-frame">\(processedHTML)</div></body>
+        <body class="\(bodyClass)"><div id="qa" class="card-frame"></div></body>
         </html>
         """
 
@@ -1060,6 +1174,13 @@ struct CardWebView: UIViewRepresentable {
                 webView.loadFileURL(htmlFile, allowingReadAccessTo: mediaDir)
             } catch {
                 webView.loadHTMLString(styledHTML, baseURL: nil)
+            }
+        } else if context.coordinator.lastContentSignature != contentSignature {
+            context.coordinator.lastContentSignature = contentSignature
+            if context.coordinator.isPageLoaded {
+                webView.evaluateJavaScript(updateCardScript, completionHandler: nil)
+            } else {
+                context.coordinator.pendingUpdateScript = updateCardScript
             }
         }
 
@@ -1123,6 +1244,71 @@ struct CardWebView: UIViewRepresentable {
             result.replaceSubrange(matchRange, with: replacement)
         }
         return result
+    }
+
+    private static func deferCardScripts(in html: String) -> String {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"<script\b([^>]*)>"#,
+            options: [.caseInsensitive]
+        ) else { return html }
+
+        let range = NSRange(html.startIndex..., in: html)
+        let matches = regex.matches(in: html, range: range)
+        var result = html
+
+        for match in matches.reversed() {
+            guard let matchRange = Range(match.range, in: result),
+                  let attrsRange = Range(match.range(at: 1), in: result) else { continue }
+
+            let attrs = String(result[attrsRange])
+            let withoutQuotedType = attrs.replacingOccurrences(
+                of: #"\stype\s*=\s*(["']).*?\1"#,
+                with: "",
+                options: .regularExpression
+            )
+            let cleanedAttrs = withoutQuotedType.replacingOccurrences(
+                of: #"\stype\s*=\s*[^\s>]+"#,
+                with: "",
+                options: .regularExpression
+            )
+
+            let replacement = "<script type=\"application/x-amgi-card-script\" data-amgi-card-script=\"1\"\(cleanedAttrs)>"
+            result.replaceSubrange(matchRange, with: replacement)
+        }
+
+        return result
+    }
+
+    private static func cardStateLiteral(
+        autoplayEnabled: Bool,
+        isAnswerSide: Bool,
+        replayMode: String,
+        bodyClass: String,
+        alignTop: Bool,
+        bodyPaddingBottom: Int,
+        cardPaddingBottom: Int
+    ) -> String {
+        let state: [String: Any] = [
+            "autoplayEnabled": autoplayEnabled,
+            "isAnswerSide": isAnswerSide,
+            "replayMode": replayMode,
+            "bodyClass": bodyClass,
+            "alignTop": alignTop,
+            "bodyPaddingBottom": bodyPaddingBottom,
+            "cardPaddingBottom": cardPaddingBottom,
+        ]
+
+        guard JSONSerialization.isValidJSONObject(state),
+              let data = try? JSONSerialization.data(withJSONObject: state, options: []),
+              let literal = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+
+        return literal
+    }
+
+    private static func updateCardScript(html: String, cardStateLiteral: String) -> String {
+        "window.amgiUpdateQAContent && window.amgiUpdateQAContent(\(jsStringLiteral(html)), \(cardStateLiteral));"
     }
 
     private static func audioButtonIconHTML(systemName: String, alt: String, isDarkMode: Bool) -> String {
@@ -1225,9 +1411,12 @@ struct CardWebView: UIViewRepresentable {
     // MARK: - Navigation Delegate
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        var lastLoadSignature: String?
+        var lastPageSignature: String?
+        var lastContentSignature: String?
         var lastReplayRequestID: Int = 0
         var lastTypedAnswerRequestID: Int = 0
+        var isPageLoaded = false
+        var pendingUpdateScript: String?
         var openLinksExternally: Bool = true
         weak var currentWebView: WKWebView?
         let onTypedAnswerSubmitted: ((String?) -> Void)?
@@ -1321,6 +1510,14 @@ struct CardWebView: UIViewRepresentable {
                 // Keep http/https inside WKWebView when external opening is disabled.
                 decisionHandler(.allow)
             }
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            isPageLoaded = true
+
+            guard let pendingUpdateScript else { return }
+            self.pendingUpdateScript = nil
+            webView.evaluateJavaScript(pendingUpdateScript, completionHandler: nil)
         }
     }
 }
