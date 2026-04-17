@@ -69,7 +69,7 @@ struct EmptyCardsView: View {
             if noteEntries.isEmpty {
                 Section {
                     Label(L("empty_cards_none_found"), systemImage: "checkmark.circle")
-                        .amgiStatusBadge(.positive)
+                        .amgiStatusText(.positive)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 8)
                         .listRowBackground(Color.amgiSurfaceElevated)
@@ -80,7 +80,7 @@ struct EmptyCardsView: View {
                         L("empty_cards_found_count", noteEntries.reduce(0) { $0 + $1.cardIds.count }),
                         systemImage: "rectangle.stack.badge.minus"
                     )
-                    .amgiStatusBadge(.warning)
+                    .amgiStatusText(.warning)
                     .listRowBackground(Color.amgiSurfaceElevated)
 
                     if !report.isEmpty {
@@ -104,7 +104,7 @@ struct EmptyCardsView: View {
                                 .foregroundStyle(Color.amgiTextSecondary)
                             if entry.willDeleteNote {
                                 Text(L("empty_cards_will_delete_note"))
-                                    .amgiStatusBadge(.danger)
+                                    .amgiStatusText(.danger, font: .caption)
                             }
                         }
                         .listRowBackground(Color.amgiSurfaceElevated)

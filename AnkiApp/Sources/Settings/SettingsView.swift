@@ -420,6 +420,7 @@ private struct ReviewOptionsView: View {
                 Toggle(L("settings_review_autoplay_audio"), isOn: $autoplayAudio)
                 Toggle(L("settings_review_play_audio_in_silent_mode"), isOn: $playAudioInSilentMode)
             }
+            .amgiSettingsListRowSurface()
 
             Section(L("settings_review_section_ui")) {
                 Toggle(L("settings_review_show_context_menu_button"), isOn: $showContextMenuButton)
@@ -452,6 +453,7 @@ private struct ReviewOptionsView: View {
                     }
                 }
             }
+            .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
@@ -578,6 +580,7 @@ private struct DeckListHeatmapSettingsView: View {
                     }
                 }
             }
+            .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
@@ -744,6 +747,7 @@ private struct SyncSettingsView: View {
                     }
                 }
             }
+            .amgiSettingsListRowSurface()
 
             Section(L("sync_settings_section_options")) {
                 Toggle(L("sync_settings_sync_media"), isOn: $syncMediaEnabled)
@@ -765,6 +769,7 @@ private struct SyncSettingsView: View {
                     }
                 }
             }
+            .amgiSettingsListRowSurface()
 
             if syncMode != .local {
                 Section(L("sync_settings_section_media")) {
@@ -803,6 +808,7 @@ private struct SyncSettingsView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .amgiSettingsListRowSurface()
             }
         }
         .scrollContentBackground(.hidden)

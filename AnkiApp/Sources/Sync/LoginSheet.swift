@@ -23,7 +23,7 @@ struct LoginSheet: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .amgiStatusBadge(.danger)
+                            .amgiStatusText(.danger, font: .caption)
                     }
                 }
                 Section {

@@ -86,6 +86,7 @@ struct ExportOptionsView: View {
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
+            .listRowBackground(Color.amgiSurfaceElevated)
 
             Section(L("export_config_options")) {
                 Toggle(L("export_config_include_media"), isOn: $draft.includeMedia)
@@ -97,6 +98,7 @@ struct ExportOptionsView: View {
 
                 Toggle(L("export_config_legacy_support"), isOn: $draft.legacySupport)
             }
+            .listRowBackground(Color.amgiSurfaceElevated)
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
@@ -170,6 +172,7 @@ struct ImportOptionsView: View {
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
             }
+            .listRowBackground(Color.amgiSurfaceElevated)
 
             if isCollectionPackage {
                 Section(L("import_config_collection_title")) {
@@ -177,12 +180,14 @@ struct ImportOptionsView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
             } else {
                 Section(L("import_config_options")) {
                     Toggle(L("import_config_include_scheduling"), isOn: $draft.includeScheduling)
                     Toggle(L("import_config_include_deck_configs"), isOn: $draft.includeDeckConfigs)
                     Toggle(L("import_config_merge_notetypes"), isOn: $draft.mergeNotetypes)
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
 
                 Section(L("import_config_update_policy")) {
                     Picker(L("import_config_update_notes"), selection: $draft.updateNotes) {
@@ -197,6 +202,7 @@ struct ImportOptionsView: View {
                         }
                     }
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
             }
         }
         .scrollContentBackground(.hidden)

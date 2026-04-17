@@ -165,7 +165,7 @@ struct AddImageOcclusionNoteView: View {
                 if let err = errorMessage {
                     Section {
                         Text(err)
-                            .amgiStatusBadge(.danger)
+                            .amgiStatusText(.danger, font: .caption)
                     }
                 }
             }

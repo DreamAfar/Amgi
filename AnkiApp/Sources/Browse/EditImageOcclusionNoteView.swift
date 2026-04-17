@@ -112,7 +112,7 @@ struct EditImageOcclusionNoteView: View {
                         if let err = saveError {
                             Section {
                                 Text(err)
-                                    .amgiStatusBadge(.danger)
+                                    .amgiStatusText(.danger, font: .caption)
                             }
                         }
                     }

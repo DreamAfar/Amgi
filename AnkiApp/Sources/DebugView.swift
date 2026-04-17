@@ -22,16 +22,19 @@ struct DebugView: View {
                     Text(KeychainHelper.loadUsername() ?? L("debug_not_logged_in"))
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
                 HStack {
                     Text(L("debug_host_key"))
                     Spacer()
                     Text(KeychainHelper.loadHostKey() != nil ? L("debug_stored") : L("common_none"))
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
                 Button(L("debug_logout"), role: .destructive) {
                     AppSyncAuthEvents.clearCredentials()
                     statusMessage = L("debug_logged_out_msg")
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
             }
 
             Section(L("debug_section_import_export")) {
@@ -45,6 +48,7 @@ struct DebugView: View {
                         statusMessage = L("debug_export_error", error.localizedDescription)
                     }
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
             }
 
             Section(L("debug_section_database")) {
@@ -59,10 +63,12 @@ struct DebugView: View {
                         statusMessage = L("debug_check_db_error", "\(error)")
                     }
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
 
                 Button(L("debug_reset_button"), role: .destructive) {
                     showResetConfirm = true
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
                 .confirmationDialog(L("debug_reset_confirm_msg"), isPresented: $showResetConfirm, titleVisibility: .visible) {
                     Button(L("debug_reset_confirm_button"), role: .destructive) {
                         resetEverything()
@@ -76,7 +82,7 @@ struct DebugView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .amgiStatusPanel(.info)
+                        .listRowBackground(Color.amgiSurfaceElevated)
                 }
             }
 
@@ -84,6 +90,7 @@ struct DebugView: View {
                 Button(L("debug_dump_deck_tree")) {
                     dumpDeckTree()
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
             }
         }
         .scrollContentBackground(.hidden)

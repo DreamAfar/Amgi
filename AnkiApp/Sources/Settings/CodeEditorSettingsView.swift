@@ -45,6 +45,7 @@ struct CodeEditorSettingsView: View {
                     .buttonStyle(.plain)
                     .disabled(fontSize >= maxFontSize)
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
 
                 // 代码预览
                 VStack(alignment: .leading, spacing: 4) {
@@ -59,6 +60,7 @@ struct CodeEditorSettingsView: View {
                         .cornerRadius(4)
                 }
                 .padding(.vertical, 4)
+                    .listRowBackground(Color.amgiSurfaceElevated)
 
                 // 字体选择
                 Picker(L("code_editor_font_family"), selection: Binding(
@@ -71,6 +73,7 @@ struct CodeEditorSettingsView: View {
                             .tag(family.rawValue)
                     }
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
             }
         }
         .scrollContentBackground(.hidden)

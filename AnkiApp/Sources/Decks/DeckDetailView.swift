@@ -124,7 +124,7 @@ struct DeckDetailView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                     Text("\(counts.newCount)")
-                        .amgiStatusBadge(.accent)
+                        .amgiStatusText(.accent, font: .sectionHeading)
                 }
                 Spacer()
                 VStack(alignment: .leading) {
@@ -132,7 +132,7 @@ struct DeckDetailView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                     Text("\(counts.learnCount)")
-                        .amgiStatusBadge(.warning)
+                        .amgiStatusText(.warning, font: .sectionHeading)
                 }
                 Spacer()
                 VStack(alignment: .leading) {
@@ -140,7 +140,7 @@ struct DeckDetailView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                     Text("\(counts.reviewCount)")
-                        .amgiStatusBadge(.positive)
+                        .amgiStatusText(.positive, font: .sectionHeading)
                 }
             }
             .padding(.vertical, 8)

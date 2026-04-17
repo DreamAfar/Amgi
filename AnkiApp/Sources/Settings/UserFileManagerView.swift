@@ -118,10 +118,15 @@ struct UserFileManagerView: View {
     private var summarySection: some View {
         Section {
             LabeledContent(L("file_mgmt_user"), value: username)
+                .listRowBackground(Color.amgiSurfaceElevated)
             LabeledContent(L("file_mgmt_media_count"), value: "\(mediaFiles.count)")
+                .listRowBackground(Color.amgiSurfaceElevated)
             LabeledContent(L("file_mgmt_media_size"), value: totalMediaSizeText)
+                .listRowBackground(Color.amgiSurfaceElevated)
             LabeledContent(L("file_mgmt_collection_size"), value: collectionDBSizeText)
+                .listRowBackground(Color.amgiSurfaceElevated)
             LabeledContent(L("file_mgmt_media_db_size"), value: mediaDBSizeText)
+                .listRowBackground(Color.amgiSurfaceElevated)
         } header: {
             Text(L("file_mgmt_section_summary"))
         }
@@ -148,12 +153,14 @@ struct UserFileManagerView: View {
                 ProgressView()
                 Spacer()
             }
+            .listRowBackground(Color.amgiSurfaceElevated)
         } else if filteredFiles.isEmpty {
             Text(L(searchText.isEmpty ? "file_mgmt_empty" : "file_mgmt_no_search_result"))
                 .amgiFont(.body)
                 .foregroundStyle(Color.amgiTextSecondary)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 8)
+                .listRowBackground(Color.amgiSurfaceElevated)
         } else {
             ForEach(visibleFiles) { entry in
                 mediaRow(for: entry)
@@ -169,6 +176,7 @@ struct UserFileManagerView: View {
                 }
                 .buttonStyle(.bordered)
                 .padding(.vertical, 6)
+                .listRowBackground(Color.amgiSurfaceElevated)
             }
         }
     }
@@ -188,6 +196,7 @@ struct UserFileManagerView: View {
             }
             Spacer()
         }
+        .listRowBackground(Color.amgiSurfaceElevated)
         .contentShape(Rectangle())
         .onTapGesture {
             previewTarget = entry

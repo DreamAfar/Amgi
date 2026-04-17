@@ -55,14 +55,14 @@ struct MediaCheckResultView: View {
                 L("media_check_missing_count", result.missing.count),
                 systemImage: "exclamationmark.triangle"
             )
-            .amgiStatusBadge(result.missing.isEmpty ? .neutral : .danger)
+            .amgiStatusText(result.missing.isEmpty ? .neutral : .danger)
             .listRowBackground(Color.amgiSurfaceElevated)
 
             Label(
                 L("media_check_unused_count", result.unused.count),
                 systemImage: "archivebox"
             )
-            .amgiStatusBadge(result.unused.isEmpty ? .neutral : .warning)
+            .amgiStatusText(result.unused.isEmpty ? .neutral : .warning)
             .listRowBackground(Color.amgiSurfaceElevated)
 
             if !result.report.isEmpty {
@@ -80,7 +80,7 @@ struct MediaCheckResultView: View {
         Section(L("media_check_section_missing")) {
             ForEach(result.missing.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "questionmark.circle")
-                    .amgiStatusBadge(.danger)
+                    .amgiStatusText(.danger, font: .caption)
                     .listRowBackground(Color.amgiSurfaceElevated)
             }
             if result.missing.count > 200 {
@@ -96,7 +96,7 @@ struct MediaCheckResultView: View {
         Section(L("media_check_section_unused")) {
             ForEach(result.unused.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "tray")
-                    .amgiStatusBadge(.warning)
+                    .amgiStatusText(.warning, font: .caption)
                     .listRowBackground(Color.amgiSurfaceElevated)
             }
             if result.unused.count > 200 {

@@ -409,7 +409,7 @@ struct SyncSheet: View {
     private func successView(_ summary: SyncSummary) -> some View {
         VStack(spacing: 12) {
             Label(L("sync_complete_title"), systemImage: "checkmark.circle.fill")
-                .amgiStatusBadge(.positive, horizontalPadding: 12, verticalPadding: 8)
+                .amgiStatusText(.positive, font: .sectionHeading)
             VStack(alignment: .leading, spacing: 4) {
                 if summary.cardsPulled > 0 { Text(L("sync_cards_received", summary.cardsPulled)) }
                 if summary.cardsPushed > 0 { Text(L("sync_cards_sent", summary.cardsPushed)) }
@@ -455,7 +455,6 @@ struct SyncSheet: View {
                 .padding(.top, 4)
             }
         }
-        .amgiStatusPanel(.positive, elevated: true)
     }
 
     // MARK: - Error View
@@ -464,7 +463,7 @@ struct SyncSheet: View {
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 12) {
             Label(L("sync_failed_title"), systemImage: "exclamationmark.triangle.fill")
-                .amgiStatusBadge(.warning, horizontalPadding: 12, verticalPadding: 8)
+                .amgiStatusText(.warning, font: .sectionHeading)
             Text(message)
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
@@ -475,7 +474,6 @@ struct SyncSheet: View {
             .buttonStyle(.borderedProminent)
             .tint(Color.amgiAccent)
         }
-        .amgiStatusPanel(.warning, elevated: true)
     }
 
     // MARK: - Full Sync Choice View
@@ -483,7 +481,7 @@ struct SyncSheet: View {
     private var fullSyncChoiceView: some View {
         VStack(spacing: 16) {
             Label(L("sync_full_required_title"), systemImage: "arrow.triangle.2.circlepath")
-                .amgiStatusBadge(.warning, horizontalPadding: 12, verticalPadding: 8)
+                .amgiStatusText(.warning, font: .sectionHeading)
             Text(L("sync_full_required_desc"))
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
@@ -509,7 +507,6 @@ struct SyncSheet: View {
                 .tint(Color.amgiAccent)
             }
         }
-        .amgiStatusPanel(.warning, elevated: true)
     }
 
     private func fullSync(_ direction: SyncDirection) async {

@@ -118,7 +118,7 @@ struct AmgiStatusMessageView: View {
     var body: some View {
         VStack(spacing: AmgiSpacing.md) {
             Label(title, systemImage: systemImage)
-                .amgiStatusBadge(tone, horizontalPadding: 12, verticalPadding: 8)
+                .amgiStatusText(tone, font: .bodyEmphasis)
 
             Text(message)
                 .amgiFont(.caption)
@@ -126,7 +126,6 @@ struct AmgiStatusMessageView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: 420)
-        .amgiStatusPanel(tone, elevated: true)
         .padding(.horizontal, AmgiSpacing.lg)
     }
 }
@@ -149,6 +148,11 @@ extension View {
 
     func amgiToolbarTextButton(tone: AmgiStatusTone = .accent) -> some View {
         amgiFont(.captionBold)
+            .foregroundStyle(tone.foregroundColor)
+    }
+
+    func amgiStatusText(_ tone: AmgiStatusTone, font: AmgiFont = .captionBold) -> some View {
+        amgiFont(font)
             .foregroundStyle(tone.foregroundColor)
     }
 

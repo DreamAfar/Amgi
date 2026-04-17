@@ -496,7 +496,7 @@ struct ReviewView: View {
         VStack(spacing: 16) {
             Spacer()
             Label(L("review_finished_title"), systemImage: "checkmark.circle.fill")
-                .amgiStatusBadge(.positive, horizontalPadding: 12, verticalPadding: 8)
+                .amgiStatusText(.positive, font: .sectionHeading)
             Text(L("review_finished_count", session.sessionStats.reviewed))
                 .foregroundStyle(.secondary)
             if session.sessionStats.reviewed > 0 {

@@ -42,14 +42,13 @@ struct AnkiAppApp: App {
 
                         VStack(spacing: AmgiSpacing.md) {
                             Label(L("app_unable_to_start"), systemImage: "exclamationmark.triangle.fill")
-                                .amgiStatusBadge(.warning, horizontalPadding: 12, verticalPadding: 8)
+                                .amgiStatusText(.warning, font: .sectionHeading)
                             Text(message)
                                 .amgiFont(.caption)
                                 .foregroundStyle(Color.amgiTextSecondary)
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: 360)
-                        .amgiStatusPanel(.warning, elevated: true)
                         .padding(.horizontal, AmgiSpacing.lg)
                     }
                 case .ready:
