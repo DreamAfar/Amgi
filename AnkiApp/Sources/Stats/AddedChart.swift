@@ -84,15 +84,17 @@ struct AddedChart: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart(filteredData, id: \.day) { item in
-                    let bw: Double = filteredData.count <= 30 ? 0 : max(2.0, min(8.0, 280.0 / Double(filteredData.count)))
-                    let barW: MarkDimension = filteredData.count <= 30 ? .automatic : .fixed(bw)
-                    BarMark(
-                        x: .value("Day", item.day),
-                        y: .value("Cards", item.count),
-                        width: barW
-                    )
-                    .foregroundStyle(Color.amgiInfo.gradient)
+                Chart {
+                    ForEach(filteredData, id: \.day) { item in
+                        let bw: Double = filteredData.count <= 30 ? 0 : max(2.0, min(8.0, 280.0 / Double(filteredData.count)))
+                        let barW: MarkDimension = filteredData.count <= 30 ? .automatic : .fixed(bw)
+                        BarMark(
+                            x: .value("Day", item.day),
+                            y: .value("Cards", item.count),
+                            width: barW
+                        )
+                        .foregroundStyle(Color.amgiInfo.gradient)
+                    }
 
                     ForEach(cumulativePoints) { point in
                         AreaMark(
@@ -118,7 +120,8 @@ struct AddedChart: View {
                                     domainMax: rightAxisMax,
                                     plottedMax: leftAxisMax
                                 )
-                            )
+                            ),
+                            series: .value("Series", "cumulative")
                         )
                         .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
                         .lineStyle(StrokeStyle(lineWidth: 1.5))

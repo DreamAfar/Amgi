@@ -148,13 +148,15 @@ struct IntervalsChart: View {
         let leftAxisMax = StatsDualAxisSupport.niceUpperBound(Double(maxCount))
         let rightAxisMax = StatsDualAxisSupport.niceUpperBound(Double(total))
         let trailingTicks = rightAxisTicks(total: total, plottedMax: Int(leftAxisMax.rounded()))
-        Chart(bins, id: \.x) { bin in
-            BarMark(
-                x: .value(L("stats_intervals_days"), bin.x),
-                y: .value(L("stats_card_count"), bin.count),
-                width: barW
-            )
-            .foregroundStyle(Color.teal.gradient)
+        Chart {
+            ForEach(bins, id: \.x) { bin in
+                BarMark(
+                    x: .value(L("stats_intervals_days"), bin.x),
+                    y: .value(L("stats_card_count"), bin.count),
+                    width: barW
+                )
+                .foregroundStyle(Color.teal.gradient)
+            }
 
             ForEach(cumulative) { point in
                 AreaMark(
@@ -180,7 +182,8 @@ struct IntervalsChart: View {
                             domainMax: rightAxisMax,
                             plottedMax: leftAxisMax
                         )
-                    )
+                    ),
+                    series: .value("Series", "cumulative")
                 )
                 .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
                 .lineStyle(StrokeStyle(lineWidth: 1.5))

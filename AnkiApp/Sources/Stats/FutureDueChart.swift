@@ -82,13 +82,15 @@ struct FutureDueChart: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart(filteredData, id: \.day) { item in
-                    BarMark(
-                        x: .value("Day", item.day),
-                        y: .value("Cards", item.count),
-                        width: barWidth
-                    )
-                    .foregroundStyle(item.day < 0 ? Color.red.gradient : Color.blue.gradient)
+                Chart {
+                    ForEach(filteredData, id: \.day) { item in
+                        BarMark(
+                            x: .value("Day", item.day),
+                            y: .value("Cards", item.count),
+                            width: barWidth
+                        )
+                        .foregroundStyle(item.day < 0 ? Color.red.gradient : Color.blue.gradient)
+                    }
 
                     ForEach(cumulativePoints) { point in
                         AreaMark(
@@ -114,7 +116,8 @@ struct FutureDueChart: View {
                                     domainMax: rightAxisMax,
                                     plottedMax: leftAxisMax
                                 )
-                            )
+                            ),
+                            series: .value("Series", "cumulative")
                         )
                         .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
                         .lineStyle(StrokeStyle(lineWidth: 1.5))

@@ -763,153 +763,203 @@ struct CardWebView: UIViewRepresentable {
         }
 
 
+        var amgiIOOneTimeSetupDone = false;
+
+        function amgiWaitForIOImage(img, callback) {
+            if (!img) {
+                callback();
+                return;
+            }
+            if (img.complete) {
+                callback();
+                return;
+            }
+            var onReady = function() {
+                img.removeEventListener('load', onReady);
+                img.removeEventListener('error', onReady);
+                callback();
+            };
+            img.addEventListener('load', onReady);
+            img.addEventListener('error', onReady);
+        }
+
         function amgiSetupImageOcclusion() {
             var container = document.getElementById('image-occlusion-container');
-            if (!container) return;
-            // Idempotency guard — template may call anki.setupImageCloze() and
-            // window.onload both call this; only set up once per page load.
-            if (container._amgiSetup) return;
-            container._amgiSetup = true;
+            if (!container) {
+                return;
+            }
+
             var img = container.querySelector('img');
-            if (!img) return;
+            if (!img) {
+                return;
+            }
+
             var canvas = document.getElementById('image-occlusion-canvas');
             if (!canvas) {
                 canvas = document.createElement('canvas');
                 canvas.id = 'image-occlusion-canvas';
                 container.appendChild(canvas);
             }
-            var canvasRef = canvas;
 
-            // All shapes (collected once after load)
-            var allShapes = [];
-            var masksHidden = false;
-            var allowsMaskReveal = IS_ANSWER_SIDE;
-
-            function collectShapes() {
-                allShapes = [];
-                ['cloze-inactive', 'cloze', 'cloze-highlight'].forEach(function(cls) {
-                    amgiExtractIOShapes('.' + cls + '[data-shape]').forEach(function(s) {
-                        s._cls = cls;
-                        s._revealed = false;
-                        allShapes.push(s);
-                    });
+            if (!amgiIOOneTimeSetupDone) {
+                window.addEventListener('load', function() {
+                    window.requestAnimationFrame(amgiSetupImageOcclusion);
                 });
+                window.addEventListener('resize', function() {
+                    window.requestAnimationFrame(amgiSetupImageOcclusion);
+                });
+                window.addEventListener('keydown', function(event) {
+                    var button = document.getElementById('toggle') || document.querySelector('.toggle');
+                    if (button && button.style.display !== 'none' && (event.key === 'M' || event.key === 'm')) {
+                        event.preventDefault();
+                        button.click();
+                    }
+                });
+                amgiIOOneTimeSetupDone = true;
             }
 
-            function visibleShapes(textOnly) {
-                return allShapes.filter(function(shape) {
-                    if (shape._revealed) {
-                        return false;
-                    }
-                    if (textOnly && shape.type !== 'text') {
-                        return false;
-                    }
-                    if (shape._cls === 'cloze-inactive') {
-                        return !!shape.occludeInactive;
-                    }
-                    return true;
-                });
-            }
-
-            function redraw() {
-                var dpr = window.devicePixelRatio || 1;
-                var w = img.offsetWidth, h = img.offsetHeight;
-                if (w === 0 || h === 0) return;
-                canvasRef.style.width = w + 'px';
-                canvasRef.style.height = h + 'px';
-                canvasRef.width = w * dpr;
-                canvasRef.height = h * dpr;
-                var ctx = canvasRef.getContext('2d');
-                ctx.scale(dpr, dpr);
-                canvasRef.style.pointerEvents = allowsMaskReveal && !masksHidden ? 'auto' : 'none';
-                canvasRef.style.cursor = allowsMaskReveal && !masksHidden ? 'pointer' : 'default';
-                var size = { width: w, height: h };
-                var style = getComputedStyle(document.documentElement);
-                var inactiveColor  = style.getPropertyValue('--inactive-shape-color').trim()  || '#ffeba2';
-                var activeColor    = style.getPropertyValue('--active-shape-color').trim()    || '#ff8e8e';
-                var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
-                var border = '#212121';
-                visibleShapes(masksHidden).forEach(function(s) {
-                    var fill = s._cls === 'cloze-inactive' ? inactiveColor :
-                               s._cls === 'cloze'          ? activeColor   : highlightColor;
-                    amgiDrawIOShape(ctx, s, size, fill, border);
-                });
-            }
-
-            function setupAndDraw() {
-                collectShapes();
-                redraw();
-
-                // Click-to-reveal interaction
-                canvasRef.addEventListener('click', function(e) {
-                    if (!allowsMaskReveal || masksHidden) {
+            amgiWaitForIOImage(img, function() {
+                window.requestAnimationFrame(function() {
+                    var canvasRef = document.getElementById('image-occlusion-canvas');
+                    if (!canvasRef) {
                         return;
                     }
-                    var rect = canvasRef.getBoundingClientRect();
-                    var px = (e.clientX - rect.left);
-                    var py = (e.clientY - rect.top);
-                    var size = { width: img.offsetWidth, height: img.offsetHeight };
-                    var hit = false;
-                    // Test in reverse order (top shapes first)
-                    for (var i = allShapes.length - 1; i >= 0; i--) {
-                        var s = allShapes[i];
-                        if (amgiHitTestShape(s, px, py, size)) {
-                            s._revealed = !s._revealed;
-                            hit = true;
-                            break;
-                        }
+
+                    var dpr = window.devicePixelRatio || 1;
+                    var width = img.offsetWidth;
+                    var height = img.offsetHeight;
+                    if (width === 0 || height === 0) {
+                        return;
                     }
-                    if (hit) redraw();
-                });
 
-                // Support the "toggle" button that Anki PC templates inject on
-                // the back side (id="toggle" / class="toggle").
-                var toggleBtn = document.getElementById('toggle') ||
-                                document.querySelector('.toggle');
-                if (toggleBtn) {
-                    toggleBtn.type = 'button';
-                    toggleBtn.setAttribute('aria-pressed', 'false');
-                    var hasInactiveMasks = allShapes.some(function(s) {
-                        return s._cls === 'cloze-inactive' && s.occludeInactive;
-                    }) || !!document.querySelector('[data-occludeinactive="1"], [data-occludeInactive="1"]');
+                    canvasRef.style.width = width + 'px';
+                    canvasRef.style.height = height + 'px';
+                    canvasRef.width = width * dpr;
+                    canvasRef.height = height * dpr;
 
-                    if (!IS_ANSWER_SIDE || !hasInactiveMasks) {
-                        toggleBtn.style.display = 'none';
-                    } else {
-                        var toggleMasks = function(event) {
-                            if (event) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                            }
-                            masksHidden = !masksHidden;
-                            toggleBtn.setAttribute('aria-pressed', masksHidden ? 'true' : 'false');
-                            if (!masksHidden) {
-                                allShapes.forEach(function(s) {
-                                    s._revealed = false;
-                                });
-                            }
-                            redraw();
-                        };
-
-                        toggleBtn.addEventListener('click', toggleMasks);
-
-                        if (!window.__amgiIOKeyHandlerInstalled) {
-                            window.addEventListener('keydown', function(event) {
-                                if (toggleBtn.style.display !== 'none' && (event.key === 'M' || event.key === 'm')) {
-                                    toggleMasks(event);
-                                }
+                    var collectShapes = function() {
+                        var shapes = [];
+                        ['cloze-inactive', 'cloze', 'cloze-highlight'].forEach(function(cls) {
+                            amgiExtractIOShapes('.' + cls + '[data-shape]').forEach(function(shape) {
+                                shape._cls = cls;
+                                shape._revealed = false;
+                                shapes.push(shape);
                             });
-                            window.__amgiIOKeyHandlerInstalled = true;
+                        });
+                        container._amgiIOShapes = shapes;
+                    };
+
+                    var visibleShapes = function(textOnly) {
+                        return (container._amgiIOShapes || []).filter(function(shape) {
+                            if (shape._revealed) {
+                                return false;
+                            }
+                            if (textOnly && shape.type !== 'text') {
+                                return false;
+                            }
+                            if (shape._cls === 'cloze-inactive') {
+                                return !!shape.occludeInactive;
+                            }
+                            return true;
+                        });
+                    };
+
+                    var redraw = function() {
+                        var ctx = canvasRef.getContext('2d');
+                        if (!ctx) {
+                            return;
+                        }
+                        ctx.setTransform(1, 0, 0, 1, 0, 0);
+                        ctx.clearRect(0, 0, canvasRef.width, canvasRef.height);
+                        ctx.scale(dpr, dpr);
+
+                        var masksHidden = !!container._amgiMasksHidden;
+                        canvasRef.style.pointerEvents = IS_ANSWER_SIDE && !masksHidden ? 'auto' : 'none';
+                        canvasRef.style.cursor = IS_ANSWER_SIDE && !masksHidden ? 'pointer' : 'default';
+
+                        var style = getComputedStyle(document.documentElement);
+                        var inactiveColor = style.getPropertyValue('--inactive-shape-color').trim() || '#ffeba2';
+                        var activeColor = style.getPropertyValue('--active-shape-color').trim() || '#ff8e8e';
+                        var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
+                        var border = '#212121';
+                        var size = { width: width, height: height };
+
+                        visibleShapes(masksHidden).forEach(function(shape) {
+                            var fill = shape._cls === 'cloze-inactive' ? inactiveColor :
+                                shape._cls === 'cloze' ? activeColor : highlightColor;
+                            amgiDrawIOShape(ctx, shape, size, fill, border);
+                        });
+                    };
+
+                    container._amgiRedrawIO = redraw;
+                    collectShapes();
+
+                    if (!canvasRef.dataset.amgiRevealBound) {
+                        canvasRef.addEventListener('click', function(event) {
+                            if (!IS_ANSWER_SIDE || container._amgiMasksHidden) {
+                                return;
+                            }
+                            var rect = canvasRef.getBoundingClientRect();
+                            var px = event.clientX - rect.left;
+                            var py = event.clientY - rect.top;
+                            var size = { width: img.offsetWidth, height: img.offsetHeight };
+                            var shapes = container._amgiIOShapes || [];
+
+                            for (var index = shapes.length - 1; index >= 0; index--) {
+                                var shape = shapes[index];
+                                if (amgiHitTestShape(shape, px, py, size)) {
+                                    shape._revealed = !shape._revealed;
+                                    if (container._amgiRedrawIO) {
+                                        container._amgiRedrawIO();
+                                    }
+                                    break;
+                                }
+                            }
+                        });
+                        canvasRef.dataset.amgiRevealBound = '1';
+                    }
+
+                    var toggleBtn = document.getElementById('toggle') || document.querySelector('.toggle');
+                    var hasInactiveMasks = !!document.querySelector('[data-occludeinactive="1"], [data-occludeInactive="1"]');
+
+                    container._amgiToggleMasks = function(event) {
+                        if (event) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        container._amgiMasksHidden = !container._amgiMasksHidden;
+                        if (!container._amgiMasksHidden) {
+                            (container._amgiIOShapes || []).forEach(function(shape) {
+                                shape._revealed = false;
+                            });
+                        }
+                        if (toggleBtn) {
+                            toggleBtn.setAttribute('aria-pressed', container._amgiMasksHidden ? 'true' : 'false');
+                        }
+                        redraw();
+                    };
+
+                    if (toggleBtn) {
+                        toggleBtn.type = 'button';
+                        toggleBtn.setAttribute('aria-pressed', container._amgiMasksHidden ? 'true' : 'false');
+                        if (!IS_ANSWER_SIDE || !hasInactiveMasks) {
+                            toggleBtn.style.display = 'none';
+                        } else {
+                            toggleBtn.style.display = '';
+                            if (!toggleBtn.dataset.amgiToggleBound) {
+                                toggleBtn.addEventListener('click', function(event) {
+                                    if (container._amgiToggleMasks) {
+                                        container._amgiToggleMasks(event);
+                                    }
+                                });
+                                toggleBtn.dataset.amgiToggleBound = '1';
+                            }
                         }
                     }
-                }
-            }
 
-            if (img.complete && img.naturalWidth > 0) {
-                setupAndDraw();
-            } else {
-                img.addEventListener('load', setupAndDraw);
-            }
+                    redraw();
+                });
+            });
         }
         window.amgiSetupImageOcclusion = amgiSetupImageOcclusion;
 
@@ -922,7 +972,13 @@ struct CardWebView: UIViewRepresentable {
         window.anki = anki;
         anki.addBrowserClasses = amgiAddBrowserClasses;
         anki.imageOcclusion = anki.imageOcclusion || {};
-        anki.imageOcclusion.setup = function() { amgiSetupImageOcclusion(); };
+        anki.imageOcclusion.setup = amgiSetupImageOcclusion;
+        anki.imageOcclusion.drawShape = amgiDrawIOShape;
+        anki.imageOcclusion.Shape = anki.imageOcclusion.Shape || function Shape() {};
+        anki.imageOcclusion.Text = anki.imageOcclusion.Text || function Text() {};
+        anki.imageOcclusion.Rectangle = anki.imageOcclusion.Rectangle || function Rectangle() {};
+        anki.imageOcclusion.Ellipse = anki.imageOcclusion.Ellipse || function Ellipse() {};
+        anki.imageOcclusion.Polygon = anki.imageOcclusion.Polygon || function Polygon() {};
         anki.setupImageCloze = function() { amgiSetupImageOcclusion(); };
         amgiAddBrowserClasses();
         // ────────────────────────────────────────────────────────────────
