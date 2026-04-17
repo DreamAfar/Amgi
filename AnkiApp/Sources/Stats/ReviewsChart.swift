@@ -263,6 +263,7 @@ struct ReviewsChart: View {
             if let selectedBucket,
                let selectedCumulativePoint,
                !selectedBucketEntries.isEmpty {
+                let cumulativeLabel = L("stats_reviews_cumulative")
                 RuleMark(x: .value("Selected Day", selectedBucket))
                     .foregroundStyle(Color.amgiAccent.opacity(0.35))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -272,7 +273,7 @@ struct ReviewsChart: View {
                             lines: selectedBucketEntries.map { entry in
                                 "\(entry.type): \(entry.value)"
                             } + [
-                                "\(L(\"stats_reviews_cumulative\")): \(selectedCumulativePoint.cumulative)"
+                                "\(cumulativeLabel): \(selectedCumulativePoint.cumulative)"
                             ]
                         )
                     }

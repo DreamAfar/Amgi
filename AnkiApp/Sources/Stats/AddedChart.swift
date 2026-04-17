@@ -140,6 +140,8 @@ struct AddedChart: View {
                     if let selectedDay,
                        let selectedItem = filteredData.first(where: { $0.day == selectedDay }),
                        let selectedPoint {
+                        let countLabel = L("stats_card_count")
+                        let cumulativeLabel = L("stats_reviews_cumulative")
                         RuleMark(x: .value("Selected Day", selectedDay))
                             .foregroundStyle(Color.amgiAccent.opacity(0.35))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -147,8 +149,8 @@ struct AddedChart: View {
                                 StatsChartTooltip(
                                     title: statsBarRangeLabel(start: selectedItem.day, bucketSize: bucketSize),
                                     lines: [
-                                        "\(L(\"stats_card_count\")): \(selectedItem.count)",
-                                        "\(L(\"stats_reviews_cumulative\")): \(selectedPoint.cumulative)"
+                                        "\(countLabel): \(selectedItem.count)",
+                                        "\(cumulativeLabel): \(selectedPoint.cumulative)"
                                     ]
                                 )
                             }

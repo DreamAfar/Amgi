@@ -133,6 +133,9 @@ struct HourlyChart: View {
                     }
 
                     if let selectedEntry {
+                        let reviewsLabel = L("stats_hourly_reviews")
+                        let correctLabel = L("stats_hourly_correct_pct")
+                        let correctText = String(format: "%.1f%%", selectedEntry.correctPct)
                         RuleMark(x: .value("Selected Hour", selectedEntry.hour))
                             .foregroundStyle(Color.amgiAccent.opacity(0.35))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -140,8 +143,8 @@ struct HourlyChart: View {
                                 StatsChartTooltip(
                                     title: "\(selectedEntry.hour)-\(selectedEntry.hour + 1)",
                                     lines: [
-                                        "\(L(\"stats_hourly_reviews\")): \(selectedEntry.total)",
-                                        "\(L(\"stats_hourly_correct_pct\")): \(String(format: \"%.1f%%\", selectedEntry.correctPct)) (\(selectedEntry.correct)/\(selectedEntry.total))"
+                                        "\(reviewsLabel): \(selectedEntry.total)",
+                                        "\(correctLabel): \(correctText) (\(selectedEntry.correct)/\(selectedEntry.total))"
                                     ]
                                 )
                             }

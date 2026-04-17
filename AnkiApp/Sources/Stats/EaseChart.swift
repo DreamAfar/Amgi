@@ -66,13 +66,14 @@ struct EaseChart: View {
 
                     if let selectedItem,
                        selectedItem.ease == item.ease {
+                        let countLabel = L("stats_card_count")
                         RuleMark(x: .value("Selected Ease", selectedItem.ease))
                             .foregroundStyle(Color.amgiAccent.opacity(0.35))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                             .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                                 StatsChartTooltip(
                                     title: "\(selectedItem.ease / 10)%",
-                                    lines: ["\(L(\"stats_card_count\")): \(selectedItem.count)"]
+                                    lines: ["\(countLabel): \(selectedItem.count)"]
                                 )
                             }
                     }

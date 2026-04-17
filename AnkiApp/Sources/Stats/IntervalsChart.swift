@@ -215,6 +215,9 @@ struct IntervalsChart: View {
             if let selectedBin,
                let selectedPoint,
                total > 0 {
+                let countLabel = L("stats_card_count")
+                let cumulativeLabel = L("stats_reviews_cumulative")
+                let cumulativePercent = String(format: "%.1f%%", Double(selectedPoint.cumulative) / Double(total) * 100)
                 RuleMark(x: .value(L("stats_intervals_days"), selectedBin.x))
                     .foregroundStyle(Color.amgiAccent.opacity(0.35))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -222,8 +225,8 @@ struct IntervalsChart: View {
                         StatsChartTooltip(
                             title: selectedBin.label,
                             lines: [
-                                "\(L(\"stats_card_count\")): \(selectedBin.count)",
-                                "\(L(\"stats_reviews_cumulative\")): \(String(format: \"%.1f%%\", Double(selectedPoint.cumulative) / Double(total) * 100))"
+                                "\(countLabel): \(selectedBin.count)",
+                                "\(cumulativeLabel): \(cumulativePercent)"
                             ]
                         )
                     }

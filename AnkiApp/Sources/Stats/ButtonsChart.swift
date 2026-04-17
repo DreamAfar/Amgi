@@ -132,6 +132,10 @@ struct ButtonsChart: View {
 
             if let selectedEntry,
                selectedEntry.id == entry.id {
+                let countLabel = L("stats_card_count")
+                let correctLabel = L("stats_today_correct")
+                let shareText = String(format: "%.1f%%", share)
+                let correctText = String(format: "%.1f%%", correctPercentForType(selectedEntry.typeIndex))
                 RuleMark(x: .value("Selected Button", entry.button))
                     .foregroundStyle(Color.amgiAccent.opacity(0.35))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -141,8 +145,8 @@ struct ButtonsChart: View {
                         StatsChartTooltip(
                             title: "\(selectedEntry.button) • \(selectedEntry.cardType)",
                             lines: [
-                                "\(L(\"stats_card_count\")): \(selectedEntry.count) (\(String(format: \"%.1f%%\", share)))",
-                                "\(L(\"stats_today_correct\")): \(String(format: \"%.1f%%\", correctPercentForType(selectedEntry.typeIndex)))"
+                                "\(countLabel): \(selectedEntry.count) (\(shareText))",
+                                "\(correctLabel): \(correctText)"
                             ]
                         )
                     }
