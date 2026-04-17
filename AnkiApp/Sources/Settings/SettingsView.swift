@@ -8,7 +8,9 @@ import Dependencies
 import SwiftProtobuf
 
 private enum SettingsValueStyle {
-    static let highlight = Color.blue
+    static let highlight = Color.amgiAccent
+    static let primary = Color.amgiTextPrimary
+    static let secondary = Color.amgiTextSecondary
 }
 
 // MARK: - AppTheme
@@ -125,7 +127,7 @@ struct SettingsView: View {
             Section(L("settings_section_display")) {
                 HStack {
                     Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(SettingsValueStyle.primary)
                     Spacer()
                     Picker(L("settings_picker_theme"), selection: selectedTheme) {
                         ForEach(AppTheme.allCases) { theme in
@@ -142,7 +144,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Label(L("settings_picker_language"), systemImage: "globe")
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(SettingsValueStyle.primary)
                         Spacer()
                         Picker(L("settings_picker_language"), selection: selectedLanguage) {
                             ForEach(AppLanguage.allCases) { lang in
@@ -158,8 +160,8 @@ struct SettingsView: View {
 
                     if selectedLanguage.wrappedValue != .system {
                         Text(L("settings_language_restart_hint"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.caption)
+                            .foregroundStyle(SettingsValueStyle.secondary)
                             .padding(.leading, 28)
                     }
                 }
@@ -201,7 +203,7 @@ struct SettingsView: View {
                 } label: {
                     HStack {
                         settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(SettingsValueStyle.primary)
                         Spacer()
                     }
                     .contentShape(Rectangle())
@@ -214,7 +216,7 @@ struct SettingsView: View {
                     if isCheckingMedia {
                         HStack {
                             settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(SettingsValueStyle.primary)
                             Spacer()
                             ProgressView()
                         }
@@ -222,7 +224,7 @@ struct SettingsView: View {
                     } else {
                         HStack {
                             settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(SettingsValueStyle.primary)
                             Spacer()
                         }
                         .contentShape(Rectangle())
@@ -252,6 +254,8 @@ struct SettingsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("settings_nav_title"))
         .alert(L("common_done"), isPresented: $showMaintenanceAlert) {
             Button(L("common_ok"), role: .cancel) {}
@@ -267,7 +271,8 @@ struct SettingsView: View {
 
     private func settingsRowLabel(_ title: String, icon: String) -> some View {
         Label(title, systemImage: icon)
-            .foregroundStyle(.primary)
+            .amgiFont(.body)
+            .foregroundStyle(SettingsValueStyle.primary)
     }
 
     private func checkDatabase() {
@@ -323,9 +328,12 @@ private struct SettingsInfoView: View {
     var body: some View {
         ScrollView {
             Text(message)
+                .amgiFont(.body)
+                .foregroundStyle(Color.amgiTextPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
         }
+        .background(Color.amgiBackground)
         .navigationTitle(title)
     }
 }
@@ -397,6 +405,8 @@ private struct ReviewOptionsView: View {
                 .tint(SettingsValueStyle.highlight)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("settings_row_review"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -467,6 +477,7 @@ private struct DeckListHeatmapSettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Label(L("settings_display_deck_heatmap_height"), systemImage: "arrow.up.and.down")
+                                .foregroundStyle(SettingsValueStyle.primary)
                             Spacer()
                             Text(L("settings_display_deck_heatmap_height_value", Int(deckListHeatmapHeight)))
                                 .foregroundStyle(SettingsValueStyle.highlight)
@@ -477,6 +488,7 @@ private struct DeckListHeatmapSettingsView: View {
 
                     HStack {
                         Label(L("settings_heatmap_initial_range"), systemImage: "calendar")
+                            .foregroundStyle(SettingsValueStyle.primary)
                         Spacer()
                         Picker(L("settings_heatmap_initial_range"), selection: $initialDaysRaw) {
                             ForEach(HeatmapInitialDays.allCases) { option in
@@ -492,6 +504,8 @@ private struct DeckListHeatmapSettingsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("settings_row_home_heatmap"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -628,7 +642,7 @@ private struct SyncSettingsView: View {
                     Button(L("sync_settings_change_server")) {
                         showServerSetup = true
                     }
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(SettingsValueStyle.highlight)
                 }
 
                 if syncMode != .local {
@@ -636,7 +650,7 @@ private struct SyncSettingsView: View {
                         Button(L("login_btn_sign_in")) {
                             showLogin = true
                         }
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(SettingsValueStyle.highlight)
                     } else {
                         Button(L("sync_menu_logout"), role: .destructive) {
                             logout()
@@ -666,7 +680,7 @@ private struct SyncSettingsView: View {
                     } label: {
                         HStack {
                             Label(L("sync_settings_sync_media_now"), systemImage: "photo.on.rectangle")
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(SettingsValueStyle.primary)
                             Spacer()
                             if isSyncingMedia {
                                 ProgressView()
@@ -681,15 +695,16 @@ private struct SyncSettingsView: View {
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text(L("sync_settings_media_log"))
-                            .font(.subheadline.weight(.medium))
+                            .amgiFont(.bodyEmphasis)
+                            .foregroundStyle(SettingsValueStyle.primary)
                         Text(mediaLastLog.isEmpty ? L("common_none") : mediaLastLog)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.caption)
+                            .foregroundStyle(SettingsValueStyle.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 8)
+                            .padding(.vertical, AmgiSpacing.xs)
+                            .padding(.horizontal, AmgiSpacing.sm)
                             .background(
-                                Color(.systemGroupedBackground),
+                                Color.amgiSurface,
                                 in: RoundedRectangle(cornerRadius: 8)
                             )
                     }
@@ -697,6 +712,8 @@ private struct SyncSettingsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("settings_row_sync"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showServerSetup) {
@@ -718,8 +735,11 @@ private struct SyncSettingsView: View {
     private func infoRow(title: String, value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
+                .amgiFont(.body)
+                .foregroundStyle(SettingsValueStyle.primary)
             Spacer()
             Text(value)
+                .amgiFont(.captionBold)
                 .foregroundStyle(SettingsValueStyle.highlight)
                 .multilineTextAlignment(.trailing)
         }
@@ -776,6 +796,8 @@ private struct SyncServerSetupSheet: View {
                     Text(L("sync_label_server"))
                 } footer: {
                     Text(L("onboarding_footer"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
 
                 Section {
@@ -785,6 +807,8 @@ private struct SyncServerSetupSheet: View {
                     .disabled(serverURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
             .navigationTitle(L("sync_menu_change_server"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -937,7 +961,7 @@ private struct AboutView: View {
                         Text(title)
                             .amgiFont(.captionBold)
                         Image(systemName: "arrow.up.right")
-                            .font(.caption)
+                            .font(AmgiFont.caption.font)
                     }
                     .foregroundStyle(Color.amgiLink)
                 }

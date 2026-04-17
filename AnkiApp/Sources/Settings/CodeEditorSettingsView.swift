@@ -24,7 +24,7 @@ struct CodeEditorSettingsView: View {
                     } label: {
                         Image(systemName: "minus")
                             .frame(width: 28, height: 28)
-                            .background(Color(UIColor.systemGray5))
+                            .background(Color.amgiSurface)
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -39,7 +39,7 @@ struct CodeEditorSettingsView: View {
                     } label: {
                         Image(systemName: "plus")
                             .frame(width: 28, height: 28)
-                            .background(Color(UIColor.systemGray5))
+                            .background(Color.amgiSurface)
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -49,13 +49,13 @@ struct CodeEditorSettingsView: View {
                 // 代码预览
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L("code_editor_preview_label"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
 
                     Text("{{Front}}")
                         .font(.system(size: fontSize, design: .monospaced))
                         .padding(8)
-                        .background(Color(UIColor.systemGray6))
+                        .background(Color.amgiSurface)
                         .cornerRadius(4)
                 }
                 .padding(.vertical, 4)
@@ -73,6 +73,8 @@ struct CodeEditorSettingsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("settings_row_editing"))
         .navigationBarTitleDisplayMode(.inline)
     }

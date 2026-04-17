@@ -47,14 +47,15 @@ struct BackupView: View {
                 .disabled(isCreating)
             } footer: {
                 Text(L("backup_storage_hint"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
 
             if backups.isEmpty {
                 Section {
                     Text(L("backup_empty"))
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.body)
+                        .foregroundStyle(Color.amgiTextSecondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 8)
                 }
@@ -62,17 +63,18 @@ struct BackupView: View {
                 Section(L("backup_section_list")) {
                     ForEach(backups) { entry in
                         HStack {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                                 Text(entry.formattedDate)
-                                    .font(.subheadline)
+                                    .amgiFont(.body)
+                                    .foregroundStyle(Color.amgiTextPrimary)
                                 Text(entry.fileSize)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
                             }
                             Spacer()
                             ShareLink(item: entry.url) {
                                 Image(systemName: "square.and.arrow.up")
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(Color.amgiAccent)
                             }
                             .buttonStyle(.plain)
                         }
@@ -88,6 +90,8 @@ struct BackupView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("backup_nav_title"))
         .navigationBarTitleDisplayMode(.inline)
         .alert(L("backup_delete_title"), isPresented: $showDeleteConfirm) {

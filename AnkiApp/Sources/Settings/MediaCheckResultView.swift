@@ -31,6 +31,8 @@ struct MediaCheckResultView: View {
                 if !result.unused.isEmpty { unusedSection }
                 if result.haveTrash || !result.unused.isEmpty { trashSection }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
             .navigationTitle(L("media_check_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -52,19 +54,19 @@ struct MediaCheckResultView: View {
                 L("media_check_missing_count", result.missing.count),
                 systemImage: "exclamationmark.triangle"
             )
-            .foregroundStyle(result.missing.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.red))
+            .foregroundStyle(result.missing.isEmpty ? AnyShapeStyle(Color.amgiTextSecondary) : AnyShapeStyle(Color.amgiDanger))
 
             Label(
                 L("media_check_unused_count", result.unused.count),
                 systemImage: "archivebox"
             )
-            .foregroundStyle(result.unused.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.orange))
+            .foregroundStyle(result.unused.isEmpty ? AnyShapeStyle(Color.amgiTextSecondary) : AnyShapeStyle(Color.amgiWarning))
 
             if !result.report.isEmpty {
                 DisclosureGroup(L("media_check_full_report")) {
                     Text(result.report)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
         }
@@ -74,13 +76,13 @@ struct MediaCheckResultView: View {
         Section(L("media_check_section_missing")) {
             ForEach(result.missing.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "questionmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(.red)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiDanger)
             }
             if result.missing.count > 200 {
                 Text(L("media_check_and_more", result.missing.count - 200))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
         }
     }
@@ -89,13 +91,13 @@ struct MediaCheckResultView: View {
         Section(L("media_check_section_unused")) {
             ForEach(result.unused.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "tray")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiWarning)
             }
             if result.unused.count > 200 {
                 Text(L("media_check_and_more", result.unused.count - 200))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
         }
     }
@@ -134,7 +136,7 @@ struct MediaCheckResultView: View {
                     }
                 }
                 .disabled(isDeletingTrash)
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.amgiDanger)
 
                 Button {
                     restoreTrash()

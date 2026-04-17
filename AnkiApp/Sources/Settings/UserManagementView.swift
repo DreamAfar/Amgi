@@ -21,10 +21,12 @@ struct UserManagementView: View {
                     ForEach(users, id: \.self) { user in
                         HStack {
                             Text(user)
+                                .amgiFont(.body)
+                                .foregroundStyle(Color.amgiTextPrimary)
                             Spacer()
                             if selectedUser == user {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(Color.amgiPositive)
                             }
                         }
                         .contentShape(Rectangle())
@@ -40,7 +42,7 @@ struct UserManagementView: View {
                             } label: {
                                 Label(L("user_mgmt_rename"), systemImage: "pencil")
                             }
-                            .tint(.blue)
+                            .tint(Color.amgiAccent)
 
                             Button(role: .destructive) {
                                 deleteTarget = user
@@ -52,6 +54,8 @@ struct UserManagementView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
             .navigationTitle(L("user_mgmt_title"))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

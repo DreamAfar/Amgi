@@ -69,6 +69,8 @@ struct UserFileManagerView: View {
             summarySection
             mediaSection
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("settings_row_file_manager"))
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: Text(L("file_mgmt_search_placeholder")))
@@ -133,8 +135,8 @@ struct UserFileManagerView: View {
             Text(L("file_mgmt_section_media"))
         } footer: {
             Text(L("file_mgmt_footer_hint"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
         }
     }
 
@@ -148,7 +150,8 @@ struct UserFileManagerView: View {
             }
         } else if filteredFiles.isEmpty {
             Text(L(searchText.isEmpty ? "file_mgmt_empty" : "file_mgmt_no_search_result"))
-                .foregroundStyle(.secondary)
+                .amgiFont(.body)
+                .foregroundStyle(Color.amgiTextSecondary)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 8)
         } else {
@@ -161,6 +164,7 @@ struct UserFileManagerView: View {
                     displayLimit += pageSize
                 } label: {
                     Text(L("file_mgmt_load_more", min(pageSize, remainingFileCount)))
+                        .foregroundStyle(Color.amgiAccent)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -173,12 +177,14 @@ struct UserFileManagerView: View {
         HStack(spacing: 10) {
             Image(systemName: entry.symbolName)
                 .foregroundStyle(entry.tintColor)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                 Text(entry.fileName)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextPrimary)
                     .lineLimit(1)
                 Text(entry.subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
             Spacer()
         }
@@ -194,7 +200,7 @@ struct UserFileManagerView: View {
             } label: {
                 Label(L("user_mgmt_rename"), systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(Color.amgiAccent)
         }
     }
 

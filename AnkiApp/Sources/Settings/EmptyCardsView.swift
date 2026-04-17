@@ -29,6 +29,7 @@ struct EmptyCardsView: View {
                 if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.amgiBackground)
                 } else {
                     resultsList
                 }
@@ -67,7 +68,7 @@ struct EmptyCardsView: View {
             if noteEntries.isEmpty {
                 Section {
                     Label(L("empty_cards_none_found"), systemImage: "checkmark.circle")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Color.amgiPositive)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 8)
                 }
@@ -77,27 +78,30 @@ struct EmptyCardsView: View {
                         L("empty_cards_found_count", noteEntries.reduce(0) { $0 + $1.cardIds.count }),
                         systemImage: "rectangle.stack.badge.minus"
                     )
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.amgiWarning)
 
                     if !report.isEmpty {
                         DisclosureGroup(L("empty_cards_report")) {
-                            Text(report).font(.caption).foregroundStyle(.secondary)
+                            Text(report)
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
                         }
                     }
                 }
 
                 Section(L("empty_cards_section_list")) {
                     ForEach(noteEntries) { entry in
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                             Text(L("empty_cards_note_id", entry.id))
                                 .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(Color.amgiTextPrimary)
                             Text(L("empty_cards_card_count", entry.cardIds.count))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
                             if entry.willDeleteNote {
                                 Text(L("empty_cards_will_delete_note"))
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiDanger)
                             }
                         }
                     }
@@ -121,6 +125,8 @@ struct EmptyCardsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
     }
 
     private func loadEmptyCards() async {
