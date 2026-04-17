@@ -1751,16 +1751,22 @@ struct CardWebView: UIViewRepresentable {
             openLink(href)
         }
 
-        func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-            onAudioStateChange?(true)
+        nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+            Task { @MainActor [weak self] in
+                self?.onAudioStateChange?(true)
+            }
         }
 
-        func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-            onAudioStateChange?(false)
+        nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+            Task { @MainActor [weak self] in
+                self?.onAudioStateChange?(false)
+            }
         }
 
-        func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-            onAudioStateChange?(false)
+        nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+            Task { @MainActor [weak self] in
+                self?.onAudioStateChange?(false)
+            }
         }
 
         func stopTTS() {
