@@ -193,6 +193,7 @@ struct CardWebView: UIViewRepresentable {
             }
             html, body {
                 background: transparent !important;
+                overflow-x: hidden;
             }
             body {
                 font-family: -apple-system, system-ui;
@@ -202,6 +203,7 @@ struct CardWebView: UIViewRepresentable {
                 background: transparent;
                 padding: 16px 16px var(--amgi-body-padding-bottom, 16px);
                 margin: 0;
+                box-sizing: border-box;
                 text-align: center;
                 display: flex;
                 align-items: var(--amgi-body-align-items, center);
@@ -211,6 +213,7 @@ struct CardWebView: UIViewRepresentable {
             .card-frame {
                 max-width: 600px;
                 width: 100%;
+                box-sizing: border-box;
                 padding-bottom: var(--amgi-card-padding-bottom, 0px);
             }
             hr { border: none; border-top: 1px solid \(isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"); margin: 16px 0; }
@@ -412,9 +415,13 @@ struct CardWebView: UIViewRepresentable {
 
         function amgiPreloadImages(fragment) {
             return Array.from(fragment.querySelectorAll('img[src]')).map(function(existing) {
-                var img = new Image();
-                img.src = new URL(existing.getAttribute('src') || '', document.baseURI).toString();
-                return amgiPreloadImage(img);
+                try {
+                    var img = new Image();
+                    img.src = new URL(existing.getAttribute('src') || '', document.baseURI).toString();
+                    return amgiPreloadImage(img);
+                } catch (error) {
+                    return Promise.resolve();
+                }
             });
         }
 
@@ -444,19 +451,23 @@ struct CardWebView: UIViewRepresentable {
             amgiPreloadDoc.head.innerHTML = '';
             amgiPreloadDoc.head.appendChild(style);
             var urls = [];
-            if (style.sheet) {
-                Array.from(style.sheet.cssRules || []).forEach(function(rule) {
-                    if (!(rule instanceof CSSFontFaceRule)) {
-                        return;
-                    }
-                    var src = rule.style.getPropertyValue('src');
-                    var matches = src.matchAll(amgiFontURLPattern);
-                    for (const match of matches) {
-                        if (match[2]) {
-                            urls.push(match[2]);
+            try {
+                if (style.sheet) {
+                    Array.from(style.sheet.cssRules || []).forEach(function(rule) {
+                        if (typeof CSSFontFaceRule === 'undefined' || !(rule instanceof CSSFontFaceRule)) {
+                            return;
                         }
-                    }
-                });
+                        var src = rule.style.getPropertyValue('src');
+                        var matches = src.matchAll(amgiFontURLPattern);
+                        for (const match of matches) {
+                            if (match[2]) {
+                                urls.push(match[2]);
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                return [];
             }
             return urls;
         }
@@ -481,27 +492,31 @@ struct CardWebView: UIViewRepresentable {
         }
 
         async function amgiPreloadResources(html) {
-            amgiPreloadTemplate.innerHTML = html || '';
-            var fragment = amgiPreloadTemplate.content;
-            var styleSheets = amgiPreloadStyleSheets(fragment.cloneNode(true));
-            var images = amgiPreloadImages(fragment.cloneNode(true));
-            var fonts = amgiPreloadFonts(fragment.cloneNode(true));
+            try {
+                amgiPreloadTemplate.innerHTML = html || '';
+                var fragment = amgiPreloadTemplate.content;
+                var styleSheets = amgiPreloadStyleSheets(fragment.cloneNode(true));
+                var images = amgiPreloadImages(fragment.cloneNode(true));
+                var fonts = amgiPreloadFonts(fragment.cloneNode(true));
 
-            var timeout = 0;
-            if (fonts.length) {
-                timeout = 800;
-            } else if (styleSheets.length) {
-                timeout = 500;
-            } else if (images.length) {
-                timeout = 200;
-            } else {
-                return;
+                var timeout = 0;
+                if (fonts.length) {
+                    timeout = 800;
+                } else if (styleSheets.length) {
+                    timeout = 500;
+                } else if (images.length) {
+                    timeout = 200;
+                } else {
+                    return;
+                }
+
+                await Promise.race([
+                    Promise.all(styleSheets.concat(images, fonts)),
+                    new Promise(function(resolve) { window.setTimeout(resolve, timeout); })
+                ]);
+            } catch (error) {
+                console.error('Preload failed', error);
             }
-
-            await Promise.race([
-                Promise.all(styleSheets.concat(images, fonts)),
-                new Promise(function(resolve) { window.setTimeout(resolve, timeout); })
-            ]);
         }
 
         function amgiRunHooks(hooks) {
