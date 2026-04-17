@@ -90,6 +90,7 @@ struct ReviewView: View {
                         .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                        prefetchHTML: session.showAnswer ? nil : session.backHTML,
                     Button {
                         showDeckStats = true
                     } label: {

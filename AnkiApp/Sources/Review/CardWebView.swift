@@ -2,6 +2,7 @@ import SwiftUI
 import WebKit
 import Foundation
 import UIKit
+import AVFoundation
 
 struct CardWebView: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
@@ -26,6 +27,7 @@ struct CardWebView: UIViewRepresentable {
     let replayMode: ReplayMode
     let showInlineAudioReplayButtons: Bool
     let openLinksExternally: Bool
+    let prefetchHTML: String?
     let contentAlignment: ContentAlignment
     let bottomContentInset: CGFloat
     let onTypedAnswerSubmitted: ((String?) -> Void)?
@@ -41,6 +43,7 @@ struct CardWebView: UIViewRepresentable {
         replayMode: ReplayMode = .question,
         showInlineAudioReplayButtons: Bool = true,
         openLinksExternally: Bool = true,
+        prefetchHTML: String? = nil,
         contentAlignment: ContentAlignment = .center,
         bottomContentInset: CGFloat = 0,
         onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
@@ -55,6 +58,7 @@ struct CardWebView: UIViewRepresentable {
         self.replayMode = replayMode
         self.showInlineAudioReplayButtons = showInlineAudioReplayButtons
         self.openLinksExternally = openLinksExternally
+        self.prefetchHTML = prefetchHTML
         self.contentAlignment = contentAlignment
         self.bottomContentInset = bottomContentInset
         self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
@@ -71,8 +75,11 @@ struct CardWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
+        config.setURLSchemeHandler(CardAssetScheme(), forURLScheme: CardAssetPath.scheme)
         config.userContentController.add(context.coordinator, name: "amgiAudioState")
         config.userContentController.add(context.coordinator, name: "amgiOpenLink")
+        config.userContentController.add(context.coordinator, name: "amgiSpeakTts")
+        config.userContentController.add(context.coordinator, name: "amgiStopTts")
         config.userContentController.add(context.coordinator, name: "amgiSubmitTypedAnswer")
         
         // Enable media playback without user interaction
@@ -91,17 +98,23 @@ struct CardWebView: UIViewRepresentable {
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiAudioState")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiOpenLink")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSpeakTts")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiStopTts")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSubmitTypedAnswer")
+        coordinator.stopTTS()
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Convert Anki [sound:filename.mp3] tags to <audio> HTML elements.
         // The Rust renderer keeps these tags literal; the client must expand them.
         let isDarkMode = colorScheme == .dark
-        let mediaDir = Self.currentMediaDirectoryURL()
         let processedHTML = Self.deferCardScripts(in:
-            Self.expandSoundTags(
-                html,
+            Self.expandTTSTags(
+                in: Self.expandSoundTags(
+                    html,
+                    isDarkMode: isDarkMode,
+                    showReplayButtons: showInlineAudioReplayButtons
+                ),
                 isDarkMode: isDarkMode,
                 showReplayButtons: showInlineAudioReplayButtons
             )
@@ -111,8 +124,8 @@ struct CardWebView: UIViewRepresentable {
         let cardPaddingBottom = hasTypedAnswerInput ? 96 : 0
         let alignTop = hasTypedAnswerInput || contentAlignment == .top
         let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
-        let pageSignature = "\(isDarkMode)|\(mediaDir?.absoluteString ?? \"none\")"
-        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(processedHTML.hashValue)"
+        let pageSignature = "\(isDarkMode)"
+        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(processedHTML.hashValue)|\(prefetchHTML?.hashValue ?? 0)"
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
@@ -124,12 +137,14 @@ struct CardWebView: UIViewRepresentable {
             bodyClass: bodyClass,
             alignTop: alignTop,
             bodyPaddingBottom: bodyPaddingBottom,
-            cardPaddingBottom: cardPaddingBottom
+            cardPaddingBottom: cardPaddingBottom,
+            prefetchHTML: prefetchHTML
         )
         let updateCardScript = Self.updateCardScript(
             html: processedHTML,
             cardStateLiteral: cardStateLiteral
         )
+        context.coordinator.stopTTS()
 
         if context.coordinator.lastPageSignature != pageSignature {
             context.coordinator.lastPageSignature = pageSignature
@@ -139,7 +154,7 @@ struct CardWebView: UIViewRepresentable {
             let htmlClass = Self.htmlClasses(isDarkMode: isDarkMode)
             let playIconHTML = Self.audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
             let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.circle", alt: "Pause", isDarkMode: isDarkMode)
-            let baseTag = Self.mediaBaseTag(for: mediaDir)
+            let baseTag = CardAssetPath.mediaBaseTag()
 
             let styledHTML = """
         <!DOCTYPE html>
@@ -148,6 +163,30 @@ struct CardWebView: UIViewRepresentable {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         \(baseTag)
+        <script>
+        window.MathJax = {
+            tex: {
+                displayMath: [["\\\\[", "\\\\]"]],
+                processEscapes: false,
+                processEnvironments: false,
+                processRefs: false,
+                packages: {
+                    "[+]": ["noerrors", "mathtools"],
+                    "[-]": ["textmacros"]
+                }
+            },
+            loader: {
+                load: ["[tex]/noerrors", "[tex]/mathtools"],
+                paths: {
+                    mathjax: "amgi-asset://assets/mathjax"
+                }
+            },
+            startup: {
+                typeset: false
+            }
+        };
+        </script>
+        <script src="\(CardAssetPath.mathJaxScriptURLString)" async></script>
         <style>
             :root {
                 color-scheme: \(isDarkMode ? "dark" : "light");
@@ -292,6 +331,10 @@ struct CardWebView: UIViewRepresentable {
         window.onUpdateHook = window.onUpdateHook || [];
         window.onShownHook = window.onShownHook || [];
         window.__amgiCardState = window.__amgiCardState || {};
+        const amgiPreloadTemplate = document.createElement('template');
+        const amgiPreloadDoc = document.implementation.createHTMLDocument('');
+        const amgiFontURLPattern = /url\s*\(\s*(?<quote>["']?)(?<url>\S.*?)\k<quote>\s*\)/g;
+        const amgiCachedFonts = new Set();
 
         function amgiCardState() {
             return window.__amgiCardState || {};
@@ -312,6 +355,11 @@ struct CardWebView: UIViewRepresentable {
             return typeof state.replayMode === 'string' ? state.replayMode : DEFAULT_REPLAY_MODE;
         }
 
+        function amgiPrefetchHTMLValue() {
+            var state = amgiCardState();
+            return typeof state.prefetchHTML === 'string' ? state.prefetchHTML : '';
+        }
+
         function amgiApplyCardState(state) {
             window.__amgiCardState = Object.assign({}, window.__amgiCardState || {}, state || {});
             var currentState = amgiCardState();
@@ -324,6 +372,135 @@ struct CardWebView: UIViewRepresentable {
             if (qa) {
                 qa.style.setProperty('--amgi-card-padding-bottom', String(currentState.cardPaddingBottom || 0) + 'px');
             }
+        }
+
+        function amgiLoadPreloadResource(element) {
+            return new Promise(function(resolve) {
+                function finish() {
+                    resolve();
+                    if (element.parentNode) {
+                        element.parentNode.removeChild(element);
+                    }
+                }
+                element.addEventListener('load', finish);
+                element.addEventListener('error', finish);
+                document.head.appendChild(element);
+            });
+        }
+
+        function amgiCreatePreloadLink(href, asType) {
+            var link = document.createElement('link');
+            link.rel = 'preload';
+            link.href = href;
+            link.as = asType;
+            if (asType === 'font') {
+                link.crossOrigin = '';
+            }
+            return link;
+        }
+
+        function amgiPreloadImage(img) {
+            if (!img.getAttribute('decoding')) {
+                img.decoding = 'async';
+            }
+            return img.complete ? Promise.resolve() : new Promise(function(resolve) {
+                img.addEventListener('load', function() { resolve(); });
+                img.addEventListener('error', function() { resolve(); });
+            });
+        }
+
+        function amgiPreloadImages(fragment) {
+            return Array.from(fragment.querySelectorAll('img[src]')).map(function(existing) {
+                var img = new Image();
+                img.src = new URL(existing.getAttribute('src') || '', document.baseURI).toString();
+                return amgiPreloadImage(img);
+            });
+        }
+
+        function amgiAllImagesLoaded() {
+            return Promise.all(
+                Array.from(document.getElementsByTagName('img')).map(function(img) {
+                    return amgiPreloadImage(img);
+                })
+            );
+        }
+
+        function amgiExtractExternalStyles(fragment) {
+            return Array.from(fragment.querySelectorAll('style, link')).filter(function(css) {
+                return (css.tagName === 'STYLE' && (css.innerHTML || '').includes('@import'))
+                    || (css.tagName === 'LINK' && css.rel === 'stylesheet');
+            });
+        }
+
+        function amgiPreloadStyleSheets(fragment) {
+            return amgiExtractExternalStyles(fragment).map(function(css) {
+                css.media = 'print';
+                return amgiLoadPreloadResource(css);
+            });
+        }
+
+        function amgiExtractFontURLs(style) {
+            amgiPreloadDoc.head.innerHTML = '';
+            amgiPreloadDoc.head.appendChild(style);
+            var urls = [];
+            if (style.sheet) {
+                Array.from(style.sheet.cssRules || []).forEach(function(rule) {
+                    if (!(rule instanceof CSSFontFaceRule)) {
+                        return;
+                    }
+                    var src = rule.style.getPropertyValue('src');
+                    var matches = src.matchAll(amgiFontURLPattern);
+                    for (const match of matches) {
+                        if (match.groups && match.groups.url) {
+                            urls.push(match.groups.url);
+                        }
+                    }
+                });
+            }
+            return urls;
+        }
+
+        function amgiPreloadFonts(fragment) {
+            var fontURLs = [];
+            Array.from(fragment.querySelectorAll('style')).forEach(function(style) {
+                fontURLs.push.apply(fontURLs, amgiExtractFontURLs(style));
+            });
+
+            return fontURLs
+                .filter(function(url) {
+                    if (!url || amgiCachedFonts.has(url)) {
+                        return false;
+                    }
+                    amgiCachedFonts.add(url);
+                    return true;
+                })
+                .map(function(url) {
+                    return amgiLoadPreloadResource(amgiCreatePreloadLink(url, 'font'));
+                });
+        }
+
+        async function amgiPreloadResources(html) {
+            amgiPreloadTemplate.innerHTML = html || '';
+            var fragment = amgiPreloadTemplate.content;
+            var styleSheets = amgiPreloadStyleSheets(fragment.cloneNode(true));
+            var images = amgiPreloadImages(fragment.cloneNode(true));
+            var fonts = amgiPreloadFonts(fragment.cloneNode(true));
+
+            var timeout = 0;
+            if (fonts.length) {
+                timeout = 800;
+            } else if (styleSheets.length) {
+                timeout = 500;
+            } else if (images.length) {
+                timeout = 200;
+            } else {
+                return;
+            }
+
+            await Promise.race([
+                Promise.all(styleSheets.concat(images, fonts)),
+                new Promise(function(resolve) { window.setTimeout(resolve, timeout); })
+            ]);
         }
 
         function amgiRunHooks(hooks) {
@@ -434,7 +611,17 @@ struct CardWebView: UIViewRepresentable {
             } catch (e) {}
         }
 
+        function amgiStopTts() {
+            try {
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiStopTts) {
+                    window.webkit.messageHandlers.amgiStopTts.postMessage(null);
+                }
+            } catch (e) {}
+        }
+        window.amgiStopTts = amgiStopTts;
+
         function stopAllSystemAudio() {
+            amgiStopTts();
             document.querySelectorAll('.anki-sound-audio').forEach(function(a) {
                 if (!a.paused) { a.pause(); }
                 a.currentTime = 0;
@@ -624,6 +811,29 @@ struct CardWebView: UIViewRepresentable {
         }
         window.playSound = playSound;
         globalThis.playSound = playSound;
+
+        function amgiSpeakTts(btn) {
+            if (!btn) {
+                return false;
+            }
+
+            stopAllSystemAudio();
+
+            try {
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiSpeakTts) {
+                    window.webkit.messageHandlers.amgiSpeakTts.postMessage({
+                        text: btn.dataset.ttsText || '',
+                        lang: btn.dataset.ttsLang || '',
+                        voices: btn.dataset.ttsVoices || '',
+                        speed: btn.dataset.ttsSpeed || ''
+                    });
+                }
+            } catch (e) {}
+
+            return false;
+        }
+        window.amgiSpeakTts = amgiSpeakTts;
+        globalThis.amgiSpeakTts = amgiSpeakTts;
 
         function amgiGetTypedAnswer() {
             var input = document.getElementById('typeans');
@@ -1081,6 +1291,21 @@ struct CardWebView: UIViewRepresentable {
 
             amgiRunHooks(window.onUpdateHook);
 
+            var qa = document.getElementById('qa');
+            if (qa && window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
+                try {
+                    await window.MathJax.startup.promise;
+                    if (typeof window.MathJax.typesetClear === 'function') {
+                        window.MathJax.typesetClear();
+                    }
+                    if (typeof window.MathJax.typesetPromise === 'function') {
+                        await window.MathJax.typesetPromise([qa]);
+                    }
+                } catch (error) {
+                    console.error('MathJax failed', error);
+                }
+            }
+
             var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
 
             if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) {
@@ -1124,6 +1349,13 @@ struct CardWebView: UIViewRepresentable {
 
             amgiSetupImageOcclusion();
             amgiRunHooks(window.onShownHook);
+
+            var prefetchHTML = amgiPrefetchHTMLValue();
+            if (!amgiIsAnswerSide() && prefetchHTML) {
+                amgiAllImagesLoaded().then(function() {
+                    return amgiPreloadResources(prefetchHTML);
+                });
+            }
         }
 
         async function amgiUpdateQAContent(html, state) {
@@ -1136,6 +1368,7 @@ struct CardWebView: UIViewRepresentable {
             window.onUpdateHook = [];
             window.onShownHook = [];
             amgiApplyCardState(state);
+            await amgiPreloadResources(html || '');
             qa.innerHTML = html || '';
             await amgiFinalizeCardContent();
         }
@@ -1160,21 +1393,7 @@ struct CardWebView: UIViewRepresentable {
         </html>
         """
 
-            // WKWebView.loadHTMLString does NOT grant file system access for local
-            // resources (images, audio). We must write the HTML to a file inside
-            // the media directory and use loadFileURL with allowingReadAccessTo so
-            // that relative src paths (e.g. <img src="image.jpg">) resolve correctly.
-            guard let mediaDir else {
-                webView.loadHTMLString(styledHTML, baseURL: nil)
-                return
-            }
-            let htmlFile = Self.cardWrapperFileURL(in: mediaDir)
-            do {
-                try styledHTML.write(to: htmlFile, atomically: true, encoding: .utf8)
-                webView.loadFileURL(htmlFile, allowingReadAccessTo: mediaDir)
-            } catch {
-                webView.loadHTMLString(styledHTML, baseURL: nil)
-            }
+            webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
         } else if context.coordinator.lastContentSignature != contentSignature {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
@@ -1246,6 +1465,45 @@ struct CardWebView: UIViewRepresentable {
         return result
     }
 
+    private static func expandTTSTags(
+        in html: String,
+        isDarkMode: Bool,
+        showReplayButtons: Bool
+    ) -> String {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"\[anki:tts([^\]]*)\](.*?)\[/anki:tts\]"#,
+            options: [.dotMatchesLineSeparators, .caseInsensitive]
+        ) else { return html }
+
+        let range = NSRange(html.startIndex..., in: html)
+        let matches = regex.matches(in: html, range: range)
+        var result = html
+
+        for match in matches.reversed() {
+            guard let matchRange = Range(match.range, in: result),
+                  let attrsRange = Range(match.range(at: 1), in: result),
+                  let textRange = Range(match.range(at: 2), in: result) else { continue }
+
+            let options = parseTTSAttributes(String(result[attrsRange]))
+            let spokenText = String(result[textRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let lang = options["lang"] ?? ""
+            let voices = options["voices"] ?? ""
+            let speed = options["speed"] ?? ""
+
+            let replacement: String
+            if showReplayButtons {
+                let iconHTML = audioButtonIconHTML(systemName: "speaker.wave.2.circle", alt: "Speak", isDarkMode: isDarkMode)
+                replacement = "<button type=\"button\" class=\"replay-button replay-btn tts-btn\" data-tts-text=\"\(htmlAttributeEscaped(spokenText))\" data-tts-lang=\"\(htmlAttributeEscaped(lang))\" data-tts-voices=\"\(htmlAttributeEscaped(voices))\" data-tts-speed=\"\(htmlAttributeEscaped(speed))\" onclick=\"return amgiSpeakTts(this)\">\(iconHTML)</button>"
+            } else {
+                replacement = ""
+            }
+
+            result.replaceSubrange(matchRange, with: replacement)
+        }
+
+        return result
+    }
+
     private static func deferCardScripts(in html: String) -> String {
         guard let regex = try? NSRegularExpression(
             pattern: #"<script\b([^>]*)>"#,
@@ -1286,7 +1544,8 @@ struct CardWebView: UIViewRepresentable {
         bodyClass: String,
         alignTop: Bool,
         bodyPaddingBottom: Int,
-        cardPaddingBottom: Int
+        cardPaddingBottom: Int,
+        prefetchHTML: String?
     ) -> String {
         let state: [String: Any] = [
             "autoplayEnabled": autoplayEnabled,
@@ -1296,6 +1555,7 @@ struct CardWebView: UIViewRepresentable {
             "alignTop": alignTop,
             "bodyPaddingBottom": bodyPaddingBottom,
             "cardPaddingBottom": cardPaddingBottom,
+            "prefetchHTML": prefetchHTML ?? "",
         ]
 
         guard JSONSerialization.isValidJSONObject(state),
@@ -1309,6 +1569,32 @@ struct CardWebView: UIViewRepresentable {
 
     private static func updateCardScript(html: String, cardStateLiteral: String) -> String {
         "window.amgiUpdateQAContent && window.amgiUpdateQAContent(\(jsStringLiteral(html)), \(cardStateLiteral));"
+    }
+
+    private static func parseTTSAttributes(_ raw: String) -> [String: String] {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"([A-Za-z_]+)=([^\s\]]+)"#,
+            options: []
+        ) else { return [:] }
+
+        let range = NSRange(raw.startIndex..., in: raw)
+        let matches = regex.matches(in: raw, range: range)
+        var result: [String: String] = [:]
+        for match in matches {
+            guard let keyRange = Range(match.range(at: 1), in: raw),
+                  let valueRange = Range(match.range(at: 2), in: raw) else { continue }
+            result[String(raw[keyRange]).lowercased()] = String(raw[valueRange])
+        }
+        return result
+    }
+
+    private static func htmlAttributeEscaped(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#39;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
     }
 
     private static func audioButtonIconHTML(systemName: String, alt: String, isDarkMode: Bool) -> String {
@@ -1338,41 +1624,6 @@ struct CardWebView: UIViewRepresentable {
             .replacingOccurrences(of: "\n", with: "")
             .replacingOccurrences(of: "\r", with: "")
         return "'\(escaped)'"
-    }
-
-    static func mediaBaseTag(for mediaDir: URL?) -> String {
-        mediaDir.map { #"<base href="\#($0.absoluteString)">"# } ?? ""
-    }
-
-    static func cardWrapperFileURL(in mediaDir: URL) -> URL {
-        mediaDir.appendingPathComponent(".amgi-card-wrapper.html")
-    }
-
-    /// Returns the media directory URL for the currently selected user.
-    /// Mirrors AppUserStore.collectionURLs(for:) exactly so paths always match.
-    private static func currentMediaDirectoryURL() -> URL? {
-        let selectedUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "用户1"
-        guard let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first else { return nil }
-
-        let userFolder = sanitizedFolderName(selectedUser)
-        return appSupport
-            .appendingPathComponent("AnkiCollection", isDirectory: true)
-            .appendingPathComponent(userFolder, isDirectory: true)
-            .appendingPathComponent("media", isDirectory: true)
-    }
-
-    /// Must match AppUserStore.sanitizedUserFolderName exactly (including underscore trimming).
-    private static func sanitizedFolderName(_ user: String) -> String {
-        let trimmed = user.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return "default" }
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
-        let mapped = trimmed.unicodeScalars.map { scalar -> Character in
-            allowed.contains(scalar) ? Character(scalar) : "_"
-        }
-        let folder = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
-        return folder.isEmpty ? "default" : folder
     }
 
     private static func bodyClasses(cardOrdinal: UInt32, isDarkMode: Bool) -> String {
@@ -1410,7 +1661,7 @@ struct CardWebView: UIViewRepresentable {
 
     // MARK: - Navigation Delegate
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, AVSpeechSynthesizerDelegate {
         var lastPageSignature: String?
         var lastContentSignature: String?
         var lastReplayRequestID: Int = 0
@@ -1421,6 +1672,7 @@ struct CardWebView: UIViewRepresentable {
         weak var currentWebView: WKWebView?
         let onTypedAnswerSubmitted: ((String?) -> Void)?
         private let onAudioStateChange: ((Bool) -> Void)?
+        private let speechSynthesizer = AVSpeechSynthesizer()
 
         init(
             onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
@@ -1428,6 +1680,8 @@ struct CardWebView: UIViewRepresentable {
         ) {
             self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
             self.onAudioStateChange = onAudioStateChange
+            super.init()
+            speechSynthesizer.delegate = self
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -1437,6 +1691,16 @@ struct CardWebView: UIViewRepresentable {
                 } else if let number = message.body as? NSNumber {
                     onAudioStateChange?(number.boolValue)
                 }
+                return
+            }
+
+            if message.name == "amgiStopTts" {
+                stopTTS()
+                return
+            }
+
+            if message.name == "amgiSpeakTts" {
+                speakTTS(from: message.body)
                 return
             }
 
@@ -1461,6 +1725,67 @@ struct CardWebView: UIViewRepresentable {
 
             guard let href, !href.isEmpty else { return }
             openLink(href)
+        }
+
+        func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+            onAudioStateChange?(true)
+        }
+
+        func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+            onAudioStateChange?(false)
+        }
+
+        func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+            onAudioStateChange?(false)
+        }
+
+        func stopTTS() {
+            guard speechSynthesizer.isSpeaking else { return }
+            speechSynthesizer.stopSpeaking(at: .immediate)
+            onAudioStateChange?(false)
+        }
+
+        private func speakTTS(from body: Any) {
+            guard let payload = body as? [String: Any] else { return }
+            let text = (payload["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !text.isEmpty else { return }
+
+            stopTTS()
+
+            let utterance = AVSpeechUtterance(string: text)
+            let lang = ((payload["lang"] as? String) ?? "").replacingOccurrences(of: "_", with: "-")
+            let preferredVoices = ((payload["voices"] as? String) ?? "")
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+
+            if let voice = preferredVoice(lang: lang, preferredNames: preferredVoices) {
+                utterance.voice = voice
+            } else if !lang.isEmpty {
+                utterance.voice = AVSpeechSynthesisVoice(language: lang)
+            }
+
+            let speedMultiplier = Float((payload["speed"] as? String) ?? "") ?? 1
+            let mappedRate = AVSpeechUtteranceDefaultSpeechRate * max(0.25, min(speedMultiplier, 2.0))
+            utterance.rate = min(max(mappedRate, AVSpeechUtteranceMinimumSpeechRate), AVSpeechUtteranceMaximumSpeechRate)
+            speechSynthesizer.speak(utterance)
+        }
+
+        private func preferredVoice(lang: String, preferredNames: [String]) -> AVSpeechSynthesisVoice? {
+            let voices = AVSpeechSynthesisVoice.speechVoices()
+
+            for preferredName in preferredNames {
+                if let voice = voices.first(where: { $0.identifier.caseInsensitiveCompare(preferredName) == .orderedSame }) {
+                    return voice
+                }
+                if let voice = voices.first(where: { $0.name.caseInsensitiveCompare(preferredName) == .orderedSame }) {
+                    return voice
+                }
+            }
+
+            guard !lang.isEmpty else { return nil }
+            return voices.first(where: { $0.language.caseInsensitiveCompare(lang) == .orderedSame })
+                ?? voices.first(where: { $0.language.lowercased().hasPrefix(lang.lowercased()) })
         }
 
         private func openLink(_ href: String) {
