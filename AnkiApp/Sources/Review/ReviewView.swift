@@ -94,7 +94,6 @@ struct ReviewView: View {
                         showDeckStats = true
                     } label: {
                         Image(systemName: "chart.bar.doc.horizontal")
-                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("stats_nav_title"))
                 }
@@ -103,7 +102,6 @@ struct ReviewView: View {
                         Task { await openEditorForCurrentCard() }
                     } label: {
                         Image(systemName: "pencil")
-                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("review_edit_button"))
                     .disabled(session.currentCard == nil)
@@ -114,7 +112,6 @@ struct ReviewView: View {
                             replayRequestID += 1
                         } label: {
                             Image(systemName: "speaker.wave.2")
-                                .amgiToolbarIconButton()
                         }
                         .disabled(session.currentCard == nil)
                     }
@@ -124,7 +121,6 @@ struct ReviewView: View {
                         showCardInfo = true
                     } label: {
                         Image(systemName: "info.circle")
-                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("card_info_title"))
                     .disabled(session.currentCard == nil)
@@ -153,8 +149,6 @@ struct ReviewView: View {
                         .disabled(session.currentCard == nil)
                     } label: {
                         Image(systemName: "ellipsis.circle")
-                            .foregroundStyle(Color.amgiTextPrimary)
-                            .amgiCapsuleControl()
                     }
                     .accessibilityLabel(L("review_more_actions"))
                 }

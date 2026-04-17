@@ -109,6 +109,28 @@ struct AmgiSecondaryButtonStyle: ButtonStyle {
     }
 }
 
+struct AmgiStatusMessageView: View {
+    let title: String
+    let message: String
+    let systemImage: String
+    let tone: AmgiStatusTone
+
+    var body: some View {
+        VStack(spacing: AmgiSpacing.md) {
+            Label(title, systemImage: systemImage)
+                .amgiStatusBadge(tone, horizontalPadding: 12, verticalPadding: 8)
+
+            Text(message)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: 420)
+        .amgiStatusPanel(tone, elevated: true)
+        .padding(.horizontal, AmgiSpacing.lg)
+    }
+}
+
 extension View {
     func amgiCard(elevated: Bool = false) -> some View {
         modifier(AmgiCardModifier(elevated: elevated))

@@ -72,6 +72,7 @@ struct EmptyCardsView: View {
                         .amgiStatusBadge(.positive)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 8)
+                        .listRowBackground(Color.amgiSurfaceElevated)
                 }
             } else {
                 Section {
@@ -80,6 +81,7 @@ struct EmptyCardsView: View {
                         systemImage: "rectangle.stack.badge.minus"
                     )
                     .amgiStatusBadge(.warning)
+                    .listRowBackground(Color.amgiSurfaceElevated)
 
                     if !report.isEmpty {
                         DisclosureGroup(L("empty_cards_report")) {
@@ -87,6 +89,7 @@ struct EmptyCardsView: View {
                                 .amgiFont(.caption)
                                 .foregroundStyle(Color.amgiTextSecondary)
                         }
+                        .listRowBackground(Color.amgiSurfaceElevated)
                     }
                 }
 
@@ -104,6 +107,7 @@ struct EmptyCardsView: View {
                                     .amgiStatusBadge(.danger)
                             }
                         }
+                        .listRowBackground(Color.amgiSurfaceElevated)
                     }
                 }
 
@@ -122,6 +126,7 @@ struct EmptyCardsView: View {
                         }
                     }
                     .disabled(isDeletingAll)
+                    .listRowBackground(Color.amgiSurfaceElevated)
                 }
             }
         }

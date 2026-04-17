@@ -56,12 +56,14 @@ struct MediaCheckResultView: View {
                 systemImage: "exclamationmark.triangle"
             )
             .amgiStatusBadge(result.missing.isEmpty ? .neutral : .danger)
+            .listRowBackground(Color.amgiSurfaceElevated)
 
             Label(
                 L("media_check_unused_count", result.unused.count),
                 systemImage: "archivebox"
             )
             .amgiStatusBadge(result.unused.isEmpty ? .neutral : .warning)
+            .listRowBackground(Color.amgiSurfaceElevated)
 
             if !result.report.isEmpty {
                 DisclosureGroup(L("media_check_full_report")) {
@@ -69,6 +71,7 @@ struct MediaCheckResultView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
             }
         }
     }
@@ -78,11 +81,13 @@ struct MediaCheckResultView: View {
             ForEach(result.missing.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "questionmark.circle")
                     .amgiStatusBadge(.danger)
+                    .listRowBackground(Color.amgiSurfaceElevated)
             }
             if result.missing.count > 200 {
                 Text(L("media_check_and_more", result.missing.count - 200))
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
+                    .listRowBackground(Color.amgiSurfaceElevated)
             }
         }
     }
@@ -92,11 +97,13 @@ struct MediaCheckResultView: View {
             ForEach(result.unused.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "tray")
                     .amgiStatusBadge(.warning)
+                    .listRowBackground(Color.amgiSurfaceElevated)
             }
             if result.unused.count > 200 {
                 Text(L("media_check_and_more", result.unused.count - 200))
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
+                    .listRowBackground(Color.amgiSurfaceElevated)
             }
         }
     }
@@ -118,6 +125,7 @@ struct MediaCheckResultView: View {
                     }
                 }
                 .disabled(isTrashingUnused)
+                .listRowBackground(Color.amgiSurfaceElevated)
             }
 
             if result.haveTrash {
@@ -136,6 +144,7 @@ struct MediaCheckResultView: View {
                 }
                 .disabled(isDeletingTrash)
                 .foregroundStyle(Color.amgiDanger)
+                .listRowBackground(Color.amgiSurfaceElevated)
 
                 Button {
                     restoreTrash()
@@ -151,6 +160,7 @@ struct MediaCheckResultView: View {
                     }
                 }
                 .disabled(isRestoringTrash)
+                .listRowBackground(Color.amgiSurfaceElevated)
             }
         }
     }

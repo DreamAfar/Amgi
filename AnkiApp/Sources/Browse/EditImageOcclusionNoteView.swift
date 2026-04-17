@@ -30,7 +30,12 @@ struct EditImageOcclusionNoteView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let err = loadError {
-                    ContentUnavailableView(err, systemImage: "exclamationmark.triangle")
+                    AmgiStatusMessageView(
+                        title: L("common_error"),
+                        message: err,
+                        systemImage: "exclamationmark.triangle",
+                        tone: .warning
+                    )
                 } else {
                     Form {
                         // MARK: Image (read-only in edit mode)

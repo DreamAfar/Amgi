@@ -78,10 +78,11 @@ struct DeckTemplateListView: View {
         if isLoading {
             ProgressView()
         } else if let errorMessage {
-            ContentUnavailableView(
-                L("deck_template_error_title"),
+            AmgiStatusMessageView(
+                title: L("deck_template_error_title"),
+                message: errorMessage,
                 systemImage: "exclamationmark.triangle",
-                description: Text(errorMessage)
+                tone: .warning
             )
         } else if entries.isEmpty {
             ContentUnavailableView(
@@ -297,10 +298,11 @@ struct TemplateEditorView: View {
                 if isLoading {
                     ProgressView()
                 } else if let errorMessage {
-                    ContentUnavailableView(
-                        L("deck_template_error_title"),
+                    AmgiStatusMessageView(
+                        title: L("deck_template_error_title"),
+                        message: errorMessage,
                         systemImage: "exclamationmark.triangle",
-                        description: Text(errorMessage)
+                        tone: .warning
                     )
                 } else {
                     editorContent

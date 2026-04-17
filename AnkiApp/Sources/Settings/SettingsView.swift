@@ -30,6 +30,12 @@ private struct SettingsOptionCapsuleLabel: View {
     }
 }
 
+private extension View {
+    func amgiSettingsListRowSurface() -> some View {
+        listRowBackground(Color.amgiSurfaceElevated)
+    }
+}
+
 // MARK: - AppTheme
 
 enum AppTheme: String, CaseIterable, Identifiable {
@@ -121,24 +127,28 @@ struct SettingsView: View {
                 } label: {
                     settingsRowLabel(L("settings_row_account"), icon: "person.crop.circle")
                 }
+                .amgiSettingsListRowSurface()
 
                 NavigationLink {
                     SyncSettingsView()
                 } label: {
                     settingsRowLabel(L("settings_row_sync"), icon: "arrow.triangle.2.circlepath")
                 }
+                .amgiSettingsListRowSurface()
 
                 NavigationLink {
                     CodeEditorSettingsView()
                 } label: {
                     settingsRowLabel(L("settings_row_editing"), icon: "pencil.and.scribble")
                 }
+                .amgiSettingsListRowSurface()
 
                 NavigationLink {
                     ReviewOptionsView()
                 } label: {
                     settingsRowLabel(L("settings_row_review"), icon: "rectangle.on.rectangle")
                 }
+                .amgiSettingsListRowSurface()
             }
 
             Section(L("settings_section_display")) {
@@ -158,6 +168,7 @@ struct SettingsView: View {
                         SettingsOptionCapsuleLabel(title: selectedTheme.wrappedValue.displayName)
                     }
                 }
+                .amgiSettingsListRowSurface()
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
@@ -184,12 +195,14 @@ struct SettingsView: View {
                             .padding(.leading, 28)
                     }
                 }
+                .amgiSettingsListRowSurface()
 
                 NavigationLink {
                     DeckListHeatmapSettingsView()
                 } label: {
                     settingsRowLabel(L("settings_row_home_heatmap"), icon: "chart.bar.xaxis")
                 }
+                .amgiSettingsListRowSurface()
             }
 
             Section(L("settings_section_maintenance")) {
@@ -198,24 +211,28 @@ struct SettingsView: View {
                 } label: {
                     settingsRowLabel(L("settings_row_backup"), icon: "externaldrive")
                 }
+                .amgiSettingsListRowSurface()
 
                 NavigationLink {
                     UserFileManagerView(username: AppUserStore.loadSelectedUser())
                 } label: {
                     settingsRowLabel(L("settings_row_file_manager"), icon: "folder")
                 }
+                .amgiSettingsListRowSurface()
 
                 NavigationLink {
                     DeckTemplateListView()
                 } label: {
                     settingsRowLabel(L("settings_row_deck_templates"), icon: "square.stack.3d.up")
                 }
+                .amgiSettingsListRowSurface()
 
                 NavigationLink {
                     NotetypeFieldManagerListView()
                 } label: {
                     settingsRowLabel(L("settings_row_field_manager"), icon: "text.badge.plus")
                 }
+                .amgiSettingsListRowSurface()
 
                 Button {
                     checkDatabase()
@@ -228,6 +245,7 @@ struct SettingsView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .amgiSettingsListRowSurface()
 
                 Button {
                     checkMedia()
@@ -251,18 +269,21 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isCheckingMedia)
+                .amgiSettingsListRowSurface()
 
                 NavigationLink {
                     EmptyCardsView()
                 } label: {
                     settingsRowLabel(L("settings_row_empty_cards"), icon: "rectangle.stack.badge.minus")
                 }
+                .amgiSettingsListRowSurface()
 
                 NavigationLink {
                     DebugView()
                 } label: {
                     settingsRowLabel(L("debug_nav_title"), icon: "ladybug")
                 }
+                .amgiSettingsListRowSurface()
             }
 
             Section(L("settings_section_other")) {
@@ -271,6 +292,7 @@ struct SettingsView: View {
                 } label: {
                     settingsRowLabel(L("settings_row_about"), icon: "info.circle")
                 }
+                .amgiSettingsListRowSurface()
             }
         }
         .scrollContentBackground(.hidden)

@@ -45,6 +45,7 @@ struct BackupView: View {
                     }
                 }
                 .disabled(isCreating)
+                .listRowBackground(Color.amgiSurfaceElevated)
             } footer: {
                 Text(L("backup_storage_hint"))
                     .amgiFont(.caption)
@@ -58,6 +59,7 @@ struct BackupView: View {
                         .foregroundStyle(Color.amgiTextSecondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 8)
+                        .listRowBackground(Color.amgiSurfaceElevated)
                 }
             } else {
                 Section(L("backup_section_list")) {
@@ -115,6 +117,7 @@ struct BackupView: View {
         .task { loadBackups() }
     }
 
+                        .listRowBackground(Color.amgiSurfaceElevated)
     // MARK: - Helpers
 
     private func backupsDirectory() -> URL? {

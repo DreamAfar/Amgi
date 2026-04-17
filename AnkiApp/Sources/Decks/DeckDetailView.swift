@@ -43,7 +43,6 @@ struct DeckDetailView: View {
                     showAddNote = true
                 } label: {
                     Image(systemName: "plus")
-                        .amgiToolbarIconButton()
                 }
                 .accessibilityLabel(L("browse_add_accessibility"))
 
@@ -51,13 +50,11 @@ struct DeckDetailView: View {
                     showTemplateManager = true
                 } label: {
                     Image(systemName: "square.on.square")
-                        .amgiToolbarIconButton()
                 }
                 .accessibilityLabel(L("deck_template_nav_title"))
 
                 Button(action: { showConfig = true }) {
                     Image(systemName: "slider.horizontal.3")
-                        .amgiToolbarIconButton()
                 }
                 .accessibilityLabel(L("deck_detail_config"))
             }
@@ -147,6 +144,7 @@ struct DeckDetailView: View {
                 }
             }
             .padding(.vertical, 8)
+            .listRowBackground(Color.amgiSurfaceElevated)
         }
     }
 
@@ -161,6 +159,7 @@ struct DeckDetailView: View {
             }
             .foregroundStyle(Color.amgiAccent)
             .disabled(counts.total == 0)
+            .listRowBackground(Color.amgiSurfaceElevated)
         }
     }
 
@@ -176,6 +175,7 @@ struct DeckDetailView: View {
                         DeckCountsView(counts: child.counts)
                     }
                 }
+                .listRowBackground(Color.amgiSurfaceElevated)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
                         selectedChildDeck = child

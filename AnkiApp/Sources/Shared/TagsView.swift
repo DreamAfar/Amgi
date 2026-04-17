@@ -69,7 +69,6 @@ struct TagsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAddTag = true }) {
                         Image(systemName: "plus")
-                            .amgiToolbarIconButton()
                     }
                 }
             }

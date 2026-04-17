@@ -30,6 +30,7 @@ struct UserManagementView: View {
                                     .amgiStatusBadge(.positive)
                             }
                         }
+                        .listRowBackground(Color.amgiSurfaceElevated)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             selectedUser = user
@@ -65,7 +66,6 @@ struct UserManagementView: View {
                         showAddPrompt = true
                     } label: {
                         Image(systemName: "plus")
-                            .amgiToolbarIconButton()
                     }
                 }
             }

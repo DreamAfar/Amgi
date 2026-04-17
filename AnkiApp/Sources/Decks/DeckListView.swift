@@ -179,6 +179,7 @@ private struct DeckRowView: View {
 
     var body: some View {
         deckContent
+        .listRowBackground(Color.amgiSurfaceElevated)
         .alert(L("deck_rename_alert_title"), isPresented: $showRenamePrompt) {
             TextField(L("deck_rename_alert_placeholder"), text: $renameText)
             Button(L("btn_cancel"), role: .cancel) {}

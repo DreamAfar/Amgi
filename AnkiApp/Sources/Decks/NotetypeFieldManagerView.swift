@@ -20,10 +20,11 @@ struct NotetypeFieldManagerListView: View {
             if isLoading {
                 ProgressView()
             } else if let errorMessage {
-                ContentUnavailableView(
-                    L("notetype_field_error_title"),
+                AmgiStatusMessageView(
+                    title: L("notetype_field_error_title"),
+                    message: errorMessage,
                     systemImage: "exclamationmark.triangle",
-                    description: Text(errorMessage)
+                    tone: .warning
                 )
             } else if entries.isEmpty {
                 ContentUnavailableView(
@@ -136,7 +137,6 @@ struct NotetypeFieldManagerView: View {
                     showAddPrompt = true
                 } label: {
                     Image(systemName: "plus")
-                        .amgiToolbarIconButton()
                 }
                 .disabled(isLoading || isSaving)
             }

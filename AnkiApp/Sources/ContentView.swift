@@ -318,8 +318,6 @@ struct ContentView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
-                    .foregroundStyle(Color.amgiTextPrimary)
-                    .amgiCapsuleControl()
             }
         }
     }

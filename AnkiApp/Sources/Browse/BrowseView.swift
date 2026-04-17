@@ -140,7 +140,6 @@ struct BrowseView: View {
                         showBatchDeleteConfirm = true
                     } label: {
                         Image(systemName: "trash")
-                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("browse_batch_delete_notes"))
                     .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
@@ -169,7 +168,6 @@ struct BrowseView: View {
                         }
                     } label: {
                         Image(systemName: "checklist")
-                            .amgiToolbarIconButton()
                     }
                     .accessibilityLabel(L("browse_multiselect_accessibility"))
                 }
@@ -188,8 +186,6 @@ struct BrowseView: View {
                         }
                     } label: {
                         Image(systemName: "plus")
-                            .foregroundStyle(Color.amgiTextPrimary)
-                            .amgiCapsuleControl()
                     }
                     .accessibilityLabel(L("browse_add_accessibility"))
 
@@ -218,8 +214,6 @@ struct BrowseView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
-                            .foregroundStyle(Color.amgiTextPrimary)
-                            .amgiCapsuleControl()
                     }
                     .accessibilityLabel(L("browse_more_accessibility"))
                 }
@@ -558,8 +552,6 @@ struct BrowseView: View {
             }
         } label: {
             Image(systemName: "line.3.horizontal.decrease.circle")
-                .foregroundStyle(Color.amgiTextPrimary)
-                .amgiCapsuleControl()
         }
         .accessibilityLabel(L("browse_filter_accessibility"))
     }
