@@ -40,19 +40,24 @@ struct NotetypeFieldManagerListView: View {
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: "text.badge.plus")
-                                .foregroundStyle(.blue)
-                            VStack(alignment: .leading, spacing: 2) {
+                                .foregroundStyle(Color.amgiAccent)
+                            VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                                 Text(entry.name)
+                                    .amgiFont(.body)
+                                    .foregroundStyle(Color.amgiTextPrimary)
                                 Text("ID: \(entry.id)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
                             }
                         }
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(Color.amgiBackground)
             }
         }
+        .background(Color.amgiBackground)
         .navigationTitle(L("settings_row_field_manager"))
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: L("notetype_field_search"))
@@ -117,8 +122,11 @@ struct NotetypeFieldManagerView: View {
                     summarySection
                     fieldsSection
                 }
+                .scrollContentBackground(.hidden)
+                .background(Color.amgiBackground)
             }
         }
+        .background(Color.amgiBackground)
         .navigationTitle(titleText)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -183,20 +191,22 @@ struct NotetypeFieldManagerView: View {
             Text(L("notetype_field_section_fields"))
         } footer: {
             Text(L("notetype_field_footer"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
         }
     }
 
     private func fieldRow(_ field: Anki_Notetypes_Notetype.Field, at index: Int) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "text.cursor")
-                .foregroundStyle(.blue)
-            VStack(alignment: .leading, spacing: 2) {
+                .foregroundStyle(Color.amgiAccent)
+            VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                 Text(field.name)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextPrimary)
                 Text(L("notetype_field_position", index + 1))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
             Spacer()
         }
@@ -217,7 +227,7 @@ struct NotetypeFieldManagerView: View {
             } label: {
                 Label(L("user_mgmt_rename"), systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(Color.amgiAccent)
         }
     }
 

@@ -51,8 +51,8 @@ struct DeckListHeatmapCard: View {
                                     .scaleEffect(0.65)
                                     .frame(width: 14, height: 14)
                                 Text(L("heatmap_loading_full_history"))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -66,8 +66,8 @@ struct DeckListHeatmapCard: View {
                                     Image(systemName: "arrow.left.to.line")
                                     Text(L("heatmap_load_all_history"))
                                 }
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .amgiFont(.micro)
+                                .foregroundStyle(Color.amgiTextSecondary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))

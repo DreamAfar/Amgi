@@ -26,6 +26,7 @@ struct DeckTemplateListView: View {
 
     var body: some View {
         mainContent
+            .background(Color.amgiBackground)
             .navigationTitle(L("deck_template_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: L("deck_template_search"))
@@ -101,18 +102,19 @@ struct DeckTemplateListView: View {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "square.stack.3d.up")
-                        .foregroundStyle(.tint)
-                    VStack(alignment: .leading, spacing: 2) {
+                        .foregroundStyle(Color.amgiAccent)
+                    VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                         Text(entry.name)
-                            .font(.body)
+                            .amgiFont(.body)
+                            .foregroundStyle(Color.amgiTextPrimary)
                         Text("ID: \(entry.id)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .font(AmgiFont.caption.font)
+                        .foregroundStyle(Color.amgiTextTertiary)
                 }
             }
             .buttonStyle(.plain)
@@ -132,9 +134,11 @@ struct DeckTemplateListView: View {
                 } label: {
                     Label(L("user_mgmt_rename"), systemImage: "pencil")
                 }
-                .tint(.blue)
+                .tint(Color.amgiAccent)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .listStyle(.plain)
     }
 
@@ -274,10 +278,9 @@ struct TemplateEditorView: View {
     @State private var editorSearchText = ""
 
     private var separatorBorderColor: Color {
-        // 浅色主题需要更高的不透明度以获得足够的对比度
         colorScheme == .light
-            ? Color(.separator).opacity(0.6)
-            : Color(.separator).opacity(0.35)
+            ? Color.amgiBorder.opacity(0.8)
+            : Color.amgiBorder.opacity(0.5)
     }
 
     private var currentTemplateName: String {
@@ -302,6 +305,7 @@ struct TemplateEditorView: View {
                     editorContent
                 }
             }
+            .background(Color.amgiBackground)
             .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -310,7 +314,8 @@ struct TemplateEditorView: View {
                 }
                 ToolbarItem(placement: .principal) {
                     Text(mode.title)
-                        .font(.headline)
+                        .amgiFont(.bodyEmphasis)
+                        .foregroundStyle(Color.amgiTextPrimary)
                         .lineLimit(1)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -365,8 +370,8 @@ struct TemplateEditorView: View {
                     if mode.allowsTemplateSelection, notetype.templates.count > 1 {
                         HStack(spacing: 12) {
                             Text(currentTemplateName)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.secondary)
+                                .amgiFont(.bodyEmphasis)
+                                .foregroundStyle(Color.amgiTextSecondary)
                             
                             Spacer()
                             
@@ -385,18 +390,18 @@ struct TemplateEditorView: View {
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "chevron.up.chevron.down")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .font(AmgiFont.caption.font)
+                                        .foregroundStyle(Color.amgiTextSecondary)
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             }
                         }
                     } else {
                         Text(currentTemplateName)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.bodyEmphasis)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
 
                     Picker("Template Editor", selection: $editorTab) {
@@ -414,7 +419,7 @@ struct TemplateEditorView: View {
                     }
                 }
                 .padding(16)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .stroke(separatorBorderColor, lineWidth: 1)
@@ -431,7 +436,7 @@ struct TemplateEditorView: View {
                 )
                 .padding(16)
                 .frame(minHeight: 420)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 30, style: .continuous)
                         .stroke(separatorBorderColor, lineWidth: 1)
@@ -439,19 +444,19 @@ struct TemplateEditorView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text(L("card_template_search_title"))
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.captionBold)
+                        .foregroundStyle(Color.amgiTextSecondary)
 
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.amgiTextSecondary)
                         TextField(L("card_template_search_placeholder"), text: $editorSearchText)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .stroke(separatorBorderColor, lineWidth: 1)
@@ -460,7 +465,7 @@ struct TemplateEditorView: View {
             }
             .padding(20)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.amgiBackground)
     }
 
     private var previewSheet: some View {
@@ -488,7 +493,7 @@ struct TemplateEditorView: View {
                         .stroke(separatorBorderColor, lineWidth: 1)
                 }
             }
-            .background(Color(.secondarySystemBackground))
+            .background(Color.amgiSurfaceElevated)
             .navigationTitle(L("deck_template_preview_rendered"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

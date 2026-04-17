@@ -34,6 +34,8 @@ struct DeckDetailView: View {
                 subdecksSection
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(shortTitle)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -119,29 +121,29 @@ struct DeckDetailView: View {
             HStack {
                 VStack(alignment: .leading) {
                     Text(L("deck_detail_count_new"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                     Text("\(counts.newCount)")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.blue)
+                        .amgiFont(.sectionHeading)
+                        .foregroundStyle(Color.amgiAccent)
                 }
                 Spacer()
                 VStack(alignment: .leading) {
                     Text(L("deck_detail_count_learning"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                     Text("\(counts.learnCount)")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.orange)
+                        .amgiFont(.sectionHeading)
+                        .foregroundStyle(Color.amgiWarning)
                 }
                 Spacer()
                 VStack(alignment: .leading) {
                     Text(L("deck_detail_count_review"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                     Text("\(counts.reviewCount)")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.green)
+                        .amgiFont(.sectionHeading)
+                        .foregroundStyle(Color.amgiPositive)
                 }
             }
             .padding(.vertical, 8)
@@ -155,8 +157,9 @@ struct DeckDetailView: View {
             } label: {
                 Label(L("deck_detail_study_now"), systemImage: "play.fill")
                     .frame(maxWidth: .infinity)
-                    .font(.headline)
+                    .amgiFont(.bodyEmphasis)
             }
+            .foregroundStyle(Color.amgiAccent)
             .disabled(counts.total == 0)
         }
     }
@@ -167,6 +170,8 @@ struct DeckDetailView: View {
                 NavigationLink(value: DeckInfo(id: child.id, name: child.fullName, counts: child.counts)) {
                     HStack {
                         Text(child.name)
+                            .amgiFont(.body)
+                            .foregroundStyle(Color.amgiTextPrimary)
                         Spacer()
                         DeckCountsView(counts: child.counts)
                     }
@@ -186,7 +191,7 @@ struct DeckDetailView: View {
                     } label: {
                         Label(L("deck_row_rename"), systemImage: "pencil")
                     }
-                    .tint(.blue)
+                    .tint(Color.amgiAccent)
                 }
             }
         }

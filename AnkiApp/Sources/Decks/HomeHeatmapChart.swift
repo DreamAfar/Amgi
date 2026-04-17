@@ -32,12 +32,13 @@ struct HomeHeatmapChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(L("deck_list_heatmap_title"))
-                .font(.title3.weight(.semibold))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
 
             if dayCountMap.isEmpty {
                 Text(L("stats_heatmap_empty"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: max(84, preferredHeight - 52))
             } else {
                 GeometryReader { proxy in
@@ -55,7 +56,11 @@ struct HomeHeatmapChart: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.amgiBorder.opacity(0.22), lineWidth: 1)
+        )
     }
 
     private func monthHeader(layout: Layout) -> some View {
@@ -64,8 +69,8 @@ struct HomeHeatmapChart: View {
         return HStack(spacing: cellSpacing) {
             ForEach(Array(layout.weeks.indices), id: \.self) { weekIndex in
                 Text(labelLookup[weekIndex] ?? "")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .lineLimit(1)
                     .frame(width: layout.cellSize, alignment: .leading)
             }
@@ -87,7 +92,7 @@ struct HomeHeatmapChart: View {
                             .overlay {
                                 if isFuture {
                                     RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                        .stroke(Color(.systemGray6), lineWidth: 0.5)
+                                        .stroke(Color.amgiBorder, lineWidth: 0.5)
                                         .opacity(0.25)
                                 }
                             }
@@ -103,16 +108,16 @@ struct HomeHeatmapChart: View {
         HStack(spacing: 4) {
             Spacer()
             Text(L("stats_heatmap_less"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
             ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(Color.green.opacity(max(0.12, intensity)))
+                    .fill(Color.amgiPositive.opacity(max(0.12, intensity)))
                     .frame(width: layout.cellSize, height: layout.cellSize)
             }
             Text(L("stats_heatmap_more"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
         }
     }
 
@@ -174,10 +179,10 @@ struct HomeHeatmapChart: View {
 
     private func heatColor(count: Int) -> Color {
         if count == 0 {
-            return Color(.systemGray6)
+            return Color.amgiSurface
         }
 
         let intensity = min(1.0, Double(count) / Double(maxCount))
-        return .green.opacity(max(0.2, intensity))
+        return Color.amgiPositive.opacity(max(0.2, intensity))
     }
 }

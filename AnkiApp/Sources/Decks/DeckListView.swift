@@ -64,6 +64,8 @@ struct DeckListView: View {
                         }
                     }
                 }
+                .scrollContentBackground(.hidden)
+                .background(Color.amgiBackground)
                 .listStyle(.insetGrouped)
                 .navigationDestination(for: DeckInfo.self) { deck in
                     DeckDetailView(deck: deck)
@@ -83,6 +85,7 @@ struct DeckListView: View {
                 }
             }
         }
+        .background(Color.amgiBackground)
         .navigationTitle(L("deck_list_nav_title"))
         .onReceive(NotificationCenter.default.publisher(for: AppUserStore.didChangeNotification)) { _ in
             Task {
@@ -253,7 +256,7 @@ private struct DeckRowView: View {
         } label: {
             Label(L("deck_row_rename"), systemImage: "pencil")
         }
-        .tint(.blue)
+        .tint(Color.amgiAccent)
     }
 
     private var childrenList: some View {
@@ -270,6 +273,8 @@ private struct DeckRowView: View {
     private var rowContent: some View {
         HStack {
             Text(node.name)
+                .amgiFont(.body)
+                .foregroundStyle(Color.amgiTextPrimary)
             Spacer()
             DeckCountsView(counts: node.counts)
         }
