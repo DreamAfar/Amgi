@@ -15,12 +15,15 @@ struct CardStateChart: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L("stats_card_states_title")).font(.headline)
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            Text(L("stats_card_states_title"))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
 
             if chartData.isEmpty {
                 Text(L("stats_card_states_empty"))
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 150)
             } else {
                 Chart(chartData, id: \.0) { item in
@@ -29,18 +32,19 @@ struct CardStateChart: View {
                 }
                 .frame(height: 180)
 
-                HStack(spacing: 16) {
+                HStack(spacing: AmgiSpacing.lg) {
                     ForEach(chartData, id: \.0) { item in
                         HStack(spacing: 4) {
                             Circle().fill(item.2).frame(width: 8, height: 8)
-                            Text("\(item.0): \(item.1)").font(.caption).foregroundStyle(.secondary)
+                            Text("\(item.0): \(item.1)")
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
                         }
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard()
     }
 }

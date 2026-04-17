@@ -21,16 +21,21 @@ struct CardCountsChart: View {
     private var total: Int { chartData.reduce(0) { $0 + $1.count } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             HStack {
-                Text(L("stats_card_counts_title")).font(.headline)
+                Text(L("stats_card_counts_title"))
+                    .amgiFont(.sectionHeading)
+                    .foregroundStyle(Color.amgiTextPrimary)
                 Spacer()
-                Text(L("stats_total_count", total)).font(.caption).foregroundStyle(.secondary)
+                Text(L("stats_total_count", total))
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
 
             if chartData.isEmpty {
                 Text(L("stats_card_counts_empty"))
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(chartData, id: \.name) { item in
@@ -49,17 +54,20 @@ struct CardCountsChart: View {
                         let formattedPercentage = String(format: "%.2f%%", percentage)
                         HStack(spacing: 4) {
                             Circle().fill(item.color).frame(width: 8, height: 8)
-                            Text(item.name).font(.caption)
+                            Text(item.name)
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
                             Spacer()
                             Text("\(item.count)  \(formattedPercentage)")
-                                .font(.caption.monospacedDigit().weight(.medium))
+                                .amgiFont(.captionBold)
+                                .monospacedDigit()
+                                .foregroundStyle(Color.amgiTextPrimary)
                         }
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard()
     }
 }

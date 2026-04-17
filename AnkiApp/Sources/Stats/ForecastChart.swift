@@ -6,12 +6,15 @@ struct ForecastChart: View {
     let data: [DayCount]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L("stats_forecast_title")).font(.headline)
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            Text(L("stats_forecast_title"))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
 
             if data.isEmpty || data.allSatisfy({ $0.count == 0 }) {
                 Text(L("stats_forecast_empty"))
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 150)
             } else {
                 Chart(data, id: \.date) { item in
@@ -19,13 +22,12 @@ struct ForecastChart: View {
                         x: .value("Date", item.date),
                         y: .value("Cards", item.count)
                     )
-                    .foregroundStyle(.blue.gradient)
+                    .foregroundStyle(Color.amgiAccent.gradient)
                 }
                 .frame(height: 180)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard()
     }
 }

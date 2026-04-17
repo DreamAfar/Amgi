@@ -35,8 +35,10 @@ struct FutureDueChart: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L("stats_future_due_title")).font(.headline)
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            Text(L("stats_future_due_title"))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
 
             Picker("", selection: $period) {
                 Text(L("stats_period_month")).tag(StatsPeriod.month)
@@ -45,11 +47,12 @@ struct FutureDueChart: View {
                 Text(L("stats_period_all")).tag(StatsPeriod.all)
             }
             .pickerStyle(.segmented)
-            .font(.caption2)
+            .amgiFont(.micro)
 
             if filteredData.isEmpty {
                 Text(L("stats_future_due_empty"))
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(filteredData, id: \.day) { item in
@@ -63,19 +66,19 @@ struct FutureDueChart: View {
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 6)) { _ in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.gray.opacity(0.2))
+                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         AxisValueLabel()
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                 }
                 .chartYAxis {
                     AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.gray.opacity(0.2))
+                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         AxisValueLabel()
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                 }
                 .frame(height: 200)
@@ -85,7 +88,7 @@ struct FutureDueChart: View {
                 Toggle(L("stats_future_due_backlog"), isOn: $includeBacklog)
                     .toggleStyle(.button)
                     .buttonStyle(.bordered)
-                    .font(.caption2)
+                    .amgiFont(.micro)
                     .controlSize(.mini)
             }
 
@@ -95,17 +98,20 @@ struct FutureDueChart: View {
                 footerItem(L("stats_future_due_tomorrow"), value: "\(dueTomorrow)")
                 footerItem(L("stats_future_due_daily_load"), value: "\(futureDue.dailyLoad)")
             }
-            .font(.caption2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard()
     }
 
     private func footerItem(_ label: String, value: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value).font(.caption.weight(.semibold).monospacedDigit())
-            Text(label).foregroundStyle(.secondary)
+        VStack(spacing: AmgiSpacing.xxs) {
+            Text(value)
+                .amgiFont(.captionBold)
+                .monospacedDigit()
+                .foregroundStyle(Color.amgiTextPrimary)
+            Text(label)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
         }
         .frame(maxWidth: .infinity)
     }

@@ -28,18 +28,21 @@ struct EaseChart: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             HStack {
-                Text(isFSRS ? L("stats_difficulty_title") : L("stats_ease_title")).font(.headline)
+                Text(isFSRS ? L("stats_difficulty_title") : L("stats_ease_title"))
+                    .amgiFont(.sectionHeading)
+                    .foregroundStyle(Color.amgiTextPrimary)
                 Spacer()
                 Text(L("stats_ease_avg_fmt", averageEase))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.captionBold)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
 
             if chartData.isEmpty {
                 Text(L("stats_ease_empty"))
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart(chartData, id: \.ease) { item in
@@ -52,8 +55,11 @@ struct EaseChart: View {
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 5)) { value in
                         AxisGridLine()
+                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         if let v = value.as(Int.self) {
                             AxisValueLabel("\(v / 10)%")
+                                .amgiFont(.micro)
+                                .foregroundStyle(Color.amgiTextSecondary)
                         }
                     }
                 }
@@ -61,7 +67,6 @@ struct EaseChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard()
     }
 }

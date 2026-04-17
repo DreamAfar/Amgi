@@ -53,8 +53,10 @@ struct ButtonsChart: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L("stats_buttons_title")).font(.headline)
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            Text(L("stats_buttons_title"))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
 
             Picker("", selection: $period) {
                 Text(L("stats_period_month")).tag(StatsPeriod.month)
@@ -65,22 +67,22 @@ struct ButtonsChart: View {
                 }
             }
             .pickerStyle(.segmented)
-            .font(.caption2)
+            .amgiFont(.micro)
             .onChange(of: revlogRange) {
                 if revlogRange == .year && period == .all { period = .year }
             }
 
             if entries.isEmpty {
                 Text(L("stats_buttons_empty"))
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 buttonsChart
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard()
     }
 
     @ViewBuilder
