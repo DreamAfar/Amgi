@@ -1418,7 +1418,12 @@ struct CardWebView: UIViewRepresentable {
                 return;
             }
             window.__amgiWindowLoadHandled = true;
-            await amgiQueueQAUpdate(INITIAL_CARD_HTML, INITIAL_CARD_STATE);
+            amgiApplyCardState(INITIAL_CARD_STATE);
+            try {
+                await amgiFinalizeCardContent();
+            } catch (error) {
+                console.error('Initial card render failed', error);
+            }
         }
 
         window.addEventListener('load', amgiHandleWindowLoad);
@@ -1427,7 +1432,7 @@ struct CardWebView: UIViewRepresentable {
         }
         </script>
         </head>
-        <body class="\(bodyClass)"><div id="qa" class="card-frame"></div></body>
+        <body class="\(bodyClass)"><div id="qa" class="card-frame">\(processedHTML)</div></body>
         </html>
         """
 
