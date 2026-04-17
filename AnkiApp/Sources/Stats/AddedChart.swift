@@ -147,15 +147,15 @@ struct AddedChart: View {
                                     .foregroundStyle(Color.amgiTextSecondary)
                             }
                         }
+                    }
 
-                        AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
-                            if let raw = value.as(Double.self),
-                               let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                                AxisValueLabel {
-                                    Text(tick.label)
-                                        .amgiFont(.micro)
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                }
+                    AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
+                        if let raw = value.as(Double.self),
+                           let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                            AxisValueLabel {
+                                Text(tick.label)
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
                             }
                         }
                     }
