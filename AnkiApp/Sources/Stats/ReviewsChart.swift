@@ -7,6 +7,7 @@ struct ReviewsChart: View {
     let revlogRange: RevlogRange
     @State private var period: StatsPeriod = .month
     @State private var showTime = false
+    @State private var selectedBucket: Int?
 
     private struct ReviewEntry: Identifiable {
         let id = UUID()
@@ -119,6 +120,18 @@ struct ReviewsChart: View {
         return .fixed(width)
     }
 
+    private var selectedBucketEntries: [ReviewEntry] {
+        guard let selectedBucket else { return [] }
+        return entries
+            .filter { $0.bucket == selectedBucket }
+            .sorted { $0.typeIndex < $1.typeIndex }
+    }
+
+    private var selectedCumulativePoint: CumulativePoint? {
+        guard let selectedBucket else { return nil }
+        return cumulativePoints.first(where: { $0.bucket == selectedBucket })
+    }
+
     private var xAxisMin: Int {
         switch period {
         case .day:
@@ -139,15 +152,22 @@ struct ReviewsChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             HStack {
-                Text(L("stats_reviews_title"))
-                    .amgiFont(.sectionHeading)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
+                    Text(L("stats_reviews_title"))
+                        .amgiFont(.sectionHeading)
+                        .foregroundStyle(Color.amgiTextPrimary)
+
+                    Text(showTime ? L("stats_reviews_time_subtitle") : L("stats_reviews_count_subtitle"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
                 Spacer()
                 Toggle(L("stats_reviews_show_time"), isOn: $showTime)
                     .toggleStyle(.button)
                     .buttonStyle(.bordered)
                     .amgiFont(.micro)
                     .controlSize(.mini)
+                    .onChange(of: showTime) { selectedBucket = nil }
             }
 
             // Period radios — 「全时」仅在全局=全部时显示
@@ -162,7 +182,9 @@ struct ReviewsChart: View {
                 if !revlogRange.allowedStatsPeriods.contains(period) {
                     period = revlogRange.defaultStatsPeriod
                 }
+                selectedBucket = nil
             }
+            .onChange(of: period) { selectedBucket = nil }
 
             if entries.isEmpty {
                 Text(L("stats_reviews_empty"))
@@ -237,8 +259,51 @@ struct ReviewsChart: View {
                 .interpolationMethod(.monotone)
                 .accessibilityHidden(true)
             }
+
+            if let selectedBucket,
+               let selectedCumulativePoint,
+               !selectedBucketEntries.isEmpty {
+                RuleMark(x: .value("Selected Day", selectedBucket))
+                    .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                        StatsChartTooltip(
+                            title: statsBarRangeLabel(start: selectedBucket, bucketSize: bucketSize),
+                            lines: selectedBucketEntries.map { entry in
+                                "\(entry.type): \(entry.value)"
+                            } + [
+                                "\(L(\"stats_reviews_cumulative\")): \(selectedCumulativePoint.cumulative)"
+                            ]
+                        )
+                    }
+            }
         }
         .chartForegroundStyleScale(colorScale)
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle()
+                    .fill(Color.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onEnded { value in
+                                let plotFrame = geometry[proxy.plotAreaFrame]
+                                let plotX = value.location.x - plotFrame.origin.x
+                                guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
+                                      let bucket: Int = proxy.value(atX: plotX)
+                                else {
+                                    selectedBucket = nil
+                                    return
+                                }
+
+                                let nearestBucket = Set(entries.map(\.bucket)).min(by: {
+                                    abs($0 - bucket) < abs($1 - bucket)
+                                })
+                                selectedBucket = selectedBucket == nearestBucket ? nil : nearestBucket
+                            }
+                    )
+            }
+        }
         .chartXScale(domain: xAxisMin...0)
         .chartYScale(domain: 0...leftAxisMax)
         .chartXAxis {

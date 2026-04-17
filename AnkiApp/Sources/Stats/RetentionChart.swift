@@ -5,11 +5,23 @@ struct RetentionChart: View {
     let trueRetention: Anki_Stats_GraphsResponse.TrueRetentionStats
     let revlogRange: RevlogRange
 
-    enum DisplayMode: String, CaseIterable, Identifiable {
-        case young   = "欠熟练"
-        case mature  = "已熟练"
-        case summary = "汇总"
-        var id: String { rawValue }
+    enum DisplayMode: CaseIterable, Identifiable {
+        case young
+        case mature
+        case summary
+
+        var id: Self { self }
+
+        var localizedLabel: String {
+            switch self {
+            case .young:
+                return L("stats_retention_young")
+            case .mature:
+                return L("stats_retention_mature")
+            case .summary:
+                return L("stats_retention_all")
+            }
+        }
     }
 
     @State private var mode: DisplayMode = .summary
@@ -58,9 +70,13 @@ struct RetentionChart: View {
                 .amgiFont(.sectionHeading)
                 .foregroundStyle(Color.amgiTextPrimary)
 
+            Text(L("stats_retention_subtitle"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+
             Picker("", selection: $mode) {
                 ForEach(DisplayMode.allCases) { m in
-                    Text(m.rawValue).tag(m)
+                    Text(m.localizedLabel).tag(m)
                 }
             }
             .pickerStyle(.segmented)

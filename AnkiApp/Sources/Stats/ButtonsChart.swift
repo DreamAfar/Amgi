@@ -6,6 +6,7 @@ struct ButtonsChart: View {
     let buttons: Anki_Stats_GraphsResponse.Buttons
     let revlogRange: RevlogRange
     @State private var period: StatsPeriod = .year
+    @State private var selectedBarKey: String?
 
     private var buttonCounts: Anki_Stats_GraphsResponse.Buttons.ButtonCounts {
         switch period {
@@ -17,7 +18,9 @@ struct ButtonsChart: View {
     }
 
     private struct ButtonEntry: Identifiable {
-        let id = UUID()
+        let id: String
+        let buttonIndex: Int
+        let typeIndex: Int
         let button: String
         let cardType: String
         let count: Int
@@ -38,10 +41,14 @@ struct ButtonsChart: View {
             (L("stats_card_mature"), bc.mature),
         ]
         var result: [ButtonEntry] = []
-        for (typeName, counts) in sources {
+        for (typeIndex, source) in sources.enumerated() {
+            let (typeName, counts) = source
             for (index, count) in counts.prefix(4).enumerated() {
                 if count > 0 {
                     result.append(ButtonEntry(
+                        id: "\(index)-\(typeIndex)",
+                        buttonIndex: index,
+                        typeIndex: typeIndex,
                         button: buttonLabels[index],
                         cardType: typeName,
                         count: Int(count)
@@ -52,11 +59,34 @@ struct ButtonsChart: View {
         return result
     }
 
+    private var selectedEntry: ButtonEntry? {
+        guard let selectedBarKey else { return nil }
+        return entries.first(where: { $0.id == selectedBarKey })
+    }
+
+    private func totalForType(_ typeIndex: Int) -> Int {
+        entries
+            .filter { $0.typeIndex == typeIndex }
+            .reduce(0) { $0 + $1.count }
+    }
+
+    private func correctPercentForType(_ typeIndex: Int) -> Double {
+        let typeEntries = entries.filter { $0.typeIndex == typeIndex }
+        let total = typeEntries.reduce(0) { $0 + $1.count }
+        guard total > 0 else { return 0 }
+        let correct = typeEntries.filter { $0.buttonIndex > 0 }.reduce(0) { $0 + $1.count }
+        return Double(correct) / Double(total) * 100
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_buttons_title"))
                 .amgiFont(.sectionHeading)
                 .foregroundStyle(Color.amgiTextPrimary)
+
+            Text(L("stats_buttons_subtitle"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
 
             Picker("", selection: $period) {
                 ForEach(revlogRange.allowedStatsPeriods, id: \.self) { allowedPeriod in
@@ -69,7 +99,9 @@ struct ButtonsChart: View {
                 if !revlogRange.allowedStatsPeriods.contains(period) {
                     period = revlogRange.defaultStatsPeriod
                 }
+                selectedBarKey = nil
             }
+            .onChange(of: period) { selectedBarKey = nil }
 
             if entries.isEmpty {
                 Text(L("stats_buttons_empty"))
@@ -97,8 +129,55 @@ struct ButtonsChart: View {
                 y: .value("Count", entry.count)
             )
             .foregroundStyle(by: .value("Type", entry.cardType))
+
+            if let selectedEntry,
+               selectedEntry.id == entry.id {
+                RuleMark(x: .value("Selected Button", entry.button))
+                    .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                        let total = totalForType(selectedEntry.typeIndex)
+                        let share = total > 0 ? Double(selectedEntry.count) / Double(total) * 100 : 0
+                        StatsChartTooltip(
+                            title: "\(selectedEntry.button) • \(selectedEntry.cardType)",
+                            lines: [
+                                "\(L(\"stats_card_count\")): \(selectedEntry.count) (\(String(format: \"%.1f%%\", share)))",
+                                "\(L(\"stats_today_correct\")): \(String(format: \"%.1f%%\", correctPercentForType(selectedEntry.typeIndex)))"
+                            ]
+                        )
+                    }
+            }
         }
         .chartForegroundStyleScale(colorScale)
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle()
+                    .fill(Color.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onEnded { value in
+                                let plotFrame = geometry[proxy.plotAreaFrame]
+                                let plotX = value.location.x - plotFrame.origin.x
+                                guard plotX >= 0, plotX <= proxy.plotAreaSize.width else {
+                                    selectedBarKey = nil
+                                    return
+                                }
+
+                                let buttonSlotWidth = proxy.plotAreaSize.width / CGFloat(max(buttonLabels.count, 1))
+                                let rawButtonIndex = Int(plotX / buttonSlotWidth)
+                                let buttonIndex = min(max(rawButtonIndex, 0), buttonLabels.count - 1)
+                                let localX = plotX - CGFloat(buttonIndex) * buttonSlotWidth
+                                let typeSlotWidth = buttonSlotWidth / CGFloat(max(cardTypes.count, 1))
+                                let rawTypeIndex = Int(localX / typeSlotWidth)
+                                let typeIndex = min(max(rawTypeIndex, 0), cardTypes.count - 1)
+                                let key = "\(buttonIndex)-\(typeIndex)"
+
+                                selectedBarKey = selectedBarKey == key ? nil : key
+                            }
+                    )
+            }
+        }
         .frame(height: 180)
     }
 }

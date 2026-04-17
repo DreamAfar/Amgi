@@ -6,6 +6,7 @@ struct HourlyChart: View {
     let hours: Anki_Stats_GraphsResponse.Hours
     let revlogRange: RevlogRange
     @State private var period: StatsPeriod = .year
+    @State private var selectedHour: Int?
 
     private var hourData: [Anki_Stats_GraphsResponse.Hours.Hour] {
         switch period {
@@ -20,18 +21,24 @@ struct HourlyChart: View {
         let id: Int
         let hour: Int
         let total: Int
+        let correct: Int
         let correctPct: Double
     }
 
     private var entries: [HourEntry] {
         let data = hourData
         guard data.count == 24 else {
-            return (0..<24).map { HourEntry(id: $0, hour: $0, total: 0, correctPct: 0) }
+            return (0..<24).map { HourEntry(id: $0, hour: $0, total: 0, correct: 0, correctPct: 0) }
         }
         return data.enumerated().map { index, hour in
             let pct = hour.total > 0 ? Double(hour.correct) / Double(hour.total) * 100 : 0
-            return HourEntry(id: index, hour: index, total: Int(hour.total), correctPct: pct)
+            return HourEntry(id: index, hour: index, total: Int(hour.total), correct: Int(hour.correct), correctPct: pct)
         }
+    }
+
+    private var selectedEntry: HourEntry? {
+        guard let selectedHour else { return nil }
+        return entries.first(where: { $0.hour == selectedHour })
     }
 
     private var isEmpty: Bool { entries.allSatisfy { $0.total == 0 } }
@@ -56,6 +63,10 @@ struct HourlyChart: View {
                 .amgiFont(.sectionHeading)
                 .foregroundStyle(Color.amgiTextPrimary)
 
+            Text(L("stats_hourly_subtitle"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+
             Picker("", selection: $period) {
                 ForEach(revlogRange.allowedStatsPeriods, id: \.self) { allowedPeriod in
                     Text(allowedPeriod.localizedLabel).tag(allowedPeriod)
@@ -67,7 +78,9 @@ struct HourlyChart: View {
                 if !revlogRange.allowedStatsPeriods.contains(period) {
                     period = revlogRange.defaultStatsPeriod
                 }
+                selectedHour = nil
             }
+            .onChange(of: period) { selectedHour = nil }
 
             if isEmpty {
                 Text(L("stats_hourly_empty"))
@@ -117,6 +130,46 @@ struct HourlyChart: View {
                         .foregroundStyle(.green.opacity(0.8))
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                         .interpolationMethod(.catmullRom)
+                    }
+
+                    if let selectedEntry {
+                        RuleMark(x: .value("Selected Hour", selectedEntry.hour))
+                            .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                            .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                                StatsChartTooltip(
+                                    title: "\(selectedEntry.hour)-\(selectedEntry.hour + 1)",
+                                    lines: [
+                                        "\(L(\"stats_hourly_reviews\")): \(selectedEntry.total)",
+                                        "\(L(\"stats_hourly_correct_pct\")): \(String(format: \"%.1f%%\", selectedEntry.correctPct)) (\(selectedEntry.correct)/\(selectedEntry.total))"
+                                    ]
+                                )
+                            }
+                    }
+                }
+                .chartOverlay { proxy in
+                    GeometryReader { geometry in
+                        Rectangle()
+                            .fill(Color.clear)
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onEnded { value in
+                                        let plotFrame = geometry[proxy.plotAreaFrame]
+                                        let plotX = value.location.x - plotFrame.origin.x
+                                        guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
+                                              let hour: Int = proxy.value(atX: plotX)
+                                        else {
+                                            selectedHour = nil
+                                            return
+                                        }
+
+                                        let nearestHour = entries.min(by: {
+                                            abs($0.hour - hour) < abs($1.hour - hour)
+                                        })?.hour
+                                        selectedHour = selectedHour == nearestHour ? nil : nearestHour
+                                    }
+                            )
                     }
                 }
                 .chartXAxis {

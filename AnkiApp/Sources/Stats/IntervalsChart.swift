@@ -5,6 +5,7 @@ import AnkiProto
 struct IntervalsChart: View {
     let intervals: Anki_Stats_GraphsResponse.Intervals
     let isFSRS: Bool
+    @State private var selectedBinX: Int?
 
     private struct CumulativePoint: Identifiable {
         let id: Int
@@ -12,12 +13,26 @@ struct IntervalsChart: View {
         let cumulative: Int
     }
 
-    enum IntervalRange: String, CaseIterable, Identifiable {
-        case month       = "1个月"
-        case percentile50 = "50%"
-        case percentile95 = "95%"
-        case all         = "全部"
-        var id: String { rawValue }
+    enum IntervalRange: CaseIterable, Identifiable {
+        case month
+        case percentile50
+        case percentile95
+        case all
+
+        var id: Self { self }
+
+        var localizedLabel: String {
+            switch self {
+            case .month:
+                return L("stats_period_month")
+            case .percentile50:
+                return "50%"
+            case .percentile95:
+                return "95%"
+            case .all:
+                return L("stats_period_all")
+            }
+        }
     }
 
     @State private var range: IntervalRange = .month
@@ -99,13 +114,18 @@ struct IntervalsChart: View {
                 .amgiFont(.sectionHeading)
                 .foregroundStyle(Color.amgiTextPrimary)
 
+            Text(isFSRS ? L("stats_stability_subtitle") : L("stats_intervals_subtitle"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+
             Picker("", selection: $range) {
                 ForEach(IntervalRange.allCases) { r in
-                    Text(r.rawValue).tag(r)
+                    Text(r.localizedLabel).tag(r)
                 }
             }
             .pickerStyle(.segmented)
             .amgiFont(.micro)
+            .onChange(of: range) { selectedBinX = nil }
 
             let (bins, _) = histogramData
             if bins.isEmpty {
@@ -148,6 +168,8 @@ struct IntervalsChart: View {
         let leftAxisMax = StatsDualAxisSupport.niceUpperBound(Double(maxCount))
         let rightAxisMax = StatsDualAxisSupport.niceUpperBound(Double(total))
         let trailingTicks = rightAxisTicks(total: total, plottedMax: Int(leftAxisMax.rounded()))
+        let selectedBin = bins.first(where: { $0.x == selectedBinX })
+        let selectedPoint = cumulative.first(where: { $0.x == selectedBinX })
         Chart {
             ForEach(bins, id: \.x) { bin in
                 BarMark(
@@ -188,6 +210,48 @@ struct IntervalsChart: View {
                 .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
                 .lineStyle(StrokeStyle(lineWidth: 1.5))
                 .interpolationMethod(.monotone)
+            }
+
+            if let selectedBin,
+               let selectedPoint,
+               total > 0 {
+                RuleMark(x: .value(L("stats_intervals_days"), selectedBin.x))
+                    .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                        StatsChartTooltip(
+                            title: selectedBin.label,
+                            lines: [
+                                "\(L(\"stats_card_count\")): \(selectedBin.count)",
+                                "\(L(\"stats_reviews_cumulative\")): \(String(format: \"%.1f%%\", Double(selectedPoint.cumulative) / Double(total) * 100))"
+                            ]
+                        )
+                    }
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle()
+                    .fill(Color.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onEnded { value in
+                                let plotFrame = geometry[proxy.plotAreaFrame]
+                                let plotX = value.location.x - plotFrame.origin.x
+                                guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
+                                      let xValue: Int = proxy.value(atX: plotX)
+                                else {
+                                    selectedBinX = nil
+                                    return
+                                }
+
+                                let nearestX = bins.min(by: {
+                                    abs($0.x - xValue) < abs($1.x - xValue)
+                                })?.x
+                                selectedBinX = selectedBinX == nearestX ? nil : nearestX
+                            }
+                    )
             }
         }
         .chartYScale(domain: 0...leftAxisMax)

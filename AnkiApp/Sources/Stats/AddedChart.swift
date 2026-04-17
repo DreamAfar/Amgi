@@ -5,6 +5,7 @@ import AnkiProto
 struct AddedChart: View {
     let added: Anki_Stats_GraphsResponse.Added
     @State private var period: StatsPeriod = .month
+    @State private var selectedDay: Int?
 
     private struct CumulativePoint: Identifiable {
         let id: Int
@@ -62,12 +63,20 @@ struct AddedChart: View {
         let span = filteredData.count * bucketSize
         return Double(totalAdded) / Double(max(span, 1))
     }
+    private var selectedPoint: CumulativePoint? {
+        guard let selectedDay else { return nil }
+        return cumulativePoints.first(where: { $0.day == selectedDay })
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_added_title"))
                 .amgiFont(.sectionHeading)
                 .foregroundStyle(Color.amgiTextPrimary)
+
+            Text(L("stats_added_subtitle"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
 
             Picker("", selection: $period) {
                 Text(L("stats_period_month")).tag(StatsPeriod.month)
@@ -126,6 +135,54 @@ struct AddedChart: View {
                         .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                         .interpolationMethod(.monotone)
+                    }
+
+                    if let selectedDay,
+                       let selectedItem = filteredData.first(where: { $0.day == selectedDay }),
+                       let selectedPoint {
+                        RuleMark(x: .value("Selected Day", selectedDay))
+                            .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                            .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                                StatsChartTooltip(
+                                    title: statsBarRangeLabel(start: selectedItem.day, bucketSize: bucketSize),
+                                    lines: [
+                                        "\(L(\"stats_card_count\")): \(selectedItem.count)",
+                                        "\(L(\"stats_reviews_cumulative\")): \(selectedPoint.cumulative)"
+                                    ]
+                                )
+                            }
+                    }
+                }
+                .chartOverlay { proxy in
+                    GeometryReader { geometry in
+                        Rectangle()
+                            .fill(Color.clear)
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onEnded { value in
+                                        let plotFrame = geometry[proxy.plotAreaFrame]
+                                        let plotX = value.location.x - plotFrame.origin.x
+
+                                        guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
+                                              let day: Int = proxy.value(atX: plotX)
+                                        else {
+                                            selectedDay = nil
+                                            return
+                                        }
+
+                                        let nearestDay = filteredData.min(by: {
+                                            abs($0.day - day) < abs($1.day - day)
+                                        })?.day
+
+                                        if selectedDay == nearestDay {
+                                            selectedDay = nil
+                                        } else {
+                                            selectedDay = nearestDay
+                                        }
+                                    }
+                            )
                     }
                 }
                 .chartXAxis {
