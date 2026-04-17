@@ -29,37 +29,37 @@ struct NoteEditorView: View {
             Section(L("add_note_section_fields")) {
                 VStack(spacing: 0) {
                     ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
+                            HStack(spacing: AmgiSpacing.sm) {
                                 Text(name)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
                                 Spacer()
                                 if shouldShowAudioButton(fieldName: name, index: index) {
                                     Button {
                                         previewAudio(at: index)
                                     } label: {
                                         Image(systemName: "speaker.wave.2.fill")
-                                            .font(.caption)
+                                            .font(AmgiFont.caption.font)
                                     }
                                     .buttonStyle(.plain)
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(Color.amgiAccent)
                                     .disabled(MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) == nil)
                                 }
                             }
                             RichNoteFieldEditor(htmlText: fieldBinding(for: index))
                                 .frame(minHeight: 32)
                         }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, AmgiSpacing.sm)
 
                         if index < fieldNames.count - 1 {
                             Divider()
                         }
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.horizontal, AmgiSpacing.md)
+                .padding(.vertical, AmgiSpacing.xs)
+                .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 .listRowBackground(Color.clear)
             }
@@ -74,26 +74,29 @@ struct NoteEditorView: View {
                         Label(L("note_editor_select_tags"), systemImage: "ellipsis")
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.amgiAccent)
                 }
                 
                 if !tags.isEmpty {
                     HStack {
                         Text(L("note_editor_current_tags"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
                         Spacer()
                         ForEach(tags.split(separator: " ").map(String.init), id: \.self) { tag in
                             Text(tag)
-                                .font(.caption)
+                                .amgiFont(.caption)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(.blue.opacity(0.2), in: Capsule())
+                                .background(Color.amgiAccent.opacity(0.14), in: Capsule())
+                                .foregroundStyle(Color.amgiAccent)
                         }
                     }
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("note_editor_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -128,7 +131,7 @@ struct NoteEditorView: View {
                             if tags.contains(tag) {
                                 Spacer()
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(Color.amgiAccent)
                             }
                         }
                     }

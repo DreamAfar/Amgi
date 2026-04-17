@@ -53,7 +53,9 @@ struct EditImageOcclusionNoteView: View {
                                 }
                                 .pickerStyle(.segmented)
                             } footer: {
-                                Text(shapeHint).font(.caption2)
+                                Text(shapeHint)
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
                             }
 
                             Section {
@@ -69,14 +71,14 @@ struct EditImageOcclusionNoteView: View {
                                 if !masks.isEmpty {
                                     HStack {
                                         Text(L("io_mask_count", masks.count))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                            .amgiFont(.caption)
+                                            .foregroundStyle(Color.amgiTextSecondary)
                                         Spacer()
                                         Button(role: .destructive) {
                                             removeLast()
                                         } label: {
                                             Label(L("io_remove_last"), systemImage: "arrow.uturn.backward")
-                                                .font(.caption)
+                                                .font(AmgiFont.caption.font)
                                         }
                                         .buttonStyle(.borderless)
                                     }
@@ -97,15 +99,21 @@ struct EditImageOcclusionNoteView: View {
                         } header: {
                             Text(L("io_section_tags"))
                         } footer: {
-                            Text(L("io_tags_hint")).font(.caption2)
+                            Text(L("io_tags_hint"))
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
                         }
 
                         if let err = saveError {
                             Section {
-                                Text(err).foregroundStyle(.red).font(.caption)
+                                Text(err)
+                                    .foregroundStyle(Color.amgiDanger)
+                                    .amgiFont(.caption)
                             }
                         }
                     }
+                    .scrollContentBackground(.hidden)
+                    .background(Color.amgiBackground)
                 }
             }
             .navigationTitle(L("io_edit_nav_title"))

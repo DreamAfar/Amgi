@@ -63,12 +63,12 @@ struct BrowseView: View {
         Group {
             if isLoading && notes.isEmpty {
                 // 初始加载中：居中显示转圈动画
-                VStack(spacing: 12) {
+                VStack(spacing: AmgiSpacing.md) {
                     ProgressView()
                         .controlSize(.large)
                     Text(L("browse_loading"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.body)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .transition(.opacity.animation(.easeInOut(duration: 0.2)))
@@ -99,18 +99,20 @@ struct BrowseView: View {
                 if isEditing {
                     VStack(spacing: 1) {
                         Text(L("browse_nav_title"))
-                            .font(.headline)
+                            .amgiFont(.cardTitle)
+                            .foregroundStyle(Color.amgiTextPrimary)
                         Text(L("browse_selected_count", selectedNoteIDs.count))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                 } else {
                     VStack(spacing: 1) {
                         Text(L("browse_nav_title"))
-                            .font(.headline)
+                            .amgiFont(.cardTitle)
+                            .foregroundStyle(Color.amgiTextPrimary)
                         Text(L("browse_total_count", allNoteIDs.count))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                 }
             }
@@ -420,16 +422,16 @@ struct BrowseView: View {
     }
 
     private var batchProgressOverlay: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: AmgiSpacing.sm) {
             ProgressView(value: Double(batchProgressDone), total: Double(max(batchProgressTotal, 1)))
                 .frame(maxWidth: 160)
             Text("\(batchProgressDone)/\(batchProgressTotal)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 6)
-        .background(Color(.secondarySystemBackground))
+        .padding(.horizontal, AmgiSpacing.md)
+        .padding(.vertical, AmgiSpacing.xs)
+        .background(Color.amgiSurface)
         .clipShape(Capsule())
     }
 
@@ -438,20 +440,22 @@ struct BrowseView: View {
             Color.black.opacity(0.16)
                 .ignoresSafeArea()
 
-            VStack(spacing: 12) {
+            VStack(spacing: AmgiSpacing.md) {
                 ProgressView()
                     .controlSize(.large)
                 Text(L("import_export_progress_exporting"))
-                    .font(.headline)
+                    .amgiFont(.sectionHeading)
+                    .foregroundStyle(Color.amgiTextPrimary)
                 Text(L("import_export_progress_detail"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .multilineTextAlignment(.center)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 20)
+            .padding(.horizontal, AmgiSpacing.xl)
+            .padding(.vertical, AmgiSpacing.lg)
             .frame(maxWidth: 300)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .amgiShadow()
         }
     }
 
@@ -603,34 +607,34 @@ struct BrowseView: View {
 
     private func batchActionButton(systemImage: String, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 6) {
+            VStack(spacing: AmgiSpacing.xs) {
                 Image(systemName: systemImage)
                     .font(.title3)
                     .frame(width: 44, height: 44)
-                    .background(Color(.secondarySystemBackground), in: Circle())
+                    .background(Color.amgiSurface, in: Circle())
                 Text(title)
-                    .font(.caption)
+                    .amgiFont(.caption)
                     .lineLimit(1)
                     .minimumScaleFactor(0.9)
             }
-            .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? .tertiary : .primary)
+            .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? Color.amgiTextTertiary : Color.amgiTextPrimary)
         }
         .buttonStyle(.plain)
         .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
     }
 
     private func batchActionLabel(systemImage: String, title: String) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: AmgiSpacing.xs) {
             Image(systemName: systemImage)
                 .font(.title3)
                 .frame(width: 44, height: 44)
-                .background(Color(.secondarySystemBackground), in: Circle())
+                .background(Color.amgiSurface, in: Circle())
             Text(title)
-                .font(.caption)
+                .amgiFont(.caption)
                 .lineLimit(1)
                 .minimumScaleFactor(0.9)
         }
-            .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? .tertiary : .primary)
+            .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? Color.amgiTextTertiary : Color.amgiTextPrimary)
     }
 
     private func browseFlagButton(_ value: UInt32, action: @escaping () -> Void) -> some View {
@@ -786,11 +790,11 @@ struct BrowseView: View {
     ) -> some View {
         Button(action: action) {
             Text(label)
-                .font(small ? .caption : .subheadline)
+                .font(small ? AmgiFont.caption.font : AmgiFont.body.font)
                 .padding(.horizontal, small ? 10 : 12)
                 .padding(.vertical, small ? 4 : 6)
-                .background(isSelected ? Color.accentColor : Color(.secondarySystemFill))
-                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
+                .background(isSelected ? Color.amgiAccent : Color.amgiSurface)
+                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.amgiTextPrimary))
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)

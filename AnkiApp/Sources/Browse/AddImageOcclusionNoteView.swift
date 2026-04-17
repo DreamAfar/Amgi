@@ -111,7 +111,8 @@ struct AddImageOcclusionNoteView: View {
                         .pickerStyle(.segmented)
                     } footer: {
                         Text(shapeHint)
-                            .font(.caption2)
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
 
                     Section {
@@ -127,14 +128,14 @@ struct AddImageOcclusionNoteView: View {
                         if !masks.isEmpty {
                             HStack {
                                 Text(L("io_mask_count", masks.count))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
                                 Spacer()
                                 Button(role: .destructive) {
                                     removeLast()
                                 } label: {
                                     Label(L("io_remove_last"), systemImage: "arrow.uturn.backward")
-                                        .font(.caption)
+                                        .font(AmgiFont.caption.font)
                                 }
                                 .buttonStyle(.borderless)
                             }
@@ -156,18 +157,21 @@ struct AddImageOcclusionNoteView: View {
                     Text(L("io_section_tags"))
                 } footer: {
                     Text(L("io_tags_hint"))
-                        .font(.caption2)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
 
                 // MARK: Error
                 if let err = errorMessage {
                     Section {
                         Text(err)
-                            .foregroundStyle(.red)
-                            .font(.caption)
+                            .foregroundStyle(Color.amgiDanger)
+                            .amgiFont(.caption)
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
             .navigationTitle(L("io_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
