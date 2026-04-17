@@ -64,21 +64,29 @@ struct FutureDueChart: View {
                     .foregroundStyle(item.day < 0 ? Color.red.gradient : Color.blue.gradient)
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 6)) { _ in
+                    AxisMarks(values: .automatic(desiredCount: 6)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        AxisValueLabel()
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                        if let day = value.as(Int.self) {
+                            AxisValueLabel {
+                                Text("\(day)")
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
                     }
                 }
                 .chartYAxis {
-                    AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                    AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        AxisValueLabel()
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                        if let count = value.as(Int.self) {
+                            AxisValueLabel {
+                                Text("\(count)")
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
                     }
                 }
                 .frame(height: 200)

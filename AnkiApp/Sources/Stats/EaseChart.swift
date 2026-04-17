@@ -57,9 +57,11 @@ struct EaseChart: View {
                         AxisGridLine()
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         if let v = value.as(Int.self) {
-                            AxisValueLabel("\(v / 10)%")
-                                .amgiFont(.micro)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                            AxisValueLabel {
+                                Text("\(v / 10)%")
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
                         }
                     }
                 }

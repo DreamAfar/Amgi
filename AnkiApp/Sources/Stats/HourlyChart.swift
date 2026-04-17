@@ -37,8 +37,10 @@ struct HourlyChart: View {
     private var isEmpty: Bool { entries.allSatisfy { $0.total == 0 } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L("stats_hourly_title")).font(.headline)
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            Text(L("stats_hourly_title"))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
 
             Picker("", selection: $period) {
                 Text(L("stats_period_month")).tag(StatsPeriod.month)
@@ -49,14 +51,15 @@ struct HourlyChart: View {
                 }
             }
             .pickerStyle(.segmented)
-            .font(.caption2)
+            .amgiFont(.micro)
             .onChange(of: revlogRange) {
                 if revlogRange == .year && period == .all { period = .year }
             }
 
             if isEmpty {
                 Text(L("stats_hourly_empty"))
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 let maxTotal = entries.map(\.total).max() ?? 1
@@ -81,11 +84,11 @@ struct HourlyChart: View {
                 .chartXAxis {
                     AxisMarks(values: [0, 3, 6, 9, 12, 15, 18, 21]) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.gray.opacity(0.2))
+                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         if let h = value.as(Int.self) {
                             AxisValueLabel(formatHour(h))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .font(AmgiFont.micro.font)
+                                .foregroundStyle(Color.amgiTextSecondary)
                         }
                     }
                 }
@@ -93,18 +96,17 @@ struct HourlyChart: View {
                 .chartYAxis {
                     AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.gray.opacity(0.2))
+                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         AxisValueLabel()
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(AmgiFont.micro.font)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                 }
                 .frame(height: 200)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard()
     }
 
     private func formatHour(_ hour: Int) -> String {

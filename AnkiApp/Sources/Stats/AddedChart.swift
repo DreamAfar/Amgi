@@ -71,9 +71,13 @@ struct AddedChart: View {
                     AxisMarks(values: .automatic(desiredCount: 8)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        AxisValueLabel()
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                        if let day = value.as(Int.self) {
+                            AxisValueLabel {
+                                Text("\(day)")
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
                     }
                 }
                 .chartYAxis {
@@ -84,9 +88,13 @@ struct AddedChart: View {
                     ) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        AxisValueLabel()
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                        if let count = value.as(Int.self) {
+                            AxisValueLabel {
+                                Text("\(count)")
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
                     }
                 }
                 .frame(height: 200)

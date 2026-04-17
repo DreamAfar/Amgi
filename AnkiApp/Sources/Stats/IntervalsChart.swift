@@ -73,8 +73,10 @@ struct IntervalsChart: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(isFSRS ? L("stats_stability_title") : L("stats_intervals_title")).font(.headline)
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            Text(isFSRS ? L("stats_stability_title") : L("stats_intervals_title"))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
 
             Picker("", selection: $range) {
                 ForEach(IntervalRange.allCases) { r in
@@ -82,12 +84,13 @@ struct IntervalsChart: View {
                 }
             }
             .pickerStyle(.segmented)
-            .font(.caption2)
+            .amgiFont(.micro)
 
             let (bins, _) = histogramData
             if bins.isEmpty {
                 Text(L("stats_intervals_empty"))
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 intervalsChart(bins: bins)
@@ -96,17 +99,20 @@ struct IntervalsChart: View {
             HStack(spacing: 16) {
                 footerItem(L("stats_intervals_median"), value: L("stats_intervals_days_fmt", medianInterval))
             }
-            .font(.caption2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard()
     }
 
     private func footerItem(_ label: String, value: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value).font(.caption.weight(.semibold).monospacedDigit())
-            Text(label).foregroundStyle(.secondary)
+        VStack(spacing: AmgiSpacing.xxs) {
+            Text(value)
+                .amgiFont(.captionBold)
+                .monospacedDigit()
+                .foregroundStyle(Color.amgiTextPrimary)
+            Text(label)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -126,19 +132,19 @@ struct IntervalsChart: View {
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 6)) { _ in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.gray.opacity(0.2))
+                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                 AxisValueLabel()
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(AmgiFont.micro.font)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
         }
         .chartYAxis {
             AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.gray.opacity(0.2))
+                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                 AxisValueLabel()
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(AmgiFont.micro.font)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
         }
         .frame(height: 200)
