@@ -73,8 +73,8 @@ For the full architecture walkthrough, see **[ARCHITECTURE.md](ARCHITECTURE.md)*
 ### 1. Clone with submodules
 
 ```bash
-git clone --recursive https://github.com/antigluten/anki-ios.git
-cd anki-ios
+git clone --recursive https://github.com/antigluten/amgi.git
+cd amgi
 ```
 
 ### 2. Install dependencies

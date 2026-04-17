@@ -4,7 +4,7 @@ Thank you for your interest in contributing. This guide covers how to report iss
 
 ## Reporting Bugs
 
-Open a [GitHub Issue](https://github.com/antigluten/anki-ios/issues/new) with:
+Open a [GitHub Issue](https://github.com/antigluten/amgi/issues/new) with:
 
 - Steps to reproduce
 - Expected behavior vs. actual behavior
@@ -13,7 +13,7 @@ Open a [GitHub Issue](https://github.com/antigluten/anki-ios/issues/new) with:
 
 ## Suggesting Features
 
-Open a [GitHub Issue](https://github.com/antigluten/anki-ios/issues/new) with the `enhancement` label. Describe the use case and why it would benefit Anki users.
+Open a [GitHub Issue](https://github.com/antigluten/amgi/issues/new) with the `enhancement` label. Describe the use case and why it would benefit Anki users.
 
 ## Development Setup
 
@@ -27,8 +27,8 @@ Open a [GitHub Issue](https://github.com/antigluten/anki-ios/issues/new) with th
 ### Build
 
 ```bash
-git clone --recursive https://github.com/antigluten/anki-ios.git
-cd anki-ios
+git clone --recursive https://github.com/antigluten/amgi.git
+cd amgi
 
 # Rust targets for iOS
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios-simulator
@@ -107,4 +107,4 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 ## Questions?
 
-Open a [Discussion](https://github.com/antigluten/anki-ios/discussions) or file an issue. We are happy to help.
+Open a [Discussion](https://github.com/antigluten/amgi/discussions) or file an issue. We are happy to help.
