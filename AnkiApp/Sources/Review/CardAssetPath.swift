@@ -53,7 +53,7 @@ enum CardAssetPath {
     }
 
     private static func normalizedRelativePath(from url: URL) -> String {
-        var path = url.percentEncodedPath
+        var path = url.path(percentEncoded: true)
         if path.hasPrefix("/") {
             path.removeFirst()
         }
