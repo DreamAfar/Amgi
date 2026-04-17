@@ -331,9 +331,10 @@ struct CardWebView: UIViewRepresentable {
         window.onUpdateHook = window.onUpdateHook || [];
         window.onShownHook = window.onShownHook || [];
         window.__amgiCardState = window.__amgiCardState || {};
+        window.__amgiUpdateQueue = window.__amgiUpdateQueue || Promise.resolve();
         const amgiPreloadTemplate = document.createElement('template');
         const amgiPreloadDoc = document.implementation.createHTMLDocument('');
-        const amgiFontURLPattern = /url\s*\(\s*(?<quote>["']?)(?<url>\S.*?)\k<quote>\s*\)/g;
+        const amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
         const amgiCachedFonts = new Set();
 
         function amgiCardState() {
@@ -451,8 +452,8 @@ struct CardWebView: UIViewRepresentable {
                     var src = rule.style.getPropertyValue('src');
                     var matches = src.matchAll(amgiFontURLPattern);
                     for (const match of matches) {
-                        if (match.groups && match.groups.url) {
-                            urls.push(match.groups.url);
+                        if (match[2]) {
+                            urls.push(match[2]);
                         }
                     }
                 });
@@ -505,17 +506,21 @@ struct CardWebView: UIViewRepresentable {
 
         function amgiRunHooks(hooks) {
             if (!Array.isArray(hooks)) {
-                return;
+                return Promise.resolve([]);
             }
+
+            var promises = [];
             hooks.forEach(function(hook) {
                 try {
                     if (typeof hook === 'function') {
-                        hook();
+                        promises.push(hook());
                     }
                 } catch (error) {
                     console.error('Hook failed', error);
                 }
             });
+
+            return Promise.allSettled(promises);
         }
 
         function amgiReplaceDeferredScript(oldScript) {
@@ -1289,7 +1294,7 @@ struct CardWebView: UIViewRepresentable {
         async function amgiFinalizeCardContent() {
             await amgiExecuteDeferredCardScripts();
 
-            amgiRunHooks(window.onUpdateHook);
+            await amgiRunHooks(window.onUpdateHook);
 
             var qa = document.getElementById('qa');
             if (qa && window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
@@ -1348,7 +1353,7 @@ struct CardWebView: UIViewRepresentable {
             }
 
             amgiSetupImageOcclusion();
-            amgiRunHooks(window.onShownHook);
+            await amgiRunHooks(window.onShownHook);
 
             var prefetchHTML = amgiPrefetchHTMLValue();
             if (!amgiIsAnswerSide() && prefetchHTML) {
@@ -1365,22 +1370,40 @@ struct CardWebView: UIViewRepresentable {
             }
 
             stopAllSystemAudio();
-            window.onUpdateHook = [];
-            window.onShownHook = [];
+            window.onUpdateHook.length = 0;
+            window.onShownHook.length = 0;
             amgiApplyCardState(state);
             await amgiPreloadResources(html || '');
+
+            Array.from(qa.getElementsByTagName('video')).forEach(function(oldVideo) {
+                oldVideo.pause();
+                while (oldVideo.firstChild) {
+                    oldVideo.removeChild(oldVideo.firstChild);
+                }
+                oldVideo.load();
+            });
+
             qa.innerHTML = html || '';
             await amgiFinalizeCardContent();
         }
 
         window.amgiUpdateQAContent = amgiUpdateQAContent;
 
+        function amgiQueueQAUpdate(html, state) {
+            window.__amgiUpdateQueue = (window.__amgiUpdateQueue || Promise.resolve()).then(function() {
+                return amgiUpdateQAContent(html, state);
+            });
+            return window.__amgiUpdateQueue;
+        }
+
+        window.amgiQueueQAUpdate = amgiQueueQAUpdate;
+
         async function amgiHandleWindowLoad() {
             if (window.__amgiWindowLoadHandled) {
                 return;
             }
             window.__amgiWindowLoadHandled = true;
-            await amgiUpdateQAContent(INITIAL_CARD_HTML, INITIAL_CARD_STATE);
+            await amgiQueueQAUpdate(INITIAL_CARD_HTML, INITIAL_CARD_STATE);
         }
 
         window.addEventListener('load', amgiHandleWindowLoad);
@@ -1568,7 +1591,7 @@ struct CardWebView: UIViewRepresentable {
     }
 
     private static func updateCardScript(html: String, cardStateLiteral: String) -> String {
-        "window.amgiUpdateQAContent && window.amgiUpdateQAContent(\(jsStringLiteral(html)), \(cardStateLiteral));"
+        "window.amgiQueueQAUpdate && window.amgiQueueQAUpdate(\(jsStringLiteral(html)), \(cardStateLiteral));"
     }
 
     private static func parseTTSAttributes(_ raw: String) -> [String: String] {
