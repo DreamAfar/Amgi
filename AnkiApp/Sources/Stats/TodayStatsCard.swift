@@ -19,9 +19,9 @@ struct TodayStatsCard: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: .primary)
+                statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
                 Spacer()
-                statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: .primary)
+                statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: Color.amgiTextPrimary)
                 Spacer()
                 statItem(title: L("stats_today_correct"), value: accuracy, color: .green)
                 Spacer()
@@ -38,21 +38,20 @@ struct TodayStatsCard: View {
                 statBadge(L("stats_card_again"), count: today.answerCount - today.correctCount, color: .red)
             }
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard(elevated: true)
     }
 
     private func statItem(title: String, value: String, color: Color) -> some View {
         VStack(spacing: 2) {
             Text(value).font(.title3.weight(.semibold)).foregroundStyle(color)
-            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(title).amgiFont(.caption).foregroundStyle(Color.amgiTextSecondary)
         }
     }
 
     private func statBadge(_ title: String, count: UInt32, color: Color) -> some View {
         VStack(spacing: 2) {
             Text("\(count)").font(.subheadline.weight(.medium)).foregroundStyle(color)
-            Text(title).font(.caption2).foregroundStyle(.secondary)
+            Text(title).amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
         }
     }
 

@@ -87,10 +87,16 @@ struct ReviewsChart: View {
         }
         return bucketSum.values.max() ?? 0
     }
+    private var leftAxisMax: Double {
+        StatsDualAxisSupport.niceUpperBound(Double(maxBucketValue))
+    }
+    private var rightAxisMax: Double {
+        StatsDualAxisSupport.niceUpperBound(Double(totalValue))
+    }
     private var rightAxisTicks: [StatsAxisTick] {
         StatsDualAxisSupport.ticks(
             domainMax: Double(totalValue),
-            plottedMax: Double(maxBucketValue),
+            plottedMax: leftAxisMax,
             formatter: { value in String(Int(value.rounded())) }
         )
     }
@@ -129,17 +135,16 @@ struct ReviewsChart: View {
 
             // Period radios — 「全时」仅在全局=全部时显示
             Picker("", selection: $period) {
-                Text(L("stats_period_month")).tag(StatsPeriod.month)
-                Text(L("stats_period_3months")).tag(StatsPeriod.threeMonths)
-                Text(L("stats_period_year")).tag(StatsPeriod.year)
-                if revlogRange == .all {
-                    Text(L("stats_period_all")).tag(StatsPeriod.all)
+                ForEach(revlogRange.allowedStatsPeriods, id: \.self) { allowedPeriod in
+                    Text(allowedPeriod.localizedLabel).tag(allowedPeriod)
                 }
             }
             .pickerStyle(.segmented)
             .amgiFont(.micro)
             .onChange(of: revlogRange) {
-                if revlogRange == .year && period == .all { period = .year }
+                if !revlogRange.allowedStatsPeriods.contains(period) {
+                    period = revlogRange.defaultStatsPeriod
+                }
             }
 
             if entries.isEmpty {
@@ -162,7 +167,7 @@ struct ReviewsChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .amgiCard()
+        .amgiCard(elevated: true)
     }
 
     @ViewBuilder
@@ -190,8 +195,8 @@ struct ReviewsChart: View {
                         L("stats_reviews_cumulative"),
                         StatsDualAxisSupport.plottedValue(
                             Double(pt.cumulative),
-                            domainMax: Double(totalValue),
-                            plottedMax: Double(maxBucketValue)
+                            domainMax: rightAxisMax,
+                            plottedMax: leftAxisMax
                         )
                     )
                 )
@@ -204,8 +209,8 @@ struct ReviewsChart: View {
                         L("stats_reviews_cumulative"),
                         StatsDualAxisSupport.plottedValue(
                             Double(pt.cumulative),
-                            domainMax: Double(totalValue),
-                            plottedMax: Double(maxBucketValue)
+                            domainMax: rightAxisMax,
+                            plottedMax: leftAxisMax
                         )
                     ),
                     series: .value("Series", "cumulative")
@@ -217,6 +222,7 @@ struct ReviewsChart: View {
             }
         }
         .chartForegroundStyleScale(colorScale)
+        .chartYScale(domain: 0...leftAxisMax)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 6)) { _ in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
@@ -242,6 +248,8 @@ struct ReviewsChart: View {
             AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
                 if let raw = value.as(Double.self),
                    let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                    AxisTick()
+                        .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
                     AxisValueLabel {
                         Text(tick.label)
                             .amgiFont(.micro)

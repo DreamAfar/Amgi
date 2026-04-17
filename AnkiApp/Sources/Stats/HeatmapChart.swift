@@ -134,18 +134,19 @@ struct HeatmapChart: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(L("stats_heatmap_title"))
-                    .font(.headline)
+                    .amgiFont(.sectionHeading)
+                    .foregroundStyle(Color.amgiTextPrimary)
                 Spacer()
                 if currentStreak > 0 {
                     Label(L("stats_heatmap_streak", currentStreak), systemImage: "flame.fill")
-                        .font(.caption.weight(.medium))
+                        .amgiFont(.captionBold)
                         .foregroundStyle(.orange)
                 }
             }
 
             if dayCountMap.isEmpty {
                 Text(L("stats_heatmap_empty"))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: isCompact ? 72 : 100)
             } else {
                 if !isCompact {
@@ -164,8 +165,8 @@ struct HeatmapChart: View {
                             ForEach(0..<weeks.count, id: \.self) { weekIdx in
                                 if let label = monthLabels.first(where: { $0.1 == weekIdx }) {
                                     Text(label.0)
-                                        .font(.system(size: 9))
-                                        .foregroundStyle(.secondary)
+                                        .font(.system(size: 9, weight: .medium, design: .default))
+                                        .foregroundStyle(Color.amgiTextSecondary)
                                         .fixedSize()
                                         .frame(width: cellSize + cellSpacing, alignment: .leading)
                                 } else {
@@ -180,7 +181,7 @@ struct HeatmapChart: View {
                                 ForEach(0..<7, id: \.self) { day in
                                     Text(weekdayLabel(day))
                                         .font(.system(size: 8))
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Color.amgiTextSecondary)
                                         .frame(width: weekdayLabelWidth, height: cellSize)
                                 }
                             }
@@ -208,19 +209,27 @@ struct HeatmapChart: View {
 
                 HStack(spacing: isCompact ? 3 : 4) {
                     Spacer()
-                    Text(L("stats_heatmap_less")).font(.caption2).foregroundStyle(.secondary)
+                    Text(L("stats_heatmap_less")).amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
                     ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
                         RoundedRectangle(cornerRadius: 2)
                             .fill(Color.green.opacity(max(0.1, intensity)))
                             .frame(width: cellSize, height: cellSize)
                     }
-                    Text(L("stats_heatmap_more")).font(.caption2).foregroundStyle(.secondary)
+                    Text(L("stats_heatmap_more")).amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(isCompact ? 10 : 16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.amgiSurfaceElevated)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.amgiBorder.opacity(0.32), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.08), radius: 12, y: 4)
     }
 
     // MARK: - Helpers
@@ -230,8 +239,8 @@ struct HeatmapChart: View {
             Text(value)
                 .font(.subheadline.weight(.semibold).monospacedDigit())
             Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .amgiFont(.micro)
+                .foregroundStyle(Color.amgiTextSecondary)
         }
         .frame(maxWidth: .infinity)
     }

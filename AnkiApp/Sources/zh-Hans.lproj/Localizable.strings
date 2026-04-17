@@ -936,6 +936,7 @@
 "stats_review_filtered" = "过滤";
 
 // MARK: - Stats Heatmap Optimization
+"stats_range_month" = "月";
 "stats_range_year" = "近一年";
 "stats_range_all" = "全部";
 "stats_range_30" = "过去 30 天";

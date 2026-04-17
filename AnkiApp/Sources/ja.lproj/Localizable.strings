@@ -938,6 +938,7 @@
 "stats_review_filtered" = "フィルター";
 
 // MARK: - Stats Heatmap Optimization
+"stats_range_month" = "1か月";
 "stats_range_year" = "過去1年";
 "stats_range_all" = "すべて";
 "stats_range_30" = "過去 30 日間";

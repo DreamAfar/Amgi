@@ -936,6 +936,7 @@
 "stats_review_filtered" = "Filtered";
 
 // MARK: - Stats Heatmap Optimization
+"stats_range_month" = "Month";
 "stats_range_year" = "Past Year";
 "stats_range_all" = "All Time";
 "stats_range_30" = "Last 30 days";

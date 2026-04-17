@@ -28,6 +28,6 @@ struct ForecastChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .amgiCard()
+        .amgiCard(elevated: true)
     }
 }

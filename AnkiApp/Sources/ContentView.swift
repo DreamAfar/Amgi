@@ -230,16 +230,21 @@ struct ContentView: View {
                 ProgressView()
                     .controlSize(.large)
                 Text(L(operation.titleKey))
-                    .font(.headline)
+                    .amgiFont(.bodyEmphasis)
+                    .foregroundStyle(Color.amgiTextPrimary)
                 Text(L("import_export_progress_detail"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
             .frame(maxWidth: 300)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.amgiBorder.opacity(0.22), lineWidth: 1)
+            )
             .shadow(color: Color.black.opacity(0.12), radius: 18, y: 8)
         }
         .transition(.opacity)
@@ -258,12 +263,13 @@ struct ContentView: View {
                 .lineLimit(1)
                 .layoutPriority(1)
                 Image(systemName: "chevron.down")
-                    .font(.caption2)
+                    .font(AmgiFont.micro.font)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
             .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Color(.secondarySystemFill), in: Capsule())
+            .background(Color.amgiSurface, in: Capsule())
         }
         .buttonStyle(.plain)
         .disabled(isSwitchingUser)
@@ -284,7 +290,8 @@ struct ContentView: View {
                         ProgressView()
                             .controlSize(.small)
                         Text(L("sync_syncing"))
-                            .font(.footnote.weight(.medium))
+                            .amgiFont(.captionBold)
+                            .foregroundStyle(Color.amgiTextPrimary)
                     }
                 } else {
                     ZStack(alignment: .topTrailing) {
@@ -293,7 +300,7 @@ struct ContentView: View {
                             .padding(.trailing, 3)
                         if showSyncBadge {
                             Circle()
-                                .fill(Color.red)
+                                .fill(Color.amgiDanger)
                                 .frame(width: 7, height: 7)
                         }
                     }

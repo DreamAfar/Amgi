@@ -54,7 +54,9 @@ struct RetentionChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(L("stats_retention_title")).font(.headline)
+            Text(L("stats_retention_title"))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
 
             Picker("", selection: $mode) {
                 ForEach(DisplayMode.allCases) { m in
@@ -62,42 +64,43 @@ struct RetentionChart: View {
                 }
             }
             .pickerStyle(.segmented)
-            .font(.caption2)
+            .font(AmgiFont.micro.font)
 
             let rows = makeRows(for: trueRetention)
 
             Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
                 GridRow {
                     Text(L("stats_retention_period"))
-                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
                     Text(L("stats_retention_passed"))
-                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
                     Text(L("stats_retention_failed"))
-                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
                     Text(L("stats_retention_rate"))
-                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
                     Text(L("stats_total"))
-                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
                 }
                 Divider()
                 ForEach(rows) { row in
                     GridRow {
-                        Text(row.label).font(.caption)
-                        Text("\(row.passed)").font(.caption.monospacedDigit())
-                        Text("\(row.failed)").font(.caption.monospacedDigit())
+                        Text(row.label).amgiFont(.caption)
+                        Text("\(row.passed)").font(AmgiFont.caption.font.monospacedDigit())
+                        Text("\(row.failed)").font(AmgiFont.caption.font.monospacedDigit())
                         retentionBadge(row.rate)
-                        Text("\(row.total)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        Text("\(row.total)")
+                            .font(AmgiFont.caption.font.monospacedDigit())
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                 }
             }
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .amgiCard(elevated: true)
     }
 
     private func retentionBadge(_ rate: Double) -> some View {
         Text(rate >= 0 ? "\(Int((rate * 100).rounded()))%" : "---")
-            .font(.caption.monospacedDigit().weight(.medium))
+            .font(AmgiFont.captionBold.font.monospacedDigit())
             .foregroundStyle(retentionColor(rate))
     }
 

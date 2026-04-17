@@ -11,6 +11,12 @@ enum StatsDualAxisSupport {
         return (value / domainMax) * plottedMax
     }
 
+    static func niceUpperBound(_ domainMax: Double, desiredTickCount: Int = 4) -> Double {
+        guard domainMax > 0 else { return 1 }
+        let step = niceStep(domainMax / Double(max(desiredTickCount, 1)))
+        return ceil(domainMax / step) * step
+    }
+
     static func ticks(
         domainMax: Double,
         plottedMax: Double,
@@ -20,7 +26,7 @@ enum StatsDualAxisSupport {
         guard domainMax > 0, plottedMax > 0 else { return [] }
 
         let step = niceStep(domainMax / Double(max(desiredTickCount, 1)))
-        let tickMax = ceil(domainMax / step) * step
+        let tickMax = niceUpperBound(domainMax, desiredTickCount: desiredTickCount)
         var result: [StatsAxisTick] = []
         var value = 0.0
 

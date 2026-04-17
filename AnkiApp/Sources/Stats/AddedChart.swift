@@ -37,6 +37,12 @@ struct AddedChart: View {
 
     private var totalAdded: Int { filteredData.reduce(0) { $0 + $1.count } }
     private var maxDailyCount: Int { filteredData.map(\.count).max() ?? 0 }
+    private var leftAxisMax: Double {
+        StatsDualAxisSupport.niceUpperBound(Double(maxDailyCount))
+    }
+    private var rightAxisMax: Double {
+        StatsDualAxisSupport.niceUpperBound(Double(totalAdded))
+    }
     private var cumulativePoints: [CumulativePoint] {
         var runningTotal = 0
         return filteredData.map { item in
@@ -47,7 +53,7 @@ struct AddedChart: View {
     private var rightAxisTicks: [StatsAxisTick] {
         StatsDualAxisSupport.ticks(
             domainMax: Double(totalAdded),
-            plottedMax: Double(maxDailyCount),
+            plottedMax: leftAxisMax,
             formatter: { value in String(Int(value.rounded())) }
         )
     }
@@ -95,8 +101,8 @@ struct AddedChart: View {
                                 "Cumulative",
                                 StatsDualAxisSupport.plottedValue(
                                     Double(point.cumulative),
-                                    domainMax: Double(totalAdded),
-                                    plottedMax: Double(maxDailyCount)
+                                    domainMax: rightAxisMax,
+                                    plottedMax: leftAxisMax
                                 )
                             )
                         )
@@ -109,8 +115,8 @@ struct AddedChart: View {
                                 "Cumulative",
                                 StatsDualAxisSupport.plottedValue(
                                     Double(point.cumulative),
-                                    domainMax: Double(totalAdded),
-                                    plottedMax: Double(maxDailyCount)
+                                    domainMax: rightAxisMax,
+                                    plottedMax: leftAxisMax
                                 )
                             )
                         )
@@ -132,6 +138,7 @@ struct AddedChart: View {
                         }
                     }
                 }
+                .chartYScale(domain: 0...leftAxisMax)
                 .chartYAxis {
                     AxisMarks(
                         preset: .aligned,
@@ -140,9 +147,9 @@ struct AddedChart: View {
                     ) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let count = value.as(Int.self) {
+                        if let count = value.as(Double.self) {
                             AxisValueLabel {
-                                Text("\(count)")
+                                Text("\(Int(count.rounded()))")
                                     .amgiFont(.micro)
                                     .foregroundStyle(Color.amgiTextSecondary)
                             }
@@ -152,6 +159,8 @@ struct AddedChart: View {
                     AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
                         if let raw = value.as(Double.self),
                            let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                            AxisTick()
+                                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
                             AxisValueLabel {
                                 Text(tick.label)
                                     .amgiFont(.micro)
@@ -169,7 +178,7 @@ struct AddedChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .amgiCard()
+        .amgiCard(elevated: true)
     }
 
     private func footerItem(_ label: String, value: String) -> some View {

@@ -20,13 +20,13 @@ struct DebugView: View {
                     Text(L("debug_username"))
                     Spacer()
                     Text(KeychainHelper.loadUsername() ?? L("debug_not_logged_in"))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
                 HStack {
                     Text(L("debug_host_key"))
                     Spacer()
                     Text(KeychainHelper.loadHostKey() != nil ? L("debug_stored") : L("common_none"))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
                 Button(L("debug_logout"), role: .destructive) {
                     AppSyncAuthEvents.clearCredentials()
@@ -73,8 +73,8 @@ struct DebugView: View {
             if !statusMessage.isEmpty {
                 Section(L("debug_section_status")) {
                     Text(statusMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
 
@@ -84,6 +84,8 @@ struct DebugView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("debug_nav_title"))
         .sheet(isPresented: $showShareSheet) {
             if let url = exportedFileURL {

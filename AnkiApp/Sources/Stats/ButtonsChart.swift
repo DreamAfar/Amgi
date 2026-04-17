@@ -59,17 +59,16 @@ struct ButtonsChart: View {
                 .foregroundStyle(Color.amgiTextPrimary)
 
             Picker("", selection: $period) {
-                Text(L("stats_period_month")).tag(StatsPeriod.month)
-                Text(L("stats_period_3months")).tag(StatsPeriod.threeMonths)
-                Text(L("stats_period_year")).tag(StatsPeriod.year)
-                if revlogRange == .all {
-                    Text(L("stats_period_all")).tag(StatsPeriod.all)
+                ForEach(revlogRange.allowedStatsPeriods, id: \.self) { allowedPeriod in
+                    Text(allowedPeriod.localizedLabel).tag(allowedPeriod)
                 }
             }
             .pickerStyle(.segmented)
             .amgiFont(.micro)
             .onChange(of: revlogRange) {
-                if revlogRange == .year && period == .all { period = .year }
+                if !revlogRange.allowedStatsPeriods.contains(period) {
+                    period = revlogRange.defaultStatsPeriod
+                }
             }
 
             if entries.isEmpty {
@@ -82,7 +81,7 @@ struct ButtonsChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .amgiCard()
+        .amgiCard(elevated: true)
     }
 
     @ViewBuilder

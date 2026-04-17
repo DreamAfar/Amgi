@@ -603,6 +603,7 @@ struct CardWebView: UIViewRepresentable {
                     scale: parseFloat(el.dataset.scale || '1'),
                     fontSize: parseFloat(el.dataset.fontSize || '0'),
                     fill: el.dataset.fill || '#000000',
+                    occludeInactive: (el.dataset.occludeInactive || el.dataset.occludeinactive || '') === '1',
                     points: points,
                 };
             });
@@ -795,6 +796,21 @@ struct CardWebView: UIViewRepresentable {
                 });
             }
 
+            function visibleShapes(textOnly) {
+                return allShapes.filter(function(shape) {
+                    if (shape._revealed) {
+                        return false;
+                    }
+                    if (textOnly && shape.type !== 'text') {
+                        return false;
+                    }
+                    if (shape._cls === 'cloze-inactive') {
+                        return !!shape.occludeInactive;
+                    }
+                    return true;
+                });
+            }
+
             function redraw() {
                 var dpr = window.devicePixelRatio || 1;
                 var w = img.offsetWidth, h = img.offsetHeight;
@@ -808,16 +824,12 @@ struct CardWebView: UIViewRepresentable {
                 canvasRef.style.pointerEvents = allowsMaskReveal && !masksHidden ? 'auto' : 'none';
                 canvasRef.style.cursor = allowsMaskReveal && !masksHidden ? 'pointer' : 'default';
                 var size = { width: w, height: h };
-                if (masksHidden) {
-                    return;
-                }
                 var style = getComputedStyle(document.documentElement);
                 var inactiveColor  = style.getPropertyValue('--inactive-shape-color').trim()  || '#ffeba2';
                 var activeColor    = style.getPropertyValue('--active-shape-color').trim()    || '#ff8e8e';
                 var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
                 var border = '#212121';
-                allShapes.forEach(function(s) {
-                    if (s._revealed) return;
+                visibleShapes(masksHidden).forEach(function(s) {
                     var fill = s._cls === 'cloze-inactive' ? inactiveColor :
                                s._cls === 'cloze'          ? activeColor   : highlightColor;
                     amgiDrawIOShape(ctx, s, size, fill, border);
@@ -858,8 +870,8 @@ struct CardWebView: UIViewRepresentable {
                     toggleBtn.type = 'button';
                     toggleBtn.setAttribute('aria-pressed', 'false');
                     var hasInactiveMasks = allShapes.some(function(s) {
-                        return s._cls === 'cloze-inactive';
-                    }) || !!document.querySelector('[data-occludeinactive="1"]');
+                        return s._cls === 'cloze-inactive' && s.occludeInactive;
+                    }) || !!document.querySelector('[data-occludeinactive="1"], [data-occludeInactive="1"]');
 
                     if (!IS_ANSWER_SIDE || !hasInactiveMasks) {
                         toggleBtn.style.display = 'none';

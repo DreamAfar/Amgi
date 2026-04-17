@@ -122,7 +122,7 @@ struct IntervalsChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .amgiCard()
+        .amgiCard(elevated: true)
     }
 
     private func footerItem(_ label: String, value: String) -> some View {
@@ -145,7 +145,9 @@ struct IntervalsChart: View {
         let cumulative = cumulativePoints(for: bins)
         let total = cumulative.last?.cumulative ?? 0
         let maxCount = bins.map(\.count).max() ?? 0
-        let trailingTicks = rightAxisTicks(total: total, plottedMax: maxCount)
+        let leftAxisMax = StatsDualAxisSupport.niceUpperBound(Double(maxCount))
+        let rightAxisMax = StatsDualAxisSupport.niceUpperBound(Double(total))
+        let trailingTicks = rightAxisTicks(total: total, plottedMax: Int(leftAxisMax.rounded()))
         Chart(bins, id: \.x) { bin in
             BarMark(
                 x: .value(L("stats_intervals_days"), bin.x),
@@ -161,8 +163,8 @@ struct IntervalsChart: View {
                         "Cumulative",
                         StatsDualAxisSupport.plottedValue(
                             Double(point.cumulative),
-                            domainMax: Double(total),
-                            plottedMax: Double(maxCount)
+                            domainMax: rightAxisMax,
+                            plottedMax: leftAxisMax
                         )
                     )
                 )
@@ -175,8 +177,8 @@ struct IntervalsChart: View {
                         "Cumulative",
                         StatsDualAxisSupport.plottedValue(
                             Double(point.cumulative),
-                            domainMax: Double(total),
-                            plottedMax: Double(maxCount)
+                            domainMax: rightAxisMax,
+                            plottedMax: leftAxisMax
                         )
                     )
                 )
@@ -185,6 +187,7 @@ struct IntervalsChart: View {
                 .interpolationMethod(.monotone)
             }
         }
+        .chartYScale(domain: 0...leftAxisMax)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 6)) { _ in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
@@ -206,6 +209,8 @@ struct IntervalsChart: View {
             AxisMarks(position: .trailing, values: trailingTicks.map(\.plottedValue)) { value in
                 if let raw = value.as(Double.self),
                    let tick = trailingTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                    AxisTick()
+                        .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
                     AxisValueLabel {
                         Text(tick.label)
                             .amgiFont(.micro)

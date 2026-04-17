@@ -36,10 +36,16 @@ struct HourlyChart: View {
 
     private var isEmpty: Bool { entries.allSatisfy { $0.total == 0 } }
     private var maxReviewCount: Int { entries.map(\.total).max() ?? 0 }
+    private var leftAxisMax: Double {
+        StatsDualAxisSupport.niceUpperBound(Double(maxReviewCount))
+    }
+    private var rightAxisMax: Double {
+        StatsDualAxisSupport.niceUpperBound(100)
+    }
     private var rightAxisTicks: [StatsAxisTick] {
         StatsDualAxisSupport.ticks(
             domainMax: 100,
-            plottedMax: Double(maxReviewCount),
+            plottedMax: leftAxisMax,
             formatter: { value in "\(Int(value.rounded()))%" }
         )
     }
@@ -51,17 +57,16 @@ struct HourlyChart: View {
                 .foregroundStyle(Color.amgiTextPrimary)
 
             Picker("", selection: $period) {
-                Text(L("stats_period_month")).tag(StatsPeriod.month)
-                Text(L("stats_period_3months")).tag(StatsPeriod.threeMonths)
-                Text(L("stats_period_year")).tag(StatsPeriod.year)
-                if revlogRange == .all {
-                    Text(L("stats_period_all")).tag(StatsPeriod.all)
+                ForEach(revlogRange.allowedStatsPeriods, id: \.self) { allowedPeriod in
+                    Text(allowedPeriod.localizedLabel).tag(allowedPeriod)
                 }
             }
             .pickerStyle(.segmented)
             .amgiFont(.micro)
             .onChange(of: revlogRange) {
-                if revlogRange == .year && period == .all { period = .year }
+                if !revlogRange.allowedStatsPeriods.contains(period) {
+                    period = revlogRange.defaultStatsPeriod
+                }
             }
 
             if isEmpty {
@@ -86,8 +91,8 @@ struct HourlyChart: View {
                             L("stats_hourly_correct_pct"),
                             StatsDualAxisSupport.plottedValue(
                                 entry.correctPct,
-                                domainMax: 100,
-                                plottedMax: Double(maxReviewCount)
+                                domainMax: rightAxisMax,
+                                plottedMax: leftAxisMax
                             )
                         )
                     )
@@ -100,8 +105,8 @@ struct HourlyChart: View {
                             L("stats_hourly_correct_pct"),
                             StatsDualAxisSupport.plottedValue(
                                 entry.correctPct,
-                                domainMax: 100,
-                                plottedMax: Double(maxReviewCount)
+                                domainMax: rightAxisMax,
+                                plottedMax: leftAxisMax
                             )
                         ),
                         series: .value("Series", "pct")
@@ -122,6 +127,7 @@ struct HourlyChart: View {
                     }
                 }
                 .chartXScale(domain: 0...23)
+                .chartYScale(domain: 0...leftAxisMax)
                 .chartYAxis {
                     AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
@@ -134,6 +140,8 @@ struct HourlyChart: View {
                     AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
                         if let raw = value.as(Double.self),
                            let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                            AxisTick()
+                                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
                             AxisValueLabel {
                                 Text(tick.label)
                                     .amgiFont(.micro)
@@ -146,7 +154,7 @@ struct HourlyChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .amgiCard()
+        .amgiCard(elevated: true)
     }
 
     private func formatHour(_ hour: Int) -> String {

@@ -56,7 +56,7 @@ struct StatsDashboardView: View {
                         }
                         .padding(.vertical, 4)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.systemBackground))
+                        .background(Color.clear)
                     }
                 }
             }
@@ -118,16 +118,22 @@ struct StatsDashboardView: View {
     private func filterCapsule(icon: String, label: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.caption2)
+                .font(AmgiFont.micro.font)
+                .foregroundStyle(Color.amgiTextSecondary)
             Text(label)
-                .fontWeight(.medium)
+                .amgiFont(.captionBold)
+                .foregroundStyle(Color.amgiTextPrimary)
             Image(systemName: "chevron.up.chevron.down")
-                .font(.system(size: 8))
+                .font(AmgiFont.micro.font)
+                .foregroundStyle(Color.amgiTextSecondary)
         }
-        .font(.subheadline)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color(.secondarySystemFill))
+        .background(Color.amgiSurfaceElevated)
+        .overlay(
+            Capsule()
+                .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
+        )
         .clipShape(Capsule())
     }
 
