@@ -1045,14 +1045,25 @@
 "about_nav_title" = "について";
 "about_section_amgi" = "Amgi";
 "about_summary_text" = "オフラインファースト、Anki互換のオープンソースiOSフラッシュカードクライアント。";
+"about_section_project" = "プロジェクト概要";
+"about_project_text" = "Amgi は、iPhone や iPad で安定して Anki 学習を行いたいユーザー向けのクライアントです。UI 層は SwiftUI で構築され、スケジューリング、データベース、同期機能は Anki Rust バックエンドを Swift へブリッジして再利用しています。";
 "about_section_architecture" = "アーキテクチャ";
 "about_architecture_text" = "SwiftUI Views → Dependency Clients → AnkiBackend (Swift) → C FFI → Rust backend";
 "about_section_tech_stack" = "技術スタック";
 "about_tech_text" = "SwiftUI、Swift 6.2、Rust FFI、Protocol Buffers、SQLite、XcodeGen";
+"about_section_acknowledgements" = "謝辞";
+"about_ack_anki_text" = "コアとなるスケジューリング、データベース、同期バックエンド機能を提供します。";
+"about_ack_ankidroid_text" = "オープンソースの Anki エコシステムにおける実装経験と互換性の参考を多く提供しています。";
+"about_ack_dependencies_text" = "本プロジェクトの依存性注入システムに利用しています。";
+"about_ack_swiftprotobuf_text" = "Swift 側のプロトコルデータ構造とシリアライズに利用しています。";
+"about_ack_xcodegen_text" = "プロジェクトファイルの生成と保守に利用しています。";
+"about_section_links" = "関連リンク";
+"about_link_project_repo" = "プロジェクトリポジトリ";
+"about_link_anki_repo" = "Anki 公式プロジェクト";
 "about_section_open_source" = "オープンソース参考";
 "about_open_source_text" = "ankitects/anki、AnkiDroid、Point-Free swift-dependencies";
 "about_section_license" = "ライセンス";
-"about_license_text" = "AGPL-3.0";
+"about_license_text" = "Amgi はオープンソースのエコシステムの上に構築されており、プロジェクト本体および統合されているバックエンドは対応するライセンス要件に従います。中核バックエンド機能には AGPL-3.0 系のライセンスが関わるため、利用および配布時には該当条項を遵守してください。";
 
 // MARK: - BrowseView Batch Operations
 "browse_tag_manage" = "タグを管理...";

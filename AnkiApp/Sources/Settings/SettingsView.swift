@@ -811,27 +811,137 @@ private struct SyncServerSetupSheet: View {
 
 private struct AboutView: View {
     var body: some View {
-        List {
-            Section(L("about_section_amgi")) {
-                Text(L("about_summary_text"))
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: AmgiSpacing.xl) {
+                VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+                    Text("Amgi")
+                        .amgiFont(.displayHero)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Text(L("about_summary_text"))
+                        .amgiFont(.body)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
 
-            Section(L("about_section_architecture")) {
-                Text(L("about_architecture_text"))
-            }
+                aboutSection(title: L("about_section_project")) {
+                    Text(L("about_project_text"))
+                        .amgiFont(.body)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                }
 
-            Section(L("about_section_tech_stack")) {
-                Text(L("about_tech_text"))
-            }
+                aboutSection(title: L("about_section_architecture")) {
+                    Text(L("about_architecture_text"))
+                        .amgiFont(.body)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                }
 
-            Section(L("about_section_open_source")) {
-                Text(L("about_open_source_text"))
-            }
+                aboutSection(title: L("about_section_tech_stack")) {
+                    VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
+                        aboutBullet("SwiftUI")
+                        aboutBullet("Swift 6.2")
+                        aboutBullet("Rust FFI")
+                        aboutBullet("Protocol Buffers")
+                        aboutBullet("SQLite")
+                        aboutBullet("XcodeGen")
+                    }
+                }
 
-            Section(L("about_section_license")) {
-                Text(L("about_license_text"))
+                aboutSection(title: L("about_section_acknowledgements")) {
+                    VStack(alignment: .leading, spacing: AmgiSpacing.lg) {
+                        aboutLinkBlock(
+                            title: "ankitects/anki",
+                            description: L("about_ack_anki_text"),
+                            urlString: "https://github.com/ankitects/anki"
+                        )
+                        aboutLinkBlock(
+                            title: "AnkiDroid",
+                            description: L("about_ack_ankidroid_text"),
+                            urlString: "https://github.com/ankidroid/Anki-Android"
+                        )
+                        aboutLinkBlock(
+                            title: "Point-Free swift-dependencies",
+                            description: L("about_ack_dependencies_text"),
+                            urlString: "https://github.com/pointfreeco/swift-dependencies"
+                        )
+                        aboutLinkBlock(
+                            title: "SwiftProtobuf",
+                            description: L("about_ack_swiftprotobuf_text"),
+                            urlString: "https://github.com/apple/swift-protobuf"
+                        )
+                        aboutLinkBlock(
+                            title: "XcodeGen",
+                            description: L("about_ack_xcodegen_text"),
+                            urlString: "https://github.com/yonaskolb/XcodeGen"
+                        )
+                    }
+                }
+
+                aboutSection(title: L("about_section_links")) {
+                    VStack(alignment: .leading, spacing: AmgiSpacing.md) {
+                        aboutLinkRow(title: L("about_link_project_repo"), urlString: "https://github.com/antigluten/amgi")
+                        aboutLinkRow(title: L("about_link_anki_repo"), urlString: "https://github.com/ankitects/anki")
+                    }
+                }
+
+                aboutSection(title: L("about_section_license")) {
+                    Text(L("about_license_text"))
+                        .amgiFont(.body)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, AmgiSpacing.lg)
+            .padding(.vertical, AmgiSpacing.xl)
+        }
+        .background(Color.amgiBackground)
+        .navigationTitle(L("about_nav_title"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func aboutSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            Text(title)
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
+            content()
+        }
+    }
+
+    private func aboutBullet(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: AmgiSpacing.xs) {
+            Text("•")
+                .amgiFont(.body)
+                .foregroundStyle(Color.amgiAccent)
+            Text(text)
+                .amgiFont(.body)
+                .foregroundStyle(Color.amgiTextPrimary)
+        }
+    }
+
+    private func aboutLinkBlock(title: String, description: String, urlString: String) -> some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
+            Text(title)
+                .amgiFont(.bodyEmphasis)
+                .foregroundStyle(Color.amgiTextPrimary)
+            Text(description)
+                .amgiFont(.body)
+                .foregroundStyle(Color.amgiTextSecondary)
+            aboutLinkRow(title: urlString, urlString: urlString)
+        }
+    }
+
+    private func aboutLinkRow(title: String, urlString: String) -> some View {
+        Group {
+            if let url = URL(string: urlString) {
+                Link(destination: url) {
+                    HStack(spacing: AmgiSpacing.xs) {
+                        Text(title)
+                            .amgiFont(.captionBold)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(Color.amgiLink)
+                }
             }
         }
-        .navigationTitle(L("about_nav_title"))
     }
 }
