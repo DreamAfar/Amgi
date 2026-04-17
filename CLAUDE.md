@@ -7,7 +7,7 @@ An offline-first Anki-compatible iOS flashcard client with sync server support. 
 ## Architecture
 
 ```
-SwiftUI Views (AnkiApp/)
+SwiftUI Views (AmgiApp/)
     ↓ @Dependency(\.xxxClient)
 @DependencyClient structs (AnkiClients/)
     ↓ AnkiBackend.invoke(service:method:request:)
@@ -47,8 +47,8 @@ ankitects/anki rslib (anki-upstream/)
 swift build
 
 # Build iOS app
-cd AnkiApp && xcodegen generate && cd ..
-xcodebuild build -project AnkiApp/AnkiApp.xcodeproj -scheme AnkiApp \
+cd AmgiApp && xcodegen generate && cd ..
+xcodebuild build -project AmgiApp/AmgiApp.xcodeproj -scheme AmgiApp \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max'
 
 # Run tests

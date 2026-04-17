@@ -108,8 +108,8 @@ This cross-compiles the Rust bridge for iOS device and simulator, then packages 
 ### 5. Open in Xcode
 
 ```bash
-cd AnkiApp && xcodegen generate && cd ..
-open AnkiApp/AnkiApp.xcodeproj
+cd AmgiApp && xcodegen generate && cd ..
+open AmgiApp/AmgiApp.xcodeproj
 ```
 
 ### 6. Build and Run

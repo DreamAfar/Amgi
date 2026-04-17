@@ -69,9 +69,9 @@ jobs:
       # ── 9. 生成 Xcode 项目 ─────────────────────────────────────
       - name: Generate Xcode project
         run: |
-          cd AnkiApp && xcodegen generate
-          echo "=== Files in AnkiApp/ ==="
-          ls -la ../AnkiApp/
+          cd AmgiApp && xcodegen generate
+          echo "=== Files in AmgiApp/ ==="
+          ls -la ../AmgiApp/
 
       # ── 10. 构建无签名 xcarchive ───────────────────────────────
       # -skipPackagePluginValidation：允许 CI 中使用 Swift Macro（如 swift-dependencies
@@ -80,10 +80,10 @@ jobs:
       - name: Build unsigned xcarchive
         run: |
           xcodebuild archive \
-            -project AnkiApp/AnkiApp.xcodeproj \
-            -scheme AnkiApp \
+            -project AmgiApp/AmgiApp.xcodeproj \
+            -scheme AmgiApp \
             -configuration Release \
-            -archivePath "$RUNNER_TEMP/AnkiApp.xcarchive" \
+            -archivePath "$RUNNER_TEMP/AmgiApp.xcarchive" \
             -sdk iphoneos \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="" \
@@ -95,7 +95,7 @@ jobs:
       # ── 11. 打包成 IPA ─────────────────────────────────────────
       - name: Package .app into unsigned .ipa
         run: |
-          ARCHIVE_PATH="$RUNNER_TEMP/AnkiApp.xcarchive"
+          ARCHIVE_PATH="$RUNNER_TEMP/AmgiApp.xcarchive"
 
           echo "=== Archive contents ==="
           find "$ARCHIVE_PATH" -maxdepth 3 | head -30
@@ -112,15 +112,15 @@ jobs:
           cp -r "$APP_PATH" /tmp/Payload/
 
           cd /tmp
-          zip -r AnkiApp-unsigned.ipa Payload
+          zip -r AmgiApp-unsigned.ipa Payload
 
           echo "=== IPA created ==="
-          ls -lh /tmp/AnkiApp-unsigned.ipa
+          ls -lh /tmp/AmgiApp-unsigned.ipa
 
       # ── 12. 上传为 Artifact ────────────────────────────────────
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
-          name: AnkiApp-unsigned-ipa
-          path: /tmp/AnkiApp-unsigned.ipa
+          name: AmgiApp-unsigned-ipa
+          path: /tmp/AmgiApp-unsigned.ipa
           retention-days: 7
