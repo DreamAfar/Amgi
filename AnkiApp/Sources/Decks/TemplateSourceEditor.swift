@@ -25,7 +25,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
         textView.textContainerInset = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
         textView.textContainer.lineFragmentPadding = 0
         textView.font = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        textView.textColor = .label
+        textView.textColor = UIColor(Color.amgiTextPrimary)
         textView.autocorrectionType = .no
         textView.autocapitalizationType = .none
         textView.smartDashesType = .no
@@ -161,11 +161,11 @@ struct TemplateSourceEditor: UIViewRepresentable {
         ) -> UIView {
             // Outer container
             let container = UIView()
-            container.backgroundColor = .secondarySystemBackground
+            container.backgroundColor = UIColor(Color.amgiSurfaceElevated)
             container.frame = CGRect(x: 0, y: 0, width: 0, height: 46)
 
             let topLine = UIView()
-            topLine.backgroundColor = .separator
+            topLine.backgroundColor = UIColor(Color.amgiBorder)
             topLine.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(topLine)
 
@@ -259,7 +259,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             cfg.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
             cfg.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
             button.configuration = cfg
-            button.tintColor = .label
+            button.tintColor = UIColor(Color.amgiTextPrimary)
             button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             return button
         }
@@ -278,7 +278,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             cfg.imagePadding = 3
             cfg.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 6)
             button.configuration = cfg
-            button.tintColor = .label
+            button.tintColor = UIColor(Color.amgiTextPrimary)
             button.menu = menu
             button.showsMenuAsPrimaryAction = true
             return button
@@ -294,7 +294,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
             )
             cfg.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 4)
             button.configuration = cfg
-            button.tintColor = .systemBlue
+            button.tintColor = UIColor(Color.amgiAccent)
             button.addAction(UIAction { _ in action() }, for: .touchUpInside)
             return button
         }
@@ -302,7 +302,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
         private func makeSeparatorView() -> UIView {
             let view = UIView()
             view.translatesAutoresizingMaskIntoConstraints = false
-            view.backgroundColor = .separator
+            view.backgroundColor = UIColor(Color.amgiBorder)
             view.widthAnchor.constraint(equalToConstant: 0.5).isActive = true
             view.heightAnchor.constraint(equalToConstant: 20).isActive = true
             return view

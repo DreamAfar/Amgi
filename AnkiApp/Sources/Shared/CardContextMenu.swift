@@ -102,7 +102,8 @@ struct CardContextMenu: View {
             }
         } label: {
             Image(systemName: "ellipsis.circle")
-                .font(.headline)
+                .font(AmgiFont.bodyEmphasis.font)
+                .foregroundStyle(Color.amgiAccent)
         }
         .alert(L("card_action_error_title"), isPresented: $showError) {
             Button(L("common_ok")) { }
@@ -286,7 +287,8 @@ private let markedTag = "marked"
 #Preview {
     VStack(spacing: 20) {
         Text("Tap the menu button below")
-            .font(.headline)
+            .amgiFont(.bodyEmphasis)
+            .foregroundStyle(Color.amgiTextPrimary)
         
         Spacer()
         

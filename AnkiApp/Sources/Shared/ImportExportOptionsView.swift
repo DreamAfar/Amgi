@@ -63,7 +63,8 @@ struct ExportOptionsView: View {
                 if draft.kind == .deckPackage {
                     if decks.isEmpty {
                         Text(L("review_no_decks_available"))
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     } else {
                         Picker(
                             L("export_config_deck"),
@@ -81,7 +82,8 @@ struct ExportOptionsView: View {
 
                 if draft.kind == .selectedNotesPackage, let selectedNotesCount {
                     Text(L("export_config_selected_notes_count", selectedNotesCount))
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
 
@@ -96,6 +98,8 @@ struct ExportOptionsView: View {
                 Toggle(L("export_config_legacy_support"), isOn: $draft.legacySupport)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("menu_export_deck"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -103,11 +107,13 @@ struct ExportOptionsView: View {
                 Button(L("common_cancel")) {
                     onCancel()
                 }
+                .foregroundStyle(Color.amgiAccent)
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button(L("export_config_export_button")) {
                     onExport()
                 }
+                .foregroundStyle(Color.amgiAccent)
                 .disabled(!canExport)
             }
         }
@@ -161,14 +167,15 @@ struct ImportOptionsView: View {
             Section(L("import_config_file")) {
                 Text(fileName)
                 Text(L(isCollectionPackage ? "import_config_file_type_collection" : "import_config_file_type_apkg"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
 
             if isCollectionPackage {
                 Section(L("import_config_collection_title")) {
                     Text(L("import_config_collection_message"))
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             } else {
                 Section(L("import_config_options")) {
@@ -192,6 +199,8 @@ struct ImportOptionsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .navigationTitle(L("alert_import_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -199,11 +208,13 @@ struct ImportOptionsView: View {
                 Button(L("common_cancel")) {
                     onCancel()
                 }
+                .foregroundStyle(Color.amgiAccent)
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button(L("import_config_import_button")) {
                     onImport()
                 }
+                .foregroundStyle(Color.amgiAccent)
             }
         }
     }

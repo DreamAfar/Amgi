@@ -58,16 +58,19 @@ struct TagsView: View {
                     tagListContent
                 }
             }
+            .background(Color.amgiBackground)
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_done")) { dismiss() }
+                        .foregroundStyle(Color.amgiAccent)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAddTag = true }) {
                         Image(systemName: "plus")
                     }
+                    .foregroundStyle(Color.amgiAccent)
                 }
             }
             .sheet(isPresented: $showAddTag) {
@@ -131,8 +134,8 @@ struct TagsView: View {
             if isNoteMode {
                 Section {
                     Label(L("tags_apply_hint", targetNoteIDs.count), systemImage: "doc.text")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
 
@@ -142,6 +145,8 @@ struct TagsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
         .listStyle(.insetGrouped)
     }
 
@@ -151,8 +156,8 @@ struct TagsView: View {
                 if isNoteMode {
                     Section(L("tags_target_notes")) {
                         Text(L("tags_new_tag_will_apply", targetNoteIDs.count))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                 }
                 Section(L("tags_new_tag_name_section")) {
@@ -166,11 +171,14 @@ struct TagsView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
             .navigationTitle(L("tags_add_tag_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { showAddTag = false }
+                        .foregroundStyle(Color.amgiAccent)
                 }
             }
         }
@@ -182,15 +190,15 @@ struct TagsView: View {
     private func tagRow(_ tag: String) -> some View {
         HStack {
             Label(tag, systemImage: "tag.fill")
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.amgiAccent)
             Spacer()
             if isApplying && tagActionTag == tag {
                 ProgressView()
                     .scaleEffect(0.8)
             } else {
                 Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .font(AmgiFont.caption.font)
+                    .foregroundStyle(Color.amgiTextTertiary)
             }
         }
         .contentShape(Rectangle())
@@ -215,14 +223,14 @@ struct TagsView: View {
                 } label: {
                     Label(L("tags_remove_swipe"), systemImage: "tag.slash")
                 }
-                .tint(.orange)
+                .tint(Color.amgiWarning)
 
                 Button {
                     Task { await applyTag(tag) }
                 } label: {
                     Label(L("tags_apply_swipe"), systemImage: "tag")
                 }
-                .tint(.blue)
+                .tint(Color.amgiAccent)
             } else {
                 Button(role: .destructive) {
                     selectedTag = tag

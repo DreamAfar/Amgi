@@ -23,8 +23,8 @@ struct LoginSheet: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .foregroundStyle(.red)
-                            .font(.caption)
+                            .foregroundStyle(Color.amgiDanger)
+                            .amgiFont(.caption)
                     }
                 }
                 Section {
@@ -37,14 +37,18 @@ struct LoginSheet: View {
                             Text(L("login_btn_sign_in")).frame(maxWidth: .infinity)
                         }
                     }
+                    .tint(Color.amgiAccent)
                     .disabled(username.isEmpty || password.isEmpty || isLoading)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
             .navigationTitle(L("login_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L("btn_cancel")) { isPresented = false }
+                        .foregroundStyle(Color.amgiAccent)
                 }
             }
         }

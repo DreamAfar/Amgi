@@ -7,25 +7,25 @@ struct DeckCountsView: View {
     var body: some View {
         HStack(spacing: 8) {
             if counts.newCount > 0 {
-                countBadge(counts.newCount, color: .blue)
+                countBadge(counts.newCount, color: .amgiAccent)
             }
             if counts.learnCount > 0 {
-                countBadge(counts.learnCount, color: .orange)
+                countBadge(counts.learnCount, color: .amgiWarning)
             }
             if counts.reviewCount > 0 {
-                countBadge(counts.reviewCount, color: .green)
+                countBadge(counts.reviewCount, color: .amgiPositive)
             }
             if counts.total == 0 {
                 Text("\u{2713}")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
         }
     }
 
     private func countBadge(_ count: Int, color: Color) -> some View {
         Text("\(count)")
-            .font(.caption.weight(.medium))
+            .amgiFont(.captionBold)
             .foregroundStyle(color)
             .monospacedDigit()
     }

@@ -12,13 +12,15 @@ struct OnboardingView: View {
 
             Image(systemName: "rectangle.stack.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.tint)
+                .foregroundStyle(Color.amgiAccent)
 
             Text(L("onboarding_welcome"))
-                .font(.largeTitle.weight(.bold))
+                .amgiFont(.displayHero)
+                .foregroundStyle(Color.amgiTextPrimary)
 
             Text(L("onboarding_subtitle"))
-                .foregroundStyle(.secondary)
+                .amgiFont(.body)
+                .foregroundStyle(Color.amgiTextSecondary)
 
             VStack(spacing: 12) {
                 if showServerSetup {
@@ -34,12 +36,13 @@ struct OnboardingView: View {
                             saveAndContinue()
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(Color.amgiAccent)
                         .disabled(serverURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                         Button(L("onboarding_btn_back")) {
                             showServerSetup = false
                         }
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.amgiTextSecondary)
                     }
                 } else {
                     Button {
@@ -49,6 +52,7 @@ struct OnboardingView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .tint(Color.amgiAccent)
                     .controlSize(.large)
 
                     Button {
@@ -63,17 +67,19 @@ struct OnboardingView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                    .tint(Color.amgiAccent)
                     .controlSize(.large)
                 }
             }
             .padding(.horizontal, 32)
 
             Text(L("onboarding_footer"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
 
             Spacer()
         }
+        .background(Color.amgiBackground)
     }
 
     private func saveAndContinue() {
