@@ -1684,6 +1684,7 @@ struct CardWebView: UIViewRepresentable {
 
     // MARK: - Navigation Delegate
 
+    @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, AVSpeechSynthesizerDelegate {
         var lastPageSignature: String?
         var lastContentSignature: String?
