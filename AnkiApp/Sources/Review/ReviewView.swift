@@ -148,6 +148,8 @@ struct ReviewView: View {
                         .disabled(session.currentCard == nil)
                     } label: {
                         Image(systemName: "ellipsis.circle")
+                            .foregroundStyle(Color.amgiTextPrimary)
+                            .amgiCapsuleControl()
                     }
                     .accessibilityLabel(L("review_more_actions"))
                 }

@@ -72,7 +72,7 @@ struct HourlyChart: View {
                     Text(allowedPeriod.localizedLabel).tag(allowedPeriod)
                 }
             }
-            .pickerStyle(.segmented)
+            .amgiSegmentedPicker()
             .amgiFont(.micro)
             .onChange(of: revlogRange) {
                 if !revlogRange.allowedStatsPeriods.contains(period) {

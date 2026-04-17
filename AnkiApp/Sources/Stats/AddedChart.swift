@@ -84,7 +84,7 @@ struct AddedChart: View {
                 Text(L("stats_period_year")).tag(StatsPeriod.year)
                 Text(L("stats_period_all")).tag(StatsPeriod.all)
             }
-            .pickerStyle(.segmented)
+            .amgiSegmentedPicker()
             .amgiFont(.micro)
 
             if filteredData.isEmpty {

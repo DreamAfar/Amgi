@@ -107,7 +107,7 @@ struct StatsDashboardView: View {
                 Text(r.localizedLabel).tag(r)
             }
         }
-        .pickerStyle(.segmented)
+        .amgiSegmentedPicker()
         .fixedSize()
     }
 

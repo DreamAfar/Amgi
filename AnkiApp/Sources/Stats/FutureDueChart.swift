@@ -83,7 +83,7 @@ struct FutureDueChart: View {
                 Text(L("stats_period_year")).tag(StatsPeriod.year)
                 Text(L("stats_period_all")).tag(StatsPeriod.all)
             }
-            .pickerStyle(.segmented)
+            .amgiSegmentedPicker()
             .amgiFont(.micro)
             .onChange(of: period) { selectedDay = nil }
 

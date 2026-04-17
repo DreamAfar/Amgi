@@ -103,7 +103,8 @@ struct CardContextMenu: View {
         } label: {
             Image(systemName: "ellipsis.circle")
                 .font(AmgiFont.bodyEmphasis.font)
-                .foregroundStyle(Color.amgiAccent)
+                .foregroundStyle(Color.amgiTextPrimary)
+                .amgiCapsuleControl()
         }
         .alert(L("card_action_error_title"), isPresented: $showError) {
             Button(L("common_ok")) { }

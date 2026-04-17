@@ -36,17 +36,25 @@ struct AnkiAppApp: App {
                 case .loading:
                     startupLoadingView
                 case .failed(let message):
-                    VStack(spacing: 16) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.orange)
-                        Text(L("app_unable_to_start"))
-                            .font(.headline)
-                        Text(message)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+                    ZStack {
+                        Color.amgiBackground
+                            .ignoresSafeArea()
+
+                        VStack(spacing: AmgiSpacing.md) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 40, weight: .semibold))
+                                .foregroundStyle(Color.amgiWarning)
+                            Text(L("app_unable_to_start"))
+                                .amgiFont(.sectionHeading)
+                                .foregroundStyle(Color.amgiTextPrimary)
+                            Text(message)
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: 360)
+                        .amgiCard(elevated: true)
+                        .padding(.horizontal, AmgiSpacing.lg)
                     }
                 case .ready:
                     if onboardingCompleted {
@@ -74,10 +82,10 @@ struct AnkiAppApp: App {
         if onboardingCompleted, (!cachedTree.isEmpty || cachedHeatmap != nil) {
             StartupDeckSnapshotView(tree: cachedTree, heatmapReviews: cachedHeatmap?.reviews)
         } else {
-            Color(uiColor: .systemBackground)
+            Color.amgiBackground
                 .ignoresSafeArea()
                 .overlay {
-                    VStack(spacing: 20) {
+                    VStack(spacing: AmgiSpacing.lg) {
                         if let icon = UIImage(named: "AppIcon") {
                             Image(uiImage: icon)
                                 .resizable()
@@ -86,11 +94,14 @@ struct AnkiAppApp: App {
                                 .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
                         }
                         Text("Amgi")
-                            .font(.title2.bold())
-                            .foregroundStyle(.primary)
+                            .amgiFont(.displayHero)
+                            .foregroundStyle(Color.amgiTextPrimary)
                         ProgressView()
-                            .padding(.top, 4)
+                            .tint(Color.amgiAccent)
+                            .padding(.top, AmgiSpacing.xs)
                     }
+                    .amgiCard(elevated: true)
+                    .padding(.horizontal, AmgiSpacing.xl)
                 }
         }
     }
@@ -151,16 +162,18 @@ private struct StartupDeckSnapshotView: View {
                 }
                 Section {
                     ForEach(flattenedTree) { item in
-                        HStack(spacing: 12) {
+                        HStack(spacing: AmgiSpacing.md) {
                             Image(systemName: item.node.children.isEmpty ? "rectangle.stack" : "folder")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.amgiTextSecondary)
                             Text(item.node.name)
+                                .amgiFont(.body)
+                                .foregroundStyle(Color.amgiTextPrimary)
                                 .lineLimit(1)
                             Spacer()
                             if item.node.counts.total > 0 {
                                 Text("\(item.node.counts.total)")
                                     .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.amgiTextSecondary)
                             }
                         }
                         .padding(.leading, CGFloat(item.depth) * 14)
@@ -168,13 +181,23 @@ private struct StartupDeckSnapshotView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
             .disabled(true)
             .overlay(alignment: .top) {
                 ProgressView()
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .padding(.top, 8)
+                    .tint(Color.amgiAccent)
+                    .padding(.horizontal, AmgiSpacing.md)
+                    .padding(.vertical, AmgiSpacing.sm)
+                    .background(
+                        Capsule()
+                            .fill(Color.amgiSurfaceElevated)
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
+                    )
+                    .padding(.top, AmgiSpacing.sm)
             }
             .navigationTitle(L("deck_list_nav_title"))
         }

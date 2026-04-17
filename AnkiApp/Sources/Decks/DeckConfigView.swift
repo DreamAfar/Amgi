@@ -199,20 +199,127 @@ struct DeckConfigView: View {
         return L("deck_config_preset_delete_message", presetName, fallbackName)
     }
 
+    private var selectedPresetLabel: String {
+        presetOptions.first(where: { $0.config.id == selectedPresetID })?.config.name ?? configName
+    }
+
+    private var newCardInsertOrderLabel: String {
+        switch newCardInsertOrder {
+        case .due:
+            return L("deck_config_order_due")
+        case .random:
+            return L("deck_config_order_random")
+        default:
+            return L("deck_config_order_due")
+        }
+    }
+
+    private var newMixLabel: String {
+        reviewMixLabel(newMix)
+    }
+
+    private var leechActionLabel: String {
+        switch leechAction {
+        case .suspend:
+            return L("deck_config_leech_suspend")
+        case .tagOnly:
+            return L("deck_config_leech_tag_only")
+        default:
+            return L("deck_config_leech_suspend")
+        }
+    }
+
+    private var reviewOrderLabel: String {
+        switch reviewOrder {
+        case .day:
+            return L("deck_config_review_order_day")
+        case .intervalsAscending:
+            return L("deck_config_review_order_asc")
+        case .intervalsDescending:
+            return L("deck_config_review_order_desc")
+        case .random:
+            return L("deck_config_order_random")
+        default:
+            return L("deck_config_review_order_day")
+        }
+    }
+
+    private var interdayLearningMixLabel: String {
+        reviewMixLabel(interdayLearningMix)
+    }
+
+    private var questionActionLabel: String {
+        switch questionAction {
+        case .showAnswer:
+            return L("deck_config_action_show_answer")
+        case .showReminder:
+            return L("deck_config_action_show_reminder")
+        default:
+            return L("deck_config_action_show_answer")
+        }
+    }
+
+    private var answerActionLabel: String {
+        switch answerAction {
+        case .buryCard:
+            return L("deck_config_action_bury")
+        case .answerAgain:
+            return L("deck_config_action_again")
+        case .answerHard:
+            return L("deck_config_action_hard")
+        case .answerGood:
+            return L("deck_config_action_good")
+        case .showReminder:
+            return L("deck_config_action_show_reminder")
+        default:
+            return L("deck_config_action_bury")
+        }
+    }
+
+    private func reviewMixLabel(_ value: Anki_DeckConfig_DeckConfig.Config.ReviewMix) -> String {
+        switch value {
+        case .mixWithReviews:
+            return L("deck_config_mix_with_reviews")
+        case .afterReviews:
+            return L("deck_config_mix_after_reviews")
+        case .beforeReviews:
+            return L("deck_config_mix_before_reviews")
+        default:
+            return L("deck_config_mix_with_reviews")
+        }
+    }
+
+    private func optionCapsule(_ title: String) -> some View {
+        HStack(spacing: AmgiSpacing.xs) {
+            Text(title)
+                .amgiFont(.captionBold)
+                .foregroundStyle(Color.amgiTextPrimary)
+                .lineLimit(1)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(AmgiFont.micro.font)
+                .foregroundStyle(Color.amgiTextSecondary)
+        }
+        .amgiCapsuleControl()
+    }
+
     // MARK: - Extracted Sections
 
     private var basicSection: some View {
         Section(L("deck_config_section_basic")) {
-            Picker(L("deck_config_preset"), selection: presetSelectionBinding) {
-                ForEach(presetOptions, id: \.config.id) { option in
-                    Text(option.config.name)
-                        .foregroundStyle(Color.amgiAccent)
-                        .tag(option.config.id)
+            LabeledContent(L("deck_config_preset")) {
+                Menu {
+                    Picker(L("deck_config_preset"), selection: presetSelectionBinding) {
+                        ForEach(presetOptions, id: \.config.id) { option in
+                            Text(option.config.name)
+                                .foregroundStyle(Color.amgiAccent)
+                                .tag(option.config.id)
+                        }
+                    }
+                } label: {
+                    optionCapsule(selectedPresetLabel)
                 }
+                .disabled(isManagingPreset || presetOptions.isEmpty)
             }
-            .pickerStyle(.menu)
-            .tint(Color.amgiAccent)
-            .disabled(isManagingPreset || presetOptions.isEmpty)
 
             LabeledContent(L("deck_config_preset_manage")) {
                 if isManagingPreset {
@@ -294,19 +401,27 @@ struct DeckConfigView: View {
                 Stepper(L("deck_config_days_fmt", graduatingEasyDays), value: $graduatingEasyDays, in: 0...365)
                     .foregroundStyle(Color.amgiAccent)
             }
-            Picker(L("deck_config_insert_order"), selection: $newCardInsertOrder) {
-                Text(L("deck_config_order_due")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
-                Text(L("deck_config_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
+            LabeledContent(L("deck_config_insert_order")) {
+                Menu {
+                    Picker(L("deck_config_insert_order"), selection: $newCardInsertOrder) {
+                        Text(L("deck_config_order_due")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
+                        Text(L("deck_config_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
+                    }
+                } label: {
+                    optionCapsule(newCardInsertOrderLabel)
+                }
             }
-            .pickerStyle(.menu)
-            .tint(Color.amgiAccent)
-            Picker(L("deck_config_new_mix"), selection: $newMix) {
-                Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+            LabeledContent(L("deck_config_new_mix")) {
+                Menu {
+                    Picker(L("deck_config_new_mix"), selection: $newMix) {
+                        Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                        Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                        Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+                    }
+                } label: {
+                    optionCapsule(newMixLabel)
+                }
             }
-            .pickerStyle(.menu)
-            .tint(Color.amgiAccent)
         }
     }
 
@@ -322,32 +437,44 @@ struct DeckConfigView: View {
                 Stepper(L("deck_config_times_fmt", leechThreshold), value: $leechThreshold, in: 1...50)
                     .foregroundStyle(Color.amgiAccent)
             }
-            Picker(L("deck_config_leech_action"), selection: $leechAction) {
-                Text(L("deck_config_leech_suspend")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
-                Text(L("deck_config_leech_tag_only")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
+            LabeledContent(L("deck_config_leech_action")) {
+                Menu {
+                    Picker(L("deck_config_leech_action"), selection: $leechAction) {
+                        Text(L("deck_config_leech_suspend")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
+                        Text(L("deck_config_leech_tag_only")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
+                    }
+                } label: {
+                    optionCapsule(leechActionLabel)
+                }
             }
-            .pickerStyle(.menu)
-            .tint(Color.amgiAccent)
         }
     }
 
     private var orderSection: some View {
         DisclosureGroup(L("deck_config_section_order"), isExpanded: $orderExpanded) {
-            Picker(L("deck_config_review_order"), selection: $reviewOrder) {
-                Text(L("deck_config_review_order_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
-                Text(L("deck_config_review_order_asc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
-                Text(L("deck_config_review_order_desc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
-                Text(L("deck_config_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
+            LabeledContent(L("deck_config_review_order")) {
+                Menu {
+                    Picker(L("deck_config_review_order"), selection: $reviewOrder) {
+                        Text(L("deck_config_review_order_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
+                        Text(L("deck_config_review_order_asc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
+                        Text(L("deck_config_review_order_desc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
+                        Text(L("deck_config_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
+                    }
+                } label: {
+                    optionCapsule(reviewOrderLabel)
+                }
             }
-            .pickerStyle(.menu)
-            .tint(Color.amgiAccent)
-            Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
-                Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+            LabeledContent(L("deck_config_interday_mix")) {
+                Menu {
+                    Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
+                        Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                        Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                        Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+                    }
+                } label: {
+                    optionCapsule(interdayLearningMixLabel)
+                }
             }
-            .pickerStyle(.menu)
-            .tint(Color.amgiAccent)
         }
         .listRowBackground(Color.clear)
         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
@@ -481,21 +608,29 @@ struct DeckConfigView: View {
                 Slider(value: $secondsToShowAnswer, in: 0...60, step: 0.5)
                     .tint(Color.amgiAccent)
             }
-            Picker(L("deck_config_after_question"), selection: $questionAction) {
-                Text(L("deck_config_action_show_answer")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
-                Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
+            LabeledContent(L("deck_config_after_question")) {
+                Menu {
+                    Picker(L("deck_config_after_question"), selection: $questionAction) {
+                        Text(L("deck_config_action_show_answer")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
+                        Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
+                    }
+                } label: {
+                    optionCapsule(questionActionLabel)
+                }
             }
-            .pickerStyle(.menu)
-            .tint(Color.amgiAccent)
-            Picker(L("deck_config_after_answer"), selection: $answerAction) {
-                Text(L("deck_config_action_bury")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
-                Text(L("deck_config_action_again")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
-                Text(L("deck_config_action_hard")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
-                Text(L("deck_config_action_good")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
-                Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
+            LabeledContent(L("deck_config_after_answer")) {
+                Menu {
+                    Picker(L("deck_config_after_answer"), selection: $answerAction) {
+                        Text(L("deck_config_action_bury")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
+                        Text(L("deck_config_action_again")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
+                        Text(L("deck_config_action_hard")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
+                        Text(L("deck_config_action_good")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
+                        Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
+                    }
+                } label: {
+                    optionCapsule(answerActionLabel)
+                }
             }
-            .pickerStyle(.menu)
-            .tint(Color.amgiAccent)
         }
         .listRowBackground(Color.clear)
         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))

@@ -62,6 +62,22 @@ extension View {
         modifier(AmgiCardModifier(elevated: elevated))
     }
 
+    func amgiCapsuleControl(horizontalPadding: CGFloat = 10, verticalPadding: CGFloat = 6) -> some View {
+        padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .background(Color.amgiSurfaceElevated)
+            .overlay(
+                Capsule()
+                    .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
+            )
+            .clipShape(Capsule())
+    }
+
+    func amgiSegmentedPicker() -> some View {
+        pickerStyle(.segmented)
+            .tint(Color.amgiAccent)
+    }
+
     func amgiSectionBackground() -> some View {
         background(Color.amgiBackground)
     }

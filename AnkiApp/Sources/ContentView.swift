@@ -267,9 +267,7 @@ struct ContentView: View {
                     .foregroundStyle(Color.amgiTextSecondary)
             }
             .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color.amgiSurface, in: Capsule())
+            .amgiCapsuleControl()
         }
         .buttonStyle(.plain)
         .disabled(isSwitchingUser)
@@ -320,6 +318,8 @@ struct ContentView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .foregroundStyle(Color.amgiTextPrimary)
+                    .amgiCapsuleControl()
             }
         }
     }

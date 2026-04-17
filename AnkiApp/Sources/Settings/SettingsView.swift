@@ -13,6 +13,23 @@ private enum SettingsValueStyle {
     static let secondary = Color.amgiTextSecondary
 }
 
+private struct SettingsOptionCapsuleLabel: View {
+    let title: String
+
+    var body: some View {
+        HStack(spacing: AmgiSpacing.xs) {
+            Text(title)
+                .amgiFont(.captionBold)
+                .foregroundStyle(SettingsValueStyle.primary)
+                .lineLimit(1)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(AmgiFont.micro.font)
+                .foregroundStyle(SettingsValueStyle.secondary)
+        }
+        .amgiCapsuleControl()
+    }
+}
+
 // MARK: - AppTheme
 
 enum AppTheme: String, CaseIterable, Identifiable {
@@ -129,16 +146,17 @@ struct SettingsView: View {
                     Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
                         .foregroundStyle(SettingsValueStyle.primary)
                     Spacer()
-                    Picker(L("settings_picker_theme"), selection: selectedTheme) {
-                        ForEach(AppTheme.allCases) { theme in
-                            Text(theme.displayName)
-                                .foregroundStyle(SettingsValueStyle.highlight)
-                                .tag(theme)
+                    Menu {
+                        Picker(L("settings_picker_theme"), selection: selectedTheme) {
+                            ForEach(AppTheme.allCases) { theme in
+                                Text(theme.displayName)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(theme)
+                            }
                         }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: selectedTheme.wrappedValue.displayName)
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .tint(SettingsValueStyle.highlight)
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -146,16 +164,17 @@ struct SettingsView: View {
                         Label(L("settings_picker_language"), systemImage: "globe")
                             .foregroundStyle(SettingsValueStyle.primary)
                         Spacer()
-                        Picker(L("settings_picker_language"), selection: selectedLanguage) {
-                            ForEach(AppLanguage.allCases) { lang in
-                                Text(lang.displayName)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
-                                    .tag(lang)
+                        Menu {
+                            Picker(L("settings_picker_language"), selection: selectedLanguage) {
+                                ForEach(AppLanguage.allCases) { lang in
+                                    Text(lang.displayName)
+                                        .foregroundStyle(SettingsValueStyle.highlight)
+                                        .tag(lang)
+                                }
                             }
+                        } label: {
+                            SettingsOptionCapsuleLabel(title: selectedLanguage.wrappedValue.displayName)
                         }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .tint(SettingsValueStyle.highlight)
                     }
 
                     if selectedLanguage.wrappedValue != .system {
@@ -394,15 +413,22 @@ private struct ReviewOptionsView: View {
                     Toggle(L("settings_review_glass_answer_buttons"), isOn: $glassAnswerButtons)
                 }
 
-                Picker(L("settings_review_card_alignment"), selection: cardAlignment) {
-                    ForEach(CardAlignment.allCases) { alignment in
-                        Text(alignment.title)
-                            .foregroundStyle(SettingsValueStyle.highlight)
-                            .tag(alignment)
+                HStack {
+                    Text(L("settings_review_card_alignment"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Menu {
+                        Picker(L("settings_review_card_alignment"), selection: cardAlignment) {
+                            ForEach(CardAlignment.allCases) { alignment in
+                                Text(alignment.title)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(alignment)
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: cardAlignment.wrappedValue.title)
                     }
                 }
-                .pickerStyle(.menu)
-                .tint(SettingsValueStyle.highlight)
             }
         }
         .scrollContentBackground(.hidden)
@@ -430,46 +456,72 @@ private struct DeckListHeatmapSettingsView: View {
         )
     }
 
+    private var heatmapScopeLabel: String {
+        switch heatmapScope.wrappedValue {
+        case .allDecks:
+            return L("settings_display_heatmap_scope_all")
+        case .selectedDeck:
+            return L("settings_display_heatmap_scope_selected")
+        }
+    }
+
+    private var selectedDeckLabel: String {
+        decks.first(where: { Int($0.id) == selectedDeckID })?.name
+            ?? L("settings_display_heatmap_selected_deck_none")
+    }
+
+    private var initialDaysLabel: String {
+        HeatmapInitialDays(rawValue: initialDaysRaw)?.localizedLabel ?? L("heatmap_range_6_months")
+    }
+
     var body: some View {
         List {
             Section(L("deck_list_heatmap_title")) {
                 Toggle(L("settings_display_show_deck_heatmap"), isOn: $showDeckListHeatmap)
 
                 if showDeckListHeatmap {
-                    Picker(L("settings_display_heatmap_scope"), selection: heatmapScope) {
-                        Text(L("settings_display_heatmap_scope_all"))
-                            .foregroundStyle(SettingsValueStyle.highlight)
-                            .tag(DeckListHeatmapScope.allDecks)
-                        Text(L("settings_display_heatmap_scope_selected"))
-                            .foregroundStyle(SettingsValueStyle.highlight)
-                            .tag(DeckListHeatmapScope.selectedDeck)
+                    HStack {
+                        Text(L("settings_display_heatmap_scope"))
+                            .foregroundStyle(SettingsValueStyle.primary)
+                        Spacer()
+                        Menu {
+                            Picker(L("settings_display_heatmap_scope"), selection: heatmapScope) {
+                                Text(L("settings_display_heatmap_scope_all"))
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(DeckListHeatmapScope.allDecks)
+                                Text(L("settings_display_heatmap_scope_selected"))
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(DeckListHeatmapScope.selectedDeck)
+                            }
+                        } label: {
+                            SettingsOptionCapsuleLabel(title: heatmapScopeLabel)
+                        }
                     }
-                    .pickerStyle(.menu)
-                    .tint(SettingsValueStyle.highlight)
 
                     if heatmapScope.wrappedValue == .selectedDeck {
                         HStack {
                             Label(L("settings_display_heatmap_selected_deck"), systemImage: "rectangle.stack")
                             Spacer()
-                            Picker(
-                                L("settings_display_heatmap_selected_deck"),
-                                selection: $selectedDeckID
-                            ) {
-                                if decks.isEmpty {
-                                    Text(L("settings_display_heatmap_selected_deck_none"))
-                                        .foregroundStyle(SettingsValueStyle.highlight)
-                                        .tag(DeckListHeatmapSettings.defaultSelectedDeckID)
-                                } else {
-                                    ForEach(decks) { deck in
-                                        Text(deck.name)
+                            Menu {
+                                Picker(
+                                    L("settings_display_heatmap_selected_deck"),
+                                    selection: $selectedDeckID
+                                ) {
+                                    if decks.isEmpty {
+                                        Text(L("settings_display_heatmap_selected_deck_none"))
                                             .foregroundStyle(SettingsValueStyle.highlight)
-                                            .tag(Int(deck.id))
+                                            .tag(DeckListHeatmapSettings.defaultSelectedDeckID)
+                                    } else {
+                                        ForEach(decks) { deck in
+                                            Text(deck.name)
+                                                .foregroundStyle(SettingsValueStyle.highlight)
+                                                .tag(Int(deck.id))
+                                        }
                                     }
                                 }
+                            } label: {
+                                SettingsOptionCapsuleLabel(title: selectedDeckLabel)
                             }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .tint(SettingsValueStyle.highlight)
                             .disabled(decks.isEmpty)
                         }
                     }
@@ -490,16 +542,17 @@ private struct DeckListHeatmapSettingsView: View {
                         Label(L("settings_heatmap_initial_range"), systemImage: "calendar")
                             .foregroundStyle(SettingsValueStyle.primary)
                         Spacer()
-                        Picker(L("settings_heatmap_initial_range"), selection: $initialDaysRaw) {
-                            ForEach(HeatmapInitialDays.allCases) { option in
-                                Text(option.localizedLabel)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
-                                    .tag(option.rawValue)
+                        Menu {
+                            Picker(L("settings_heatmap_initial_range"), selection: $initialDaysRaw) {
+                                ForEach(HeatmapInitialDays.allCases) { option in
+                                    Text(option.localizedLabel)
+                                        .foregroundStyle(SettingsValueStyle.highlight)
+                                        .tag(option.rawValue)
+                                }
                             }
+                        } label: {
+                            SettingsOptionCapsuleLabel(title: initialDaysLabel)
                         }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .tint(SettingsValueStyle.highlight)
                     }
                 }
             }
@@ -583,6 +636,10 @@ private struct SyncSettingsView: View {
         )
     }
 
+    private var timeoutLabel: String {
+        L("sync_settings_timeout_seconds", timeout.rawValue)
+    }
+
     private var serverTypeLabel: String {
         switch syncMode {
         case .official:
@@ -620,19 +677,26 @@ private struct SyncSettingsView: View {
     var body: some View {
         List {
             Section(L("sync_settings_section_server")) {
-                Picker(L("sync_settings_server_type"), selection: syncModeBinding) {
-                    Text(L("sync_settings_server_type_official"))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                        .tag(SyncPreferences.Mode.official)
-                    Text(L("sync_settings_server_type_custom"))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                        .tag(SyncPreferences.Mode.custom)
-                    Text(L("sync_settings_server_type_local"))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                        .tag(SyncPreferences.Mode.local)
+                HStack {
+                    Text(L("sync_settings_server_type"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Menu {
+                        Picker(L("sync_settings_server_type"), selection: syncModeBinding) {
+                            Text(L("sync_settings_server_type_official"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(SyncPreferences.Mode.official)
+                            Text(L("sync_settings_server_type_custom"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(SyncPreferences.Mode.custom)
+                            Text(L("sync_settings_server_type_local"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(SyncPreferences.Mode.local)
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: serverTypeLabel)
+                    }
                 }
-                .pickerStyle(.menu)
-                .tint(SettingsValueStyle.highlight)
 
                 infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
                 infoRow(title: L("sync_settings_current_server"), value: currentServerValue)
@@ -662,15 +726,22 @@ private struct SyncSettingsView: View {
             Section(L("sync_settings_section_options")) {
                 Toggle(L("sync_settings_sync_media"), isOn: $syncMediaEnabled)
 
-                Picker(L("sync_settings_timeout"), selection: timeoutBinding) {
-                    ForEach(SyncPreferences.Timeout.allCases) { option in
-                        Text(L("sync_settings_timeout_seconds", option.rawValue))
-                            .foregroundStyle(SettingsValueStyle.highlight)
-                            .tag(option)
+                HStack {
+                    Text(L("sync_settings_timeout"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Menu {
+                        Picker(L("sync_settings_timeout"), selection: timeoutBinding) {
+                            ForEach(SyncPreferences.Timeout.allCases) { option in
+                                Text(L("sync_settings_timeout_seconds", option.rawValue))
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(option)
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: timeoutLabel)
                     }
                 }
-                .pickerStyle(.menu)
-                .tint(SettingsValueStyle.highlight)
             }
 
             if syncMode != .local {

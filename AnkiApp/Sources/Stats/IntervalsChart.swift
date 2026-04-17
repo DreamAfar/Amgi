@@ -123,7 +123,7 @@ struct IntervalsChart: View {
                     Text(r.localizedLabel).tag(r)
                 }
             }
-            .pickerStyle(.segmented)
+            .amgiSegmentedPicker()
             .amgiFont(.micro)
             .onChange(of: range) { selectedBinX = nil }
 

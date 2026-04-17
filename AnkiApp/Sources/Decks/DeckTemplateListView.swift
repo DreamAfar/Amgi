@@ -393,9 +393,7 @@ struct TemplateEditorView: View {
                                         .font(AmgiFont.caption.font)
                                         .foregroundStyle(Color.amgiTextSecondary)
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .amgiCapsuleControl(horizontalPadding: 12, verticalPadding: 8)
                             }
                         }
                     } else {

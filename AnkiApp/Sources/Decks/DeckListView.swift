@@ -77,9 +77,8 @@ struct DeckListView: View {
                 .overlay(alignment: .top) {
                     if isLoading {
                         ProgressView()
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(.ultraThinMaterial, in: Capsule())
+                            .tint(Color.amgiAccent)
+                            .amgiCapsuleControl(horizontalPadding: 12, verticalPadding: 8)
                             .padding(.top, 8)
                     }
                 }

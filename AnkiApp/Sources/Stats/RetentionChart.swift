@@ -79,7 +79,7 @@ struct RetentionChart: View {
                     Text(m.localizedLabel).tag(m)
                 }
             }
-            .pickerStyle(.segmented)
+            .amgiSegmentedPicker()
             .font(AmgiFont.micro.font)
 
             let rows = makeRows(for: trueRetention)

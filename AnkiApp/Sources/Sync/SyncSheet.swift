@@ -280,7 +280,8 @@ struct SyncSheet: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                        .amgiCapsuleControl()
                 }
             }
         }
