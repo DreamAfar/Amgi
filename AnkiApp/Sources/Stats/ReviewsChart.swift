@@ -119,6 +119,23 @@ struct ReviewsChart: View {
         return .fixed(width)
     }
 
+    private var xAxisMin: Int {
+        switch period {
+        case .day:
+            return -1
+        case .week:
+            return -6
+        case .month:
+            return -30
+        case .threeMonths:
+            return -89
+        case .year:
+            return -364
+        case .all:
+            return min(entries.map(\ .bucket).min() ?? -30, -1)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             HStack {
@@ -222,14 +239,29 @@ struct ReviewsChart: View {
             }
         }
         .chartForegroundStyleScale(colorScale)
+        .chartXScale(domain: xAxisMin...0)
         .chartYScale(domain: 0...leftAxisMax)
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 6)) { _ in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                AxisValueLabel()
-                    .font(AmgiFont.micro.font)
-                    .foregroundStyle(Color.amgiTextSecondary)
+            if period == .month {
+                AxisMarks(values: [-30, -25, -20, -15, -10, -5, 0]) { value in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                    if let day = value.as(Int.self) {
+                        AxisValueLabel {
+                            Text("\(day)")
+                                .amgiFont(.micro)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        }
+                    }
+                }
+            } else {
+                AxisMarks(values: .automatic(desiredCount: 6)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                    AxisValueLabel()
+                        .font(AmgiFont.micro.font)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
             }
         }
         .chartYAxis {
