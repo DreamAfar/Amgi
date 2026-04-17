@@ -117,7 +117,6 @@ struct BackupView: View {
         .task { loadBackups() }
     }
 
-                        .listRowBackground(Color.amgiSurfaceElevated)
     // MARK: - Helpers
 
     private func backupsDirectory() -> URL? {
