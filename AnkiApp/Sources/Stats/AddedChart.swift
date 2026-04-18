@@ -58,6 +58,13 @@ struct AddedChart: View {
             formatter: { value in String(Int(value.rounded())) }
         )
     }
+    private var leftAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: leftAxisMax,
+            plottedMax: leftAxisMax,
+            formatter: { value in String(Int(value.rounded())) }
+        )
+    }
     private var avgPerDay: Double {
         guard !filteredData.isEmpty else { return 0 }
         let span = filteredData.count * bucketSize
@@ -188,7 +195,7 @@ struct AddedChart: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 8)) { value in
+                    AxisMarks(values: .automatic(desiredCount: 6)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         if let day = value.as(Int.self) {
@@ -202,16 +209,13 @@ struct AddedChart: View {
                 }
                 .chartYScale(domain: 0...leftAxisMax)
                 .chartYAxis {
-                    AxisMarks(
-                        preset: .aligned,
-                        position: .leading,
-                        values: .automatic(desiredCount: 4)
-                    ) { value in
+                    AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let count = value.as(Double.self) {
+                        if let raw = value.as(Double.self),
+                           let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
                             AxisValueLabel {
-                                Text("\(Int(count.rounded()))")
+                                Text(tick.label)
                                     .amgiFont(.micro)
                                     .foregroundStyle(Color.amgiTextSecondary)
                             }

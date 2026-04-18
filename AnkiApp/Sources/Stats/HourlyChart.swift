@@ -56,6 +56,13 @@ struct HourlyChart: View {
             formatter: { value in "\(Int(value.rounded()))%" }
         )
     }
+    private var leftAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: leftAxisMax,
+            plottedMax: leftAxisMax,
+            formatter: { value in String(Int(value.rounded())) }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
@@ -189,12 +196,17 @@ struct HourlyChart: View {
                 .chartXScale(domain: 0...23)
                 .chartYScale(domain: 0...leftAxisMax)
                 .chartYAxis {
-                    AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                    AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        AxisValueLabel()
-                            .font(AmgiFont.micro.font)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                        if let raw = value.as(Double.self),
+                           let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                            AxisValueLabel {
+                                Text(tick.label)
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
                     }
 
                     AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in

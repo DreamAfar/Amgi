@@ -108,6 +108,14 @@ struct IntervalsChart: View {
         )
     }
 
+    private func leftAxisTicks(plottedMax: Int) -> [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: Double(plottedMax),
+            plottedMax: Double(plottedMax),
+            formatter: { value in String(Int(value.rounded())) }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(isFSRS ? L("stats_stability_title") : L("stats_intervals_title"))
@@ -168,6 +176,7 @@ struct IntervalsChart: View {
         let leftAxisMax = StatsDualAxisSupport.niceUpperBound(Double(maxCount))
         let rightAxisMax = StatsDualAxisSupport.niceUpperBound(Double(total))
         let trailingTicks = rightAxisTicks(total: total, plottedMax: Int(leftAxisMax.rounded()))
+        let leadingTicks = leftAxisTicks(plottedMax: Int(leftAxisMax.rounded()))
         let selectedBin = bins.first(where: { $0.x == selectedBinX })
         let selectedPoint = cumulative.first(where: { $0.x == selectedBinX })
         Chart {
@@ -268,12 +277,17 @@ struct IntervalsChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { _ in
+            AxisMarks(position: .leading, values: leadingTicks.map(\.plottedValue)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                     .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                AxisValueLabel()
-                    .font(AmgiFont.micro.font)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                if let raw = value.as(Double.self),
+                   let tick = leadingTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                    AxisValueLabel {
+                        Text(tick.label)
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                }
             }
 
             AxisMarks(position: .trailing, values: trailingTicks.map(\.plottedValue)) { value in

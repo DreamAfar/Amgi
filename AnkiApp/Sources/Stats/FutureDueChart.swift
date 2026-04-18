@@ -48,6 +48,13 @@ struct FutureDueChart: View {
             formatter: { value in String(Int(value.rounded())) }
         )
     }
+    private var leftAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: leftAxisMax,
+            plottedMax: leftAxisMax,
+            formatter: { value in String(Int(value.rounded())) }
+        )
+    }
     private var dueTomorrow: Int { filteredData.first(where: { $0.day == 1 })?.count ?? 0 }
     private var avgPerDay: Double {
         let positiveDays = filteredData.filter { $0.day >= 0 }
@@ -194,12 +201,13 @@ struct FutureDueChart: View {
                 }
                 .chartYScale(domain: 0...leftAxisMax)
                 .chartYAxis {
-                    AxisMarks(preset: .aligned, position: .leading, values: .automatic(desiredCount: 4)) { value in
+                    AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let count = value.as(Double.self) {
+                        if let raw = value.as(Double.self),
+                           let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
                             AxisValueLabel {
-                                Text("\(Int(count.rounded()))")
+                                Text(tick.label)
                                     .amgiFont(.micro)
                                     .foregroundStyle(Color.amgiTextSecondary)
                             }
