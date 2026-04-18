@@ -131,16 +131,18 @@ struct ButtonsChart: View {
     @ViewBuilder
     private var buttonsChart: some View {
         let colorScale: KeyValuePairs<String, Color> = [
-            L("stats_card_learn"):  .blue,
-            L("stats_card_young"):  .green,
-            L("stats_card_mature"): .purple,
+            L("review_rating_again"): .red,
+            L("review_rating_hard"): .orange,
+            L("review_rating_good"): .green,
+            L("review_rating_easy"): .blue,
         ]
         Chart(entries) { entry in
             BarMark(
-                x: .value("Button", entry.button),
+                x: .value("Type", entry.cardType),
                 y: .value("Count", entry.count)
             )
-            .foregroundStyle(by: .value("Type", entry.cardType))
+            .position(by: .value("Button", entry.button))
+            .foregroundStyle(by: .value("Button", entry.button))
 
             if let selectedEntry,
                selectedEntry.id == entry.id {
@@ -165,6 +167,7 @@ struct ButtonsChart: View {
             }
         }
         .chartForegroundStyleScale(colorScale)
+        .chartLegend(position: .bottom, spacing: 8)
         .chartYScale(domain: 0...yAxisMax)
         .chartYAxis {
             AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
@@ -195,13 +198,13 @@ struct ButtonsChart: View {
                                     return
                                 }
 
-                                let buttonSlotWidth = proxy.plotAreaSize.width / CGFloat(max(buttonLabels.count, 1))
-                                let rawButtonIndex = Int(plotX / buttonSlotWidth)
-                                let buttonIndex = min(max(rawButtonIndex, 0), buttonLabels.count - 1)
-                                let localX = plotX - CGFloat(buttonIndex) * buttonSlotWidth
-                                let typeSlotWidth = buttonSlotWidth / CGFloat(max(cardTypes.count, 1))
-                                let rawTypeIndex = Int(localX / typeSlotWidth)
+                                let typeSlotWidth = proxy.plotAreaSize.width / CGFloat(max(cardTypes.count, 1))
+                                let rawTypeIndex = Int(plotX / typeSlotWidth)
                                 let typeIndex = min(max(rawTypeIndex, 0), cardTypes.count - 1)
+                                let localX = plotX - CGFloat(typeIndex) * typeSlotWidth
+                                let buttonSlotWidth = typeSlotWidth / CGFloat(max(buttonLabels.count, 1))
+                                let rawButtonIndex = Int(localX / buttonSlotWidth)
+                                let buttonIndex = min(max(rawButtonIndex, 0), buttonLabels.count - 1)
                                 let key = "\(buttonIndex)-\(typeIndex)"
 
                                 selectedBarKey = selectedBarKey == key ? nil : key
