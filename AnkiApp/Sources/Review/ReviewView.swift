@@ -9,6 +9,8 @@ import Dependencies
 import UIKit
 
 struct ReviewView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let deckId: Int64
     let onDismiss: () -> Void
 
@@ -42,6 +44,8 @@ struct ReviewView: View {
     @State private var setDueDateCardID: Int64?
     @State private var typedAnswerRequestID = 0
     @State private var isKeyboardVisible = false
+    @State private var cardChromeUIColor: UIColor = .systemBackground
+    @State private var cardChromeIsDark = false
 
     @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var prefAutoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
@@ -59,6 +63,10 @@ struct ReviewView: View {
 
     private var prefCardContentAlignment: CardWebView.ContentAlignment {
         CardWebView.ContentAlignment(rawValue: prefCardContentAlignmentRaw) ?? .center
+    }
+
+    private var cardChromeColor: Color {
+        Color(uiColor: cardChromeUIColor)
     }
 
     init(deckId: Int64, onDismiss: @escaping () -> Void) {
@@ -173,8 +181,13 @@ struct ReviewView: View {
                     .accessibilityLabel(L("review_more_actions"))
                 }
             }
+            .toolbarBackground(cardChromeColor, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(cardChromeIsDark ? .dark : .light, for: .navigationBar)
         }
+        .background(cardChromeColor.ignoresSafeArea())
         .task {
+            cardChromeIsDark = (colorScheme == .dark)
             session.start()
             configureAudioSession()
             scheduleAutoAdvanceIfNeeded()
@@ -313,6 +326,12 @@ struct ReviewView: View {
             onAudioStateChange: { isPlaying in
                 Task { @MainActor in
                     self.isAudioPlaying = isPlaying
+                }
+            },
+            onCardBackgroundColorChange: { color, isDark in
+                Task { @MainActor in
+                    self.cardChromeUIColor = color
+                    self.cardChromeIsDark = isDark
                 }
             }
         )

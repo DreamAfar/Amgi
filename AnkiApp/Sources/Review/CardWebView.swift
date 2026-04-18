@@ -32,6 +32,7 @@ struct CardWebView: UIViewRepresentable {
     let bottomContentInset: CGFloat
     let onTypedAnswerSubmitted: ((String?) -> Void)?
     let onAudioStateChange: ((Bool) -> Void)?
+    let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
 
     init(
         html: String,
@@ -47,7 +48,8 @@ struct CardWebView: UIViewRepresentable {
         contentAlignment: ContentAlignment = .center,
         bottomContentInset: CGFloat = 0,
         onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
-        onAudioStateChange: ((Bool) -> Void)? = nil
+        onAudioStateChange: ((Bool) -> Void)? = nil,
+        onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil
     ) {
         self.html = html
         self.autoplayEnabled = autoplayEnabled
@@ -63,12 +65,14 @@ struct CardWebView: UIViewRepresentable {
         self.bottomContentInset = bottomContentInset
         self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
         self.onAudioStateChange = onAudioStateChange
+        self.onCardBackgroundColorChange = onCardBackgroundColorChange
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             onTypedAnswerSubmitted: onTypedAnswerSubmitted,
-            onAudioStateChange: onAudioStateChange
+            onAudioStateChange: onAudioStateChange,
+            onCardBackgroundColorChange: onCardBackgroundColorChange
         )
     }
 
@@ -81,6 +85,7 @@ struct CardWebView: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "amgiSpeakTts")
         config.userContentController.add(context.coordinator, name: "amgiStopTts")
         config.userContentController.add(context.coordinator, name: "amgiSubmitTypedAnswer")
+        config.userContentController.add(context.coordinator, name: "amgiCardTheme")
         
         // Enable media playback without user interaction
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -101,6 +106,7 @@ struct CardWebView: UIViewRepresentable {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSpeakTts")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiStopTts")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSubmitTypedAnswer")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiCardTheme")
         coordinator.stopTTS()
     }
 
@@ -450,6 +456,45 @@ struct CardWebView: UIViewRepresentable {
                 catch(e) { console.error('Hook failed', e); }
             });
             return Promise.allSettled(promises);
+        }
+
+        function amgiResolveCardBackground() {
+            var candidates = [
+                document.querySelector('.card'),
+                document.getElementById('qa'),
+                document.body,
+                document.documentElement,
+            ];
+            for (var i = 0; i < candidates.length; i++) {
+                var el = candidates[i];
+                if (!el) continue;
+                var bg = window.getComputedStyle(el).backgroundColor;
+                if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
+                    return bg;
+                }
+            }
+            return window.getComputedStyle(document.body).backgroundColor || 'rgba(0, 0, 0, 0)';
+        }
+
+        function amgiReportCardTheme() {
+            try {
+                var bg = amgiResolveCardBackground();
+                var rgb = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+                var isDark = false;
+                if (rgb) {
+                    var r = parseInt(rgb[1], 10) || 0;
+                    var g = parseInt(rgb[2], 10) || 0;
+                    var b = parseInt(rgb[3], 10) || 0;
+                    var luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+                    isDark = luminance < 0.55;
+                }
+                window.webkit.messageHandlers.amgiCardTheme.postMessage({
+                    backgroundColor: bg,
+                    isDark: isDark,
+                });
+            } catch(e) {
+                console.error('Theme report failed', e);
+            }
         }
 
         async function amgiTypesetMath(container) {
@@ -921,6 +966,7 @@ struct CardWebView: UIViewRepresentable {
             await amgiTypesetMath(qa);
 
             qa.style.opacity = '1';
+            amgiReportCardTheme();
 
             // Detect missing media
             document.querySelectorAll('img').forEach(function(img) {
@@ -1262,14 +1308,18 @@ struct CardWebView: UIViewRepresentable {
         weak var currentWebView: WKWebView?
         let onTypedAnswerSubmitted: ((String?) -> Void)?
         private let onAudioStateChange: ((Bool) -> Void)?
+        private let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
+        private var lastThemePayload: String?
         private let speechSynthesizer = AVSpeechSynthesizer()
 
         init(
             onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
-            onAudioStateChange: ((Bool) -> Void)? = nil
+            onAudioStateChange: ((Bool) -> Void)? = nil,
+            onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil
         ) {
             self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
             self.onAudioStateChange = onAudioStateChange
+            self.onCardBackgroundColorChange = onCardBackgroundColorChange
             super.init()
             speechSynthesizer.delegate = self
         }
@@ -1302,6 +1352,18 @@ struct CardWebView: UIViewRepresentable {
                 } else {
                     onTypedAnswerSubmitted?(nil)
                 }
+                return
+            }
+
+            if message.name == "amgiCardTheme" {
+                guard let body = message.body as? [String: Any] else { return }
+                let colorString = body["backgroundColor"] as? String ?? ""
+                let isDark = (body["isDark"] as? Bool) ?? false
+                let payload = colorString + "|" + String(isDark)
+                guard payload != lastThemePayload else { return }
+                lastThemePayload = payload
+                guard let color = Self.parseCSSColor(colorString) else { return }
+                onCardBackgroundColorChange?(color, isDark)
                 return
             }
 
@@ -1339,6 +1401,70 @@ struct CardWebView: UIViewRepresentable {
             guard speechSynthesizer.isSpeaking else { return }
             speechSynthesizer.stopSpeaking(at: .immediate)
             onAudioStateChange?(false)
+        }
+
+        private static func parseCSSColor(_ cssColor: String) -> UIColor? {
+            let trimmed = cssColor.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if trimmed.hasPrefix("#") {
+                return parseHexColor(trimmed)
+            }
+
+            if trimmed.hasPrefix("rgb(") || trimmed.hasPrefix("rgba(") {
+                let pattern = #"rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\)"#
+                guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+                let range = NSRange(location: 0, length: trimmed.utf16.count)
+                guard let match = regex.firstMatch(in: trimmed, options: [], range: range) else { return nil }
+
+                func component(_ idx: Int) -> CGFloat {
+                    guard let r = Range(match.range(at: idx), in: trimmed) else { return 0 }
+                    let value = Double(trimmed[r]) ?? 0
+                    return CGFloat(max(0, min(255, value)) / 255.0)
+                }
+
+                var alpha: CGFloat = 1
+                if match.range(at: 4).location != NSNotFound,
+                   let r = Range(match.range(at: 4), in: trimmed) {
+                    let value = Double(trimmed[r]) ?? 1
+                    alpha = CGFloat(max(0, min(1, value)))
+                }
+
+                return UIColor(red: component(1), green: component(2), blue: component(3), alpha: alpha)
+            }
+
+            if trimmed == "transparent" {
+                return UIColor.clear
+            }
+
+            return nil
+        }
+
+        private static func parseHexColor(_ hex: String) -> UIColor? {
+            let value = String(hex.dropFirst())
+            let chars = Array(value)
+            func hexByte(_ a: Character, _ b: Character) -> UInt8 {
+                UInt8(String([a, b]), radix: 16) ?? 0
+            }
+
+            switch chars.count {
+            case 3:
+                let r = hexByte(chars[0], chars[0])
+                let g = hexByte(chars[1], chars[1])
+                let b = hexByte(chars[2], chars[2])
+                return UIColor(red: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
+            case 6:
+                let r = hexByte(chars[0], chars[1])
+                let g = hexByte(chars[2], chars[3])
+                let b = hexByte(chars[4], chars[5])
+                return UIColor(red: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
+            case 8:
+                let r = hexByte(chars[0], chars[1])
+                let g = hexByte(chars[2], chars[3])
+                let b = hexByte(chars[4], chars[5])
+                let a = hexByte(chars[6], chars[7])
+                return UIColor(red: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: CGFloat(a) / 255)
+            default:
+                return nil
+            }
         }
 
         private func speakTTS(from body: Any) {
