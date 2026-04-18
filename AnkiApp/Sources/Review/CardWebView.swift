@@ -327,9 +327,20 @@ struct CardWebView: UIViewRepresentable {
                 padding: 6px 10px; margin: 4px; font-size: 13px;
                 color: \(missingMediaColor);
             }
+            body.nightMode, body.night_mode {
+                background-color: var(--amgi-default-card-bg);
+                color: var(--amgi-default-card-fg);
+            }
+            body.nightMode #qa, body.night_mode #qa {
+                background-color: var(--amgi-default-card-bg);
+                color: inherit;
+            }
             .nightMode, .nightMode .card { color: #f5f5f5; }
+            .night_mode, .night_mode .card { color: #f5f5f5; }
             .nightMode .cloze:not([data-shape]) { color: #8fb8ff; }
+            .night_mode .cloze:not([data-shape]) { color: #8fb8ff; }
             .nightMode a { color: #8fb8ff; }
+            .night_mode a { color: #8fb8ff; }
         </style>
         <script>
         // ── Globals ──────────────────────────────────────────────────────────
@@ -476,6 +487,65 @@ struct CardWebView: UIViewRepresentable {
             return window.getComputedStyle(document.body).backgroundColor || 'rgba(0, 0, 0, 0)';
         }
 
+        function amgiParseCssColor(color) {
+            if (!color) return null;
+            var rgba = color.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/i);
+            if (!rgba) return null;
+            return {
+                r: parseInt(rgba[1], 10) || 0,
+                g: parseInt(rgba[2], 10) || 0,
+                b: parseInt(rgba[3], 10) || 0,
+                a: rgba[4] == null ? 1 : (parseFloat(rgba[4]) || 0),
+            };
+        }
+
+        function amgiColorLuminance(color) {
+            var parsed = amgiParseCssColor(color);
+            if (!parsed) return null;
+            return (0.2126 * parsed.r + 0.7152 * parsed.g + 0.0722 * parsed.b) / 255;
+        }
+
+        function amgiDarkModeActive() {
+            return document.body.classList.contains('nightMode')
+                || document.body.classList.contains('night_mode')
+                || document.documentElement.classList.contains('nightMode')
+                || document.documentElement.classList.contains('night_mode');
+        }
+
+        function amgiNeedsDarkSurfaceFallback(element) {
+            if (!element) return false;
+            var bg = window.getComputedStyle(element).backgroundColor;
+            if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') {
+                return true;
+            }
+
+            var parsed = amgiParseCssColor(bg);
+            if (!parsed) return false;
+            if (parsed.a === 0) return true;
+
+            var luminance = amgiColorLuminance(bg);
+            return luminance !== null && luminance > 0.86;
+        }
+
+        function amgiApplyDarkModeFallback(container) {
+            if (!amgiDarkModeActive()) return;
+
+            var fallbackTargets = [
+                document.body,
+                document.getElementById('qa'),
+                container,
+                document.querySelector('.card'),
+            ].filter(function(element, index, array) {
+                return !!element && array.indexOf(element) === index;
+            });
+
+            fallbackTargets.forEach(function(element) {
+                if (!amgiNeedsDarkSurfaceFallback(element)) return;
+                element.style.setProperty('background-color', 'var(--amgi-default-card-bg)', 'important');
+                element.style.setProperty('color', 'var(--amgi-default-card-fg)', 'important');
+            });
+        }
+
         function amgiReportCardTheme() {
             try {
                 var bg = amgiResolveCardBackground();
@@ -561,7 +631,10 @@ struct CardWebView: UIViewRepresentable {
 
         function amgiTypesetMathWhenReady(container) {
             amgiTypesetMath(container, 60).then(function(didTypeset) {
-                if (didTypeset) amgiReportCardTheme();
+                if (didTypeset) {
+                    amgiApplyDarkModeFallback(container);
+                    amgiReportCardTheme();
+                }
             });
         }
 
@@ -1003,13 +1076,14 @@ struct CardWebView: UIViewRepresentable {
 
             stopAllSystemAudio();
             amgiApplyCardState(state || {});
-            await amgiPreloadResources(html || '');
+            amgiPreloadResources(html || '');
 
             qa.style.opacity = '0';
             try { await amgiSetInnerHTML(qa, html || ''); }
             catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
 
             await amgiRunHooks(window.onUpdateHook);
+            amgiApplyDarkModeFallback(qa);
 
             var shouldTypesetMath = amgiNeedsMathTypeset(html || '', qa);
             var didTypesetMath = false;
