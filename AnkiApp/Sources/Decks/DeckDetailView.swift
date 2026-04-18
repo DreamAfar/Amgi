@@ -44,6 +44,20 @@ struct DeckDetailView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
+                    showBrowse = true
+                } label: {
+                    Image(systemName: "doc.text.magnifyingglass")
+                }
+                .accessibilityLabel(L("deck_detail_browse"))
+
+                Button {
+                    showStats = true
+                } label: {
+                    Image(systemName: "chart.bar")
+                }
+                .accessibilityLabel(L("deck_detail_stats"))
+
+                Button {
                     showAddNote = true
                 } label: {
                     Image(systemName: "plus")
@@ -52,27 +66,11 @@ struct DeckDetailView: View {
 
                 Menu {
                     Button {
-                        showBrowse = true
-                    } label: {
-                        Label(L("deck_detail_browse"), systemImage: "doc.text.magnifyingglass")
-                    }
-
-                    Button {
-                        showStats = true
-                    } label: {
-                        Label(L("deck_detail_stats"), systemImage: "chart.bar")
-                    }
-
-                    Divider()
-
-                    Button {
                         newSubdeckName = ""
                         showAddSubdeck = true
                     } label: {
                         Label(L("deck_detail_add_subdeck"), systemImage: "rectangle.stack.badge.plus")
                     }
-
-                    Divider()
 
                     Button {
                         showTemplateManager = true
