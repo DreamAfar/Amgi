@@ -94,6 +94,10 @@
 "deck_detail_start_review" = "开始复习";
 "deck_detail_config" = "设置";
 "deck_detail_stats" = "统计";
+"deck_detail_browse" = "浏览";
+"deck_detail_add_subdeck" = "新增子牌组";
+"deck_detail_add_subdeck_placeholder" = "子牌组名称";
+"deck_detail_add_subdeck_message" = "请输入子牌组名称（将自动加上当前牌组前缀）";
 "deck_detail_no_cards" = "今日暂无到期卡片";
 
 // MARK: - DeckConfigView
@@ -659,6 +663,11 @@
 "tags_error_apply" = "应用标签失败：%@";
 "tags_error_remove" = "移除标签失败：%@";
 "tags_error_delete" = "删除标签失败：%@";
+"tags_rename_title" = "重命名标签";
+"tags_rename_placeholder" = "新标签名称";
+"tags_rename_confirm" = "重命名";
+"tags_rename_swipe" = "重命名";
+"tags_error_rename" = "重命名标签失败：%@";
 
 // MARK: - ReviewView (extended)
 "review_reviewed_count" = "已复习：%d";

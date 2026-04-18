@@ -94,6 +94,10 @@
 "deck_detail_start_review" = "学習開始";
 "deck_detail_config" = "設定";
 "deck_detail_stats" = "統計";
+"deck_detail_browse" = "ブラウズ";
+"deck_detail_add_subdeck" = "サブデッキを追加";
+"deck_detail_add_subdeck_placeholder" = "サブデッキ名";
+"deck_detail_add_subdeck_message" = "サブデッキ名を入力（親デッキ名が自動付与されます）";
 "deck_detail_no_cards" = "期限のカードなし";
 
 // MARK: - DeckConfigView
@@ -659,6 +663,11 @@
 "tags_error_apply" = "タグの適用に失敗：%@";
 "tags_error_remove" = "タグの削除に失敗：%@";
 "tags_error_delete" = "タグの削除に失敗：%@";
+"tags_rename_title" = "タグ名を変更";
+"tags_rename_placeholder" = "新しいタグ名";
+"tags_rename_confirm" = "変更";
+"tags_rename_swipe" = "名前を変更";
+"tags_error_rename" = "タグ名の変更に失敗：%@";
 
 // MARK: - ReviewView (extended)
 "review_reviewed_count" = "復習済み：%d";

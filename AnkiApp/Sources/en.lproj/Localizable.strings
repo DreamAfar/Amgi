@@ -94,6 +94,10 @@
 "deck_detail_start_review" = "Start Review";
 "deck_detail_config" = "Settings";
 "deck_detail_stats" = "Statistics";
+"deck_detail_browse" = "Browse";
+"deck_detail_add_subdeck" = "New Subdeck";
+"deck_detail_add_subdeck_placeholder" = "Subdeck name";
+"deck_detail_add_subdeck_message" = "Enter subdeck name (parent prefix added automatically)";
 "deck_detail_no_cards" = "No cards due";
 
 // MARK: - DeckConfigView
@@ -659,6 +663,11 @@
 "tags_error_apply" = "Failed to apply tag: %@";
 "tags_error_remove" = "Failed to remove tag: %@";
 "tags_error_delete" = "Failed to delete tag: %@";
+"tags_rename_title" = "Rename Tag";
+"tags_rename_placeholder" = "New tag name";
+"tags_rename_confirm" = "Rename";
+"tags_rename_swipe" = "Rename";
+"tags_error_rename" = "Failed to rename tag: %@";
 
 // MARK: - ReviewView (extended)
 "review_reviewed_count" = "Reviewed: %d";

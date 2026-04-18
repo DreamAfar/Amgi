@@ -57,7 +57,16 @@ struct BrowseView: View {
     @State private var activeSearchTask: Task<Void, Never>?
     @State private var searchDebounceTask: Task<Void, Never>?
 
+    private let preselectedDeck: DeckInfo?
     private let pageSize = 50
+
+    init(preselectedDeck: DeckInfo? = nil) {
+        self.preselectedDeck = preselectedDeck
+        if let deck = preselectedDeck {
+            _activeDeck = State(initialValue: deck)
+            _parentDeck = State(initialValue: deck)
+        }
+    }
 
     var body: some View {
         Group {

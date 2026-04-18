@@ -17,6 +17,11 @@ struct DeckListView: View {
     @State private var showDeleteError = false
     @State private var heatmapRefreshID = 0
     @State private var hasLoadedHeatmap = false
+    @State private var isExportingDeck = false
+    @State private var exportedDeckFileURL: URL?
+    @State private var showDeckExportShareSheet = false
+    @State private var exportError: String?
+    @State private var showExportError = false
     var onDeckChanged: (() -> Void)? = nil
 
     init(onDeckChanged: (() -> Void)? = nil) {
@@ -59,6 +64,9 @@ struct DeckListView: View {
                                 onDeleteRequested: { node in
                                     deckToDelete = node
                                     showDeleteConfirm = true
+                                },
+                                onExportRequested: { node in
+                                    Task { await exportDeck(node) }
                                 }
                             )
                         }
@@ -114,6 +122,16 @@ struct DeckListView: View {
         } message: {
             Text(deleteError ?? L("label_error_unknown"))
         }
+        .alert(L("deck_action_error_title"), isPresented: $showExportError) {
+            Button(L("btn_got_it"), role: .cancel) {}
+        } message: {
+            Text(exportError ?? L("label_error_unknown"))
+        }
+        .sheet(isPresented: $showDeckExportShareSheet) {
+            if let url = exportedDeckFileURL {
+                ShareSheet(items: [url])
+            }
+        }
         .task {
             await loadDecks()
             if !hasLoadedHeatmap {
@@ -161,6 +179,32 @@ struct DeckListView: View {
         guard showDeckListHeatmap else { return }
         heatmapRefreshID += 1
     }
+
+    private func exportDeck(_ node: DeckTreeNode) async {
+        guard !isExportingDeck else { return }
+        isExportingDeck = true
+        defer { isExportingDeck = false }
+
+        let configuration = ImportHelper.ExportPackageConfiguration.deck(
+            deckID: node.id,
+            deckName: node.fullName,
+            includeScheduling: true,
+            includeDeckConfigs: true,
+            includeMedia: true,
+            legacy: false
+        )
+        let backend = self.backend
+        do {
+            let url = try await Task.detached(priority: .userInitiated) {
+                try ImportHelper.exportPackage(backend: backend, configuration: configuration)
+            }.value
+            exportedDeckFileURL = url
+            showDeckExportShareSheet = true
+        } catch {
+            exportError = L("deck_export_error", error.localizedDescription)
+            showExportError = true
+        }
+    }
 }
 
 // MARK: - DeckRowView
@@ -171,6 +215,7 @@ private struct DeckRowView: View {
     let depth: Int
     let onDeckChanged: () -> Void
     let onDeleteRequested: (DeckTreeNode) -> Void
+    let onExportRequested: (DeckTreeNode) -> Void
 
     @State private var showRenamePrompt = false
     @State private var renameText = ""
@@ -257,6 +302,13 @@ private struct DeckRowView: View {
             Label(L("deck_row_rename"), systemImage: "pencil")
         }
         .tint(Color.amgiAccent)
+
+        Button {
+            onExportRequested(node)
+        } label: {
+            Label(L("deck_row_export"), systemImage: "square.and.arrow.up")
+        }
+        .tint(Color.amgiPositive)
     }
 
     private var childrenList: some View {
@@ -265,7 +317,8 @@ private struct DeckRowView: View {
                 node: child,
                 depth: depth + 1,
                 onDeckChanged: onDeckChanged,
-                onDeleteRequested: onDeleteRequested
+                onDeleteRequested: onDeleteRequested,
+                onExportRequested: onExportRequested
             )
         }
     }

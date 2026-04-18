@@ -20,6 +20,10 @@ struct DeckDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var actionError: String?
     @State private var showActionError = false
+    @State private var showStats = false
+    @State private var showBrowse = false
+    @State private var showAddSubdeck = false
+    @State private var newSubdeckName = ""
 
     private var shortTitle: String {
         String(deck.name.split(separator: "::", omittingEmptySubsequences: true).last ?? Substring(deck.name))
@@ -46,17 +50,44 @@ struct DeckDetailView: View {
                 }
                 .accessibilityLabel(L("browse_add_accessibility"))
 
-                Button {
-                    showTemplateManager = true
-                } label: {
-                    Image(systemName: "square.on.square")
-                }
-                .accessibilityLabel(L("deck_template_nav_title"))
+                Menu {
+                    Button {
+                        showBrowse = true
+                    } label: {
+                        Label(L("deck_detail_browse"), systemImage: "doc.text.magnifyingglass")
+                    }
 
-                Button(action: { showConfig = true }) {
-                    Image(systemName: "slider.horizontal.3")
+                    Button {
+                        showStats = true
+                    } label: {
+                        Label(L("deck_detail_stats"), systemImage: "chart.bar")
+                    }
+
+                    Divider()
+
+                    Button {
+                        newSubdeckName = ""
+                        showAddSubdeck = true
+                    } label: {
+                        Label(L("deck_detail_add_subdeck"), systemImage: "rectangle.stack.badge.plus")
+                    }
+
+                    Divider()
+
+                    Button {
+                        showTemplateManager = true
+                    } label: {
+                        Label(L("deck_template_nav_title"), systemImage: "square.on.square")
+                    }
+
+                    Button {
+                        showConfig = true
+                    } label: {
+                        Label(L("deck_detail_config"), systemImage: "slider.horizontal.3")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
-                .accessibilityLabel(L("deck_detail_config"))
             }
         }
         .sheet(isPresented: $showAddNote) {
@@ -82,6 +113,38 @@ struct DeckDetailView: View {
                 showReview = false
                 Task { await loadCounts() }
             }
+        }
+        .sheet(isPresented: $showStats) {
+            NavigationStack {
+                StatsDashboardView(initialDeckID: deck.id)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(L("common_done")) { showStats = false }
+                                .amgiToolbarTextButton(tone: .neutral)
+                        }
+                    }
+            }
+        }
+        .sheet(isPresented: $showBrowse) {
+            NavigationStack {
+                BrowseView(preselectedDeck: deck)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button(L("common_done")) { showBrowse = false }
+                                .amgiToolbarTextButton(tone: .neutral)
+                        }
+                    }
+            }
+        }
+        .alert(L("deck_detail_add_subdeck"), isPresented: $showAddSubdeck) {
+            TextField(L("deck_detail_add_subdeck_placeholder"), text: $newSubdeckName)
+                .autocorrectionDisabled()
+            Button(L("btn_cancel"), role: .cancel) {}
+            Button(L("btn_save")) {
+                Task { await createSubdeck() }
+            }
+        } message: {
+            Text(L("deck_detail_add_subdeck_message"))
         }
         .alert(L("deck_rename_alert_title"), isPresented: $showRenamePrompt) {
             TextField(L("deck_rename_alert_placeholder"), text: $renameText)
@@ -255,6 +318,19 @@ struct DeckDetailView: View {
             selectedChildDeck = nil
             await loadChildren()
             await loadCounts()
+        } catch {
+            actionError = error.localizedDescription
+            showActionError = true
+        }
+    }
+
+    private func createSubdeck() async {
+        let trimmed = newSubdeckName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let fullName = "\(deck.name)::\(trimmed)"
+        do {
+            _ = try deckClient.create(fullName)
+            await loadChildren()
         } catch {
             actionError = error.localizedDescription
             showActionError = true

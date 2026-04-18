@@ -31,6 +31,9 @@ struct TagsView: View {
     @State private var isDeleting = false
     @State private var tagActionTag: String?
     @State private var isApplying = false
+    @State private var showRenameTag = false
+    @State private var tagToRename: String?
+    @State private var renameTagName = ""
 
     init(targetNoteIDs: [Int64] = [], noteMode: NoteMode = .manage) {
         self.targetNoteIDs = targetNoteIDs
@@ -84,6 +87,21 @@ struct TagsView: View {
                 }
             } message: {
                 if let tag = selectedTag {
+                    Text(L("tags_delete_confirm", tag))
+                }
+            }
+            .alert(L("tags_rename_title"), isPresented: $showRenameTag) {
+                TextField(L("tags_rename_placeholder"), text: $renameTagName)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                Button(L("common_cancel"), role: .cancel) { tagToRename = nil }
+                Button(L("tags_rename_confirm")) {
+                    if let old = tagToRename {
+                        Task { await renameTagAction(from: old, to: renameTagName) }
+                    }
+                }
+            } message: {
+                if let tag = tagToRename {
                     Text(L("tags_delete_confirm", tag))
                 }
             }
@@ -237,6 +255,15 @@ struct TagsView: View {
                 } label: {
                     Label(L("common_delete"), systemImage: "trash")
                 }
+
+                Button {
+                    tagToRename = tag
+                    renameTagName = tag
+                    showRenameTag = true
+                } label: {
+                    Label(L("tags_rename_swipe"), systemImage: "pencil")
+                }
+                .tint(Color.amgiAccent)
             }
         }
     }
@@ -304,6 +331,22 @@ struct TagsView: View {
             await loadTags()
         } catch {
             errorMessage = L("tags_error_delete", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func renameTagAction(from oldName: String, to newName: String) async {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != oldName else {
+            tagToRename = nil
+            return
+        }
+        do {
+            try tagClient.renameTag(oldName, trimmed)
+            tagToRename = nil
+            await loadTags()
+        } catch {
+            errorMessage = L("tags_error_rename", error.localizedDescription)
             showError = true
         }
     }
