@@ -130,19 +130,18 @@ struct CardWebView: UIViewRepresentable {
         context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
 
-        let cardStateLiteral = Self.cardStateLiteral(
-            autoplayEnabled: autoplayEnabled,
+        // Build the JS call that shows the card – passed via evaluateJavaScript so
+        // HTML content never lives inside a <script> literal in the page source.
+        let showCardScript = Self.showCardScript(
+            processedHTML: processedHTML,
+            prefetchHTML: prefetchHTML,
             isAnswerSide: isAnswerSide,
-            replayMode: replayMode.rawValue,
             bodyClass: bodyClass,
+            autoplayEnabled: autoplayEnabled,
+            replayMode: replayMode.rawValue,
             alignTop: alignTop,
             bodyPaddingBottom: bodyPaddingBottom,
-            cardPaddingBottom: cardPaddingBottom,
-            prefetchHTML: prefetchHTML
-        )
-        let updateCardScript = Self.updateCardScript(
-            html: processedHTML,
-            cardStateLiteral: cardStateLiteral
+            cardPaddingBottom: cardPaddingBottom
         )
         context.coordinator.stopTTS()
 
@@ -155,1296 +154,26 @@ struct CardWebView: UIViewRepresentable {
             let playIconHTML = Self.audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
             let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.circle", alt: "Pause", isDarkMode: isDarkMode)
             let baseTag = CardAssetPath.mediaBaseTag()
-
-            let styledHTML = """
-        <!DOCTYPE html>
-        <html class="\(htmlClass)" data-bs-theme="\(isDarkMode ? "dark" : "light")">
-        <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-        \(baseTag)
-        <script>
-        window.MathJax = {
-            tex: {
-                displayMath: [["\\\\[", "\\\\]"]],
-                processEscapes: false,
-                processEnvironments: false,
-                processRefs: false,
-                packages: {
-                    "[+]": ["noerrors", "mathtools"],
-                    "[-]": ["textmacros"]
-                }
-            },
-            loader: {
-                load: ["[tex]/noerrors", "[tex]/mathtools"],
-                paths: {
-                    mathjax: "amgi-asset://assets/mathjax"
-                }
-            },
-            startup: {
-                typeset: false
-            }
-        };
-        </script>
-        <script src="\(CardAssetPath.mathJaxScriptURLString)" async></script>
-        <style>
-            :root {
-                color-scheme: \(isDarkMode ? "dark" : "light");
-            }
-            html, body {
-                background: transparent !important;
-                overflow-x: hidden;
-            }
-            body {
-                font-family: -apple-system, system-ui;
-                font-size: 18px;
-                line-height: 1.5;
-                color: \(isDarkMode ? "#f5f5f5" : "#1a1a1a");
-                background: transparent;
-                padding: 16px 16px var(--amgi-body-padding-bottom, 16px);
-                margin: 0;
-                box-sizing: border-box;
-                text-align: center;
-                display: flex;
-                align-items: var(--amgi-body-align-items, center);
-                justify-content: center;
-                min-height: 80vh;
-            }
-            .card-frame {
-                max-width: 600px;
-                width: 100%;
-                box-sizing: border-box;
-                padding-bottom: var(--amgi-card-padding-bottom, 0px);
-            }
-            hr { border: none; border-top: 1px solid \(isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"); margin: 16px 0; }
-            img { max-width: 100%; height: auto; border-radius: 8px; }
-            .sound-btn {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                margin: 4px;
-            }
-            .sound-btn audio { display: none; }
-            #typeans {
-                width: min(100%, 280px);
-                padding: 10px 12px;
-                border-radius: 10px;
-                border: 1px solid \(isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)");
-                background: \(isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.9)");
-                color: inherit;
-                outline: none;
-            }
-            #typeans:focus {
-                border-color: \(isDarkMode ? "rgba(143,184,255,0.9)" : "rgba(0,122,255,0.9)");
-                box-shadow: 0 0 0 3px \(isDarkMode ? "rgba(143,184,255,0.18)" : "rgba(0,122,255,0.15)");
-            }
-            code#typeans {
-                display: inline-block;
-                white-space: pre-wrap;
-                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-                font-size: 0.95em;
-                line-height: 1.5;
-                padding: 10px 12px;
-                border-radius: 10px;
-                background: \(isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)");
-            }
-            .typeGood { color: \(isDarkMode ? "#7ddc6f" : "#177d1a"); }
-            .typeBad { color: \(isDarkMode ? "#ff8d8d" : "#c62828"); }
-            .typeMissed { color: \(isDarkMode ? "#8ab4ff" : "#1565c0"); }
-            #typearrow { opacity: 0.7; }
-            .replay-btn {
-                background: transparent;
-                border: none;
-                color: inherit;
-                padding: 0;
-                line-height: 0;
-                cursor: pointer;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                -webkit-tap-highlight-color: transparent;
-                appearance: none;
-            }
-            .replay-btn:active { opacity: 0.7; }
-            .replay-btn img {
-                width: 24px;
-                height: 24px;
-                display: block;
-            }
-            video {
-                max-width: 100%;
-                height: auto;
-                border-radius: 8px;
-                margin: 8px 0;
-            }
-            .cloze:not([data-shape]) {
-                display: inline !important;
-                font-weight: 600;
-                color: #1565c0;
-            }
-            .cloze-inactive:not([data-shape]),
-            .cloze-highlight:not([data-shape]) {
-                display: inline !important;
-            }
-            /* Image occlusion */
-            .cloze[data-shape], .cloze-inactive[data-shape], .cloze-highlight[data-shape] { display: none; }
-            #image-occlusion-container {
-                position: relative;
-                display: inline-block;
-                line-height: 0;
-            }
-            #image-occlusion-canvas {
-                position: absolute;
-                top: 0;
-                left: 0;
-                pointer-events: auto;
-                cursor: pointer;
-                border-radius: 8px;
-            }
-            .missing-media {
-                display: inline-block;
-                background: rgba(255,60,60,0.15);
-                border: 1px dashed rgba(255,60,60,0.5);
-                border-radius: 6px;
-                padding: 6px 10px;
-                margin: 4px;
-                font-size: 13px;
-                color: \(isDarkMode ? "rgba(255,100,100,0.9)" : "rgba(200,40,40,0.8)");
-            }
-            .nightMode,
-            .nightMode .card {
-                color: #f5f5f5;
-            }
-            .nightMode .cloze:not([data-shape]) {
-                color: #8fb8ff;
-            }
-            .nightMode a {
-                color: #8fb8ff;
-            }
-        </style>
-        <script>
-        const AUTOPLAY_ENABLED = \(autoplayEnabled ? "true" : "false");
-        const IS_ANSWER_SIDE = \(isAnswerSide ? "true" : "false");
-        const DEFAULT_REPLAY_MODE = \(Self.jsStringLiteral(replayMode.rawValue));
-        const PLAY_ICON_HTML = \(Self.jsStringLiteral(playIconHTML));
-        const PAUSE_ICON_HTML = \(Self.jsStringLiteral(pauseIconHTML));
-        const INITIAL_CARD_HTML = \(Self.jsStringLiteral(processedHTML));
-        const INITIAL_CARD_STATE = \(cardStateLiteral);
-        window.__amgiAudioPlaying = false;
-        window.onUpdateHook = window.onUpdateHook || [];
-        window.onShownHook = window.onShownHook || [];
-        window.__amgiCardState = window.__amgiCardState || {};
-        window.__amgiUpdateQueue = window.__amgiUpdateQueue || Promise.resolve();
-        const amgiPreloadTemplate = document.createElement('template');
-        const amgiPreloadDoc = document.implementation.createHTMLDocument('');
-        const amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
-        const amgiCachedFonts = new Set();
-
-        function amgiCardState() {
-            return window.__amgiCardState || {};
-        }
-
-        function amgiAutoplayEnabled() {
-            var state = amgiCardState();
-            return typeof state.autoplayEnabled === 'boolean' ? state.autoplayEnabled : AUTOPLAY_ENABLED;
-        }
-
-        function amgiIsAnswerSide() {
-            var state = amgiCardState();
-            return typeof state.isAnswerSide === 'boolean' ? state.isAnswerSide : IS_ANSWER_SIDE;
-        }
-
-        function amgiReplayModeValue() {
-            var state = amgiCardState();
-            return typeof state.replayMode === 'string' ? state.replayMode : DEFAULT_REPLAY_MODE;
-        }
-
-        function amgiPrefetchHTMLValue() {
-            var state = amgiCardState();
-            return typeof state.prefetchHTML === 'string' ? state.prefetchHTML : '';
-        }
-
-        function amgiApplyCardState(state) {
-            window.__amgiCardState = Object.assign({}, window.__amgiCardState || {}, state || {});
-            var currentState = amgiCardState();
-            var qa = document.getElementById('qa');
-
-            document.body.className = currentState.bodyClass || document.body.className;
-            document.body.style.setProperty('--amgi-body-padding-bottom', String(currentState.bodyPaddingBottom || 16) + 'px');
-            document.body.style.setProperty('--amgi-body-align-items', currentState.alignTop ? 'flex-start' : 'center');
-
-            if (qa) {
-                qa.style.setProperty('--amgi-card-padding-bottom', String(currentState.cardPaddingBottom || 0) + 'px');
-            }
-        }
-
-        function amgiLoadPreloadResource(element) {
-            return new Promise(function(resolve) {
-                function finish() {
-                    resolve();
-                    if (element.parentNode) {
-                        element.parentNode.removeChild(element);
-                    }
-                }
-                element.addEventListener('load', finish);
-                element.addEventListener('error', finish);
-                document.head.appendChild(element);
-            });
-        }
-
-        function amgiCreatePreloadLink(href, asType) {
-            var link = document.createElement('link');
-            link.rel = 'preload';
-            link.href = href;
-            link.as = asType;
-            if (asType === 'font') {
-                link.crossOrigin = '';
-            }
-            return link;
-        }
-
-        function amgiPreloadImage(img) {
-            if (!img.getAttribute('decoding')) {
-                img.decoding = 'async';
-            }
-            return img.complete ? Promise.resolve() : new Promise(function(resolve) {
-                img.addEventListener('load', function() { resolve(); });
-                img.addEventListener('error', function() { resolve(); });
-            });
-        }
-
-        function amgiPreloadImages(fragment) {
-            return Array.from(fragment.querySelectorAll('img[src]')).map(function(existing) {
-                try {
-                    var img = new Image();
-                    img.src = new URL(existing.getAttribute('src') || '', document.baseURI).toString();
-                    return amgiPreloadImage(img);
-                } catch (error) {
-                    return Promise.resolve();
-                }
-            });
-        }
-
-        function amgiAllImagesLoaded() {
-            return Promise.all(
-                Array.from(document.getElementsByTagName('img')).map(function(img) {
-                    return amgiPreloadImage(img);
-                })
-            );
-        }
-
-        function amgiExtractExternalStyles(fragment) {
-            return Array.from(fragment.querySelectorAll('style, link')).filter(function(css) {
-                return (css.tagName === 'STYLE' && (css.innerHTML || '').includes('@import'))
-                    || (css.tagName === 'LINK' && css.rel === 'stylesheet');
-            });
-        }
-
-        function amgiPreloadStyleSheets(fragment) {
-            return amgiExtractExternalStyles(fragment).map(function(css) {
-                css.media = 'print';
-                return amgiLoadPreloadResource(css);
-            });
-        }
-
-        function amgiExtractFontURLs(style) {
-            amgiPreloadDoc.head.innerHTML = '';
-            amgiPreloadDoc.head.appendChild(style);
-            var urls = [];
-            try {
-                if (style.sheet) {
-                    Array.from(style.sheet.cssRules || []).forEach(function(rule) {
-                        if (typeof CSSFontFaceRule === 'undefined' || !(rule instanceof CSSFontFaceRule)) {
-                            return;
-                        }
-                        var src = rule.style.getPropertyValue('src');
-                        var matches = src.matchAll(amgiFontURLPattern);
-                        for (const match of matches) {
-                            if (match[2]) {
-                                urls.push(match[2]);
-                            }
-                        }
-                    });
-                }
-            } catch (error) {
-                return [];
-            }
-            return urls;
-        }
-
-        function amgiPreloadFonts(fragment) {
-            var fontURLs = [];
-            Array.from(fragment.querySelectorAll('style')).forEach(function(style) {
-                fontURLs.push.apply(fontURLs, amgiExtractFontURLs(style));
-            });
-
-            return fontURLs
-                .filter(function(url) {
-                    if (!url || amgiCachedFonts.has(url)) {
-                        return false;
-                    }
-                    amgiCachedFonts.add(url);
-                    return true;
-                })
-                .map(function(url) {
-                    return amgiLoadPreloadResource(amgiCreatePreloadLink(url, 'font'));
-                });
-        }
-
-        async function amgiPreloadResources(html) {
-            try {
-                amgiPreloadTemplate.innerHTML = html || '';
-                var fragment = amgiPreloadTemplate.content;
-                var styleSheets = amgiPreloadStyleSheets(fragment.cloneNode(true));
-                var images = amgiPreloadImages(fragment.cloneNode(true));
-                var fonts = amgiPreloadFonts(fragment.cloneNode(true));
-
-                var timeout = 0;
-                if (fonts.length) {
-                    timeout = 800;
-                } else if (styleSheets.length) {
-                    timeout = 500;
-                } else if (images.length) {
-                    timeout = 200;
-                } else {
-                    return;
-                }
-
-                await Promise.race([
-                    Promise.all(styleSheets.concat(images, fonts)),
-                    new Promise(function(resolve) { window.setTimeout(resolve, timeout); })
-                ]);
-            } catch (error) {
-                console.error('Preload failed', error);
-            }
-        }
-
-        function amgiRunHooks(hooks) {
-            if (!Array.isArray(hooks)) {
-                return Promise.resolve([]);
-            }
-
-            var promises = [];
-            hooks.forEach(function(hook) {
-                try {
-                    if (typeof hook === 'function') {
-                        promises.push(hook());
-                    }
-                } catch (error) {
-                    console.error('Hook failed', error);
-                }
-            });
-
-            return Promise.allSettled(promises);
-        }
-
-        function amgiReplaceDeferredScript(oldScript) {
-            return new Promise(function(resolve) {
-                var newScript = document.createElement('script');
-                var src = oldScript.getAttribute('src');
-                var mustWaitForNetwork = !!src;
-
-                oldScript.getAttributeNames().forEach(function(name) {
-                    if (name === 'type' || name === 'data-amgi-card-script') {
-                        return;
-                    }
-                    var value = oldScript.getAttribute(name);
-                    if (value !== null) {
-                        newScript.setAttribute(name, value);
-                    }
-                });
-
-                newScript.addEventListener('load', function() { resolve(); });
-                newScript.addEventListener('error', function() { resolve(); });
-                newScript.appendChild(document.createTextNode(oldScript.textContent || ''));
-                oldScript.replaceWith(newScript);
-
-                if (!mustWaitForNetwork) {
-                    resolve();
-                }
-            });
-        }
-
-        async function amgiExecuteDeferredCardScripts() {
-            var scripts = Array.from(document.querySelectorAll('#qa script[type="application/x-amgi-card-script"]'));
-            for (const script of scripts) {
-                await amgiReplaceDeferredScript(script);
-            }
-        }
-
-        function amgiAddBrowserClasses() {
-            var ua = navigator.userAgent.toLowerCase();
-
-            function addClass(name) {
-                if (name) {
-                    document.documentElement.classList.add(name);
-                }
-            }
-
-            if (/ipad/.test(ua)) {
-                addClass('ipad');
-            } else if (/iphone/.test(ua)) {
-                addClass('iphone');
-            } else if (/android/.test(ua)) {
-                addClass('android');
-            }
-
-            if (/ipad|iphone|ipod/.test(ua)) {
-                addClass('ios');
-            }
-
-            if (/ipad|iphone|ipod|android/.test(ua)) {
-                addClass('mobile');
-            } else if (/linux/.test(ua)) {
-                addClass('linux');
-            } else if (/windows/.test(ua)) {
-                addClass('win');
-            } else if (/mac/.test(ua)) {
-                addClass('mac');
-            }
-
-            if (/firefox\\//.test(ua)) {
-                addClass('firefox');
-            } else if (/chrome\\//.test(ua)) {
-                addClass('chrome');
-            } else if (/safari\\//.test(ua)) {
-                addClass('safari');
-            }
-        }
-
-        window.ankiPlatform = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) ? 'ios' : 'other';
-        globalThis.ankiPlatform = window.ankiPlatform;
-
-        function setAudioButtonState(btn, state) {
-            if (!btn) {
-                return;
-            }
-            btn.innerHTML = state === 'pause' ? PAUSE_ICON_HTML : PLAY_ICON_HTML;
-        }
-
-        function notifyAudioState(isPlaying) {
-            window.__amgiAudioPlaying = !!isPlaying;
-            try {
-                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiAudioState) {
-                    window.webkit.messageHandlers.amgiAudioState.postMessage(window.__amgiAudioPlaying);
-                }
-            } catch (e) {}
-        }
-
-        function amgiStopTts() {
-            try {
-                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiStopTts) {
-                    window.webkit.messageHandlers.amgiStopTts.postMessage(null);
-                }
-            } catch (e) {}
-        }
-        window.amgiStopTts = amgiStopTts;
-
-        function stopAllSystemAudio() {
-            amgiStopTts();
-            document.querySelectorAll('.anki-sound-audio').forEach(function(a) {
-                if (!a.paused) { a.pause(); }
-                a.currentTime = 0;
-                var b = a.nextElementSibling;
-                setAudioButtonState(b, 'play');
-                a.onended = null;
-            });
-            notifyAudioState(false);
-        }
-
-        function collectAudioQueue(mode) {
-            var allAudio = Array.from(document.querySelectorAll('.anki-sound-audio'));
-            if (mode === 'question') {
-                return allAudio;
-            }
-
-            var answerMarker = document.getElementById('answer');
-            if (!answerMarker) {
-                return allAudio;
-            }
-
-            var afterAnswer = allAudio.filter(function(a) {
-                return !!(answerMarker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
-            });
-
-            if (mode === 'answerWithQuestion') {
-                return afterAnswer.length > 0 ? allAudio : allAudio;
-            }
-
-            return afterAnswer.length > 0 ? afterAnswer : allAudio;
-        }
-
-        function splitAudioQueue() {
-            var allAudio = Array.from(document.querySelectorAll('.anki-sound-audio'));
-            var answerMarker = document.getElementById('answer');
-            if (!answerMarker) {
-                return {
-                    question: allAudio,
-                    answer: allAudio,
-                };
-            }
-
-            var answer = allAudio.filter(function(a) {
-                return !!(answerMarker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
-            });
-            var question = allAudio.filter(function(a) {
-                return !(answerMarker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
-            });
-
-            return {
-                question: question.length > 0 ? question : allAudio,
-                answer: answer.length > 0 ? answer : allAudio,
-            };
-        }
-
-        function replaySequential(queue) {
-            stopAllSystemAudio();
-            if (!queue || queue.length === 0) {
-                return;
-            }
-
-            var currentIndex = 0;
-            notifyAudioState(true);
-
-            function playNext() {
-                if (currentIndex >= queue.length) {
-                    notifyAudioState(false);
-                    return;
-                }
-                var audio = queue[currentIndex];
-                var btn = audio.nextElementSibling;
-                audio.currentTime = 0;
-                audio.play().catch(function() {
-                    currentIndex++;
-                    playNext();
-                });
-                setAudioButtonState(btn, 'pause');
-                audio.onended = function() {
-                    setAudioButtonState(btn, 'play');
-                    currentIndex++;
-                    playNext();
-                };
-            }
-
-            playNext();
-        }
-
-        function amgiReplayAll(mode) {
-            var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
-            if (hasTemplateManagedMedia) {
-                return;
-            }
-            replaySequential(collectAudioQueue(mode));
-        }
-        window.amgiReplayAll = amgiReplayAll;
-
-        function amgiPlayAudioElement(audio) {
-            if (!audio) {
-                return false;
-            }
-
-            stopAllSystemAudio();
-            notifyAudioState(true);
-
-            var btn = audio.nextElementSibling;
-            audio.currentTime = 0;
-            audio.play().catch(function() {
-                setAudioButtonState(btn, 'play');
-                notifyAudioState(false);
-            });
-            setAudioButtonState(btn, 'pause');
-            audio.onended = function() {
-                setAudioButtonState(btn, 'play');
-                notifyAudioState(false);
-            };
-            return false;
-        }
-
-        function pycmd(command) {
-            if (!command || typeof command !== 'string') {
-                return false;
-            }
-
-            if (command === 'replay') {
-                amgiReplayAll(amgiReplayModeValue());
-                return false;
-            }
-
-            if (command.startsWith('play:')) {
-                var parts = command.split(':');
-                var side = parts[1];
-                var index = parseInt(parts[2] || '0', 10);
-                if (Number.isNaN(index) || index < 0) {
-                    return false;
-                }
-
-                var queues = splitAudioQueue();
-                var queue = side === 'a' ? queues.answer : queues.question;
-                return amgiPlayAudioElement(queue[index]);
-            }
-
-            return false;
-        }
-
-        globalThis.pycmd = pycmd;
-        window.pycmd = pycmd;
-
-        function postOpenLink(rawHref) {
-            if (!rawHref) {
-                return;
-            }
-
-            var resolvedHref = rawHref;
-            try {
-                resolvedHref = new URL(rawHref, document.baseURI).toString();
-            } catch (e) {}
-
-            try {
-                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiOpenLink) {
-                    window.webkit.messageHandlers.amgiOpenLink.postMessage(resolvedHref);
-                }
-            } catch (e) {}
-        }
-
-        document.addEventListener('click', function(event) {
-            var anchor = event.target && event.target.closest ? event.target.closest('a[href]') : null;
-            if (!anchor) {
-                return;
-            }
-
-            var href = anchor.getAttribute('href');
-            if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
-                return;
-            }
-
-            event.preventDefault();
-            postOpenLink(anchor.href || href);
-        });
-
-        window.open = function(url) {
-            postOpenLink(url);
-            return null;
-        };
-
-        function playSound(btn) {
-            return amgiPlayAudioElement(btn ? btn.previousElementSibling : null);
-        }
-        window.playSound = playSound;
-        globalThis.playSound = playSound;
-
-        function amgiSpeakTts(btn) {
-            if (!btn) {
-                return false;
-            }
-
-            stopAllSystemAudio();
-
-            try {
-                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiSpeakTts) {
-                    window.webkit.messageHandlers.amgiSpeakTts.postMessage({
-                        text: btn.dataset.ttsText || '',
-                        lang: btn.dataset.ttsLang || '',
-                        voices: btn.dataset.ttsVoices || '',
-                        speed: btn.dataset.ttsSpeed || ''
-                    });
-                }
-            } catch (e) {}
-
-            return false;
-        }
-        window.amgiSpeakTts = amgiSpeakTts;
-        globalThis.amgiSpeakTts = amgiSpeakTts;
-
-        function amgiGetTypedAnswer() {
-            var input = document.getElementById('typeans');
-            return input ? input.value : null;
-        }
-        window.amgiGetTypedAnswer = amgiGetTypedAnswer;
-        window.getTypedAnswer = amgiGetTypedAnswer;
-        globalThis.getTypedAnswer = amgiGetTypedAnswer;
-
-        function amgiSubmitTypedAnswer() {
-            try {
-                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amgiSubmitTypedAnswer) {
-                    window.webkit.messageHandlers.amgiSubmitTypedAnswer.postMessage(amgiGetTypedAnswer());
-                }
-            } catch (e) {}
-        }
-        window.amgiSubmitTypedAnswer = amgiSubmitTypedAnswer;
-
-        function amgiHandleTypeAnswerKey(event) {
-            if (event && event.key === 'Enter') {
-                event.preventDefault();
-                amgiSubmitTypedAnswer();
-                return false;
-            }
-            return true;
-        }
-        window.amgiHandleTypeAnswerKey = amgiHandleTypeAnswerKey;
-        window._typeAnsPress = function() {
-            return amgiHandleTypeAnswerKey(window.event || null);
-        };
-        globalThis._typeAnsPress = window._typeAnsPress;
-
-        function amgiEnsureTypedAnswerVisible() {
-            var input = document.getElementById('typeans');
-            if (!input) {
-                return;
-            }
-            try {
-                input.scrollIntoView({ block: 'center', inline: 'nearest' });
-            } catch (e) {
-                input.scrollIntoView();
-            }
-        }
-        window.amgiEnsureTypedAnswerVisible = amgiEnsureTypedAnswerVisible;
-
-        // ── Image Occlusion ──────────────────────────────────────────────
-        function amgiExtractIOShapes(selector) {
-            return Array.from(document.querySelectorAll(selector)).map(function(el) {
-                var pointsRaw = el.dataset.points;
-                var points = null;
-                if (pointsRaw) {
-                    var nums = pointsRaw.trim().split(/[\\s,]+/).map(Number).filter(function(value) {
-                        return !Number.isNaN(value);
-                    });
-                    points = [];
-                    for (var i = 0; i + 1 < nums.length; i += 2) {
-                        points.push({ x: nums[i], y: nums[i + 1] });
-                    }
-                }
-                return {
-                    type: el.dataset.shape,
-                    left: parseFloat(el.dataset.left || '0'),
-                    top: parseFloat(el.dataset.top || '0'),
-                    width: parseFloat(el.dataset.width || '0'),
-                    height: parseFloat(el.dataset.height || '0'),
-                    rx: parseFloat(el.dataset.rx || '0'),
-                    ry: parseFloat(el.dataset.ry || '0'),
-                    angle: parseFloat(el.dataset.angle || '0'),
-                    text: el.dataset.text || '',
-                    scale: parseFloat(el.dataset.scale || '1'),
-                    fontSize: parseFloat(el.dataset.fontSize || '0'),
-                    fill: el.dataset.fill || '#000000',
-                    occludeInactive: (el.dataset.occludeInactive || el.dataset.occludeinactive || '') === '1',
-                    points: points,
-                };
-            });
-        }
-
-        function amgiDrawIOShape(ctx, shape, size, fill, stroke) {
-            if (shape.type === 'text') {
-                var fontSize = (shape.fontSize > 0 ? shape.fontSize * size.height : 40);
-                var scale = shape.scale > 0 ? shape.scale : 1;
-                var leftText = shape.left * size.width;
-                var topText = shape.top * size.height;
-                var angleText = shape.angle * Math.PI / 180;
-                var padding = 5;
-                ctx.save();
-                ctx.font = fontSize + 'px Arial';
-                ctx.textBaseline = 'top';
-                ctx.scale(scale, scale);
-                var lines = (shape.text || '').split('\\n');
-                var baseMetrics = ctx.measureText('M');
-                var fontHeight = baseMetrics.actualBoundingBoxAscent + baseMetrics.actualBoundingBoxDescent;
-                var lineHeight = 1.5 * fontHeight;
-                var maxWidth = 0;
-                var scaledLeft = leftText / scale;
-                var scaledTop = topText / scale;
-
-                for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-                    var lineMetrics = ctx.measureText(lines[lineIndex]);
-                    if (lineMetrics.width > maxWidth) {
-                        maxWidth = lineMetrics.width;
-                    }
-                }
-
-                if (angleText) {
-                    ctx.translate(scaledLeft, scaledTop);
-                    ctx.rotate(angleText);
-                    ctx.translate(-scaledLeft, -scaledTop);
-                }
-
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(scaledLeft, scaledTop, maxWidth + padding, lines.length * lineHeight + padding);
-                ctx.fillStyle = shape.fill || '#000000';
-
-                for (var textIndex = 0; textIndex < lines.length; textIndex++) {
-                    ctx.fillText(lines[textIndex], scaledLeft, scaledTop + textIndex * lineHeight);
-                }
-
-                ctx.restore();
-                return;
-            }
-
-            if (shape.type === 'polygon' && shape.points && shape.points.length >= 2) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.moveTo(shape.points[0].x * size.width, shape.points[0].y * size.height);
-                for (var polygonIndex = 1; polygonIndex < shape.points.length; polygonIndex++) {
-                    ctx.lineTo(shape.points[polygonIndex].x * size.width, shape.points[polygonIndex].y * size.height);
-                }
-                ctx.closePath();
-                ctx.fillStyle = fill;
-                ctx.fill();
-                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
-                ctx.restore();
-                return;
-            }
-
-            var left = shape.left * size.width;
-            var top = shape.top * size.height;
-            var angle = shape.angle * Math.PI / 180;
-            ctx.save();
-            ctx.translate(left, top);
-            ctx.rotate(angle);
-            if (shape.type === 'rect') {
-                var sw = shape.width * size.width;
-                var sh = shape.height * size.height;
-                ctx.fillStyle = fill;
-                ctx.fillRect(0, 0, sw, sh);
-                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.strokeRect(0, 0, sw, sh); }
-            } else if (shape.type === 'ellipse') {
-                var rx = shape.rx * size.width;
-                var ry = shape.ry * size.height;
-                ctx.beginPath();
-                ctx.ellipse(rx, ry, rx, ry, 0, 0, 2 * Math.PI);
-                ctx.fillStyle = fill;
-                ctx.fill();
-                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
-            }
-            ctx.restore();
-        }
-
-        function amgiDrawIOShapes(ctx, size) {
-            var style = getComputedStyle(document.documentElement);
-            var inactiveColor  = style.getPropertyValue('--inactive-shape-color').trim()  || '#ffeba2';
-            var activeColor    = style.getPropertyValue('--active-shape-color').trim()    || '#ff8e8e';
-            var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
-            var border = '#212121';
-            amgiExtractIOShapes('.cloze-inactive[data-shape]').forEach(function(s) { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, inactiveColor, border); } });
-            amgiExtractIOShapes('.cloze[data-shape]').forEach(function(s)           { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, activeColor, border); } });
-            amgiExtractIOShapes('.cloze-highlight[data-shape]').forEach(function(s) { if (!s._revealed) { amgiDrawIOShape(ctx, s, size, highlightColor, border); } });
-        }
-
-        // Hit-test: is canvas point (px, py) inside a shape?
-        function amgiHitTestShape(shape, px, py, size) {
-            if (shape.type === 'polygon' && shape.points && shape.points.length >= 3) {
-                var polygonInside = false;
-                for (var polygonIndex = 0, polygonPrev = shape.points.length - 1; polygonIndex < shape.points.length; polygonPrev = polygonIndex++) {
-                    var polygonXi = shape.points[polygonIndex].x * size.width;
-                    var polygonYi = shape.points[polygonIndex].y * size.height;
-                    var polygonXj = shape.points[polygonPrev].x * size.width;
-                    var polygonYj = shape.points[polygonPrev].y * size.height;
-                    if (((polygonYi > py) !== (polygonYj > py)) && (px < (polygonXj - polygonXi) * (py - polygonYi) / (polygonYj - polygonYi) + polygonXi)) {
-                        polygonInside = !polygonInside;
-                    }
-                }
-                return polygonInside;
-            }
-
-            var angle = shape.angle * Math.PI / 180;
-            var originX = shape.left * size.width;
-            var originY = shape.top * size.height;
-            // Transform to shape's local coordinate system
-            var dx = px - originX, dy = py - originY;
-            var lx = dx * Math.cos(-angle) - dy * Math.sin(-angle);
-            var ly = dx * Math.sin(-angle) + dy * Math.cos(-angle);
-
-            if (shape.type === 'rect') {
-                var sw = shape.width * size.width, sh = shape.height * size.height;
-                return lx >= 0 && lx <= sw && ly >= 0 && ly <= sh;
-            } else if (shape.type === 'ellipse') {
-                var rx = shape.rx * size.width, ry = shape.ry * size.height;
-                var ex = lx - rx, ey = ly - ry;
-                return (rx > 0 && ry > 0) ? ((ex*ex)/(rx*rx) + (ey*ey)/(ry*ry)) <= 1 : false;
-            } else if (shape.type === 'text') {
-                var scale = shape.scale > 0 ? shape.scale : 1;
-                var fontSize = (shape.fontSize > 0 ? shape.fontSize * size.height : 40);
-                var textCanvas = document.createElement('canvas');
-                var textCtx = textCanvas.getContext('2d');
-                if (!textCtx) {
-                    return false;
-                }
-                textCtx.font = fontSize + 'px Arial';
-                var lines = (shape.text || '').split('\\n');
-                var baseMetrics = textCtx.measureText('M');
-                var fontHeight = baseMetrics.actualBoundingBoxAscent + baseMetrics.actualBoundingBoxDescent;
-                var lineHeight = 1.5 * fontHeight;
-                var maxWidth = 0;
-                for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-                    var lineMetrics = textCtx.measureText(lines[lineIndex]);
-                    if (lineMetrics.width > maxWidth) {
-                        maxWidth = lineMetrics.width;
-                    }
-                }
-                var boxWidth = (maxWidth + 5) * scale;
-                var boxHeight = (lines.length * lineHeight + 5) * scale;
-                return lx >= 0 && lx <= boxWidth && ly >= 0 && ly <= boxHeight;
-            }
-            return false;
-        }
-
-
-        var amgiIOOneTimeSetupDone = false;
-
-        function amgiWaitForIOImage(img, callback) {
-            if (!img) {
-                callback();
-                return;
-            }
-            if (img.complete) {
-                callback();
-                return;
-            }
-            var onReady = function() {
-                img.removeEventListener('load', onReady);
-                img.removeEventListener('error', onReady);
-                callback();
-            };
-            img.addEventListener('load', onReady);
-            img.addEventListener('error', onReady);
-        }
-
-        function amgiSetupImageOcclusion() {
-            var container = document.getElementById('image-occlusion-container');
-            if (!container) {
-                return;
-            }
-
-            var img = container.querySelector('img');
-            if (!img) {
-                return;
-            }
-
-            var canvas = document.getElementById('image-occlusion-canvas');
-            if (!canvas) {
-                canvas = document.createElement('canvas');
-                canvas.id = 'image-occlusion-canvas';
-                container.appendChild(canvas);
-            }
-
-            if (!amgiIOOneTimeSetupDone) {
-                window.addEventListener('load', function() {
-                    window.requestAnimationFrame(amgiSetupImageOcclusion);
-                });
-                window.addEventListener('resize', function() {
-                    window.requestAnimationFrame(amgiSetupImageOcclusion);
-                });
-                window.addEventListener('keydown', function(event) {
-                    var button = document.getElementById('toggle') || document.querySelector('.toggle');
-                    if (button && button.style.display !== 'none' && (event.key === 'M' || event.key === 'm')) {
-                        event.preventDefault();
-                        button.click();
-                    }
-                });
-                amgiIOOneTimeSetupDone = true;
-            }
-
-            amgiWaitForIOImage(img, function() {
-                window.requestAnimationFrame(function() {
-                    var canvasRef = document.getElementById('image-occlusion-canvas');
-                    if (!canvasRef) {
-                        return;
-                    }
-
-                    var dpr = window.devicePixelRatio || 1;
-                    var width = img.offsetWidth;
-                    var height = img.offsetHeight;
-                    if (width === 0 || height === 0) {
-                        return;
-                    }
-
-                    canvasRef.style.width = width + 'px';
-                    canvasRef.style.height = height + 'px';
-                    canvasRef.width = width * dpr;
-                    canvasRef.height = height * dpr;
-
-                    var collectShapes = function() {
-                        var shapes = [];
-                        ['cloze-inactive', 'cloze', 'cloze-highlight'].forEach(function(cls) {
-                            amgiExtractIOShapes('.' + cls + '[data-shape]').forEach(function(shape) {
-                                shape._cls = cls;
-                                shape._revealed = false;
-                                shapes.push(shape);
-                            });
-                        });
-                        container._amgiIOShapes = shapes;
-                    };
-
-                    var visibleShapes = function(textOnly) {
-                        return (container._amgiIOShapes || []).filter(function(shape) {
-                            if (shape._revealed) {
-                                return false;
-                            }
-                            if (textOnly && shape.type !== 'text') {
-                                return false;
-                            }
-                            if (shape._cls === 'cloze-inactive') {
-                                return !!shape.occludeInactive;
-                            }
-                            return true;
-                        });
-                    };
-
-                    var redraw = function() {
-                        var ctx = canvasRef.getContext('2d');
-                        if (!ctx) {
-                            return;
-                        }
-                        ctx.setTransform(1, 0, 0, 1, 0, 0);
-                        ctx.clearRect(0, 0, canvasRef.width, canvasRef.height);
-                        ctx.scale(dpr, dpr);
-
-                        var masksHidden = !!container._amgiMasksHidden;
-                        canvasRef.style.pointerEvents = amgiIsAnswerSide() && !masksHidden ? 'auto' : 'none';
-                        canvasRef.style.cursor = amgiIsAnswerSide() && !masksHidden ? 'pointer' : 'default';
-
-                        var style = getComputedStyle(document.documentElement);
-                        var inactiveColor = style.getPropertyValue('--inactive-shape-color').trim() || '#ffeba2';
-                        var activeColor = style.getPropertyValue('--active-shape-color').trim() || '#ff8e8e';
-                        var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
-                        var border = '#212121';
-                        var size = { width: width, height: height };
-
-                        visibleShapes(masksHidden).forEach(function(shape) {
-                            var fill = shape._cls === 'cloze-inactive' ? inactiveColor :
-                                shape._cls === 'cloze' ? activeColor : highlightColor;
-                            amgiDrawIOShape(ctx, shape, size, fill, border);
-                        });
-                    };
-
-                    container._amgiRedrawIO = redraw;
-                    collectShapes();
-
-                    if (!canvasRef.dataset.amgiRevealBound) {
-                        canvasRef.addEventListener('click', function(event) {
-                            if (!amgiIsAnswerSide() || container._amgiMasksHidden) {
-                                return;
-                            }
-                            var rect = canvasRef.getBoundingClientRect();
-                            var px = event.clientX - rect.left;
-                            var py = event.clientY - rect.top;
-                            var size = { width: img.offsetWidth, height: img.offsetHeight };
-                            var shapes = container._amgiIOShapes || [];
-
-                            for (var index = shapes.length - 1; index >= 0; index--) {
-                                var shape = shapes[index];
-                                if (amgiHitTestShape(shape, px, py, size)) {
-                                    shape._revealed = !shape._revealed;
-                                    if (container._amgiRedrawIO) {
-                                        container._amgiRedrawIO();
-                                    }
-                                    break;
-                                }
-                            }
-                        });
-                        canvasRef.dataset.amgiRevealBound = '1';
-                    }
-
-                    var toggleBtn = document.getElementById('toggle') || document.querySelector('.toggle');
-                    var hasInactiveMasks = !!document.querySelector('[data-occludeinactive="1"], [data-occludeInactive="1"]');
-
-                    container._amgiToggleMasks = function(event) {
-                        if (event) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                        }
-                        container._amgiMasksHidden = !container._amgiMasksHidden;
-                        if (!container._amgiMasksHidden) {
-                            (container._amgiIOShapes || []).forEach(function(shape) {
-                                shape._revealed = false;
-                            });
-                        }
-                        if (toggleBtn) {
-                            toggleBtn.setAttribute('aria-pressed', container._amgiMasksHidden ? 'true' : 'false');
-                        }
-                        redraw();
-                    };
-
-                    if (toggleBtn) {
-                        toggleBtn.type = 'button';
-                        toggleBtn.setAttribute('aria-pressed', container._amgiMasksHidden ? 'true' : 'false');
-                        if (!amgiIsAnswerSide() || !hasInactiveMasks) {
-                            toggleBtn.style.display = 'none';
-                        } else {
-                            toggleBtn.style.display = '';
-                            if (!toggleBtn.dataset.amgiToggleBound) {
-                                toggleBtn.addEventListener('click', function(event) {
-                                    if (container._amgiToggleMasks) {
-                                        container._amgiToggleMasks(event);
-                                    }
-                                });
-                                toggleBtn.dataset.amgiToggleBound = '1';
-                            }
-                        }
-                    }
-
-                    redraw();
-                });
-            });
-        }
-        window.amgiSetupImageOcclusion = amgiSetupImageOcclusion;
-
-        // Compatibility shim: Anki PC-generated image occlusion templates call
-        // either `anki.imageOcclusion.setup()` or the older
-        // `anki.setupImageCloze()`. We provide both shims so the template's
-        // try-catch succeeds instead of showing an error message.
-        var anki = globalThis.anki || window.anki || {};
-        globalThis.anki = anki;
-        window.anki = anki;
-        anki.addBrowserClasses = amgiAddBrowserClasses;
-        anki.imageOcclusion = anki.imageOcclusion || {};
-        anki.imageOcclusion.setup = amgiSetupImageOcclusion;
-        anki.imageOcclusion.drawShape = amgiDrawIOShape;
-        anki.imageOcclusion.Shape = anki.imageOcclusion.Shape || function Shape() {};
-        anki.imageOcclusion.Text = anki.imageOcclusion.Text || function Text() {};
-        anki.imageOcclusion.Rectangle = anki.imageOcclusion.Rectangle || function Rectangle() {};
-        anki.imageOcclusion.Ellipse = anki.imageOcclusion.Ellipse || function Ellipse() {};
-        anki.imageOcclusion.Polygon = anki.imageOcclusion.Polygon || function Polygon() {};
-        anki.setupImageCloze = function() { amgiSetupImageOcclusion(); };
-        amgiAddBrowserClasses();
-        // ────────────────────────────────────────────────────────────────
-
-        async function amgiFinalizeCardContent() {
-            await amgiExecuteDeferredCardScripts();
-
-            await amgiRunHooks(window.onUpdateHook);
-
-            var qa = document.getElementById('qa');
-            if (qa && window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
-                try {
-                    await window.MathJax.startup.promise;
-                    if (typeof window.MathJax.typesetClear === 'function') {
-                        window.MathJax.typesetClear();
-                    }
-                    if (typeof window.MathJax.typesetPromise === 'function') {
-                        await window.MathJax.typesetPromise([qa]);
-                    }
-                } catch (error) {
-                    console.error('MathJax failed', error);
-                }
-            }
-
-            var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
-
-            if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) {
-                // Keep autoplay and replay commands on the same mode selection path.
-                amgiReplayAll(amgiReplayModeValue());
-            }
-
-            // Detect missing images
-            document.querySelectorAll('img').forEach(function(img) {
-                img.onerror = function() {
-                    var hint = document.createElement('span');
-                    hint.className = 'missing-media';
-                    hint.textContent = '⚠ ' + (img.getAttribute('src') || 'image');
-                    img.replaceWith(hint);
-                };
-                if (img.complete && img.naturalWidth === 0 && img.src) { img.onerror(); }
-            });
-            // Detect missing audio
-            document.querySelectorAll('.sound-btn').forEach(function(span) {
-                var audio = span.querySelector('audio');
-                if (!audio) return;
-                audio.onerror = function() {
-                    var hint = document.createElement('span');
-                    hint.className = 'missing-media';
-                    hint.textContent = '⚠ ' + (audio.getAttribute('src') || 'audio');
-                    span.replaceWith(hint);
-                };
-            });
-
-            var typeInput = document.getElementById('typeans');
-            if (typeInput) {
-                var ensureVisible = function() {
-                    window.setTimeout(amgiEnsureTypedAnswerVisible, 180);
-                };
-                typeInput.addEventListener('focus', ensureVisible);
-                typeInput.addEventListener('click', ensureVisible);
-                typeInput.addEventListener('input', ensureVisible);
-                typeInput.focus();
-                ensureVisible();
-            }
-
-            amgiSetupImageOcclusion();
-            await amgiRunHooks(window.onShownHook);
-
-            var prefetchHTML = amgiPrefetchHTMLValue();
-            if (!amgiIsAnswerSide() && prefetchHTML) {
-                amgiAllImagesLoaded().then(function() {
-                    return amgiPreloadResources(prefetchHTML);
-                });
-            }
-        }
-
-        async function amgiUpdateQAContent(html, state) {
-            var qa = document.getElementById('qa');
-            if (!qa) {
-                return;
-            }
-
-            stopAllSystemAudio();
-            window.onUpdateHook.length = 0;
-            window.onShownHook.length = 0;
-            amgiApplyCardState(state);
-            await amgiPreloadResources(html || '');
-
-            Array.from(qa.getElementsByTagName('video')).forEach(function(oldVideo) {
-                oldVideo.pause();
-                while (oldVideo.firstChild) {
-                    oldVideo.removeChild(oldVideo.firstChild);
-                }
-                oldVideo.load();
-            });
-
-            qa.innerHTML = html || '';
-            await amgiFinalizeCardContent();
-        }
-
-        window.amgiUpdateQAContent = amgiUpdateQAContent;
-
-        function amgiQueueQAUpdate(html, state) {
-            window.__amgiUpdateQueue = (window.__amgiUpdateQueue || Promise.resolve()).then(function() {
-                return amgiUpdateQAContent(html, state);
-            });
-            return window.__amgiUpdateQueue;
-        }
-
-        window.amgiQueueQAUpdate = amgiQueueQAUpdate;
-
-        async function amgiHandleWindowLoad() {
-            if (window.__amgiWindowLoadHandled) {
-                return;
-            }
-            window.__amgiWindowLoadHandled = true;
-            try {
-                await amgiQueueQAUpdate(INITIAL_CARD_HTML, INITIAL_CARD_STATE);
-            } catch (error) {
-                console.error('Initial card render failed', error);
-            }
-        }
-
-        window.addEventListener('load', amgiHandleWindowLoad);
-        if (document.readyState === 'complete') {
-            amgiHandleWindowLoad();
-        }
-        </script>
-        </head>
-        <body class="\(bodyClass)"><div id="qa" class="card-frame"></div></body>
-        </html>
-        """
+            // Stash the show-card call so we can run it once the page finishes loading.
+            context.coordinator.pendingUpdateScript = showCardScript
+
+            let styledHTML = Self.buildFrameHTML(
+                htmlClass: htmlClass,
+                isDarkMode: isDarkMode,
+                playIconHTML: playIconHTML,
+                pauseIconHTML: pauseIconHTML,
+                baseTag: baseTag
+            )
 
             webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
         } else if context.coordinator.lastContentSignature != contentSignature {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
-                webView.evaluateJavaScript(updateCardScript, completionHandler: nil)
+                webView.evaluateJavaScript(showCardScript, completionHandler: nil)
             } else {
-                context.coordinator.pendingUpdateScript = updateCardScript
+                context.coordinator.pendingUpdateScript = showCardScript
             }
         }
-
         if replayRequestID != context.coordinator.lastReplayRequestID {
             context.coordinator.lastReplayRequestID = replayRequestID
             webView.evaluateJavaScript("window.amgiReplayAll && window.amgiReplayAll('" + replayMode.rawValue + "');", completionHandler: nil)
@@ -1475,6 +204,840 @@ struct CardWebView: UIViewRepresentable {
     }
 
     // MARK: - Helpers
+
+    /// Builds the static HTML frame page (no card content). Card HTML is injected
+    /// later via evaluateJavaScript(_showQuestion/_showAnswer) so that arbitrary
+    /// HTML never lives inside a <script> literal in the page source.
+    private static func buildFrameHTML(
+        htmlClass: String,
+        isDarkMode: Bool,
+        playIconHTML: String,
+        pauseIconHTML: String,
+        baseTag: String
+    ) -> String {
+        let colorScheme = isDarkMode ? "dark" : "light"
+        let textColor = isDarkMode ? "#f5f5f5" : "#1a1a1a"
+        let hrColor = isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"
+        let typeBorderColor = isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)"
+        let typeBgColor = isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.9)"
+        let typeFocusBorder = isDarkMode ? "rgba(143,184,255,0.9)" : "rgba(0,122,255,0.9)"
+        let typeFocusShadow = isDarkMode ? "rgba(143,184,255,0.18)" : "rgba(0,122,255,0.15)"
+        let typeCodeBg = isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"
+        let typeGood = isDarkMode ? "#7ddc6f" : "#177d1a"
+        let typeBad = isDarkMode ? "#ff8d8d" : "#c62828"
+        let typeMissed = isDarkMode ? "#8ab4ff" : "#1565c0"
+        let missingMediaColor = isDarkMode ? "rgba(255,100,100,0.9)" : "rgba(200,40,40,0.8)"
+        let playIconLiteral = jsStringLiteral(playIconHTML)
+        let pauseIconLiteral = jsStringLiteral(pauseIconHTML)
+        let mathJaxScriptURL = CardAssetPath.mathJaxScriptURLString
+
+        return """
+        <!DOCTYPE html>
+        <html class="\(htmlClass)" data-bs-theme="\(colorScheme)">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+        \(baseTag)
+        <script>
+        window.MathJax = {
+            tex: {
+                displayMath: [["\\\\[", "\\\\]"]],
+                processEscapes: false,
+                processEnvironments: false,
+                processRefs: false,
+                packages: { "[+]": ["noerrors","mathtools"], "[-]": ["textmacros"] }
+            },
+            loader: {
+                load: ["[tex]/noerrors","[tex]/mathtools"],
+                paths: { mathjax: "amgi-asset://assets/mathjax" }
+            },
+            startup: { typeset: false }
+        };
+        </script>
+        <script src="\(mathJaxScriptURL)" async></script>
+        <style>
+            :root { color-scheme: \(colorScheme); }
+            html, body { background: transparent !important; overflow-x: hidden; }
+            body {
+                font-family: -apple-system, system-ui;
+                font-size: 18px; line-height: 1.5;
+                color: \(textColor); background: transparent;
+                padding: 16px 16px var(--amgi-body-padding-bottom, 16px);
+                margin: 0; box-sizing: border-box; text-align: center;
+                display: flex; align-items: var(--amgi-body-align-items, center);
+                justify-content: center; min-height: 80vh;
+            }
+            .card-frame {
+                max-width: 600px; width: 100%; box-sizing: border-box;
+                padding-bottom: var(--amgi-card-padding-bottom, 0px);
+            }
+            hr { border: none; border-top: 1px solid \(hrColor); margin: 16px 0; }
+            img { max-width: 100%; height: auto; border-radius: 8px; }
+            .sound-btn { display: inline-flex; align-items: center; justify-content: center; margin: 4px; }
+            .sound-btn audio { display: none; }
+            #typeans {
+                width: min(100%, 280px); padding: 10px 12px; border-radius: 10px;
+                border: 1px solid \(typeBorderColor); background: \(typeBgColor);
+                color: inherit; outline: none;
+            }
+            #typeans:focus {
+                border-color: \(typeFocusBorder);
+                box-shadow: 0 0 0 3px \(typeFocusShadow);
+            }
+            code#typeans {
+                display: inline-block; white-space: pre-wrap;
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: 0.95em; line-height: 1.5; padding: 10px 12px;
+                border-radius: 10px; background: \(typeCodeBg);
+            }
+            .typeGood { color: \(typeGood); }
+            .typeBad { color: \(typeBad); }
+            .typeMissed { color: \(typeMissed); }
+            #typearrow { opacity: 0.7; }
+            .replay-btn {
+                background: transparent; border: none; color: inherit; padding: 0;
+                line-height: 0; cursor: pointer; display: inline-flex;
+                align-items: center; justify-content: center;
+                -webkit-tap-highlight-color: transparent; appearance: none;
+            }
+            .replay-btn:active { opacity: 0.7; }
+            .replay-btn img { width: 24px; height: 24px; display: block; }
+            video { max-width: 100%; height: auto; border-radius: 8px; margin: 8px 0; }
+            .cloze:not([data-shape]) { display: inline !important; font-weight: 600; color: #1565c0; }
+            .cloze-inactive:not([data-shape]),
+            .cloze-highlight:not([data-shape]) { display: inline !important; }
+            .cloze[data-shape], .cloze-inactive[data-shape], .cloze-highlight[data-shape] { display: none; }
+            #image-occlusion-container { position: relative; display: inline-block; line-height: 0; }
+            #image-occlusion-canvas {
+                position: absolute; top: 0; left: 0;
+                pointer-events: auto; cursor: pointer; border-radius: 8px;
+            }
+            .missing-media {
+                display: inline-block; background: rgba(255,60,60,0.15);
+                border: 1px dashed rgba(255,60,60,0.5); border-radius: 6px;
+                padding: 6px 10px; margin: 4px; font-size: 13px;
+                color: \(missingMediaColor);
+            }
+            .nightMode, .nightMode .card { color: #f5f5f5; }
+            .nightMode .cloze:not([data-shape]) { color: #8fb8ff; }
+            .nightMode a { color: #8fb8ff; }
+        </style>
+        <script>
+        // ── Globals ──────────────────────────────────────────────────────────
+        var PLAY_ICON_HTML = \(playIconLiteral);
+        var PAUSE_ICON_HTML = \(pauseIconLiteral);
+        window.__amgiAudioPlaying = false;
+        window.onUpdateHook = [];
+        window.onShownHook = [];
+        window.__amgiUpdateQueue = Promise.resolve();
+        var amgiPreloadTemplate = document.createElement('template');
+        var amgiPreloadDoc = document.implementation.createHTMLDocument('');
+        var amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
+        var amgiCachedFonts = new Set();
+
+        // ── Card state ──────────────────────────────────────────────────────
+        window.__amgiCardState = {};
+
+        function amgiCardState() { return window.__amgiCardState || {}; }
+        function amgiAutoplayEnabled() { return !!(amgiCardState().autoplayEnabled); }
+        function amgiIsAnswerSide() { return !!(amgiCardState().isAnswerSide); }
+        function amgiReplayModeValue() { return amgiCardState().replayMode || 'question'; }
+        function amgiPrefetchHTMLValue() { return amgiCardState().prefetchHTML || ''; }
+
+        function amgiApplyCardState(state) {
+            window.__amgiCardState = Object.assign({}, window.__amgiCardState || {}, state || {});
+            var s = amgiCardState();
+            var qa = document.getElementById('qa');
+            document.body.className = s.bodyClass || document.body.className;
+            document.body.style.setProperty('--amgi-body-padding-bottom', (s.bodyPaddingBottom || 16) + 'px');
+            document.body.style.setProperty('--amgi-body-align-items', s.alignTop ? 'flex-start' : 'center');
+            if (qa) qa.style.setProperty('--amgi-card-padding-bottom', (s.cardPaddingBottom || 0) + 'px');
+        }
+
+        // ── Resource preloading ──────────────────────────────────────────────
+        function amgiLoadPreloadResource(element) {
+            return new Promise(function(resolve) {
+                function finish() { resolve(); if (element.parentNode) element.parentNode.removeChild(element); }
+                element.addEventListener('load', finish);
+                element.addEventListener('error', finish);
+                document.head.appendChild(element);
+            });
+        }
+        function amgiCreatePreloadLink(href, asType) {
+            var link = document.createElement('link');
+            link.rel = 'preload'; link.href = href; link.as = asType;
+            if (asType === 'font') link.crossOrigin = '';
+            return link;
+        }
+        function amgiPreloadImage(img) {
+            if (!img.getAttribute('decoding')) img.decoding = 'async';
+            return img.complete ? Promise.resolve() : new Promise(function(resolve) {
+                img.addEventListener('load', function() { resolve(); });
+                img.addEventListener('error', function() { resolve(); });
+            });
+        }
+        function amgiPreloadImages(fragment) {
+            return Array.from(fragment.querySelectorAll('img[src]')).map(function(existing) {
+                try {
+                    var img = new Image();
+                    img.src = new URL(existing.getAttribute('src') || '', document.baseURI).toString();
+                    return amgiPreloadImage(img);
+                } catch(e) { return Promise.resolve(); }
+            });
+        }
+        function amgiAllImagesLoaded() {
+            return Promise.all(Array.from(document.getElementsByTagName('img')).map(amgiPreloadImage));
+        }
+        function amgiPreloadStyleSheets(fragment) {
+            return Array.from(fragment.querySelectorAll('style, link')).filter(function(css) {
+                return (css.tagName === 'STYLE' && (css.innerHTML || '').includes('@import'))
+                    || (css.tagName === 'LINK' && css.rel === 'stylesheet');
+            }).map(function(css) { css.media = 'print'; return amgiLoadPreloadResource(css); });
+        }
+        function amgiExtractFontURLs(style) {
+            amgiPreloadDoc.head.innerHTML = '';
+            amgiPreloadDoc.head.appendChild(style);
+            var urls = [];
+            try {
+                if (style.sheet) {
+                    Array.from(style.sheet.cssRules || []).forEach(function(rule) {
+                        if (typeof CSSFontFaceRule !== 'undefined' && rule instanceof CSSFontFaceRule) {
+                            var src = rule.style.getPropertyValue('src');
+                            var matches = src.matchAll(amgiFontURLPattern);
+                            for (var m of matches) { if (m[2]) urls.push(m[2]); }
+                        }
+                    });
+                }
+            } catch(e) {}
+            return urls;
+        }
+        function amgiPreloadFonts(fragment) {
+            var fontURLs = [];
+            Array.from(fragment.querySelectorAll('style')).forEach(function(s) {
+                fontURLs.push.apply(fontURLs, amgiExtractFontURLs(s));
+            });
+            return fontURLs.filter(function(url) {
+                if (!url || amgiCachedFonts.has(url)) return false;
+                amgiCachedFonts.add(url);
+                return true;
+            }).map(function(url) { return amgiLoadPreloadResource(amgiCreatePreloadLink(url, 'font')); });
+        }
+        async function amgiPreloadResources(html) {
+            try {
+                amgiPreloadTemplate.innerHTML = html || '';
+                var fragment = amgiPreloadTemplate.content;
+                var styleSheets = amgiPreloadStyleSheets(fragment.cloneNode(true));
+                var images = amgiPreloadImages(fragment.cloneNode(true));
+                var fonts = amgiPreloadFonts(fragment.cloneNode(true));
+                var timeout = fonts.length ? 800 : styleSheets.length ? 500 : images.length ? 200 : 0;
+                if (!timeout) return;
+                await Promise.race([
+                    Promise.all(styleSheets.concat(images, fonts)),
+                    new Promise(function(resolve) { window.setTimeout(resolve, timeout); })
+                ]);
+            } catch(e) { console.error('Preload failed', e); }
+        }
+
+        // ── Hooks ────────────────────────────────────────────────────────────
+        function amgiRunHooks(hooks) {
+            if (!Array.isArray(hooks)) return Promise.resolve([]);
+            var promises = [];
+            hooks.forEach(function(hook) {
+                try { if (typeof hook === 'function') promises.push(hook()); }
+                catch(e) { console.error('Hook failed', e); }
+            });
+            return Promise.allSettled(promises);
+        }
+
+        // ── Script re-execution (mirrors upstream replaceScript) ─────────────
+        function amgiReplaceScript(oldScript) {
+            return new Promise(function(resolve) {
+                var newScript = document.createElement('script');
+                var mustWaitForNetwork = !!oldScript.getAttribute('src');
+                oldScript.getAttributeNames().forEach(function(name) {
+                    if (name === 'type' || name === 'data-amgi-card-script') return;
+                    var v = oldScript.getAttribute(name);
+                    if (v !== null) newScript.setAttribute(name, v);
+                });
+                newScript.addEventListener('load', function() { resolve(); });
+                newScript.addEventListener('error', function() { resolve(); });
+                newScript.appendChild(document.createTextNode(oldScript.textContent || ''));
+                oldScript.replaceWith(newScript);
+                if (!mustWaitForNetwork) resolve();
+            });
+        }
+        async function amgiSetInnerHTML(element, html) {
+            // Pause & drain video elements first (mirrors upstream setInnerHTML)
+            Array.from(element.getElementsByTagName('video')).forEach(function(v) {
+                v.pause();
+                while (v.firstChild) v.removeChild(v.firstChild);
+                v.load();
+            });
+            element.innerHTML = html;
+            for (var script of Array.from(element.getElementsByTagName('script'))) {
+                await amgiReplaceScript(script);
+            }
+        }
+
+        // ── Audio ────────────────────────────────────────────────────────────
+        function setAudioButtonState(btn, state) {
+            if (!btn) return;
+            btn.innerHTML = state === 'pause' ? PAUSE_ICON_HTML : PLAY_ICON_HTML;
+        }
+        function notifyAudioState(isPlaying) {
+            window.__amgiAudioPlaying = !!isPlaying;
+            try { window.webkit.messageHandlers.amgiAudioState.postMessage(window.__amgiAudioPlaying); } catch(e) {}
+        }
+        function amgiStopTts() {
+            try { window.webkit.messageHandlers.amgiStopTts.postMessage(null); } catch(e) {}
+        }
+        window.amgiStopTts = amgiStopTts;
+        function stopAllSystemAudio() {
+            amgiStopTts();
+            document.querySelectorAll('.anki-sound-audio').forEach(function(a) {
+                if (!a.paused) a.pause();
+                a.currentTime = 0;
+                setAudioButtonState(a.nextElementSibling, 'play');
+                a.onended = null;
+            });
+            notifyAudioState(false);
+        }
+        function collectAudioQueue(mode) {
+            var all = Array.from(document.querySelectorAll('.anki-sound-audio'));
+            if (mode === 'question') return all;
+            var marker = document.getElementById('answer');
+            if (!marker) return all;
+            var after = all.filter(function(a) {
+                return !!(marker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+            return after.length > 0 ? after : all;
+        }
+        function splitAudioQueue() {
+            var all = Array.from(document.querySelectorAll('.anki-sound-audio'));
+            var marker = document.getElementById('answer');
+            if (!marker) return { question: all, answer: all };
+            var answer = all.filter(function(a) {
+                return !!(marker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+            var question = all.filter(function(a) {
+                return !(marker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+            return {
+                question: question.length ? question : all,
+                answer: answer.length ? answer : all
+            };
+        }
+        function replaySequential(queue) {
+            stopAllSystemAudio();
+            if (!queue || !queue.length) return;
+            var idx = 0;
+            notifyAudioState(true);
+            function playNext() {
+                if (idx >= queue.length) { notifyAudioState(false); return; }
+                var audio = queue[idx];
+                var btn = audio.nextElementSibling;
+                audio.currentTime = 0;
+                audio.play().catch(function() { idx++; playNext(); });
+                setAudioButtonState(btn, 'pause');
+                audio.onended = function() { setAudioButtonState(btn, 'play'); idx++; playNext(); };
+            }
+            playNext();
+        }
+        function amgiReplayAll(mode) {
+            if (document.querySelector('audio:not(.anki-sound-audio), video')) return;
+            replaySequential(collectAudioQueue(mode));
+        }
+        window.amgiReplayAll = amgiReplayAll;
+        function amgiPlayAudioElement(audio) {
+            if (!audio) return false;
+            stopAllSystemAudio(); notifyAudioState(true);
+            var btn = audio.nextElementSibling;
+            audio.currentTime = 0;
+            audio.play().catch(function() { setAudioButtonState(btn, 'play'); notifyAudioState(false); });
+            setAudioButtonState(btn, 'pause');
+            audio.onended = function() { setAudioButtonState(btn, 'play'); notifyAudioState(false); };
+            return false;
+        }
+        function playSound(btn) { return amgiPlayAudioElement(btn ? btn.previousElementSibling : null); }
+        window.playSound = playSound; globalThis.playSound = playSound;
+
+        // ── pycmd (compat shim) ──────────────────────────────────────────────
+        function pycmd(command) {
+            if (!command || typeof command !== 'string') return false;
+            if (command === 'replay') { amgiReplayAll(amgiReplayModeValue()); return false; }
+            if (command.startsWith('play:')) {
+                var parts = command.split(':');
+                var side = parts[1];
+                var index = parseInt(parts[2] || '0', 10);
+                if (Number.isNaN(index) || index < 0) return false;
+                var queues = splitAudioQueue();
+                return amgiPlayAudioElement((side === 'a' ? queues.answer : queues.question)[index]);
+            }
+            return false;
+        }
+        globalThis.pycmd = pycmd; window.pycmd = pycmd;
+
+        // ── Link handling ────────────────────────────────────────────────────
+        function postOpenLink(rawHref) {
+            if (!rawHref) return;
+            var resolved = rawHref;
+            try { resolved = new URL(rawHref, document.baseURI).toString(); } catch(e) {}
+            try { window.webkit.messageHandlers.amgiOpenLink.postMessage(resolved); } catch(e) {}
+        }
+        document.addEventListener('click', function(event) {
+            var anchor = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+            if (!anchor) return;
+            var href = anchor.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+            event.preventDefault();
+            postOpenLink(anchor.href || href);
+        });
+        window.open = function(url) { postOpenLink(url); return null; };
+
+        // ── TTS ──────────────────────────────────────────────────────────────
+        function amgiSpeakTts(btn) {
+            if (!btn) return false;
+            stopAllSystemAudio();
+            try {
+                window.webkit.messageHandlers.amgiSpeakTts.postMessage({
+                    text: btn.dataset.ttsText || '',
+                    lang: btn.dataset.ttsLang || '',
+                    voices: btn.dataset.ttsVoices || '',
+                    speed: btn.dataset.ttsSpeed || ''
+                });
+            } catch(e) {}
+            return false;
+        }
+        window.amgiSpeakTts = amgiSpeakTts; globalThis.amgiSpeakTts = amgiSpeakTts;
+
+        // ── Typed answer ─────────────────────────────────────────────────────
+        function amgiGetTypedAnswer() {
+            var input = document.getElementById('typeans');
+            return input ? input.value : null;
+        }
+        window.amgiGetTypedAnswer = amgiGetTypedAnswer;
+        window.getTypedAnswer = amgiGetTypedAnswer;
+        globalThis.getTypedAnswer = amgiGetTypedAnswer;
+        function amgiSubmitTypedAnswer() {
+            try { window.webkit.messageHandlers.amgiSubmitTypedAnswer.postMessage(amgiGetTypedAnswer()); } catch(e) {}
+        }
+        window.amgiSubmitTypedAnswer = amgiSubmitTypedAnswer;
+        function amgiEnsureTypedAnswerVisible() {
+            var input = document.getElementById('typeans');
+            if (!input) return;
+            try { input.scrollIntoView({ block: 'center', inline: 'nearest' }); }
+            catch(e) { input.scrollIntoView(); }
+        }
+        window.amgiEnsureTypedAnswerVisible = amgiEnsureTypedAnswerVisible;
+        window._typeAnsPress = function() {
+            var e = window.event || null;
+            if (e && e.key === 'Enter') { e.preventDefault(); amgiSubmitTypedAnswer(); return false; }
+            return true;
+        };
+        globalThis._typeAnsPress = window._typeAnsPress;
+
+        // ── Browser classes ──────────────────────────────────────────────────
+        function amgiAddBrowserClasses() {
+            var ua = navigator.userAgent.toLowerCase();
+            function add(c) { if (c) document.documentElement.classList.add(c); }
+            if (/ipad/.test(ua)) add('ipad');
+            else if (/iphone/.test(ua)) add('iphone');
+            else if (/android/.test(ua)) add('android');
+            if (/ipad|iphone|ipod/.test(ua)) add('ios');
+            if (/ipad|iphone|ipod|android/.test(ua)) add('mobile');
+            else if (/linux/.test(ua)) add('linux');
+            else if (/windows/.test(ua)) add('win');
+            else if (/mac/.test(ua)) add('mac');
+            if (/firefox\\//.test(ua)) add('firefox');
+            else if (/chrome\\//.test(ua)) add('chrome');
+            else if (/safari\\//.test(ua)) add('safari');
+        }
+        window.ankiPlatform = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) ? 'ios' : 'other';
+        globalThis.ankiPlatform = window.ankiPlatform;
+
+        // ── Image Occlusion ──────────────────────────────────────────────────
+        function amgiExtractIOShapes(selector) {
+            return Array.from(document.querySelectorAll(selector)).map(function(el) {
+                var pointsRaw = el.dataset.points;
+                var points = null;
+                if (pointsRaw) {
+                    var nums = pointsRaw.trim().split(/[\\s,]+/).map(Number).filter(function(v) { return !Number.isNaN(v); });
+                    points = [];
+                    for (var i = 0; i + 1 < nums.length; i += 2) points.push({ x: nums[i], y: nums[i+1] });
+                }
+                return {
+                    type: el.dataset.shape,
+                    left: parseFloat(el.dataset.left||'0'), top: parseFloat(el.dataset.top||'0'),
+                    width: parseFloat(el.dataset.width||'0'), height: parseFloat(el.dataset.height||'0'),
+                    rx: parseFloat(el.dataset.rx||'0'), ry: parseFloat(el.dataset.ry||'0'),
+                    angle: parseFloat(el.dataset.angle||'0'),
+                    text: el.dataset.text||'',
+                    scale: parseFloat(el.dataset.scale||'1'),
+                    fontSize: parseFloat(el.dataset.fontSize||'0'),
+                    fill: el.dataset.fill||'#000000',
+                    occludeInactive: (el.dataset.occludeInactive||el.dataset.occludeinactive||'')==='1',
+                    points: points
+                };
+            });
+        }
+        function amgiDrawIOShape(ctx, shape, size, fill, stroke) {
+            if (shape.type === 'text') {
+                var fontSize = shape.fontSize > 0 ? shape.fontSize * size.height : 40;
+                var scale = shape.scale > 0 ? shape.scale : 1;
+                ctx.save(); ctx.font = fontSize + 'px Arial'; ctx.textBaseline = 'top'; ctx.scale(scale, scale);
+                var lines = (shape.text || '').split('\\n');
+                var bm = ctx.measureText('M');
+                var fh = bm.actualBoundingBoxAscent + bm.actualBoundingBoxDescent;
+                var lh = 1.5 * fh; var maxW = 0;
+                var sl = shape.left * size.width / scale, st = shape.top * size.height / scale;
+                var angle = shape.angle * Math.PI / 180;
+                lines.forEach(function(l) { var w = ctx.measureText(l).width; if (w > maxW) maxW = w; });
+                if (angle) { ctx.translate(sl, st); ctx.rotate(angle); ctx.translate(-sl, -st); }
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(sl, st, maxW + 5, lines.length * lh + 5);
+                ctx.fillStyle = shape.fill || '#000000';
+                lines.forEach(function(l, i) { ctx.fillText(l, sl, st + i * lh); });
+                ctx.restore(); return;
+            }
+            if (shape.type === 'polygon' && shape.points && shape.points.length >= 2) {
+                ctx.save(); ctx.beginPath();
+                ctx.moveTo(shape.points[0].x * size.width, shape.points[0].y * size.height);
+                for (var pi = 1; pi < shape.points.length; pi++)
+                    ctx.lineTo(shape.points[pi].x * size.width, shape.points[pi].y * size.height);
+                ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+                ctx.restore(); return;
+            }
+            var left = shape.left * size.width, top = shape.top * size.height;
+            var angle = shape.angle * Math.PI / 180;
+            ctx.save(); ctx.translate(left, top); ctx.rotate(angle);
+            if (shape.type === 'rect') {
+                var sw = shape.width * size.width, sh = shape.height * size.height;
+                ctx.fillStyle = fill; ctx.fillRect(0, 0, sw, sh);
+                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.strokeRect(0, 0, sw, sh); }
+            } else if (shape.type === 'ellipse') {
+                var rx = shape.rx * size.width, ry = shape.ry * size.height;
+                ctx.beginPath(); ctx.ellipse(rx, ry, rx, ry, 0, 0, 2 * Math.PI);
+                ctx.fillStyle = fill; ctx.fill();
+                if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+            }
+            ctx.restore();
+        }
+        function amgiHitTestShape(shape, px, py, size) {
+            if (shape.type === 'polygon' && shape.points && shape.points.length >= 3) {
+                var inside = false;
+                for (var i = 0, j = shape.points.length - 1; i < shape.points.length; j = i++) {
+                    var xi = shape.points[i].x * size.width, yi = shape.points[i].y * size.height;
+                    var xj = shape.points[j].x * size.width, yj = shape.points[j].y * size.height;
+                    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+                }
+                return inside;
+            }
+            var angle = shape.angle * Math.PI / 180;
+            var ox = shape.left * size.width, oy = shape.top * size.height;
+            var dx = px - ox, dy = py - oy;
+            var lx = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+            var ly = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+            if (shape.type === 'rect') {
+                return lx >= 0 && lx <= shape.width * size.width && ly >= 0 && ly <= shape.height * size.height;
+            } else if (shape.type === 'ellipse') {
+                var rx = shape.rx * size.width, ry = shape.ry * size.height;
+                var ex = lx - rx, ey = ly - ry;
+                return (rx > 0 && ry > 0) ? ((ex*ex)/(rx*rx) + (ey*ey)/(ry*ry)) <= 1 : false;
+            }
+            return false;
+        }
+        var amgiIOOneTimeSetupDone = false;
+        function amgiSetupImageOcclusion() {
+            var container = document.getElementById('image-occlusion-container');
+            if (!container) return;
+            var img = container.querySelector('img');
+            if (!img) return;
+            var canvas = document.getElementById('image-occlusion-canvas');
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                canvas.id = 'image-occlusion-canvas';
+                container.appendChild(canvas);
+            }
+            if (!amgiIOOneTimeSetupDone) {
+                window.addEventListener('resize', function() { window.requestAnimationFrame(amgiSetupImageOcclusion); });
+                amgiIOOneTimeSetupDone = true;
+            }
+            function waitForImg(cb) {
+                if (!img || img.complete) { cb(); return; }
+                var fn = function() { img.removeEventListener('load', fn); img.removeEventListener('error', fn); cb(); };
+                img.addEventListener('load', fn); img.addEventListener('error', fn);
+            }
+            waitForImg(function() {
+                window.requestAnimationFrame(function() {
+                    var canvasRef = document.getElementById('image-occlusion-canvas');
+                    if (!canvasRef) return;
+                    var dpr = window.devicePixelRatio || 1;
+                    var width = img.offsetWidth, height = img.offsetHeight;
+                    if (!width || !height) return;
+                    canvasRef.style.width = width + 'px'; canvasRef.style.height = height + 'px';
+                    canvasRef.width = width * dpr; canvasRef.height = height * dpr;
+                    function collectShapes() {
+                        var shapes = [];
+                        ['cloze-inactive','cloze','cloze-highlight'].forEach(function(cls) {
+                            amgiExtractIOShapes('.' + cls + '[data-shape]').forEach(function(s) {
+                                s._cls = cls; s._revealed = false; shapes.push(s);
+                            });
+                        });
+                        container._amgiIOShapes = shapes;
+                    }
+                    function visibleShapes(textOnly) {
+                        return (container._amgiIOShapes || []).filter(function(s) {
+                            if (s._revealed) return false;
+                            if (textOnly && s.type !== 'text') return false;
+                            if (s._cls === 'cloze-inactive') return !!s.occludeInactive;
+                            return true;
+                        });
+                    }
+                    function redraw() {
+                        var ctx = canvasRef.getContext('2d');
+                        if (!ctx) return;
+                        ctx.setTransform(1, 0, 0, 1, 0, 0);
+                        ctx.clearRect(0, 0, canvasRef.width, canvasRef.height);
+                        ctx.scale(dpr, dpr);
+                        var masksHidden = !!container._amgiMasksHidden;
+                        canvasRef.style.pointerEvents = amgiIsAnswerSide() && !masksHidden ? 'auto' : 'none';
+                        canvasRef.style.cursor = amgiIsAnswerSide() && !masksHidden ? 'pointer' : 'default';
+                        var style = getComputedStyle(document.documentElement);
+                        var inactiveColor = style.getPropertyValue('--inactive-shape-color').trim() || '#ffeba2';
+                        var activeColor = style.getPropertyValue('--active-shape-color').trim() || '#ff8e8e';
+                        var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
+                        var border = '#212121';
+                        var size = { width: width, height: height };
+                        visibleShapes(masksHidden).forEach(function(s) {
+                            var fill = s._cls === 'cloze-inactive' ? inactiveColor : s._cls === 'cloze' ? activeColor : highlightColor;
+                            amgiDrawIOShape(ctx, s, size, fill, border);
+                        });
+                    }
+                    container._amgiRedrawIO = redraw;
+                    collectShapes();
+                    if (!canvasRef.dataset.amgiRevealBound) {
+                        canvasRef.addEventListener('click', function(event) {
+                            if (!amgiIsAnswerSide() || container._amgiMasksHidden) return;
+                            var rect = canvasRef.getBoundingClientRect();
+                            var px = event.clientX - rect.left, py = event.clientY - rect.top;
+                            var size = { width: img.offsetWidth, height: img.offsetHeight };
+                            var shapes = container._amgiIOShapes || [];
+                            for (var i = shapes.length - 1; i >= 0; i--) {
+                                if (amgiHitTestShape(shapes[i], px, py, size)) {
+                                    shapes[i]._revealed = !shapes[i]._revealed;
+                                    redraw(); break;
+                                }
+                            }
+                        });
+                        canvasRef.dataset.amgiRevealBound = '1';
+                    }
+                    var toggleBtn = document.getElementById('toggle') || document.querySelector('.toggle');
+                    var hasInactiveMasks = !!document.querySelector('[data-occludeinactive="1"], [data-occludeInactive="1"]');
+                    container._amgiToggleMasks = function(event) {
+                        if (event) { event.preventDefault(); event.stopPropagation(); }
+                        container._amgiMasksHidden = !container._amgiMasksHidden;
+                        if (!container._amgiMasksHidden)
+                            (container._amgiIOShapes || []).forEach(function(s) { s._revealed = false; });
+                        if (toggleBtn) toggleBtn.setAttribute('aria-pressed', container._amgiMasksHidden ? 'true' : 'false');
+                        redraw();
+                    };
+                    if (toggleBtn) {
+                        toggleBtn.type = 'button';
+                        toggleBtn.setAttribute('aria-pressed', container._amgiMasksHidden ? 'true' : 'false');
+                        if (!amgiIsAnswerSide() || !hasInactiveMasks) { toggleBtn.style.display = 'none'; }
+                        else {
+                            toggleBtn.style.display = '';
+                            if (!toggleBtn.dataset.amgiToggleBound) {
+                                toggleBtn.addEventListener('click', function(e) { if (container._amgiToggleMasks) container._amgiToggleMasks(e); });
+                                toggleBtn.dataset.amgiToggleBound = '1';
+                            }
+                        }
+                    }
+                    redraw();
+                });
+            });
+        }
+        window.amgiSetupImageOcclusion = amgiSetupImageOcclusion;
+
+        // anki.imageOcclusion / anki.setupImageCloze compat shims
+        var anki = globalThis.anki || {};
+        globalThis.anki = anki; window.anki = anki;
+        anki.addBrowserClasses = amgiAddBrowserClasses;
+        anki.imageOcclusion = anki.imageOcclusion || {};
+        anki.imageOcclusion.setup = amgiSetupImageOcclusion;
+        anki.imageOcclusion.drawShape = amgiDrawIOShape;
+        anki.imageOcclusion.Shape = anki.imageOcclusion.Shape || function Shape() {};
+        anki.imageOcclusion.Text = anki.imageOcclusion.Text || function Text() {};
+        anki.imageOcclusion.Rectangle = anki.imageOcclusion.Rectangle || function Rectangle() {};
+        anki.imageOcclusion.Ellipse = anki.imageOcclusion.Ellipse || function Ellipse() {};
+        anki.imageOcclusion.Polygon = anki.imageOcclusion.Polygon || function Polygon() {};
+        anki.setupImageCloze = function() { amgiSetupImageOcclusion(); };
+        amgiAddBrowserClasses();
+
+        // ── Core QA update (mirrors upstream _updateQA) ──────────────────────
+        async function amgiUpdateQA(html, state, onupdate, onshown) {
+            window.onUpdateHook = [];
+            window.onShownHook = [];
+            if (typeof onupdate === 'function') window.onUpdateHook.push(onupdate);
+            if (typeof onshown === 'function') window.onShownHook.push(onshown);
+
+            var qa = document.getElementById('qa');
+            if (!qa) return;
+
+            stopAllSystemAudio();
+            amgiApplyCardState(state || {});
+            await amgiPreloadResources(html || '');
+
+            qa.style.opacity = '0';
+            try { await amgiSetInnerHTML(qa, html || ''); }
+            catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
+
+            await amgiRunHooks(window.onUpdateHook);
+
+            // MathJax typeset
+            if (window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
+                try {
+                    await window.MathJax.startup.promise;
+                    if (typeof window.MathJax.typesetClear === 'function') window.MathJax.typesetClear();
+                    if (typeof window.MathJax.typesetPromise === 'function') await window.MathJax.typesetPromise([qa]);
+                } catch(e) { console.error('MathJax failed', e); }
+            }
+
+            qa.style.opacity = '1';
+
+            // Detect missing media
+            document.querySelectorAll('img').forEach(function(img) {
+                img.onerror = function() {
+                    var hint = document.createElement('span');
+                    hint.className = 'missing-media';
+                    hint.textContent = '\\u26a0 ' + (img.getAttribute('src') || 'image');
+                    img.replaceWith(hint);
+                };
+                if (img.complete && img.naturalWidth === 0 && img.src) img.onerror();
+            });
+            document.querySelectorAll('.sound-btn').forEach(function(span) {
+                var audio = span.querySelector('audio');
+                if (!audio) return;
+                audio.onerror = function() {
+                    var hint = document.createElement('span');
+                    hint.className = 'missing-media';
+                    hint.textContent = '\\u26a0 ' + (audio.getAttribute('src') || 'audio');
+                    span.replaceWith(hint);
+                };
+            });
+
+            var typeInput = document.getElementById('typeans');
+            if (typeInput) {
+                var ensureVisible = function() { window.setTimeout(amgiEnsureTypedAnswerVisible, 180); };
+                typeInput.addEventListener('focus', ensureVisible);
+                typeInput.addEventListener('click', ensureVisible);
+                typeInput.addEventListener('input', ensureVisible);
+                typeInput.focus(); ensureVisible();
+            }
+
+            amgiSetupImageOcclusion();
+            await amgiRunHooks(window.onShownHook);
+        }
+
+        // ── Serial queue (mirrors upstream _queueAction) ─────────────────────
+        function amgiQueueAction(action) {
+            window.__amgiUpdateQueue = (window.__amgiUpdateQueue || Promise.resolve()).then(action);
+        }
+
+        // ── Public API called from Swift via evaluateJavaScript ───────────────
+        function _showQuestion(html, prefetchHTML, bodyclass, autoplay, replayMode, alignTop, bodyPaddingBottom, cardPaddingBottom) {
+            amgiQueueAction(function() {
+                return amgiUpdateQA(
+                    html,
+                    {
+                        isAnswerSide: false,
+                        bodyClass: bodyclass,
+                        autoplayEnabled: !!autoplay,
+                        replayMode: replayMode || 'question',
+                        alignTop: !!alignTop,
+                        bodyPaddingBottom: bodyPaddingBottom || 16,
+                        cardPaddingBottom: cardPaddingBottom || 0,
+                        prefetchHTML: prefetchHTML || ''
+                    },
+                    function() {
+                        window.scrollTo(0, 0);
+                    },
+                    function() {
+                        var typeans = document.getElementById('typeans');
+                        if (typeans) typeans.focus();
+                        var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
+                        if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
+                        var ph = amgiPrefetchHTMLValue();
+                        if (ph) amgiAllImagesLoaded().then(function() { return amgiPreloadResources(ph); });
+                    }
+                );
+            });
+        }
+
+        function _showAnswer(html, bodyclass, autoplay, replayMode, alignTop, bodyPaddingBottom, cardPaddingBottom) {
+            amgiQueueAction(function() {
+                return amgiUpdateQA(
+                    html,
+                    {
+                        isAnswerSide: true,
+                        bodyClass: bodyclass,
+                        autoplayEnabled: !!autoplay,
+                        replayMode: replayMode || 'answerOnly',
+                        alignTop: !!alignTop,
+                        bodyPaddingBottom: bodyPaddingBottom || 16,
+                        cardPaddingBottom: cardPaddingBottom || 0,
+                        prefetchHTML: ''
+                    },
+                    function() {
+                        // scroll to answer after images load
+                        amgiAllImagesLoaded().then(function() {
+                            var marker = document.getElementById('answer');
+                            if (marker) marker.scrollIntoView();
+                        });
+                    },
+                    function() {
+                        var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
+                        if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
+                    }
+                );
+            });
+        }
+
+        window._showQuestion = _showQuestion;
+        window._showAnswer = _showAnswer;
+        </script>
+        </head>
+        <body><div id="qa" class="card-frame"></div></body>
+        </html>
+        """
+    }
+
+    /// Builds the evaluateJavaScript call that shows the card.
+    /// HTML content is passed as JS string arguments – never embedded inside
+    /// a <script> tag in the page source – eliminating </script> injection risk.
+    private static func showCardScript(
+        processedHTML: String,
+        prefetchHTML: String?,
+        isAnswerSide: Bool,
+        bodyClass: String,
+        autoplayEnabled: Bool,
+        replayMode: String,
+        alignTop: Bool,
+        bodyPaddingBottom: Int,
+        cardPaddingBottom: Int
+    ) -> String {
+        let htmlLit = jsStringLiteral(processedHTML)
+        let autoplay = autoplayEnabled ? "true" : "false"
+        let alignTopStr = alignTop ? "true" : "false"
+
+        if isAnswerSide {
+            return "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom));"
+        } else {
+            let prefetchLit = jsStringLiteral(prefetchHTML ?? "")
+            return "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom));"
+        }
+    }
 
     /// Converts Anki `[sound:filename.ext]` markers to a hidden `<audio>` + styled play button.
     private static func expandSoundTags(
@@ -1577,41 +1140,6 @@ struct CardWebView: UIViewRepresentable {
         }
 
         return result
-    }
-
-    private static func cardStateLiteral(
-        autoplayEnabled: Bool,
-        isAnswerSide: Bool,
-        replayMode: String,
-        bodyClass: String,
-        alignTop: Bool,
-        bodyPaddingBottom: Int,
-        cardPaddingBottom: Int,
-        prefetchHTML: String?
-    ) -> String {
-        let state: [String: Any] = [
-            "autoplayEnabled": autoplayEnabled,
-            "isAnswerSide": isAnswerSide,
-            "replayMode": replayMode,
-            "bodyClass": bodyClass,
-            "alignTop": alignTop,
-            "bodyPaddingBottom": bodyPaddingBottom,
-            "cardPaddingBottom": cardPaddingBottom,
-            "prefetchHTML": prefetchHTML ?? "",
-        ]
-
-        guard JSONSerialization.isValidJSONObject(state),
-              let data = try? JSONSerialization.data(withJSONObject: state, options: []),
-              let literal = String(data: data, encoding: .utf8) else {
-            return "{}"
-        }
-
-        // Escape </script> in JSON values so the literal is safe inside a <script> block
-        return literal.replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
-    }
-
-    private static func updateCardScript(html: String, cardStateLiteral: String) -> String {
-        "window.amgiQueueQAUpdate && window.amgiQueueQAUpdate(\(jsStringLiteral(html)), \(cardStateLiteral));"
     }
 
     private static func parseTTSAttributes(_ raw: String) -> [String: String] {
