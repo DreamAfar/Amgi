@@ -325,6 +325,8 @@
 "empty_cards_section_list" = "影響するノート";
 "empty_cards_note_id" = "ノート %lld";
 "empty_cards_card_count" = "%d 枚の空のカード";
+"empty_cards_note_summary" = "全 %d 枚中、空のカードは %d 枚です。";
+"empty_cards_note_deck" = "デッキ：%@";
 "empty_cards_will_delete_note" = "これらのカードを削除すると、ノートも削除されます。";
 "empty_cards_delete_all" = "すべての空のカードを削除";
 "empty_cards_delete_confirm_title" = "空のカードを削除";
@@ -1009,6 +1011,7 @@
 "debug_check_db" = "データベースをチェック";
 "debug_check_db_ok" = "DBチェック正常（%d バイト）";
 "debug_check_db_error" = "DBチェックエラー：%@";
+"settings_check_database_no_issues" = "データベースチェックが完了しました。問題は見つかりませんでした。";
 "debug_reset_button" = "すべてリセット";
 "debug_reset_confirm_msg" = "ローカルコレクションと資格情報を削除します。再同期が必要になります。";
 "debug_reset_confirm_button" = "リセット";

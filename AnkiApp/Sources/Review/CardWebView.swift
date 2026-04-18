@@ -218,6 +218,7 @@ struct CardWebView: UIViewRepresentable {
         baseTag: String
     ) -> String {
         let colorScheme = isDarkMode ? "dark" : "light"
+        let defaultCardBackground = isDarkMode ? "#1f1f22" : "transparent"
         let textColor = isDarkMode ? "#f5f5f5" : "#1a1a1a"
         let hrColor = isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"
         let typeBorderColor = isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)"
@@ -245,7 +246,7 @@ struct CardWebView: UIViewRepresentable {
             tex: {
                 inlineMath: [["\\\\(", "\\\\)"], ["$", "$"]],
                 displayMath: [["$$", "$$"], ["\\\\[", "\\\\]"]],
-                processEscapes: false,
+                processEscapes: true,
                 processEnvironments: false,
                 processRefs: false
             },
@@ -254,12 +255,16 @@ struct CardWebView: UIViewRepresentable {
         </script>
         <script src="\(mathJaxScriptURL)" async></script>
         <style>
-            :root { color-scheme: \(colorScheme); }
+            :root {
+                color-scheme: \(colorScheme);
+                --amgi-default-card-bg: \(defaultCardBackground);
+                --amgi-default-card-fg: \(textColor);
+            }
             html, body { background: transparent; overflow-x: hidden; }
             body {
                 font-family: -apple-system, system-ui;
                 font-size: 18px; line-height: 1.5;
-                color: \(textColor); background: transparent;
+                color: var(--amgi-default-card-fg); background: var(--amgi-default-card-bg);
                 padding: 16px 16px var(--amgi-body-padding-bottom, 16px);
                 margin: 0; box-sizing: border-box; text-align: center;
                 display: flex; align-items: var(--amgi-body-align-items, center);
@@ -445,6 +450,26 @@ struct CardWebView: UIViewRepresentable {
                 catch(e) { console.error('Hook failed', e); }
             });
             return Promise.allSettled(promises);
+        }
+
+        async function amgiTypesetMath(container) {
+            if (!window.MathJax) return;
+
+            var ready = false;
+            for (var i = 0; i < 60; i++) {
+                if (window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
+                    ready = true;
+                    break;
+                }
+                await new Promise(function(resolve) { setTimeout(resolve, 50); });
+            }
+            if (!ready) return;
+
+            try {
+                await window.MathJax.startup.promise;
+                if (typeof window.MathJax.typesetClear === 'function') window.MathJax.typesetClear();
+                if (typeof window.MathJax.typesetPromise === 'function') await window.MathJax.typesetPromise([container]);
+            } catch(e) { console.error('MathJax failed', e); }
         }
 
         // ── Script re-execution (mirrors upstream replaceScript) ─────────────
@@ -893,14 +918,7 @@ struct CardWebView: UIViewRepresentable {
 
             await amgiRunHooks(window.onUpdateHook);
 
-            // MathJax typeset
-            if (window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
-                try {
-                    await window.MathJax.startup.promise;
-                    if (typeof window.MathJax.typesetClear === 'function') window.MathJax.typesetClear();
-                    if (typeof window.MathJax.typesetPromise === 'function') await window.MathJax.typesetPromise([qa]);
-                } catch(e) { console.error('MathJax failed', e); }
-            }
+            await amgiTypesetMath(qa);
 
             qa.style.opacity = '1';
 

@@ -188,7 +188,9 @@ extension AnkiBackend {
         public static let open: UInt32 = 0
         public static let close: UInt32 = 1
         public static let latestProgress: UInt32 = 4
-        public static let undo: UInt32 = 2
+        // BackendCollectionService has 6 backend-specific methods first.
+        // CollectionService.Undo is proto index 2, so delegated index is 6 + 2 = 8.
+        public static let undo: UInt32 = 8
     }
 
     public enum CheckDatabaseMethod {

@@ -325,6 +325,8 @@
 "empty_cards_section_list" = "受影响的笔记";
 "empty_cards_note_id" = "笔记 %lld";
 "empty_cards_card_count" = "%d 张空卡片";
+"empty_cards_note_summary" = "共有 %d 张卡片，其中 %d 张空卡片。";
+"empty_cards_note_deck" = "牌组：%@";
 "empty_cards_will_delete_note" = "删除这些卡片也会删除所属笔记。";
 "empty_cards_delete_all" = "删除所有空卡片";
 "empty_cards_delete_confirm_title" = "删除空卡片";
@@ -1007,6 +1009,7 @@
 "debug_check_db" = "检查数据库";
 "debug_check_db_ok" = "数据库检查正常（%d 字节）";
 "debug_check_db_error" = "数据库检查错误：%@";
+"settings_check_database_no_issues" = "数据库检查完成，未发现问题。";
 "debug_reset_button" = "重置所有数据";
 "debug_reset_confirm_msg" = "此操作将删除您的本地卡牌库和凭据，您需要重新同步。";
 "debug_reset_confirm_button" = "重置";

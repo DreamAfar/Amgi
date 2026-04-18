@@ -1,11 +1,14 @@
 import SwiftUI
 import AnkiBackend
+import AnkiClients
 import AnkiProto
 import Dependencies
 import SwiftProtobuf
 
 struct EmptyCardsView: View {
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.cardClient) var cardClient
+    @Dependency(\.deckClient) var deckClient
     @Environment(\.dismiss) private var dismiss
 
     @State private var isLoading = true
@@ -20,6 +23,9 @@ struct EmptyCardsView: View {
     struct NoteEntry: Identifiable {
         let id: Int64
         let cardIds: [Int64]
+        let totalCards: Int
+        let emptyCards: Int
+        let deckName: String
         let willDeleteNote: Bool
     }
 
@@ -99,7 +105,10 @@ struct EmptyCardsView: View {
                             Text(L("empty_cards_note_id", entry.id))
                                 .font(.subheadline.monospacedDigit())
                                 .foregroundStyle(Color.amgiTextPrimary)
-                            Text(L("empty_cards_card_count", entry.cardIds.count))
+                            Text(L("empty_cards_note_summary", entry.totalCards, entry.emptyCards))
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                            Text(L("empty_cards_note_deck", entry.deckName))
                                 .amgiFont(.caption)
                                 .foregroundStyle(Color.amgiTextSecondary)
                             if entry.willDeleteNote {
@@ -136,6 +145,8 @@ struct EmptyCardsView: View {
 
     private func loadEmptyCards() async {
         let capturedBackend = backend
+        let capturedCardClient = cardClient
+        let capturedDeckClient = deckClient
         do {
             let response: Anki_CardRendering_EmptyCardsReport = try await Task.detached {
                 try capturedBackend.invoke(
@@ -144,8 +155,23 @@ struct EmptyCardsView: View {
                 )
             }.value
             report = response.report
-            noteEntries = response.notes.map {
-                NoteEntry(id: $0.noteID, cardIds: $0.cardIds, willDeleteNote: $0.willDeleteNote)
+
+            let deckById = (try? capturedDeckClient.fetchAll())?.reduce(into: [Int64: String]()) { partial, deck in
+                partial[deck.id] = deck.name
+            } ?? [:]
+
+            noteEntries = response.notes.map { note in
+                let cards = (try? capturedCardClient.fetchByNote(note.noteID)) ?? []
+                let totalCards = max(cards.count, note.cardIds.count)
+                let deckName = cards.first.flatMap { deckById[$0.did] } ?? "-"
+                return NoteEntry(
+                    id: note.noteID,
+                    cardIds: note.cardIds,
+                    totalCards: totalCards,
+                    emptyCards: note.cardIds.count,
+                    deckName: deckName,
+                    willDeleteNote: note.willDeleteNote
+                )
             }
         } catch {
             errorMessage = error.localizedDescription

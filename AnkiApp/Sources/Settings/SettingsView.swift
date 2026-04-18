@@ -101,6 +101,9 @@ struct SettingsView: View {
 
     @State private var maintenanceMessage: String?
     @State private var showMaintenanceAlert = false
+    @State private var isCheckingDatabase = false
+    @State private var databaseCheckResult = ""
+    @State private var showDatabaseCheckResult = false
     @State private var isCheckingMedia = false
     @State private var mediaCheckResult: MediaCheckResult?
     @State private var showMediaCheckResult = false
@@ -237,14 +240,25 @@ struct SettingsView: View {
                 Button {
                     checkDatabase()
                 } label: {
-                    HStack {
-                        settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
-                            .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
+                    if isCheckingDatabase {
+                        HStack {
+                            settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
+                                .foregroundStyle(SettingsValueStyle.primary)
+                            Spacer()
+                            ProgressView()
+                        }
+                        .contentShape(Rectangle())
+                    } else {
+                        HStack {
+                            settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
+                                .foregroundStyle(SettingsValueStyle.primary)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
                     }
-                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .disabled(isCheckingDatabase)
                 .amgiSettingsListRowSurface()
 
                 Button {
@@ -308,6 +322,14 @@ struct SettingsView: View {
                 MediaCheckResultView(result: result)
             }
         }
+        .sheet(isPresented: $showDatabaseCheckResult) {
+            NavigationStack {
+                SettingsInfoView(
+                    title: L("settings_row_check_database"),
+                    message: databaseCheckResult
+                )
+            }
+        }
     }
 
     private func settingsRowLabel(_ title: String, icon: String) -> some View {
@@ -317,16 +339,32 @@ struct SettingsView: View {
     }
 
     private func checkDatabase() {
-        do {
-            let responseBytes = try backend.call(
-                service: AnkiBackend.Service.collection,
-                method: AnkiBackend.CheckDatabaseMethod.checkDatabase
-            )
-            maintenanceMessage = L("debug_check_db_ok", responseBytes.count)
-            showMaintenanceAlert = true
-        } catch {
-            maintenanceMessage = L("debug_check_db_error", "\(error)")
-            showMaintenanceAlert = true
+        isCheckingDatabase = true
+        let capturedBackend = backend
+        Task.detached {
+            do {
+                let response: Anki_Collection_CheckDatabaseResponse = try capturedBackend.invoke(
+                    service: AnkiBackend.Service.collection,
+                    method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+                )
+                let resultText: String
+                if response.problems.isEmpty {
+                    resultText = L("settings_check_database_no_issues")
+                } else {
+                    resultText = response.problems.joined(separator: "\n")
+                }
+                await MainActor.run {
+                    isCheckingDatabase = false
+                    databaseCheckResult = resultText
+                    showDatabaseCheckResult = true
+                }
+            } catch {
+                await MainActor.run {
+                    isCheckingDatabase = false
+                    maintenanceMessage = L("debug_check_db_error", error.localizedDescription)
+                    showMaintenanceAlert = true
+                }
+            }
         }
     }
 

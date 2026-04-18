@@ -325,6 +325,8 @@
 "empty_cards_section_list" = "Affected Notes";
 "empty_cards_note_id" = "Note %lld";
 "empty_cards_card_count" = "%d empty card(s)";
+"empty_cards_note_summary" = "%d cards total, %d empty.";
+"empty_cards_note_deck" = "Deck: %@";
 "empty_cards_will_delete_note" = "Deleting these cards will also delete the note.";
 "empty_cards_delete_all" = "Delete All Empty Cards";
 "empty_cards_delete_confirm_title" = "Delete Empty Cards";
@@ -1007,6 +1009,7 @@
 "debug_check_db" = "Check Database";
 "debug_check_db_ok" = "CheckDatabase OK (%d bytes)";
 "debug_check_db_error" = "CheckDatabase error: %@";
+"settings_check_database_no_issues" = "Database check completed. No issues found.";
 "debug_reset_button" = "Reset Everything";
 "debug_reset_confirm_msg" = "This will delete your local collection and credentials. You'll need to sync again.";
 
