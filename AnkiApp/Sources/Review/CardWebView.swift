@@ -1401,7 +1401,7 @@ struct CardWebView: UIViewRepresentable {
 
             // Allow local card document loads and same-document anchors.
             let scheme = url.scheme?.lowercased()
-            if url.isFileURL || scheme == "about" || scheme == "javascript" {
+            if url.isFileURL || scheme == "about" || scheme == "javascript" || scheme == CardAssetPath.scheme {
                 decisionHandler(.allow)
                 return
             }
