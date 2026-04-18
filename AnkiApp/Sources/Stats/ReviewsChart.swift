@@ -98,7 +98,13 @@ struct ReviewsChart: View {
         StatsDualAxisSupport.ticks(
             domainMax: Double(totalValue),
             plottedMax: leftAxisMax,
-            formatter: { value in String(Int(value.rounded())) }
+            formatter: { value in
+                if showTime {
+                    return formatTime(Int(value.rounded()))
+                } else {
+                    return String(Int(value.rounded()))
+                }
+            }
         )
     }
     private var uniqueStudyDays: Int { Set(entries.map(\.bucket)).count }
