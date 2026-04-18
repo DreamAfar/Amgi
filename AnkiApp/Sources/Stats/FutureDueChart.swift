@@ -8,6 +8,17 @@ struct FutureDueChart: View {
     @State private var includeBacklog = false
     @State private var selectedDay: Int?
 
+    private var xAxisDesiredTickCount: Int {
+        switch period {
+        case .day: return 3
+        case .week: return 5
+        case .month: return 6
+        case .threeMonths: return 7
+        case .year: return 8
+        case .all: return 10
+        }
+    }
+
     private struct CumulativePoint: Identifiable {
         let id: Int
         let day: Int
@@ -187,7 +198,7 @@ struct FutureDueChart: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 6)) { value in
+                    AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         if let day = value.as(Int.self) {

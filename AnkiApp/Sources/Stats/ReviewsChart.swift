@@ -179,6 +179,17 @@ struct ReviewsChart: View {
         return max(periodMin, dataMin)
     }
 
+    private var xAxisDesiredTickCount: Int {
+        switch period {
+        case .day: return 3
+        case .week: return 5
+        case .month: return 6
+        case .threeMonths: return 7
+        case .year: return 8
+        case .all: return 10
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             HStack {
@@ -344,7 +355,7 @@ struct ReviewsChart: View {
         .chartXScale(domain: xAxisMin...0)
         .chartYScale(domain: 0...leftAxisMax)
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 6)) { _ in
+            AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { _ in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                     .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                 AxisValueLabel()

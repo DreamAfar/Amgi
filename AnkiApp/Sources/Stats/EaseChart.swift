@@ -33,6 +33,18 @@ struct EaseChart: View {
         return chartData.first(where: { $0.ease == selectedEase })
     }
 
+    private var maxCount: Int { chartData.map(\.count).max() ?? 0 }
+    private var yAxisMax: Double {
+        StatsDualAxisSupport.niceUpperBound(Double(maxCount))
+    }
+    private var yAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: yAxisMax,
+            plottedMax: yAxisMax,
+            formatter: { value in StatsDualAxisSupport.formatCount(value) }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             HStack {
@@ -110,6 +122,21 @@ struct EaseChart: View {
                         if let v = value.as(Int.self) {
                             AxisValueLabel {
                                 Text("\(v / 10)%")
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
+                    }
+                }
+                .chartYScale(domain: 0...yAxisMax)
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                        if let raw = value.as(Double.self),
+                           let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                            AxisValueLabel {
+                                Text(tick.label)
                                     .amgiFont(.micro)
                                     .foregroundStyle(Color.amgiTextSecondary)
                             }

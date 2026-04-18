@@ -64,6 +64,18 @@ struct ButtonsChart: View {
         return entries.first(where: { $0.id == selectedBarKey })
     }
 
+    private var maxCount: Int { entries.map(\.count).max() ?? 0 }
+    private var yAxisMax: Double {
+        StatsDualAxisSupport.niceUpperBound(Double(maxCount))
+    }
+    private var yAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: yAxisMax,
+            plottedMax: yAxisMax,
+            formatter: { value in StatsDualAxisSupport.formatCount(value) }
+        )
+    }
+
     private func totalForType(_ typeIndex: Int) -> Int {
         entries
             .filter { $0.typeIndex == typeIndex }
@@ -153,6 +165,21 @@ struct ButtonsChart: View {
             }
         }
         .chartForegroundStyleScale(colorScale)
+        .chartYScale(domain: 0...yAxisMax)
+        .chartYAxis {
+            AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                if let raw = value.as(Double.self),
+                   let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                    AxisValueLabel {
+                        Text(tick.label)
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                }
+            }
+        }
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle()
