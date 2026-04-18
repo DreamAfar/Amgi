@@ -5,6 +5,7 @@ import AnkiBackend
 import AnkiKit
 import AnkiClients
 import AnkiProto
+import SwiftProtobuf
 import Dependencies
 import UIKit
 

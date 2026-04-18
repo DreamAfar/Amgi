@@ -1,6 +1,7 @@
 import AnkiKit
 import AnkiBackend
 import AnkiProto
+import SwiftProtobuf
 public import Dependencies
 import DependenciesMacros
 
