@@ -34,6 +34,7 @@ struct ReviewView: View {
     @State private var fieldManagerTarget: ReviewFieldManagerTarget?
     @State private var toolbarErrorMessage: String?
     @State private var showToolbarError = false
+    @State private var showDeleteNoteConfirm = false
     @State private var showSetDueDateSheet = false
     @State private var setDueDateInput = ""
     @State private var setDueDateCardID: Int64?
@@ -118,22 +119,15 @@ struct ReviewView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showCardInfo = true
+                        Task { await openCurrentCardTemplateEditor() }
                     } label: {
-                        Image(systemName: "info.circle")
+                        Image(systemName: "square.and.pencil")
                     }
-                    .accessibilityLabel(L("card_info_title"))
+                    .accessibilityLabel(L("card_template_editor_title"))
                     .disabled(session.currentCard == nil)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button {
-                            Task { await openCurrentCardTemplateEditor() }
-                        } label: {
-                            Label(L("card_template_editor_title"), systemImage: "square.and.pencil")
-                        }
-                        .disabled(session.currentCard == nil)
-
                         Button {
                             Task { await openMoveCurrentCardToDeck() }
                         } label: {
@@ -145,6 +139,22 @@ struct ReviewView: View {
                             openChangeCurrentCardNotetype()
                         } label: {
                             Label(L("browse_batch_change_notetype"), systemImage: "doc.badge.gearshape")
+                        }
+                        .disabled(session.currentCard == nil)
+
+                        Divider()
+
+                        Button(role: .destructive) {
+                            showDeleteNoteConfirm = true
+                        } label: {
+                            Label(L("browse_batch_delete_notes"), systemImage: "trash")
+                        }
+                        .disabled(session.currentCard == nil)
+
+                        Button {
+                            showCardInfo = true
+                        } label: {
+                            Label(L("card_info_title"), systemImage: "info.circle")
                         }
                         .disabled(session.currentCard == nil)
                     } label: {
@@ -241,6 +251,14 @@ struct ReviewView: View {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
             Text(toolbarErrorMessage ?? L("common_unknown_error"))
+        }
+        .alert(L("browse_batch_delete_notes"), isPresented: $showDeleteNoteConfirm) {
+            Button(L("common_cancel"), role: .cancel) {}
+            Button(L("common_delete"), role: .destructive) {
+                Task { await deleteCurrentNote() }
+            }
+        } message: {
+            Text(L("review_delete_note_message"))
         }
         .overlay {
             if let symbol = answerFeedbackSymbol {
@@ -515,6 +533,17 @@ struct ReviewView: View {
         guard let noteId = session.currentCard?.card.noteID else { return }
         guard let note = try? noteClient.fetch(noteId) else { return }
         editingNote = note
+    }
+
+    private func deleteCurrentNote() async {
+        guard let noteId = session.currentCard?.card.noteID else { return }
+        do {
+            try noteClient.delete(noteId)
+            await session.refreshAfterCardMutation()
+        } catch {
+            toolbarErrorMessage = L("review_delete_note_error", error.localizedDescription)
+            showToolbarError = true
+        }
     }
 
     private func openCurrentCardStats() {

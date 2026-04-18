@@ -674,6 +674,8 @@
 "review_current_card_stats" = "当前卡片统计";
 "review_edit_button" = "编辑";
 "review_more_actions" = "更多操作";
+"review_delete_note_message" = "将删除该笔记及其所有卡片，操作不可撤销。";
+"review_delete_note_error" = "删除笔记失败：%@";
 "review_no_decks_available" = "没有可用牌组";
 "review_move_deck_failed" = "移动卡片失败：%@";
 "review_show_answer" = "显示答案";

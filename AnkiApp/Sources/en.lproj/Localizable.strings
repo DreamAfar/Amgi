@@ -674,6 +674,8 @@
 "review_current_card_stats" = "Card Stats";
 "review_edit_button" = "Edit";
 "review_more_actions" = "More Actions";
+"review_delete_note_message" = "This will delete the note and all its cards. This cannot be undone.";
+"review_delete_note_error" = "Failed to delete note: %@";
 "review_no_decks_available" = "No decks available";
 "review_move_deck_failed" = "Failed to move card: %@";
 "review_show_answer" = "Show Answer";

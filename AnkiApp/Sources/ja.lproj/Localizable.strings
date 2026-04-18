@@ -674,6 +674,8 @@
 "review_current_card_stats" = "現在のカード統計";
 "review_edit_button" = "編集";
 "review_more_actions" = "その他の操作";
+"review_delete_note_message" = "このノートとすべてのカードを削除します。この操作は元に戺せません。";
+"review_delete_note_error" = "ノートの削除に失敗：%@";
 "review_no_decks_available" = "利用可能なデッキがありません";
 "review_move_deck_failed" = "カードの移動に失敗しました：%@";
 "review_show_answer" = "答えを表示";
