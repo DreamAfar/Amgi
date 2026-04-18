@@ -31,16 +31,14 @@ extension NoteClient: DependencyKey {
         }
 
         @Sendable func backendFetchBatch(_ ids: [Int64]) -> [NoteRecord] {
+            guard !ids.isEmpty else { return [] }
+            guard let notePayloads = try? backend.getNotesBatch(noteIds: ids) else {
+                return []
+            }
             var results: [NoteRecord] = []
-            results.reserveCapacity(ids.count)
-            for nid in ids {
-                var r = Anki_Notes_NoteId()
-                r.nid = nid
-                if let note = try? backend.invoke(
-                    service: AnkiBackend.Service.notes,
-                    method: AnkiBackend.NotesMethod.getNote,
-                    request: r
-                ) as Anki_Notes_Note {
+            results.reserveCapacity(notePayloads.count)
+            for payload in notePayloads {
+                if let note = try? Anki_Notes_Note(serializedBytes: payload) {
                     results.append(noteRecordFromProto(note))
                 }
             }

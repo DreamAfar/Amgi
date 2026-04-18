@@ -161,6 +161,77 @@ public final class AnkiBackend: Sendable {
         default: throw BackendError(kind: .ioError, message: "FFI error (status \(status))")
         }
     }
+
+    // MARK: - Batch Note Fetch
+
+    /// Fetch multiple notes in a single C FFI call instead of N separate calls.
+    /// Returns serialized `Anki_Notes_Note` protobufs; missing notes are omitted.
+    public func getNotesBatch(noteIds: [Int64]) throws -> [Data] {
+        guard !noteIds.isEmpty else { return [] }
+
+        // Request format: [count: u32_le][nid_0: i64_le]...
+        var requestData = Data(capacity: 4 + noteIds.count * 8)
+        withUnsafeBytes(of: UInt32(noteIds.count).littleEndian) { requestData.append(contentsOf: $0) }
+        for nid in noteIds {
+            withUnsafeBytes(of: nid.littleEndian) { requestData.append(contentsOf: $0) }
+        }
+
+        lock.lock()
+        defer { lock.unlock() }
+
+        var outPtr: UnsafeMutablePointer<UInt8>? = nil
+        var outLen: Int = 0
+
+        let status = requestData.withUnsafeBytes { buf in
+            anki_get_notes_batch(
+                backendPtr,
+                buf.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                buf.count,
+                &outPtr,
+                &outLen
+            )
+        }
+
+        defer {
+            if let outPtr { anki_free_response(outPtr, outLen) }
+        }
+
+        guard status == 0, let outPtr, outLen >= 4 else {
+            throw BackendError(kind: .ioError, message: "getNotesBatch failed (status \(status))")
+        }
+
+        let responseData = Data(bytes: outPtr, count: outLen)
+        return Self.decodeNotesBatchResponse(responseData)
+    }
+
+    private static func decodeNotesBatchResponse(_ data: Data) -> [Data] {
+        guard data.count >= 4 else { return [] }
+
+        func readUInt32LE(_ data: Data, _ index: Int) -> UInt32 {
+            UInt32(data[index])
+                | (UInt32(data[index + 1]) << 8)
+                | (UInt32(data[index + 2]) << 16)
+                | (UInt32(data[index + 3]) << 24)
+        }
+
+        var offset = 0
+        let count = Int(readUInt32LE(data, offset))
+        offset += 4
+
+        var notes: [Data] = []
+        notes.reserveCapacity(count)
+
+        for _ in 0..<count {
+            guard offset + 4 <= data.count else { break }
+            let len = Int(readUInt32LE(data, offset))
+            offset += 4
+            guard len >= 0, offset + len <= data.count else { break }
+            notes.append(data.subdata(in: offset..<(offset + len)))
+            offset += len
+        }
+
+        return notes
+    }
 }
 
 // MARK: - Service Constants

@@ -7,6 +7,81 @@ use std::os::raw::c_int;
 use std::slice;
 
 use anki::backend::{init_backend, Backend};
+use prost::Message;
+
+// Service / method constants for the batch helper
+const SERVICE_NOTES: u32 = 25;
+const METHOD_GET_NOTE: u32 = 6;
+
+// ──────────────────────────────────────────────────────────
+// Batch note fetch
+// ──────────────────────────────────────────────────────────
+
+/// Fetch multiple notes in a single FFI call.
+///
+/// Request encoding (binary, little-endian):
+///   [count: u32_le] [nid_0: i64_le] ... [nid_N: i64_le]
+///
+/// Response encoding:
+///   [count: u32_le] [len_0: u32_le] [note_bytes_0] ... [len_N: u32_le] [note_bytes_N]
+///
+/// Each `note_bytes_i` is a valid serialized `anki_proto::notes::Note` protobuf.
+/// Notes that fail to load are silently omitted (count may be < requested count).
+///
+/// # Safety
+/// - `backend_ptr` must be a valid pointer from `anki_open_backend`.
+/// - `req_data` / `req_len` must describe a valid request buffer.
+#[no_mangle]
+pub unsafe extern "C" fn anki_get_notes_batch(
+    backend_ptr: i64,
+    req_data: *const u8,
+    req_len: usize,
+    out_data: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    let backend = unsafe { &*(backend_ptr as *const Backend) };
+
+    if req_data.is_null() || req_len < 4 {
+        return -1;
+    }
+    let input = unsafe { slice::from_raw_parts(req_data, req_len) };
+
+    // Decode request header
+    let count = u32::from_le_bytes([input[0], input[1], input[2], input[3]]) as usize;
+    if req_len < 4 + count * 8 {
+        return -1;
+    }
+
+    // Fetch each note via the existing run_service_method dispatcher
+    let mut all_notes: Vec<Vec<u8>> = Vec::with_capacity(count);
+    for i in 0..count {
+        let off = 4 + i * 8;
+        let nid = i64::from_le_bytes(input[off..off + 8].try_into().unwrap());
+
+        let req = anki_proto::notes::NoteId { nid };
+        let req_bytes = req.encode_to_vec();
+
+        if let Ok(note_bytes) =
+            backend.run_service_method(SERVICE_NOTES, METHOD_GET_NOTE, &req_bytes)
+        {
+            all_notes.push(note_bytes);
+        }
+        // silently skip notes that fail to load
+    }
+
+    // Encode response
+    let note_count = all_notes.len();
+    let body_len: usize = all_notes.iter().map(|b| 4 + b.len()).sum();
+    let mut response: Vec<u8> = Vec::with_capacity(4 + body_len);
+    response.extend_from_slice(&(note_count as u32).to_le_bytes());
+    for note in &all_notes {
+        response.extend_from_slice(&(note.len() as u32).to_le_bytes());
+        response.extend_from_slice(note);
+    }
+
+    set_output(response, out_data, out_len);
+    0
+}
 
 /// Create a new Anki backend instance.
 ///
