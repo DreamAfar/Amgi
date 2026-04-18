@@ -963,6 +963,8 @@ struct CardWebView: UIViewRepresentable {
 
         // ── Public API called from Swift via evaluateJavaScript ───────────────
         function _showQuestion(html, prefetchHTML, bodyclass, autoplay, replayMode, alignTop, bodyPaddingBottom, cardPaddingBottom) {
+            var dbg = document.getElementById('amgi-dbg');
+            if (dbg) dbg.textContent = 'js:_showQuestion len=' + (html ? html.length : 0);
             amgiQueueAction(function() {
                 return amgiUpdateQA(
                     html,
@@ -1024,7 +1026,10 @@ struct CardWebView: UIViewRepresentable {
         window._showAnswer = _showAnswer;
         </script>
         </head>
-        <body><div id="qa" class="card-frame"></div></body>
+        <body>
+        <div id="amgi-dbg" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.7);color:#fff;font-size:10px;padding:2px 4px;text-align:left;pointer-events:none">frame:loaded js:pending</div>
+        <div id="qa" class="card-frame"><span style="color:gray;font-size:13px">⌛ 卡片加载中…</span></div>
+        </body>
         </html>
         """
     }
@@ -1048,10 +1053,10 @@ struct CardWebView: UIViewRepresentable {
         let alignTopStr = alignTop ? "true" : "false"
 
         if isAnswerSide {
-            return "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom));"
+            return "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
         } else {
             let prefetchLit = jsStringLiteral(prefetchHTML ?? "")
-            return "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom));"
+            return "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
         }
     }
 
