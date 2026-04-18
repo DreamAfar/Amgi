@@ -35,6 +35,8 @@ struct ReviewView: View {
     @State private var toolbarErrorMessage: String?
     @State private var showToolbarError = false
     @State private var showDeleteNoteConfirm = false
+    @State private var showUndoError = false
+    @State private var undoErrorMessage: String?
     @State private var showSetDueDateSheet = false
     @State private var setDueDateInput = ""
     @State private var setDueDateCardID: Int64?
@@ -92,11 +94,12 @@ struct ReviewView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showDeckStats = true
+                        Task { await performUndo() }
                     } label: {
-                        Image(systemName: "chart.bar.doc.horizontal")
+                        Image(systemName: "arrow.uturn.backward")
                     }
-                    .accessibilityLabel(L("stats_nav_title"))
+                    .accessibilityLabel(L("card_action_undo"))
+                    .disabled(session.currentCard == nil)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -128,6 +131,13 @@ struct ReviewView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button {
+                            showDeckStats = true
+                        } label: {
+                            Label(L("stats_nav_title"), systemImage: "chart.bar.doc.horizontal")
+                        }
+                        .disabled(session.currentCard == nil)
+
                         Button {
                             Task { await openMoveCurrentCardToDeck() }
                         } label: {
@@ -251,6 +261,11 @@ struct ReviewView: View {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
             Text(toolbarErrorMessage ?? L("common_unknown_error"))
+        }
+        .alert(L("card_action_error_title"), isPresented: $showUndoError) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(undoErrorMessage ?? L("common_unknown_error"))
         }
         .alert(L("browse_batch_delete_notes"), isPresented: $showDeleteNoteConfirm) {
             Button(L("common_cancel"), role: .cancel) {}
@@ -543,6 +558,16 @@ struct ReviewView: View {
         } catch {
             toolbarErrorMessage = L("review_delete_note_error", error.localizedDescription)
             showToolbarError = true
+        }
+    }
+
+    private func performUndo() async {
+        do {
+            try cardClient.undo()
+            await session.refreshAfterCardMutation()
+        } catch {
+            undoErrorMessage = L("card_action_error_undo", error.localizedDescription)
+            showUndoError = true
         }
     }
 
