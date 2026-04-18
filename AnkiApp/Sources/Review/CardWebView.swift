@@ -243,7 +243,8 @@ struct CardWebView: UIViewRepresentable {
         <script>
         window.MathJax = {
             tex: {
-                displayMath: [["\\\\[", "\\\\]"]],
+                inlineMath: [["\\\\(", "\\\\)"], ["$", "$"]],
+                displayMath: [["$$", "$$"], ["\\\\[", "\\\\]"]],
                 processEscapes: false,
                 processEnvironments: false,
                 processRefs: false

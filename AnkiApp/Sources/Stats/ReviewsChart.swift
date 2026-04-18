@@ -52,7 +52,14 @@ struct ReviewsChart: View {
             guard day <= 0, abs(day) <= maxDay else { continue }
             let bucket = bkt == 1 ? day : -((-day) / bkt * bkt)
             for (idx, kp) in Self.valueKeys.enumerated() {
-                let value = Int(rev[keyPath: kp])
+                let rawValue = Int(rev[keyPath: kp])
+                let value: Int
+                if showTime {
+                    // Backend review time is in milliseconds; normalize to seconds for charting.
+                    value = Int((Double(rawValue) / 1000.0).rounded())
+                } else {
+                    value = rawValue
+                }
                 if value > 0 {
                     bucketTotals[bucket, default: [:]][idx, default: 0] += value
                 }
@@ -97,6 +104,19 @@ struct ReviewsChart: View {
     private var rightAxisTicks: [StatsAxisTick] {
         StatsDualAxisSupport.ticks(
             domainMax: Double(totalValue),
+            plottedMax: leftAxisMax,
+            formatter: { value in
+                if showTime {
+                    return formatTime(Int(value.rounded()))
+                } else {
+                    return String(Int(value.rounded()))
+                }
+            }
+        )
+    }
+    private var leftAxisTicks: [StatsAxisTick] {
+        StatsDualAxisSupport.ticks(
+            domainMax: leftAxisMax,
             plottedMax: leftAxisMax,
             formatter: { value in
                 if showTime {
@@ -204,7 +224,7 @@ struct ReviewsChart: View {
             // Footer stats
             HStack(spacing: 0) {
                 footerItem(L("stats_study_days"), value: "\(uniqueStudyDays)")
-                footerItem(L("stats_total"), value: totalValue > 3600 ? formatTime(totalValue) : "\(totalValue)")
+                footerItem(L("stats_total"), value: showTime ? formatTime(totalValue) : "\(totalValue)")
                 let avgAllStr = showTime ? formatTime(Int(avgAllDays)) : String(format: "%.1f", avgAllDays)
                 let avgStudyStr = showTime ? formatTime(Int(avgStudyDays)) : String(format: "%.1f", avgStudyDays)
                 footerItem(L("stats_avg_day_all"), value: avgAllStr)
@@ -277,9 +297,15 @@ struct ReviewsChart: View {
                         StatsChartTooltip(
                             title: statsBarRangeLabel(start: selectedBucket, bucketSize: bucketSize),
                             lines: selectedBucketEntries.map { entry in
-                                "\(entry.type): \(entry.value)"
+                                if showTime {
+                                    return "\(entry.type): \(formatTime(entry.value))"
+                                } else {
+                                    return "\(entry.type): \(entry.value)"
+                                }
                             } + [
-                                "\(cumulativeLabel): \(selectedCumulativePoint.cumulative)"
+                                showTime
+                                    ? "\(cumulativeLabel): \(formatTime(selectedCumulativePoint.cumulative))"
+                                    : "\(cumulativeLabel): \(selectedCumulativePoint.cumulative)"
                             ]
                         )
                     }
@@ -337,16 +363,17 @@ struct ReviewsChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks(
-                preset: .aligned,
-                position: .leading,
-                values: .automatic(desiredCount: 4)
-            ) { _ in
+            AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                     .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                AxisValueLabel()
-                    .font(AmgiFont.micro.font)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                if let raw = value.as(Double.self),
+                   let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                    AxisValueLabel {
+                        Text(tick.label)
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                }
             }
 
             AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
