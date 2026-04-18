@@ -142,7 +142,7 @@ struct AnkiAppApp: App {
         }
     }
 
-    private static func openCollection(
+    private nonisolated static func openCollection(
         using backend: AnkiBackend,
         urls: (directory: URL, collection: URL, mediaDirectory: URL, mediaDB: URL)
     ) throws {

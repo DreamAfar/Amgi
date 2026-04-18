@@ -85,7 +85,7 @@ struct ContentView: View {
                             }
                     }
                 }
-                Tab(role: .search, value: RootTab.browse) {
+                Tab(value: RootTab.browse, role: .search) {
                     NavigationStack {
                         BrowseView(isActive: selectedTab == .browse)
                             .id(refreshID)
