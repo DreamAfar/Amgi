@@ -10,6 +10,13 @@ import OSLog
 private let logger = Logger(subsystem: "amgi", category: "startup")
 
 struct ContentView: View {
+    private enum RootTab: Hashable {
+        case decks
+        case browse
+        case stats
+        case settings
+    }
+
     private enum ImportExportOperation {
         case importing
         case exporting
@@ -53,6 +60,7 @@ struct ContentView: View {
     @State private var exportDecks: [DeckInfo] = []
     @State private var exportDraft = ExportPackageDraft()
     @State private var importDraft = ImportPackageDraft()
+    @State private var selectedTab: RootTab = .decks
 
     private var isImportExportInProgress: Bool {
         importExportOperation != nil
@@ -60,8 +68,8 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            TabView {
-                Tab(L("tab_decks"), systemImage: "rectangle.stack") {
+            TabView(selection: $selectedTab) {
+                Tab(L("tab_decks"), systemImage: "rectangle.stack", value: RootTab.decks) {
                     NavigationStack {
                         DeckListView {
                             refreshID = UUID()
@@ -77,19 +85,19 @@ struct ContentView: View {
                             }
                     }
                 }
-                Tab(role: .search) {
+                Tab(role: .search, value: RootTab.browse) {
                     NavigationStack {
-                        BrowseView()
+                        BrowseView(isActive: selectedTab == .browse)
                             .id(refreshID)
                     }
                 }
-                Tab(L("tab_stats"), systemImage: "chart.bar") {
+                Tab(L("tab_stats"), systemImage: "chart.bar", value: RootTab.stats) {
                     NavigationStack {
-                        StatsDashboardView()
+                        StatsDashboardView(isActive: selectedTab == .stats)
                             .id(refreshID)
                     }
                 }
-                Tab(L("tab_settings"), systemImage: "gearshape") {
+                Tab(L("tab_settings"), systemImage: "gearshape", value: RootTab.settings) {
                     NavigationStack {
                         SettingsView()
                             .id(refreshID)

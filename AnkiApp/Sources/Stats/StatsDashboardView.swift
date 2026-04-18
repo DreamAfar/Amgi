@@ -15,10 +15,13 @@ struct StatsDashboardView: View {
     @State private var revlogRange: RevlogRange = .year
     @State private var decks: [DeckInfo] = []
     @State private var selectedDeck: DeckInfo?
+    @State private var hasLoadedInitialData = false
     private let initialDeckID: Int64?
+    private let isActive: Bool
 
-    init(initialDeckID: Int64? = nil) {
+    init(initialDeckID: Int64? = nil, isActive: Bool = true) {
         self.initialDeckID = initialDeckID
+        self.isActive = isActive
     }
 
     var body: some View {
@@ -63,7 +66,9 @@ struct StatsDashboardView: View {
             .padding()
         }
         .navigationTitle(L("stats_nav_title"))
-        .task {
+        .task(id: isActive) {
+            guard isActive, !hasLoadedInitialData else { return }
+            hasLoadedInitialData = true
             async let decksLoad: Void = loadDecks()
             async let statsLoad: Void = loadStats()
             _ = await (decksLoad, statsLoad)

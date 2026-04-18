@@ -18,6 +18,8 @@ struct NoteEditorView: View {
     @State private var fieldNames: [String] = []
     @State private var tags: String = ""
     @State private var availableTags: [String] = []
+    @State private var hasLoadedAvailableTags = false
+    @State private var isLoadingAvailableTags = false
     @State private var isSaving = false
     @State private var showTagPicker = false
     @State private var errorMessage: String?
@@ -68,14 +70,13 @@ struct NoteEditorView: View {
                 TextField(L("add_note_tags_placeholder"), text: $tags)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
-                
-                if !availableTags.isEmpty {
-                    Button(action: { showTagPicker = true }) {
-                        Label(L("note_editor_select_tags"), systemImage: "ellipsis")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .foregroundStyle(Color.amgiAccent)
+
+                Button(action: { showTagPicker = true }) {
+                    Label(L("note_editor_select_tags"), systemImage: "ellipsis")
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .foregroundStyle(Color.amgiAccent)
+                .disabled(isLoadingAvailableTags)
                 
                 if !tags.isEmpty {
                     HStack {
@@ -117,23 +118,28 @@ struct NoteEditorView: View {
             Text(errorMessage ?? L("common_unknown_error"))
         }
         .task {
-            async let noteLoad: Void = loadNote()
-            async let tagsLoad: Void = loadAvailableTags()
-            _ = await (noteLoad, tagsLoad)
+            await loadNote()
         }
     }
 
     private var tagPickerSheet: some View {
         NavigationStack {
-            List {
-                ForEach(availableTags.sorted(), id: \.self) { tag in
-                    Button(action: { addTag(tag) }) {
-                        HStack {
-                            Text(tag)
-                            if tags.contains(tag) {
-                                Spacer()
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.amgiAccent)
+            Group {
+                if isLoadingAvailableTags && availableTags.isEmpty {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(availableTags.sorted(), id: \.self) { tag in
+                            Button(action: { addTag(tag) }) {
+                                HStack {
+                                    Text(tag)
+                                    if tags.contains(tag) {
+                                        Spacer()
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(Color.amgiAccent)
+                                    }
+                                }
                             }
                         }
                     }
@@ -141,6 +147,9 @@ struct NoteEditorView: View {
             }
             .navigationTitle(L("note_editor_available_tags"))
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                await ensureAvailableTagsLoaded()
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { showTagPicker = false }
@@ -209,9 +218,14 @@ struct NoteEditorView: View {
         tags = noteData.tags.trimmingCharacters(in: .whitespaces)
     }
     
-    private func loadAvailableTags() async {
+    private func ensureAvailableTagsLoaded() async {
+        guard !hasLoadedAvailableTags, !isLoadingAvailableTags else { return }
+        isLoadingAvailableTags = true
+        defer { isLoadingAvailableTags = false }
+
         do {
             availableTags = try tagClient.getAllTags()
+            hasLoadedAvailableTags = true
         } catch {
             print("[NoteEditorView] Failed to load tags: \(error)")
         }

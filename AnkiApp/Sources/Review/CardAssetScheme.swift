@@ -26,7 +26,7 @@ final class CardAssetScheme: NSObject, WKURLSchemeHandler {
         }
 
         do {
-            let data = try Data(contentsOf: fileURL)
+            let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
             respond(
                 to: urlSchemeTask,
                 url: url,

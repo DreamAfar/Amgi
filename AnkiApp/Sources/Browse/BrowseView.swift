@@ -56,12 +56,15 @@ struct BrowseView: View {
     @State private var isExportingSelection = false
     @State private var activeSearchTask: Task<Void, Never>?
     @State private var searchDebounceTask: Task<Void, Never>?
+    @State private var hasLoadedInitialData = false
 
     private let preselectedDeck: DeckInfo?
+    private let isActive: Bool
     private let pageSize = 50
 
-    init(preselectedDeck: DeckInfo? = nil) {
+    init(preselectedDeck: DeckInfo? = nil, isActive: Bool = true) {
         self.preselectedDeck = preselectedDeck
+        self.isActive = isActive
         if let deck = preselectedDeck {
             _activeDeck = State(initialValue: deck)
             _parentDeck = State(initialValue: deck)
@@ -363,7 +366,9 @@ struct BrowseView: View {
         .onChange(of: quickFilter) {
             scheduleSearch()
         }
-        .task {
+        .task(id: isActive) {
+            guard isActive, !hasLoadedInitialData else { return }
+            hasLoadedInitialData = true
             async let decksLoad: Void = loadDecks()
             async let tagsLoad: Void = loadTags()
             _ = await (decksLoad, tagsLoad)

@@ -479,7 +479,7 @@ struct CardWebView: UIViewRepresentable {
         function amgiReportCardTheme() {
             try {
                 var bg = amgiResolveCardBackground();
-                var rgb = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+                var rgb = bg.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/i);
                 var isDark = false;
                 if (rgb) {
                     var r = parseInt(rgb[1], 10) || 0;
