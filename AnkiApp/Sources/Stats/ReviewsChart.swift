@@ -159,20 +159,24 @@ struct ReviewsChart: View {
     }
 
     private var xAxisMin: Int {
+        let periodMin: Int
         switch period {
         case .day:
-            return -1
+            periodMin = -1
         case .week:
-            return -6
+            periodMin = -6
         case .month:
-            return -30
+            periodMin = -30
         case .threeMonths:
-            return -89
+            periodMin = -89
         case .year:
-            return -364
+            periodMin = -364
         case .all:
             return min(entries.map(\ .bucket).min() ?? -30, -1)
         }
+
+        let dataMin = entries.map(\.bucket).min() ?? periodMin
+        return max(periodMin, dataMin)
     }
 
     var body: some View {
@@ -340,26 +344,12 @@ struct ReviewsChart: View {
         .chartXScale(domain: xAxisMin...0)
         .chartYScale(domain: 0...leftAxisMax)
         .chartXAxis {
-            if period == .month {
-                AxisMarks(values: [-30, -25, -20, -15, -10, -5, 0]) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                        .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                    if let day = value.as(Int.self) {
-                        AxisValueLabel {
-                            Text("\(day)")
-                                .amgiFont(.micro)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                        }
-                    }
-                }
-            } else {
-                AxisMarks(values: .automatic(desiredCount: 6)) { _ in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                        .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                    AxisValueLabel()
-                        .font(AmgiFont.micro.font)
-                        .foregroundStyle(Color.amgiTextSecondary)
-                }
+            AxisMarks(values: .automatic(desiredCount: 6)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                AxisValueLabel()
+                    .font(AmgiFont.micro.font)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
         }
         .chartYAxis {
