@@ -165,7 +165,7 @@ struct CardWebView: UIViewRepresentable {
                 baseTag: baseTag
             )
 
-            webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
+            webView.loadHTMLString(styledHTML, baseURL: nil)
         } else if context.coordinator.lastContentSignature != contentSignature {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
