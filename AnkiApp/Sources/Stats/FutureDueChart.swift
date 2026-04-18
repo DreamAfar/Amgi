@@ -45,14 +45,14 @@ struct FutureDueChart: View {
         StatsDualAxisSupport.ticks(
             domainMax: Double(totalDue),
             plottedMax: leftAxisMax,
-            formatter: { value in String(Int(value.rounded())) }
+            formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
     private var leftAxisTicks: [StatsAxisTick] {
         StatsDualAxisSupport.ticks(
             domainMax: leftAxisMax,
             plottedMax: leftAxisMax,
-            formatter: { value in String(Int(value.rounded())) }
+            formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
     private var dueTomorrow: Int { filteredData.first(where: { $0.day == 1 })?.count ?? 0 }

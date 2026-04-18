@@ -109,7 +109,7 @@ struct ReviewsChart: View {
                 if showTime {
                     return formatTime(Int(value.rounded()))
                 } else {
-                    return String(Int(value.rounded()))
+                    return StatsDualAxisSupport.formatCount(value)
                 }
             }
         )
@@ -122,7 +122,7 @@ struct ReviewsChart: View {
                 if showTime {
                     return formatTime(Int(value.rounded()))
                 } else {
-                    return String(Int(value.rounded()))
+                    return StatsDualAxisSupport.formatCount(value)
                 }
             }
         )

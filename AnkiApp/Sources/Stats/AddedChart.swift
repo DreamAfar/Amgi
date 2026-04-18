@@ -55,14 +55,14 @@ struct AddedChart: View {
         StatsDualAxisSupport.ticks(
             domainMax: Double(totalAdded),
             plottedMax: leftAxisMax,
-            formatter: { value in String(Int(value.rounded())) }
+            formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
     private var leftAxisTicks: [StatsAxisTick] {
         StatsDualAxisSupport.ticks(
             domainMax: leftAxisMax,
             plottedMax: leftAxisMax,
-            formatter: { value in String(Int(value.rounded())) }
+            formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
     private var avgPerDay: Double {

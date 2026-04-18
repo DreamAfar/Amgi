@@ -104,7 +104,7 @@ struct IntervalsChart: View {
         StatsDualAxisSupport.ticks(
             domainMax: Double(total),
             plottedMax: Double(plottedMax),
-            formatter: { value in String(Int(value.rounded())) }
+            formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
 
@@ -112,7 +112,7 @@ struct IntervalsChart: View {
         StatsDualAxisSupport.ticks(
             domainMax: Double(plottedMax),
             plottedMax: Double(plottedMax),
-            formatter: { value in String(Int(value.rounded())) }
+            formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
 

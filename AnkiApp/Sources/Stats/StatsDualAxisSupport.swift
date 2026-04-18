@@ -6,9 +6,21 @@ struct StatsAxisTick {
 }
 
 enum StatsDualAxisSupport {
+    private static let groupedIntFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        return formatter
+    }()
+
     static func plottedValue(_ value: Double, domainMax: Double, plottedMax: Double) -> Double {
         guard domainMax > 0, plottedMax > 0 else { return 0 }
         return (value / domainMax) * plottedMax
+    }
+
+    static func formatCount(_ value: Double) -> String {
+        let rounded = Int(value.rounded())
+        return groupedIntFormatter.string(from: NSNumber(value: rounded)) ?? String(rounded)
     }
 
     static func niceUpperBound(_ domainMax: Double, desiredTickCount: Int = 4) -> Double {

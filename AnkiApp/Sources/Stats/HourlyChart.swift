@@ -60,7 +60,7 @@ struct HourlyChart: View {
         StatsDualAxisSupport.ticks(
             domainMax: leftAxisMax,
             plottedMax: leftAxisMax,
-            formatter: { value in String(Int(value.rounded())) }
+            formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
 
