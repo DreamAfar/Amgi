@@ -116,9 +116,10 @@ struct NoteEditorView: View {
         } message: {
             Text(errorMessage ?? L("common_unknown_error"))
         }
-        .task { 
-            loadNote()
-            await loadAvailableTags()
+        .task {
+            async let noteLoad: Void = loadNote()
+            async let tagsLoad: Void = loadAvailableTags()
+            _ = await (noteLoad, tagsLoad)
         }
     }
 
@@ -178,28 +179,34 @@ struct NoteEditorView: View {
         }
     }
 
-    private func loadNote() {
-        // Get field names from the Rust backend's notetype
-        do {
+    private func loadNote() async {
+        let backend = self.backend
+        let mid = note.mid
+        let noteData = note
+
+        // Fetch notetype field names off the main thread
+        let fetchedNames: [String]? = await Task.detached(priority: .userInitiated) {
             var ntReq = Anki_Notetypes_NotetypeId()
-            ntReq.ntid = note.mid
-            let notetype: Anki_Notetypes_Notetype = try backend.invoke(
+            ntReq.ntid = mid
+            return (try? backend.invoke(
                 service: AnkiBackend.Service.notetypes,
                 method: AnkiBackend.NotetypesMethod.getNotetype,
                 request: ntReq
-            )
-            fieldNames = notetype.fields.map(\.name)
-        } catch {
-            print("[NoteEditorView] Error loading notetype: \(error)")
+            ) as Anki_Notetypes_Notetype)?.fields.map(\.name)
+        }.value
+
+        if let names = fetchedNames {
+            fieldNames = names
+        } else {
             errorMessage = L("common_failed_load_notetype")
             showError = true
         }
 
-        fieldValues = note.flds
+        fieldValues = noteData.flds
             .split(separator: "\u{1f}", omittingEmptySubsequences: false)
             .map(String.init)
         while fieldValues.count < fieldNames.count { fieldValues.append("") }
-        tags = note.tags.trimmingCharacters(in: .whitespaces)
+        tags = noteData.tags.trimmingCharacters(in: .whitespaces)
     }
     
     private func loadAvailableTags() async {

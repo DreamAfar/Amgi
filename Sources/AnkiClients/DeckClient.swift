@@ -6,6 +6,8 @@ import DependenciesMacros
 @DependencyClient
 public struct DeckClient: Sendable {
     public var fetchAll: @Sendable () throws -> [DeckInfo]
+    /// Lightweight fetch: returns deck id+name only, no review counts. Use for filter menus.
+    public var fetchNamesOnly: @Sendable () throws -> [DeckInfo]
     public var fetchTree: @Sendable () throws -> [DeckTreeNode]
     public var countsForDeck: @Sendable (_ deckId: Int64) throws -> DeckCounts
     public var create: @Sendable (_ name: String) throws -> Int64

@@ -64,8 +64,9 @@ struct StatsDashboardView: View {
         }
         .navigationTitle(L("stats_nav_title"))
         .task {
-            await loadDecks()
-            await loadStats()
+            async let decksLoad: Void = loadDecks()
+            async let statsLoad: Void = loadStats()
+            _ = await (decksLoad, statsLoad)
         }
         .refreshable { await loadStats() }
         .onChange(of: selectedDeck) {
@@ -140,7 +141,7 @@ struct StatsDashboardView: View {
     // MARK: - Data
 
     private func loadDecks() async {
-        decks = (try? deckClient.fetchAll()) ?? []
+        decks = (try? deckClient.fetchNamesOnly()) ?? []
         if let initialDeckID, selectedDeck == nil {
             selectedDeck = decks.first(where: { $0.id == initialDeckID })
         }
@@ -155,7 +156,11 @@ struct StatsDashboardView: View {
             } else {
                 search = "deck:*"
             }
-            let data = try statsClient.fetchGraphs(search, revlogRange.requestDays)
+            let client = statsClient
+            let days = revlogRange.requestDays
+            let data = try await Task.detached(priority: .userInitiated) {
+                try client.fetchGraphs(search, days)
+            }.value
             graphs = try Anki_Stats_GraphsResponse(serializedBytes: data)
             errorMessage = nil
         } catch {

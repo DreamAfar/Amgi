@@ -14,6 +14,16 @@ extension DeckClient: DependencyKey {
         @Dependency(\.ankiBackend) var backend
 
         return Self(
+            fetchNamesOnly: {
+                let req = Anki_Decks_GetDeckNamesRequest()
+                let resp: Anki_Decks_DeckNames = try backend.invoke(
+                    service: AnkiBackend.Service.decks,
+                    method: AnkiBackend.DecksMethod.getDeckNames,
+                    request: req
+                )
+                return resp.entries.map { DeckInfo(id: $0.id, name: $0.name, counts: .zero) }
+                    .sorted(by: { $0.name < $1.name })
+            },
             fetchAll: {
                 // Try getDeckTree WITH timestamp for accurate counts
                 var treeReq = Anki_Decks_DeckTreeRequest()

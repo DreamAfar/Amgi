@@ -364,8 +364,9 @@ struct BrowseView: View {
             scheduleSearch()
         }
         .task {
-            await loadDecks()
-            await loadTags()
+            async let decksLoad: Void = loadDecks()
+            async let tagsLoad: Void = loadTags()
+            _ = await (decksLoad, tagsLoad)
             await performSearch()
         }
         .toolbar(isEditing ? .hidden : .visible, for: .tabBar)
@@ -825,7 +826,7 @@ struct BrowseView: View {
 
     private func loadDecks() async {
         do {
-            allDecks = try deckClient.fetchAll()
+            allDecks = try deckClient.fetchNamesOnly()
         } catch {
             allDecks = []
         }
