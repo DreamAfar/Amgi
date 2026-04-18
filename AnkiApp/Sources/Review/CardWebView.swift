@@ -246,12 +246,7 @@ struct CardWebView: UIViewRepresentable {
                 displayMath: [["\\\\[", "\\\\]"]],
                 processEscapes: false,
                 processEnvironments: false,
-                processRefs: false,
-                packages: { "[+]": ["noerrors","mathtools"], "[-]": ["textmacros"] }
-            },
-            loader: {
-                load: ["[tex]/noerrors","[tex]/mathtools"],
-                paths: { mathjax: "amgi-asset://assets/mathjax" }
+                processRefs: false
             },
             startup: { typeset: false }
         };
@@ -259,7 +254,7 @@ struct CardWebView: UIViewRepresentable {
         <script src="\(mathJaxScriptURL)" async></script>
         <style>
             :root { color-scheme: \(colorScheme); }
-            html, body { background: transparent !important; overflow-x: hidden; }
+            html, body { background: transparent; overflow-x: hidden; }
             body {
                 font-family: -apple-system, system-ui;
                 font-size: 18px; line-height: 1.5;
