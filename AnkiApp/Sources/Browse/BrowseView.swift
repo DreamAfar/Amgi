@@ -366,6 +366,15 @@ struct BrowseView: View {
         .onChange(of: quickFilter) {
             scheduleSearch()
         }
+        .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
+            guard isActive else { return }
+            Task {
+                async let decksLoad: Void = loadDecks()
+                async let tagsLoad: Void = loadTags()
+                _ = await (decksLoad, tagsLoad)
+                await performSearch()
+            }
+        }
         .task(id: isActive) {
             guard isActive, !hasLoadedInitialData else { return }
             hasLoadedInitialData = true

@@ -104,36 +104,62 @@ struct AnkiAppApp: App {
     @MainActor
     private func initializeBackend() async {
         do {
-            // Run all I/O off the main thread to eliminate cold-start black screen
-            try await Task.detached(priority: .userInitiated) {
-                try prepareDependencies {
-                    let backend = try AnkiBackend(preferredLangs: ["en"])
+            let selectedUser = AppUserStore.loadSelectedUser()
+            let urls = AppUserStore.collectionURLs(for: selectedUser)
+            let hasStartupSnapshot = onboardingCompleted && (!DeckTreeCache.load().isEmpty || DeckListHeatmapCache.load() != nil)
 
-                    let selectedUser = AppUserStore.loadSelectedUser()
-                    let urls = AppUserStore.collectionURLs(for: selectedUser)
-
-                    try FileManager.default.createDirectory(
-                        at: urls.directory,
-                        withIntermediateDirectories: true
-                    )
-                    try FileManager.default.createDirectory(
-                        at: urls.mediaDirectory,
-                        withIntermediateDirectories: true
-                    )
-
-                    try backend.openCollection(
-                        collectionPath: urls.collection.path,
-                        mediaFolderPath: urls.mediaDirectory.path,
-                        mediaDbPath: urls.mediaDB.path
-                    )
-
-                    $0.ankiBackend = backend
-                }
+            let backend = try await Task.detached(priority: .userInitiated) {
+                try AnkiBackend(preferredLangs: ["en"])
             }.value
-            startupPhase = .ready
+
+            prepareDependencies {
+                $0.ankiBackend = backend
+            }
+
+            if hasStartupSnapshot {
+                startupPhase = .ready
+                Task.detached(priority: .userInitiated) {
+                    do {
+                        try Self.openCollection(using: backend, urls: urls)
+                        await MainActor.run {
+                            NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
+                        }
+                    } catch {
+                        await MainActor.run {
+                            startupPhase = .failed("Startup failed: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            } else {
+                try await Task.detached(priority: .userInitiated) {
+                    try Self.openCollection(using: backend, urls: urls)
+                }.value
+                startupPhase = .ready
+                NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
+            }
         } catch {
             startupPhase = .failed("Startup failed: \(error.localizedDescription)")
         }
+    }
+
+    private static func openCollection(
+        using backend: AnkiBackend,
+        urls: (directory: URL, collection: URL, mediaDirectory: URL, mediaDB: URL)
+    ) throws {
+        try FileManager.default.createDirectory(
+            at: urls.directory,
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(
+            at: urls.mediaDirectory,
+            withIntermediateDirectories: true
+        )
+
+        try backend.openCollection(
+            collectionPath: urls.collection.path,
+            mediaFolderPath: urls.mediaDirectory.path,
+            mediaDbPath: urls.mediaDB.path
+        )
     }
 }
 

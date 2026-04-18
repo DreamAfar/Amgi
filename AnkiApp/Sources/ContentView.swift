@@ -422,6 +422,8 @@ struct ContentView: View {
             mediaDbPath: urls.mediaDB.path
         )
 
+        NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
+
         _ = try? backend.call(
             service: AnkiBackend.Service.collection,
             method: AnkiBackend.CheckDatabaseMethod.checkDatabase

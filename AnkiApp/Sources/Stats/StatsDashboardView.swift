@@ -73,6 +73,14 @@ struct StatsDashboardView: View {
             async let statsLoad: Void = loadStats()
             _ = await (decksLoad, statsLoad)
         }
+        .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
+            guard isActive else { return }
+            Task {
+                async let decksLoad: Void = loadDecks()
+                async let statsLoad: Void = loadStats()
+                _ = await (decksLoad, statsLoad)
+            }
+        }
         .refreshable { await loadStats() }
         .onChange(of: selectedDeck) {
             Task { await loadStats() }

@@ -2,6 +2,7 @@ import Foundation
 import AnkiSync
 
 enum AppCollectionEvents {
+    static let didOpenNotification = Notification.Name("amgi.collection.did-open")
     static let didResetNotification = Notification.Name("amgi.collection.did-reset")
 }
 

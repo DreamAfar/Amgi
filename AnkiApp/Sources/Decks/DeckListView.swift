@@ -106,6 +106,12 @@ struct DeckListView: View {
                 refreshHeatmap()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
+            Task {
+                await loadDecks()
+                refreshHeatmap()
+            }
+        }
         .alert(
             L("deck_delete_confirm2_title"),
             isPresented: $showDeleteConfirm
