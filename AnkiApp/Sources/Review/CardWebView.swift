@@ -165,7 +165,8 @@ struct CardWebView: UIViewRepresentable {
                 baseTag: baseTag
             )
 
-            webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
+            // DEBUG: nil baseURL avoids any potential amgi-asset:// scheme rendering block
+            webView.loadHTMLString(styledHTML, baseURL: nil)
         } else if context.coordinator.lastContentSignature != contentSignature {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
@@ -257,7 +258,7 @@ struct CardWebView: UIViewRepresentable {
         <script src="\(mathJaxScriptURL)" async></script>
         <style>
             :root { color-scheme: \(colorScheme); }
-            html, body { background: transparent !important; overflow-x: hidden; }
+            html, body { background: #ff4444 !important; overflow-x: hidden; }
             body {
                 font-family: -apple-system, system-ui;
                 font-size: 18px; line-height: 1.5;
@@ -1027,8 +1028,8 @@ struct CardWebView: UIViewRepresentable {
         </script>
         </head>
         <body>
-        <div id="amgi-dbg" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.7);color:#fff;font-size:10px;padding:2px 4px;text-align:left;pointer-events:none">frame:loaded js:pending</div>
-        <div id="qa" class="card-frame"><span style="color:gray;font-size:13px">⌛ 卡片加载中…</span></div>
+        <div id="amgi-dbg" style="display:block;width:100%;background:#000;color:#fff;font-size:11px;padding:3px 6px;box-sizing:border-box">frame:loaded js:pending</div>
+        <div id="qa" class="card-frame"><span style="color:#333;font-size:14px;font-weight:bold">DEBUG:frame-loaded</span></div>
         </body>
         </html>
         """
