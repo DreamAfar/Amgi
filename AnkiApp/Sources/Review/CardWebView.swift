@@ -1607,7 +1607,8 @@ struct CardWebView: UIViewRepresentable {
             return "{}"
         }
 
-        return literal
+        // Escape </script> in JSON values so the literal is safe inside a <script> block
+        return literal.replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
     }
 
     private static func updateCardScript(html: String, cardStateLiteral: String) -> String {
@@ -1666,6 +1667,8 @@ struct CardWebView: UIViewRepresentable {
             .replacingOccurrences(of: "'", with: "\\'")
             .replacingOccurrences(of: "\n", with: "")
             .replacingOccurrences(of: "\r", with: "")
+            // Escape </script> so it doesn't prematurely close the enclosing <script> block
+            .replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
         return "'\(escaped)'"
     }
 
