@@ -163,7 +163,7 @@ struct HourlyChart: View {
                             .fill(Color.clear)
                             .contentShape(Rectangle())
                             .gesture(
-                                DragGesture(minimumDistance: 0)
+                                SpatialTapGesture()
                                     .onEnded { value in
                                         let plotFrame = geometry[proxy.plotAreaFrame]
                                         let plotX = value.location.x - plotFrame.origin.x
