@@ -165,7 +165,9 @@ struct CardWebView: UIViewRepresentable {
                 baseTag: baseTag
             )
 
-            webView.loadHTMLString(styledHTML, baseURL: nil)
+            // Use cardBaseURL so that MathJax, fonts, and other resources load correctly.
+            // The CardAssetScheme handler processes amgi-asset:// URLs.
+            webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
         } else if context.coordinator.lastContentSignature != contentSignature {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
