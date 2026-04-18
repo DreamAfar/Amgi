@@ -183,13 +183,13 @@ struct HourlyChart: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: [0, 3, 6, 9, 12, 15, 18, 21]) { value in
+                    AxisMarks(values: Array(0...23)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.2))
                         if let h = value.as(Int.self) {
                             AxisValueLabel(formatHour(h))
                                 .font(AmgiFont.micro.font)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(Color.amgiTextSecondary.opacity(h % 2 == 0 ? 1 : 0.55))
                         }
                     }
                 }
