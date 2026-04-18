@@ -33,6 +33,10 @@ struct EaseChart: View {
         return chartData.first(where: { $0.ease == selectedEase })
     }
 
+    private var xAxisDesiredTickCount: Int {
+        min(8, max(4, chartData.count))
+    }
+
     private var maxCount: Int { chartData.map(\.count).max() ?? 0 }
     private var yAxisMax: Double {
         StatsDualAxisSupport.niceUpperBound(Double(maxCount))
@@ -116,7 +120,7 @@ struct EaseChart: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 5)) { value in
+                    AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { value in
                         AxisGridLine()
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         if let v = value.as(Int.self) {

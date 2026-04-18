@@ -170,6 +170,7 @@ struct IntervalsChart: View {
     private func intervalsChart(bins: [(label: String, x: Int, count: Int)]) -> some View {
         let barWVal: Double = max(2.0, min(8.0, 280.0 / Double(bins.count)))
         let barW: MarkDimension = bins.count <= 30 ? .automatic : .fixed(barWVal)
+        let xAxisDesiredCount = min(10, max(4, bins.count / 8))
         let cumulative = cumulativePoints(for: bins)
         let total = cumulative.last?.cumulative ?? 0
         let maxCount = bins.map(\.count).max() ?? 0
@@ -268,7 +269,7 @@ struct IntervalsChart: View {
         }
         .chartYScale(domain: 0...leftAxisMax)
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 6)) { _ in
+            AxisMarks(values: .automatic(desiredCount: xAxisDesiredCount)) { _ in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                     .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                 AxisValueLabel()
