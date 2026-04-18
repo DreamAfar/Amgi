@@ -323,6 +323,22 @@ struct CardWebView: UIViewRepresentable {
             .nightMode a { color: #8fb8ff; }
         </style>
         <script>
+        // ── Error diagnostics (remove before release) ─────────────────────────
+        window.onerror = function(msg, src, line, col, err) {
+            var qa = document.getElementById('qa');
+            if (qa) {
+                qa.style.opacity = '1';
+                qa.innerHTML = '<pre style="color:red;text-align:left;font-size:11px;white-space:pre-wrap;padding:8px;word-break:break-all">JS Error:\\n' + msg + '\\n@ line ' + line + ':' + col + '\\n' + (err ? String(err.stack || err) : '') + '</pre>';
+            }
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            var qa = document.getElementById('qa');
+            if (qa) {
+                qa.style.opacity = '1';
+                qa.innerHTML += '<pre style="color:orange;text-align:left;font-size:11px;white-space:pre-wrap;padding:8px;word-break:break-all">Promise rejection:\\n' + String(event.reason || 'unknown') + '</pre>';
+            }
+        });
         // ── Globals ──────────────────────────────────────────────────────────
         var PLAY_ICON_HTML = \(playIconLiteral);
         var PAUSE_ICON_HTML = \(pauseIconLiteral);
@@ -1422,7 +1438,19 @@ struct CardWebView: UIViewRepresentable {
 
             guard let pendingUpdateScript else { return }
             self.pendingUpdateScript = nil
-            webView.evaluateJavaScript(pendingUpdateScript, completionHandler: nil)
+            webView.evaluateJavaScript(pendingUpdateScript) { _, error in
+                if let error {
+                    print("[CardWebView] evaluateJavaScript error: \(error)")
+                }
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            print("[CardWebView] Navigation failed: \(error)")
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            print("[CardWebView] Provisional navigation failed: \(error)")
         }
     }
 }
