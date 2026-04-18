@@ -165,8 +165,7 @@ struct CardWebView: UIViewRepresentable {
                 baseTag: baseTag
             )
 
-            // DEBUG: nil baseURL avoids any potential amgi-asset:// scheme rendering block
-            webView.loadHTMLString(styledHTML, baseURL: nil)
+            webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
         } else if context.coordinator.lastContentSignature != contentSignature {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
@@ -258,7 +257,7 @@ struct CardWebView: UIViewRepresentable {
         <script src="\(mathJaxScriptURL)" async></script>
         <style>
             :root { color-scheme: \(colorScheme); }
-            html, body { background: #ff4444 !important; overflow-x: hidden; }
+            html, body { background: transparent !important; overflow-x: hidden; }
             body {
                 font-family: -apple-system, system-ui;
                 font-size: 18px; line-height: 1.5;
@@ -324,22 +323,6 @@ struct CardWebView: UIViewRepresentable {
             .nightMode a { color: #8fb8ff; }
         </style>
         <script>
-        // ── Error diagnostics (remove before release) ─────────────────────────
-        window.onerror = function(msg, src, line, col, err) {
-            var qa = document.getElementById('qa');
-            if (qa) {
-                qa.style.opacity = '1';
-                qa.innerHTML = '<pre style="color:red;text-align:left;font-size:11px;white-space:pre-wrap;padding:8px;word-break:break-all">JS Error:\\n' + msg + '\\n@ line ' + line + ':' + col + '\\n' + (err ? String(err.stack || err) : '') + '</pre>';
-            }
-            return false;
-        };
-        window.addEventListener('unhandledrejection', function(event) {
-            var qa = document.getElementById('qa');
-            if (qa) {
-                qa.style.opacity = '1';
-                qa.innerHTML += '<pre style="color:orange;text-align:left;font-size:11px;white-space:pre-wrap;padding:8px;word-break:break-all">Promise rejection:\\n' + String(event.reason || 'unknown') + '</pre>';
-            }
-        });
         // ── Globals ──────────────────────────────────────────────────────────
         var PLAY_ICON_HTML = \(playIconLiteral);
         var PAUSE_ICON_HTML = \(pauseIconLiteral);
@@ -964,8 +947,6 @@ struct CardWebView: UIViewRepresentable {
 
         // ── Public API called from Swift via evaluateJavaScript ───────────────
         function _showQuestion(html, prefetchHTML, bodyclass, autoplay, replayMode, alignTop, bodyPaddingBottom, cardPaddingBottom) {
-            var dbg = document.getElementById('amgi-dbg');
-            if (dbg) dbg.textContent = 'js:_showQuestion len=' + (html ? html.length : 0);
             amgiQueueAction(function() {
                 return amgiUpdateQA(
                     html,
@@ -1027,10 +1008,7 @@ struct CardWebView: UIViewRepresentable {
         window._showAnswer = _showAnswer;
         </script>
         </head>
-        <body>
-        <div id="amgi-dbg" style="display:block;width:100%;background:#000;color:#fff;font-size:11px;padding:3px 6px;box-sizing:border-box">frame:loaded js:pending</div>
-        <div id="qa" class="card-frame"><span style="color:#333;font-size:14px;font-weight:bold">DEBUG:frame-loaded</span></div>
-        </body>
+        <body><div id="qa" class="card-frame"></div></body>
         </html>
         """
     }
