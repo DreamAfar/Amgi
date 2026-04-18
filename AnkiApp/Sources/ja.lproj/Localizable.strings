@@ -935,6 +935,9 @@
 "stats_intervals_days_fmt" = "%d 日";
 "stats_stability_title" = "カードの安定度";
 "stats_stability_subtitle" = "そのカードに正解できる確率が100％から90%に減少するまでの間隔の長さ";
+"stats_retrievability_title" = "カードの想起可能性";
+"stats_retrievability_subtitle" = "今日そのカードを思い出せる確率。";
+"stats_retrievability_empty" = "データなし";
 "stats_card_count" = "カード数";
 "stats_hourly_title" = "時間帯の分析";
 "stats_hourly_subtitle" = "各時間帯の学習回数と正答率";

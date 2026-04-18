@@ -933,6 +933,9 @@
 "stats_intervals_days_fmt" = "%d 天";
 "stats_stability_title" = "卡片记忆稳定期";
 "stats_stability_subtitle" = "记忆可提取性下降至 90% 的时间间隔。";
+"stats_retrievability_title" = "卡片记忆可提取性";
+"stats_retrievability_subtitle" = "您能够成功回忆卡片内容的概率。";
+"stats_retrievability_empty" = "暂无数据";
 "stats_card_count" = "卡片数";
 "stats_hourly_title" = "逐小时分析";
 "stats_hourly_subtitle" = "当天逐小时的复习成功率。";

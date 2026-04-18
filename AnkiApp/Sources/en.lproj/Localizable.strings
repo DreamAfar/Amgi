@@ -933,6 +933,9 @@
 "stats_intervals_days_fmt" = "%d days";
 "stats_stability_title" = "Card Stability";
 "stats_stability_subtitle" = "The delay at which retrievability falls to 90%.";
+"stats_retrievability_title" = "Card Retrievability";
+"stats_retrievability_subtitle" = "The probability that you will remember a card today.";
+"stats_retrievability_empty" = "No data available";
 "stats_card_count" = "Cards";
 "stats_hourly_title" = "Hourly Breakdown";
 "stats_hourly_subtitle" = "Review success rate for each hour of the day.";

@@ -48,6 +48,9 @@ struct StatsDashboardView: View {
                         HourlyChart(hours: graphs.hours, revlogRange: revlogRange)
                         ButtonsChart(buttons: graphs.buttons, revlogRange: revlogRange)
                         AddedChart(added: graphs.added)
+                        if graphs.fsrs {
+                            RetrievabilityChart(retrievability: graphs.retrievability)
+                        }
                         RetentionChart(trueRetention: graphs.trueRetention, revlogRange: revlogRange)
                     } header: {
                         VStack(alignment: .leading, spacing: 4) {
