@@ -88,6 +88,7 @@ struct ReviewView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
+                .background(cardChromeColor)
 
                 if session.isFinished {
                     finishedView
@@ -95,6 +96,7 @@ struct ReviewView: View {
                     cardView
                 }
             }
+            .background(cardChromeColor)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -415,7 +417,7 @@ struct ReviewView: View {
                 .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
             }
         }
-        .background(.clear)
+        .background(cardChromeColor)
     }
 
     private var answerButtons: some View {

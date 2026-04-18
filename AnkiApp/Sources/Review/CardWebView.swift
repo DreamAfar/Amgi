@@ -497,24 +497,72 @@ struct CardWebView: UIViewRepresentable {
             }
         }
 
-        async function amgiTypesetMath(container) {
-            if (!window.MathJax) return;
+        function amgiContainsInlineDollarMath(html) {
+            if (!html) return false;
 
+            var start = html.indexOf('$');
+            while (start !== -1) {
+                var end = html.indexOf('$', start + 1);
+                if (end === -1) return false;
+
+                var previous = start > 0 ? html.charAt(start - 1) : '';
+                var next = start + 1 < html.length ? html.charAt(start + 1) : '';
+                var following = end + 1 < html.length ? html.charAt(end + 1) : '';
+                if (previous !== '$' && next !== '$' && following !== '$' && end > start + 1) {
+                    return true;
+                }
+
+                start = html.indexOf('$', end + 1);
+            }
+
+            return false;
+        }
+
+        function amgiNeedsMathTypeset(html, container) {
+            if (container && container.querySelector('math, mjx-container, script[type^="math/tex"]')) {
+                return true;
+            }
+
+            if (!html) return false;
+            return html.indexOf('$$') !== -1
+                || html.indexOf('\\(') !== -1
+                || html.indexOf('\\[') !== -1
+                || html.indexOf('\\begin{') !== -1
+                || html.indexOf('\\frac') !== -1
+                || html.indexOf('\\sqrt') !== -1
+                || html.indexOf('\\text{') !== -1
+                || html.indexOf('<math') !== -1
+                || html.indexOf('math/tex') !== -1
+                || amgiContainsInlineDollarMath(html);
+        }
+
+        async function amgiTypesetMath(container, maxAttempts) {
+            if (!window.MathJax) return false;
+
+            var attempts = typeof maxAttempts === 'number' ? maxAttempts : 60;
             var ready = false;
-            for (var i = 0; i < 60; i++) {
+            for (var i = 0; i < attempts; i++) {
                 if (window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
                     ready = true;
                     break;
                 }
                 await new Promise(function(resolve) { setTimeout(resolve, 50); });
             }
-            if (!ready) return;
+            if (!ready) return false;
 
             try {
                 await window.MathJax.startup.promise;
                 if (typeof window.MathJax.typesetClear === 'function') window.MathJax.typesetClear();
                 if (typeof window.MathJax.typesetPromise === 'function') await window.MathJax.typesetPromise([container]);
             } catch(e) { console.error('MathJax failed', e); }
+
+            return true;
+        }
+
+        function amgiTypesetMathWhenReady(container) {
+            amgiTypesetMath(container, 60).then(function(didTypeset) {
+                if (didTypeset) amgiReportCardTheme();
+            });
         }
 
         // ── Script re-execution (mirrors upstream replaceScript) ─────────────
@@ -963,10 +1011,17 @@ struct CardWebView: UIViewRepresentable {
 
             await amgiRunHooks(window.onUpdateHook);
 
-            await amgiTypesetMath(qa);
+            var shouldTypesetMath = amgiNeedsMathTypeset(html || '', qa);
+            var didTypesetMath = false;
+            if (shouldTypesetMath) {
+                didTypesetMath = await amgiTypesetMath(qa, 4);
+            }
 
             qa.style.opacity = '1';
             amgiReportCardTheme();
+            if (shouldTypesetMath && !didTypesetMath) {
+                amgiTypesetMathWhenReady(qa);
+            }
 
             // Detect missing media
             document.querySelectorAll('img').forEach(function(img) {
