@@ -17,17 +17,6 @@ struct FutureDueChart: View {
         var day: Int { startDay }
     }
 
-    private var xAxisDesiredTickCount: Int {
-        switch period {
-        case .day: return 3
-        case .week: return 5
-        case .month: return 6
-        case .threeMonths: return 7
-        case .year: return 8
-        case .all: return 10
-        }
-    }
-
     private struct CumulativePoint: Identifiable {
         let id: Int
         let startDay: Int
@@ -52,15 +41,93 @@ struct FutureDueChart: View {
             .sorted(by: { $0.day < $1.day })
     }
 
+    private var rawMinDay: Int {
+        min(sortedDueCounts.map(\.startDay).min() ?? 0, 0)
+    }
+
+    private var rawMaxDay: Int {
+        max(sortedDueCounts.map(\.endDay).max() ?? 0, 0)
+    }
+
+    private func roundedDown(_ value: Int, step: Int) -> Int {
+        guard step > 0 else { return value }
+        return Int(floor(Double(value) / Double(step))) * step
+    }
+
+    private func roundedUp(_ value: Int, step: Int) -> Int {
+        guard step > 0 else { return value }
+        return Int(ceil(Double(value) / Double(step))) * step
+    }
+
     private var xAxisUpperBound: Int {
-        period == .all ? max(1, sortedDueCounts.map(\.day).max() ?? 1) : max(1, period.days)
+        if includeBacklog {
+            switch period {
+            case .month:
+                return 0
+            case .threeMonths, .year:
+                return 400
+            case .all:
+                return max(roundedUp(rawMaxDay, step: 100), 0)
+            case .day, .week:
+                return 0
+            }
+        }
+
+        switch period {
+        case .month:
+            return 30
+        case .threeMonths:
+            return 90
+        case .year:
+            return 400
+        case .all:
+            return max(roundedUp(rawMaxDay, step: 500), 500)
+        case .day:
+            return 1
+        case .week:
+            return 7
+        }
     }
 
     private var xAxisLowerBound: Int {
         if includeBacklog {
-            return min(sortedDueCounts.map(\.day).min() ?? 0, 0)
+            return roundedDown(rawMinDay, step: 200)
         }
         return 0
+    }
+
+    private var xAxisStep: Int {
+        if includeBacklog {
+            return 200
+        }
+
+        switch period {
+        case .month:
+            return 5
+        case .threeMonths:
+            return 10
+        case .year:
+            return 50
+        case .all:
+            return 500
+        case .day:
+            return 1
+        case .week:
+            return 1
+        }
+    }
+
+    private var xAxisValues: [Int] {
+        let lower = xAxisLowerBound
+        let upper = xAxisUpperBound
+        let step = max(xAxisStep, 1)
+        guard lower <= upper else { return [] }
+
+        var values = Array(stride(from: lower, through: upper, by: step))
+        if values.last != upper {
+            values.append(upper)
+        }
+        return values
     }
 
     private var filteredData: [DisplayPoint] {
@@ -252,7 +319,7 @@ struct FutureDueChart: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { value in
+                    AxisMarks(values: xAxisValues) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         if let day = value.as(Int.self) {
