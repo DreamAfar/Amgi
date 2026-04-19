@@ -77,6 +77,61 @@ struct CardWebView: UIViewRepresentable {
             && debugFlag(DebugPreferences.Keys.cardRenderShowJSErrorOverlay, default: true)
     }
 
+    private static let earlyBootstrapMonitorScript = #"""
+    (function() {
+        if (window.__amgiEarlyBootstrapMonitorInstalled) {
+            return;
+        }
+        window.__amgiEarlyBootstrapMonitorInstalled = true;
+        window.__amgiEarlyBootstrapErrors = [];
+
+        function amgiRecordEarlyBootstrapError(kind, detail) {
+            try {
+                var info = detail || {};
+                window.__amgiEarlyBootstrapErrors.push({
+                    kind: kind || 'error',
+                    message: String(info.message || ''),
+                    source: String(info.source || ''),
+                    line: Number(info.line || 0),
+                    column: Number(info.column || 0)
+                });
+            } catch (e) {}
+        }
+
+        window.amgiEarlyBootstrapSummary = function() {
+            if (!Array.isArray(window.__amgiEarlyBootstrapErrors) || !window.__amgiEarlyBootstrapErrors.length) {
+                return 'No early bootstrap errors captured.';
+            }
+            return window.__amgiEarlyBootstrapErrors.slice(-3).map(function(entry) {
+                var parts = [entry.kind || 'error', entry.message || ''];
+                if (entry.line || entry.column) {
+                    parts.push('line ' + (entry.line || 0) + ', column ' + (entry.column || 0));
+                }
+                if (entry.source) {
+                    parts.push(entry.source);
+                }
+                return parts.filter(function(part) { return !!part; }).join(' | ');
+            }).join('\n');
+        };
+
+        window.addEventListener('error', function(event) {
+            amgiRecordEarlyBootstrapError('error', {
+                message: event && event.message,
+                source: event && event.filename,
+                line: event && event.lineno,
+                column: event && event.colno
+            });
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+            var reason = event ? event.reason : null;
+            amgiRecordEarlyBootstrapError('unhandledrejection', {
+                message: reason && reason.message ? reason.message : String(reason || '')
+            });
+        }, true);
+    })();
+    """#
+
     init(
         html: String,
         autoplayEnabled: Bool = true,
@@ -123,6 +178,13 @@ struct CardWebView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.setURLSchemeHandler(CardAssetScheme(), forURLScheme: CardAssetPath.scheme)
+        config.userContentController.addUserScript(
+            WKUserScript(
+                source: Self.earlyBootstrapMonitorScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            )
+        )
         config.userContentController.add(context.coordinator, name: "amgiAudioState")
         config.userContentController.add(context.coordinator, name: "amgiOpenLink")
         config.userContentController.add(context.coordinator, name: "amgiSpeakTts")
@@ -1469,6 +1531,7 @@ struct CardWebView: UIViewRepresentable {
             var showQuestion = typeof _showQuestion === 'function' ? _showQuestion : window._showQuestion;
             var bootstrapWarning = typeof amgiAppendBootstrapWarning === 'function' ? amgiAppendBootstrapWarning : window.amgiAppendBootstrapWarning;
             var bootstrapSummary = typeof amgiBootstrapErrorSummary === 'function' ? amgiBootstrapErrorSummary : window.amgiBootstrapErrorSummary;
+            var earlyBootstrapSummary = typeof amgiEarlyBootstrapSummary === 'function' ? amgiEarlyBootstrapSummary : window.amgiEarlyBootstrapSummary;
             if (typeof renderCard === 'function') {
                 return renderCard(payload);
             }
@@ -1511,7 +1574,9 @@ struct CardWebView: UIViewRepresentable {
                 }, 0);
                 return questionResult;
             }
-            throw new Error('Card render bootstrap missing: amgiRenderCard/_showQuestion/_showAnswer unavailable\\n' + (typeof bootstrapSummary === 'function' ? bootstrapSummary() : 'No bootstrap summary available.'));
+            throw new Error('Card render bootstrap missing: amgiRenderCard/_showQuestion/_showAnswer unavailable\\n' + (typeof bootstrapSummary === 'function'
+                ? bootstrapSummary()
+                : (typeof earlyBootstrapSummary === 'function' ? earlyBootstrapSummary() : 'No bootstrap summary available.')));
         })();
         """
     }
