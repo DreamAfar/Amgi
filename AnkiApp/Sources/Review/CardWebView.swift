@@ -275,6 +275,7 @@ struct CardWebView: UIViewRepresentable {
         let defaultCardBackground = Self.debugShowRedFrameBackground
             ? "#ff2a2a"
             : (isDarkMode ? "#1f1f22" : "transparent")
+        let bootstrapDiagnosticsEnabled = Self.cardRenderDiagnosticsEnabled ? "true" : "false"
         let textColor = isDarkMode ? "#f5f5f5" : "#1a1a1a"
         let hrColor = isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"
         let typeBorderColor = isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)"
@@ -400,6 +401,8 @@ struct CardWebView: UIViewRepresentable {
         window.onUpdateHook = [];
         window.onShownHook = [];
         window.__amgiUpdateQueue = Promise.resolve();
+        window.__amgiBootstrapDiagnosticsEnabled = \(bootstrapDiagnosticsEnabled);
+        window.__amgiBootstrapErrors = [];
         var amgiPreloadTemplate = document.createElement('template');
         var amgiPreloadDoc = document.implementation.createHTMLDocument('');
         var amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
@@ -411,6 +414,83 @@ struct CardWebView: UIViewRepresentable {
                 amgiGlobal = globalThis;
             }
         } catch (e) {}
+
+        function amgiRecordBootstrapError(kind, detail) {
+            try {
+                var info = detail || {};
+                window.__amgiBootstrapErrors.push({
+                    kind: kind || 'error',
+                    message: String(info.message || ''),
+                    source: String(info.source || ''),
+                    line: Number(info.line || 0),
+                    column: Number(info.column || 0),
+                });
+            } catch (e) {}
+        }
+
+        window.addEventListener('error', function(event) {
+            amgiRecordBootstrapError('error', {
+                message: event && event.message,
+                source: event && event.filename,
+                line: event && event.lineno,
+                column: event && event.colno,
+            });
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            var reason = event ? event.reason : null;
+            amgiRecordBootstrapError('unhandledrejection', {
+                message: reason && reason.message ? reason.message : String(reason || ''),
+            });
+        });
+
+        function amgiBootstrapErrorSummary() {
+            if (!Array.isArray(window.__amgiBootstrapErrors) || !window.__amgiBootstrapErrors.length) {
+                return 'No bootstrap errors captured.';
+            }
+            return window.__amgiBootstrapErrors.slice(-3).map(function(entry) {
+                var parts = [entry.kind || 'error', entry.message || ''];
+                if (entry.line || entry.column) {
+                    parts.push('line ' + (entry.line || 0) + ', column ' + (entry.column || 0));
+                }
+                if (entry.source) {
+                    parts.push(entry.source);
+                }
+                return parts.filter(function(part) { return !!part; }).join(' | ');
+            }).join('\\n');
+        }
+
+        function amgiAppendBootstrapWarning(reason) {
+            if (!window.__amgiBootstrapDiagnosticsEnabled) return;
+            var qa = document.getElementById('qa');
+            if (!qa || qa.querySelector('[data-amgi-bootstrap-warning]')) return;
+
+            var container = document.createElement('div');
+            container.setAttribute('data-amgi-bootstrap-warning', '1');
+            container.style.whiteSpace = 'pre-wrap';
+            container.style.textAlign = 'left';
+            container.style.background = 'rgba(120, 0, 0, 0.72)';
+            container.style.color = '#fff';
+            container.style.padding = '12px';
+            container.style.borderRadius = '10px';
+            container.style.marginBottom = '12px';
+            container.style.fontSize = '13px';
+
+            var title = document.createElement('div');
+            title.style.fontWeight = '600';
+            title.style.marginBottom = '6px';
+            title.textContent = 'Card bootstrap fallback: ' + reason;
+
+            var details = document.createElement('pre');
+            details.style.margin = '0';
+            details.style.whiteSpace = 'pre-wrap';
+            details.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+            details.textContent = amgiBootstrapErrorSummary();
+
+            container.appendChild(title);
+            container.appendChild(details);
+            qa.insertBefore(container, qa.firstChild);
+        }
 
         // ── Card state ──────────────────────────────────────────────────────
         window.__amgiCardState = {};
@@ -1382,11 +1462,15 @@ struct CardWebView: UIViewRepresentable {
         return """
         (function() {
             var payload = \(payloadLiteral);
+            var usedFallback = false;
+            var fallbackReason = '';
             if (typeof window.amgiRenderCard === 'function') {
                 return window.amgiRenderCard(payload);
             }
             if (payload.isAnswerSide && typeof window._showAnswer === 'function') {
-                return window._showAnswer(
+                usedFallback = true;
+                fallbackReason = 'window.amgiRenderCard missing on answer side';
+                var answerResult = window._showAnswer(
                     payload.html || '',
                     payload.bodyClass || '',
                     !!payload.autoplayEnabled,
@@ -1395,9 +1479,17 @@ struct CardWebView: UIViewRepresentable {
                     payload.bodyPaddingBottom || 16,
                     payload.cardPaddingBottom || 0
                 );
+                window.setTimeout(function() {
+                    if (usedFallback && typeof window.amgiAppendBootstrapWarning === 'function') {
+                        window.amgiAppendBootstrapWarning(fallbackReason);
+                    }
+                }, 0);
+                return answerResult;
             }
             if (!payload.isAnswerSide && typeof window._showQuestion === 'function') {
-                return window._showQuestion(
+                usedFallback = true;
+                fallbackReason = 'window.amgiRenderCard missing on question side';
+                var questionResult = window._showQuestion(
                     payload.html || '',
                     payload.prefetchHTML || '',
                     payload.bodyClass || '',
@@ -1407,8 +1499,14 @@ struct CardWebView: UIViewRepresentable {
                     payload.bodyPaddingBottom || 16,
                     payload.cardPaddingBottom || 0
                 );
+                window.setTimeout(function() {
+                    if (usedFallback && typeof window.amgiAppendBootstrapWarning === 'function') {
+                        window.amgiAppendBootstrapWarning(fallbackReason);
+                    }
+                }, 0);
+                return questionResult;
             }
-            throw new Error('Card render bootstrap missing: amgiRenderCard/_showQuestion/_showAnswer unavailable');
+            throw new Error('Card render bootstrap missing: amgiRenderCard/_showQuestion/_showAnswer unavailable\\n' + (typeof window.amgiBootstrapErrorSummary === 'function' ? window.amgiBootstrapErrorSummary() : 'No bootstrap summary available.'));
         })();
         """
     }
