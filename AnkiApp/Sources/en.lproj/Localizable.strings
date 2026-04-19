@@ -1034,6 +1034,13 @@
 "settings_check_database_no_issues" = "Database check completed. No issues found.";
 "debug_reset_button" = "Reset Everything";
 "debug_reset_confirm_msg" = "This will delete your local collection and credentials. You'll need to sync again.";
+"debug_section_card_render" = "Card Render Diagnostics";
+"debug_card_render_enable" = "Enable card render diagnostics";
+"debug_card_render_force_reload" = "Force frame reload every update";
+"debug_card_render_nil_base_url" = "Use nil baseURL (rely on <base> only)";
+"debug_card_render_red_frame" = "Show red frame background";
+"debug_card_render_js_error_overlay" = "Show JS exception details on card";
+"debug_card_render_hint" = "Use this when investigating blank cards, failed script injection, or asset resolution issues. Keep it off during normal use.";
 
 // MARK: - SettingsInfoView & AboutView
 "settings_info_editing" = "Editing options are currently handled by note type and deck configuration screens.";

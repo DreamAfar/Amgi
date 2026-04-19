@@ -8,6 +8,11 @@ import SwiftProtobuf
 
 struct DebugView: View {
     @Dependency(\.ankiBackend) var backend
+    @AppStorage(DebugPreferences.Keys.cardRenderDiagnosticsEnabled) private var cardRenderDiagnosticsEnabled = false
+    @AppStorage(DebugPreferences.Keys.cardRenderForceFrameReload) private var cardRenderForceFrameReload = true
+    @AppStorage(DebugPreferences.Keys.cardRenderUseNilBaseURL) private var cardRenderUseNilBaseURL = true
+    @AppStorage(DebugPreferences.Keys.cardRenderRedFrameBackground) private var cardRenderRedFrameBackground = true
+    @AppStorage(DebugPreferences.Keys.cardRenderShowJSErrorOverlay) private var cardRenderShowJSErrorOverlay = true
     @State private var statusMessage = ""
     @State private var showResetConfirm = false
     @State private var exportedFileURL: URL?
@@ -91,6 +96,28 @@ struct DebugView: View {
                     dumpDeckTree()
                 }
                 .listRowBackground(Color.amgiSurfaceElevated)
+            }
+
+            Section(L("debug_section_card_render")) {
+                Toggle(L("debug_card_render_enable"), isOn: $cardRenderDiagnosticsEnabled)
+                    .listRowBackground(Color.amgiSurfaceElevated)
+
+                if cardRenderDiagnosticsEnabled {
+                    Toggle(L("debug_card_render_force_reload"), isOn: $cardRenderForceFrameReload)
+                        .listRowBackground(Color.amgiSurfaceElevated)
+                    Toggle(L("debug_card_render_nil_base_url"), isOn: $cardRenderUseNilBaseURL)
+                        .listRowBackground(Color.amgiSurfaceElevated)
+                    Toggle(L("debug_card_render_red_frame"), isOn: $cardRenderRedFrameBackground)
+                        .listRowBackground(Color.amgiSurfaceElevated)
+                    Toggle(L("debug_card_render_js_error_overlay"), isOn: $cardRenderShowJSErrorOverlay)
+                        .listRowBackground(Color.amgiSurfaceElevated)
+
+                    Text(L("debug_card_render_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .listRowBackground(Color.amgiSurfaceElevated)
+                }
             }
         }
         .scrollContentBackground(.hidden)

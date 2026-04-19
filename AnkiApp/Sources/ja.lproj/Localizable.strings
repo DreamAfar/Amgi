@@ -1040,6 +1040,13 @@
 "debug_reset_complete" = "リセット完了。アプリを再起動してください。";
 "debug_dump_deck_tree" = "デッキツリーをダンプ";
 "debug_deck_tree_error" = "デッキツリーエラー：%@";
+"debug_section_card_render" = "カード描画診断";
+"debug_card_render_enable" = "カード描画診断を有効にする";
+"debug_card_render_force_reload" = "毎回フレームページを強制再読み込み";
+"debug_card_render_nil_base_url" = "nil baseURL を使う（<base> のみ使用）";
+"debug_card_render_red_frame" = "赤いフレーム背景を表示";
+"debug_card_render_js_error_overlay" = "カード上に JS 例外の詳細を表示";
+"debug_card_render_hint" = "カードの空白表示、スクリプト注入失敗、アセット解決の問題を調べる時に使います。通常時はオフ推奨です。";
 "deck_config_section_auto_advance" = "自動進行";
 
 // MARK: - SettingsInfoView & AboutView

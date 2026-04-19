@@ -1038,6 +1038,13 @@
 "debug_reset_complete" = "重置完成，请重新启动应用。";
 "debug_dump_deck_tree" = "输出牌组树";
 "debug_deck_tree_error" = "牌组树错误：%@";
+"debug_section_card_render" = "卡片渲染诊断";
+"debug_card_render_enable" = "启用卡片渲染诊断";
+"debug_card_render_force_reload" = "每次强制重载框架页";
+"debug_card_render_nil_base_url" = "使用 nil baseURL（仅依赖 <base>）";
+"debug_card_render_red_frame" = "显示红色框架背景";
+"debug_card_render_js_error_overlay" = "在卡片中显示 JS 异常详情";
+"debug_card_render_hint" = "开启后可用于排查卡片空白、脚本注入失败和资源解析异常。建议仅在调试时启用。";
 "deck_config_section_auto_advance" = "自动翻卡";
 
 // MARK: - SettingsInfoView & AboutView

@@ -7,11 +7,6 @@ import AVFoundation
 struct CardWebView: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
 
-    // Temporary diagnostics for blank-card investigation on devices without Xcode.
-    private static let debugForceFrameReload = true
-    private static let debugUseNilBaseURL = true
-    private static let debugFrameBackgroundCSS = "#ff2a2a"
-
     enum ReplayMode: String {
         case question
         case answerOnly
@@ -49,6 +44,37 @@ struct CardWebView: UIViewRepresentable {
         let alignTop: Bool
         let bodyPaddingBottom: Int
         let cardPaddingBottom: Int
+    }
+
+    private static func debugFlag(_ key: String, default defaultValue: Bool) -> Bool {
+        if let value = UserDefaults.standard.object(forKey: key) as? Bool {
+            return value
+        }
+        return defaultValue
+    }
+
+    private static var cardRenderDiagnosticsEnabled: Bool {
+        debugFlag(DebugPreferences.Keys.cardRenderDiagnosticsEnabled, default: false)
+    }
+
+    private static var debugForceFrameReload: Bool {
+        cardRenderDiagnosticsEnabled
+            && debugFlag(DebugPreferences.Keys.cardRenderForceFrameReload, default: true)
+    }
+
+    private static var debugUseNilBaseURL: Bool {
+        cardRenderDiagnosticsEnabled
+            && debugFlag(DebugPreferences.Keys.cardRenderUseNilBaseURL, default: true)
+    }
+
+    private static var debugShowRedFrameBackground: Bool {
+        cardRenderDiagnosticsEnabled
+            && debugFlag(DebugPreferences.Keys.cardRenderRedFrameBackground, default: true)
+    }
+
+    private static var debugShowJSErrorOverlay: Bool {
+        cardRenderDiagnosticsEnabled
+            && debugFlag(DebugPreferences.Keys.cardRenderShowJSErrorOverlay, default: true)
     }
 
     init(
@@ -246,7 +272,9 @@ struct CardWebView: UIViewRepresentable {
         baseTag: String
     ) -> String {
         let colorScheme = isDarkMode ? "dark" : "light"
-        let defaultCardBackground = debugFrameBackgroundCSS
+        let defaultCardBackground = Self.debugShowRedFrameBackground
+            ? "#ff2a2a"
+            : (isDarkMode ? "#1f1f22" : "transparent")
         let textColor = isDarkMode ? "#f5f5f5" : "#1a1a1a"
         let hrColor = isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"
         let typeBorderColor = isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)"
@@ -377,6 +405,12 @@ struct CardWebView: UIViewRepresentable {
         var amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
         var amgiCachedFonts = new Set();
         var amgiActiveCardStyleNodes = [];
+        var amgiGlobal = window;
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis) {
+                amgiGlobal = globalThis;
+            }
+        } catch (e) {}
 
         // ── Card state ──────────────────────────────────────────────────────
         window.__amgiCardState = {};
@@ -801,7 +835,7 @@ struct CardWebView: UIViewRepresentable {
             return false;
         }
         function playSound(btn) { return amgiPlayAudioElement(btn ? btn.previousElementSibling : null); }
-        window.playSound = playSound; globalThis.playSound = playSound;
+        window.playSound = playSound; amgiGlobal.playSound = playSound;
 
         // ── pycmd (compat shim) ──────────────────────────────────────────────
         function pycmd(command) {
@@ -817,7 +851,7 @@ struct CardWebView: UIViewRepresentable {
             }
             return false;
         }
-        globalThis.pycmd = pycmd; window.pycmd = pycmd;
+        amgiGlobal.pycmd = pycmd; window.pycmd = pycmd;
 
         // ── Link handling ────────────────────────────────────────────────────
         function postOpenLink(rawHref) {
@@ -850,7 +884,7 @@ struct CardWebView: UIViewRepresentable {
             } catch(e) {}
             return false;
         }
-        window.amgiSpeakTts = amgiSpeakTts; globalThis.amgiSpeakTts = amgiSpeakTts;
+        window.amgiSpeakTts = amgiSpeakTts; amgiGlobal.amgiSpeakTts = amgiSpeakTts;
 
         // ── Typed answer ─────────────────────────────────────────────────────
         function amgiGetTypedAnswer() {
@@ -859,7 +893,7 @@ struct CardWebView: UIViewRepresentable {
         }
         window.amgiGetTypedAnswer = amgiGetTypedAnswer;
         window.getTypedAnswer = amgiGetTypedAnswer;
-        globalThis.getTypedAnswer = amgiGetTypedAnswer;
+        amgiGlobal.getTypedAnswer = amgiGetTypedAnswer;
         function amgiSubmitTypedAnswer() {
             try { window.webkit.messageHandlers.amgiSubmitTypedAnswer.postMessage(amgiGetTypedAnswer()); } catch(e) {}
         }
@@ -876,7 +910,7 @@ struct CardWebView: UIViewRepresentable {
             if (e && e.key === 'Enter') { e.preventDefault(); amgiSubmitTypedAnswer(); return false; }
             return true;
         };
-        globalThis._typeAnsPress = window._typeAnsPress;
+        amgiGlobal._typeAnsPress = window._typeAnsPress;
 
         // ── Browser classes ──────────────────────────────────────────────────
         function amgiAddBrowserClasses() {
@@ -895,7 +929,7 @@ struct CardWebView: UIViewRepresentable {
             else if (/safari\\//.test(ua)) add('safari');
         }
         window.ankiPlatform = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) ? 'ios' : 'other';
-        globalThis.ankiPlatform = window.ankiPlatform;
+        amgiGlobal.ankiPlatform = window.ankiPlatform;
 
         // ── Image Occlusion ──────────────────────────────────────────────────
         function amgiExtractIOShapes(selector) {
@@ -1139,8 +1173,8 @@ struct CardWebView: UIViewRepresentable {
         window.amgiSetupImageOcclusion = amgiSetupImageOcclusion;
 
         // anki.imageOcclusion / anki.setupImageCloze compat shims
-        var anki = globalThis.anki || {};
-        globalThis.anki = anki; window.anki = anki;
+        var anki = amgiGlobal.anki || {};
+        amgiGlobal.anki = anki; window.anki = anki;
         anki.addBrowserClasses = amgiAddBrowserClasses;
         anki.imageOcclusion = anki.imageOcclusion || {};
         anki.imageOcclusion.setup = amgiSetupImageOcclusion;
@@ -1151,7 +1185,7 @@ struct CardWebView: UIViewRepresentable {
         anki.imageOcclusion.Ellipse = anki.imageOcclusion.Ellipse || function Ellipse() {};
         anki.imageOcclusion.Polygon = anki.imageOcclusion.Polygon || function Polygon() {};
         anki.setupImageCloze = function() { amgiSetupImageOcclusion(); };
-        amgiAddBrowserClasses();
+        try { amgiAddBrowserClasses(); } catch (e) {}
 
         // ── Core QA update (mirrors upstream _updateQA) ──────────────────────
         async function amgiUpdateQA(html, state, onupdate, onshown) {
@@ -1344,7 +1378,39 @@ struct CardWebView: UIViewRepresentable {
             cardPaddingBottom: cardPaddingBottom
         )
 
-        return "window.amgiRenderCard(\(jsObjectLiteral(payload)));"
+        let payloadLiteral = jsObjectLiteral(payload)
+        return """
+        (function() {
+            var payload = \(payloadLiteral);
+            if (typeof window.amgiRenderCard === 'function') {
+                return window.amgiRenderCard(payload);
+            }
+            if (payload.isAnswerSide && typeof window._showAnswer === 'function') {
+                return window._showAnswer(
+                    payload.html || '',
+                    payload.bodyClass || '',
+                    !!payload.autoplayEnabled,
+                    payload.replayMode || 'answerOnly',
+                    !!payload.alignTop,
+                    payload.bodyPaddingBottom || 16,
+                    payload.cardPaddingBottom || 0
+                );
+            }
+            if (!payload.isAnswerSide && typeof window._showQuestion === 'function') {
+                return window._showQuestion(
+                    payload.html || '',
+                    payload.prefetchHTML || '',
+                    payload.bodyClass || '',
+                    !!payload.autoplayEnabled,
+                    payload.replayMode || 'question',
+                    !!payload.alignTop,
+                    payload.bodyPaddingBottom || 16,
+                    payload.cardPaddingBottom || 0
+                );
+            }
+            throw new Error('Card render bootstrap missing: amgiRenderCard/_showQuestion/_showAnswer unavailable');
+        })();
+        """
     }
 
     private static func jsObjectLiteral<T: Encodable>(_ value: T) -> String {
@@ -1874,6 +1940,7 @@ struct CardWebView: UIViewRepresentable {
 
         private func presentCardScriptError(_ error: Error, script: String, in webView: WKWebView) {
             print("[CardWebView] evaluateJavaScript error: \(error)")
+            guard CardWebView.debugShowJSErrorOverlay else { return }
             let nsError = error as NSError
             let message = (nsError.userInfo["WKJavaScriptExceptionMessage"] as? String)
                 ?? error.localizedDescription

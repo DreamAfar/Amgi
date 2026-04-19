@@ -18,6 +18,16 @@ enum ReviewPreferences {
     }
 }
 
+enum DebugPreferences {
+    enum Keys {
+        static let cardRenderDiagnosticsEnabled = "debug_pref_card_render_enabled"
+        static let cardRenderForceFrameReload = "debug_pref_card_render_force_reload"
+        static let cardRenderUseNilBaseURL = "debug_pref_card_render_nil_base_url"
+        static let cardRenderRedFrameBackground = "debug_pref_card_render_red_frame"
+        static let cardRenderShowJSErrorOverlay = "debug_pref_card_render_js_error_overlay"
+    }
+}
+
 enum SyncPreferences {
     enum Keys {
         static let modeBase = "syncMode"
