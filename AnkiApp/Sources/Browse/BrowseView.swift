@@ -1186,8 +1186,7 @@ struct BrowseView: View {
         do {
             let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
                 service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetypeNames,
-                request: Anki_Empty()
+                method: AnkiBackend.NotetypesMethod.getNotetypeNames
             )
             notetypeNamesByID = Dictionary(uniqueKeysWithValues: response.entries.map { ($0.id, $0.name) })
         } catch {
