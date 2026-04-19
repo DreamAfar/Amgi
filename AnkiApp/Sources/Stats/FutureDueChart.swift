@@ -23,13 +23,36 @@ struct FutureDueChart: View {
         let cumulative: Int
     }
 
+    private var xAxisSpan: Int {
+        max(1, xAxisUpperBound - xAxisLowerBound)
+    }
+
     private var desiredBarCount: Int {
-        max(1, min(70, xAxisUpperBound - xAxisLowerBound))
+        let target: Int
+        switch period {
+        case .day:
+            target = 1
+        case .week:
+            target = 7
+        case .month:
+            target = 45
+        case .threeMonths:
+            target = 72
+        case .year:
+            target = 96
+        case .all:
+            target = 120
+        }
+        return max(1, min(target, xAxisSpan))
     }
 
     private var dayBucketSize: Int {
-        let span = max(1, xAxisUpperBound - xAxisLowerBound)
-        return max(1, Int(ceil(Double(span) / Double(desiredBarCount))))
+        return max(1, Int(ceil(Double(xAxisSpan) / Double(desiredBarCount))))
+    }
+
+    private var displayedBucketCount: Int {
+        let inclusiveSpan = max(1, xAxisUpperBound - xAxisLowerBound + 1)
+        return max(1, Int(ceil(Double(inclusiveSpan) / Double(dayBucketSize))))
     }
 
     private var sortedDueCounts: [DisplayPoint] {
@@ -96,38 +119,21 @@ struct FutureDueChart: View {
         return 0
     }
 
-    private var xAxisStep: Int {
-        if includeBacklog {
-            return 200
-        }
-
+    private var xAxisDesiredTickCount: Int {
         switch period {
         case .month:
-            return 5
+            return includeBacklog ? 5 : 6
         case .threeMonths:
-            return 10
+            return includeBacklog ? 6 : 7
         case .year:
-            return 50
+            return includeBacklog ? 7 : 8
         case .all:
-            return 500
+            return includeBacklog ? 8 : 10
         case .day:
-            return 1
+            return 2
         case .week:
-            return 1
+            return 4
         }
-    }
-
-    private var xAxisValues: [Int] {
-        let lower = xAxisLowerBound
-        let upper = xAxisUpperBound
-        let step = max(xAxisStep, 1)
-        guard lower <= upper else { return [] }
-
-        var values = Array(stride(from: lower, through: upper, by: step))
-        if values.last != upper {
-            values.append(upper)
-        }
-        return values
     }
 
     private var filteredData: [DisplayPoint] {
@@ -195,8 +201,8 @@ struct FutureDueChart: View {
     }
 
     private var barWidth: MarkDimension {
-        if filteredData.count <= 30 { return .automatic }
-        let w: Double = max(2.0, min(8.0, 280.0 / Double(filteredData.count)))
+        if displayedBucketCount <= 24 { return .automatic }
+        let w: Double = max(1.5, min(6.0, 220.0 / Double(displayedBucketCount)))
         return .fixed(w)
     }
 
@@ -319,7 +325,7 @@ struct FutureDueChart: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: xAxisValues) { value in
+                    AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         if let day = value.as(Int.self) {
