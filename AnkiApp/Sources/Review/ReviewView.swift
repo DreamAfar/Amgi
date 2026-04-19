@@ -119,7 +119,7 @@ struct ReviewView: View {
                         Image(systemName: "arrow.uturn.backward")
                     }
                     .accessibilityLabel(L("card_action_undo"))
-                    .disabled(session.currentCard == nil)
+                    .disabled(session.currentCard == nil || !session.canUndo)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

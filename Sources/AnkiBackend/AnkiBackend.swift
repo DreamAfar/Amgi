@@ -258,6 +258,9 @@ extension AnkiBackend {
     public enum CollectionMethod {
         public static let open: UInt32 = 0
         public static let close: UInt32 = 1
+        // BackendCollectionService has 6 backend-specific methods first.
+        // CollectionService.GetUndoStatus is proto index 1, so delegated index is 6 + 1 = 7.
+        public static let getUndoStatus: UInt32 = 7
         public static let latestProgress: UInt32 = 4
         // BackendCollectionService has 6 backend-specific methods first.
         // CollectionService.Undo is proto index 2, so delegated index is 6 + 2 = 8.
