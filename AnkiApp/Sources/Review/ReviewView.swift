@@ -40,6 +40,7 @@ struct ReviewView: View {
     @State private var showDeleteNoteConfirm = false
     @State private var showUndoError = false
     @State private var undoErrorMessage: String?
+    @State private var isUndoing = false
     @State private var showSetDueDateSheet = false
     @State private var setDueDateInput = ""
     @State private var setDueDateCardID: Int64?
@@ -119,7 +120,7 @@ struct ReviewView: View {
                         Image(systemName: "arrow.uturn.backward")
                     }
                     .accessibilityLabel(L("card_action_undo"))
-                    .disabled(session.currentCard == nil || !session.canUndo)
+                    .disabled(session.currentCard == nil || !session.canUndo || isUndoing)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -604,6 +605,9 @@ struct ReviewView: View {
     }
 
     private func performUndo() async {
+        guard !isUndoing else { return }
+        isUndoing = true
+        defer { isUndoing = false }
         do {
             try cardClient.undo()
             await session.refreshAfterCardMutation()

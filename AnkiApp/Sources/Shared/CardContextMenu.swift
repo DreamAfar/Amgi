@@ -1,5 +1,7 @@
 import SwiftUI
 import AnkiClients
+import AnkiBackend
+import AnkiProto
 import Dependencies
 
 /// Context menu for card operations (suspend, bury, flag, undo)
@@ -14,11 +16,14 @@ struct CardContextMenu: View {
     @Dependency(\.cardClient) var cardClient
     @Dependency(\.noteClient) var noteClient
     @Dependency(\.tagClient) var tagClient
+    @Dependency(\.ankiBackend) var backend
     
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var showDeleteConfirmation = false
     @State private var isMarkedNote = false
+    @State private var canUndo = false
+    @State private var isUndoing = false
 
     init(
         cardId: Int64,
@@ -97,9 +102,12 @@ struct CardContextMenu: View {
                 Label(L("card_action_flag"), systemImage: "flag.fill")
             }
             
-            Button(action: performUndo) {
+            Button {
+                Task { await performUndo() }
+            } label: {
                 Label(L("card_action_undo"), systemImage: "arrow.uturn.backward")
             }
+            .disabled(!canUndo || isUndoing)
         } label: {
             Image(systemName: "ellipsis.circle")
                 .font(AmgiFont.bodyEmphasis.font)
@@ -115,8 +123,9 @@ struct CardContextMenu: View {
         } message: {
             Text(L("browse_delete_confirm"))
         }
-        .task(id: noteId) {
+        .task(id: cardId) {
             await loadMarkedState()
+            await refreshUndoAvailability()
         }
     }
     
@@ -225,7 +234,10 @@ struct CardContextMenu: View {
         }
     }
     
-    private func performUndo() {
+    private func performUndo() async {
+        guard !isUndoing, canUndo else { return }
+        isUndoing = true
+        defer { isUndoing = false }
         do {
             try cardClient.undo()
             onSuccess?()
@@ -233,6 +245,20 @@ struct CardContextMenu: View {
         } catch {
             errorMessage = L("card_action_error_undo", error.localizedDescription)
             showError = true
+            await refreshUndoAvailability()
+        }
+    }
+
+    private func refreshUndoAvailability() async {
+        do {
+            let status: Anki_Collection_UndoStatus = try backend.invoke(
+                service: AnkiBackend.Service.collection,
+                method: AnkiBackend.CollectionMethod.getUndoStatus,
+                request: Anki_Generic_Empty()
+            )
+            canUndo = !status.undo.isEmpty
+        } catch {
+            canUndo = false
         }
     }
 

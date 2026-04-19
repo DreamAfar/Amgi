@@ -304,7 +304,7 @@ final class ReviewSession {
                 method: AnkiBackend.CollectionMethod.getUndoStatus,
                 request: Anki_Generic_Empty()
             )
-            canUndo = status.lastStep > 0 || !status.undo.isEmpty
+            canUndo = !status.undo.isEmpty
         } catch {
             canUndo = false
             print("[ReviewSession] Fetch undo status failed: \(error)")
