@@ -33,7 +33,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.92"
+          toolchain: "1.95"
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
 
       # ── 5. 缓存 Rust 编译产物 ──────────────────────────────────
