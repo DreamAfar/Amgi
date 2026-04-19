@@ -990,10 +990,10 @@ struct CardWebView: UIViewRepresentable {
                         });
                         container._amgiIOShapes = shapes;
                     }
-                    function visibleShapes(textOnly) {
+                    function visibleShapes() {
                         return (container._amgiIOShapes || []).filter(function(s) {
                             if (s._revealed) return false;
-                            if (textOnly && s.type !== 'text') return false;
+                            if (container._amgiMasksHidden) return false;
                             if (s._cls === 'cloze-inactive') return !!s.occludeInactive;
                             return true;
                         });
@@ -1013,7 +1013,7 @@ struct CardWebView: UIViewRepresentable {
                         var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
                         var border = '#212121';
                         var size = { width: width, height: height };
-                        visibleShapes(masksHidden).forEach(function(s) {
+                        visibleShapes().forEach(function(s) {
                             var fill = s._cls === 'cloze-inactive' ? inactiveColor : s._cls === 'cloze' ? activeColor : highlightColor;
                             amgiDrawIOShape(ctx, s, size, fill, border);
                         });
