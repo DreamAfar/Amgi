@@ -567,6 +567,21 @@ struct CardWebView: UIViewRepresentable {
             }
         }
 
+        function amgiScheduleCardThemeReport() {
+            amgiReportCardTheme();
+            window.requestAnimationFrame(function() {
+                amgiReportCardTheme();
+            });
+            window.setTimeout(function() {
+                amgiReportCardTheme();
+            }, 120);
+            amgiAllImagesLoaded().then(function() {
+                window.requestAnimationFrame(function() {
+                    amgiReportCardTheme();
+                });
+            });
+        }
+
         function amgiContainsInlineDollarMath(html) {
             if (!html) return false;
 
@@ -633,7 +648,7 @@ struct CardWebView: UIViewRepresentable {
             amgiTypesetMath(container, 60).then(function(didTypeset) {
                 if (didTypeset) {
                     amgiApplyDarkModeFallback(container);
-                    amgiReportCardTheme();
+                    amgiScheduleCardThemeReport();
                 }
             });
         }
@@ -1092,7 +1107,7 @@ struct CardWebView: UIViewRepresentable {
             }
 
             qa.style.opacity = '1';
-            amgiReportCardTheme();
+            amgiScheduleCardThemeReport();
             if (shouldTypesetMath && !didTypesetMath) {
                 amgiTypesetMathWhenReady(qa);
             }
