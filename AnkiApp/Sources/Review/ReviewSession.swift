@@ -27,6 +27,7 @@ final class ReviewSession {
     private(set) var sessionStats: SessionStats = .init()
     private(set) var remainingCounts: DeckCounts = .zero
     private(set) var isFinished: Bool = false
+    private(set) var canUndo: Bool = false
     /// Next interval for each rating button (formatted string)
     private(set) var nextIntervals: [Rating: String] = [:]
     /// Next interval in seconds for each rating button.
@@ -108,11 +109,13 @@ final class ReviewSession {
                 learnCount: Int(response.learningCount),
                 reviewCount: Int(response.reviewCount)
             )
+            refreshUndoAvailability()
 
             print("[ReviewSession] Started with \(cardQueue.count) cards, counts: new=\(remainingCounts.newCount) learn=\(remainingCounts.learnCount) review=\(remainingCounts.reviewCount)")
             advanceToNextCard()
         } catch {
             print("[ReviewSession] Start failed: \(error)")
+            canUndo = false
             isFinished = true
         }
     }
@@ -135,6 +138,7 @@ final class ReviewSession {
                 learnCount: Int(response.learningCount),
                 reviewCount: Int(response.reviewCount)
             )
+            refreshUndoAvailability()
             
             print("[ReviewSession] Queue refreshed after action: \(cardQueue.count) cards remaining")
             advanceToNextCard()
@@ -165,6 +169,7 @@ final class ReviewSession {
                 learnCount: Int(response.learningCount),
                 reviewCount: Int(response.reviewCount)
             )
+            refreshUndoAvailability()
 
             if let currentId,
                let retained = cardQueue.first(where: { $0.card.id == currentId }) {
@@ -280,13 +285,29 @@ final class ReviewSession {
                 learnCount: Int(response.learningCount),
                 reviewCount: Int(response.reviewCount)
             )
+            refreshUndoAvailability()
 
             advanceToNextCard()
         } catch {
             print("[ReviewSession] Answer failed: \(error)")
             // Skip this card and move to next
             if !cardQueue.isEmpty { cardQueue.removeFirst() }
+            refreshUndoAvailability()
             advanceToNextCard()
+        }
+    }
+
+    private func refreshUndoAvailability() {
+        do {
+            let status: Anki_Collection_UndoStatus = try backend.invoke(
+                service: AnkiBackend.Service.collection,
+                method: AnkiBackend.CollectionMethod.getUndoStatus,
+                request: Anki_Generic_Empty()
+            )
+            canUndo = status.lastStep > 0 || !status.undo.isEmpty
+        } catch {
+            canUndo = false
+            print("[ReviewSession] Fetch undo status failed: \(error)")
         }
     }
 
