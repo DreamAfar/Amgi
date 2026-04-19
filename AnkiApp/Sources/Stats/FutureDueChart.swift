@@ -45,7 +45,10 @@ struct FutureDueChart: View {
 
     private var sortedDueCounts: [DisplayPoint] {
         futureDue.futureDue
-            .map { DisplayPoint(day: Int($0.key), count: Int($0.value)) }
+            .map {
+                let day = Int($0.key)
+                return DisplayPoint(startDay: day, endDay: day, count: Int($0.value))
+            }
             .sorted(by: { $0.day < $1.day })
     }
 
