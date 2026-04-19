@@ -1,5 +1,6 @@
 import SwiftUI
 import AnkiBackend
+import AnkiKit
 import AnkiClients
 import AnkiProto
 import Dependencies
