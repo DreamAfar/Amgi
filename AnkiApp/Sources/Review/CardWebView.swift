@@ -7,6 +7,11 @@ import AVFoundation
 struct CardWebView: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
 
+    // Temporary diagnostics for blank-card investigation on devices without Xcode.
+    private static let debugForceFrameReload = true
+    private static let debugUseNilBaseURL = true
+    private static let debugFrameBackgroundCSS = "#ff2a2a"
+
     enum ReplayMode: String {
         case question
         case answerOnly
@@ -151,7 +156,9 @@ struct CardWebView: UIViewRepresentable {
         )
         context.coordinator.stopTTS()
 
-        if context.coordinator.lastPageSignature != pageSignature {
+        let shouldReloadFrame = Self.debugForceFrameReload || context.coordinator.lastPageSignature != pageSignature
+
+        if shouldReloadFrame {
             context.coordinator.lastPageSignature = pageSignature
             context.coordinator.lastContentSignature = contentSignature
             context.coordinator.isPageLoaded = false
@@ -171,9 +178,12 @@ struct CardWebView: UIViewRepresentable {
                 baseTag: baseTag
             )
 
-            // Use cardBaseURL so that MathJax, fonts, and other resources load correctly.
-            // The CardAssetScheme handler processes amgi-asset:// URLs.
-            webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
+            // Diagnostic path: load with nil baseURL and rely on the explicit <base> tag.
+            // This helps distinguish frame navigation issues from asset resolution issues.
+            webView.loadHTMLString(
+                styledHTML,
+                baseURL: Self.debugUseNilBaseURL ? nil : CardAssetPath.cardBaseURL
+            )
         } else if context.coordinator.lastContentSignature != contentSignature {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
@@ -224,7 +234,7 @@ struct CardWebView: UIViewRepresentable {
         baseTag: String
     ) -> String {
         let colorScheme = isDarkMode ? "dark" : "light"
-        let defaultCardBackground = isDarkMode ? "#1f1f22" : "transparent"
+        let defaultCardBackground = debugFrameBackgroundCSS
         let textColor = isDarkMode ? "#f5f5f5" : "#1a1a1a"
         let hrColor = isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"
         let typeBorderColor = isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)"
