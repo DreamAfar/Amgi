@@ -1022,62 +1022,6 @@ struct BrowseView: View {
         do {
             allTags = try tagClient.getAllTags().sorted()
             if let activeTag, !allTags.contains(activeTag) {
-
-private struct BrowseAllTagsSheet: View {
-    let tags: [String]
-    let activeTag: String?
-    let onSelect: (String?) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-
-    private let columns = [GridItem(.adaptive(minimum: 110), spacing: 10)]
-
-    var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 10) {
-                tagButton(title: L("browse_filter_all"), isSelected: activeTag == nil) {
-                    onSelect(nil)
-                    dismiss()
-                }
-
-                ForEach(tags, id: \.self) { tag in
-                    tagButton(title: shortTagName(tag), isSelected: activeTag == tag) {
-                        onSelect(tag)
-                        dismiss()
-                    }
-                }
-            }
-            .padding()
-        }
-        .background(Color.amgiBackground)
-        .navigationTitle(L("browse_filter_by_tag"))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(L("common_cancel")) { dismiss() }
-                    .amgiToolbarTextButton(tone: .neutral)
-            }
-        }
-    }
-
-    private func tagButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(AmgiFont.caption.font)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated)
-                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.amgiTextPrimary))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func shortTagName(_ tag: String) -> String {
-        String(tag.split(separator: "::").last ?? Substring(tag))
-    }
-}
                 self.activeTag = nil
             }
         } catch {
@@ -1385,6 +1329,62 @@ private struct BrowseAllTagsSheet: View {
     private func invertSelection() {
         let allIDs = Set(allNoteIDs)
         selectedNoteIDs = allIDs.subtracting(selectedNoteIDs)
+    }
+}
+
+private struct BrowseAllTagsSheet: View {
+    let tags: [String]
+    let activeTag: String?
+    let onSelect: (String?) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private let columns = [GridItem(.adaptive(minimum: 110), spacing: 10)]
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 10) {
+                tagButton(title: L("browse_filter_all"), isSelected: activeTag == nil) {
+                    onSelect(nil)
+                    dismiss()
+                }
+
+                ForEach(tags, id: \.self) { tag in
+                    tagButton(title: shortTagName(tag), isSelected: activeTag == tag) {
+                        onSelect(tag)
+                        dismiss()
+                    }
+                }
+            }
+            .padding()
+        }
+        .background(Color.amgiBackground)
+        .navigationTitle(L("browse_filter_by_tag"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(L("common_cancel")) { dismiss() }
+                    .amgiToolbarTextButton(tone: .neutral)
+            }
+        }
+    }
+
+    private func tagButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(AmgiFont.caption.font)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated)
+                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.amgiTextPrimary))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func shortTagName(_ tag: String) -> String {
+        String(tag.split(separator: "::").last ?? Substring(tag))
     }
 }
 
