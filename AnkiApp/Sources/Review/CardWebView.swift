@@ -1464,13 +1464,18 @@ struct CardWebView: UIViewRepresentable {
             var payload = \(payloadLiteral);
             var usedFallback = false;
             var fallbackReason = '';
-            if (typeof window.amgiRenderCard === 'function') {
-                return window.amgiRenderCard(payload);
+            var renderCard = typeof amgiRenderCard === 'function' ? amgiRenderCard : window.amgiRenderCard;
+            var showAnswer = typeof _showAnswer === 'function' ? _showAnswer : window._showAnswer;
+            var showQuestion = typeof _showQuestion === 'function' ? _showQuestion : window._showQuestion;
+            var bootstrapWarning = typeof amgiAppendBootstrapWarning === 'function' ? amgiAppendBootstrapWarning : window.amgiAppendBootstrapWarning;
+            var bootstrapSummary = typeof amgiBootstrapErrorSummary === 'function' ? amgiBootstrapErrorSummary : window.amgiBootstrapErrorSummary;
+            if (typeof renderCard === 'function') {
+                return renderCard(payload);
             }
-            if (payload.isAnswerSide && typeof window._showAnswer === 'function') {
+            if (payload.isAnswerSide && typeof showAnswer === 'function') {
                 usedFallback = true;
                 fallbackReason = 'window.amgiRenderCard missing on answer side';
-                var answerResult = window._showAnswer(
+                var answerResult = showAnswer(
                     payload.html || '',
                     payload.bodyClass || '',
                     !!payload.autoplayEnabled,
@@ -1480,16 +1485,16 @@ struct CardWebView: UIViewRepresentable {
                     payload.cardPaddingBottom || 0
                 );
                 window.setTimeout(function() {
-                    if (usedFallback && typeof window.amgiAppendBootstrapWarning === 'function') {
-                        window.amgiAppendBootstrapWarning(fallbackReason);
+                    if (usedFallback && typeof bootstrapWarning === 'function') {
+                        bootstrapWarning(fallbackReason);
                     }
                 }, 0);
                 return answerResult;
             }
-            if (!payload.isAnswerSide && typeof window._showQuestion === 'function') {
+            if (!payload.isAnswerSide && typeof showQuestion === 'function') {
                 usedFallback = true;
                 fallbackReason = 'window.amgiRenderCard missing on question side';
-                var questionResult = window._showQuestion(
+                var questionResult = showQuestion(
                     payload.html || '',
                     payload.prefetchHTML || '',
                     payload.bodyClass || '',
@@ -1500,13 +1505,13 @@ struct CardWebView: UIViewRepresentable {
                     payload.cardPaddingBottom || 0
                 );
                 window.setTimeout(function() {
-                    if (usedFallback && typeof window.amgiAppendBootstrapWarning === 'function') {
-                        window.amgiAppendBootstrapWarning(fallbackReason);
+                    if (usedFallback && typeof bootstrapWarning === 'function') {
+                        bootstrapWarning(fallbackReason);
                     }
                 }, 0);
                 return questionResult;
             }
-            throw new Error('Card render bootstrap missing: amgiRenderCard/_showQuestion/_showAnswer unavailable\\n' + (typeof window.amgiBootstrapErrorSummary === 'function' ? window.amgiBootstrapErrorSummary() : 'No bootstrap summary available.'));
+            throw new Error('Card render bootstrap missing: amgiRenderCard/_showQuestion/_showAnswer unavailable\\n' + (typeof bootstrapSummary === 'function' ? bootstrapSummary() : 'No bootstrap summary available.'));
         })();
         """
     }
