@@ -8,6 +8,8 @@ public struct NoteClient: Sendable {
     public var search: @Sendable (_ query: String, _ limit: Int?) throws -> [NoteRecord]
     /// Returns only note IDs for the query (fast, no full-note fetch).
     public var searchIds: @Sendable (_ query: String) throws -> [Int64]
+    /// Returns note IDs using backend builtin browser sorting.
+    public var searchIdsSorted: @Sendable (_ query: String, _ column: String, _ reverse: Bool) throws -> [Int64]
     /// Fetches full note records for the given IDs in order.
     public var fetchBatch: @Sendable (_ ids: [Int64]) throws -> [NoteRecord]
     public var save: @Sendable (_ note: NoteRecord) throws -> Void

@@ -259,7 +259,7 @@ struct CardWebView: UIViewRepresentable {
             startup: { typeset: false }
         };
         </script>
-        <script src="\(mathJaxScriptURL)" async></script>
+        <script id="MathJax-script" src="\(mathJaxScriptURL)" async></script>
         <style>
             :root {
                 color-scheme: \(colorScheme);
@@ -354,6 +354,7 @@ struct CardWebView: UIViewRepresentable {
         var amgiPreloadDoc = document.implementation.createHTMLDocument('');
         var amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
         var amgiCachedFonts = new Set();
+        var amgiActiveCardStyleNodes = [];
 
         // ── Card state ──────────────────────────────────────────────────────
         window.__amgiCardState = {};
@@ -388,6 +389,25 @@ struct CardWebView: UIViewRepresentable {
             link.rel = 'preload'; link.href = href; link.as = asType;
             if (asType === 'font') link.crossOrigin = '';
             return link;
+        }
+        function amgiClearCardStyleSheets() {
+            amgiActiveCardStyleNodes.forEach(function(node) {
+                if (node && node.parentNode) node.parentNode.removeChild(node);
+            });
+            amgiActiveCardStyleNodes = [];
+        }
+        function amgiSyncCardStyleSheets(element) {
+            amgiClearCardStyleSheets();
+            Array.from(element.querySelectorAll('style, link')).filter(function(css) {
+                return css.tagName === 'STYLE'
+                    || (css.tagName === 'LINK' && (css.rel || '').toLowerCase() === 'stylesheet');
+            }).forEach(function(css) {
+                var clone = css.cloneNode(true);
+                clone.setAttribute('data-amgi-card-style', '');
+                document.head.appendChild(clone);
+                amgiActiveCardStyleNodes.push(clone);
+                if (css.parentNode) css.parentNode.removeChild(css);
+            });
         }
         function amgiPreloadImage(img) {
             if (!img.getAttribute('decoding')) img.decoding = 'async';
@@ -663,7 +683,8 @@ struct CardWebView: UIViewRepresentable {
                 v.load();
             });
             element.innerHTML = html;
-            for (var script of Array.from(element.getElementsByTagName('script'))) {
+            amgiSyncCardStyleSheets(element);
+            for (var script of Array.from(element.querySelectorAll('script[data-amgi-card-script]'))) {
                 await amgiReplaceScript(script);
             }
         }
@@ -869,23 +890,48 @@ struct CardWebView: UIViewRepresentable {
                 };
             });
         }
+        function amgiMeasureIOTextShape(shape, size, ctx) {
+            var fontSize = shape.fontSize > 0 ? shape.fontSize * size.height : 40;
+            var scale = shape.scale > 0 ? shape.scale : 1;
+            ctx.save();
+            ctx.font = fontSize + 'px Arial';
+            ctx.textBaseline = 'top';
+            var lines = (shape.text || '').split('\n');
+            var bm = ctx.measureText('M');
+            var fh = bm.actualBoundingBoxAscent + bm.actualBoundingBoxDescent;
+            if (!fh || !Number.isFinite(fh)) fh = fontSize;
+            var lh = 1.5 * fh;
+            var maxW = 0;
+            lines.forEach(function(line) {
+                var lineWidth = ctx.measureText(line).width;
+                if (lineWidth > maxW) maxW = lineWidth;
+            });
+            ctx.restore();
+            return {
+                lines: lines,
+                scale: scale,
+                fontSize: fontSize,
+                lineHeight: lh,
+                left: shape.left * size.width,
+                top: shape.top * size.height,
+                width: (maxW + 5) * scale,
+                height: (lines.length * lh + 5) * scale,
+            };
+        }
         function amgiDrawIOShape(ctx, shape, size, fill, stroke) {
             if (shape.type === 'text') {
-                var fontSize = shape.fontSize > 0 ? shape.fontSize * size.height : 40;
-                var scale = shape.scale > 0 ? shape.scale : 1;
-                ctx.save(); ctx.font = fontSize + 'px Arial'; ctx.textBaseline = 'top'; ctx.scale(scale, scale);
-                var lines = (shape.text || '').split('\\n');
-                var bm = ctx.measureText('M');
-                var fh = bm.actualBoundingBoxAscent + bm.actualBoundingBoxDescent;
-                var lh = 1.5 * fh; var maxW = 0;
-                var sl = shape.left * size.width / scale, st = shape.top * size.height / scale;
+                var layout = amgiMeasureIOTextShape(shape, size, ctx);
+                ctx.save();
+                ctx.font = layout.fontSize + 'px Arial';
+                ctx.textBaseline = 'top';
+                ctx.scale(layout.scale, layout.scale);
+                var sl = layout.left / layout.scale, st = layout.top / layout.scale;
                 var angle = shape.angle * Math.PI / 180;
-                lines.forEach(function(l) { var w = ctx.measureText(l).width; if (w > maxW) maxW = w; });
                 if (angle) { ctx.translate(sl, st); ctx.rotate(angle); ctx.translate(-sl, -st); }
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(sl, st, maxW + 5, lines.length * lh + 5);
+                ctx.fillRect(sl, st, layout.width / layout.scale, layout.height / layout.scale);
                 ctx.fillStyle = shape.fill || '#000000';
-                lines.forEach(function(l, i) { ctx.fillText(l, sl, st + i * lh); });
+                layout.lines.forEach(function(line, index) { ctx.fillText(line, sl, st + index * layout.lineHeight); });
                 ctx.restore(); return;
             }
             if (shape.type === 'polygon' && shape.points && shape.points.length >= 2) {
@@ -927,6 +973,17 @@ struct CardWebView: UIViewRepresentable {
             var dx = px - ox, dy = py - oy;
             var lx = dx * Math.cos(-angle) - dy * Math.sin(-angle);
             var ly = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+            if (shape.type === 'text') {
+                var canvas = amgiHitTestShape._canvas;
+                if (!canvas) {
+                    canvas = document.createElement('canvas');
+                    amgiHitTestShape._canvas = canvas;
+                }
+                var textContext = canvas.getContext('2d');
+                if (!textContext) return false;
+                var layout = amgiMeasureIOTextShape(shape, size, textContext);
+                return lx >= 0 && lx <= layout.width && ly >= 0 && ly <= layout.height;
+            }
             if (shape.type === 'rect') {
                 return lx >= 0 && lx <= shape.width * size.width && ly >= 0 && ly <= shape.height * size.height;
             } else if (shape.type === 'ellipse') {
@@ -975,10 +1032,10 @@ struct CardWebView: UIViewRepresentable {
                         });
                         container._amgiIOShapes = shapes;
                     }
-                    function visibleShapes(textOnly) {
+                    function visibleShapes() {
                         return (container._amgiIOShapes || []).filter(function(s) {
                             if (s._revealed) return false;
-                            if (textOnly && s.type !== 'text') return false;
+                            if (container._amgiMasksHidden) return false;
                             if (s._cls === 'cloze-inactive') return !!s.occludeInactive;
                             return true;
                         });
@@ -998,7 +1055,7 @@ struct CardWebView: UIViewRepresentable {
                         var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
                         var border = '#212121';
                         var size = { width: width, height: height };
-                        visibleShapes(masksHidden).forEach(function(s) {
+                        visibleShapes().forEach(function(s) {
                             var fill = s._cls === 'cloze-inactive' ? inactiveColor : s._cls === 'cloze' ? activeColor : highlightColor;
                             amgiDrawIOShape(ctx, s, size, fill, border);
                         });
@@ -1315,6 +1372,7 @@ struct CardWebView: UIViewRepresentable {
                   let attrsRange = Range(match.range(at: 1), in: result) else { continue }
 
             let attrs = String(result[attrsRange])
+            guard shouldDeferCardScript(attributes: attrs) else { continue }
             let withoutQuotedType = attrs.replacingOccurrences(
                 of: #"\stype\s*=\s*(["']).*?\1"#,
                 with: "",
@@ -1331,6 +1389,34 @@ struct CardWebView: UIViewRepresentable {
         }
 
         return result
+    }
+
+    private static func shouldDeferCardScript(attributes: String) -> Bool {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"\btype\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s>]+))"#,
+            options: [.caseInsensitive]
+        ) else { return true }
+
+        let range = NSRange(attributes.startIndex..., in: attributes)
+        guard let match = regex.firstMatch(in: attributes, range: range) else {
+            return true
+        }
+
+        var scriptType = ""
+        for index in 1...3 {
+            let candidate = match.range(at: index)
+            if let stringRange = Range(candidate, in: attributes) {
+                scriptType = String(attributes[stringRange])
+                break
+            }
+        }
+
+        switch scriptType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "", "text/javascript", "application/javascript", "application/ecmascript", "text/ecmascript", "module":
+            return true
+        default:
+            return false
+        }
     }
 
     private static func parseTTSAttributes(_ raw: String) -> [String: String] {

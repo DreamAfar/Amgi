@@ -2,11 +2,16 @@ import SwiftUI
 import Charts
 import AnkiProto
 
+private enum CardCountsPreferences {
+    static let separateInactiveKey = "stats_card_counts_separate_inactive"
+}
+
 struct CardCountsChart: View {
     let cardCounts: Anki_Stats_GraphsResponse.CardCounts
+    @AppStorage(CardCountsPreferences.separateInactiveKey) private var separateInactive = true
 
     private var chartData: [(name: String, count: Int, color: Color)] {
-        let c = cardCounts.excludingInactive
+        let c = separateInactive ? cardCounts.excludingInactive : cardCounts.includingInactive
         return [
             (L("stats_card_new"), Int(c.newCards), .cyan),
             (L("stats_card_learn"), Int(c.learn), .blue),
@@ -65,6 +70,10 @@ struct CardCountsChart: View {
                         }
                     }
                 }
+
+                Toggle(L("stats_card_counts_separate_inactive"), isOn: $separateInactive)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

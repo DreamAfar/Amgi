@@ -60,6 +60,7 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var prefOpenLinksExternally = true
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.center.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
+    @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var prefAutoMatchCardBackground = true
     @State private var actionBarHeight: CGFloat = 0
 
     private var prefCardContentAlignment: CardWebView.ContentAlignment {
@@ -67,7 +68,15 @@ struct ReviewView: View {
     }
 
     private var cardChromeColor: Color {
-        Color(uiColor: cardChromeUIColor)
+        Color(uiColor: resolvedCardChromeUIColor)
+    }
+
+    private var resolvedCardChromeUIColor: UIColor {
+        prefAutoMatchCardBackground ? cardChromeUIColor : .systemBackground
+    }
+
+    private var resolvedCardChromeIsDark: Bool {
+        prefAutoMatchCardBackground ? cardChromeIsDark : (colorScheme == .dark)
     }
 
     init(deckId: Int64, onDismiss: @escaping () -> Void) {
@@ -186,7 +195,7 @@ struct ReviewView: View {
             }
             .toolbarBackground(cardChromeColor, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(cardChromeIsDark ? .dark : .light, for: .navigationBar)
+            .toolbarColorScheme(resolvedCardChromeIsDark ? .dark : .light, for: .navigationBar)
         }
         .background(cardChromeColor.ignoresSafeArea())
         .task {
@@ -198,6 +207,11 @@ struct ReviewView: View {
         }
         .onChange(of: prefPlayAudioInSilentMode) { _, _ in
             configureAudioSession()
+        }
+        .onChange(of: colorScheme) { _, newValue in
+            if !prefAutoMatchCardBackground {
+                cardChromeIsDark = (newValue == .dark)
+            }
         }
         .onChange(of: session.currentCard?.card.id) { _, _ in
             scheduleAutoAdvanceIfNeeded()
@@ -231,7 +245,10 @@ struct ReviewView: View {
             TemplateEditorView(
                 notetypeId: target.notetypeId,
                 initialTemplateIndex: target.templateIndex,
-                mode: .currentCard
+                mode: .currentCard,
+                onSaved: {
+                    await session.refreshAfterCardMutation()
+                }
             )
         }
         .sheet(item: $fieldManagerTarget) { target in
@@ -417,7 +434,10 @@ struct ReviewView: View {
                 .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
             }
         }
-        .background(cardChromeColor)
+        // Keep the floating review controls transparent so they do not paint an
+        // opaque strip over the card content again. The surrounding review screen
+        // still provides the toolbar/safe-area chrome color.
+        .background(.clear)
     }
 
     private var answerButtons: some View {

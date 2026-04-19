@@ -14,6 +14,7 @@ enum ReviewPreferences {
         static let openLinksExternally = "review_pref_open_links_externally"
         static let cardContentAlignment = "review_pref_card_content_alignment"
         static let glassAnswerButtons = "review_pref_glass_answer_buttons"
+        static let autoMatchCardBackground = "review_pref_auto_match_card_background"
     }
 }
 

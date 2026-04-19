@@ -9,6 +9,7 @@ struct EmptyCardsView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.cardClient) var cardClient
     @Dependency(\.deckClient) var deckClient
+    @Dependency(\.noteClient) var noteClient
     @Environment(\.dismiss) private var dismiss
 
     @State private var isLoading = true
@@ -19,6 +20,7 @@ struct EmptyCardsView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var showSuccess = false
+    @State private var editingNote: NoteRecord?
 
     struct NoteEntry: Identifiable {
         let id: Int64
@@ -67,6 +69,13 @@ struct EmptyCardsView: View {
                 Text(errorMessage ?? "")
             }
             .task { await loadEmptyCards() }
+            .sheet(item: $editingNote) { note in
+                NavigationStack {
+                    NoteEditorView(note: note) {
+                        Task { await loadEmptyCards() }
+                    }
+                }
+            }
         }
     }
 
@@ -101,21 +110,32 @@ struct EmptyCardsView: View {
 
                 Section(L("empty_cards_section_list")) {
                     ForEach(noteEntries) { entry in
-                        VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
-                            Text(L("empty_cards_note_id", entry.id))
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(Color.amgiTextPrimary)
-                            Text(L("empty_cards_note_summary", entry.totalCards, entry.emptyCards))
-                                .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                            Text(L("empty_cards_note_deck", entry.deckName))
-                                .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                            if entry.willDeleteNote {
-                                Text(L("empty_cards_will_delete_note"))
-                                    .amgiStatusText(.danger, font: .caption)
+                        Button {
+                            Task { await openNoteEditor(noteId: entry.id) }
+                        } label: {
+                            HStack(alignment: .top, spacing: AmgiSpacing.sm) {
+                                VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
+                                    Text(L("empty_cards_note_id", entry.id))
+                                        .font(.subheadline.monospacedDigit())
+                                        .foregroundStyle(Color.amgiTextPrimary)
+                                    Text(L("empty_cards_note_summary", entry.totalCards, entry.emptyCards))
+                                        .amgiFont(.caption)
+                                        .foregroundStyle(Color.amgiTextSecondary)
+                                    Text(L("empty_cards_note_deck", entry.deckName))
+                                        .amgiFont(.caption)
+                                        .foregroundStyle(Color.amgiTextSecondary)
+                                    if entry.willDeleteNote {
+                                        Text(L("empty_cards_will_delete_note"))
+                                            .amgiStatusText(.danger, font: .caption)
+                                    }
+                                }
+                                Spacer(minLength: 8)
+                                Image(systemName: "square.and.pencil")
+                                    .foregroundStyle(Color.amgiTextSecondary)
                             }
                         }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
                         .listRowBackground(Color.amgiSurfaceElevated)
                     }
                 }
@@ -200,5 +220,14 @@ struct EmptyCardsView: View {
             showError = true
         }
         isDeletingAll = false
+    }
+
+    private func openNoteEditor(noteId: Int64) async {
+        guard let note = try? noteClient.fetch(noteId) else {
+            errorMessage = L("common_unknown_error")
+            showError = true
+            return
+        }
+        editingNote = note
     }
 }

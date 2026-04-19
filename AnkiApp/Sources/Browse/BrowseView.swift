@@ -23,7 +23,10 @@ struct BrowseView: View {
     @State private var allTags: [String] = []
     @State private var activeTag: String?
     @State private var quickFilter: BrowseQuickFilter = .all
-    @State private var sortMode: BrowseSortMode = .modifiedDesc
+    @State private var sortField: BrowseSortField = .noteModified
+    @State private var sortReverse = true
+    @State private var notetypeNamesByID: [Int64: String] = [:]
+    @AppStorage("browse_show_notetype_subtitle") private var showNotetypeSubtitle = true
     @State private var isLoading = false
     @State private var hasMorePages = true
     @State private var showAddNote = false
@@ -57,6 +60,7 @@ struct BrowseView: View {
     @State private var activeSearchTask: Task<Void, Never>?
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var hasLoadedInitialData = false
+    @State private var showAllTagsSheet = false
 
     private let preselectedDeck: DeckInfo?
     private let isActive: Bool
@@ -209,21 +213,47 @@ struct BrowseView: View {
                         }
 
                         Menu {
-                            ForEach(BrowseSortMode.allCases, id: \.self) { mode in
+                            ForEach(BrowseSortField.allCases, id: \.self) { field in
                                 Button {
-                                    sortMode = mode
+                                    sortField = field
                                     applySort()
                                 } label: {
-                                    if sortMode == mode {
-                                        Label(mode.title, systemImage: "checkmark.circle.fill")
+                                    if sortField == field {
+                                        Label(field.title, systemImage: "checkmark.circle.fill")
                                     } else {
-                                        Label(mode.title, systemImage: mode.symbol)
+                                        Label(field.title, systemImage: field.symbol)
                                     }
                                 }
                             }
                         } label: {
                             Label(L("browse_sort_menu_title"), systemImage: "arrow.up.arrow.down.circle")
                         }
+
+                        Button {
+                            sortReverse = false
+                            applySort()
+                        } label: {
+                            if !sortReverse {
+                                Label(L("browse_sort_order_forward"), systemImage: "checkmark.circle.fill")
+                            } else {
+                                Label(L("browse_sort_order_forward"), systemImage: "arrow.up")
+                            }
+                        }
+
+                        Button {
+                            sortReverse = true
+                            applySort()
+                        } label: {
+                            if sortReverse {
+                                Label(L("browse_sort_order_reverse"), systemImage: "checkmark.circle.fill")
+                            } else {
+                                Label(L("browse_sort_order_reverse"), systemImage: "arrow.down")
+                            }
+                        }
+
+                        Divider()
+
+                        Toggle(L("browse_display_note_type_subtitle"), isOn: $showNotetypeSubtitle)
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
@@ -279,6 +309,13 @@ struct BrowseView: View {
         .sheet(isPresented: $showChangeNotetype) {
             ChangeNotetypeSheet(noteIDs: Array(selectedNoteIDs)) {
                 scheduleSearch()
+            }
+        }
+        .sheet(isPresented: $showAllTagsSheet) {
+            NavigationStack {
+                BrowseAllTagsSheet(tags: allTags, activeTag: activeTag) { selectedTag in
+                    activeTag = selectedTag
+                }
             }
         }
         .sheet(isPresented: $showExportOptions) {
@@ -357,8 +394,11 @@ struct BrowseView: View {
         .onChange(of: searchText) {
             scheduleSearch(debounce: true)
         }
-        .onChange(of: activeDeck) {
-            scheduleSearch()
+        .onChange(of: activeDeck?.id) { _, _ in
+            Task {
+                await loadTags()
+                await performSearch()
+            }
         }
         .onChange(of: activeTag) {
             scheduleSearch()
@@ -366,12 +406,22 @@ struct BrowseView: View {
         .onChange(of: quickFilter) {
             scheduleSearch()
         }
+        .onChange(of: showNotetypeSubtitle) { _, isEnabled in
+            Task {
+                if isEnabled {
+                    await loadNotetypeNames()
+                } else {
+                    notetypeNamesByID = [:]
+                }
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
             guard isActive else { return }
             Task {
                 async let decksLoad: Void = loadDecks()
                 async let tagsLoad: Void = loadTags()
-                _ = await (decksLoad, tagsLoad)
+                async let notetypesLoad: Void = loadNotetypeNames()
+                _ = await (decksLoad, tagsLoad, notetypesLoad)
                 await performSearch()
             }
         }
@@ -380,7 +430,8 @@ struct BrowseView: View {
             hasLoadedInitialData = true
             async let decksLoad: Void = loadDecks()
             async let tagsLoad: Void = loadTags()
-            _ = await (decksLoad, tagsLoad)
+            async let notetypesLoad: Void = loadNotetypeNames()
+            _ = await (decksLoad, tagsLoad, notetypesLoad)
             await performSearch()
         }
         .toolbar(isEditing ? .hidden : .visible, for: .tabBar)
@@ -392,7 +443,7 @@ struct BrowseView: View {
         List(selection: $selectedNoteIDs) {
             ForEach(notes, id: \.id) { note in
                 if isEditing {
-                    NoteRowView(note: note)
+                    NoteRowView(note: note, notetypeName: showNotetypeSubtitle ? notetypeNamesByID[note.mid] : nil)
                         .listRowBackground(selectedNoteIDs.contains(note.id) ? Color.accentColor.opacity(0.10) : Color.clear)
                         .onAppear {
                             if note.id == notes.last?.id {
@@ -402,7 +453,7 @@ struct BrowseView: View {
                         .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
                 } else {
                     NavigationLink(value: note) {
-                        NoteRowView(note: note)
+                        NoteRowView(note: note, notetypeName: showNotetypeSubtitle ? notetypeNamesByID[note.mid] : nil)
                             .onAppear {
                                 if note.id == notes.last?.id {
                                     Task { await loadNextPage() }
@@ -490,7 +541,7 @@ struct BrowseView: View {
         Menu {
             ForEach(BrowseQuickFilter.primaryCases, id: \.self) { filter in
                 Button {
-                    quickFilter = filter
+                    quickFilter = quickFilter == filter ? .all : filter
                 } label: {
                     if quickFilter == filter {
                         Label(filter.title, systemImage: "checkmark.circle.fill")
@@ -503,7 +554,7 @@ struct BrowseView: View {
             Menu {
                 ForEach(BrowseQuickFilter.flagCases, id: \.self) { filter in
                     Button {
-                        quickFilter = filter
+                        quickFilter = quickFilter == filter ? .all : filter
                     } label: {
                         if quickFilter == filter {
                             Label(filter.title, systemImage: "checkmark.circle.fill")
@@ -732,77 +783,119 @@ struct BrowseView: View {
     private var deckFilterBar: some View {
         VStack(spacing: 0) {
             // Top-level deck chips
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    chipButton(label: L("browse_filter_all"), isSelected: activeDeck == nil) {
-                        parentDeck = nil
-                        activeDeck = nil
-                    }
-                    ForEach(topLevelDecks) { deck in
-                        chipButton(
-                            label: deck.name,
-                            isSelected: parentDeck?.id == deck.id && activeDeck?.id == deck.id
-                        ) {
-                            parentDeck = deck
-                            activeDeck = deck
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        chipButton(label: L("browse_filter_all"), isSelected: activeDeck == nil) {
+                            parentDeck = nil
+                            activeDeck = nil
+                        }
+                        .id(deckChipID(nil))
+                        ForEach(topLevelDecks) { deck in
+                            chipButton(
+                                label: deck.name,
+                                isSelected: parentDeck?.id == deck.id && activeDeck?.id == deck.id
+                            ) {
+                                if parentDeck?.id == deck.id && activeDeck?.id == deck.id {
+                                    parentDeck = nil
+                                    activeDeck = nil
+                                } else {
+                                    parentDeck = deck
+                                    activeDeck = deck
+                                }
+                            }
+                            .id(deckChipID(deck.id))
                         }
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+                .onAppear {
+                    scrollToDeckChip(proxy: proxy, animated: false)
+                }
+                .onChange(of: activeDeck?.id) { _, _ in
+                    scrollToDeckChip(proxy: proxy)
+                }
             }
 
             // Subdeck row — stays visible as long as a parent with children is selected
             if !childDecks.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        // "All" chip = parent deck (includes subdecks)
-                        chipButton(
-                            label: L("browse_filter_all"),
-                            isSelected: activeDeck?.id == parentDeck?.id,
-                            small: true
-                        ) {
-                            activeDeck = parentDeck
-                        }
-                        ForEach(childDecks) { child in
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
                             chipButton(
-                                label: shortName(child.name),
-                                isSelected: activeDeck?.id == child.id,
+                                label: L("browse_filter_all"),
+                                isSelected: activeDeck?.id == parentDeck?.id,
                                 small: true
                             ) {
-                                activeDeck = child
+                                if activeDeck?.id == parentDeck?.id {
+                                    parentDeck = nil
+                                    activeDeck = nil
+                                } else {
+                                    activeDeck = parentDeck
+                                }
+                            }
+                            .id(childDeckChipID(nil))
+                            ForEach(childDecks) { child in
+                                chipButton(
+                                    label: shortName(child.name),
+                                    isSelected: activeDeck?.id == child.id,
+                                    small: true
+                                ) {
+                                    activeDeck = activeDeck?.id == child.id ? parentDeck : child
+                                }
+                                .id(childDeckChipID(child.id))
                             }
                         }
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
+                    .onAppear {
+                        scrollToChildDeckChip(proxy: proxy, animated: false)
+                    }
+                    .onChange(of: activeDeck?.id) { _, _ in
+                        scrollToChildDeckChip(proxy: proxy)
+                    }
                 }
             }
 
             // Tag row
             if !allTags.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        chipButton(
-                            label: L("browse_filter_all"),
-                            isSelected: activeTag == nil,
-                            small: true
-                        ) {
-                            activeTag = nil
-                        }
-
-                        ForEach(allTags, id: \.self) { tag in
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
                             chipButton(
-                                label: shortTagName(tag),
-                                isSelected: activeTag == tag,
-                                small: true
+                                label: L("browse_filter_all"),
+                                isSelected: activeTag == nil,
+                                small: true,
+                                onLongPress: {
+                                    showAllTagsSheet = true
+                                }
                             ) {
-                                activeTag = tag
+                                activeTag = nil
+                            }
+                            .id(tagChipID(nil))
+
+                            ForEach(allTags, id: \.self) { tag in
+                                chipButton(
+                                    label: shortTagName(tag),
+                                    isSelected: activeTag == tag,
+                                    small: true
+                                ) {
+                                    activeTag = activeTag == tag ? nil : tag
+                                }
+                                .id(tagChipID(tag))
                             }
                         }
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
+                    .onAppear {
+                        scrollToTagChip(proxy: proxy, animated: false)
+                    }
+                    .onChange(of: activeTag) { _, _ in
+                        scrollToTagChip(proxy: proxy)
+                    }
                 }
             }
         }
@@ -813,6 +906,7 @@ struct BrowseView: View {
         label: String,
         isSelected: Bool,
         small: Bool = false,
+        onLongPress: (() -> Void)? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -825,6 +919,9 @@ struct BrowseView: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+        .onLongPressGesture {
+            onLongPress?()
+        }
     }
 
     private func shortName(_ fullName: String) -> String {
@@ -836,11 +933,86 @@ struct BrowseView: View {
         String(tag.split(separator: "::").last ?? Substring(tag))
     }
 
+    private func deckChipID(_ deckID: Int64?) -> String {
+        if let deckID {
+            return "deck-\(deckID)"
+        }
+        return "deck-all"
+    }
+
+    private func childDeckChipID(_ deckID: Int64?) -> String {
+        if let deckID {
+            return "child-deck-\(deckID)"
+        }
+        return "child-deck-all"
+    }
+
+    private func tagChipID(_ tag: String?) -> String {
+        if let tag {
+            return "tag-\(tag)"
+        }
+        return "tag-all"
+    }
+
+    private func scrollToDeckChip(proxy: ScrollViewProxy, animated: Bool = true) {
+        let target = deckChipID(activeDeck?.id)
+        if animated {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                proxy.scrollTo(target, anchor: .center)
+            }
+        } else {
+            proxy.scrollTo(target, anchor: .center)
+        }
+    }
+
+    private func scrollToChildDeckChip(proxy: ScrollViewProxy, animated: Bool = true) {
+        let target = childDeckChipID(activeDeck?.id == parentDeck?.id ? nil : activeDeck?.id)
+        if animated {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                proxy.scrollTo(target, anchor: .center)
+            }
+        } else {
+            proxy.scrollTo(target, anchor: .center)
+        }
+    }
+
+    private func scrollToTagChip(proxy: ScrollViewProxy, animated: Bool = true) {
+        let target = tagChipID(activeTag)
+        if animated {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                proxy.scrollTo(target, anchor: .center)
+            }
+        } else {
+            proxy.scrollTo(target, anchor: .center)
+        }
+    }
+
     // MARK: - Data Loading
 
     private func loadDecks() async {
         do {
-            allDecks = try deckClient.fetchNamesOnly()
+            if let activeDeck {
+                let noteIDs = try noteClient.searchIds("deck:\"\(activeDeck.name)\"")
+                var tagSet = Set<String>()
+                let batchSize = 500
+                var startIndex = 0
+                while startIndex < noteIDs.count {
+                    let endIndex = min(startIndex + batchSize, noteIDs.count)
+                    let batchIDs = Array(noteIDs[startIndex..<endIndex])
+                    let batchNotes = try noteClient.fetchBatch(batchIDs)
+                    for note in batchNotes {
+                        let tags = note.tags
+                            .split(separator: " ")
+                            .map(String.init)
+                            .filter { !$0.isEmpty }
+                        tagSet.formUnion(tags)
+                    }
+                    startIndex = endIndex
+                }
+                allTags = tagSet.sorted()
+            } else {
+                allTags = try tagClient.getAllTags().sorted()
+            }
         } catch {
             allDecks = []
         }
@@ -850,6 +1022,62 @@ struct BrowseView: View {
         do {
             allTags = try tagClient.getAllTags().sorted()
             if let activeTag, !allTags.contains(activeTag) {
+
+private struct BrowseAllTagsSheet: View {
+    let tags: [String]
+    let activeTag: String?
+    let onSelect: (String?) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private let columns = [GridItem(.adaptive(minimum: 110), spacing: 10)]
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 10) {
+                tagButton(title: L("browse_filter_all"), isSelected: activeTag == nil) {
+                    onSelect(nil)
+                    dismiss()
+                }
+
+                ForEach(tags, id: \.self) { tag in
+                    tagButton(title: shortTagName(tag), isSelected: activeTag == tag) {
+                        onSelect(tag)
+                        dismiss()
+                    }
+                }
+            }
+            .padding()
+        }
+        .background(Color.amgiBackground)
+        .navigationTitle(L("browse_filter_by_tag"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(L("common_cancel")) { dismiss() }
+                    .amgiToolbarTextButton(tone: .neutral)
+            }
+        }
+    }
+
+    private func tagButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(AmgiFont.caption.font)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated)
+                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.amgiTextPrimary))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func shortTagName(_ tag: String) -> String {
+        String(tag.split(separator: "::").last ?? Substring(tag))
+    }
+}
                 self.activeTag = nil
             }
         } catch {
@@ -937,9 +1165,11 @@ struct BrowseView: View {
         isLoading = true
         let query = buildQuery()
         let client = noteClient
+        let sortField = self.sortField
+        let sortReverse = self.sortReverse
         do {
             let ids = try await Task.detached(priority: .userInitiated) {
-                try client.searchIds(query)
+                try client.searchIdsSorted(query, sortField.backendColumn, sortReverse)
             }.value
             try Task.checkCancellation()
             allNoteIDs = ids
@@ -951,7 +1181,7 @@ struct BrowseView: View {
                 try client.fetchBatch(Array(ids.prefix(pageSize)))
             }.value
             try Task.checkCancellation()
-            notes = sortNotes(firstBatch)
+            notes = orderedNotes(firstBatch, matching: Array(ids.prefix(pageSize)))
             hasMorePages = ids.count > pageSize
         } catch is CancellationError {
             isLoading = false
@@ -973,7 +1203,7 @@ struct BrowseView: View {
         let batch = (try? await Task.detached(priority: .userInitiated) {
             try client.fetchBatch(nextIDs)
         }.value) ?? []
-        notes.append(contentsOf: batch)
+        notes.append(contentsOf: orderedNotes(batch, matching: nextIDs))
         hasMorePages = notes.count < allNoteIDs.count
     }
 
@@ -995,12 +1225,30 @@ struct BrowseView: View {
         return parts.joined(separator: " ")
     }
 
-    private func sortNotes(_ input: [NoteRecord]) -> [NoteRecord] {
-        sortBrowseNotes(input, mode: sortMode)
+    private func orderedNotes(_ input: [NoteRecord], matching ids: [Int64]) -> [NoteRecord] {
+        let notesByID = Dictionary(uniqueKeysWithValues: input.map { ($0.id, $0) })
+        return ids.compactMap { notesByID[$0] }
     }
 
     private func applySort() {
-        notes = sortNotes(notes)
+        scheduleSearch()
+    }
+
+    private func loadNotetypeNames() async {
+        guard showNotetypeSubtitle else {
+            notetypeNamesByID = [:]
+            return
+        }
+        do {
+            let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.getNotetypeNames,
+                request: Anki_Empty()
+            )
+            notetypeNamesByID = Dictionary(uniqueKeysWithValues: response.entries.map { ($0.id, $0.name) })
+        } catch {
+            notetypeNamesByID = [:]
+        }
     }
 
     private func batchFlag(_ flag: UInt32) async {
@@ -1216,52 +1464,68 @@ enum BrowseQuickFilter: CaseIterable {
     }
 }
 
-enum BrowseSortMode: CaseIterable {
-    case modifiedDesc
-    case modifiedAsc
-    case createdDesc
-    case createdAsc
-    case alphabetAsc
-    case alphabetDesc
+enum BrowseSortField: CaseIterable {
+    case due
+    case cardModified
+    case cardTemplate
+    case reviews
+    case tags
+    case addedDate
+    case deck
+    case noteModified
+    case notetype
+    case ease
+    case lapses
+    case interval
+
+    var backendColumn: String {
+        switch self {
+        case .due: "cardDue"
+        case .cardModified: "cardMod"
+        case .cardTemplate: "template"
+        case .reviews: "cardReps"
+        case .tags: "noteTags"
+        case .addedDate: "noteCrt"
+        case .deck: "deck"
+        case .noteModified: "noteMod"
+        case .notetype: "note"
+        case .ease: "cardEase"
+        case .lapses: "cardLapses"
+        case .interval: "cardIvl"
+        }
+    }
 
     var title: String {
         switch self {
-        case .modifiedDesc: L("browse_sort_modified_desc")
-        case .modifiedAsc: L("browse_sort_modified_asc")
-        case .createdDesc: L("browse_sort_created_desc")
-        case .createdAsc: L("browse_sort_created_asc")
-        case .alphabetAsc: L("browse_sort_alpha_asc")
-        case .alphabetDesc: L("browse_sort_alpha_desc")
+        case .due: L("browse_sort_field_due")
+        case .cardModified: L("browse_sort_field_card_modified")
+        case .cardTemplate: L("browse_sort_field_card_template")
+        case .reviews: L("browse_sort_field_reviews")
+        case .tags: L("browse_sort_field_tags")
+        case .addedDate: L("browse_sort_field_added_date")
+        case .deck: L("browse_sort_field_deck")
+        case .noteModified: L("browse_sort_field_note_modified")
+        case .notetype: L("browse_sort_field_notetype")
+        case .ease: L("browse_sort_field_ease")
+        case .lapses: L("browse_sort_field_lapses")
+        case .interval: L("browse_sort_field_interval")
         }
     }
 
     var symbol: String {
         switch self {
-        case .modifiedDesc: "arrow.down.circle"
-        case .modifiedAsc: "arrow.up.circle"
-        case .createdDesc: "clock.arrow.circlepath"
-        case .createdAsc: "clock"
-        case .alphabetAsc: "textformat.abc"
-        case .alphabetDesc: "textformat.abc"
-        }
-    }
-}
-
-func sortBrowseNotes(_ input: [NoteRecord], mode: BrowseSortMode) -> [NoteRecord] {
-    input.sorted { lhs, rhs in
-        switch mode {
-        case .modifiedDesc:
-            return lhs.mod > rhs.mod
-        case .modifiedAsc:
-            return lhs.mod < rhs.mod
-        case .createdDesc:
-            return lhs.id > rhs.id
-        case .createdAsc:
-            return lhs.id < rhs.id
-        case .alphabetAsc:
-            return lhs.sfld.localizedCompare(rhs.sfld) == .orderedAscending
-        case .alphabetDesc:
-            return lhs.sfld.localizedCompare(rhs.sfld) == .orderedDescending
+        case .due: "clock.badge.exclamationmark"
+        case .cardModified: "rectangle.and.pencil.and.ellipsis"
+        case .cardTemplate: "rectangle.stack"
+        case .reviews: "arrow.clockwise.circle"
+        case .tags: "tag"
+        case .addedDate: "calendar.badge.plus"
+        case .deck: "square.stack"
+        case .noteModified: "note.text.badge.plus"
+        case .notetype: "doc.text"
+        case .ease: "gauge.with.dots.needle.50percent"
+        case .lapses: "exclamationmark.arrow.trianglehead.counterclockwise"
+        case .interval: "timer"
         }
     }
 }
@@ -1270,6 +1534,7 @@ func sortBrowseNotes(_ input: [NoteRecord], mode: BrowseSortMode) -> [NoteRecord
 
 struct NoteRowView: View {
     let note: NoteRecord
+    let notetypeName: String?
 
     private var tagList: [String] {
         note.tags
@@ -1304,6 +1569,13 @@ struct NoteRowView: View {
                         .font(.caption2)
                         .foregroundStyle(Color(.tertiaryLabel))
                 }
+            }
+
+            if let notetypeName, !notetypeName.isEmpty {
+                Text(notetypeName)
+                    .font(.caption2)
+                    .foregroundStyle(Color(.tertiaryLabel))
+                    .lineLimit(1)
             }
 
             if !tagList.isEmpty {

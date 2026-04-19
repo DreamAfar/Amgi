@@ -148,6 +148,7 @@ final class ReviewSession {
     /// Refresh queue after a card mutation (like flag/edit) while trying to keep current card.
     func refreshAfterCardMutation() async {
         let currentId = currentQueuedCard?.card.id
+        let wasShowingAnswer = showAnswer
 
         do {
             var req = Anki_Scheduler_GetQueuedCardsRequest()
@@ -168,8 +169,8 @@ final class ReviewSession {
             if let currentId,
                let retained = cardQueue.first(where: { $0.card.id == currentId }) {
                 currentQueuedCard = retained
-                showAnswer = true
                 renderCurrentCard(retained)
+                showAnswer = wasShowingAnswer
             } else {
                 advanceToNextCard()
             }

@@ -20,9 +20,22 @@ extension NoteClient: DependencyKey {
             )
         }
 
-        @Sendable func backendSearchNoteIds(_ query: String) throws -> [Int64] {
+        @Sendable func backendSearchNoteIds(
+            _ query: String,
+            sortColumn: String? = nil,
+            reverse: Bool = false
+        ) throws -> [Int64] {
             var req = Anki_Search_SearchRequest()
             req.search = query.isEmpty ? "deck:*" : query
+            if let sortColumn, !sortColumn.isEmpty {
+                var builtin = Anki_Search_SortOrder.Builtin()
+                builtin.column = sortColumn
+                builtin.reverse = reverse
+
+                var order = Anki_Search_SortOrder()
+                order.value = .builtin(builtin)
+                req.order = order
+            }
             let response: Anki_Search_SearchResponse = try backend.invoke(
                 service: AnkiBackend.Service.search,
                 method: AnkiBackend.SearchMethod.searchNotes,
@@ -63,6 +76,9 @@ extension NoteClient: DependencyKey {
             },
             searchIds: { query in
                 try backendSearchNoteIds(query)
+            },
+            searchIdsSorted: { query, column, reverse in
+                try backendSearchNoteIds(query, sortColumn: column, reverse: reverse)
             },
             fetchBatch: { ids in
                 backendFetchBatch(ids)

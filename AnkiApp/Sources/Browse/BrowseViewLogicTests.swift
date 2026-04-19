@@ -20,47 +20,16 @@ final class BrowseViewLogicTests: XCTestCase {
         }
     }
 
-    func testSortModeTitlesAndSymbolsExist() {
-        for mode in BrowseSortMode.allCases {
-            XCTAssertFalse(mode.title.isEmpty)
-            XCTAssertFalse(mode.symbol.isEmpty)
+    func testSortFieldTitlesAndSymbolsExist() {
+        for field in BrowseSortField.allCases {
+            XCTAssertFalse(field.title.isEmpty)
+            XCTAssertFalse(field.symbol.isEmpty)
+            XCTAssertFalse(field.backendColumn.isEmpty)
         }
-    }
-
-    func testSortBrowseNotesByModifiedDescending() {
-        let notes = sampleNotes()
-        let sorted = sortBrowseNotes(notes, mode: .modifiedDesc)
-        XCTAssertEqual(sorted.map(\.id), [2, 3, 1])
-    }
-
-    func testSortBrowseNotesByModifiedAscending() {
-        let notes = sampleNotes()
-        let sorted = sortBrowseNotes(notes, mode: .modifiedAsc)
-        XCTAssertEqual(sorted.map(\.id), [1, 3, 2])
-    }
-
-    func testSortBrowseNotesByCreatedDescending() {
-        let notes = sampleNotes()
-        let sorted = sortBrowseNotes(notes, mode: .createdDesc)
-        XCTAssertEqual(sorted.map(\.id), [3, 2, 1])
-    }
-
-    func testSortBrowseNotesByCreatedAscending() {
-        let notes = sampleNotes()
-        let sorted = sortBrowseNotes(notes, mode: .createdAsc)
-        XCTAssertEqual(sorted.map(\.id), [1, 2, 3])
     }
 
     func testBrowseViewInit() {
         let view = BrowseView()
         XCTAssertNotNil(view)
-    }
-
-    private func sampleNotes() -> [NoteRecord] {
-        [
-            NoteRecord(id: 1, guid: "a", mid: 1, mod: 100, flds: "A", sfld: "A", csum: 1),
-            NoteRecord(id: 2, guid: "b", mid: 1, mod: 300, flds: "B", sfld: "B", csum: 2),
-            NoteRecord(id: 3, guid: "c", mid: 1, mod: 200, flds: "C", sfld: "C", csum: 3)
-        ]
     }
 }

@@ -135,14 +135,14 @@ struct IntervalsChart: View {
             .amgiFont(.micro)
             .onChange(of: range) { selectedBinX = nil }
 
-            let (bins, _) = histogramData
+            let (bins, xMax) = histogramData
             if bins.isEmpty {
                 Text(L("stats_intervals_empty"))
                     .amgiFont(.body)
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                intervalsChart(bins: bins)
+                intervalsChart(bins: bins, xMax: xMax)
             }
 
             HStack(spacing: 16) {
@@ -167,7 +167,7 @@ struct IntervalsChart: View {
     }
 
     @ViewBuilder
-    private func intervalsChart(bins: [(label: String, x: Int, count: Int)]) -> some View {
+    private func intervalsChart(bins: [(label: String, x: Int, count: Int)], xMax: Int) -> some View {
         let barWVal: Double = max(2.0, min(8.0, 280.0 / Double(bins.count)))
         let barW: MarkDimension = bins.count <= 30 ? .automatic : .fixed(barWVal)
         let xAxisDesiredCount = min(10, max(4, bins.count / 8))
@@ -267,6 +267,7 @@ struct IntervalsChart: View {
                     )
             }
         }
+        .chartXScale(domain: 0...max(1, xMax))
         .chartYScale(domain: 0...leftAxisMax)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: xAxisDesiredCount)) { _ in

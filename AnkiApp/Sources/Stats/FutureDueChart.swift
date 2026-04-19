@@ -8,6 +8,13 @@ struct FutureDueChart: View {
     @State private var includeBacklog = false
     @State private var selectedDay: Int?
 
+    private struct DisplayPoint: Identifiable {
+        let day: Int
+        let count: Int
+
+        var id: Int { day }
+    }
+
     private var xAxisDesiredTickCount: Int {
         switch period {
         case .day: return 3
@@ -25,16 +32,42 @@ struct FutureDueChart: View {
         let cumulative: Int
     }
 
-    private var filteredData: [(day: Int, count: Int)] {
-        let maxDay = period.days
-        return futureDue.futureDue
-            .compactMap { (dayOffset, count) -> (day: Int, count: Int)? in
-                let day = Int(dayOffset)
-                if !includeBacklog && day < 0 { return nil }
-                guard day < maxDay else { return nil }
-                return (day: day, count: Int(count))
-            }
+    private var sortedDueCounts: [DisplayPoint] {
+        futureDue.futureDue
+            .map { DisplayPoint(day: Int($0.key), count: Int($0.value)) }
             .sorted(by: { $0.day < $1.day })
+    }
+
+    private var xAxisUpperBound: Int {
+        max(1, period.days)
+    }
+
+    private var xAxisLowerBound: Int {
+        if includeBacklog {
+            return period == .all ? (sortedDueCounts.first?.day ?? 0) : -xAxisUpperBound
+        }
+        return 0
+    }
+
+    private var filteredData: [DisplayPoint] {
+        let lowerBound = xAxisLowerBound
+        let upperBound = xAxisUpperBound
+        var grouped: [Int: Int] = [:]
+
+        for point in sortedDueCounts {
+            guard point.day <= upperBound else { continue }
+            if point.day < lowerBound {
+                if includeBacklog && period != .all {
+                    grouped[lowerBound, default: 0] += point.count
+                }
+                continue
+            }
+            grouped[point.day, default: 0] += point.count
+        }
+
+        return grouped.keys.sorted().map { day in
+            DisplayPoint(day: day, count: grouped[day] ?? 0)
+        }
     }
 
     private var totalDue: Int { filteredData.reduce(0) { $0 + $1.count } }
@@ -112,7 +145,7 @@ struct FutureDueChart: View {
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 Chart {
-                    ForEach(filteredData, id: \.day) { item in
+                    ForEach(filteredData) { item in
                         BarMark(
                             x: .value("Day", item.day),
                             y: .value("Cards", item.count),
@@ -172,6 +205,7 @@ struct FutureDueChart: View {
                             }
                     }
                 }
+                .chartXScale(domain: xAxisLowerBound...xAxisUpperBound)
                 .chartOverlay { proxy in
                     GeometryReader { geometry in
                         Rectangle()
