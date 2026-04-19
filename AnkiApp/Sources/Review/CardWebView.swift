@@ -34,104 +34,6 @@ struct CardWebView: UIViewRepresentable {
     let onAudioStateChange: ((Bool) -> Void)?
     let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
 
-    private struct ShowCardPayload: Encodable {
-        let html: String
-        let prefetchHTML: String
-        let isAnswerSide: Bool
-        let bodyClass: String
-        let autoplayEnabled: Bool
-        let replayMode: String
-        let alignTop: Bool
-        let bodyPaddingBottom: Int
-        let cardPaddingBottom: Int
-    }
-
-    private static func debugFlag(_ key: String, default defaultValue: Bool) -> Bool {
-        if let value = UserDefaults.standard.object(forKey: key) as? Bool {
-            return value
-        }
-        return defaultValue
-    }
-
-    private static var cardRenderDiagnosticsEnabled: Bool {
-        debugFlag(DebugPreferences.Keys.cardRenderDiagnosticsEnabled, default: false)
-    }
-
-    private static var debugForceFrameReload: Bool {
-        cardRenderDiagnosticsEnabled
-            && debugFlag(DebugPreferences.Keys.cardRenderForceFrameReload, default: true)
-    }
-
-    private static var debugUseNilBaseURL: Bool {
-        cardRenderDiagnosticsEnabled
-            && debugFlag(DebugPreferences.Keys.cardRenderUseNilBaseURL, default: true)
-    }
-
-    private static var debugShowRedFrameBackground: Bool {
-        cardRenderDiagnosticsEnabled
-            && debugFlag(DebugPreferences.Keys.cardRenderRedFrameBackground, default: true)
-    }
-
-    private static var debugShowJSErrorOverlay: Bool {
-        cardRenderDiagnosticsEnabled
-            && debugFlag(DebugPreferences.Keys.cardRenderShowJSErrorOverlay, default: true)
-    }
-
-    private static let earlyBootstrapMonitorScript = #"""
-    (function() {
-        if (window.__amgiEarlyBootstrapMonitorInstalled) {
-            return;
-        }
-        window.__amgiEarlyBootstrapMonitorInstalled = true;
-        window.__amgiEarlyBootstrapErrors = [];
-
-        function amgiRecordEarlyBootstrapError(kind, detail) {
-            try {
-                var info = detail || {};
-                window.__amgiEarlyBootstrapErrors.push({
-                    kind: kind || 'error',
-                    message: String(info.message || ''),
-                    source: String(info.source || ''),
-                    line: Number(info.line || 0),
-                    column: Number(info.column || 0)
-                });
-            } catch (e) {}
-        }
-
-        window.amgiEarlyBootstrapSummary = function() {
-            if (!Array.isArray(window.__amgiEarlyBootstrapErrors) || !window.__amgiEarlyBootstrapErrors.length) {
-                return 'No early bootstrap errors captured.';
-            }
-            return window.__amgiEarlyBootstrapErrors.slice(-3).map(function(entry) {
-                var parts = [entry.kind || 'error', entry.message || ''];
-                if (entry.line || entry.column) {
-                    parts.push('line ' + (entry.line || 0) + ', column ' + (entry.column || 0));
-                }
-                if (entry.source) {
-                    parts.push(entry.source);
-                }
-                return parts.filter(function(part) { return !!part; }).join(' | ');
-            }).join('\n');
-        };
-
-        window.addEventListener('error', function(event) {
-            amgiRecordEarlyBootstrapError('error', {
-                message: event && event.message,
-                source: event && event.filename,
-                line: event && event.lineno,
-                column: event && event.colno
-            });
-        }, true);
-
-        window.addEventListener('unhandledrejection', function(event) {
-            var reason = event ? event.reason : null;
-            amgiRecordEarlyBootstrapError('unhandledrejection', {
-                message: reason && reason.message ? reason.message : String(reason || '')
-            });
-        }, true);
-    })();
-    """#
-
     init(
         html: String,
         autoplayEnabled: Bool = true,
@@ -178,13 +80,6 @@ struct CardWebView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.setURLSchemeHandler(CardAssetScheme(), forURLScheme: CardAssetPath.scheme)
-        config.userContentController.addUserScript(
-            WKUserScript(
-                source: Self.earlyBootstrapMonitorScript,
-                injectionTime: .atDocumentStart,
-                forMainFrameOnly: true
-            )
-        )
         config.userContentController.add(context.coordinator, name: "amgiAudioState")
         config.userContentController.add(context.coordinator, name: "amgiOpenLink")
         config.userContentController.add(context.coordinator, name: "amgiSpeakTts")
@@ -256,9 +151,7 @@ struct CardWebView: UIViewRepresentable {
         )
         context.coordinator.stopTTS()
 
-        let shouldReloadFrame = Self.debugForceFrameReload || context.coordinator.lastPageSignature != pageSignature
-
-        if shouldReloadFrame {
+        if context.coordinator.lastPageSignature != pageSignature {
             context.coordinator.lastPageSignature = pageSignature
             context.coordinator.lastContentSignature = contentSignature
             context.coordinator.isPageLoaded = false
@@ -278,16 +171,13 @@ struct CardWebView: UIViewRepresentable {
                 baseTag: baseTag
             )
 
-            // Diagnostic path: load with nil baseURL and rely on the explicit <base> tag.
-            // This helps distinguish frame navigation issues from asset resolution issues.
-            webView.loadHTMLString(
-                styledHTML,
-                baseURL: Self.debugUseNilBaseURL ? nil : CardAssetPath.cardBaseURL
-            )
+            // Use cardBaseURL so that MathJax, fonts, and other resources load correctly.
+            // The CardAssetScheme handler processes amgi-asset:// URLs.
+            webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
         } else if context.coordinator.lastContentSignature != contentSignature {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
-                context.coordinator.runCardScript(showCardScript, in: webView)
+                webView.evaluateJavaScript(showCardScript, completionHandler: nil)
             } else {
                 context.coordinator.pendingUpdateScript = showCardScript
             }
@@ -334,10 +224,7 @@ struct CardWebView: UIViewRepresentable {
         baseTag: String
     ) -> String {
         let colorScheme = isDarkMode ? "dark" : "light"
-        let defaultCardBackground = Self.debugShowRedFrameBackground
-            ? "#ff2a2a"
-            : (isDarkMode ? "#1f1f22" : "transparent")
-        let bootstrapDiagnosticsEnabled = Self.cardRenderDiagnosticsEnabled ? "true" : "false"
+        let defaultCardBackground = isDarkMode ? "#1f1f22" : "transparent"
         let textColor = isDarkMode ? "#f5f5f5" : "#1a1a1a"
         let hrColor = isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"
         let typeBorderColor = isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)"
@@ -372,7 +259,7 @@ struct CardWebView: UIViewRepresentable {
             startup: { typeset: false }
         };
         </script>
-        <script id="MathJax-script" src="\(mathJaxScriptURL)" async></script>
+        <script src="\(mathJaxScriptURL)" async></script>
         <style>
             :root {
                 color-scheme: \(colorScheme);
@@ -463,96 +350,10 @@ struct CardWebView: UIViewRepresentable {
         window.onUpdateHook = [];
         window.onShownHook = [];
         window.__amgiUpdateQueue = Promise.resolve();
-        window.__amgiBootstrapDiagnosticsEnabled = \(bootstrapDiagnosticsEnabled);
-        window.__amgiBootstrapErrors = [];
         var amgiPreloadTemplate = document.createElement('template');
         var amgiPreloadDoc = document.implementation.createHTMLDocument('');
         var amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
         var amgiCachedFonts = new Set();
-        var amgiActiveCardStyleNodes = [];
-        var amgiGlobal = window;
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis) {
-                amgiGlobal = globalThis;
-            }
-        } catch (e) {}
-
-        function amgiRecordBootstrapError(kind, detail) {
-            try {
-                var info = detail || {};
-                window.__amgiBootstrapErrors.push({
-                    kind: kind || 'error',
-                    message: String(info.message || ''),
-                    source: String(info.source || ''),
-                    line: Number(info.line || 0),
-                    column: Number(info.column || 0),
-                });
-            } catch (e) {}
-        }
-
-        window.addEventListener('error', function(event) {
-            amgiRecordBootstrapError('error', {
-                message: event && event.message,
-                source: event && event.filename,
-                line: event && event.lineno,
-                column: event && event.colno,
-            });
-        });
-
-        window.addEventListener('unhandledrejection', function(event) {
-            var reason = event ? event.reason : null;
-            amgiRecordBootstrapError('unhandledrejection', {
-                message: reason && reason.message ? reason.message : String(reason || ''),
-            });
-        });
-
-        function amgiBootstrapErrorSummary() {
-            if (!Array.isArray(window.__amgiBootstrapErrors) || !window.__amgiBootstrapErrors.length) {
-                return 'No bootstrap errors captured.';
-            }
-            return window.__amgiBootstrapErrors.slice(-3).map(function(entry) {
-                var parts = [entry.kind || 'error', entry.message || ''];
-                if (entry.line || entry.column) {
-                    parts.push('line ' + (entry.line || 0) + ', column ' + (entry.column || 0));
-                }
-                if (entry.source) {
-                    parts.push(entry.source);
-                }
-                return parts.filter(function(part) { return !!part; }).join(' | ');
-            }).join('\\n');
-        }
-
-        function amgiAppendBootstrapWarning(reason) {
-            if (!window.__amgiBootstrapDiagnosticsEnabled) return;
-            var qa = document.getElementById('qa');
-            if (!qa || qa.querySelector('[data-amgi-bootstrap-warning]')) return;
-
-            var container = document.createElement('div');
-            container.setAttribute('data-amgi-bootstrap-warning', '1');
-            container.style.whiteSpace = 'pre-wrap';
-            container.style.textAlign = 'left';
-            container.style.background = 'rgba(120, 0, 0, 0.72)';
-            container.style.color = '#fff';
-            container.style.padding = '12px';
-            container.style.borderRadius = '10px';
-            container.style.marginBottom = '12px';
-            container.style.fontSize = '13px';
-
-            var title = document.createElement('div');
-            title.style.fontWeight = '600';
-            title.style.marginBottom = '6px';
-            title.textContent = 'Card bootstrap fallback: ' + reason;
-
-            var details = document.createElement('pre');
-            details.style.margin = '0';
-            details.style.whiteSpace = 'pre-wrap';
-            details.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-            details.textContent = amgiBootstrapErrorSummary();
-
-            container.appendChild(title);
-            container.appendChild(details);
-            qa.insertBefore(container, qa.firstChild);
-        }
 
         // ── Card state ──────────────────────────────────────────────────────
         window.__amgiCardState = {};
@@ -587,25 +388,6 @@ struct CardWebView: UIViewRepresentable {
             link.rel = 'preload'; link.href = href; link.as = asType;
             if (asType === 'font') link.crossOrigin = '';
             return link;
-        }
-        function amgiClearCardStyleSheets() {
-            amgiActiveCardStyleNodes.forEach(function(node) {
-                if (node && node.parentNode) node.parentNode.removeChild(node);
-            });
-            amgiActiveCardStyleNodes = [];
-        }
-        function amgiSyncCardStyleSheets(element) {
-            amgiClearCardStyleSheets();
-            Array.from(element.querySelectorAll('style, link')).filter(function(css) {
-                return css.tagName === 'STYLE'
-                    || (css.tagName === 'LINK' && (css.rel || '').toLowerCase() === 'stylesheet');
-            }).forEach(function(css) {
-                var clone = css.cloneNode(true);
-                clone.setAttribute('data-amgi-card-style', '');
-                document.head.appendChild(clone);
-                amgiActiveCardStyleNodes.push(clone);
-                if (css.parentNode) css.parentNode.removeChild(css);
-            });
         }
         function amgiPreloadImage(img) {
             if (!img.getAttribute('decoding')) img.decoding = 'async';
@@ -861,26 +643,16 @@ struct CardWebView: UIViewRepresentable {
             return new Promise(function(resolve) {
                 var newScript = document.createElement('script');
                 var mustWaitForNetwork = !!oldScript.getAttribute('src');
-                var settled = false;
-                function finish() {
-                    if (settled) return;
-                    settled = true;
-                    resolve();
-                }
                 oldScript.getAttributeNames().forEach(function(name) {
                     if (name === 'type' || name === 'data-amgi-card-script') return;
                     var v = oldScript.getAttribute(name);
                     if (v !== null) newScript.setAttribute(name, v);
                 });
-                newScript.addEventListener('load', finish);
-                newScript.addEventListener('error', finish);
+                newScript.addEventListener('load', function() { resolve(); });
+                newScript.addEventListener('error', function() { resolve(); });
                 newScript.appendChild(document.createTextNode(oldScript.textContent || ''));
                 oldScript.replaceWith(newScript);
-                if (!mustWaitForNetwork) {
-                    finish();
-                    return;
-                }
-                window.setTimeout(finish, 700);
+                if (!mustWaitForNetwork) resolve();
             });
         }
         async function amgiSetInnerHTML(element, html) {
@@ -891,8 +663,7 @@ struct CardWebView: UIViewRepresentable {
                 v.load();
             });
             element.innerHTML = html;
-            amgiSyncCardStyleSheets(element);
-            for (var script of Array.from(element.querySelectorAll('script[data-amgi-card-script]'))) {
+            for (var script of Array.from(element.getElementsByTagName('script'))) {
                 await amgiReplaceScript(script);
             }
         }
@@ -977,7 +748,7 @@ struct CardWebView: UIViewRepresentable {
             return false;
         }
         function playSound(btn) { return amgiPlayAudioElement(btn ? btn.previousElementSibling : null); }
-        window.playSound = playSound; amgiGlobal.playSound = playSound;
+        window.playSound = playSound; globalThis.playSound = playSound;
 
         // ── pycmd (compat shim) ──────────────────────────────────────────────
         function pycmd(command) {
@@ -993,7 +764,7 @@ struct CardWebView: UIViewRepresentable {
             }
             return false;
         }
-        amgiGlobal.pycmd = pycmd; window.pycmd = pycmd;
+        globalThis.pycmd = pycmd; window.pycmd = pycmd;
 
         // ── Link handling ────────────────────────────────────────────────────
         function postOpenLink(rawHref) {
@@ -1026,7 +797,7 @@ struct CardWebView: UIViewRepresentable {
             } catch(e) {}
             return false;
         }
-        window.amgiSpeakTts = amgiSpeakTts; amgiGlobal.amgiSpeakTts = amgiSpeakTts;
+        window.amgiSpeakTts = amgiSpeakTts; globalThis.amgiSpeakTts = amgiSpeakTts;
 
         // ── Typed answer ─────────────────────────────────────────────────────
         function amgiGetTypedAnswer() {
@@ -1035,7 +806,7 @@ struct CardWebView: UIViewRepresentable {
         }
         window.amgiGetTypedAnswer = amgiGetTypedAnswer;
         window.getTypedAnswer = amgiGetTypedAnswer;
-        amgiGlobal.getTypedAnswer = amgiGetTypedAnswer;
+        globalThis.getTypedAnswer = amgiGetTypedAnswer;
         function amgiSubmitTypedAnswer() {
             try { window.webkit.messageHandlers.amgiSubmitTypedAnswer.postMessage(amgiGetTypedAnswer()); } catch(e) {}
         }
@@ -1052,7 +823,7 @@ struct CardWebView: UIViewRepresentable {
             if (e && e.key === 'Enter') { e.preventDefault(); amgiSubmitTypedAnswer(); return false; }
             return true;
         };
-        amgiGlobal._typeAnsPress = window._typeAnsPress;
+        globalThis._typeAnsPress = window._typeAnsPress;
 
         // ── Browser classes ──────────────────────────────────────────────────
         function amgiAddBrowserClasses() {
@@ -1071,7 +842,7 @@ struct CardWebView: UIViewRepresentable {
             else if (/safari\\//.test(ua)) add('safari');
         }
         window.ankiPlatform = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) ? 'ios' : 'other';
-        amgiGlobal.ankiPlatform = window.ankiPlatform;
+        globalThis.ankiPlatform = window.ankiPlatform;
 
         // ── Image Occlusion ──────────────────────────────────────────────────
         function amgiExtractIOShapes(selector) {
@@ -1098,48 +869,23 @@ struct CardWebView: UIViewRepresentable {
                 };
             });
         }
-        function amgiMeasureIOTextShape(shape, size, ctx) {
-            var fontSize = shape.fontSize > 0 ? shape.fontSize * size.height : 40;
-            var scale = shape.scale > 0 ? shape.scale : 1;
-            ctx.save();
-            ctx.font = fontSize + 'px Arial';
-            ctx.textBaseline = 'top';
-            var lines = (shape.text || '').split('\n');
-            var bm = ctx.measureText('M');
-            var fh = bm.actualBoundingBoxAscent + bm.actualBoundingBoxDescent;
-            if (!fh || !Number.isFinite(fh)) fh = fontSize;
-            var lh = 1.5 * fh;
-            var maxW = 0;
-            lines.forEach(function(line) {
-                var lineWidth = ctx.measureText(line).width;
-                if (lineWidth > maxW) maxW = lineWidth;
-            });
-            ctx.restore();
-            return {
-                lines: lines,
-                scale: scale,
-                fontSize: fontSize,
-                lineHeight: lh,
-                left: shape.left * size.width,
-                top: shape.top * size.height,
-                width: (maxW + 5) * scale,
-                height: (lines.length * lh + 5) * scale,
-            };
-        }
         function amgiDrawIOShape(ctx, shape, size, fill, stroke) {
             if (shape.type === 'text') {
-                var layout = amgiMeasureIOTextShape(shape, size, ctx);
-                ctx.save();
-                ctx.font = layout.fontSize + 'px Arial';
-                ctx.textBaseline = 'top';
-                ctx.scale(layout.scale, layout.scale);
-                var sl = layout.left / layout.scale, st = layout.top / layout.scale;
+                var fontSize = shape.fontSize > 0 ? shape.fontSize * size.height : 40;
+                var scale = shape.scale > 0 ? shape.scale : 1;
+                ctx.save(); ctx.font = fontSize + 'px Arial'; ctx.textBaseline = 'top'; ctx.scale(scale, scale);
+                var lines = (shape.text || '').split('\\n');
+                var bm = ctx.measureText('M');
+                var fh = bm.actualBoundingBoxAscent + bm.actualBoundingBoxDescent;
+                var lh = 1.5 * fh; var maxW = 0;
+                var sl = shape.left * size.width / scale, st = shape.top * size.height / scale;
                 var angle = shape.angle * Math.PI / 180;
+                lines.forEach(function(l) { var w = ctx.measureText(l).width; if (w > maxW) maxW = w; });
                 if (angle) { ctx.translate(sl, st); ctx.rotate(angle); ctx.translate(-sl, -st); }
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(sl, st, layout.width / layout.scale, layout.height / layout.scale);
+                ctx.fillRect(sl, st, maxW + 5, lines.length * lh + 5);
                 ctx.fillStyle = shape.fill || '#000000';
-                layout.lines.forEach(function(line, index) { ctx.fillText(line, sl, st + index * layout.lineHeight); });
+                lines.forEach(function(l, i) { ctx.fillText(l, sl, st + i * lh); });
                 ctx.restore(); return;
             }
             if (shape.type === 'polygon' && shape.points && shape.points.length >= 2) {
@@ -1181,17 +927,6 @@ struct CardWebView: UIViewRepresentable {
             var dx = px - ox, dy = py - oy;
             var lx = dx * Math.cos(-angle) - dy * Math.sin(-angle);
             var ly = dx * Math.sin(-angle) + dy * Math.cos(-angle);
-            if (shape.type === 'text') {
-                var canvas = amgiHitTestShape._canvas;
-                if (!canvas) {
-                    canvas = document.createElement('canvas');
-                    amgiHitTestShape._canvas = canvas;
-                }
-                var textContext = canvas.getContext('2d');
-                if (!textContext) return false;
-                var layout = amgiMeasureIOTextShape(shape, size, textContext);
-                return lx >= 0 && lx <= layout.width && ly >= 0 && ly <= layout.height;
-            }
             if (shape.type === 'rect') {
                 return lx >= 0 && lx <= shape.width * size.width && ly >= 0 && ly <= shape.height * size.height;
             } else if (shape.type === 'ellipse') {
@@ -1240,10 +975,10 @@ struct CardWebView: UIViewRepresentable {
                         });
                         container._amgiIOShapes = shapes;
                     }
-                    function visibleShapes() {
+                    function visibleShapes(textOnly) {
                         return (container._amgiIOShapes || []).filter(function(s) {
                             if (s._revealed) return false;
-                            if (container._amgiMasksHidden) return false;
+                            if (textOnly && s.type !== 'text') return false;
                             if (s._cls === 'cloze-inactive') return !!s.occludeInactive;
                             return true;
                         });
@@ -1263,7 +998,7 @@ struct CardWebView: UIViewRepresentable {
                         var highlightColor = style.getPropertyValue('--highlight-shape-color').trim() || 'rgba(255,142,142,0)';
                         var border = '#212121';
                         var size = { width: width, height: height };
-                        visibleShapes().forEach(function(s) {
+                        visibleShapes(masksHidden).forEach(function(s) {
                             var fill = s._cls === 'cloze-inactive' ? inactiveColor : s._cls === 'cloze' ? activeColor : highlightColor;
                             amgiDrawIOShape(ctx, s, size, fill, border);
                         });
@@ -1315,8 +1050,8 @@ struct CardWebView: UIViewRepresentable {
         window.amgiSetupImageOcclusion = amgiSetupImageOcclusion;
 
         // anki.imageOcclusion / anki.setupImageCloze compat shims
-        var anki = amgiGlobal.anki || {};
-        amgiGlobal.anki = anki; window.anki = anki;
+        var anki = globalThis.anki || {};
+        globalThis.anki = anki; window.anki = anki;
         anki.addBrowserClasses = amgiAddBrowserClasses;
         anki.imageOcclusion = anki.imageOcclusion || {};
         anki.imageOcclusion.setup = amgiSetupImageOcclusion;
@@ -1327,7 +1062,7 @@ struct CardWebView: UIViewRepresentable {
         anki.imageOcclusion.Ellipse = anki.imageOcclusion.Ellipse || function Ellipse() {};
         anki.imageOcclusion.Polygon = anki.imageOcclusion.Polygon || function Polygon() {};
         anki.setupImageCloze = function() { amgiSetupImageOcclusion(); };
-        try { amgiAddBrowserClasses(); } catch (e) {}
+        amgiAddBrowserClasses();
 
         // ── Core QA update (mirrors upstream _updateQA) ──────────────────────
         async function amgiUpdateQA(html, state, onupdate, onshown) {
@@ -1347,8 +1082,6 @@ struct CardWebView: UIViewRepresentable {
             try { await amgiSetInnerHTML(qa, html || ''); }
             catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
 
-            qa.style.opacity = '1';
-
             await amgiRunHooks(window.onUpdateHook);
             amgiApplyDarkModeFallback(qa);
 
@@ -1357,6 +1090,8 @@ struct CardWebView: UIViewRepresentable {
             if (shouldTypesetMath) {
                 didTypesetMath = await amgiTypesetMath(qa, 4);
             }
+
+            qa.style.opacity = '1';
             amgiReportCardTheme();
             if (shouldTypesetMath && !didTypesetMath) {
                 amgiTypesetMathWhenReady(qa);
@@ -1462,31 +1197,6 @@ struct CardWebView: UIViewRepresentable {
 
         window._showQuestion = _showQuestion;
         window._showAnswer = _showAnswer;
-        window.amgiRenderCard = function(payload) {
-            payload = payload || {};
-            if (payload.isAnswerSide) {
-                return _showAnswer(
-                    payload.html || '',
-                    payload.bodyClass || '',
-                    !!payload.autoplayEnabled,
-                    payload.replayMode || 'answerOnly',
-                    !!payload.alignTop,
-                    payload.bodyPaddingBottom || 16,
-                    payload.cardPaddingBottom || 0
-                );
-            }
-
-            return _showQuestion(
-                payload.html || '',
-                payload.prefetchHTML || '',
-                payload.bodyClass || '',
-                !!payload.autoplayEnabled,
-                payload.replayMode || 'question',
-                !!payload.alignTop,
-                payload.bodyPaddingBottom || 16,
-                payload.cardPaddingBottom || 0
-            );
-        };
         </script>
         </head>
         <body><div id="qa" class="card-frame"></div></body>
@@ -1508,86 +1218,16 @@ struct CardWebView: UIViewRepresentable {
         bodyPaddingBottom: Int,
         cardPaddingBottom: Int
     ) -> String {
-        let payload = ShowCardPayload(
-            html: processedHTML,
-            prefetchHTML: prefetchHTML ?? "",
-            isAnswerSide: isAnswerSide,
-            bodyClass: bodyClass,
-            autoplayEnabled: autoplayEnabled,
-            replayMode: replayMode,
-            alignTop: alignTop,
-            bodyPaddingBottom: bodyPaddingBottom,
-            cardPaddingBottom: cardPaddingBottom
-        )
+        let htmlLit = jsStringLiteral(processedHTML)
+        let autoplay = autoplayEnabled ? "true" : "false"
+        let alignTopStr = alignTop ? "true" : "false"
 
-        let payloadLiteral = jsObjectLiteral(payload)
-        return """
-        (function() {
-            var payload = \(payloadLiteral);
-            var usedFallback = false;
-            var fallbackReason = '';
-            var renderCard = typeof amgiRenderCard === 'function' ? amgiRenderCard : window.amgiRenderCard;
-            var showAnswer = typeof _showAnswer === 'function' ? _showAnswer : window._showAnswer;
-            var showQuestion = typeof _showQuestion === 'function' ? _showQuestion : window._showQuestion;
-            var bootstrapWarning = typeof amgiAppendBootstrapWarning === 'function' ? amgiAppendBootstrapWarning : window.amgiAppendBootstrapWarning;
-            var bootstrapSummary = typeof amgiBootstrapErrorSummary === 'function' ? amgiBootstrapErrorSummary : window.amgiBootstrapErrorSummary;
-            var earlyBootstrapSummary = typeof amgiEarlyBootstrapSummary === 'function' ? amgiEarlyBootstrapSummary : window.amgiEarlyBootstrapSummary;
-            if (typeof renderCard === 'function') {
-                return renderCard(payload);
-            }
-            if (payload.isAnswerSide && typeof showAnswer === 'function') {
-                usedFallback = true;
-                fallbackReason = 'window.amgiRenderCard missing on answer side';
-                var answerResult = showAnswer(
-                    payload.html || '',
-                    payload.bodyClass || '',
-                    !!payload.autoplayEnabled,
-                    payload.replayMode || 'answerOnly',
-                    !!payload.alignTop,
-                    payload.bodyPaddingBottom || 16,
-                    payload.cardPaddingBottom || 0
-                );
-                window.setTimeout(function() {
-                    if (usedFallback && typeof bootstrapWarning === 'function') {
-                        bootstrapWarning(fallbackReason);
-                    }
-                }, 0);
-                return answerResult;
-            }
-            if (!payload.isAnswerSide && typeof showQuestion === 'function') {
-                usedFallback = true;
-                fallbackReason = 'window.amgiRenderCard missing on question side';
-                var questionResult = showQuestion(
-                    payload.html || '',
-                    payload.prefetchHTML || '',
-                    payload.bodyClass || '',
-                    !!payload.autoplayEnabled,
-                    payload.replayMode || 'question',
-                    !!payload.alignTop,
-                    payload.bodyPaddingBottom || 16,
-                    payload.cardPaddingBottom || 0
-                );
-                window.setTimeout(function() {
-                    if (usedFallback && typeof bootstrapWarning === 'function') {
-                        bootstrapWarning(fallbackReason);
-                    }
-                }, 0);
-                return questionResult;
-            }
-            throw new Error('Card render bootstrap missing: amgiRenderCard/_showQuestion/_showAnswer unavailable\\n' + (typeof bootstrapSummary === 'function'
-                ? bootstrapSummary()
-                : (typeof earlyBootstrapSummary === 'function' ? earlyBootstrapSummary() : 'No bootstrap summary available.')));
-        })();
-        """
-    }
-
-    private static func jsObjectLiteral<T: Encodable>(_ value: T) -> String {
-        if let data = try? JSONEncoder().encode(value),
-           var encoded = String(data: data, encoding: .utf8) {
-            encoded = encoded.replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
-            return encoded
+        if isAnswerSide {
+            return "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
+        } else {
+            let prefetchLit = jsStringLiteral(prefetchHTML ?? "")
+            return "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
         }
-        return "{}"
     }
 
     /// Converts Anki `[sound:filename.ext]` markers to a hidden `<audio>` + styled play button.
@@ -1675,7 +1315,6 @@ struct CardWebView: UIViewRepresentable {
                   let attrsRange = Range(match.range(at: 1), in: result) else { continue }
 
             let attrs = String(result[attrsRange])
-            guard shouldDeferCardScript(attributes: attrs) else { continue }
             let withoutQuotedType = attrs.replacingOccurrences(
                 of: #"\stype\s*=\s*(["']).*?\1"#,
                 with: "",
@@ -1692,34 +1331,6 @@ struct CardWebView: UIViewRepresentable {
         }
 
         return result
-    }
-
-    private static func shouldDeferCardScript(attributes: String) -> Bool {
-        guard let regex = try? NSRegularExpression(
-            pattern: #"\btype\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s>]+))"#,
-            options: [.caseInsensitive]
-        ) else { return true }
-
-        let range = NSRange(attributes.startIndex..., in: attributes)
-        guard let match = regex.firstMatch(in: attributes, range: range) else {
-            return true
-        }
-
-        var scriptType = ""
-        for index in 1...3 {
-            let candidate = match.range(at: index)
-            if let stringRange = Range(candidate, in: attributes) {
-                scriptType = String(attributes[stringRange])
-                break
-            }
-        }
-
-        switch scriptType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "", "text/javascript", "application/javascript", "application/ecmascript", "text/ecmascript", "module":
-            return true
-        default:
-            return false
-        }
     }
 
     private static func parseTTSAttributes(_ raw: String) -> [String: String] {
@@ -1769,17 +1380,12 @@ struct CardWebView: UIViewRepresentable {
     }
 
     private static func jsStringLiteral(_ value: String) -> String {
-        if let data = try? JSONEncoder().encode(value),
-           var encoded = String(data: data, encoding: .utf8) {
-            encoded = encoded.replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
-            return encoded
-        }
-
         let escaped = value
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
             .replacingOccurrences(of: "\n", with: "\\n")
             .replacingOccurrences(of: "\r", with: "\\r")
+            // Escape </script> so it doesn't prematurely close the enclosing <script> block
             .replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
         return "'\(escaped)'"
     }
@@ -2087,7 +1693,11 @@ struct CardWebView: UIViewRepresentable {
 
             guard let pendingUpdateScript else { return }
             self.pendingUpdateScript = nil
-            runCardScript(pendingUpdateScript, in: webView)
+            webView.evaluateJavaScript(pendingUpdateScript) { _, error in
+                if let error {
+                    print("[CardWebView] evaluateJavaScript error: \(error)")
+                }
+            }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -2096,50 +1706,6 @@ struct CardWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             print("[CardWebView] Provisional navigation failed: \(error)")
-        }
-
-        func runCardScript(_ script: String, in webView: WKWebView) {
-            webView.evaluateJavaScript(script) { _, error in
-                if let error {
-                    self.presentCardScriptError(error, script: script, in: webView)
-                }
-            }
-        }
-
-        private func presentCardScriptError(_ error: Error, script: String, in webView: WKWebView) {
-            print("[CardWebView] evaluateJavaScript error: \(error)")
-            guard CardWebView.debugShowJSErrorOverlay else { return }
-            let nsError = error as NSError
-            let message = (nsError.userInfo["WKJavaScriptExceptionMessage"] as? String)
-                ?? error.localizedDescription
-            let line = (nsError.userInfo["WKJavaScriptExceptionLineNumber"] as? NSNumber)?.stringValue
-            let column = (nsError.userInfo["WKJavaScriptExceptionColumnNumber"] as? NSNumber)?.stringValue
-            let sourceURL = nsError.userInfo["WKJavaScriptExceptionSourceURL"] as? String
-            let scriptSnippet = String(script.prefix(220))
-
-            var detailLines = ["CardWebView JS Error", message]
-            if let line {
-                if let column {
-                    detailLines.append("Line: \(line), Column: \(column)")
-                } else {
-                    detailLines.append("Line: \(line)")
-                }
-            }
-            if let sourceURL, !sourceURL.isEmpty {
-                detailLines.append("Source: \(sourceURL)")
-            }
-            detailLines.append("Script: \(scriptSnippet)")
-
-            let errorText = CardWebView.jsStringLiteral(detailLines.joined(separator: "\n"))
-            let script = """
-            (function() {
-                var qa = document.getElementById('qa');
-                if (!qa) { return; }
-                qa.style.opacity = '1';
-                qa.innerHTML = '<pre style="white-space:pre-wrap;text-align:left;background:rgba(0,0,0,0.72);color:#fff;padding:12px;border-radius:10px;max-width:100%;overflow:auto;">CardWebView JS Error\\n' + \(errorText) + '</pre>';
-            })();
-            """
-            webView.evaluateJavaScript(script, completionHandler: nil)
         }
     }
 }
