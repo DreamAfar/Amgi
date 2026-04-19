@@ -663,16 +663,26 @@ struct CardWebView: UIViewRepresentable {
             return new Promise(function(resolve) {
                 var newScript = document.createElement('script');
                 var mustWaitForNetwork = !!oldScript.getAttribute('src');
+                var settled = false;
+                function finish() {
+                    if (settled) return;
+                    settled = true;
+                    resolve();
+                }
                 oldScript.getAttributeNames().forEach(function(name) {
                     if (name === 'type' || name === 'data-amgi-card-script') return;
                     var v = oldScript.getAttribute(name);
                     if (v !== null) newScript.setAttribute(name, v);
                 });
-                newScript.addEventListener('load', function() { resolve(); });
-                newScript.addEventListener('error', function() { resolve(); });
+                newScript.addEventListener('load', finish);
+                newScript.addEventListener('error', finish);
                 newScript.appendChild(document.createTextNode(oldScript.textContent || ''));
                 oldScript.replaceWith(newScript);
-                if (!mustWaitForNetwork) resolve();
+                if (!mustWaitForNetwork) {
+                    finish();
+                    return;
+                }
+                window.setTimeout(finish, 700);
             });
         }
         async function amgiSetInnerHTML(element, html) {

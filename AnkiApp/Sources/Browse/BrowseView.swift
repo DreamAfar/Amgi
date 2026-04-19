@@ -991,6 +991,7 @@ struct BrowseView: View {
 
     private func loadDecks() async {
         do {
+            allDecks = try deckClient.fetchAll()
             if let activeDeck {
                 let noteIDs = try noteClient.searchIds("deck:\"\(activeDeck.name)\"")
                 var tagSet = Set<String>()
@@ -1015,6 +1016,7 @@ struct BrowseView: View {
             }
         } catch {
             allDecks = []
+            allTags = []
         }
     }
 

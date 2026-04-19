@@ -57,9 +57,6 @@ struct FutureDueChart: View {
         for point in sortedDueCounts {
             guard point.day <= upperBound else { continue }
             if point.day < lowerBound {
-                if includeBacklog && period != .all {
-                    grouped[lowerBound, default: 0] += point.count
-                }
                 continue
             }
             grouped[point.day, default: 0] += point.count
