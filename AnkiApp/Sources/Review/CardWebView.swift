@@ -1867,14 +1867,35 @@ struct CardWebView: UIViewRepresentable {
         func runCardScript(_ script: String, in webView: WKWebView) {
             webView.evaluateJavaScript(script) { _, error in
                 if let error {
-                    self.presentCardScriptError(error, in: webView)
+                    self.presentCardScriptError(error, script: script, in: webView)
                 }
             }
         }
 
-        private func presentCardScriptError(_ error: Error, in webView: WKWebView) {
+        private func presentCardScriptError(_ error: Error, script: String, in webView: WKWebView) {
             print("[CardWebView] evaluateJavaScript error: \(error)")
-            let errorText = CardWebView.jsStringLiteral(error.localizedDescription)
+            let nsError = error as NSError
+            let message = (nsError.userInfo["WKJavaScriptExceptionMessage"] as? String)
+                ?? error.localizedDescription
+            let line = (nsError.userInfo["WKJavaScriptExceptionLineNumber"] as? NSNumber)?.stringValue
+            let column = (nsError.userInfo["WKJavaScriptExceptionColumnNumber"] as? NSNumber)?.stringValue
+            let sourceURL = nsError.userInfo["WKJavaScriptExceptionSourceURL"] as? String
+            let scriptSnippet = String(script.prefix(220))
+
+            var detailLines = ["CardWebView JS Error", message]
+            if let line {
+                if let column {
+                    detailLines.append("Line: \(line), Column: \(column)")
+                } else {
+                    detailLines.append("Line: \(line)")
+                }
+            }
+            if let sourceURL, !sourceURL.isEmpty {
+                detailLines.append("Source: \(sourceURL)")
+            }
+            detailLines.append("Script: \(scriptSnippet)")
+
+            let errorText = CardWebView.jsStringLiteral(detailLines.joined(separator: "\n"))
             let script = """
             (function() {
                 var qa = document.getElementById('qa');
