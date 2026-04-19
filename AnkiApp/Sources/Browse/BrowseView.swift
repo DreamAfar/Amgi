@@ -992,6 +992,15 @@ struct BrowseView: View {
     private func loadDecks() async {
         do {
             allDecks = try deckClient.fetchAll()
+            await loadTags()
+        } catch {
+            allDecks = []
+            allTags = []
+        }
+    }
+
+    private func loadTags() async {
+        do {
             if let activeDeck {
                 let noteIDs = try noteClient.searchIds("deck:\"\(activeDeck.name)\"")
                 var tagSet = Set<String>()
@@ -1014,15 +1023,6 @@ struct BrowseView: View {
             } else {
                 allTags = try tagClient.getAllTags().sorted()
             }
-        } catch {
-            allDecks = []
-            allTags = []
-        }
-    }
-
-    private func loadTags() async {
-        do {
-            allTags = try tagClient.getAllTags().sorted()
             if let activeTag, !allTags.contains(activeTag) {
                 self.activeTag = nil
             }

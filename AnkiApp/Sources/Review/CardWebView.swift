@@ -1149,6 +1149,8 @@ struct CardWebView: UIViewRepresentable {
             try { await amgiSetInnerHTML(qa, html || ''); }
             catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
 
+            qa.style.opacity = '1';
+
             await amgiRunHooks(window.onUpdateHook);
             amgiApplyDarkModeFallback(qa);
 
@@ -1157,8 +1159,6 @@ struct CardWebView: UIViewRepresentable {
             if (shouldTypesetMath) {
                 didTypesetMath = await amgiTypesetMath(qa, 4);
             }
-
-            qa.style.opacity = '1';
             amgiReportCardTheme();
             if (shouldTypesetMath && !didTypesetMath) {
                 amgiTypesetMathWhenReady(qa);
@@ -1476,12 +1476,17 @@ struct CardWebView: UIViewRepresentable {
     }
 
     private static func jsStringLiteral(_ value: String) -> String {
+        if let data = try? JSONEncoder().encode(value),
+           var encoded = String(data: data, encoding: .utf8) {
+            encoded = encoded.replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
+            return encoded
+        }
+
         let escaped = value
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
             .replacingOccurrences(of: "\n", with: "\\n")
             .replacingOccurrences(of: "\r", with: "\\r")
-            // Escape </script> so it doesn't prematurely close the enclosing <script> block
             .replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
         return "'\(escaped)'"
     }

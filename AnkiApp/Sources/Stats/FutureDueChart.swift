@@ -39,12 +39,12 @@ struct FutureDueChart: View {
     }
 
     private var xAxisUpperBound: Int {
-        max(1, period.days)
+        period == .all ? max(1, sortedDueCounts.map(\.day).max() ?? 1) : max(1, period.days)
     }
 
     private var xAxisLowerBound: Int {
         if includeBacklog {
-            return period == .all ? (sortedDueCounts.first?.day ?? 0) : -xAxisUpperBound
+            return min(sortedDueCounts.map(\.day).min() ?? 0, 0)
         }
         return 0
     }
