@@ -39,6 +39,18 @@ struct CardWebView: UIViewRepresentable {
     let onAudioStateChange: ((Bool) -> Void)?
     let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
 
+    private struct ShowCardPayload: Encodable {
+        let html: String
+        let prefetchHTML: String
+        let isAnswerSide: Bool
+        let bodyClass: String
+        let autoplayEnabled: Bool
+        let replayMode: String
+        let alignTop: Bool
+        let bodyPaddingBottom: Int
+        let cardPaddingBottom: Int
+    }
+
     init(
         html: String,
         autoplayEnabled: Bool = true,
@@ -187,7 +199,7 @@ struct CardWebView: UIViewRepresentable {
         } else if context.coordinator.lastContentSignature != contentSignature {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
-                webView.evaluateJavaScript(showCardScript, completionHandler: nil)
+                context.coordinator.runCardScript(showCardScript, in: webView)
             } else {
                 context.coordinator.pendingUpdateScript = showCardScript
             }
@@ -1274,6 +1286,31 @@ struct CardWebView: UIViewRepresentable {
 
         window._showQuestion = _showQuestion;
         window._showAnswer = _showAnswer;
+        window.amgiRenderCard = function(payload) {
+            payload = payload || {};
+            if (payload.isAnswerSide) {
+                return _showAnswer(
+                    payload.html || '',
+                    payload.bodyClass || '',
+                    !!payload.autoplayEnabled,
+                    payload.replayMode || 'answerOnly',
+                    !!payload.alignTop,
+                    payload.bodyPaddingBottom || 16,
+                    payload.cardPaddingBottom || 0
+                );
+            }
+
+            return _showQuestion(
+                payload.html || '',
+                payload.prefetchHTML || '',
+                payload.bodyClass || '',
+                !!payload.autoplayEnabled,
+                payload.replayMode || 'question',
+                !!payload.alignTop,
+                payload.bodyPaddingBottom || 16,
+                payload.cardPaddingBottom || 0
+            );
+        };
         </script>
         </head>
         <body><div id="qa" class="card-frame"></div></body>
@@ -1295,16 +1332,28 @@ struct CardWebView: UIViewRepresentable {
         bodyPaddingBottom: Int,
         cardPaddingBottom: Int
     ) -> String {
-        let htmlLit = jsStringLiteral(processedHTML)
-        let autoplay = autoplayEnabled ? "true" : "false"
-        let alignTopStr = alignTop ? "true" : "false"
+        let payload = ShowCardPayload(
+            html: processedHTML,
+            prefetchHTML: prefetchHTML ?? "",
+            isAnswerSide: isAnswerSide,
+            bodyClass: bodyClass,
+            autoplayEnabled: autoplayEnabled,
+            replayMode: replayMode,
+            alignTop: alignTop,
+            bodyPaddingBottom: bodyPaddingBottom,
+            cardPaddingBottom: cardPaddingBottom
+        )
 
-        if isAnswerSide {
-            return "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom));"
-        } else {
-            let prefetchLit = jsStringLiteral(prefetchHTML ?? "")
-            return "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom));"
+        return "window.amgiRenderCard(\(jsObjectLiteral(payload)));"
+    }
+
+    private static func jsObjectLiteral<T: Encodable>(_ value: T) -> String {
+        if let data = try? JSONEncoder().encode(value),
+           var encoded = String(data: data, encoding: .utf8) {
+            encoded = encoded.replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
+            return encoded
         }
+        return "{}"
     }
 
     /// Converts Anki `[sound:filename.ext]` markers to a hidden `<audio>` + styled play button.
@@ -1804,11 +1853,7 @@ struct CardWebView: UIViewRepresentable {
 
             guard let pendingUpdateScript else { return }
             self.pendingUpdateScript = nil
-            webView.evaluateJavaScript(pendingUpdateScript) { _, error in
-                if let error {
-                    print("[CardWebView] evaluateJavaScript error: \(error)")
-                }
-            }
+            runCardScript(pendingUpdateScript, in: webView)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -1817,6 +1862,28 @@ struct CardWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             print("[CardWebView] Provisional navigation failed: \(error)")
+        }
+
+        func runCardScript(_ script: String, in webView: WKWebView) {
+            webView.evaluateJavaScript(script) { _, error in
+                if let error {
+                    self.presentCardScriptError(error, in: webView)
+                }
+            }
+        }
+
+        private func presentCardScriptError(_ error: Error, in webView: WKWebView) {
+            print("[CardWebView] evaluateJavaScript error: \(error)")
+            let errorText = CardWebView.jsStringLiteral(error.localizedDescription)
+            let script = """
+            (function() {
+                var qa = document.getElementById('qa');
+                if (!qa) { return; }
+                qa.style.opacity = '1';
+                qa.innerHTML = '<pre style="white-space:pre-wrap;text-align:left;background:rgba(0,0,0,0.72);color:#fff;padding:12px;border-radius:10px;max-width:100%;overflow:auto;">CardWebView JS Error\\n' + \(errorText) + '</pre>';
+            })();
+            """
+            webView.evaluateJavaScript(script, completionHandler: nil)
         }
     }
 }

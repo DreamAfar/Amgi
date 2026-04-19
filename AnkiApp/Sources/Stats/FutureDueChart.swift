@@ -9,10 +9,12 @@ struct FutureDueChart: View {
     @State private var selectedDay: Int?
 
     private struct DisplayPoint: Identifiable {
-        let day: Int
+        let startDay: Int
+        let endDay: Int
         let count: Int
 
-        var id: Int { day }
+        var id: Int { startDay }
+        var day: Int { startDay }
     }
 
     private var xAxisDesiredTickCount: Int {
@@ -28,8 +30,17 @@ struct FutureDueChart: View {
 
     private struct CumulativePoint: Identifiable {
         let id: Int
-        let day: Int
+        let startDay: Int
         let cumulative: Int
+    }
+
+    private var desiredBarCount: Int {
+        max(1, min(70, xAxisUpperBound - xAxisLowerBound))
+    }
+
+    private var dayBucketSize: Int {
+        let span = max(1, xAxisUpperBound - xAxisLowerBound)
+        return max(1, Int(ceil(Double(span) / Double(desiredBarCount))))
     }
 
     private var sortedDueCounts: [DisplayPoint] {
@@ -52,6 +63,7 @@ struct FutureDueChart: View {
     private var filteredData: [DisplayPoint] {
         let lowerBound = xAxisLowerBound
         let upperBound = xAxisUpperBound
+        let bucketSize = dayBucketSize
         var grouped: [Int: Int] = [:]
 
         for point in sortedDueCounts {
@@ -59,11 +71,19 @@ struct FutureDueChart: View {
             if point.day < lowerBound {
                 continue
             }
-            grouped[point.day, default: 0] += point.count
+            let bucketStart: Int
+            if bucketSize == 1 {
+                bucketStart = point.day
+            } else {
+                let offset = point.day - lowerBound
+                bucketStart = lowerBound + (offset / bucketSize) * bucketSize
+            }
+            grouped[bucketStart, default: 0] += point.count
         }
 
-        return grouped.keys.sorted().map { day in
-            DisplayPoint(day: day, count: grouped[day] ?? 0)
+        return grouped.keys.sorted().map { startDay in
+            let endDay = min(startDay + bucketSize - 1, upperBound)
+            return DisplayPoint(startDay: startDay, endDay: endDay, count: grouped[startDay] ?? 0)
         }
     }
 
@@ -79,7 +99,7 @@ struct FutureDueChart: View {
         var runningTotal = 0
         return filteredData.map { item in
             runningTotal += item.count
-            return CumulativePoint(id: item.day, day: item.day, cumulative: runningTotal)
+            return CumulativePoint(id: item.startDay, startDay: item.startDay, cumulative: runningTotal)
         }
     }
     private var rightAxisTicks: [StatsAxisTick] {
@@ -112,7 +132,7 @@ struct FutureDueChart: View {
 
     private var selectedPoint: CumulativePoint? {
         guard let selectedDay else { return nil }
-        return cumulativePoints.first(where: { $0.day == selectedDay })
+        return cumulativePoints.first(where: { $0.startDay == selectedDay })
     }
 
     var body: some View {
@@ -144,16 +164,16 @@ struct FutureDueChart: View {
                 Chart {
                     ForEach(filteredData) { item in
                         BarMark(
-                            x: .value("Day", item.day),
+                            x: .value("Day", item.startDay),
                             y: .value("Cards", item.count),
                             width: barWidth
                         )
-                        .foregroundStyle(item.day < 0 ? Color.red.gradient : Color.blue.gradient)
+                        .foregroundStyle(item.endDay < 0 ? Color.red.gradient : Color.blue.gradient)
                     }
 
                     ForEach(cumulativePoints) { point in
                         AreaMark(
-                            x: .value("Day", point.day),
+                            x: .value("Day", point.startDay),
                             y: .value(
                                 "Cumulative",
                                 StatsDualAxisSupport.plottedValue(
@@ -167,7 +187,7 @@ struct FutureDueChart: View {
                         .interpolationMethod(.monotone)
 
                         LineMark(
-                            x: .value("Day", point.day),
+                            x: .value("Day", point.startDay),
                             y: .value(
                                 "Cumulative",
                                 StatsDualAxisSupport.plottedValue(
@@ -193,7 +213,7 @@ struct FutureDueChart: View {
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                             .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                                 StatsChartTooltip(
-                                    title: statsBarRangeLabel(start: selectedItem.day, bucketSize: 1),
+                                    title: statsBarRangeLabel(start: selectedItem.startDay, bucketSize: selectedItem.endDay - selectedItem.startDay + 1),
                                     lines: [
                                         "\(countLabel): \(selectedItem.count)",
                                         "\(cumulativeLabel): \(selectedPoint.cumulative)"
@@ -221,8 +241,8 @@ struct FutureDueChart: View {
                                         }
 
                                         let nearestDay = filteredData.min(by: {
-                                            abs($0.day - day) < abs($1.day - day)
-                                        })?.day
+                                            abs($0.startDay - day) < abs($1.startDay - day)
+                                        })?.startDay
                                         selectedDay = selectedDay == nearestDay ? nil : nearestDay
                                     }
                             )
