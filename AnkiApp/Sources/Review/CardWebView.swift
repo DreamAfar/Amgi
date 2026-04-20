@@ -232,9 +232,6 @@ struct CardWebView: UIViewRepresentable {
         let typeFocusBorder = isDarkMode ? "rgba(143,184,255,0.9)" : "rgba(0,122,255,0.9)"
         let typeFocusShadow = isDarkMode ? "rgba(143,184,255,0.18)" : "rgba(0,122,255,0.15)"
         let typeCodeBg = isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"
-        let typeGood = isDarkMode ? "#7ddc6f" : "#177d1a"
-        let typeBad = isDarkMode ? "#ff8d8d" : "#c62828"
-        let typeMissed = isDarkMode ? "#8ab4ff" : "#1565c0"
         let missingMediaColor = isDarkMode ? "rgba(255,100,100,0.9)" : "rgba(200,40,40,0.8)"
         let playIconLiteral = jsStringLiteral(playIconHTML)
         let pauseIconLiteral = jsStringLiteral(pauseIconHTML)
@@ -274,6 +271,10 @@ struct CardWebView: UIViewRepresentable {
                 padding: 16px 16px var(--amgi-body-padding-bottom, 16px);
                 margin: 0; box-sizing: border-box; text-align: center;
                 overflow-wrap: break-word;
+                background-size: cover;
+                background-repeat: no-repeat;
+                background-position: top;
+                background-attachment: fixed;
                 display: flex; align-items: var(--amgi-body-align-items, center);
                 justify-content: center; min-height: 80vh;
             }
@@ -288,7 +289,8 @@ struct CardWebView: UIViewRepresentable {
             .sound-btn { display: inline-flex; align-items: center; justify-content: center; margin: 4px; }
             .sound-btn audio { display: none; }
             #typeans {
-                width: min(100%, 280px); padding: 10px 12px; border-radius: 10px;
+                width: 100%; box-sizing: border-box; line-height: 1.75;
+                padding: 10px 12px; border-radius: 10px;
                 border: 1px solid \(typeBorderColor); background: \(typeBgColor);
                 color: inherit; outline: none;
             }
@@ -299,13 +301,17 @@ struct CardWebView: UIViewRepresentable {
             code#typeans {
                 display: inline-block; white-space: pre-wrap;
                 font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-                font-size: 0.95em; line-height: 1.5; padding: 10px 12px;
+                font-size: 0.95em; line-height: 1.75; padding: 10px 12px;
+                font-variant-ligatures: none;
                 border-radius: 10px; background: \(typeCodeBg);
             }
-            .typeGood { color: \(typeGood); }
-            .typeBad { color: \(typeBad); }
-            .typeMissed { color: \(typeMissed); }
+            .typeGood { background: #afa; color: black; }
+            .typeBad { color: black; background: #faa; }
+            .typeMissed { color: black; background: #ccc; }
             #typearrow { opacity: 0.7; }
+            .replay-button {
+                text-decoration: none; display: inline-flex; vertical-align: middle; margin: 3px;
+            }
             .replay-btn {
                 background: transparent; border: none; color: inherit; padding: 0;
                 line-height: 0; cursor: pointer; display: inline-flex;
@@ -313,8 +319,9 @@ struct CardWebView: UIViewRepresentable {
                 -webkit-tap-highlight-color: transparent; appearance: none;
             }
             .replay-btn:active { opacity: 0.7; }
-            .replay-btn img { width: 24px; height: 24px; display: block; }
+            .replay-btn img { width: 40px; height: 40px; display: block; }
             video { max-width: 100%; height: auto; border-radius: 8px; margin: 8px 0; }
+            .drawing { zoom: 50%; }
             .cloze:not([data-shape]) { display: inline !important; font-weight: 600; color: #1565c0; }
             .cloze-inactive:not([data-shape]),
             .cloze-highlight:not([data-shape]) { display: inline !important; }
@@ -341,6 +348,7 @@ struct CardWebView: UIViewRepresentable {
             .nightMode, .nightMode .card { color: #f5f5f5; }
             .night_mode, .night_mode .card { color: #f5f5f5; }
             .nightMode .latex, .night_mode .latex { filter: invert(100%); }
+            .nightMode img.drawing, .night_mode img.drawing { filter: invert(1) hue-rotate(180deg); }
             .nightMode .cloze:not([data-shape]) { color: #8fb8ff; }
             .night_mode .cloze:not([data-shape]) { color: #8fb8ff; }
             .nightMode a { color: #8fb8ff; }
