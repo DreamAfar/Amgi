@@ -273,6 +273,7 @@ struct CardWebView: UIViewRepresentable {
                 color: var(--amgi-default-card-fg); background: var(--amgi-default-card-bg);
                 padding: 16px 16px var(--amgi-body-padding-bottom, 16px);
                 margin: 0; box-sizing: border-box; text-align: center;
+                overflow-wrap: break-word;
                 display: flex; align-items: var(--amgi-body-align-items, center);
                 justify-content: center; min-height: 80vh;
             }
@@ -281,7 +282,9 @@ struct CardWebView: UIViewRepresentable {
                 padding-bottom: var(--amgi-card-padding-bottom, 0px);
             }
             hr { border: none; border-top: 1px solid \(hrColor); margin: 16px 0; }
-            img { max-width: 100%; height: auto; border-radius: 8px; }
+            img { max-width: 100%; max-height: 95vh; height: auto; border-radius: 8px; }
+            li { text-align: start; }
+            pre { text-align: left; }
             .sound-btn { display: inline-flex; align-items: center; justify-content: center; margin: 4px; }
             .sound-btn audio { display: none; }
             #typeans {
@@ -337,6 +340,7 @@ struct CardWebView: UIViewRepresentable {
             }
             .nightMode, .nightMode .card { color: #f5f5f5; }
             .night_mode, .night_mode .card { color: #f5f5f5; }
+            .nightMode .latex, .night_mode .latex { filter: invert(100%); }
             .nightMode .cloze:not([data-shape]) { color: #8fb8ff; }
             .night_mode .cloze:not([data-shape]) { color: #8fb8ff; }
             .nightMode a { color: #8fb8ff; }
