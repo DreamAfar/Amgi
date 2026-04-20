@@ -315,6 +315,8 @@ struct CardWebView: UIViewRepresentable {
                 background: transparent; border: none; color: inherit; padding: 0;
                 line-height: 0; cursor: pointer; display: inline-flex;
                 align-items: center; justify-content: center;
+                flex: 0 0 auto; min-width: 40px; min-height: 40px;
+                box-shadow: none; outline: none;
                 -webkit-tap-highlight-color: transparent; appearance: none;
             }
             .replay-btn:active { opacity: 0.7; }
@@ -1278,7 +1280,7 @@ struct CardWebView: UIViewRepresentable {
             let replacement: String
             if showReplayButtons {
                 let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
-                replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><button type=\"button\" class=\"replay-button replay-btn soundLink\" onclick=\"return playSound(this)\">\(iconHTML)</button></span>"
+                replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><a class=\"replay-button replay-btn soundLink\" href=\"#\" draggable=\"false\" onclick=\"return playSound(this)\">\(iconHTML)</a></span>"
             } else {
                 replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio></span>"
             }
@@ -1315,7 +1317,7 @@ struct CardWebView: UIViewRepresentable {
             let replacement: String
             if showReplayButtons {
                 let iconHTML = audioButtonIconHTML(systemName: "speaker.wave.2.circle", alt: "Speak", isDarkMode: isDarkMode)
-                replacement = "<button type=\"button\" class=\"replay-button replay-btn tts-btn\" data-tts-text=\"\(htmlAttributeEscaped(spokenText))\" data-tts-lang=\"\(htmlAttributeEscaped(lang))\" data-tts-voices=\"\(htmlAttributeEscaped(voices))\" data-tts-speed=\"\(htmlAttributeEscaped(speed))\" onclick=\"return amgiSpeakTts(this)\">\(iconHTML)</button>"
+                replacement = "<a class=\"replay-button replay-btn tts-btn\" href=\"#\" draggable=\"false\" data-tts-text=\"\(htmlAttributeEscaped(spokenText))\" data-tts-lang=\"\(htmlAttributeEscaped(lang))\" data-tts-voices=\"\(htmlAttributeEscaped(voices))\" data-tts-speed=\"\(htmlAttributeEscaped(speed))\" onclick=\"return amgiSpeakTts(this)\">\(iconHTML)</a>"
             } else {
                 replacement = ""
             }
@@ -1402,7 +1404,7 @@ struct CardWebView: UIViewRepresentable {
             return alt
         }
 
-        return "<img src=\"data:image/png;base64,\(data.base64EncodedString())\" alt=\"\(alt)\" />"
+        return "<img src=\"data:image/png;base64,\(data.base64EncodedString())\" alt=\"\(alt)\" draggable=\"false\" style=\"width:40px;height:40px;max-width:none;display:block;flex:none;\" />"
     }
 
     private static func jsStringLiteral(_ value: String) -> String {
