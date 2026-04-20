@@ -469,7 +469,7 @@ struct BrowseView: View {
                         }
                     }
                     .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                        if note.flds.contains("image-occlusion:") {
+                        if note.isImageOcclusionNote {
                             Button {
                                 editIOItem = IONoteEditItem(noteId: note.id)
                             } label: {
@@ -493,7 +493,7 @@ struct BrowseView: View {
         .environment(\.editMode, editModeBinding)
         .listStyle(.plain)
         .navigationDestination(for: NoteRecord.self) { note in
-            NoteEditorView(note: note) {
+            NoteEditingDestinationView(note: note) {
                 scheduleSearch()
             }
         }

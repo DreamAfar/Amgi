@@ -71,10 +71,8 @@ struct EmptyCardsView: View {
             }
             .task { await loadEmptyCards() }
             .sheet(item: $editingNote) { note in
-                NavigationStack {
-                    NoteEditorView(note: note) {
-                        Task { await loadEmptyCards() }
-                    }
+                NoteEditingDestinationView(note: note, embedInNavigationStack: true) {
+                    Task { await loadEmptyCards() }
                 }
             }
         }

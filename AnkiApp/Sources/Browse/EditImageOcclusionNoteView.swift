@@ -11,6 +11,7 @@ struct EditImageOcclusionNoteView: View {
 
     let noteId: Int64
     let onSave: () -> Void
+    let embedInNavigationStack: Bool
 
     @State private var isLoading = true
     @State private var loadError: String?
@@ -23,8 +24,26 @@ struct EditImageOcclusionNoteView: View {
     @State private var isSaving = false
     @State private var saveError: String?
 
+    init(noteId: Int64, onSave: @escaping () -> Void, embedInNavigationStack: Bool = true) {
+        self.noteId = noteId
+        self.onSave = onSave
+        self.embedInNavigationStack = embedInNavigationStack
+    }
+
     var body: some View {
-        NavigationStack {
+        Group {
+            if embedInNavigationStack {
+                NavigationStack {
+                    editorBody
+                }
+            } else {
+                editorBody
+            }
+        }
+    }
+
+    private var editorBody: some View {
+        Group {
             Group {
                 if isLoading {
                     ProgressView()
@@ -120,41 +139,41 @@ struct EditImageOcclusionNoteView: View {
                     .background(Color.amgiBackground)
                 }
             }
-            .navigationTitle(L("io_edit_nav_title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(L("common_cancel")) { dismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
-                }
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Button {
-                        undoManager?.undo()
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
-                            .amgiToolbarIconButton()
-                    }
-                    .disabled(!(undoManager?.canUndo ?? false))
-                    Spacer()
-                    Button {
-                        undoManager?.redo()
-                    } label: {
-                        Image(systemName: "arrow.uturn.forward")
-                            .amgiToolbarIconButton()
-                    }
-                    .disabled(!(undoManager?.canRedo ?? false))
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(L("common_save")) {
-                        Task { await save() }
-                    }
-                    .amgiToolbarTextButton()
-                    .disabled(isLoading || masks.isEmpty || isSaving)
-                    .overlay { if isSaving { ProgressView().scaleEffect(0.7) } }
-                }
-            }
-            .task { await loadNote() }
         }
+        .navigationTitle(L("io_edit_nav_title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(L("common_cancel")) { dismiss() }
+                    .amgiToolbarTextButton(tone: .neutral)
+            }
+            ToolbarItemGroup(placement: .bottomBar) {
+                Button {
+                    undoManager?.undo()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .amgiToolbarIconButton()
+                }
+                .disabled(!(undoManager?.canUndo ?? false))
+                Spacer()
+                Button {
+                    undoManager?.redo()
+                } label: {
+                    Image(systemName: "arrow.uturn.forward")
+                        .amgiToolbarIconButton()
+                }
+                .disabled(!(undoManager?.canRedo ?? false))
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(L("common_save")) {
+                    Task { await save() }
+                }
+                .amgiToolbarTextButton()
+                .disabled(isLoading || masks.isEmpty || isSaving)
+                .overlay { if isSaving { ProgressView().scaleEffect(0.7) } }
+            }
+        }
+        .task { await loadNote() }
     }
 
     private var shapeHint: String {

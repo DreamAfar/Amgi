@@ -64,7 +64,21 @@ struct NoteEditorView: View {
                                     .disabled(MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) == nil)
                                 }
                             }
-                            RichNoteFieldEditor(htmlText: fieldBinding(for: index))
+
+                            if shouldShowFieldPreview(at: index) {
+                                NoteFieldHTMLPreview(html: fieldValue(at: index))
+                                    .frame(height: fieldPreviewHeight(at: index))
+                                    .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(Color.amgiBorder.opacity(0.24), lineWidth: 1)
+                                    }
+                            }
+
+                            RichNoteFieldEditor(
+                                htmlText: fieldBinding(for: index),
+                                preservesSourceHTML: shouldPreserveSourceHTML(at: index)
+                            )
                                 .frame(minHeight: 32)
                         }
                         .padding(.vertical, AmgiSpacing.sm)
@@ -235,6 +249,30 @@ struct NoteEditorView: View {
     private func shouldShowAudioButton(fieldName: String, index: Int) -> Bool {
         MediaAudioPreview.isLikelyAudioFieldName(fieldName)
             || MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) != nil
+    }
+
+    private func shouldShowFieldPreview(at index: Int) -> Bool {
+        containsEmbeddedMedia(fieldValue(at: index))
+    }
+
+    private func shouldPreserveSourceHTML(at index: Int) -> Bool {
+        containsEmbeddedMedia(fieldValue(at: index))
+    }
+
+    private func fieldPreviewHeight(at index: Int) -> CGFloat {
+        let value = fieldValue(at: index).lowercased()
+        if value.contains("<img") || value.contains("<svg") {
+            return 220
+        }
+        return 96
+    }
+
+    private func containsEmbeddedMedia(_ value: String) -> Bool {
+        let lowercasedValue = value.lowercased()
+        return lowercasedValue.contains("<img")
+            || lowercasedValue.contains("<svg")
+            || lowercasedValue.contains("<video")
+            || lowercasedValue.contains("<audio")
     }
 
     @MainActor

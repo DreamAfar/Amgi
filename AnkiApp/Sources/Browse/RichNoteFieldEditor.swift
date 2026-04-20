@@ -1,13 +1,15 @@
 ﻿import SwiftUI
 import UIKit
 
-/// A plain-text field editor for Anki note fields.
+/// A note field editor that defaults to plain-text editing and can preserve raw
+/// HTML source for fields that contain embedded media.
 ///
 /// Anki stores field values as HTML fragments. This editor strips HTML tags for
 /// display/editing and writes back plain text on change. This avoids the crash-
 /// prone `NSAttributedString` HTML parsing path.
 struct RichNoteFieldEditor: UIViewRepresentable {
     @Binding var htmlText: String
+    var preservesSourceHTML = false
 
     private let doneButtonTitle = L("common_done")
     private let boldTitle = L("rich_text_action_bold")
@@ -35,7 +37,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         context.coordinator.attach(textView: textView)
         textView.inputAccessoryView = makeInputToolbar(for: textView, coordinator: context.coordinator)
 
-        textView.text = Coordinator.plainText(from: htmlText)
+        textView.text = displayText(for: htmlText)
         context.coordinator.lastRenderedValue = htmlText
         context.coordinator.lastPlainText = textView.text ?? ""
         return textView
@@ -52,15 +54,19 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         guard !context.coordinator.isEditing else { return }
         guard htmlText != context.coordinator.lastRenderedValue else { return }
 
-        let plain = Coordinator.plainText(from: htmlText)
-        if uiView.text != plain {
+        let displayedText = displayText(for: htmlText)
+        if uiView.text != displayedText {
             let selected = uiView.selectedRange
-            uiView.text = plain
-            let maxLoc = max(0, min(selected.location, plain.utf16.count))
+            uiView.text = displayedText
+            let maxLoc = max(0, min(selected.location, displayedText.utf16.count))
             uiView.selectedRange = NSRange(location: maxLoc, length: 0)
         }
         context.coordinator.lastRenderedValue = htmlText
-        context.coordinator.lastPlainText = plain
+        context.coordinator.lastPlainText = displayedText
+    }
+
+    private func displayText(for html: String) -> String {
+        preservesSourceHTML ? html : Coordinator.plainText(from: html)
     }
 
     // MARK: - Toolbar

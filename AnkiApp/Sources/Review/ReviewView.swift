@@ -257,10 +257,8 @@ struct ReviewView: View {
             isKeyboardVisible = false
         }
         .sheet(item: $editingNote) { note in
-            NavigationStack {
-                NoteEditorView(note: note) {
-                    Task { await session.refreshAfterCardMutation() }
-                }
+            NoteEditingDestinationView(note: note, embedInNavigationStack: true) {
+                Task { await session.refreshAfterCardMutation() }
             }
         }
         .sheet(item: $currentCardStatsTarget) { target in
@@ -746,6 +744,29 @@ struct ReviewView: View {
         } catch {
             toolbarErrorMessage = L("review_set_due_failed", error.localizedDescription)
             showToolbarError = true
+        }
+    }
+
+    private func flagLabel(_ flags: UInt32) -> String {
+        let userFlag = flags & 0b111
+        if userFlag == 0 {
+            return L("flag_none")
+        }
+        let names: [String] = ["", L("flag_red"), L("flag_orange"), L("flag_green"), L("flag_blue"), L("flag_pink"), L("flag_cyan"), L("flag_purple")]
+        let index = Int(userFlag)
+        return (index >= 0 && index < names.count && !names[index].isEmpty) ? names[index] : L("flag_other", userFlag)
+    }
+
+    private func reviewFlagColor(for value: UInt32) -> Color {
+        switch value & 0b111 {
+        case 1: return .red
+        case 2: return .orange
+        case 3: return .green
+        case 4: return .blue
+        case 5: return .pink
+        case 6: return .cyan
+        case 7: return .purple
+        default: return .secondary
         }
     }
 
