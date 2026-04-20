@@ -13,7 +13,7 @@ struct MediaCheckResult {
 }
 
 struct MediaCheckResultView: View {
-    let result: MediaCheckResult
+    @State private var currentResult: MediaCheckResult
     @Environment(\.dismiss) private var dismiss
 
     @Dependency(\.ankiBackend) var backend
@@ -23,13 +23,17 @@ struct MediaCheckResultView: View {
     @State private var actionMessage: String?
     @State private var showActionAlert = false
 
+    init(result: MediaCheckResult) {
+        _currentResult = State(initialValue: result)
+    }
+
     var body: some View {
         NavigationStack {
             List {
                 summarySection
-                if !result.missing.isEmpty { missingSection }
-                if !result.unused.isEmpty { unusedSection }
-                if result.haveTrash || !result.unused.isEmpty { trashSection }
+                if !currentResult.missing.isEmpty { missingSection }
+                if !currentResult.unused.isEmpty { unusedSection }
+                if currentResult.haveTrash || !currentResult.unused.isEmpty { trashSection }
             }
             .scrollContentBackground(.hidden)
             .background(Color.amgiBackground)
@@ -52,22 +56,22 @@ struct MediaCheckResultView: View {
     private var summarySection: some View {
         Section(L("media_check_section_summary")) {
             Label(
-                L("media_check_missing_count", result.missing.count),
+                L("media_check_missing_count", currentResult.missing.count),
                 systemImage: "exclamationmark.triangle"
             )
-            .amgiStatusText(result.missing.isEmpty ? .neutral : .danger)
+            .amgiStatusText(currentResult.missing.isEmpty ? .neutral : .danger)
             .listRowBackground(Color.amgiSurfaceElevated)
 
             Label(
-                L("media_check_unused_count", result.unused.count),
+                L("media_check_unused_count", currentResult.unused.count),
                 systemImage: "archivebox"
             )
-            .amgiStatusText(result.unused.isEmpty ? .neutral : .warning)
+            .amgiStatusText(currentResult.unused.isEmpty ? .neutral : .warning)
             .listRowBackground(Color.amgiSurfaceElevated)
 
-            if !result.report.isEmpty {
+            if !currentResult.report.isEmpty {
                 DisclosureGroup(L("media_check_full_report")) {
-                    Text(result.report)
+                    Text(currentResult.report)
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
@@ -78,13 +82,13 @@ struct MediaCheckResultView: View {
 
     private var missingSection: some View {
         Section(L("media_check_section_missing")) {
-            ForEach(result.missing.prefix(200), id: \.self) { file in
+            ForEach(currentResult.missing.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "questionmark.circle")
                     .amgiStatusText(.danger, font: .caption)
                     .listRowBackground(Color.amgiSurfaceElevated)
             }
-            if result.missing.count > 200 {
-                Text(L("media_check_and_more", result.missing.count - 200))
+            if currentResult.missing.count > 200 {
+                Text(L("media_check_and_more", currentResult.missing.count - 200))
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
                     .listRowBackground(Color.amgiSurfaceElevated)
@@ -94,13 +98,13 @@ struct MediaCheckResultView: View {
 
     private var unusedSection: some View {
         Section(L("media_check_section_unused")) {
-            ForEach(result.unused.prefix(200), id: \.self) { file in
+            ForEach(currentResult.unused.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "tray")
                     .amgiStatusText(.warning, font: .caption)
                     .listRowBackground(Color.amgiSurfaceElevated)
             }
-            if result.unused.count > 200 {
-                Text(L("media_check_and_more", result.unused.count - 200))
+            if currentResult.unused.count > 200 {
+                Text(L("media_check_and_more", currentResult.unused.count - 200))
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
                     .listRowBackground(Color.amgiSurfaceElevated)
@@ -110,7 +114,7 @@ struct MediaCheckResultView: View {
 
     private var trashSection: some View {
         Section(L("media_check_section_actions")) {
-            if !result.unused.isEmpty {
+            if !currentResult.unused.isEmpty {
                 Button {
                     trashUnused()
                 } label: {
@@ -128,7 +132,7 @@ struct MediaCheckResultView: View {
                 .listRowBackground(Color.amgiSurfaceElevated)
             }
 
-            if result.haveTrash {
+            if currentResult.haveTrash {
                 Button {
                     emptyTrash()
                 } label: {
@@ -165,10 +169,24 @@ struct MediaCheckResultView: View {
         }
     }
 
+    private static func fetchLatestResult(using backend: AnkiBackend) throws -> MediaCheckResult {
+        let response: Anki_Media_CheckMediaResponse = try backend.invoke(
+            service: AnkiBackend.Service.media,
+            method: AnkiBackend.MediaMethod.checkMedia
+        )
+        return MediaCheckResult(
+            missing: response.missing,
+            unused: response.unused,
+            missingNoteIds: response.missingMediaNotes,
+            report: response.report,
+            haveTrash: response.haveTrash
+        )
+    }
+
     private func trashUnused() {
         isTrashingUnused = true
         let capturedBackend = backend
-        let unusedFiles = result.unused
+        let unusedFiles = currentResult.unused
         Task.detached {
             do {
                 var req = Anki_Media_TrashMediaFilesRequest()
@@ -178,7 +196,9 @@ struct MediaCheckResultView: View {
                     method: AnkiBackend.MediaMethod.trashMediaFiles,
                     request: req
                 )
+                let latestResult = try Self.fetchLatestResult(using: capturedBackend)
                 await MainActor.run {
+                    currentResult = latestResult
                     isTrashingUnused = false
                     actionMessage = L("media_check_trash_done", unusedFiles.count)
                     showActionAlert = true
@@ -202,7 +222,9 @@ struct MediaCheckResultView: View {
                     service: AnkiBackend.Service.media,
                     method: AnkiBackend.MediaMethod.emptyTrash
                 )
+                let latestResult = try Self.fetchLatestResult(using: capturedBackend)
                 await MainActor.run {
+                    currentResult = latestResult
                     isDeletingTrash = false
                     actionMessage = L("media_check_empty_trash_done")
                     showActionAlert = true
@@ -226,7 +248,9 @@ struct MediaCheckResultView: View {
                     service: AnkiBackend.Service.media,
                     method: AnkiBackend.MediaMethod.restoreTrash
                 )
+                let latestResult = try Self.fetchLatestResult(using: capturedBackend)
                 await MainActor.run {
+                    currentResult = latestResult
                     isRestoringTrash = false
                     actionMessage = L("media_check_restore_done")
                     showActionAlert = true
