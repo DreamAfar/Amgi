@@ -507,12 +507,12 @@ struct CardWebView: UIViewRepresentable {
         function amgiReportCardTheme() {
             try {
                 var bg = amgiResolveCardBackground();
-                var rgb = bg.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/i);
-                var isDark = false;
-                if (rgb) {
-                    var r = parseInt(rgb[1], 10) || 0;
-                    var g = parseInt(rgb[2], 10) || 0;
-                    var b = parseInt(rgb[3], 10) || 0;
+                var parsed = amgiParseCssColor(bg);
+                var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                if (parsed && parsed.a > 0) {
+                    var r = parsed.r || 0;
+                    var g = parsed.g || 0;
+                    var b = parsed.b || 0;
                     var luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
                     isDark = luminance < 0.55;
                 }
