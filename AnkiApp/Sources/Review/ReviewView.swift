@@ -110,6 +110,10 @@ struct ReviewView: View {
     }
 
     var body: some View {
+        reviewPresentationContent
+    }
+
+    private var reviewLifecycleContent: some View {
         reviewNavigationContent
         .background(cardChromeColor.ignoresSafeArea())
         .task {
@@ -145,6 +149,10 @@ struct ReviewView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             isKeyboardVisible = false
         }
+    }
+
+    private var reviewModalContent: some View {
+        reviewLifecycleContent
         .sheet(item: $editingNote) { note in
             NoteEditingDestinationView(note: note, embedInNavigationStack: true) {
                 Task { await session.refreshAfterCardMutation() }
@@ -203,6 +211,10 @@ struct ReviewView: View {
                 ReviewCardInfoSheet(queuedCard: queued)
             }
         }
+    }
+
+    private var reviewPresentationContent: some View {
+        reviewModalContent
         .alert(L("common_error"), isPresented: $showToolbarError) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
