@@ -669,15 +669,6 @@ final class OcclusionCanvasUIView: UIView {
             if let drag = beginMaskDrag(at: loc, imgRect: imgRect) {
                 activeDrag = drag
                 return
-        if shapeType == .text {
-            guard imgRect.contains(location) else { return }
-            let normalizedPoint = CGPoint(
-                x: max(0, min(1, (location.x - imgRect.minX) / imgRect.width)),
-                y: max(0, min(1, (location.y - imgRect.minY) / imgRect.height))
-            )
-            coordinator?.requestText(at: normalizedPoint)
-            return
-        }
             }
             guard shapeType == .rect || shapeType == .ellipse else { return }
             dragStart = loc
@@ -715,13 +706,23 @@ final class OcclusionCanvasUIView: UIView {
 
     @objc private func handleTap(_ g: UITapGestureRecognizer) {
         let location = g.location(in: self)
+        let imgRect = imageRect(in: bounds)
         if shapeType == .polygon {
             polygonPoints.append(location)
             setNeedsDisplay()
             return
         }
+        if shapeType == .text {
+            guard imgRect.contains(location) else { return }
+            let normalizedPoint = CGPoint(
+                x: max(0, min(1, (location.x - imgRect.minX) / imgRect.width)),
+                y: max(0, min(1, (location.y - imgRect.minY) / imgRect.height))
+            )
+            coordinator?.requestText(at: normalizedPoint)
+            return
+        }
 
-        let selected = hitTestMaskIndex(at: location, imgRect: imageRect(in: bounds))
+        let selected = hitTestMaskIndex(at: location, imgRect: imgRect)
         selectedMaskIndex = selected
         coordinator?.selectMask(selected)
         setNeedsDisplay()
@@ -737,7 +738,7 @@ final class OcclusionCanvasUIView: UIView {
                     y: max(0, min(1, (pt.y - imgRect.minY) / imgRect.height))
                 )
             }
-            coordinator?.appendMask(.polygon(points: pts))
+            coordinator?.appendMask(.polygon(points: pts, extras: [:]))
         }
         polygonPoints.removeAll()
         setNeedsDisplay()
