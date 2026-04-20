@@ -634,6 +634,7 @@
 "io_section_masks" = "マスク";
 "io_masks_hint" = "画像上でドラッグしてマスクを描いてください。";
 "io_shape_picker_label" = "形状";
+"io_shape_select" = "選択";
 "io_shape_rect" = "矩形";
 "io_shape_ellipse" = "楕円";
 "io_shape_polygon" = "多角形";
@@ -647,7 +648,16 @@
 "io_edit_action" = "オクルージョン編集";
 "io_edit_nav_title" = "イメージオクルージョン編集";
 "io_mask_count" = "%dつのマスク";
+"io_no_masks" = "マスクはまだありません";
 "io_remove_last" = "最後を元に戻す";
+"io_tool_fill" = "塗り";
+"io_fill_yellow" = "黄";
+"io_align_left" = "左揃え";
+"io_align_center_h" = "横中央揃え";
+"io_align_right" = "右揃え";
+"io_align_top" = "上揃え";
+"io_align_center_v" = "縦中央揃え";
+"io_align_bottom" = "下揃え";
 "io_section_content" = "内容";
 "io_header_placeholder" = "ヘッダー（質問プロンプト）";
 "io_back_extra_placeholder" = "裏面追加（任意）";

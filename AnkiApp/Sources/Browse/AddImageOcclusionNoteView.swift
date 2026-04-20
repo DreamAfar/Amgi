@@ -6,10 +6,11 @@ import Dependencies
 // MARK: - Shape type
 
 enum IOShapeType: String, CaseIterable {
-    case rect, ellipse, polygon, text
+    case select, rect, ellipse, polygon, text
 
     var label: String {
         switch self {
+        case .select:  return L("io_shape_select")
         case .rect:    return L("io_shape_rect")
         case .ellipse: return L("io_shape_ellipse")
         case .polygon: return L("io_shape_polygon")
@@ -19,6 +20,7 @@ enum IOShapeType: String, CaseIterable {
 
     var systemImage: String {
         switch self {
+        case .select:  return "cursorarrow"
         case .rect:    return "rectangle"
         case .ellipse: return "oval"
         case .polygon: return "pentagon"
@@ -112,30 +114,24 @@ enum IOMask {
 
 struct AddImageOcclusionNoteView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.undoManager) private var undoManager
     @Dependency(\.imageOcclusionClient) private var client
 
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
     @State private var masks: [IOMask] = []
-    @State private var selectedMaskIndex: Int?
-    @State private var shapeType: IOShapeType = .rect
-    @State private var pendingTextPoint: CGPoint?
-    @State private var pendingTextValue = ""
-    @State private var showTextPrompt = false
     @State private var header: String = ""
     @State private var backExtra: String = ""
     @State private var tagsText: String = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var imageURL: URL?
+    @State private var showOcclusionEditor = false
 
     let onSave: () -> Void
 
     var body: some View {
         NavigationStack {
             Form {
-                // MARK: Image picker
                 Section {
                     PhotosPicker(
                         selection: $selectedItem,
@@ -155,67 +151,22 @@ struct AddImageOcclusionNoteView: View {
                     Text(L("io_section_image"))
                 }
 
-                // MARK: Shape picker + canvas
                 if let uiImage = selectedImage {
                     Section {
-                        Picker(L("io_shape_picker_label"), selection: $shapeType) {
-                            ForEach(IOShapeType.allCases, id: \.self) { s in
-                                Label(s.label, systemImage: s.systemImage).tag(s)
-                            }
+                        ImageOcclusionMaskSummaryCard(image: uiImage, masks: masks) {
+                            showOcclusionEditor = true
                         }
-                        .pickerStyle(.segmented)
-                    } footer: {
-                        Text(shapeHint)
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-
-                    Section {
-                        VStack(alignment: .leading, spacing: 12) {
-                            OcclusionCanvasView(
-                                image: uiImage,
-                                masks: $masks,
-                                selectedMaskIndex: $selectedMaskIndex,
-                                shapeType: shapeType,
-                                onRequestText: beginTextInsertion(at:),
-                                onAppend: appendMask(_:)
-                            )
-                            .frame(height: canvasHeight(for: uiImage))
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-
-                            if !masks.isEmpty {
-                                HStack {
-                                    Text(L("io_mask_count", masks.count))
-                                        .amgiFont(.caption)
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                    if let selectedMaskIndex,
-                                       masks.indices.contains(selectedMaskIndex) {
-                                        Text("#\(selectedMaskIndex + 1)")
-                                            .amgiFont(.caption)
-                                            .foregroundStyle(Color.amgiAccent)
-                                    }
-                                    Spacer()
-                                    Button(role: .destructive) {
-                                        removeSelectedMask()
-                                    } label: {
-                                        Label(L("common_delete"), systemImage: "trash")
-                                            .font(AmgiFont.caption.font)
-                                    }
-                                    .buttonStyle(.borderless)
-                                    .disabled(selectedMaskIndex == nil)
-                                }
-                            }
-                        }
-                        .padding(12)
-                        .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                         .listRowBackground(Color.clear)
                     } header: {
                         Text(L("io_section_masks"))
+                    } footer: {
+                        Text(L("io_masks_hint"))
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                 }
 
-                // MARK: Text fields
                 Section(L("io_section_content")) {
                     TextField(L("io_header_placeholder"), text: $header)
                     TextField(L("io_back_extra_placeholder"), text: $backExtra)
@@ -249,23 +200,6 @@ struct AddImageOcclusionNoteView: View {
                     Button(L("common_cancel")) { dismiss() }
                         .amgiToolbarTextButton(tone: .neutral)
                 }
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Button {
-                        undoManager?.undo()
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
-                            .amgiToolbarIconButton()
-                    }
-                    .disabled(!(undoManager?.canUndo ?? false))
-                    Spacer()
-                    Button {
-                        undoManager?.redo()
-                    } label: {
-                        Image(systemName: "arrow.uturn.forward")
-                            .amgiToolbarIconButton()
-                    }
-                    .disabled(!(undoManager?.canRedo ?? false))
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_save")) {
                         Task { await save() }
@@ -277,85 +211,24 @@ struct AddImageOcclusionNoteView: View {
                     }
                 }
             }
-            .alert(L("io_text_prompt_title"), isPresented: $showTextPrompt) {
-                TextField(L("io_text_prompt_placeholder"), text: $pendingTextValue)
-                Button(L("common_cancel"), role: .cancel) {
-                    pendingTextPoint = nil
-                    pendingTextValue = ""
+            .fullScreenCover(isPresented: $showOcclusionEditor) {
+                if let selectedImage {
+                    NavigationStack {
+                        ImageOcclusionWorkspaceView(
+                            title: L("io_edit_action"),
+                            image: selectedImage,
+                            initialMasks: masks
+                        ) { updatedMasks in
+                            masks = updatedMasks
+                        }
+                    }
                 }
-                Button(L("common_ok")) {
-                    insertTextMask()
-                }
-            } message: {
-                Text(L("io_hint_text"))
             }
         }
     }
 
     private var canSave: Bool {
         selectedImage != nil && !masks.isEmpty
-    }
-
-    private func removeSelectedMask() {
-        guard let selectedMaskIndex, masks.indices.contains(selectedMaskIndex) else { return }
-        let removed = masks.remove(at: selectedMaskIndex)
-        self.selectedMaskIndex = nil
-        undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-            let restoredIndex = min(selectedMaskIndex, self.masks.count)
-            self.masks.insert(removed, at: restoredIndex)
-            self.selectedMaskIndex = restoredIndex
-            self.undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-                guard self.masks.indices.contains(restoredIndex) else { return }
-                _ = self.masks.remove(at: restoredIndex)
-                self.selectedMaskIndex = nil
-            }
-        }
-    }
-
-    private func appendMask(_ mask: IOMask) {
-        masks.append(mask)
-        selectedMaskIndex = masks.count - 1
-        undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-            _ = self.masks.popLast()
-            self.selectedMaskIndex = nil
-            self.undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-                self.masks.append(mask)
-                self.selectedMaskIndex = self.masks.count - 1
-            }
-        }
-    }
-
-    private var shapeHint: String {
-        switch shapeType {
-        case .rect:    return L("io_hint_rect")
-        case .ellipse: return L("io_hint_ellipse")
-        case .polygon: return L("io_hint_polygon")
-        case .text:    return L("io_hint_text")
-        }
-    }
-
-    private func beginTextInsertion(at point: CGPoint) {
-        pendingTextPoint = point
-        pendingTextValue = ""
-        showTextPrompt = true
-    }
-
-    private func insertTextMask() {
-        guard let pendingTextPoint else { return }
-        let text = pendingTextValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.pendingTextPoint = nil
-        self.pendingTextValue = ""
-        guard !text.isEmpty else { return }
-        appendMask(
-            .text(
-                left: pendingTextPoint.x,
-                top: pendingTextPoint.y,
-                text: text,
-                scale: 1,
-                fontSize: 0.055,
-                extras: [:]
-            )
-        )
     }
 
     private func canvasHeight(for image: UIImage) -> CGFloat {
@@ -372,7 +245,6 @@ struct AddImageOcclusionNoteView: View {
     private func loadImage(from item: PhotosPickerItem?) async {
         guard let item else { return }
         self.masks = []
-        self.selectedMaskIndex = nil
 
         // Load as UIImage
         if let data = try? await item.loadTransferable(type: Data.self),
@@ -421,11 +293,19 @@ struct OcclusionCanvasView: UIViewRepresentable {
     @Binding var masks: [IOMask]
     @Binding var selectedMaskIndex: Int?
     let shapeType: IOShapeType
+    var highlightedMaskIndices: Set<Int> = []
     var onRequestText: ((CGPoint) -> Void)?
     var onAppend: ((IOMask) -> Void)?
+    var onSelectionChange: ((Int?) -> Void)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(masks: $masks, selectedMaskIndex: $selectedMaskIndex, onRequestText: onRequestText, onAppend: onAppend)
+        Coordinator(
+            masks: $masks,
+            selectedMaskIndex: $selectedMaskIndex,
+            onRequestText: onRequestText,
+            onAppend: onAppend,
+            onSelectionChange: onSelectionChange
+        )
     }
 
     func makeUIView(context: Context) -> OcclusionCanvasUIView {
@@ -438,9 +318,11 @@ struct OcclusionCanvasView: UIViewRepresentable {
         uiView.image = image
         uiView.masks = masks
         uiView.selectedMaskIndex = selectedMaskIndex
+        uiView.highlightedMaskIndices = highlightedMaskIndices
         uiView.shapeType = shapeType
         context.coordinator.onRequestText = onRequestText
         context.coordinator.onAppend = onAppend
+        context.coordinator.onSelectionChange = onSelectionChange
         uiView.setNeedsDisplay()
     }
 
@@ -449,11 +331,21 @@ struct OcclusionCanvasView: UIViewRepresentable {
         @Binding var selectedMaskIndex: Int?
         var onRequestText: ((CGPoint) -> Void)?
         var onAppend: ((IOMask) -> Void)?
-        init(masks: Binding<[IOMask]>, selectedMaskIndex: Binding<Int?>, onRequestText: ((CGPoint) -> Void)?, onAppend: ((IOMask) -> Void)?) {
+        var onSelectionChange: ((Int?) -> Void)?
+        var lastZoomCommandID = -1
+
+        init(
+            masks: Binding<[IOMask]>,
+            selectedMaskIndex: Binding<Int?>,
+            onRequestText: ((CGPoint) -> Void)?,
+            onAppend: ((IOMask) -> Void)?,
+            onSelectionChange: ((Int?) -> Void)?
+        ) {
             _masks = masks
             _selectedMaskIndex = selectedMaskIndex
             self.onRequestText = onRequestText
             self.onAppend = onAppend
+            self.onSelectionChange = onSelectionChange
         }
 
         func appendMask(_ mask: IOMask) {
@@ -479,6 +371,7 @@ struct OcclusionCanvasView: UIViewRepresentable {
 
         func selectMask(_ index: Int?) {
             selectedMaskIndex = index
+            onSelectionChange?(index)
         }
 
         func requestText(at point: CGPoint) {
@@ -495,16 +388,51 @@ struct OcclusionCanvasView: UIViewRepresentable {
 // MARK: - OcclusionCanvasUIView
 
 final class OcclusionCanvasUIView: UIView {
+    private enum SelectionHandle: CaseIterable, Hashable {
+        case topLeft
+        case top
+        case topRight
+        case right
+        case bottomRight
+        case bottom
+        case bottomLeft
+        case left
+        case rotate
+    }
+
     private enum ActiveDrag {
         case move(maskIndex: Int, start: CGPoint, original: IOMask)
-        case resize(maskIndex: Int, start: CGPoint, original: IOMask)
+        case resize(maskIndex: Int, handle: SelectionHandle, original: IOMask)
+        case rotate(maskIndex: Int, pivot: CGPoint, startAngle: CGFloat, original: IOMask)
         case polygonVertex(maskIndex: Int, vertexIndex: Int)
     }
+
+    private struct BoxTransform {
+        let origin: CGPoint
+        let size: CGSize
+        let angle: CGFloat
+    }
+
+    private struct SelectionGeometry {
+        let corners: [CGPoint]
+        let handleCenters: [SelectionHandle: CGPoint]
+        let rotationStemStart: CGPoint
+        let rotationStemEnd: CGPoint
+        let center: CGPoint
+    }
+
+    private let selectionOutset: CGFloat = 6
+    private let handleDiameter: CGFloat = 18
+    private let rotationHandleDistance: CGFloat = 34
+    private let minimumBoxDimension: CGFloat = 24
+    private let minimumNormalizedDimension: CGFloat = 0.02
+    private let minimumTextScale: CGFloat = 0.25
 
     var image: UIImage
     var masks: [IOMask] = []
     var selectedMaskIndex: Int?
     var shapeType: IOShapeType = .rect
+    var highlightedMaskIndices: Set<Int> = []
     weak var coordinator: OcclusionCanvasView.Coordinator?
 
     private var dragStart: CGPoint?
@@ -542,12 +470,18 @@ final class OcclusionCanvasUIView: UIView {
         for (i, mask) in masks.enumerated() {
             ctx.setFillColor((maskFillColor(for: mask) ?? UIColor(cgColor: inactiveFill)).cgColor)
             let isSelected = i == selectedMaskIndex
-            ctx.setStrokeColor((isSelected ? UIColor.systemBlue : UIColor(cgColor: inactiveStroke)).cgColor)
-            ctx.setLineWidth(isSelected ? 2.5 : 1.5)
+            let isHighlighted = highlightedMaskIndices.contains(i)
+            ctx.setStrokeColor(((isSelected || isHighlighted) ? UIColor.systemBlue : UIColor(cgColor: inactiveStroke)).cgColor)
+            ctx.setLineWidth((isSelected || isHighlighted) ? 2.5 : 1.5)
             drawMask(ctx: ctx, mask: mask, imgRect: imgRect)
             drawOrdinal(ctx: ctx, index: i, mask: mask, imgRect: imgRect)
-            if isSelected {
-                drawSelectionOutline(ctx: ctx, mask: mask, imgRect: imgRect)
+            if isSelected || isHighlighted {
+                drawSelectionOutline(
+                    ctx: ctx,
+                    mask: mask,
+                    imgRect: imgRect,
+                    showsHandles: shapeType == .select && isSelected
+                )
             }
         }
 
@@ -583,21 +517,22 @@ final class OcclusionCanvasUIView: UIView {
 
     private func drawMask(ctx: CGContext, mask: IOMask, imgRect: CGRect) {
         switch mask {
-        case .rect(let l, let t, let w, let h, _):
-            ctx.addRect(CGRect(
-                x: imgRect.minX + l * imgRect.width,
-                y: imgRect.minY + t * imgRect.height,
-                width: w * imgRect.width,
-                height: h * imgRect.height
-            ))
+        case .rect:
+            guard let box = boxTransform(for: mask, imgRect: imgRect) else { return }
+            ctx.saveGState()
+            ctx.translateBy(x: box.origin.x, y: box.origin.y)
+            if box.angle != 0 { ctx.rotate(by: box.angle) }
+            ctx.addRect(CGRect(origin: .zero, size: box.size))
             ctx.drawPath(using: .fillStroke)
-        case .ellipse(let l, let t, let rx, let ry, _):
-            let absRx = rx * imgRect.width
-            let absRy = ry * imgRect.height
-            let cx = imgRect.minX + l * imgRect.width + absRx
-            let cy = imgRect.minY + t * imgRect.height + absRy
-            ctx.addEllipse(in: CGRect(x: cx - absRx, y: cy - absRy, width: absRx * 2, height: absRy * 2))
+            ctx.restoreGState()
+        case .ellipse:
+            guard let box = boxTransform(for: mask, imgRect: imgRect) else { return }
+            ctx.saveGState()
+            ctx.translateBy(x: box.origin.x, y: box.origin.y)
+            if box.angle != 0 { ctx.rotate(by: box.angle) }
+            ctx.addEllipse(in: CGRect(origin: .zero, size: box.size))
             ctx.drawPath(using: .fillStroke)
+            ctx.restoreGState()
         case .polygon(let pts, _):
             guard let first = pts.first else { return }
             let abs = { (p: CGPoint) -> CGPoint in
@@ -619,7 +554,7 @@ final class OcclusionCanvasUIView: UIView {
             )
             let backgroundPath = UIBezierPath(roundedRect: frame, cornerRadius: 8)
             ctx.saveGState()
-            ctx.addPath(backgroundPath.cgPath)
+            case .text(let l, let t, let text, let scale, let fontSize, _):
             ctx.setFillColor(UIColor(white: 1, alpha: 0.88).cgColor)
             ctx.fillPath()
             ctx.restoreGState()
@@ -628,44 +563,33 @@ final class OcclusionCanvasUIView: UIView {
                 .font: textFont(scale: scale, fontSize: fontSize, imgRect: imgRect),
                 .foregroundColor: UIColor.label
             ]
-            (text as NSString).draw(
                 at: CGPoint(x: frame.minX + 10, y: frame.minY + 6),
-                withAttributes: attrs
+                ctx.translateBy(x: frame.origin.x, y: frame.origin.y)
+                let angle = angleRadians(for: mask)
+                if angle != 0 { ctx.rotate(by: angle) }
+                let localFrame = CGRect(origin: .zero, size: frame.size)
+                let backgroundPath = UIBezierPath(roundedRect: localFrame, cornerRadius: 8)
+                ctx.addPath(backgroundPath.cgPath)
             )
-        }
+                ctx.drawPath(using: .fillStroke)
     }
 
     private func drawOrdinal(ctx: CGContext, index: Int, mask: IOMask, imgRect: CGRect) {
         let center: CGPoint
         switch mask {
         case .rect(let l, let t, let w, let h, _):
-            center = CGPoint(x: imgRect.minX + (l + w / 2) * imgRect.width,
-                             y: imgRect.minY + (t + h / 2) * imgRect.height)
-        case .ellipse(let l, let t, let rx, let ry, _):
-            center = CGPoint(x: imgRect.minX + (l + rx) * imgRect.width,
+                ctx.saveGState()
+                ctx.translateBy(x: frame.origin.x, y: frame.origin.y)
+                if angle != 0 { ctx.rotate(by: angle) }
+                UIGraphicsPushContext(ctx)
+                (text as NSString).draw(at: CGPoint(x: 10, y: 6), withAttributes: attrs)
+                UIGraphicsPopContext()
+                ctx.restoreGState()
                              y: imgRect.minY + (t + ry) * imgRect.height)
         case .polygon(let pts, _):
             let cx = pts.map { $0.x }.reduce(0, +) / CGFloat(pts.count)
             let cy = pts.map { $0.y }.reduce(0, +) / CGFloat(pts.count)
-            center = CGPoint(x: imgRect.minX + cx * imgRect.width,
-                             y: imgRect.minY + cy * imgRect.height)
-        case .text(let l, let t, let text, let scale, let fontSize, _):
-            center = CGPoint(
-                x: textFrame(for: text, left: l, top: t, scale: scale, fontSize: fontSize, imgRect: imgRect).midX,
-                y: textFrame(for: text, left: l, top: t, scale: scale, fontSize: fontSize, imgRect: imgRect).midY
-            )
-        }
-        let label = "\(index + 1)" as NSString
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: UIFont.boldSystemFont(ofSize: 10),
-            .foregroundColor: UIColor.darkText
-        ]
-        let sz = label.size(withAttributes: attrs)
-        label.draw(at: CGPoint(x: center.x - sz.width / 2, y: center.y - sz.height / 2), withAttributes: attrs)
-    }
-
-    // MARK: - Gestures
-
+            let center = maskCenter(for: mask, imgRect: imgRect)
     @objc private func handlePan(_ g: UIPanGestureRecognizer) {
         let loc = g.location(in: self)
         let imgRect = imageRect(in: bounds)
@@ -804,39 +728,46 @@ final class OcclusionCanvasUIView: UIView {
         return UIFont.systemFont(ofSize: resolvedSize, weight: .semibold)
     }
 
-    private func drawSelectionOutline(ctx: CGContext, mask: IOMask, imgRect: CGRect) {
-        let bounds = maskBounds(for: mask, imgRect: imgRect).insetBy(dx: -6, dy: -6)
+    private func drawSelectionOutline(ctx: CGContext, mask: IOMask, imgRect: CGRect, showsHandles: Bool) {
+        let geometry = selectionGeometry(for: mask, imgRect: imgRect)
         ctx.saveGState()
         ctx.setStrokeColor(UIColor.systemBlue.cgColor)
         ctx.setLineWidth(2)
-        ctx.stroke(bounds)
-        if case .polygon(let points, _) = mask {
-            for point in points {
-                let handleCenter = CGPoint(x: imgRect.minX + point.x * imgRect.width, y: imgRect.minY + point.y * imgRect.height)
-                ctx.fill(handleRect(center: handleCenter).insetBy(dx: 1, dy: 1))
-            }
-        } else {
-            ctx.fill(handleRect(center: CGPoint(x: bounds.maxX, y: bounds.maxY)).insetBy(dx: 1, dy: 1))
+
+        ctx.beginPath()
+        ctx.move(to: geometry.corners[0])
+        for corner in geometry.corners.dropFirst() { ctx.addLine(to: corner) }
+        ctx.closePath()
+        ctx.strokePath()
+
+        guard showsHandles else {
+            ctx.restoreGState()
+            return
         }
+
+        ctx.beginPath()
+        ctx.move(to: geometry.rotationStemStart)
+        ctx.addLine(to: geometry.rotationStemEnd)
+        ctx.strokePath()
+
+        let handleFill = UIColor(red: 0.73, green: 0.82, blue: 1, alpha: 1)
+        ctx.setFillColor(handleFill.cgColor)
+        for handle in SelectionHandle.allCases {
+            guard let center = geometry.handleCenters[handle] else { continue }
+            let rect = handleRect(center: center).insetBy(dx: 1, dy: 1)
+            ctx.fillEllipse(in: rect)
+            ctx.strokeEllipse(in: rect)
+        }
+
         ctx.restoreGState()
     }
 
     private func maskBounds(for mask: IOMask, imgRect: CGRect) -> CGRect {
+        if let box = boxTransform(for: mask, imgRect: imgRect) {
+            return boundingRect(of: boxCorners(origin: box.origin, size: box.size, angle: box.angle, outset: 0))
+        }
+
         switch mask {
-        case .rect(let l, let t, let w, let h, _):
-            return CGRect(
-                x: imgRect.minX + l * imgRect.width,
-                y: imgRect.minY + t * imgRect.height,
-                width: w * imgRect.width,
-                height: h * imgRect.height
-            )
-        case .ellipse(let l, let t, let rx, let ry, _):
-            return CGRect(
-                x: imgRect.minX + l * imgRect.width,
-                y: imgRect.minY + t * imgRect.height,
-                width: rx * imgRect.width * 2,
-                height: ry * imgRect.height * 2
-            )
         case .polygon(let pts, _):
             let absolutePoints = pts.map {
                 CGPoint(x: imgRect.minX + $0.x * imgRect.width, y: imgRect.minY + $0.y * imgRect.height)
@@ -849,8 +780,8 @@ final class OcclusionCanvasUIView: UIView {
                 width: (xs.max() ?? imgRect.minX) - (xs.min() ?? imgRect.minX),
                 height: (ys.max() ?? imgRect.minY) - (ys.min() ?? imgRect.minY)
             )
-        case .text(let l, let t, let text, let scale, let fontSize, _):
-            return textFrame(for: text, left: l, top: t, scale: scale, fontSize: fontSize, imgRect: imgRect)
+        default:
+            return .zero
         }
     }
 
@@ -865,18 +796,18 @@ final class OcclusionCanvasUIView: UIView {
 
     private func maskContainsPoint(_ mask: IOMask, point: CGPoint, imgRect: CGRect) -> Bool {
         switch mask {
-        case .rect:
-            return maskBounds(for: mask, imgRect: imgRect).contains(point)
-        case .ellipse(let l, let t, let rx, let ry, _):
-            let rect = CGRect(
-                x: imgRect.minX + l * imgRect.width,
-                y: imgRect.minY + t * imgRect.height,
-                width: rx * imgRect.width * 2,
-                height: ry * imgRect.height * 2
-            )
-            guard rect.width > 0, rect.height > 0 else { return false }
-            let normalizedX = (point.x - rect.midX) / (rect.width / 2)
-            let normalizedY = (point.y - rect.midY) / (rect.height / 2)
+        case .rect, .text:
+            guard let box = boxTransform(for: mask, imgRect: imgRect) else { return false }
+            let local = rotate(point - box.origin, by: -box.angle)
+            return CGRect(origin: .zero, size: box.size).contains(local)
+        case .ellipse:
+            guard let box = boxTransform(for: mask, imgRect: imgRect),
+                  box.size.width > 0,
+                  box.size.height > 0 else { return false }
+            let local = rotate(point - box.origin, by: -box.angle)
+            let center = CGPoint(x: box.size.width / 2, y: box.size.height / 2)
+            let normalizedX = (local.x - center.x) / (box.size.width / 2)
+            let normalizedY = (local.y - center.y) / (box.size.height / 2)
             return normalizedX * normalizedX + normalizedY * normalizedY <= 1
         case .polygon(let pts, _):
             let path = UIBezierPath()
@@ -887,23 +818,48 @@ final class OcclusionCanvasUIView: UIView {
             }
             path.close()
             return path.contains(point)
-        case .text:
-            return maskBounds(for: mask, imgRect: imgRect).contains(point)
         }
     }
 
     private func beginMaskDrag(at location: CGPoint, imgRect: CGRect) -> ActiveDrag? {
-        if let selectedMaskIndex,
+        if shapeType == .select,
+           let selectedMaskIndex,
+           masks.indices.contains(selectedMaskIndex) {
+            let selectedMask = masks[selectedMaskIndex]
+            if let handle = selectionHandle(at: location, mask: selectedMask, imgRect: imgRect) {
+                if handle == .rotate {
+                    let pivot = rotationPivot(for: selectedMask, imgRect: imgRect)
+                    return .rotate(
+                        maskIndex: selectedMaskIndex,
+                        pivot: pivot,
+                        startAngle: atan2(location.y - pivot.y, location.x - pivot.x),
+                        original: selectedMask
+                    )
+                }
+                return .resize(maskIndex: selectedMaskIndex, handle: handle, original: selectedMask)
+            }
+            if maskContainsPoint(selectedMask, point: location, imgRect: imgRect) {
+                return .move(maskIndex: selectedMaskIndex, start: location, original: selectedMask)
+            }
+        }
+
+        if shapeType == .polygon,
+           let selectedMaskIndex,
            masks.indices.contains(selectedMaskIndex) {
             let selectedMask = masks[selectedMaskIndex]
             if case .polygon(let points, _) = selectedMask,
                let vertexIndex = polygonVertexIndex(near: location, points: points, imgRect: imgRect) {
                 return .polygonVertex(maskIndex: selectedMaskIndex, vertexIndex: vertexIndex)
             }
-            if handleRect(center: resizeHandleCenter(for: selectedMask, imgRect: imgRect)).contains(location),
-               !isPolygonMask(selectedMask) {
-                return .resize(maskIndex: selectedMaskIndex, start: location, original: selectedMask)
-            }
+        }
+
+        guard shapeType == .select else {
+            return nil
+        }
+
+        if let selectedMaskIndex,
+           masks.indices.contains(selectedMaskIndex) {
+            let selectedMask = masks[selectedMaskIndex]
             if maskContainsPoint(selectedMask, point: location, imgRect: imgRect) {
                 return .move(maskIndex: selectedMaskIndex, start: location, original: selectedMask)
             }
@@ -916,10 +872,6 @@ final class OcclusionCanvasUIView: UIView {
         let hitMask = masks[hitIndex]
         selectedMaskIndex = hitIndex
         coordinator?.selectMask(hitIndex)
-        if case .polygon(let points, _) = hitMask,
-           let vertexIndex = polygonVertexIndex(near: location, points: points, imgRect: imgRect) {
-            return .polygonVertex(maskIndex: hitIndex, vertexIndex: vertexIndex)
-        }
         return .move(maskIndex: hitIndex, start: location, original: hitMask)
     }
 
@@ -929,9 +881,12 @@ final class OcclusionCanvasUIView: UIView {
             let delta = CGPoint(x: location.x - start.x, y: location.y - start.y)
             guard let updated = movedMask(original, delta: delta, imgRect: imgRect) else { return }
             coordinator?.updateMask(at: maskIndex, to: updated)
-        case .resize(let maskIndex, let start, let original):
-            let delta = CGPoint(x: location.x - start.x, y: location.y - start.y)
-            guard let updated = resizedMask(original, delta: delta, imgRect: imgRect) else { return }
+        case .resize(let maskIndex, let handle, let original):
+            guard let updated = resizedMask(original, handle: handle, location: location, imgRect: imgRect) else { return }
+            coordinator?.updateMask(at: maskIndex, to: updated)
+        case .rotate(let maskIndex, let pivot, let startAngle, let original):
+            let currentAngle = atan2(location.y - pivot.y, location.x - pivot.x)
+            guard let updated = rotatedMask(original, delta: currentAngle - startAngle, imgRect: imgRect) else { return }
             coordinator?.updateMask(at: maskIndex, to: updated)
         case .polygonVertex(let maskIndex, let vertexIndex):
             guard case .polygon(let points, let extras) = masks[maskIndex] else { return }
@@ -991,28 +946,97 @@ final class OcclusionCanvasUIView: UIView {
         }
     }
 
-    private func resizedMask(_ mask: IOMask, delta: CGPoint, imgRect: CGRect) -> IOMask? {
+    private func resizedMask(_ mask: IOMask, handle: SelectionHandle, location: CGPoint, imgRect: CGRect) -> IOMask? {
         switch mask {
-        case .rect(let left, let top, let width, let height, let extras):
-            let newWidth = max(0.02, min(1 - left, width + delta.x / imgRect.width))
-            let newHeight = max(0.02, min(1 - top, height + delta.y / imgRect.height))
-            return .rect(left: left, top: top, width: newWidth, height: newHeight, extras: extras)
-        case .ellipse(let left, let top, let rx, let ry, let extras):
-            let newWidth = max(0.02, min(1 - left, rx * 2 + delta.x / imgRect.width))
-            let newHeight = max(0.02, min(1 - top, ry * 2 + delta.y / imgRect.height))
-            return .ellipse(left: left, top: top, rx: newWidth / 2, ry: newHeight / 2, extras: extras)
-        default:
-            return movedMask(mask, delta: delta, imgRect: imgRect)
+        case .polygon(let points, let extras):
+            let originalBounds = maskBounds(for: mask, imgRect: imgRect)
+            guard originalBounds.width > 0, originalBounds.height > 0,
+                  let resizedBounds = resizedFrame(
+                    originalBounds,
+                    handle: handle,
+                    location: location,
+                    angle: 0,
+                    minimumSize: CGSize(width: minimumBoxDimension, height: minimumBoxDimension)
+                  ) else {
+                return nil
+            }
+
+            let updatedPoints = points.map { point -> CGPoint in
+                let absolute = absolutePoint(for: point, imgRect: imgRect)
+                let relativeX = originalBounds.width > 0 ? (absolute.x - originalBounds.minX) / originalBounds.width : 0.5
+                let relativeY = originalBounds.height > 0 ? (absolute.y - originalBounds.minY) / originalBounds.height : 0.5
+                let resizedAbsolute = CGPoint(
+                    x: resizedBounds.minX + relativeX * resizedBounds.width,
+                    y: resizedBounds.minY + relativeY * resizedBounds.height
+                )
+                return normalizedPoint(for: resizedAbsolute, imgRect: imgRect)
+            }
+            return .polygon(points: updatedPoints, extras: extras)
+        case .text(let left, let top, let text, let scale, let fontSize, let extras):
+            guard let box = boxTransform(for: mask, imgRect: imgRect),
+                  let resizedFrame = resizedFrame(
+                    CGRect(origin: rotate(box.origin, by: -box.angle), size: box.size),
+                    handle: handle,
+                    location: location,
+                    angle: box.angle,
+                    minimumSize: CGSize(width: minimumBoxDimension, height: minimumBoxDimension)
+                  ) else {
+                return nil
+            }
+
+            let safeScale = max(scale, minimumTextScale)
+            let widthRatio = resizedFrame.width / max(box.size.width, 1)
+            let heightRatio = resizedFrame.height / max(box.size.height, 1)
+            let scaleFactor: CGFloat
+            switch handle {
+            case .left, .right:
+                scaleFactor = widthRatio
+            case .top, .bottom:
+                scaleFactor = heightRatio
+            default:
+                scaleFactor = max(widthRatio, heightRatio)
+            }
+
+            let newScale = max(minimumTextScale, safeScale * scaleFactor)
+            let actualScaleRatio = newScale / safeScale
+            let actualSize = CGSize(width: box.size.width * actualScaleRatio, height: box.size.height * actualScaleRatio)
+            let actualFrame = anchoredFrame(for: resizedFrame, size: actualSize, handle: handle)
+            let newOrigin = rotate(actualFrame.origin, by: box.angle)
+            let normalizedWidth = min(1, actualSize.width / imgRect.width)
+            let normalizedHeight = min(1, actualSize.height / imgRect.height)
+            let clampedLeft = max(0, min(1 - normalizedWidth, (newOrigin.x - imgRect.minX) / imgRect.width))
+            let clampedTop = max(0, min(1 - normalizedHeight, (newOrigin.y - imgRect.minY) / imgRect.height))
+            return .text(
+                left: clampedLeft,
+                top: clampedTop,
+                text: text,
+                scale: newScale,
+                fontSize: fontSize,
+                extras: extrasSettingAngle(extras, radians: box.angle)
+            )
+        case .rect, .ellipse:
+            guard let box = boxTransform(for: mask, imgRect: imgRect),
+                  let resizedFrame = resizedFrame(
+                    CGRect(origin: rotate(box.origin, by: -box.angle), size: box.size),
+                    handle: handle,
+                    location: location,
+                    angle: box.angle,
+                    minimumSize: CGSize(width: minimumBoxDimension, height: minimumBoxDimension)
+                  ) else {
+                return nil
+            }
+            let newOrigin = rotate(resizedFrame.origin, by: box.angle)
+            return updatedBoxMask(mask, origin: newOrigin, size: resizedFrame.size, angle: box.angle, imgRect: imgRect)
         }
     }
 
-    private func resizeHandleCenter(for mask: IOMask, imgRect: CGRect) -> CGPoint {
-        let bounds = maskBounds(for: mask, imgRect: imgRect).insetBy(dx: -6, dy: -6)
-        return CGPoint(x: bounds.maxX, y: bounds.maxY)
-    }
-
     private func handleRect(center: CGPoint) -> CGRect {
-        CGRect(x: center.x - 7, y: center.y - 7, width: 14, height: 14)
+        CGRect(
+            x: center.x - handleDiameter / 2,
+            y: center.y - handleDiameter / 2,
+            width: handleDiameter,
+            height: handleDiameter
+        )
     }
 
     private func polygonVertexIndex(near point: CGPoint, points: [CGPoint], imgRect: CGRect) -> Int? {
@@ -1031,6 +1055,330 @@ final class OcclusionCanvasUIView: UIView {
         }
         return false
     }
+
+    private func boxTransform(for mask: IOMask, imgRect: CGRect) -> BoxTransform? {
+        switch mask {
+        case .rect(let left, let top, let width, let height, _):
+            return BoxTransform(
+                origin: CGPoint(x: imgRect.minX + left * imgRect.width, y: imgRect.minY + top * imgRect.height),
+                size: CGSize(width: width * imgRect.width, height: height * imgRect.height),
+                angle: angleRadians(for: mask)
+            )
+        case .ellipse(let left, let top, let rx, let ry, _):
+            return BoxTransform(
+                origin: CGPoint(x: imgRect.minX + left * imgRect.width, y: imgRect.minY + top * imgRect.height),
+                size: CGSize(width: rx * imgRect.width * 2, height: ry * imgRect.height * 2),
+                angle: angleRadians(for: mask)
+            )
+        case .text(let left, let top, let text, let scale, let fontSize, _):
+            let frame = textFrame(for: text, left: left, top: top, scale: scale, fontSize: fontSize, imgRect: imgRect)
+            return BoxTransform(origin: frame.origin, size: frame.size, angle: angleRadians(for: mask))
+        case .polygon:
+            return nil
+        }
+    }
+
+    private func selectionGeometry(for mask: IOMask, imgRect: CGRect) -> SelectionGeometry {
+        if let box = boxTransform(for: mask, imgRect: imgRect) {
+            let corners = boxCorners(origin: box.origin, size: box.size, angle: box.angle, outset: selectionOutset)
+            let topCenter = midpoint(corners[0], corners[1])
+            let rightCenter = midpoint(corners[1], corners[2])
+            let bottomCenter = midpoint(corners[2], corners[3])
+            let leftCenter = midpoint(corners[3], corners[0])
+            let tangent = normalizedVector(from: corners[0], to: corners[1])
+            let outwardNormal = CGPoint(x: tangent.y, y: -tangent.x)
+            let rotationHandle = CGPoint(
+                x: topCenter.x + outwardNormal.x * rotationHandleDistance,
+                y: topCenter.y + outwardNormal.y * rotationHandleDistance
+            )
+            return SelectionGeometry(
+                corners: corners,
+                handleCenters: [
+                    .topLeft: corners[0],
+                    .top: topCenter,
+                    .topRight: corners[1],
+                    .right: rightCenter,
+                    .bottomRight: corners[2],
+                    .bottom: bottomCenter,
+                    .bottomLeft: corners[3],
+                    .left: leftCenter,
+                    .rotate: rotationHandle
+                ],
+                rotationStemStart: topCenter,
+                rotationStemEnd: rotationHandle,
+                center: maskCenter(for: mask, imgRect: imgRect)
+            )
+        }
+
+        let paddedBounds = maskBounds(for: mask, imgRect: imgRect).insetBy(dx: -selectionOutset, dy: -selectionOutset)
+        let corners = [
+            CGPoint(x: paddedBounds.minX, y: paddedBounds.minY),
+            CGPoint(x: paddedBounds.maxX, y: paddedBounds.minY),
+            CGPoint(x: paddedBounds.maxX, y: paddedBounds.maxY),
+            CGPoint(x: paddedBounds.minX, y: paddedBounds.maxY)
+        ]
+        let topCenter = CGPoint(x: paddedBounds.midX, y: paddedBounds.minY)
+        let rightCenter = CGPoint(x: paddedBounds.maxX, y: paddedBounds.midY)
+        let bottomCenter = CGPoint(x: paddedBounds.midX, y: paddedBounds.maxY)
+        let leftCenter = CGPoint(x: paddedBounds.minX, y: paddedBounds.midY)
+        let rotationHandle = CGPoint(x: paddedBounds.midX, y: paddedBounds.minY - rotationHandleDistance)
+        return SelectionGeometry(
+            corners: corners,
+            handleCenters: [
+                .topLeft: corners[0],
+                .top: topCenter,
+                .topRight: corners[1],
+                .right: rightCenter,
+                .bottomRight: corners[2],
+                .bottom: bottomCenter,
+                .bottomLeft: corners[3],
+                .left: leftCenter,
+                .rotate: rotationHandle
+            ],
+            rotationStemStart: topCenter,
+            rotationStemEnd: rotationHandle,
+            center: CGPoint(x: paddedBounds.midX, y: paddedBounds.midY)
+        )
+    }
+
+    private func selectionHandle(at point: CGPoint, mask: IOMask, imgRect: CGRect) -> SelectionHandle? {
+        let geometry = selectionGeometry(for: mask, imgRect: imgRect)
+        let orderedHandles: [SelectionHandle] = [.rotate, .topLeft, .top, .topRight, .right, .bottomRight, .bottom, .bottomLeft, .left]
+        for handle in orderedHandles {
+            if let center = geometry.handleCenters[handle], handleRect(center: center).contains(point) {
+                return handle
+            }
+        }
+        return nil
+    }
+
+    private func maskCenter(for mask: IOMask, imgRect: CGRect) -> CGPoint {
+        if let box = boxTransform(for: mask, imgRect: imgRect) {
+            return transformedPoint(CGPoint(x: box.size.width / 2, y: box.size.height / 2), origin: box.origin, angle: box.angle)
+        }
+
+        if case .polygon(let points, _) = mask, !points.isEmpty {
+            let centerX = points.map(\.x).reduce(0, +) / CGFloat(points.count)
+            let centerY = points.map(\.y).reduce(0, +) / CGFloat(points.count)
+            return absolutePoint(for: CGPoint(x: centerX, y: centerY), imgRect: imgRect)
+        }
+
+        return .zero
+    }
+
+    private func rotationPivot(for mask: IOMask, imgRect: CGRect) -> CGPoint {
+        selectionGeometry(for: mask, imgRect: imgRect).center
+    }
+
+    private func boxCorners(origin: CGPoint, size: CGSize, angle: CGFloat, outset: CGFloat) -> [CGPoint] {
+        let localCorners = [
+            CGPoint(x: -outset, y: -outset),
+            CGPoint(x: size.width + outset, y: -outset),
+            CGPoint(x: size.width + outset, y: size.height + outset),
+            CGPoint(x: -outset, y: size.height + outset)
+        ]
+        return localCorners.map { transformedPoint($0, origin: origin, angle: angle) }
+    }
+
+    private func resizedFrame(
+        _ originalFrame: CGRect,
+        handle: SelectionHandle,
+        location: CGPoint,
+        angle: CGFloat,
+        minimumSize: CGSize
+    ) -> CGRect? {
+        guard handle != .rotate else { return nil }
+
+        let rotatedLocation = rotate(location, by: -angle)
+        var minX = originalFrame.minX
+        var maxX = originalFrame.maxX
+        var minY = originalFrame.minY
+        var maxY = originalFrame.maxY
+
+        switch handle {
+        case .topLeft:
+            minX = min(rotatedLocation.x, maxX - minimumSize.width)
+            minY = min(rotatedLocation.y, maxY - minimumSize.height)
+        case .top:
+            minY = min(rotatedLocation.y, maxY - minimumSize.height)
+        case .topRight:
+            maxX = max(rotatedLocation.x, minX + minimumSize.width)
+            minY = min(rotatedLocation.y, maxY - minimumSize.height)
+        case .right:
+            maxX = max(rotatedLocation.x, minX + minimumSize.width)
+        case .bottomRight:
+            maxX = max(rotatedLocation.x, minX + minimumSize.width)
+            maxY = max(rotatedLocation.y, minY + minimumSize.height)
+        case .bottom:
+            maxY = max(rotatedLocation.y, minY + minimumSize.height)
+        case .bottomLeft:
+            minX = min(rotatedLocation.x, maxX - minimumSize.width)
+            maxY = max(rotatedLocation.y, minY + minimumSize.height)
+        case .left:
+            minX = min(rotatedLocation.x, maxX - minimumSize.width)
+        case .rotate:
+            return nil
+        }
+
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    private func anchoredFrame(for targetFrame: CGRect, size: CGSize, handle: SelectionHandle) -> CGRect {
+        switch handle {
+        case .topLeft:
+            return CGRect(x: targetFrame.maxX - size.width, y: targetFrame.maxY - size.height, width: size.width, height: size.height)
+        case .top:
+            return CGRect(x: targetFrame.midX - size.width / 2, y: targetFrame.maxY - size.height, width: size.width, height: size.height)
+        case .topRight:
+            return CGRect(x: targetFrame.minX, y: targetFrame.maxY - size.height, width: size.width, height: size.height)
+        case .right:
+            return CGRect(x: targetFrame.minX, y: targetFrame.midY - size.height / 2, width: size.width, height: size.height)
+        case .bottomRight:
+            return CGRect(x: targetFrame.minX, y: targetFrame.minY, width: size.width, height: size.height)
+        case .bottom:
+            return CGRect(x: targetFrame.midX - size.width / 2, y: targetFrame.minY, width: size.width, height: size.height)
+        case .bottomLeft:
+            return CGRect(x: targetFrame.maxX - size.width, y: targetFrame.minY, width: size.width, height: size.height)
+        case .left:
+            return CGRect(x: targetFrame.maxX - size.width, y: targetFrame.midY - size.height / 2, width: size.width, height: size.height)
+        case .rotate:
+            return CGRect(origin: targetFrame.origin, size: size)
+        }
+    }
+
+    private func rotatedMask(_ mask: IOMask, delta: CGFloat, imgRect: CGRect) -> IOMask? {
+        switch mask {
+        case .polygon(let points, let extras):
+            let pivot = rotationPivot(for: mask, imgRect: imgRect)
+            let updatedPoints = points.map { point in
+                let absolute = absolutePoint(for: point, imgRect: imgRect)
+                return normalizedPoint(for: rotate(absolute, by: delta, around: pivot), imgRect: imgRect)
+            }
+            return .polygon(points: updatedPoints, extras: extras)
+        case .rect, .ellipse, .text:
+            guard let box = boxTransform(for: mask, imgRect: imgRect) else { return nil }
+            let center = maskCenter(for: mask, imgRect: imgRect)
+            let newAngle = box.angle + delta
+            let rotatedHalfSize = rotate(CGPoint(x: box.size.width / 2, y: box.size.height / 2), by: newAngle)
+            let newOrigin = CGPoint(x: center.x - rotatedHalfSize.x, y: center.y - rotatedHalfSize.y)
+            return updatedBoxMask(mask, origin: newOrigin, size: box.size, angle: newAngle, imgRect: imgRect)
+        }
+    }
+
+    private func updatedBoxMask(_ mask: IOMask, origin: CGPoint, size: CGSize, angle: CGFloat, imgRect: CGRect) -> IOMask? {
+        let normalizedAngleExtras: ([String: String]) -> [String: String] = { extras in
+            // The review-side renderer consumes `angle` from the generic extras map, so editor writes must keep using it.
+            extrasSettingAngle(extras, radians: angle)
+        }
+
+        switch mask {
+        case .rect(_, _, _, _, let extras):
+            let normalizedWidth = max(minimumNormalizedDimension, min(1, size.width / imgRect.width))
+            let normalizedHeight = max(minimumNormalizedDimension, min(1, size.height / imgRect.height))
+            let left = max(0, min(1 - normalizedWidth, (origin.x - imgRect.minX) / imgRect.width))
+            let top = max(0, min(1 - normalizedHeight, (origin.y - imgRect.minY) / imgRect.height))
+            return .rect(left: left, top: top, width: normalizedWidth, height: normalizedHeight, extras: normalizedAngleExtras(extras))
+        case .ellipse(_, _, _, _, let extras):
+            let normalizedWidth = max(minimumNormalizedDimension, min(1, size.width / imgRect.width))
+            let normalizedHeight = max(minimumNormalizedDimension, min(1, size.height / imgRect.height))
+            let left = max(0, min(1 - normalizedWidth, (origin.x - imgRect.minX) / imgRect.width))
+            let top = max(0, min(1 - normalizedHeight, (origin.y - imgRect.minY) / imgRect.height))
+            return .ellipse(left: left, top: top, rx: normalizedWidth / 2, ry: normalizedHeight / 2, extras: normalizedAngleExtras(extras))
+        case .text(_, _, let text, let scale, let fontSize, let extras):
+            let normalizedWidth = min(1, size.width / imgRect.width)
+            let normalizedHeight = min(1, size.height / imgRect.height)
+            let left = max(0, min(1 - normalizedWidth, (origin.x - imgRect.minX) / imgRect.width))
+            let top = max(0, min(1 - normalizedHeight, (origin.y - imgRect.minY) / imgRect.height))
+            return .text(left: left, top: top, text: text, scale: scale, fontSize: fontSize, extras: normalizedAngleExtras(extras))
+        case .polygon:
+            return nil
+        }
+    }
+
+    private func angleRadians(for mask: IOMask) -> CGFloat {
+        guard let rawValue = mask.extras["angle"], let degrees = Double(rawValue) else {
+            return 0
+        }
+        return CGFloat(degrees) * .pi / 180
+    }
+
+    private func extrasSettingAngle(_ extras: [String: String], radians: CGFloat) -> [String: String] {
+        var updated = extras
+        let degrees = normalizedDegrees(radians * 180 / .pi)
+        if abs(degrees) < 0.1 {
+            updated.removeValue(forKey: "angle")
+        } else {
+            updated["angle"] = String(format: "%.3g", degrees)
+        }
+        return updated
+    }
+
+    private func normalizedDegrees(_ degrees: CGFloat) -> CGFloat {
+        var wrapped = degrees.truncatingRemainder(dividingBy: 360)
+        if wrapped > 180 { wrapped -= 360 }
+        if wrapped <= -180 { wrapped += 360 }
+        return wrapped
+    }
+
+    private func transformedPoint(_ point: CGPoint, origin: CGPoint, angle: CGFloat) -> CGPoint {
+        origin + rotate(point, by: angle)
+    }
+
+    private func absolutePoint(for point: CGPoint, imgRect: CGRect) -> CGPoint {
+        CGPoint(x: imgRect.minX + point.x * imgRect.width, y: imgRect.minY + point.y * imgRect.height)
+    }
+
+    private func normalizedPoint(for point: CGPoint, imgRect: CGRect) -> CGPoint {
+        CGPoint(
+            x: max(0, min(1, (point.x - imgRect.minX) / imgRect.width)),
+            y: max(0, min(1, (point.y - imgRect.minY) / imgRect.height))
+        )
+    }
+
+    private func midpoint(_ lhs: CGPoint, _ rhs: CGPoint) -> CGPoint {
+        CGPoint(x: (lhs.x + rhs.x) / 2, y: (lhs.y + rhs.y) / 2)
+    }
+
+    private func normalizedVector(from start: CGPoint, to end: CGPoint) -> CGPoint {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = max(sqrt(dx * dx + dy * dy), .leastNonzeroMagnitude)
+        return CGPoint(x: dx / length, y: dy / length)
+    }
+
+    private func boundingRect(of points: [CGPoint]) -> CGRect {
+        guard let first = points.first else { return .zero }
+        var minX = first.x
+        var maxX = first.x
+        var minY = first.y
+        var maxY = first.y
+        for point in points.dropFirst() {
+            minX = min(minX, point.x)
+            maxX = max(maxX, point.x)
+            minY = min(minY, point.y)
+            maxY = max(maxY, point.y)
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    private func rotate(_ point: CGPoint, by angle: CGFloat) -> CGPoint {
+        CGPoint(
+            x: point.x * cos(angle) - point.y * sin(angle),
+            y: point.x * sin(angle) + point.y * cos(angle)
+        )
+    }
+
+    private func rotate(_ point: CGPoint, by angle: CGFloat, around pivot: CGPoint) -> CGPoint {
+        rotate(point - pivot, by: angle) + pivot
+    }
+}
+
+private func + (lhs: CGPoint, rhs: CGPoint) -> CGPoint {
+    CGPoint(x: lhs.x + rhs.x, y: lhs.y + rhs.y)
+}
+
+private func - (lhs: CGPoint, rhs: CGPoint) -> CGPoint {
+    CGPoint(x: lhs.x - rhs.x, y: lhs.y - rhs.y)
 }
 
 private extension UIColor {

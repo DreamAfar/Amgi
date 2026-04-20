@@ -224,6 +224,10 @@ struct CardWebView: UIViewRepresentable {
         baseTag: String
     ) -> String {
         let colorScheme = isDarkMode ? "dark" : "light"
+        // Keep the frame background transparent in both light and dark modes.
+        // The review toolbar/bottom chrome must sample the rendered card template
+        // background; reintroducing a dark-only fallback here makes the wrapper
+        // background win over the template color and breaks auto-match again.
         let defaultCardBackground = "transparent"
         let textColor = isDarkMode ? "#f5f5f5" : "#1a1a1a"
         let hrColor = isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"
@@ -474,6 +478,10 @@ struct CardWebView: UIViewRepresentable {
             return Promise.allSettled(promises);
         }
 
+        // Read the visible card/template background first. Do not add an
+        // isDarkMode-only DOM background fallback before this function runs,
+        // or the reported chrome color will come from the wrapper instead of
+        // the card template itself.
         function amgiResolveCardBackground() {
             var candidates = [
                 document.querySelector('.card'),
@@ -508,6 +516,8 @@ struct CardWebView: UIViewRepresentable {
             try {
                 var bg = amgiResolveCardBackground();
                 var parsed = amgiParseCssColor(bg);
+                // Transparent cards have no explicit surface color to sample, so
+                // keep the toolbar scheme aligned with the current page theme.
                 var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
                 if (parsed && parsed.a > 0) {
                     var r = parsed.r || 0;

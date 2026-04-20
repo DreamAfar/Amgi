@@ -6,7 +6,6 @@ import Dependencies
 
 struct EditImageOcclusionNoteView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.undoManager) private var undoManager
     @Dependency(\.imageOcclusionClient) private var client
 
     let noteId: Int64
@@ -17,16 +16,12 @@ struct EditImageOcclusionNoteView: View {
     @State private var loadError: String?
     @State private var uiImage: UIImage?
     @State private var masks: [IOMask] = []
-    @State private var selectedMaskIndex: Int?
-    @State private var shapeType: IOShapeType = .rect
-    @State private var pendingTextPoint: CGPoint?
-    @State private var pendingTextValue = ""
-    @State private var showTextPrompt = false
     @State private var header: String = ""
     @State private var backExtra: String = ""
     @State private var tagsText: String = ""
     @State private var isSaving = false
     @State private var saveError: String?
+    @State private var showOcclusionEditor = false
 
     init(noteId: Int64, onSave: @escaping () -> Void, embedInNavigationStack: Bool = true) {
         self.noteId = noteId
@@ -63,60 +58,17 @@ struct EditImageOcclusionNoteView: View {
                     Form {
                         if let img = uiImage {
                             Section {
-                                Picker(L("io_shape_picker_label"), selection: $shapeType) {
-                                    ForEach(IOShapeType.allCases, id: \.self) { s in
-                                        Label(s.label, systemImage: s.systemImage).tag(s)
-                                    }
+                                ImageOcclusionMaskSummaryCard(image: img, masks: masks) {
+                                    showOcclusionEditor = true
                                 }
-                                .pickerStyle(.segmented)
-                            } footer: {
-                                Text(shapeHint)
-                                    .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-
-                            Section {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    OcclusionCanvasView(
-                                        image: img,
-                                        masks: $masks,
-                                        selectedMaskIndex: $selectedMaskIndex,
-                                        shapeType: shapeType,
-                                        onRequestText: beginTextInsertion(at:),
-                                        onAppend: appendMask(_:)
-                                    )
-                                    .frame(height: canvasHeight(for: img))
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-
-                                    if !masks.isEmpty {
-                                        HStack {
-                                            Text(L("io_mask_count", masks.count))
-                                                .amgiFont(.caption)
-                                                .foregroundStyle(Color.amgiTextSecondary)
-                                            if let selectedMaskIndex,
-                                               masks.indices.contains(selectedMaskIndex) {
-                                                Text("#\(selectedMaskIndex + 1)")
-                                                    .amgiFont(.caption)
-                                                    .foregroundStyle(Color.amgiAccent)
-                                            }
-                                            Spacer()
-                                            Button(role: .destructive) {
-                                                removeSelectedMask()
-                                            } label: {
-                                                Label(L("common_delete"), systemImage: "trash")
-                                                    .font(AmgiFont.caption.font)
-                                            }
-                                            .buttonStyle(.borderless)
-                                            .disabled(selectedMaskIndex == nil)
-                                        }
-                                    }
-                                }
-                                .padding(12)
-                                .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                                 .listRowBackground(Color.clear)
                             } header: {
                                 Text(L("io_section_masks"))
+                            } footer: {
+                                Text(L("io_masks_hint"))
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
                             }
                         }
 
@@ -148,18 +100,6 @@ struct EditImageOcclusionNoteView: View {
                 }
             }
         }
-        .alert(L("io_text_prompt_title"), isPresented: $showTextPrompt) {
-            TextField(L("io_text_prompt_placeholder"), text: $pendingTextValue)
-            Button(L("common_cancel"), role: .cancel) {
-                pendingTextPoint = nil
-                pendingTextValue = ""
-            }
-            Button(L("common_ok")) {
-                insertTextMask()
-            }
-        } message: {
-            Text(L("io_hint_text"))
-        }
         .toolbar(.hidden, for: .tabBar)
         .navigationTitle(L("io_edit_nav_title"))
         .navigationBarTitleDisplayMode(.inline)
@@ -170,23 +110,6 @@ struct EditImageOcclusionNoteView: View {
                         .amgiToolbarTextButton(tone: .neutral)
                 }
             }
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button {
-                    undoManager?.undo()
-                } label: {
-                    Image(systemName: "arrow.uturn.backward")
-                        .amgiToolbarIconButton()
-                }
-                .disabled(!(undoManager?.canUndo ?? false))
-                Spacer()
-                Button {
-                    undoManager?.redo()
-                } label: {
-                    Image(systemName: "arrow.uturn.forward")
-                        .amgiToolbarIconButton()
-                }
-                .disabled(!(undoManager?.canRedo ?? false))
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("common_save")) {
                     Task { await save() }
@@ -196,79 +119,20 @@ struct EditImageOcclusionNoteView: View {
                 .overlay { if isSaving { ProgressView().scaleEffect(0.7) } }
             }
         }
+        .fullScreenCover(isPresented: $showOcclusionEditor) {
+            if let uiImage {
+                NavigationStack {
+                    ImageOcclusionWorkspaceView(
+                        title: L("io_edit_action"),
+                        image: uiImage,
+                        initialMasks: masks
+                    ) { updatedMasks in
+                        masks = updatedMasks
+                    }
+                }
+            }
+        }
         .task { await loadNote() }
-    }
-
-    private var shapeHint: String {
-        switch shapeType {
-        case .rect:    return L("io_hint_rect")
-        case .ellipse: return L("io_hint_ellipse")
-        case .polygon: return L("io_hint_polygon")
-        case .text:    return L("io_hint_text")
-        }
-    }
-
-    private func removeSelectedMask() {
-        guard let selectedMaskIndex, masks.indices.contains(selectedMaskIndex) else { return }
-        let removed = masks.remove(at: selectedMaskIndex)
-        self.selectedMaskIndex = nil
-        undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-            let restoredIndex = min(selectedMaskIndex, self.masks.count)
-            self.masks.insert(removed, at: restoredIndex)
-            self.selectedMaskIndex = restoredIndex
-            self.undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-                guard self.masks.indices.contains(restoredIndex) else { return }
-                _ = self.masks.remove(at: restoredIndex)
-                self.selectedMaskIndex = nil
-            }
-        }
-    }
-
-    private func appendMask(_ mask: IOMask) {
-        masks.append(mask)
-        selectedMaskIndex = masks.count - 1
-        undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-            _ = self.masks.popLast()
-            self.selectedMaskIndex = nil
-            self.undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-                self.masks.append(mask)
-                self.selectedMaskIndex = self.masks.count - 1
-            }
-        }
-    }
-
-    private func beginTextInsertion(at point: CGPoint) {
-        pendingTextPoint = point
-        pendingTextValue = ""
-        showTextPrompt = true
-    }
-
-    private func insertTextMask() {
-        guard let pendingTextPoint else { return }
-        let text = pendingTextValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.pendingTextPoint = nil
-        self.pendingTextValue = ""
-        guard !text.isEmpty else { return }
-        appendMask(
-            .text(
-                left: pendingTextPoint.x,
-                top: pendingTextPoint.y,
-                text: text,
-                scale: 1,
-                fontSize: 0.055,
-                extras: [:]
-            )
-        )
-    }
-
-    private func canvasHeight(for image: UIImage) -> CGFloat {
-        let screenBounds = UIScreen.main.bounds
-        let screenWidth = screenBounds.width - 32
-        let ratio = image.size.height / image.size.width
-        let idealHeight = screenWidth * ratio
-        let maxHeight = min(screenBounds.height * 0.62, 620)
-        let minHeight = min(max(screenBounds.height * 0.32, 300), maxHeight)
-        return min(max(idealHeight, minHeight), maxHeight)
     }
 
     @MainActor
@@ -290,7 +154,6 @@ struct EditImageOcclusionNoteView: View {
 
             // Parse occlusion string back to IOMask array
             masks = parseMasks(from: data.occlusions)
-            selectedMaskIndex = nil
         } catch {
             loadError = error.localizedDescription
         }
