@@ -7,7 +7,7 @@ private struct IOMaskSnapshot {
     var selectsAll: Bool
 }
 
-private enum IOCanvasZoomCommand {
+enum IOCanvasZoomCommand {
     case zoomIn
     case zoomOut
     case fit
