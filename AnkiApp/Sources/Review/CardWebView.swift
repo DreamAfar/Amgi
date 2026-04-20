@@ -269,14 +269,14 @@ struct CardWebView: UIViewRepresentable {
                 font-size: 18px; line-height: 1.5;
                 color: var(--amgi-default-card-fg); background: var(--amgi-default-card-bg);
                 padding: 0 0 var(--amgi-body-padding-bottom, 16px);
-                margin: 20px; box-sizing: border-box; text-align: center;
+                margin: 20px; min-height: calc(100vh - 40px); box-sizing: border-box; text-align: center;
                 overflow-wrap: break-word;
                 background-size: cover;
                 background-repeat: no-repeat;
                 background-position: top;
                 background-attachment: fixed;
             }
-            body.amgi-centered { display: flex; align-items: center; justify-content: center; min-height: 80vh; }
+            body.amgi-centered { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 40px); }
             .card-frame {
                 width: 100%; box-sizing: border-box;
                 padding-bottom: var(--amgi-card-padding-bottom, 0px);

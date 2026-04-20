@@ -637,9 +637,13 @@
 "io_shape_rect" = "矩形";
 "io_shape_ellipse" = "椭圆";
 "io_shape_polygon" = "多边形";
+"io_shape_text" = "文字";
 "io_hint_rect" = "拖动以绘制矩形遮罩。";
 "io_hint_ellipse" = "拖动以绘制椭圆遮罩。";
 "io_hint_polygon" = "点击添加顶点，双击完成多边形。";
+"io_hint_text" = "点击图片以放置文字遮罩。";
+"io_text_prompt_title" = "添加文字";
+"io_text_prompt_placeholder" = "输入文字";
 "io_edit_action" = "编辑遮罩";
 "io_edit_nav_title" = "编辑图片遮罩";
 "io_mask_count" = "%d 个遮罩";

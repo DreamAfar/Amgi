@@ -637,9 +637,13 @@
 "io_shape_rect" = "Rect";
 "io_shape_ellipse" = "Ellipse";
 "io_shape_polygon" = "Polygon";
+"io_shape_text" = "Text";
 "io_hint_rect" = "Drag to draw a rectangle mask.";
 "io_hint_ellipse" = "Drag to draw an ellipse mask.";
 "io_hint_polygon" = "Tap to add vertices. Double-tap to finish polygon.";
+"io_hint_text" = "Tap the image to place a text occlusion.";
+"io_text_prompt_title" = "Add Text";
+"io_text_prompt_placeholder" = "Enter text";
 "io_edit_action" = "Edit Occlusion";
 "io_edit_nav_title" = "Edit Image Occlusion";
 "io_mask_count" = "%d mask(s)";

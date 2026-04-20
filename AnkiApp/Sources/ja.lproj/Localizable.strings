@@ -637,9 +637,13 @@
 "io_shape_rect" = "矩形";
 "io_shape_ellipse" = "楕円";
 "io_shape_polygon" = "多角形";
+"io_shape_text" = "テキスト";
 "io_hint_rect" = "ドラッグで矩形マスクを描いてください。";
 "io_hint_ellipse" = "ドラッグで楕円マスクを描いてください。";
 "io_hint_polygon" = "タップで頂点を追加、ダブルタップで確定。";
+"io_hint_text" = "画像をタップしてテキストマスクを配置します。";
+"io_text_prompt_title" = "テキスト追加";
+"io_text_prompt_placeholder" = "テキストを入力";
 "io_edit_action" = "オクルージョン編集";
 "io_edit_nav_title" = "イメージオクルージョン編集";
 "io_mask_count" = "%dつのマスク";

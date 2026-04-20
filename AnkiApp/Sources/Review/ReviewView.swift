@@ -267,6 +267,7 @@ struct ReviewView: View {
         .sheet(item: $templateEditorTarget) { target in
             TemplateEditorView(
                 notetypeId: target.notetypeId,
+                previewNoteId: target.noteId,
                 initialTemplateIndex: target.templateIndex,
                 mode: .currentCard,
                 onSaved: {
@@ -650,6 +651,7 @@ struct ReviewView: View {
         guard let note = try? noteClient.fetch(currentCard.noteID) else { return }
         templateEditorTarget = ReviewTemplateEditorTarget(
             notetypeId: note.mid,
+            noteId: currentCard.noteID,
             templateIndex: Int(currentCard.templateIdx)
         )
     }
@@ -772,17 +774,13 @@ struct ReviewView: View {
 
     private func reviewFlagButton(_ value: UInt32, cardId: Int64) -> some View {
         let color = reviewFlagColor(for: value)
+        let icon = value == 0 ? "flag.slash.fill" : "flag.fill"
         return Button {
             Task { await setCurrentCardFlag(cardId: cardId, value: value) }
         } label: {
-            Label {
-                Text(flagLabel(value))
-                    .foregroundStyle(color)
-            } icon: {
-                Image(systemName: value == 0 ? "flag.slash.fill" : "flag.fill")
-                    .foregroundStyle(color)
-            }
+            Label(flagLabel(value), systemImage: icon)
         }
+        .tint(color)
     }
 
     @MainActor
@@ -846,10 +844,11 @@ private struct ReviewCardStatsTarget: Identifiable {
 
 private struct ReviewTemplateEditorTarget: Identifiable {
     let notetypeId: Int64
+    let noteId: Int64
     let templateIndex: Int
 
     var id: String {
-        "\(notetypeId)-\(templateIndex)"
+        "\(notetypeId)-\(noteId)-\(templateIndex)"
     }
 }
 

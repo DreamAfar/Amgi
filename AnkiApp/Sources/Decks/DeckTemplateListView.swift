@@ -264,6 +264,7 @@ struct TemplateEditorView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let notetypeId: Int64
+    let previewNoteId: Int64? = nil
     let initialTemplateIndex: Int
     let mode: TemplateEditorMode
     var onSaved: (@Sendable () async -> Void)? = nil
@@ -523,8 +524,13 @@ struct TemplateEditorView: View {
             loadPreviewNote: {
                 let noteClient = self.noteClient
                 let notetypeId = self.notetypeId
+                let previewNoteId = self.previewNoteId
                 let notetype = self.notetype
                 return try await Task.detached(priority: .userInitiated) {
+                    if let previewNoteId,
+                       let currentNote = try noteClient.fetch(previewNoteId) {
+                        return buildCardPreviewNote(from: currentNote)
+                    }
                     if let sampleNote = try noteClient.search("mid:\(notetypeId)", 1).first {
                         return buildCardPreviewNote(from: sampleNote)
                     }

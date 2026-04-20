@@ -720,12 +720,9 @@ struct BrowseView: View {
         let icon = value == 0 ? "flag.slash.fill" : "flag.fill"
         let label = value == 0 ? L("flag_none") : L("flag_\(browseFlagKey(for: value))")
         return Button(action: action) {
-            Label {
-                Text(label).foregroundStyle(color)
-            } icon: {
-                Image(systemName: icon).foregroundStyle(color)
-            }
+            Label(label, systemImage: icon)
         }
+        .tint(color)
     }
 
     private func browseFlagColor(for value: UInt32) -> Color {

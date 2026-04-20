@@ -17,7 +17,11 @@ struct EditImageOcclusionNoteView: View {
     @State private var loadError: String?
     @State private var uiImage: UIImage?
     @State private var masks: [IOMask] = []
+    @State private var selectedMaskIndex: Int?
     @State private var shapeType: IOShapeType = .rect
+    @State private var pendingTextPoint: CGPoint?
+    @State private var pendingTextValue = ""
+    @State private var showTextPrompt = false
     @State private var header: String = ""
     @State private var backExtra: String = ""
     @State private var tagsText: String = ""
@@ -86,7 +90,9 @@ struct EditImageOcclusionNoteView: View {
                                 OcclusionCanvasView(
                                     image: img,
                                     masks: $masks,
+                                    selectedMaskIndex: $selectedMaskIndex,
                                     shapeType: shapeType,
+                                    onRequestText: beginTextInsertion(at:),
                                     onAppend: appendMask(_:)
                                 )
                                     .frame(height: canvasHeight(for: img))
@@ -97,14 +103,21 @@ struct EditImageOcclusionNoteView: View {
                                         Text(L("io_mask_count", masks.count))
                                             .amgiFont(.caption)
                                             .foregroundStyle(Color.amgiTextSecondary)
+                                        if let selectedMaskIndex,
+                                           masks.indices.contains(selectedMaskIndex) {
+                                            Text("#\(selectedMaskIndex + 1)")
+                                                .amgiFont(.caption)
+                                                .foregroundStyle(Color.amgiAccent)
+                                        }
                                         Spacer()
                                         Button(role: .destructive) {
-                                            removeLast()
+                                            removeSelectedMask()
                                         } label: {
-                                            Label(L("io_remove_last"), systemImage: "arrow.uturn.backward")
+                                            Label(L("common_delete"), systemImage: "trash")
                                                 .font(AmgiFont.caption.font)
                                         }
                                         .buttonStyle(.borderless)
+                                        .disabled(selectedMaskIndex == nil)
                                     }
                                 }
                             } header: {
@@ -140,12 +153,26 @@ struct EditImageOcclusionNoteView: View {
                 }
             }
         }
+        .alert(L("io_text_prompt_title"), isPresented: $showTextPrompt) {
+            TextField(L("io_text_prompt_placeholder"), text: $pendingTextValue)
+            Button(L("common_cancel"), role: .cancel) {
+                pendingTextPoint = nil
+                pendingTextValue = ""
+            }
+            Button(L("common_ok")) {
+                insertTextMask()
+            }
+        } message: {
+            Text(L("io_hint_text"))
+        }
         .navigationTitle(L("io_edit_nav_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(L("common_cancel")) { dismiss() }
-                    .amgiToolbarTextButton(tone: .neutral)
+            if embedInNavigationStack {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_cancel")) { dismiss() }
+                        .amgiToolbarTextButton(tone: .neutral)
+                }
             }
             ToolbarItemGroup(placement: .bottomBar) {
                 Button {
@@ -181,28 +208,61 @@ struct EditImageOcclusionNoteView: View {
         case .rect:    return L("io_hint_rect")
         case .ellipse: return L("io_hint_ellipse")
         case .polygon: return L("io_hint_polygon")
+        case .text:    return L("io_hint_text")
         }
     }
 
-    private func removeLast() {
-        guard !masks.isEmpty else { return }
-        let removed = masks.removeLast()
+    private func removeSelectedMask() {
+        guard let selectedMaskIndex, masks.indices.contains(selectedMaskIndex) else { return }
+        let removed = masks.remove(at: selectedMaskIndex)
+        self.selectedMaskIndex = nil
         undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-            self.masks.append(removed)
+            let restoredIndex = min(selectedMaskIndex, self.masks.count)
+            self.masks.insert(removed, at: restoredIndex)
+            self.selectedMaskIndex = restoredIndex
             self.undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-                _ = self.masks.popLast()
+                guard self.masks.indices.contains(restoredIndex) else { return }
+                _ = self.masks.remove(at: restoredIndex)
+                self.selectedMaskIndex = nil
             }
         }
     }
 
     private func appendMask(_ mask: IOMask) {
         masks.append(mask)
+        selectedMaskIndex = masks.count - 1
         undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
             _ = self.masks.popLast()
+            self.selectedMaskIndex = nil
             self.undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
                 self.masks.append(mask)
+                self.selectedMaskIndex = self.masks.count - 1
             }
         }
+    }
+
+    private func beginTextInsertion(at point: CGPoint) {
+        pendingTextPoint = point
+        pendingTextValue = ""
+        showTextPrompt = true
+    }
+
+    private func insertTextMask() {
+        guard let pendingTextPoint else { return }
+        let text = pendingTextValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.pendingTextPoint = nil
+        self.pendingTextValue = ""
+        guard !text.isEmpty else { return }
+        appendMask(
+            .text(
+                left: pendingTextPoint.x,
+                top: pendingTextPoint.y,
+                text: text,
+                scale: 1,
+                fontSize: 0.055,
+                extras: [:]
+            )
+        )
     }
 
     private func canvasHeight(for image: UIImage) -> CGFloat {
@@ -230,6 +290,7 @@ struct EditImageOcclusionNoteView: View {
 
             // Parse occlusion string back to IOMask array
             masks = parseMasks(from: data.occlusions)
+            selectedMaskIndex = nil
         } catch {
             loadError = error.localizedDescription
         }
@@ -264,33 +325,23 @@ private func parseMasks(from occlusions: String) -> [IOMask] {
     var result: [IOMask] = []
     for line in lines {
         guard let inner = extractClozeBody(line) else { continue }
-        // inner = "image-occlusion:rect:left=X:top=Y:..."
         let parts = inner.components(separatedBy: ":")
         guard parts.count >= 2, parts[0] == "image-occlusion" else { continue }
         let shapeName = parts[1]
-        var props: [String: CGFloat] = [:]
-        for part in parts.dropFirst(2) {
-            let kv = part.components(separatedBy: "=")
-            if kv.count == 2, let v = Double(kv[1]) {
-                props[kv[0]] = CGFloat(v)
-            }
-        }
+        let stringProps = parseIOProperties(from: parts.dropFirst(2).joined(separator: ":"))
         switch shapeName {
         case "rect":
-            if let l = props["left"], let t = props["top"],
-               let w = props["width"], let h = props["height"] {
-                result.append(.rect(left: l, top: t, width: w, height: h))
+            if let l = ioCGFloat(stringProps["left"]), let t = ioCGFloat(stringProps["top"]),
+               let w = ioCGFloat(stringProps["width"]), let h = ioCGFloat(stringProps["height"]) {
+                result.append(.rect(left: l, top: t, width: w, height: h, extras: ioExtras(from: stringProps, excluding: ["left", "top", "width", "height"])))
             }
         case "ellipse":
-            if let l = props["left"], let t = props["top"],
-               let rx = props["rx"], let ry = props["ry"] {
-                result.append(.ellipse(left: l, top: t, rx: rx, ry: ry))
+            if let l = ioCGFloat(stringProps["left"]), let t = ioCGFloat(stringProps["top"]),
+               let rx = ioCGFloat(stringProps["rx"]), let ry = ioCGFloat(stringProps["ry"]) {
+                result.append(.ellipse(left: l, top: t, rx: rx, ry: ry, extras: ioExtras(from: stringProps, excluding: ["left", "top", "rx", "ry"])))
             }
         case "polygon":
-            // polygon points are in the last colon-segment as "x1,y1 x2,y2 ..."
-            // Find the "points=..." token (may contain commas and spaces)
-            if let pointsPart = parts.first(where: { $0.hasPrefix("points=") }) {
-                let raw = String(pointsPart.dropFirst("points=".count))
+            if let raw = stringProps["points"] {
                 let coords = raw.components(separatedBy: CharacterSet(charactersIn: ", "))
                     .compactMap { Double($0) }
                 var pts: [CGPoint] = []
@@ -300,14 +351,63 @@ private func parseMasks(from occlusions: String) -> [IOMask] {
                     i += 2
                 }
                 if pts.count >= 3 {
-                    result.append(.polygon(points: pts))
+                    result.append(.polygon(points: pts, extras: ioExtras(from: stringProps, excluding: ["points"])))
                 }
+            }
+        case "text":
+            if let l = ioCGFloat(stringProps["left"]),
+               let t = ioCGFloat(stringProps["top"]),
+               let text = stringProps["text"],
+               !text.isEmpty {
+                let scale = ioCGFloat(stringProps["scale"]) ?? 1
+                let fontSize = ioCGFloat(stringProps["fs"]) ?? 0.055
+                result.append(
+                    .text(
+                        left: l,
+                        top: t,
+                        text: text,
+                        scale: scale,
+                        fontSize: fontSize,
+                        extras: ioExtras(from: stringProps, excluding: ["left", "top", "text", "scale", "fs"])
+                    )
+                )
             }
         default:
             break
         }
     }
     return result
+}
+
+private func parseIOProperties(from source: String) -> [String: String] {
+    guard !source.isEmpty,
+          let regex = try? NSRegularExpression(pattern: "([A-Za-z]+)=") else {
+        return [:]
+    }
+
+    let nsSource = source as NSString
+    let matches = regex.matches(in: source, range: NSRange(location: 0, length: nsSource.length))
+    guard !matches.isEmpty else { return [:] }
+
+    var properties: [String: String] = [:]
+    for (index, match) in matches.enumerated() {
+        let key = nsSource.substring(with: match.range(at: 1))
+        let valueStart = match.range.location + match.range.length
+        let valueEnd = index + 1 < matches.count ? matches[index + 1].range.location - 1 : nsSource.length
+        guard valueEnd >= valueStart else { continue }
+        let value = nsSource.substring(with: NSRange(location: valueStart, length: valueEnd - valueStart))
+        properties[key] = value
+    }
+    return properties
+}
+
+private func ioCGFloat(_ value: String?) -> CGFloat? {
+    guard let value, let numeric = Double(value) else { return nil }
+    return CGFloat(numeric)
+}
+
+private func ioExtras(from properties: [String: String], excluding keys: Set<String>) -> [String: String] {
+    properties.filter { !keys.contains($0.key) }
 }
 
 private func extractClozeBody(_ cloze: String) -> String? {

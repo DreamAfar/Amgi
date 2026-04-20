@@ -55,24 +55,9 @@ extension ImageOcclusionClient: DependencyKey {
                 let occlusions = note.occlusions.enumerated().map { (i, occ) -> String in
                     let n = occ.ordinal > 0 ? Int(occ.ordinal) : (i + 1)
                     guard let shape = occ.shapes.first else { return "" }
-                    let props = Dictionary(uniqueKeysWithValues: shape.properties.map { ($0.name, $0.value) })
-                    switch shape.shape {
-                    case "ellipse":
-                        let l = props["left"] ?? "0"
-                        let t = props["top"] ?? "0"
-                        let rx = props["rx"] ?? "0"
-                        let ry = props["ry"] ?? "0"
-                        return "{{c\(n)::image-occlusion:ellipse:left=\(l):top=\(t):rx=\(rx):ry=\(ry)}}"
-                    case "polygon":
-                        let pts = props["points"] ?? ""
-                        return "{{c\(n)::image-occlusion:polygon:points=\(pts)}}"
-                    default:
-                        let l = props["left"] ?? "0"
-                        let t = props["top"] ?? "0"
-                        let w = props["width"] ?? "0"
-                        let h = props["height"] ?? "0"
-                        return "{{c\(n)::image-occlusion:rect:left=\(l):top=\(t):width=\(w):height=\(h)}}"
-                    }
+                    let propertyTokens = shape.properties.map { "\($0.name)=\($0.value)" }.joined(separator: ":")
+                    let suffix = propertyTokens.isEmpty ? "" : ":\(propertyTokens)"
+                    return "{{c\(n)::image-occlusion:\(shape.shape)\(suffix)}}"
                 }.filter { !$0.isEmpty }.joined(separator: "\n")
 
                 return ImageOcclusionNoteData(
