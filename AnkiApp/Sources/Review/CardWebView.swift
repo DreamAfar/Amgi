@@ -224,7 +224,7 @@ struct CardWebView: UIViewRepresentable {
         baseTag: String
     ) -> String {
         let colorScheme = isDarkMode ? "dark" : "light"
-        let defaultCardBackground = isDarkMode ? "#1f1f22" : "transparent"
+        let defaultCardBackground = "transparent"
         let textColor = isDarkMode ? "#f5f5f5" : "#1a1a1a"
         let hrColor = isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"
         let typeBorderColor = isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)"
@@ -483,21 +483,65 @@ struct CardWebView: UIViewRepresentable {
         }
 
         function amgiResolveCardBackground() {
-            var candidates = [
-                document.querySelector('.card'),
-                document.getElementById('qa'),
-                document.body,
-                document.documentElement,
-            ];
-            for (var i = 0; i < candidates.length; i++) {
-                var el = candidates[i];
-                if (!el) continue;
-                var bg = window.getComputedStyle(el).backgroundColor;
-                if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
-                    return bg;
+            var qa = document.getElementById('qa');
+            var qaRect = qa ? qa.getBoundingClientRect() : null;
+            var referenceWidth = qaRect && qaRect.width ? qaRect.width : window.innerWidth;
+            var minimumWidth = Math.max(120, referenceWidth * 0.35);
+            var best = null;
+
+            function isTransparent(bg) {
+                return !bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)';
+            }
+
+            function depthOf(element) {
+                var depth = 0;
+                var current = element;
+                while (current && current.parentElement) {
+                    depth += 1;
+                    current = current.parentElement;
+                }
+                return depth;
+            }
+
+            function consider(element) {
+                if (!element) return;
+
+                var style = window.getComputedStyle(element);
+                if (style.display === 'none' || style.visibility === 'hidden') return;
+
+                var bg = style.backgroundColor;
+                if (isTransparent(bg)) return;
+
+                var rect = element.getBoundingClientRect();
+                var width = rect.width || element.scrollWidth || 0;
+                var height = rect.height || element.scrollHeight || 0;
+                if (width < minimumWidth || height < 40) return;
+
+                var candidate = {
+                    color: bg,
+                    area: width * height,
+                    depth: depthOf(element),
+                };
+
+                if (!best
+                    || candidate.area > best.area + 1
+                    || (Math.abs(candidate.area - best.area) <= 1 && candidate.depth < best.depth)) {
+                    best = candidate;
                 }
             }
-            return window.getComputedStyle(document.body).backgroundColor || 'rgba(0, 0, 0, 0)';
+
+            [
+                qa && qa.firstElementChild,
+                qa,
+                document.body,
+                document.documentElement,
+            ].forEach(consider);
+
+            if (qa) {
+                Array.from(qa.querySelectorAll('*')).forEach(consider);
+            }
+
+            return best ? best.color : (window.getComputedStyle(document.body).backgroundColor || 'rgba(0, 0, 0, 0)');
         }
 
         function amgiParseCssColor(color) {
@@ -518,52 +562,15 @@ struct CardWebView: UIViewRepresentable {
             return (0.2126 * parsed.r + 0.7152 * parsed.g + 0.0722 * parsed.b) / 255;
         }
 
-        function amgiDarkModeActive() {
-            return document.body.classList.contains('nightMode')
-                || document.body.classList.contains('night_mode')
-                || document.documentElement.classList.contains('nightMode')
-                || document.documentElement.classList.contains('night_mode');
-        }
-
-        function amgiNeedsDarkSurfaceFallback(element) {
-            if (!element) return false;
-            var bg = window.getComputedStyle(element).backgroundColor;
-            if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') {
-                return true;
-            }
-
-            var parsed = amgiParseCssColor(bg);
-            if (!parsed) return false;
-            if (parsed.a === 0) return true;
-
-            var luminance = amgiColorLuminance(bg);
-            return luminance !== null && luminance > 0.86;
-        }
-
-        function amgiApplyDarkModeFallback(container) {
-            if (!amgiDarkModeActive()) return;
-
-            var fallbackTargets = [
-                document.body,
-                document.getElementById('qa'),
-                container,
-                document.querySelector('.card'),
-            ].filter(function(element, index, array) {
-                return !!element && array.indexOf(element) === index;
-            });
-
             fallbackTargets.forEach(function(element) {
                 if (!amgiNeedsDarkSurfaceFallback(element)) return;
                 element.style.setProperty('background-color', 'var(--amgi-default-card-bg)', 'important');
                 element.style.setProperty('color', 'var(--amgi-default-card-fg)', 'important');
-            });
-        }
-
-        function amgiReportCardTheme() {
-            try {
-                var bg = amgiResolveCardBackground();
-                var rgb = bg.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/i);
-                var isDark = false;
+                var parsed = amgiParseCssColor(bg);
+                var isDark = amgiDarkModeActive();
+                if (parsed && parsed.a > 0) {
+                    var luminance = (0.2126 * parsed.r + 0.7152 * parsed.g + 0.0722 * parsed.b) / 255;
+                    isDark = luminance < 0.55;
                 if (rgb) {
                     var r = parseInt(rgb[1], 10) || 0;
                     var g = parseInt(rgb[2], 10) || 0;
@@ -660,7 +667,6 @@ struct CardWebView: UIViewRepresentable {
         function amgiTypesetMathWhenReady(container) {
             amgiTypesetMath(container, 60).then(function(didTypeset) {
                 if (didTypeset) {
-                    amgiApplyDarkModeFallback(container);
                     amgiScheduleCardThemeReport();
                 }
             });
@@ -1111,7 +1117,6 @@ struct CardWebView: UIViewRepresentable {
             catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
 
             await amgiRunHooks(window.onUpdateHook);
-            amgiApplyDarkModeFallback(qa);
 
             var shouldTypesetMath = amgiNeedsMathTypeset(html || '', qa);
             var didTypesetMath = false;
