@@ -4,12 +4,26 @@ import AnkiProto
 import Dependencies
 import SwiftProtobuf
 
-struct MediaCheckResult {
+struct MediaCheckResult: Sendable {
     let missing: [String]
     let unused: [String]
     let missingNoteIds: [Int64]
     let report: String
     let haveTrash: Bool
+}
+
+private func fetchLatestMediaCheckResult(using backend: AnkiBackend) throws -> MediaCheckResult {
+    let response: Anki_Media_CheckMediaResponse = try backend.invoke(
+        service: AnkiBackend.Service.media,
+        method: AnkiBackend.MediaMethod.checkMedia
+    )
+    return MediaCheckResult(
+        missing: response.missing,
+        unused: response.unused,
+        missingNoteIds: response.missingMediaNotes,
+        report: response.report,
+        haveTrash: response.haveTrash
+    )
 }
 
 struct MediaCheckResultView: View {
@@ -169,20 +183,6 @@ struct MediaCheckResultView: View {
         }
     }
 
-    private static func fetchLatestResult(using backend: AnkiBackend) throws -> MediaCheckResult {
-        let response: Anki_Media_CheckMediaResponse = try backend.invoke(
-            service: AnkiBackend.Service.media,
-            method: AnkiBackend.MediaMethod.checkMedia
-        )
-        return MediaCheckResult(
-            missing: response.missing,
-            unused: response.unused,
-            missingNoteIds: response.missingMediaNotes,
-            report: response.report,
-            haveTrash: response.haveTrash
-        )
-    }
-
     private func trashUnused() {
         isTrashingUnused = true
         let capturedBackend = backend
@@ -196,7 +196,7 @@ struct MediaCheckResultView: View {
                     method: AnkiBackend.MediaMethod.trashMediaFiles,
                     request: req
                 )
-                let latestResult = try Self.fetchLatestResult(using: capturedBackend)
+                let latestResult = try fetchLatestMediaCheckResult(using: capturedBackend)
                 await MainActor.run {
                     currentResult = latestResult
                     isTrashingUnused = false
@@ -222,7 +222,7 @@ struct MediaCheckResultView: View {
                     service: AnkiBackend.Service.media,
                     method: AnkiBackend.MediaMethod.emptyTrash
                 )
-                let latestResult = try Self.fetchLatestResult(using: capturedBackend)
+                let latestResult = try fetchLatestMediaCheckResult(using: capturedBackend)
                 await MainActor.run {
                     currentResult = latestResult
                     isDeletingTrash = false
@@ -248,7 +248,7 @@ struct MediaCheckResultView: View {
                     service: AnkiBackend.Service.media,
                     method: AnkiBackend.MediaMethod.restoreTrash
                 )
-                let latestResult = try Self.fetchLatestResult(using: capturedBackend)
+                let latestResult = try fetchLatestMediaCheckResult(using: capturedBackend)
                 await MainActor.run {
                     currentResult = latestResult
                     isRestoringTrash = false
