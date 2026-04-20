@@ -20,11 +20,26 @@ struct NoteEditorView: View {
     @State private var availableTags: [String] = []
     @State private var hasLoadedAvailableTags = false
     @State private var isLoadingAvailableTags = false
+    @State private var hasLoadedOriginalState = false
     @State private var isSaving = false
+    @State private var originalFieldValues: [String] = []
+    @State private var originalTags: String = ""
+    @State private var showDiscardChangesConfirmation = false
     @State private var showTagPicker = false
+    @State private var showPreviewSheet = false
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var notetype: Anki_Notetypes_Notetype?
     @Environment(\.dismiss) private var dismiss
+
+    private var trimmedTags: String {
+        tags.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var hasUnsavedChanges: Bool {
+        hasLoadedOriginalState
+            && (fieldValues != originalFieldValues || trimmedTags != originalTags)
+    }
 
     var body: some View {
         Form {
@@ -100,7 +115,22 @@ struct NoteEditorView: View {
         .background(Color.amgiBackground)
         .navigationTitle(L("note_editor_title"))
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .interactiveDismissDisabled(hasUnsavedChanges)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(L("common_cancel")) {
+                    attemptDismiss()
+                }
+                .amgiToolbarTextButton(tone: .neutral)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(L("card_template_preview_btn")) {
+                    showPreviewSheet = true
+                }
+                .amgiToolbarTextButton(tone: .neutral)
+                .disabled((notetype?.templates.isEmpty ?? true) || isSaving)
+            }
             ToolbarItem(placement: .confirmationAction) {
                 Button(L("note_editor_save")) {
                     Task { await save() }
@@ -112,10 +142,39 @@ struct NoteEditorView: View {
         .sheet(isPresented: $showTagPicker) {
             tagPickerSheet
         }
+        .sheet(isPresented: $showPreviewSheet) {
+            if let notetype {
+                UncommittedCardPreviewSheet(
+                    title: L("note_editor_preview_title"),
+                    emptyMessage: L("note_editor_preview_empty_card"),
+                    notetype: notetype,
+                    allowsTemplateSelection: true,
+                    loadPreviewNote: {
+                        buildCardPreviewNote(
+                            from: note,
+                            fieldValues: fieldValues,
+                            tags: tags
+                        )
+                    }
+                )
+            }
+        }
         .alert(L("common_error"), isPresented: $showError) {
             Button(L("common_ok")) { }
         } message: {
             Text(errorMessage ?? L("common_unknown_error"))
+        }
+        .confirmationDialog(
+            L("common_unsaved_changes_title"),
+            isPresented: $showDiscardChangesConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(L("common_discard_changes"), role: .destructive) {
+                dismiss()
+            }
+            Button(L("common_cancel"), role: .cancel) {}
+        } message: {
+            Text(L("common_unsaved_changes_message"))
         }
         .task {
             await loadNote()
@@ -194,18 +253,19 @@ struct NoteEditorView: View {
         let noteData = note
 
         // Fetch notetype field names off the main thread
-        let fetchedNames: [String]? = await Task.detached(priority: .userInitiated) {
+        let fetchedNotetype: Anki_Notetypes_Notetype? = await Task.detached(priority: .userInitiated) {
             var ntReq = Anki_Notetypes_NotetypeId()
             ntReq.ntid = mid
-            return (try? backend.invoke(
+            return try? backend.invoke(
                 service: AnkiBackend.Service.notetypes,
                 method: AnkiBackend.NotetypesMethod.getNotetype,
                 request: ntReq
-            ) as Anki_Notetypes_Notetype)?.fields.map(\.name)
+            ) as Anki_Notetypes_Notetype
         }.value
 
-        if let names = fetchedNames {
-            fieldNames = names
+        if let fetchedNotetype {
+            notetype = fetchedNotetype
+            fieldNames = fetchedNotetype.fields.map(\.name)
         } else {
             errorMessage = L("common_failed_load_notetype")
             showError = true
@@ -216,6 +276,9 @@ struct NoteEditorView: View {
             .map(String.init)
         while fieldValues.count < fieldNames.count { fieldValues.append("") }
         tags = noteData.tags.trimmingCharacters(in: .whitespaces)
+        originalFieldValues = fieldValues
+        originalTags = trimmedTags
+        hasLoadedOriginalState = true
     }
     
     private func ensureAvailableTagsLoaded() async {
@@ -239,6 +302,14 @@ struct NoteEditorView: View {
             } else {
                 tags += " \(tag)"
             }
+        }
+    }
+
+    private func attemptDismiss() {
+        if hasUnsavedChanges {
+            showDiscardChangesConfirmation = true
+        } else {
+            dismiss()
         }
     }
 

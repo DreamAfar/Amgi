@@ -457,6 +457,9 @@
 "common_add" = "追加";
 "common_delete" = "削除";
 "common_back" = "戻る";
+"common_discard_changes" = "変更を破棄";
+"common_unsaved_changes_title" = "未保存の変更があります";
+"common_unsaved_changes_message" = "保存されていない変更があります。破棄しますか？";
 "common_loading" = "読み込み中…";
 "common_today" = "今日";
 "common_yesterday" = "昨日";
@@ -728,6 +731,10 @@
 "deck_template_edit_qformat" = "表面テンプレート";
 "deck_template_edit_aformat" = "裏面テンプレート";
 "deck_template_edit_css" = "カードスタイル（CSS）";
+"deck_template_validation_title" = "テンプレートを修正してください";
+"deck_template_validation_no_front_field" = "テンプレート「%@」の表面には少なくとも 1 つのフィールドが必要です。";
+"deck_template_validation_no_such_field" = "テンプレート「%@」は存在しないフィールド %@ を参照しています。";
+"deck_template_validation_missing_cloze" = "これは cloze ノートタイプなので、最初のテンプレートの表面と裏面の両方に {{cloze:...}} が必要です。";
 "deck_template_preview_rendered" = "レンダリングプレビュー";
 "card_template_preview_btn" = "プレビュー";
 "card_template_fields_short" = "フィールド";
@@ -738,6 +745,7 @@
 "deck_template_preview_front" = "表面";
 "deck_template_preview_back" = "裏面";
 "deck_template_preview_no_template" = "テンプレートが選択されていません";
+"deck_template_preview_empty_card" = "現在のプレビュー用ノートでは、このテンプレートのカードは生成されません。";
 "deck_template_sample_value" = "サンプル %@";
 "deck_template_rename_title" = "テンプレートグループ名を変更";
 "deck_template_rename_placeholder" = "新しいテンプレートグループ名";
@@ -870,6 +878,8 @@
 
 // MARK: - NoteEditorView (extended)
 "note_editor_title" = "ノートを編集";
+"note_editor_preview_title" = "レンダリングプレビュー";
+"note_editor_preview_empty_card" = "現在のフィールド内容では、このテンプレートのカードは生成されません。";
 "note_editor_save" = "保存";
 "note_editor_saved" = "✓ 保存しました";
 "note_editor_select_tags" = "タグを選択";

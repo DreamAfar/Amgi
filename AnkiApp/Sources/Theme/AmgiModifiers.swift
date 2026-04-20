@@ -50,6 +50,15 @@ enum AmgiStatusTone {
             return foregroundColor.opacity(0.28)
         }
     }
+
+    fileprivate var toolbarForegroundColor: Color {
+        switch self {
+        case .neutral:
+            return Color.amgiTextPrimary
+        default:
+            return foregroundColor
+        }
+    }
 }
 
 struct AmgiCardModifier: ViewModifier {
@@ -147,7 +156,8 @@ extension View {
     }
 
     func amgiToolbarTextButton(tone: AmgiStatusTone = .accent) -> some View {
-        foregroundStyle(tone.foregroundColor)
+        tint(tone.toolbarForegroundColor)
+            .foregroundStyle(tone.toolbarForegroundColor)
     }
 
     func amgiStatusText(_ tone: AmgiStatusTone, font: AmgiFont = .captionBold) -> some View {

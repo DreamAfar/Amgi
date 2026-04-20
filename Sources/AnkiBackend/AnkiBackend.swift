@@ -361,10 +361,11 @@ extension AnkiBackend {
         public static let getCardByOrdinal: UInt32 = 5
     }
 
-    // BackendCardRenderingService (27) has 6 extra methods before renderExistingCard
+    // BackendCardRenderingService (27) has 3 backend-specific methods before delegated CardRenderingService methods.
     public enum CardRenderingMethod {
         public static let getEmptyCards: UInt32 = 5
         public static let renderExistingCard: UInt32 = 6
+        public static let renderUncommittedCard: UInt32 = 7
         public static let compareAnswer: UInt32 = 15
         public static let extractClozeForTyping: UInt32 = 16
     }

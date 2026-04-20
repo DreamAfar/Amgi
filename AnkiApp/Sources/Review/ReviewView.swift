@@ -80,6 +80,29 @@ struct ReviewView: View {
         prefAutoMatchCardBackground ? cardChromeIsDark : (colorScheme == .dark)
     }
 
+    private var currentCardFlagView: some View {
+        Group {
+            if let currentCard = session.currentCard?.card {
+                let userFlag = currentCard.flags & 0b111
+                Menu {
+                    reviewFlagButton(0, cardId: currentCard.id)
+                    reviewFlagButton(1, cardId: currentCard.id)
+                    reviewFlagButton(2, cardId: currentCard.id)
+                    reviewFlagButton(3, cardId: currentCard.id)
+                    reviewFlagButton(4, cardId: currentCard.id)
+                    reviewFlagButton(5, cardId: currentCard.id)
+                    reviewFlagButton(6, cardId: currentCard.id)
+                    reviewFlagButton(7, cardId: currentCard.id)
+                } label: {
+                    Image(systemName: userFlag == 0 ? "flag.slash.fill" : "flag.fill")
+                        .font(.caption)
+                        .foregroundStyle(reviewFlagColor(for: userFlag))
+                        .accessibilityLabel(flagLabel(userFlag))
+                }
+            }
+        }
+    }
+
     init(deckId: Int64, onDismiss: @escaping () -> Void) {
         self.deckId = deckId
         self.onDismiss = onDismiss
@@ -92,6 +115,7 @@ struct ReviewView: View {
                 HStack(spacing: 12) {
                     DeckCountsView(counts: session.remainingCounts)
                     Spacer()
+                    currentCardFlagView
                     Text(L("review_reviewed_count", session.sessionStats.reviewed))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -721,6 +745,32 @@ struct ReviewView: View {
             session.refreshAndAdvance()
         } catch {
             toolbarErrorMessage = L("review_set_due_failed", error.localizedDescription)
+            showToolbarError = true
+        }
+    }
+
+    private func reviewFlagButton(_ value: UInt32, cardId: Int64) -> some View {
+        let color = reviewFlagColor(for: value)
+        return Button {
+            Task { await setCurrentCardFlag(cardId: cardId, value: value) }
+        } label: {
+            Label {
+                Text(flagLabel(value))
+                    .foregroundStyle(color)
+            } icon: {
+                Image(systemName: value == 0 ? "flag.slash.fill" : "flag.fill")
+                    .foregroundStyle(color)
+            }
+        }
+    }
+
+    @MainActor
+    private func setCurrentCardFlag(cardId: Int64, value: UInt32) async {
+        do {
+            try cardClient.flag(cardId, value)
+            await session.refreshAfterCardMutation()
+        } catch {
+            toolbarErrorMessage = L("card_action_error_flag", error.localizedDescription)
             showToolbarError = true
         }
     }
@@ -1562,8 +1612,25 @@ private struct ReviewCardInfoSheet: View {
     }
 
     private func flagLabel(_ flags: UInt32) -> String {
+        let userFlag = flags & 0b111
+        if userFlag == 0 {
+            return L("flag_none")
+        }
         let names: [String] = ["", L("flag_red"), L("flag_orange"), L("flag_green"), L("flag_blue"), L("flag_pink"), L("flag_cyan"), L("flag_purple")]
-        let idx = Int(flags)
-        return (idx >= 0 && idx < names.count && !names[idx].isEmpty) ? names[idx] : L("flag_other", flags)
+        let idx = Int(userFlag)
+        return (idx >= 0 && idx < names.count && !names[idx].isEmpty) ? names[idx] : L("flag_other", userFlag)
+    }
+
+    private func reviewFlagColor(for value: UInt32) -> Color {
+        switch value & 0b111 {
+        case 1: return .red
+        case 2: return .orange
+        case 3: return .green
+        case 4: return .blue
+        case 5: return .pink
+        case 6: return .cyan
+        case 7: return .purple
+        default: return .secondary
+        }
     }
 }

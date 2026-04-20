@@ -457,6 +457,9 @@
 "common_add" = "Add";
 "common_delete" = "Delete";
 "common_back" = "Back";
+"common_discard_changes" = "Discard Changes";
+"common_unsaved_changes_title" = "Unsaved Changes";
+"common_unsaved_changes_message" = "You have unsaved changes. Discard them?";
 "common_loading" = "Loading...";
 "common_today" = "Today";
 "common_yesterday" = "Yesterday";
@@ -728,6 +731,10 @@
 "deck_template_edit_qformat" = "Front Template";
 "deck_template_edit_aformat" = "Back Template";
 "deck_template_edit_css" = "Card Styling (CSS)";
+"deck_template_validation_title" = "Template Needs Fixing";
+"deck_template_validation_no_front_field" = "The front of template '%@' must include at least one field.";
+"deck_template_validation_no_such_field" = "Template '%@' references a missing field: %@.";
+"deck_template_validation_missing_cloze" = "This is a cloze notetype, so the first template must include {{cloze:...}} on both front and back.";
 "deck_template_preview_rendered" = "Rendered Preview";
 "card_template_preview_btn" = "Preview";
 "card_template_fields_short" = "Fields";
@@ -738,6 +745,7 @@
 "deck_template_preview_front" = "Front";
 "deck_template_preview_back" = "Back";
 "deck_template_preview_no_template" = "No template selected";
+"deck_template_preview_empty_card" = "The current preview note does not generate a card for this template.";
 "deck_template_sample_value" = "Sample %@";
 "deck_template_rename_title" = "Rename Template Group";
 "deck_template_rename_placeholder" = "New template group name";
@@ -868,6 +876,8 @@
 
 // MARK: - NoteEditorView (extended)
 "note_editor_title" = "Edit Note";
+"note_editor_preview_title" = "Rendered Preview";
+"note_editor_preview_empty_card" = "The current fields do not generate a card for this template.";
 "note_editor_save" = "Save";
 "note_editor_saved" = "✓ Saved";
 "note_editor_select_tags" = "Select Tags";

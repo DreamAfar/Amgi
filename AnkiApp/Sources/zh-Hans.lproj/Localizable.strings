@@ -457,6 +457,9 @@
 "common_add" = "添加";
 "common_delete" = "删除";
 "common_back" = "返回";
+"common_discard_changes" = "放弃修改";
+"common_unsaved_changes_title" = "修改尚未保存";
+"common_unsaved_changes_message" = "当前修改还未保存，确定要放弃吗？";
 "common_loading" = "加载中…";
 "common_today" = "今天";
 "common_yesterday" = "昨天";
@@ -728,6 +731,10 @@
 "deck_template_edit_qformat" = "正面模板";
 "deck_template_edit_aformat" = "背面模板";
 "deck_template_edit_css" = "卡片样式（CSS）";
+"deck_template_validation_title" = "模板需要修正";
+"deck_template_validation_no_front_field" = "模板“%@”的正面必须至少包含一个字段。";
+"deck_template_validation_no_such_field" = "模板“%@”引用了不存在的字段：%@。";
+"deck_template_validation_missing_cloze" = "这是 cloze 笔记类型，因此第一张模板的正反面都必须包含 {{cloze:...}}。";
 "deck_template_preview_rendered" = "渲染预览";
 "card_template_preview_btn" = "预览";
 "card_template_fields_short" = "字段";
@@ -738,6 +745,7 @@
 "deck_template_preview_front" = "正面";
 "deck_template_preview_back" = "背面";
 "deck_template_preview_no_template" = "未选择模板";
+"deck_template_preview_empty_card" = "当前预览样本不会为这个模板生成卡片。";
 "deck_template_sample_value" = "示例 %@";
 "deck_template_rename_title" = "重命名模板组";
 "deck_template_rename_placeholder" = "新的模板组名称";
@@ -868,6 +876,8 @@
 
 // MARK: - NoteEditorView (extended)
 "note_editor_title" = "编辑笔记";
+"note_editor_preview_title" = "渲染预览";
+"note_editor_preview_empty_card" = "当前字段内容不会为这个模板生成卡片。";
 "note_editor_save" = "保存";
 "note_editor_saved" = "✓ 已保存";
 "note_editor_select_tags" = "选择标签";

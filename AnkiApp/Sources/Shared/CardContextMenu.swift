@@ -22,6 +22,7 @@ struct CardContextMenu: View {
     @State private var showError = false
     @State private var showDeleteConfirmation = false
     @State private var isMarkedNote = false
+    @State private var currentFlag: UInt32 = 0
     @State private var canUndo = false
     @State private var isUndoing = false
 
@@ -99,7 +100,12 @@ struct CardContextMenu: View {
                 flagButton(2, colorName: L("flag_orange"))
                 flagButton(1, colorName: L("flag_red"))
             } label: {
-                Label(L("card_action_flag"), systemImage: "flag.fill")
+                Label {
+                    Text(L("card_action_flag"))
+                } icon: {
+                    Image(systemName: currentFlag == 0 ? "flag.slash.fill" : "flag.fill")
+                        .foregroundStyle(flagColor(for: currentFlag))
+                }
             }
             
             Button {
@@ -125,6 +131,7 @@ struct CardContextMenu: View {
         }
         .task(id: cardId) {
             await loadMarkedState()
+            await loadCurrentFlag()
             await refreshUndoAvailability()
         }
     }
@@ -226,6 +233,7 @@ struct CardContextMenu: View {
     private func performFlag(_ value: UInt32) {
         do {
             try cardClient.flag(cardId, value)
+            currentFlag = value
             onSuccess?()
             onActionSuccess?(false)
         } catch {
@@ -292,8 +300,23 @@ struct CardContextMenu: View {
         }
     }
 
+    private func loadCurrentFlag() async {
+        do {
+            var request = Anki_Cards_CardId()
+            request.cid = cardId
+            let card: Anki_Cards_Card = try backend.invoke(
+                service: AnkiBackend.Service.cards,
+                method: AnkiBackend.CardsMethod.getCard,
+                request: request
+            )
+            currentFlag = card.flags & 0b111
+        } catch {
+            currentFlag = 0
+        }
+    }
+
     private func flagColor(for value: UInt32) -> Color {
-        switch value {
+        switch value & 0b111 {
         case 1: return .red
         case 2: return .orange
         case 3: return .green

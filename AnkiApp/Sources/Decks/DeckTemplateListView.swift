@@ -1,4 +1,6 @@
+import Foundation
 import SwiftUI
+import AnkiClients
 import AnkiBackend
 import AnkiProto
 import Dependencies
@@ -257,6 +259,7 @@ private enum TemplateEditorTab: CaseIterable {
 
 struct TemplateEditorView: View {
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.noteClient) var noteClient
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
@@ -271,13 +274,29 @@ struct TemplateEditorView: View {
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var originalNotetype: Anki_Notetypes_Notetype?
+    @State private var showDiscardChangesConfirmation = false
     @State private var showSaveError = false
     @State private var selectedTemplateIndex = 0
-    @State private var previewSide: TemplatePreviewSide = .front
     @State private var editorTab: TemplateEditorTab = .front
     @State private var showFieldManager = false
     @State private var showPreviewSheet = false
     @State private var editorSearchText = ""
+
+    private var hasUnsavedChanges: Bool {
+        guard let originalNotetype else { return false }
+        return originalNotetype != notetype
+    }
+
+    private var templateValidationMessage: String? {
+        templateValidationMessage(for: notetype)
+    }
+
+    private var canSaveTemplate: Bool {
+        notetype.templates.indices.contains(selectedTemplateIndex)
+            && templateValidationMessage == nil
+            && !isSaving
+    }
 
     private var separatorBorderColor: Color {
         colorScheme == .light
@@ -311,9 +330,10 @@ struct TemplateEditorView: View {
             .background(Color.amgiBackground)
             .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
+            .interactiveDismissDisabled(hasUnsavedChanges)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(L("common_cancel")) { dismiss() }
+                    Button(L("common_cancel")) { attemptDismiss() }
                         .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .principal) {
@@ -337,7 +357,7 @@ struct TemplateEditorView: View {
                             Task { await saveTemplate() }
                         }
                         .amgiToolbarTextButton()
-                        .disabled(!notetype.templates.indices.contains(selectedTemplateIndex))
+                        .disabled(!canSaveTemplate)
                     }
                 }
             }
@@ -345,6 +365,18 @@ struct TemplateEditorView: View {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {
                 Text(errorMessage ?? L("common_unknown_error"))
+            }
+            .confirmationDialog(
+                L("common_unsaved_changes_title"),
+                isPresented: $showDiscardChangesConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button(L("common_discard_changes"), role: .destructive) {
+                    dismiss()
+                }
+                Button(L("common_cancel"), role: .cancel) {}
+            } message: {
+                Text(L("common_unsaved_changes_message"))
             }
             .sheet(isPresented: $showFieldManager) {
                 NavigationStack {
@@ -429,6 +461,15 @@ struct TemplateEditorView: View {
                         .stroke(separatorBorderColor, lineWidth: 1)
                 }
 
+                if let templateValidationMessage {
+                    AmgiStatusMessageView(
+                        title: L("deck_template_validation_title"),
+                        message: templateValidationMessage,
+                        systemImage: "exclamationmark.triangle",
+                        tone: .warning
+                    )
+                }
+
                 TemplateSourceEditor(
                     text: currentEditorBinding,
                     fieldNames: currentFieldNames,
@@ -473,40 +514,27 @@ struct TemplateEditorView: View {
     }
 
     private var previewSheet: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                Picker(L("deck_template_preview_side"), selection: $previewSide) {
-                    ForEach(TemplatePreviewSide.allCases, id: \.self) { side in
-                        Text(side.label).tag(side)
+        UncommittedCardPreviewSheet(
+            title: L("deck_template_preview_rendered"),
+            emptyMessage: L("deck_template_preview_empty_card"),
+            notetype: notetype,
+            initialTemplateIndex: selectedTemplateIndex,
+            allowsTemplateSelection: false,
+            loadPreviewNote: {
+                let noteClient = self.noteClient
+                let notetypeId = self.notetypeId
+                let notetype = self.notetype
+                return try await Task.detached(priority: .userInitiated) {
+                    if let sampleNote = try noteClient.search("mid:\(notetypeId)", 1).first {
+                        return buildCardPreviewNote(from: sampleNote)
                     }
-                }
-                .pickerStyle(.segmented)
-                .controlSize(.small)
-                .padding()
-
-                CardWebView(
-                    html: renderedTemplateHTML(side: previewSide),
-                    autoplayEnabled: false,
-                    isAnswerSide: previewSide == .back,
-                    cardOrdinal: UInt32(selectedTemplateIndex),
-                    openLinksExternally: false,
-                    contentAlignment: .top
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 1, style: .continuous)
-                        .stroke(separatorBorderColor, lineWidth: 1)
-                }
+                    return makeEmptyCardPreviewNote(
+                        notetypeId: notetypeId,
+                        fieldCount: notetype.fields.count
+                    )
+                }.value
             }
-            .background(Color.amgiSurfaceElevated)
-            .navigationTitle(L("deck_template_preview_rendered"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(L("common_done")) { showPreviewSheet = false }
-                        .amgiToolbarTextButton()
-                }
-            }
-        }
+        )
     }
 
     private var currentFieldNames: [String] {
@@ -589,10 +617,19 @@ struct TemplateEditorView: View {
                 method: AnkiBackend.NotetypesMethod.getNotetype,
                 request: req
             )
+            originalNotetype = notetype
             normalizeTemplateIndex(preferred: initialTemplateIndex)
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func attemptDismiss() {
+        if hasUnsavedChanges {
+            showDiscardChangesConfirmation = true
+        } else {
+            dismiss()
         }
     }
 
@@ -630,59 +667,6 @@ struct TemplateEditorView: View {
             selectedTemplateIndex = 0
         }
     }
-
-    private func renderedTemplateHTML(side: TemplatePreviewSide) -> String {
-        guard notetype.templates.indices.contains(selectedTemplateIndex) else {
-            return "<p>\(L("deck_template_preview_no_template"))</p>"
-        }
-
-        let template = notetype.templates[selectedTemplateIndex]
-        let front = renderTemplate(template.config.qFormat)
-
-        let body: String
-        switch side {
-        case .front:
-            body = front
-        case .back:
-            let merged = template.config.aFormat.replacingOccurrences(of: "{{FrontSide}}", with: front)
-            body = renderTemplate(merged)
-        }
-
-        return "<style>\(notetype.config.css)</style>\(body)"
-    }
-
-    private func renderTemplate(_ source: String) -> String {
-        var rendered = source
-
-        for field in notetype.fields {
-            let name = field.name
-            let value = name
-            let escapedName = NSRegularExpression.escapedPattern(for: name)
-            if let regex = try? NSRegularExpression(pattern: "\\{\\{[^{}]*\(escapedName)[^{}]*\\}\\}") {
-                let range = NSRange(rendered.startIndex..., in: rendered)
-                rendered = regex.stringByReplacingMatches(in: rendered, range: range, withTemplate: value)
-            }
-        }
-
-        if let regex = try? NSRegularExpression(pattern: "\\{\\{[^{}]+\\}\\}") {
-            let range = NSRange(rendered.startIndex..., in: rendered)
-            rendered = regex.stringByReplacingMatches(in: rendered, range: range, withTemplate: "")
-        }
-
-        return rendered
-    }
-}
-
-private enum TemplatePreviewSide: CaseIterable {
-    case front
-    case back
-
-    var label: String {
-        switch self {
-        case .front: return L("deck_template_preview_front")
-        case .back: return L("deck_template_preview_back")
-        }
-    }
 }
 
 func sortDeckTemplateEntries(
@@ -698,4 +682,117 @@ func filterDeckTemplateEntries(
     let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return entries }
     return entries.filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
+}
+
+private enum TemplateValidationIssue {
+    case noFrontField(templateName: String)
+    case noSuchField(templateName: String, fieldName: String)
+    case missingCloze
+}
+
+private struct TemplateReference {
+    let fieldName: String
+    let filters: [String]
+}
+
+private let templateReferenceRegex = try! NSRegularExpression(pattern: #"\{\{([^{}]+)\}\}"#)
+private let specialTemplateFieldNames: Set<String> = [
+    "FrontSide",
+    "Card",
+    "CardFlag",
+    "Deck",
+    "Subdeck",
+    "Tags",
+    "Type",
+    "CardID",
+]
+
+private func templateValidationMessage(for notetype: Anki_Notetypes_Notetype) -> String? {
+    switch templateValidationIssue(for: notetype) {
+    case .noFrontField(let templateName):
+        return L("deck_template_validation_no_front_field", templateName)
+    case .noSuchField(let templateName, let fieldName):
+        return L("deck_template_validation_no_such_field", templateName, fieldName)
+    case .missingCloze:
+        return L("deck_template_validation_missing_cloze")
+    case .none:
+        return nil
+    }
+}
+
+private func templateValidationIssue(for notetype: Anki_Notetypes_Notetype) -> TemplateValidationIssue? {
+    let availableFieldNames = Set(notetype.fields.map(\.name))
+
+    for template in notetype.templates {
+        let frontReferences = extractTemplateReferences(from: template.config.qFormat)
+        let backReferences = extractTemplateReferences(from: template.config.aFormat)
+
+        if frontReferences.isEmpty {
+            return .noFrontField(templateName: template.name)
+        }
+
+        if let unknownField = (frontReferences + backReferences)
+            .map(\.fieldName)
+            .first(where: { fieldName in
+                !fieldName.isEmpty
+                    && !specialTemplateFieldNames.contains(fieldName)
+                    && !availableFieldNames.contains(fieldName)
+            }) {
+            return .noSuchField(templateName: template.name, fieldName: unknownField)
+        }
+    }
+
+    if notetype.config.kind == .cloze {
+        guard let firstTemplate = notetype.templates.first else {
+            return .missingCloze
+        }
+
+        let frontHasCloze = extractTemplateReferences(from: firstTemplate.config.qFormat)
+            .contains(where: containsClozeFilter)
+        let backHasCloze = extractTemplateReferences(from: firstTemplate.config.aFormat)
+            .contains(where: containsClozeFilter)
+
+        if !frontHasCloze || !backHasCloze {
+            return .missingCloze
+        }
+    }
+
+    return nil
+}
+
+private func extractTemplateReferences(from source: String) -> [TemplateReference] {
+    let range = NSRange(source.startIndex..., in: source)
+    return templateReferenceRegex.matches(in: source, range: range).compactMap { match in
+        guard match.numberOfRanges > 1,
+              let contentRange = Range(match.range(at: 1), in: source) else {
+            return nil
+        }
+
+        var content = source[contentRange].trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else {
+            return TemplateReference(fieldName: "", filters: [])
+        }
+
+        if let first = content.first, ["#", "^", "/"].contains(first) {
+            content.removeFirst()
+            content = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        let components = content
+            .split(separator: ":", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        guard let fieldName = components.last else {
+            return nil
+        }
+
+        return TemplateReference(
+            fieldName: fieldName,
+            filters: Array(components.dropLast())
+        )
+    }
+}
+
+private func containsClozeFilter(_ reference: TemplateReference) -> Bool {
+    reference.filters.contains { $0.caseInsensitiveCompare("cloze") == .orderedSame }
 }
