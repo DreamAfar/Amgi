@@ -122,18 +122,39 @@ struct FutureDueChart: View {
     private var xAxisDesiredTickCount: Int {
         switch period {
         case .month:
-            return includeBacklog ? 5 : 6
+            return includeBacklog ? 4 : 6
         case .threeMonths:
-            return includeBacklog ? 6 : 7
+            return includeBacklog ? 5 : 7
         case .year:
-            return includeBacklog ? 7 : 8
+            return includeBacklog ? 5 : 8
         case .all:
-            return includeBacklog ? 8 : 10
+            return includeBacklog ? 6 : 9
         case .day:
             return 2
         case .week:
             return 4
         }
+    }
+
+    private var xAxisTickValues: [Int] {
+        let lower = xAxisLowerBound
+        let upper = xAxisUpperBound
+        let step = niceTickStep(lowerBound: lower, upperBound: upper, targetCount: xAxisDesiredTickCount)
+
+        guard lower <= upper else { return [] }
+
+        let start = Int(ceil(Double(lower) / Double(step))) * step
+        var values = Array(stride(from: start, through: upper, by: step))
+
+        if values.isEmpty {
+            values = [lower, upper]
+        }
+
+        if upper == 0, !values.contains(0) {
+            values.append(0)
+        }
+
+        return Array(Set(values.filter { $0 >= lower && $0 <= upper })).sorted()
     }
 
     private var filteredData: [DisplayPoint] {
@@ -204,6 +225,30 @@ struct FutureDueChart: View {
         if displayedBucketCount <= 24 { return .automatic }
         let w: Double = max(1.5, min(6.0, 220.0 / Double(displayedBucketCount)))
         return .fixed(w)
+    }
+
+    private func niceTickStep(lowerBound: Int, upperBound: Int, targetCount: Int) -> Int {
+        let span = max(1, upperBound - lowerBound)
+        let rawStep = Double(span) / Double(max(targetCount, 1))
+        let magnitude = pow(10.0, floor(log10(rawStep)))
+        let normalized = rawStep / magnitude
+
+        let multiplier: Double
+        if normalized <= 1 {
+            multiplier = 1
+        } else if normalized <= 2 {
+            multiplier = 2
+        } else if normalized <= 5 {
+            multiplier = 5
+        } else {
+            multiplier = 10
+        }
+
+        return max(1, Int(multiplier * magnitude))
+    }
+
+    private func xAxisLabel(for day: Int) -> String {
+        day.formatted(.number.grouping(.never))
     }
 
     private var selectedPoint: CumulativePoint? {
@@ -325,13 +370,16 @@ struct FutureDueChart: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { value in
+                    AxisMarks(values: xAxisTickValues) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
                         if let day = value.as(Int.self) {
                             AxisValueLabel {
-                                Text("\(day)")
+                                Text(xAxisLabel(for: day))
                                     .amgiFont(.micro)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.7)
+                                    .allowsTightening(true)
                                     .foregroundStyle(Color.amgiTextSecondary)
                             }
                         }
