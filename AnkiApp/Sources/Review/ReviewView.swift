@@ -59,13 +59,13 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var prefShowRemainingDays = true
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var prefShowNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var prefOpenLinksExternally = true
-    @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.center.rawValue
+    @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var prefAutoMatchCardBackground = true
     @State private var actionBarHeight: CGFloat = 0
 
     private var prefCardContentAlignment: CardWebView.ContentAlignment {
-        CardWebView.ContentAlignment(rawValue: prefCardContentAlignmentRaw) ?? .center
+        CardWebView.ContentAlignment(rawValue: prefCardContentAlignmentRaw) ?? .top
     }
 
     private var cardChromeColor: Color {

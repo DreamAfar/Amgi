@@ -268,18 +268,17 @@ struct CardWebView: UIViewRepresentable {
                 font-family: -apple-system, system-ui;
                 font-size: 18px; line-height: 1.5;
                 color: var(--amgi-default-card-fg); background: var(--amgi-default-card-bg);
-                padding: 16px 16px var(--amgi-body-padding-bottom, 16px);
-                margin: 0; box-sizing: border-box; text-align: center;
+                padding: 0 0 var(--amgi-body-padding-bottom, 16px);
+                margin: 20px; box-sizing: border-box; text-align: center;
                 overflow-wrap: break-word;
                 background-size: cover;
                 background-repeat: no-repeat;
                 background-position: top;
                 background-attachment: fixed;
-                display: flex; align-items: var(--amgi-body-align-items, center);
-                justify-content: center; min-height: 80vh;
             }
+            body.amgi-centered { display: flex; align-items: center; justify-content: center; min-height: 80vh; }
             .card-frame {
-                max-width: 600px; width: 100%; box-sizing: border-box;
+                width: 100%; box-sizing: border-box;
                 padding-bottom: var(--amgi-card-padding-bottom, 0px);
             }
             hr { border: none; border-top: 1px solid \(hrColor); margin: 16px 0; }
@@ -382,7 +381,7 @@ struct CardWebView: UIViewRepresentable {
             var qa = document.getElementById('qa');
             document.body.className = s.bodyClass || document.body.className;
             document.body.style.setProperty('--amgi-body-padding-bottom', (s.bodyPaddingBottom || 16) + 'px');
-            document.body.style.setProperty('--amgi-body-align-items', s.alignTop ? 'flex-start' : 'center');
+            document.body.classList.toggle('amgi-centered', !s.alignTop);
             if (qa) qa.style.setProperty('--amgi-card-padding-bottom', (s.cardPaddingBottom || 0) + 'px');
         }
 

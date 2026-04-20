@@ -442,13 +442,13 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var showRemainingDays = true
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var showNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var openLinksExternally = true
-    @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var cardContentAlignmentRaw = CardAlignment.center.rawValue
+    @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var cardContentAlignmentRaw = CardAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var glassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var autoMatchCardBackground = true
 
     private var cardAlignment: Binding<CardAlignment> {
         Binding(
-            get: { CardAlignment(rawValue: cardContentAlignmentRaw) ?? .center },
+            get: { CardAlignment(rawValue: cardContentAlignmentRaw) ?? .top },
             set: { cardContentAlignmentRaw = $0.rawValue }
         )
     }
