@@ -284,6 +284,20 @@ struct TemplateEditorView: View {
     @State private var showPreviewSheet = false
     @State private var editorSearchText = ""
 
+    init(
+        notetypeId: Int64,
+        previewNoteId: Int64? = nil,
+        initialTemplateIndex: Int,
+        mode: TemplateEditorMode,
+        onSaved: (@Sendable () async -> Void)? = nil
+    ) {
+        self.notetypeId = notetypeId
+        self.previewNoteId = previewNoteId
+        self.initialTemplateIndex = initialTemplateIndex
+        self.mode = mode
+        self.onSaved = onSaved
+    }
+
     private var hasUnsavedChanges: Bool {
         guard let originalNotetype else { return false }
         return originalNotetype != notetype
