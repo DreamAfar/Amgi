@@ -266,12 +266,12 @@ struct BrowseView: View {
                 scheduleSearch()
             }
         }
-        .sheet(isPresented: $showAddImageOcclusion) {
+        .fullScreenCover(isPresented: $showAddImageOcclusion) {
             AddImageOcclusionNoteView {
                 scheduleSearch()
             }
         }
-        .sheet(item: $editIOItem) { item in
+        .fullScreenCover(item: $editIOItem) { item in
             EditImageOcclusionNoteView(noteId: item.noteId) {
                 scheduleSearch()
             }
@@ -1703,11 +1703,7 @@ struct ChangeNotetypeSheet: View {
     private func loadNotetypes() async {
         isLoading = true
         do {
-            let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetypeNames
-            )
-            notetypeNames = response.entries.map { (id: $0.id, name: $0.name) }
+            notetypeNames = try loadStandardNotetypeEntries(backend: backend)
         } catch {
             notetypeNames = []
         }

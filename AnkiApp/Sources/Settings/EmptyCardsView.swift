@@ -70,12 +70,49 @@ struct EmptyCardsView: View {
                 Text(errorMessage ?? "")
             }
             .task { await loadEmptyCards() }
-            .sheet(item: $editingNote) { note in
+            .sheet(item: regularEditingNoteBinding) { note in
+                NoteEditingDestinationView(note: note, embedInNavigationStack: true) {
+                    Task { await loadEmptyCards() }
+                }
+            }
+            .fullScreenCover(item: imageOcclusionEditingNoteBinding) { note in
                 NoteEditingDestinationView(note: note, embedInNavigationStack: true) {
                     Task { await loadEmptyCards() }
                 }
             }
         }
+    }
+
+    private var imageOcclusionEditingNoteBinding: Binding<NoteRecord?> {
+        Binding(
+            get: {
+                guard let editingNote, editingNote.isImageOcclusionNote else { return nil }
+                return editingNote
+            },
+            set: { newValue in
+                if let newValue {
+                    editingNote = newValue
+                } else if editingNote?.isImageOcclusionNote == true {
+                    editingNote = nil
+                }
+            }
+        )
+    }
+
+    private var regularEditingNoteBinding: Binding<NoteRecord?> {
+        Binding(
+            get: {
+                guard let editingNote, !editingNote.isImageOcclusionNote else { return nil }
+                return editingNote
+            },
+            set: { newValue in
+                if let newValue {
+                    editingNote = newValue
+                } else if editingNote?.isImageOcclusionNote != true {
+                    editingNote = nil
+                }
+            }
+        )
     }
 
     private var resultsList: some View {

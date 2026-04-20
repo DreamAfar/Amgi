@@ -107,7 +107,7 @@ struct DeckDetailView: View {
                 preselectedDeckId: deck.id
             )
         }
-        .sheet(isPresented: $showAddImageOcclusion) {
+        .fullScreenCover(isPresented: $showAddImageOcclusion) {
             AddImageOcclusionNoteView {
                 Task { await loadCounts() }
             }

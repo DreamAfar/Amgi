@@ -142,17 +142,11 @@ struct AddImageOcclusionNoteView: View {
                         matching: .images,
                         photoLibrary: .shared()
                     ) {
-                        if let img = selectedImage {
-                            Image(uiImage: img)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .frame(maxHeight: 200)
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            Label(L("io_pick_image"), systemImage: "photo.on.rectangle.angled")
-                                .frame(maxWidth: .infinity)
-                        }
+                        Label(
+                            L("io_pick_image"),
+                            systemImage: selectedImage == nil ? "photo.on.rectangle.angled" : "photo.badge.plus"
+                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .onChange(of: selectedItem) {
                         Task { await loadImage(from: selectedItem) }
@@ -177,39 +171,45 @@ struct AddImageOcclusionNoteView: View {
                     }
 
                     Section {
-                        OcclusionCanvasView(
-                            image: uiImage,
-                            masks: $masks,
-                            selectedMaskIndex: $selectedMaskIndex,
-                            shapeType: shapeType,
-                            onRequestText: beginTextInsertion(at:),
-                            onAppend: appendMask(_:)
-                        )
+                        VStack(alignment: .leading, spacing: 12) {
+                            OcclusionCanvasView(
+                                image: uiImage,
+                                masks: $masks,
+                                selectedMaskIndex: $selectedMaskIndex,
+                                shapeType: shapeType,
+                                onRequestText: beginTextInsertion(at:),
+                                onAppend: appendMask(_:)
+                            )
                             .frame(height: canvasHeight(for: uiImage))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
 
-                        if !masks.isEmpty {
-                            HStack {
-                                Text(L("io_mask_count", masks.count))
-                                    .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                                if let selectedMaskIndex,
-                                   masks.indices.contains(selectedMaskIndex) {
-                                    Text("#\(selectedMaskIndex + 1)")
+                            if !masks.isEmpty {
+                                HStack {
+                                    Text(L("io_mask_count", masks.count))
                                         .amgiFont(.caption)
-                                        .foregroundStyle(Color.amgiAccent)
+                                        .foregroundStyle(Color.amgiTextSecondary)
+                                    if let selectedMaskIndex,
+                                       masks.indices.contains(selectedMaskIndex) {
+                                        Text("#\(selectedMaskIndex + 1)")
+                                            .amgiFont(.caption)
+                                            .foregroundStyle(Color.amgiAccent)
+                                    }
+                                    Spacer()
+                                    Button(role: .destructive) {
+                                        removeSelectedMask()
+                                    } label: {
+                                        Label(L("common_delete"), systemImage: "trash")
+                                            .font(AmgiFont.caption.font)
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .disabled(selectedMaskIndex == nil)
                                 }
-                                Spacer()
-                                Button(role: .destructive) {
-                                    removeSelectedMask()
-                                } label: {
-                                    Label(L("common_delete"), systemImage: "trash")
-                                        .font(AmgiFont.caption.font)
-                                }
-                                .buttonStyle(.borderless)
-                                .disabled(selectedMaskIndex == nil)
                             }
                         }
+                        .padding(12)
+                        .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
                     } header: {
                         Text(L("io_section_masks"))
                     }
@@ -358,9 +358,13 @@ struct AddImageOcclusionNoteView: View {
     }
 
     private func canvasHeight(for image: UIImage) -> CGFloat {
-        let screenWidth = UIScreen.main.bounds.width - 64  // approx form width
+        let screenBounds = UIScreen.main.bounds
+        let screenWidth = screenBounds.width - 32
         let ratio = image.size.height / image.size.width
-        return min(screenWidth * ratio, 280)
+        let idealHeight = screenWidth * ratio
+        let maxHeight = min(screenBounds.height * 0.62, 620)
+        let minHeight = min(max(screenBounds.height * 0.32, 300), maxHeight)
+        return min(max(idealHeight, minHeight), maxHeight)
     }
 
     @MainActor

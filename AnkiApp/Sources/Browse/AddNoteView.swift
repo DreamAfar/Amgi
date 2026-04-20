@@ -158,14 +158,14 @@ struct AddNoteView: View {
         }
 
         do {
-            let resp: Anki_Notetypes_NotetypeNames = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetypeNames
-            )
-            notetypeNames = resp.entries.map { ($0.id, $0.name) }
+            notetypeNames = try loadStandardNotetypeEntries(backend: backend)
             if let first = notetypeNames.first {
                 selectedNotetypeId = first.0
                 loadFields()
+            } else {
+                selectedNotetypeId = 0
+                fieldNames = []
+                fieldValues = []
             }
         } catch {
             print("[AddNote] Error loading notetypes: \(error)")
@@ -175,13 +175,7 @@ struct AddNoteView: View {
     private func loadFields() {
         guard selectedNotetypeId != 0 else { return }
         do {
-            var req = Anki_Notetypes_NotetypeId()
-            req.ntid = selectedNotetypeId
-            let notetype: Anki_Notetypes_Notetype = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetype,
-                request: req
-            )
+            let notetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
             fieldNames = notetype.fields.map(\.name)
             fieldValues = Array(repeating: "", count: fieldNames.count)
         } catch {
