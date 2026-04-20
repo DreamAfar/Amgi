@@ -110,118 +110,7 @@ struct ReviewView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    DeckCountsView(counts: session.remainingCounts)
-                    Spacer()
-                    currentCardFlagView
-                    Text(L("review_reviewed_count", session.sessionStats.reviewed))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(cardChromeColor)
-
-                if session.isFinished {
-                    finishedView
-                } else {
-                    cardView
-                }
-            }
-            .background(cardChromeColor)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(L("common_done")) { onDismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await performUndo() }
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
-                    }
-                    .accessibilityLabel(L("card_action_undo"))
-                    .disabled(session.currentCard == nil || !session.canUndo || isUndoing)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await openEditorForCurrentCard() }
-                    } label: {
-                        Image(systemName: "pencil")
-                    }
-                    .accessibilityLabel(L("review_edit_button"))
-                    .disabled(session.currentCard == nil)
-                }
-                if prefShowAudioReplayButton {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            replayRequestID += 1
-                        } label: {
-                            Image(systemName: "speaker.wave.2")
-                        }
-                        .disabled(session.currentCard == nil)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await openCurrentCardTemplateEditor() }
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                    }
-                    .accessibilityLabel(L("card_template_editor_title"))
-                    .disabled(session.currentCard == nil)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            showDeckStats = true
-                        } label: {
-                            Label(L("stats_nav_title"), systemImage: "chart.bar.doc.horizontal")
-                        }
-                        .disabled(session.currentCard == nil)
-
-                        Button {
-                            Task { await openMoveCurrentCardToDeck() }
-                        } label: {
-                            Label(L("browse_batch_move_deck"), systemImage: "rectangle.stack.badge.plus")
-                        }
-                        .disabled(session.currentCard == nil)
-
-                        Button {
-                            openChangeCurrentCardNotetype()
-                        } label: {
-                            Label(L("browse_batch_change_notetype"), systemImage: "doc.badge.gearshape")
-                        }
-                        .disabled(session.currentCard == nil)
-
-                        Divider()
-
-                        Button(role: .destructive) {
-                            showDeleteNoteConfirm = true
-                        } label: {
-                            Label(L("browse_batch_delete_notes"), systemImage: "trash")
-                        }
-                        .disabled(session.currentCard == nil)
-
-                        Button {
-                            showCardInfo = true
-                        } label: {
-                            Label(L("card_info_title"), systemImage: "info.circle")
-                        }
-                        .disabled(session.currentCard == nil)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                    .accessibilityLabel(L("review_more_actions"))
-                }
-            }
-            .toolbarBackground(cardChromeColor, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(resolvedCardChromeIsDark ? .dark : .light, for: .navigationBar)
-        }
+        reviewNavigationContent
         .background(cardChromeColor.ignoresSafeArea())
         .task {
             cardChromeIsDark = (colorScheme == .dark)
@@ -341,6 +230,124 @@ struct ReviewView: View {
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .transition(.opacity)
             }
+        }
+    }
+
+    private var reviewNavigationContent: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    DeckCountsView(counts: session.remainingCounts)
+                    Spacer()
+                    currentCardFlagView
+                    Text(L("review_reviewed_count", session.sessionStats.reviewed))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(cardChromeColor)
+
+                if session.isFinished {
+                    finishedView
+                } else {
+                    cardView
+                }
+            }
+            .background(cardChromeColor)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { reviewToolbarContent }
+            .toolbarBackground(cardChromeColor, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(resolvedCardChromeIsDark ? .dark : .light, for: .navigationBar)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var reviewToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button(L("common_done")) { onDismiss() }
+                .amgiToolbarTextButton(tone: .neutral)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                Task { await performUndo() }
+            } label: {
+                Image(systemName: "arrow.uturn.backward")
+            }
+            .accessibilityLabel(L("card_action_undo"))
+            .disabled(session.currentCard == nil || !session.canUndo || isUndoing)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                Task { await openEditorForCurrentCard() }
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .accessibilityLabel(L("review_edit_button"))
+            .disabled(session.currentCard == nil)
+        }
+        if prefShowAudioReplayButton {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    replayRequestID += 1
+                } label: {
+                    Image(systemName: "speaker.wave.2")
+                }
+                .disabled(session.currentCard == nil)
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                Task { await openCurrentCardTemplateEditor() }
+            } label: {
+                Image(systemName: "square.and.pencil")
+            }
+            .accessibilityLabel(L("card_template_editor_title"))
+            .disabled(session.currentCard == nil)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button {
+                    showDeckStats = true
+                } label: {
+                    Label(L("stats_nav_title"), systemImage: "chart.bar.doc.horizontal")
+                }
+                .disabled(session.currentCard == nil)
+
+                Button {
+                    Task { await openMoveCurrentCardToDeck() }
+                } label: {
+                    Label(L("browse_batch_move_deck"), systemImage: "rectangle.stack.badge.plus")
+                }
+                .disabled(session.currentCard == nil)
+
+                Button {
+                    openChangeCurrentCardNotetype()
+                } label: {
+                    Label(L("browse_batch_change_notetype"), systemImage: "doc.badge.gearshape")
+                }
+                .disabled(session.currentCard == nil)
+
+                Divider()
+
+                Button(role: .destructive) {
+                    showDeleteNoteConfirm = true
+                } label: {
+                    Label(L("browse_batch_delete_notes"), systemImage: "trash")
+                }
+                .disabled(session.currentCard == nil)
+
+                Button {
+                    showCardInfo = true
+                } label: {
+                    Label(L("card_info_title"), systemImage: "info.circle")
+                }
+                .disabled(session.currentCard == nil)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .accessibilityLabel(L("review_more_actions"))
         }
     }
 
