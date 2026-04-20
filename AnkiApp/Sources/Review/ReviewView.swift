@@ -771,9 +771,9 @@ struct ReviewView: View {
     private func flagLabel(_ flags: UInt32) -> String {
         let userFlag = flags & 0b111
         if userFlag == 0 {
-            return L("flag_none")
+            return L("review_flag_none")
         }
-        let names: [String] = ["", L("flag_red"), L("flag_orange"), L("flag_green"), L("flag_blue"), L("flag_pink"), L("flag_cyan"), L("flag_purple")]
+        let names: [String] = ["", L("review_flag_red"), L("review_flag_orange"), L("review_flag_green"), L("review_flag_blue"), L("review_flag_pink"), L("review_flag_cyan"), L("review_flag_purple")]
         let index = Int(userFlag)
         return (index >= 0 && index < names.count && !names[index].isEmpty) ? names[index] : L("flag_other", userFlag)
     }
@@ -793,13 +793,25 @@ struct ReviewView: View {
 
     private func reviewFlagButton(_ value: UInt32, cardId: Int64) -> some View {
         let color = reviewFlagColor(for: value)
-        let icon = value == 0 ? "flag.slash.fill" : "flag.fill"
         return Button {
             Task { await setCurrentCardFlag(cardId: cardId, value: value) }
         } label: {
-            Label(flagLabel(value), systemImage: icon)
+            Label {
+                Text(flagLabel(value))
+                    .foregroundStyle(color)
+            } icon: {
+                reviewFlagMenuIcon(for: value)
+            }
         }
-        .tint(color)
+    }
+
+    private func reviewFlagMenuIcon(for value: UInt32) -> Image {
+        let symbolName = value == 0 ? "flag.slash.fill" : "flag.fill"
+        let tint = UIColor(reviewFlagColor(for: value))
+        if let image = UIImage(systemName: symbolName)?.withTintColor(tint, renderingMode: .alwaysOriginal) {
+            return Image(uiImage: image)
+        }
+        return Image(systemName: symbolName)
     }
 
     @MainActor

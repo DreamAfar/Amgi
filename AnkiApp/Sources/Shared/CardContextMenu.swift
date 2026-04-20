@@ -3,6 +3,7 @@ import AnkiClients
 import AnkiBackend
 import AnkiProto
 import Dependencies
+import UIKit
 
 /// Context menu for card operations (suspend, bury, flag, undo)
 @MainActor
@@ -91,14 +92,14 @@ struct CardContextMenu: View {
             
             Menu {
                 // Listed in reverse so iOS bottom-anchored menus display 1→7 top–to–bottom
-                flagButton(0, colorName: L("flag_none"))
-                flagButton(7, colorName: L("flag_purple"))
-                flagButton(6, colorName: L("flag_cyan"))
-                flagButton(5, colorName: L("flag_pink"))
-                flagButton(4, colorName: L("flag_blue"))
-                flagButton(3, colorName: L("flag_green"))
-                flagButton(2, colorName: L("flag_orange"))
-                flagButton(1, colorName: L("flag_red"))
+                flagButton(0)
+                flagButton(7)
+                flagButton(6)
+                flagButton(5)
+                flagButton(4)
+                flagButton(3)
+                flagButton(2)
+                flagButton(1)
             } label: {
                 Label {
                     Text(L("card_action_flag"))
@@ -270,16 +271,38 @@ struct CardContextMenu: View {
         }
     }
 
-    private func flagButton(_ value: UInt32, colorName: String) -> some View {
+    private func flagButton(_ value: UInt32) -> some View {
         let tint = flagColor(for: value)
         return Button(action: { performFlag(value) }) {
-            HStack(spacing: 8) {
-                Image(systemName: value == 0 ? "flag.slash.fill" : "flag.fill")
+            Label {
+                Text(flagDisplayName(for: value))
                     .foregroundStyle(tint)
-                Text(colorName)
-                    .foregroundStyle(tint)
+            } icon: {
+                flagMenuIcon(for: value)
             }
         }
+    }
+
+    private func flagDisplayName(for value: UInt32) -> String {
+        switch value & 0b111 {
+        case 1: return L("review_flag_red")
+        case 2: return L("review_flag_orange")
+        case 3: return L("review_flag_green")
+        case 4: return L("review_flag_blue")
+        case 5: return L("review_flag_pink")
+        case 6: return L("review_flag_cyan")
+        case 7: return L("review_flag_purple")
+        default: return L("review_flag_none")
+        }
+    }
+
+    private func flagMenuIcon(for value: UInt32) -> Image {
+        let symbolName = value == 0 ? "flag.slash.fill" : "flag.fill"
+        let tint = UIColor(flagColor(for: value))
+        if let image = UIImage(systemName: symbolName)?.withTintColor(tint, renderingMode: .alwaysOriginal) {
+            return Image(uiImage: image)
+        }
+        return Image(systemName: symbolName)
     }
 
     private func loadMarkedState() async {
