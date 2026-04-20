@@ -64,25 +64,41 @@ final class ReviewSession {
         self.deckId = deckId
     }
 
+    private func setCurrentDeckForReview() throws {
+        var deckReq = Anki_Decks_DeckId()
+        deckReq.did = deckId
+        try backend.callVoid(
+            service: AnkiBackend.Service.decks,
+            method: AnkiBackend.DecksMethod.setCurrentDeck,
+            request: deckReq
+        )
+    }
+
+    private func fetchQueuedCardsForCurrentDeck() throws -> Anki_Scheduler_QueuedCards {
+        try setCurrentDeckForReview()
+
+        var req = Anki_Scheduler_GetQueuedCardsRequest()
+        req.fetchLimit = 200
+        return try backend.invoke(
+            service: AnkiBackend.Service.scheduler,
+            method: AnkiBackend.SchedulerMethod.getQueuedCards,
+            request: req
+        )
+    }
+
+    private func applyQueuedCards(_ response: Anki_Scheduler_QueuedCards) {
+        cardQueue = response.cards
+        remainingCounts = DeckCounts(
+            newCount: Int(response.newCount),
+            learnCount: Int(response.learningCount),
+            reviewCount: Int(response.reviewCount)
+        )
+        refreshUndoAvailability()
+    }
+
     func start() {
         do {
-            // Set current deck
-            var deckReq = Anki_Decks_DeckId()
-            deckReq.did = deckId
-            try backend.callVoid(
-                service: AnkiBackend.Service.decks,
-                method: AnkiBackend.DecksMethod.setCurrentDeck,
-                request: deckReq
-            )
-
-            // Get queued cards (preserving scheduling states)
-            var req = Anki_Scheduler_GetQueuedCardsRequest()
-            req.fetchLimit = 200
-            let response: Anki_Scheduler_QueuedCards = try backend.invoke(
-                service: AnkiBackend.Service.scheduler,
-                method: AnkiBackend.SchedulerMethod.getQueuedCards,
-                request: req
-            )
+            let response = try fetchQueuedCardsForCurrentDeck()
 
             if let deckConfig = try? deckClient.getDeckConfig(deckId) {
                 let cfg = deckConfig.config
@@ -103,13 +119,7 @@ final class ReviewSession {
                 includeQuestionAudioOnAnswerReplay = true
             }
 
-            cardQueue = response.cards
-            remainingCounts = DeckCounts(
-                newCount: Int(response.newCount),
-                learnCount: Int(response.learningCount),
-                reviewCount: Int(response.reviewCount)
-            )
-            refreshUndoAvailability()
+            applyQueuedCards(response)
 
             print("[ReviewSession] Started with \(cardQueue.count) cards, counts: new=\(remainingCounts.newCount) learn=\(remainingCounts.learnCount) review=\(remainingCounts.reviewCount)")
             advanceToNextCard()
@@ -124,21 +134,8 @@ final class ReviewSession {
     /// and advance to the next card
     func refreshAndAdvance() {
         do {
-            // Re-fetch queue (scheduler state changed after action)
-            var req = Anki_Scheduler_GetQueuedCardsRequest()
-            req.fetchLimit = 200
-            let response: Anki_Scheduler_QueuedCards = try backend.invoke(
-                service: AnkiBackend.Service.scheduler,
-                method: AnkiBackend.SchedulerMethod.getQueuedCards,
-                request: req
-            )
-            cardQueue = response.cards
-            remainingCounts = DeckCounts(
-                newCount: Int(response.newCount),
-                learnCount: Int(response.learningCount),
-                reviewCount: Int(response.reviewCount)
-            )
-            refreshUndoAvailability()
+            let response = try fetchQueuedCardsForCurrentDeck()
+            applyQueuedCards(response)
             
             print("[ReviewSession] Queue refreshed after action: \(cardQueue.count) cards remaining")
             advanceToNextCard()
@@ -155,21 +152,8 @@ final class ReviewSession {
         let wasShowingAnswer = showAnswer
 
         do {
-            var req = Anki_Scheduler_GetQueuedCardsRequest()
-            req.fetchLimit = 200
-            let response: Anki_Scheduler_QueuedCards = try backend.invoke(
-                service: AnkiBackend.Service.scheduler,
-                method: AnkiBackend.SchedulerMethod.getQueuedCards,
-                request: req
-            )
-
-            cardQueue = response.cards
-            remainingCounts = DeckCounts(
-                newCount: Int(response.newCount),
-                learnCount: Int(response.learningCount),
-                reviewCount: Int(response.reviewCount)
-            )
-            refreshUndoAvailability()
+            let response = try fetchQueuedCardsForCurrentDeck()
+            applyQueuedCards(response)
 
             if let currentId,
                let retained = cardQueue.first(where: { $0.card.id == currentId }) {
@@ -181,6 +165,16 @@ final class ReviewSession {
             }
         } catch {
             print("[ReviewSession] Mutation refresh failed: \(error)")
+        }
+    }
+
+    func refreshAfterUndo() async {
+        do {
+            let response = try fetchQueuedCardsForCurrentDeck()
+            applyQueuedCards(response)
+            advanceToNextCard()
+        } catch {
+            print("[ReviewSession] Undo refresh failed: \(error)")
         }
     }
 
@@ -271,21 +265,8 @@ final class ReviewSession {
             if rating != .again { sessionStats.correct += 1 }
             sessionStats.totalTimeMs += Int(timeSpent)
 
-            // Re-fetch queue (scheduler state changed)
-            var req = Anki_Scheduler_GetQueuedCardsRequest()
-            req.fetchLimit = 200
-            let response: Anki_Scheduler_QueuedCards = try backend.invoke(
-                service: AnkiBackend.Service.scheduler,
-                method: AnkiBackend.SchedulerMethod.getQueuedCards,
-                request: req
-            )
-            cardQueue = response.cards
-            remainingCounts = DeckCounts(
-                newCount: Int(response.newCount),
-                learnCount: Int(response.learningCount),
-                reviewCount: Int(response.reviewCount)
-            )
-            refreshUndoAvailability()
+            let response = try fetchQueuedCardsForCurrentDeck()
+            applyQueuedCards(response)
 
             advanceToNextCard()
         } catch {

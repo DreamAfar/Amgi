@@ -610,7 +610,7 @@ struct ReviewView: View {
         defer { isUndoing = false }
         do {
             try cardClient.undo()
-            await session.refreshAfterCardMutation()
+            await session.refreshAfterUndo()
         } catch {
             undoErrorMessage = L("card_action_error_undo", error.localizedDescription)
             showUndoError = true
