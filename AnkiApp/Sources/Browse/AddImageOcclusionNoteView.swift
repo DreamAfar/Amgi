@@ -1266,30 +1266,44 @@ final class OcclusionCanvasUIView: UIView {
     }
 
     private func updatedBoxMask(_ mask: IOMask, origin: CGPoint, size: CGSize, angle: CGFloat, imgRect: CGRect) -> IOMask? {
-        let normalizedAngleExtras: ([String: String]) -> [String: String] = { extras in
-            // The review-side renderer consumes `angle` from the generic extras map, so editor writes must keep using it.
-            extrasSettingAngle(extras, radians: angle)
-        }
-
         switch mask {
         case .rect(_, _, _, _, let extras):
             let normalizedWidth = max(minimumNormalizedDimension, min(1, size.width / imgRect.width))
             let normalizedHeight = max(minimumNormalizedDimension, min(1, size.height / imgRect.height))
             let left = max(0, min(1 - normalizedWidth, (origin.x - imgRect.minX) / imgRect.width))
             let top = max(0, min(1 - normalizedHeight, (origin.y - imgRect.minY) / imgRect.height))
-            return .rect(left: left, top: top, width: normalizedWidth, height: normalizedHeight, extras: normalizedAngleExtras(extras))
+            return .rect(
+                left: left,
+                top: top,
+                width: normalizedWidth,
+                height: normalizedHeight,
+                extras: extrasSettingAngle(extras, radians: angle)
+            )
         case .ellipse(_, _, _, _, let extras):
             let normalizedWidth = max(minimumNormalizedDimension, min(1, size.width / imgRect.width))
             let normalizedHeight = max(minimumNormalizedDimension, min(1, size.height / imgRect.height))
             let left = max(0, min(1 - normalizedWidth, (origin.x - imgRect.minX) / imgRect.width))
             let top = max(0, min(1 - normalizedHeight, (origin.y - imgRect.minY) / imgRect.height))
-            return .ellipse(left: left, top: top, rx: normalizedWidth / 2, ry: normalizedHeight / 2, extras: normalizedAngleExtras(extras))
+            return .ellipse(
+                left: left,
+                top: top,
+                rx: normalizedWidth / 2,
+                ry: normalizedHeight / 2,
+                extras: extrasSettingAngle(extras, radians: angle)
+            )
         case .text(_, _, let text, let scale, let fontSize, let extras):
             let normalizedWidth = min(1, size.width / imgRect.width)
             let normalizedHeight = min(1, size.height / imgRect.height)
             let left = max(0, min(1 - normalizedWidth, (origin.x - imgRect.minX) / imgRect.width))
             let top = max(0, min(1 - normalizedHeight, (origin.y - imgRect.minY) / imgRect.height))
-            return .text(left: left, top: top, text: text, scale: scale, fontSize: fontSize, extras: normalizedAngleExtras(extras))
+            return .text(
+                left: left,
+                top: top,
+                text: text,
+                scale: scale,
+                fontSize: fontSize,
+                extras: extrasSettingAngle(extras, radians: angle)
+            )
         case .polygon:
             return nil
         }
