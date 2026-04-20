@@ -14,6 +14,7 @@ struct DeckDetailView: View {
     @State private var showConfig = false
     @State private var showTemplateManager = false
     @State private var showAddNote = false
+    @State private var showAddImageOcclusion = false
     @State private var selectedChildDeck: DeckTreeNode?
     @State private var renameText = ""
     @State private var showRenamePrompt = false
@@ -57,8 +58,18 @@ struct DeckDetailView: View {
                 }
                 .accessibilityLabel(L("deck_detail_stats"))
 
-                Button {
-                    showAddNote = true
+                Menu {
+                    Button {
+                        showAddNote = true
+                    } label: {
+                        Label(L("browse_add_note"), systemImage: "note.text.badge.plus")
+                    }
+
+                    Button {
+                        showAddImageOcclusion = true
+                    } label: {
+                        Label(L("browse_add_image_occlusion"), systemImage: "rectangle.dashed.badge.record")
+                    }
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -95,6 +106,11 @@ struct DeckDetailView: View {
                 },
                 preselectedDeckId: deck.id
             )
+        }
+        .sheet(isPresented: $showAddImageOcclusion) {
+            AddImageOcclusionNoteView {
+                Task { await loadCounts() }
+            }
         }
         .sheet(isPresented: $showConfig) {
             DeckConfigView(deckId: deck.id) {

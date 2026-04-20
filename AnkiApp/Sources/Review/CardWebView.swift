@@ -484,9 +484,9 @@ struct CardWebView: UIViewRepresentable {
 
         function amgiResolveCardBackground() {
             var candidates = [
+                document.body,
                 document.querySelector('.card'),
                 document.getElementById('qa'),
-                document.body,
                 document.documentElement,
             ];
             for (var i = 0; i < candidates.length; i++) {
