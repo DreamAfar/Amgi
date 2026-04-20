@@ -538,6 +538,20 @@ final class OcclusionCanvasUIView: UIView {
             let abs = { (p: CGPoint) -> CGPoint in
                 CGPoint(x: imgRect.minX + p.x * imgRect.width,
                         y: imgRect.minY + p.y * imgRect.height)
+            }
+            ctx.move(to: abs(first))
+            for pt in pts.dropFirst() { ctx.addLine(to: abs(pt)) }
+            ctx.closePath()
+            ctx.drawPath(using: .fillStroke)
+        case .text(let left, let top, let text, let scale, let fontSize, _):
+            let frame = textFrame(
+                for: text,
+                left: left,
+                top: top,
+                scale: scale,
+                fontSize: fontSize,
+                imgRect: imgRect
+            )
             let angle = angleRadians(for: mask)
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: textFont(scale: scale, fontSize: fontSize, imgRect: imgRect),
@@ -559,9 +573,9 @@ final class OcclusionCanvasUIView: UIView {
             UIGraphicsPopContext()
             ctx.restoreGState()
         }
+    }
 
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: textFont(scale: scale, fontSize: fontSize, imgRect: imgRect),
+    private func drawOrdinal(ctx: CGContext, index: Int, mask: IOMask, imgRect: CGRect) {
         let center = maskCenter(for: mask, imgRect: imgRect)
         let label = "\(index + 1)" as NSString
         let attrs: [NSAttributedString.Key: Any] = [
@@ -573,23 +587,9 @@ final class OcclusionCanvasUIView: UIView {
             at: CGPoint(x: center.x - size.width / 2, y: center.y - size.height / 2),
             withAttributes: attrs
         )
-        switch mask {
+    }
 
     // MARK: - Gestures
-
-        case .rect(let l, let t, let w, let h, _):
-                ctx.saveGState()
-                ctx.translateBy(x: frame.origin.x, y: frame.origin.y)
-                if angle != 0 { ctx.rotate(by: angle) }
-                UIGraphicsPushContext(ctx)
-                (text as NSString).draw(at: CGPoint(x: 10, y: 6), withAttributes: attrs)
-                UIGraphicsPopContext()
-                ctx.restoreGState()
-                             y: imgRect.minY + (t + ry) * imgRect.height)
-        case .polygon(let pts, _):
-            let cx = pts.map { $0.x }.reduce(0, +) / CGFloat(pts.count)
-            let cy = pts.map { $0.y }.reduce(0, +) / CGFloat(pts.count)
-            let center = maskCenter(for: mask, imgRect: imgRect)
     @objc private func handlePan(_ g: UIPanGestureRecognizer) {
         let loc = g.location(in: self)
         let imgRect = imageRect(in: bounds)
