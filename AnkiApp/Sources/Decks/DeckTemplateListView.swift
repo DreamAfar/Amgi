@@ -264,7 +264,7 @@ struct TemplateEditorView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let notetypeId: Int64
-    let previewNoteId: Int64? = nil
+    let previewNoteId: Int64?
     let initialTemplateIndex: Int
     let mode: TemplateEditorMode
     var onSaved: (@Sendable () async -> Void)? = nil
