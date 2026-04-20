@@ -160,6 +160,7 @@ struct EditImageOcclusionNoteView: View {
         } message: {
             Text(L("io_hint_text"))
         }
+        .toolbar(.hidden, for: .tabBar)
         .navigationTitle(L("io_edit_nav_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

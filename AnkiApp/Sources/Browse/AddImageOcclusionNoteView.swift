@@ -241,6 +241,7 @@ struct AddImageOcclusionNoteView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.amgiBackground)
+            .toolbar(.hidden, for: .tabBar)
             .navigationTitle(L("io_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
