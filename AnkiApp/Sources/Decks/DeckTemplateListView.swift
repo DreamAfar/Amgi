@@ -288,13 +288,13 @@ struct TemplateEditorView: View {
         return originalNotetype != notetype
     }
 
-    private var templateValidationMessage: String? {
+    private var currentTemplateValidationMessage: String? {
         templateValidationMessage(for: notetype)
     }
 
     private var canSaveTemplate: Bool {
         notetype.templates.indices.contains(selectedTemplateIndex)
-            && templateValidationMessage == nil
+            && currentTemplateValidationMessage == nil
             && !isSaving
     }
 
@@ -461,10 +461,10 @@ struct TemplateEditorView: View {
                         .stroke(separatorBorderColor, lineWidth: 1)
                 }
 
-                if let templateValidationMessage {
+                if let currentTemplateValidationMessage {
                     AmgiStatusMessageView(
                         title: L("deck_template_validation_title"),
-                        message: templateValidationMessage,
+                        message: currentTemplateValidationMessage,
                         systemImage: "exclamationmark.triangle",
                         tone: .warning
                     )
