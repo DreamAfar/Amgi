@@ -338,14 +338,6 @@ struct CardWebView: UIViewRepresentable {
                 padding: 6px 10px; margin: 4px; font-size: 13px;
                 color: \(missingMediaColor);
             }
-            body.nightMode, body.night_mode {
-                background-color: var(--amgi-default-card-bg);
-                color: var(--amgi-default-card-fg);
-            }
-            body.nightMode #qa, body.night_mode #qa {
-                background-color: var(--amgi-default-card-bg);
-                color: inherit;
-            }
             .nightMode, .nightMode .card { color: #f5f5f5; }
             .night_mode, .night_mode .card { color: #f5f5f5; }
             .nightMode .latex, .night_mode .latex { filter: invert(100%); }
