@@ -173,6 +173,9 @@
 "add_note_section_deck" = "Deck";
 "add_note_success" = "Note added";
 "add_note_failed" = "Failed to add note";
+"io_header_required_error" = "The first image occlusion field cannot be empty.";
+"io_image_missing_error" = "The selected image is not ready yet. Pick the image again and then save.";
+"io_masks_required_error" = "Add at least one occlusion before saving.";
 
 // MARK: - NoteEditorView
 "note_editor_nav_title" = "Edit Note";
@@ -652,12 +655,21 @@
 "io_remove_last" = "Undo Last";
 "io_tool_fill" = "Fill";
 "io_fill_yellow" = "Yellow";
+"io_fill_custom" = "Custom Colour";
 "io_align_left" = "Align Left";
 "io_align_center_h" = "Align Center Horizontally";
 "io_align_right" = "Align Right";
 "io_align_top" = "Align Top";
 "io_align_center_v" = "Align Center Vertically";
 "io_align_bottom" = "Align Bottom";
+"io_tool_mode" = "Mode";
+"io_mode_hide_all_guess_one" = "Hide All, Guess One";
+"io_mode_hide_one_guess_one" = "Hide One, Guess One";
+"io_discard_changes_title" = "Discard changes?";
+"io_discard_changes_message" = "Your mask edits have not been saved yet. Leave anyway?";
+"io_discard_changes_action" = "Discard Changes";
+"io_text_edit_title" = "Edit Text";
+"io_text_color" = "Text Colour";
 "io_section_content" = "Content";
 "io_header_placeholder" = "Header (question prompt)";
 "io_back_extra_placeholder" = "Back Extra (optional)";

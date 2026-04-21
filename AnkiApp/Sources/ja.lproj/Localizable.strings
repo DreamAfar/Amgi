@@ -173,6 +173,9 @@
 "add_note_section_deck" = "デッキ";
 "add_note_success" = "ノートを追加しました";
 "add_note_failed" = "ノートの追加に失敗しました";
+"io_header_required_error" = "画像遮蔽の最初のフィールドは空にできません。";
+"io_image_missing_error" = "画像の準備ができていません。画像を選び直してから保存してください。";
+"io_masks_required_error" = "保存する前に少なくとも 1 つのマスクを追加してください。";
 
 // MARK: - NoteEditorView
 "note_editor_nav_title" = "ノートを編集";
@@ -652,12 +655,21 @@
 "io_remove_last" = "最後を元に戻す";
 "io_tool_fill" = "塗り";
 "io_fill_yellow" = "黄";
+"io_fill_custom" = "カスタムカラー";
 "io_align_left" = "左揃え";
 "io_align_center_h" = "横中央揃え";
 "io_align_right" = "右揃え";
 "io_align_top" = "上揃え";
 "io_align_center_v" = "縦中央揃え";
 "io_align_bottom" = "下揃え";
+"io_tool_mode" = "モード";
+"io_mode_hide_all_guess_one" = "すべて隠して 1 つ当てる";
+"io_mode_hide_one_guess_one" = "1 つ隠して 1 つ当てる";
+"io_discard_changes_title" = "変更を破棄しますか？";
+"io_discard_changes_message" = "現在のマスク編集はまだ保存されていません。このまま閉じますか？";
+"io_discard_changes_action" = "変更を破棄";
+"io_text_edit_title" = "テキスト編集";
+"io_text_color" = "文字色";
 "io_section_content" = "内容";
 "io_header_placeholder" = "ヘッダー（質問プロンプト）";
 "io_back_extra_placeholder" = "裏面追加（任意）";

@@ -187,8 +187,8 @@ private func parseMasks(from occlusions: String) -> [IOMask] {
     let lines = occlusions.components(separatedBy: "\n")
     var result: [IOMask] = []
     for line in lines {
-        guard let inner = extractClozeBody(line) else { continue }
-        let parts = inner.components(separatedBy: ":")
+        guard let payload = extractClozePayload(line) else { continue }
+        let parts = payload.body.components(separatedBy: ":")
         guard parts.count >= 2, parts[0] == "image-occlusion" else { continue }
         let shapeName = parts[1]
         let stringProps = parseIOProperties(from: parts.dropFirst(2).joined(separator: ":"))
@@ -196,12 +196,18 @@ private func parseMasks(from occlusions: String) -> [IOMask] {
         case "rect":
             if let l = ioCGFloat(stringProps["left"]), let t = ioCGFloat(stringProps["top"]),
                let w = ioCGFloat(stringProps["width"]), let h = ioCGFloat(stringProps["height"]) {
-                result.append(.rect(left: l, top: t, width: w, height: h, extras: ioExtras(from: stringProps, excluding: ["left", "top", "width", "height"])))
+                result.append(
+                    .rect(left: l, top: t, width: w, height: h, extras: ioExtras(from: stringProps, excluding: ["left", "top", "width", "height"]))
+                        .applyingSerializationOrdinal(payload.ordinal)
+                )
             }
         case "ellipse":
             if let l = ioCGFloat(stringProps["left"]), let t = ioCGFloat(stringProps["top"]),
                let rx = ioCGFloat(stringProps["rx"]), let ry = ioCGFloat(stringProps["ry"]) {
-                result.append(.ellipse(left: l, top: t, rx: rx, ry: ry, extras: ioExtras(from: stringProps, excluding: ["left", "top", "rx", "ry"])))
+                result.append(
+                    .ellipse(left: l, top: t, rx: rx, ry: ry, extras: ioExtras(from: stringProps, excluding: ["left", "top", "rx", "ry"]))
+                        .applyingSerializationOrdinal(payload.ordinal)
+                )
             }
         case "polygon":
             if let raw = stringProps["points"] {
@@ -214,7 +220,10 @@ private func parseMasks(from occlusions: String) -> [IOMask] {
                     i += 2
                 }
                 if pts.count >= 3 {
-                    result.append(.polygon(points: pts, extras: ioExtras(from: stringProps, excluding: ["points"])))
+                    result.append(
+                        .polygon(points: pts, extras: ioExtras(from: stringProps, excluding: ["points"]))
+                            .applyingSerializationOrdinal(payload.ordinal)
+                    )
                 }
             }
         case "text":
@@ -233,6 +242,7 @@ private func parseMasks(from occlusions: String) -> [IOMask] {
                         fontSize: fontSize,
                         extras: ioExtras(from: stringProps, excluding: ["left", "top", "text", "scale", "fs"])
                     )
+                    .applyingSerializationOrdinal(payload.ordinal)
                 )
             }
         default:
@@ -273,10 +283,18 @@ private func ioExtras(from properties: [String: String], excluding keys: Set<Str
     properties.filter { !keys.contains($0.key) }
 }
 
-private func extractClozeBody(_ cloze: String) -> String? {
-    // "{{c1::image-occlusion:...}}" → "image-occlusion:..."
+private struct IOClozePayload {
+    let ordinal: Int?
+    let body: String
+}
+
+private func extractClozePayload(_ cloze: String) -> IOClozePayload? {
+    // "{{c1::image-occlusion:...}}" → ordinal=1, body="image-occlusion:..."
     guard cloze.hasPrefix("{{"), cloze.hasSuffix("}}") else { return nil }
     let inner = String(cloze.dropFirst(2).dropLast(2))
     guard let colonIdx = inner.range(of: "::") else { return nil }
-    return String(inner[colonIdx.upperBound...])
+    let ordinalText = inner[..<colonIdx.lowerBound]
+        .drop { $0 == "c" || $0 == "C" }
+    let ordinal = Int(ordinalText)
+    return IOClozePayload(ordinal: ordinal, body: String(inner[colonIdx.upperBound...]))
 }

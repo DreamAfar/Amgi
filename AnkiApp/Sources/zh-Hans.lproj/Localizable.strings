@@ -173,6 +173,9 @@
 "add_note_section_deck" = "牌组";
 "add_note_success" = "笔记已添加";
 "add_note_failed" = "添加笔记失败";
+"io_header_required_error" = "图片遮罩的首字段不能为空。";
+"io_image_missing_error" = "当前图片未准备好，请重新选择图片后再保存。";
+"io_masks_required_error" = "请先添加至少一个遮罩。";
 
 // MARK: - NoteEditorView
 "note_editor_nav_title" = "编辑笔记";
@@ -652,12 +655,21 @@
 "io_remove_last" = "撤销上一步";
 "io_tool_fill" = "填充";
 "io_fill_yellow" = "黄色";
+"io_fill_custom" = "自定义颜色";
 "io_align_left" = "左对齐";
 "io_align_center_h" = "水平居中";
 "io_align_right" = "右对齐";
 "io_align_top" = "顶部对齐";
 "io_align_center_v" = "垂直居中";
 "io_align_bottom" = "底部对齐";
+"io_tool_mode" = "模式";
+"io_mode_hide_all_guess_one" = "隐藏全部，猜测一个";
+"io_mode_hide_one_guess_one" = "隐藏一个，猜测一个";
+"io_discard_changes_title" = "放弃本次编辑？";
+"io_discard_changes_message" = "当前遮罩修改尚未保存，确认要退出吗？";
+"io_discard_changes_action" = "放弃修改";
+"io_text_edit_title" = "编辑文字";
+"io_text_color" = "文字颜色";
 "io_section_content" = "内容";
 "io_header_placeholder" = "标题（问题提示）";
 "io_back_extra_placeholder" = "背面附加（可选）";

@@ -1,10 +1,10 @@
 import SwiftUI
 import UIKit
 
-private struct IOMaskSnapshot {
+private struct IOMaskSnapshot: Equatable {
     var masks: [IOMask]
     var selectedMaskIndex: Int?
-    var selectsAll: Bool
+    var selectedMaskIndices: Set<Int>
 }
 
 enum IOCanvasZoomCommand {
@@ -61,6 +61,25 @@ private enum IOMaskAlignMode: CaseIterable {
     }
 }
 
+private enum IOOcclusionMode: CaseIterable {
+    case hideAllGuessOne
+    case hideOneGuessOne
+
+    var label: String {
+        switch self {
+        case .hideAllGuessOne: return L("io_mode_hide_all_guess_one")
+        case .hideOneGuessOne: return L("io_mode_hide_one_guess_one")
+        }
+    }
+
+    var occludesInactive: Bool {
+        switch self {
+        case .hideAllGuessOne: return true
+        case .hideOneGuessOne: return false
+        }
+    }
+}
+
 func imageOcclusionPreviewHeight(for image: UIImage) -> CGFloat {
     let screenBounds = UIScreen.main.bounds
     let screenWidth = screenBounds.width - 32
@@ -92,7 +111,7 @@ struct ImageOcclusionMaskSummaryCard: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                 Spacer()
                 Button(action: action) {
-                    Label(L("io_edit_action"), systemImage: "square.and.pencil")
+                    Text(L("io_edit_action"))
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -114,11 +133,19 @@ struct ImageOcclusionWorkspaceView: View {
 
     @State private var masks: [IOMask]
     @State private var selectedMaskIndex: Int?
-    @State private var selectsAll = false
+    @State private var selectedMaskIndices: Set<Int>
     @State private var shapeType: IOShapeType
     @State private var pendingTextPoint: CGPoint?
     @State private var pendingTextValue = ""
-    @State private var showTextPrompt = false
+    @State private var pendingTextMaskIndex: Int?
+    @State private var pendingTextColor = Color.black
+    @State private var showTextEditor = false
+    @State private var showFillEditor = false
+    @State private var fillEditorColor = Color.yellow
+    @State private var showDiscardConfirmation = false
+    @State private var showsTranslucentMasks = true
+    @State private var occlusionMode: IOOcclusionMode
+    @State private var transformStartSnapshot: IOMaskSnapshot?
     @State private var zoomCommand: IOCanvasZoomCommand = .fit
     @State private var zoomCommandID = 0
 
@@ -128,8 +155,11 @@ struct ImageOcclusionWorkspaceView: View {
         self.initialMasks = initialMasks
         self.onSave = onSave
         _masks = State(initialValue: initialMasks)
-        _selectedMaskIndex = State(initialValue: initialMasks.isEmpty ? nil : 0)
+        let initialSelection = initialMasks.indices.first
+        _selectedMaskIndex = State(initialValue: initialSelection)
+        _selectedMaskIndices = State(initialValue: initialSelection.map { Set([$0]) } ?? [])
         _shapeType = State(initialValue: initialMasks.isEmpty ? .rect : .select)
+        _occlusionMode = State(initialValue: initialMasks.contains(where: \.occludesInactive) ? .hideAllGuessOne : .hideOneGuessOne)
     }
 
     var body: some View {
@@ -140,13 +170,18 @@ struct ImageOcclusionWorkspaceView: View {
                 image: image,
                 masks: $masks,
                 selectedMaskIndex: $selectedMaskIndex,
+                selectedMaskIndices: highlightedMaskIndices,
                 highlightedMaskIndices: highlightedMaskIndices,
                 shapeType: shapeType,
+                maskOpacity: showsTranslucentMasks ? 0.72 : 0.94,
                 zoomCommand: zoomCommand,
                 zoomCommandID: zoomCommandID,
                 onRequestText: beginTextInsertion(at:),
+                onRequestTextEdit: beginTextEditing(maskIndex:),
                 onAppend: appendMask(_:),
-                onSelectionChange: handleCanvasSelectionChange(_:)
+                onSelectionChange: handleCanvasSelectionChange(_:),
+                onTransformDidBegin: handleTransformDidBegin,
+                onTransformDidEnd: handleTransformDidEnd
             )
             .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -157,37 +192,37 @@ struct ImageOcclusionWorkspaceView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button(L("common_cancel")) { dismiss() }
+                Button(L("common_cancel")) { requestDismiss() }
                     .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button(L("common_save")) {
-                    onSave(masks)
-                    dismiss()
-                }
+                Button(L("common_save")) { saveWorkspace() }
                 .amgiToolbarTextButton()
             }
         }
         .safeAreaInset(edge: .bottom) {
             bottomToolbars
         }
-        .alert(L("io_text_prompt_title"), isPresented: $showTextPrompt) {
-            TextField(L("io_text_prompt_placeholder"), text: $pendingTextValue)
-            Button(L("common_cancel"), role: .cancel) {
-                pendingTextPoint = nil
-                pendingTextValue = ""
+        .confirmationDialog(L("io_discard_changes_title"), isPresented: $showDiscardConfirmation, titleVisibility: .visible) {
+            Button(L("io_discard_changes_action"), role: .destructive) {
+                dismiss()
             }
-            Button(L("common_ok")) {
-                insertTextMask()
-            }
+            Button(L("common_cancel"), role: .cancel) {}
         } message: {
-            Text(L("io_hint_text"))
+            Text(L("io_discard_changes_message"))
+        }
+        .sheet(isPresented: $showTextEditor) {
+            textEditorSheet
+        }
+        .sheet(isPresented: $showFillEditor) {
+            fillEditorSheet
         }
     }
 
     private var activeSelectionIndices: [Int] {
-        if selectsAll {
-            return Array(masks.indices)
+        let filtered = selectedMaskIndices.filter { masks.indices.contains($0) }
+        if !filtered.isEmpty {
+            return filtered.sorted()
         }
 
         guard let selectedMaskIndex, masks.indices.contains(selectedMaskIndex) else {
@@ -200,9 +235,21 @@ struct ImageOcclusionWorkspaceView: View {
         Set(activeSelectionIndices)
     }
 
+    private var allMasksSelected: Bool {
+        !masks.isEmpty && highlightedMaskIndices.count == masks.count
+    }
+
+    private var hasUnsavedChanges: Bool {
+        masks != initialMasks
+    }
+
+    private var textEditorTitle: String {
+        pendingTextMaskIndex == nil ? L("io_text_prompt_title") : L("io_text_edit_title")
+    }
+
     private var toolPalette: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 ForEach(IOShapeType.allCases, id: \.self) { tool in
                     ioPaletteButton(
                         title: tool.label,
@@ -219,6 +266,13 @@ struct ImageOcclusionWorkspaceView: View {
                             applyFill(option.hex)
                         }
                     }
+                    Divider()
+                    Button(L("io_fill_custom")) {
+                        openFillEditor()
+                    }
+                    Button(L("rich_text_color_default")) {
+                        applyFill(nil)
+                    }
                 } label: {
                     ioPaletteChip(
                         title: L("io_tool_fill"),
@@ -227,77 +281,181 @@ struct ImageOcclusionWorkspaceView: View {
                     )
                 }
                 .disabled(activeSelectionIndices.isEmpty)
+
+                Menu {
+                    ForEach(IOOcclusionMode.allCases, id: \.self) { mode in
+                        Button(mode.label) {
+                            applyOcclusionMode(mode)
+                        }
+                    }
+                } label: {
+                    ioPaletteChip(
+                        title: L("io_tool_mode"),
+                        systemImage: "square.stack.3d.up",
+                        isSelected: false
+                    )
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
         .background(Color.amgiSurface)
     }
 
     private var bottomToolbars: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 16) {
-                toolbarIconButton(systemImage: "arrow.uturn.backward") {
-                    undoManager?.undo()
-                }
-                .disabled(!(undoManager?.canUndo ?? false))
-
-                toolbarIconButton(systemImage: "arrow.uturn.forward") {
-                    undoManager?.redo()
-                }
-                .disabled(!(undoManager?.canRedo ?? false))
-
-                toolbarIconButton(systemImage: "trash") {
-                    deleteSelection()
-                }
-                .disabled(activeSelectionIndices.isEmpty)
-
-                toolbarIconButton(systemImage: "plus.square.on.square") {
-                    duplicateSelection()
-                }
-                .disabled(activeSelectionIndices.isEmpty)
-
-                toolbarIconButton(systemImage: selectsAll ? "checkmark.circle.fill" : "checkmark.circle") {
-                    toggleSelectAll()
-                }
-                .disabled(masks.isEmpty)
-
-                Spacer(minLength: 0)
-
-                Menu {
-                    ForEach(IOMaskAlignMode.allCases, id: \.self) { mode in
-                        Button(mode.label) {
-                            alignSelection(mode)
-                        }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    toolbarIconButton(systemImage: "arrow.uturn.backward") {
+                        undoManager?.undo()
                     }
-                } label: {
-                    toolbarIcon(systemImage: "align.horizontal.left")
+                    .disabled(!(undoManager?.canUndo ?? false))
+
+                    toolbarIconButton(systemImage: "arrow.uturn.forward") {
+                        undoManager?.redo()
+                    }
+                    .disabled(!(undoManager?.canRedo ?? false))
+
+                    toolbarIconButton(systemImage: "trash") {
+                        deleteSelection()
+                    }
+                    .disabled(activeSelectionIndices.isEmpty)
+
+                    toolbarIconButton(systemImage: "plus.square.on.square") {
+                        duplicateSelection()
+                    }
+                    .disabled(activeSelectionIndices.isEmpty)
+
+                    toolbarIconButton(systemImage: allMasksSelected ? "checkmark.circle.fill" : "checkmark.circle") {
+                        toggleSelectAll()
+                    }
+                    .disabled(masks.isEmpty)
+
+                    toolbarIconButton(systemImage: "arrow.left.arrow.right") {
+                        invertSelection()
+                    }
+                    .disabled(masks.isEmpty)
+
+                    toolbarIconButton(systemImage: showsTranslucentMasks ? "circle.lefthalf.filled" : "circle") {
+                        showsTranslucentMasks.toggle()
+                    }
+                    .disabled(masks.isEmpty)
                 }
-                .disabled(activeSelectionIndices.count < 2)
+                .padding(.horizontal, 16)
             }
 
-            HStack(spacing: 16) {
-                toolbarIconButton(systemImage: "plus.magnifyingglass") {
-                    sendZoomCommand(.zoomIn)
-                }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    toolbarIconButton(systemImage: "link") {
+                        groupSelection()
+                    }
+                    .disabled(activeSelectionIndices.count < 2)
 
-                toolbarIconButton(systemImage: "minus.magnifyingglass") {
-                    sendZoomCommand(.zoomOut)
-                }
+                    toolbarIconButton(systemImage: "link.slash") {
+                        ungroupSelection()
+                    }
+                    .disabled(activeSelectionIndices.isEmpty || !activeSelectionIndices.contains(where: { masks[$0].serializationOrdinal != nil }))
 
-                toolbarIconButton(systemImage: "arrow.up.left.and.down.right.magnifyingglass") {
-                    sendZoomCommand(.fit)
-                }
+                    Menu {
+                        ForEach(IOMaskAlignMode.allCases, id: \.self) { mode in
+                            Button(mode.label) {
+                                alignSelection(mode)
+                            }
+                        }
+                    } label: {
+                        toolbarIcon(systemImage: "align.horizontal.left")
+                    }
+                    .disabled(activeSelectionIndices.isEmpty)
 
-                Spacer(minLength: 0)
+                    toolbarIconButton(systemImage: "plus.magnifyingglass") {
+                        sendZoomCommand(.zoomIn)
+                    }
+
+                    toolbarIconButton(systemImage: "minus.magnifyingglass") {
+                        sendZoomCommand(.zoomOut)
+                    }
+
+                    toolbarIconButton(systemImage: "arrow.up.left.and.down.right.magnifyingglass") {
+                        sendZoomCommand(.fit)
+                    }
+                }
+                .padding(.horizontal, 16)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
+        .padding(.top, 10)
         .padding(.bottom, 10)
         .background(Color.amgiSurface)
         .overlay(alignment: .top) {
             Divider()
+        }
+    }
+
+    private var textEditorSheet: some View {
+        NavigationStack {
+            Form {
+                Section(L("io_text_prompt_title")) {
+                    TextField(L("io_text_prompt_placeholder"), text: $pendingTextValue, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+
+                Section(L("io_text_color")) {
+                    ColorPicker(L("io_fill_custom"), selection: $pendingTextColor, supportsOpacity: true)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
+            .navigationTitle(textEditorTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_cancel")) {
+                        closeTextEditor()
+                    }
+                    .amgiToolbarTextButton(tone: .neutral)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_save")) {
+                        insertOrUpdateTextMask()
+                    }
+                    .amgiToolbarTextButton()
+                    .disabled(pendingTextValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
+    private var fillEditorSheet: some View {
+        NavigationStack {
+            Form {
+                Section(L("io_fill_custom")) {
+                    ColorPicker(L("io_fill_custom"), selection: $fillEditorColor, supportsOpacity: true)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
+            .navigationTitle(L("io_fill_custom"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_cancel")) {
+                        showFillEditor = false
+                    }
+                    .amgiToolbarTextButton(tone: .neutral)
+                }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button(L("rich_text_color_default")) {
+                        showFillEditor = false
+                        applyFill(nil)
+                    }
+                    .amgiToolbarTextButton(tone: .neutral)
+
+                    Button(L("common_save")) {
+                        showFillEditor = false
+                        applyFill(hexString(for: fillEditorColor))
+                    }
+                    .amgiToolbarTextButton()
+                }
+            }
         }
     }
 
@@ -320,16 +478,16 @@ struct ImageOcclusionWorkspaceView: View {
         systemImage: String,
         isSelected: Bool
     ) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
             Text(title)
                 .font(.caption2.weight(.medium))
                 .lineLimit(1)
         }
         .foregroundStyle(isSelected ? Color.white : Color.primary)
-        .frame(width: 72, height: 56)
-        .background(isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .frame(width: 60, height: 46)
+        .background(isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     @ViewBuilder
@@ -337,99 +495,184 @@ struct ImageOcclusionWorkspaceView: View {
         Button(action: action) {
             toolbarIcon(systemImage: systemImage)
         }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
     private func toolbarIcon(systemImage: String) -> some View {
         Image(systemName: systemImage)
-            .amgiToolbarIconButton()
+            .font(.system(size: 13, weight: .semibold))
+            .amgiToolbarIconButton(size: 30)
     }
 
-    private func handleCanvasSelectionChange(_ index: Int?) {
-        selectsAll = false
-        selectedMaskIndex = index
+    private func handleCanvasSelectionChange(_ selection: OcclusionCanvasView.IOCanvasSelectionChange) {
+        switch selection {
+        case .replace(let index):
+            guard let index, masks.indices.contains(index) else {
+                selectedMaskIndex = nil
+                selectedMaskIndices = []
+                return
+            }
+            let group = groupedSelectionIndices(for: index)
+            selectedMaskIndex = index
+            selectedMaskIndices = group
+        case .toggle(let index):
+            guard masks.indices.contains(index) else { return }
+            let group = groupedSelectionIndices(for: index)
+            if group.isSubset(of: selectedMaskIndices) {
+                selectedMaskIndices.subtract(group)
+                if selectedMaskIndices.isEmpty {
+                    selectedMaskIndex = nil
+                } else if let selectedMaskIndex, !selectedMaskIndices.contains(selectedMaskIndex) {
+                    self.selectedMaskIndex = selectedMaskIndices.sorted().first
+                }
+            } else {
+                selectedMaskIndices.formUnion(group)
+                selectedMaskIndex = index
+            }
+        }
     }
 
     private func beginTextInsertion(at point: CGPoint) {
         pendingTextPoint = point
+        pendingTextMaskIndex = nil
         pendingTextValue = ""
-        showTextPrompt = true
+        pendingTextColor = .black
+        showTextEditor = true
     }
 
-    private func insertTextMask() {
-        guard let pendingTextPoint else { return }
+    private func beginTextEditing(maskIndex: Int) {
+        guard masks.indices.contains(maskIndex),
+              case .text(_, _, let text, _, _, let extras) = masks[maskIndex] else {
+            return
+        }
+        pendingTextPoint = nil
+        pendingTextMaskIndex = maskIndex
+        pendingTextValue = text
+        pendingTextColor = color(from: extras["fill"], fallback: .black)
+        showTextEditor = true
+    }
+
+    private func closeTextEditor() {
+        pendingTextPoint = nil
+        pendingTextMaskIndex = nil
+        pendingTextValue = ""
+        showTextEditor = false
+    }
+
+    private func insertOrUpdateTextMask() {
         let text = pendingTextValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.pendingTextPoint = nil
-        self.pendingTextValue = ""
         guard !text.isEmpty else { return }
-        appendMask(
-            .text(
-                left: pendingTextPoint.x,
-                top: pendingTextPoint.y,
-                text: text,
-                scale: 1,
-                fontSize: 0.055,
-                extras: [:]
+        let fillHex = hexString(for: pendingTextColor)
+
+        if let pendingTextMaskIndex, masks.indices.contains(pendingTextMaskIndex) {
+            var updatedMasks = masks
+            updatedMasks[pendingTextMaskIndex] = updatedMasks[pendingTextMaskIndex].updatingText(text, fillHex: fillHex)
+            commitSnapshot(
+                IOMaskSnapshot(
+                    masks: updatedMasks,
+                    selectedMaskIndex: pendingTextMaskIndex,
+                    selectedMaskIndices: groupedSelectionIndices(for: pendingTextMaskIndex, in: updatedMasks)
+                )
             )
-        )
+        } else if let pendingTextPoint {
+            appendMask(
+                .text(
+                    left: pendingTextPoint.x,
+                    top: pendingTextPoint.y,
+                    text: text,
+                    scale: 1,
+                    fontSize: 0.055,
+                    extras: ["fill": fillHex]
+                )
+            )
+        }
+
+        closeTextEditor()
     }
 
     private func appendMask(_ mask: IOMask) {
         var updatedMasks = masks
-        updatedMasks.append(mask)
+        updatedMasks.append(mask.applyingOccludeInactive(occlusionMode.occludesInactive))
+        let newIndex = updatedMasks.count - 1
         commitSnapshot(
             IOMaskSnapshot(
                 masks: updatedMasks,
-                selectedMaskIndex: updatedMasks.count - 1,
-                selectsAll: false
+                selectedMaskIndex: newIndex,
+                selectedMaskIndices: [newIndex]
             )
         )
     }
 
     private func deleteSelection() {
-        let indices = activeSelectionIndices.sorted()
+        let indices = activeSelectionIndices
         guard !indices.isEmpty else { return }
         let indexSet = Set(indices)
         let updatedMasks = masks.enumerated().compactMap { index, mask in
             indexSet.contains(index) ? nil : mask
         }
-        let newSelectedIndex = updatedMasks.indices.contains(0) ? min(indices.first ?? 0, updatedMasks.count - 1) : nil
+        let newSelection = updatedMasks.indices.first.map { Set([$0]) } ?? []
         commitSnapshot(
             IOMaskSnapshot(
                 masks: updatedMasks,
-                selectedMaskIndex: newSelectedIndex,
-                selectsAll: false
+                selectedMaskIndex: newSelection.sorted().first,
+                selectedMaskIndices: newSelection
             )
         )
     }
 
     private func duplicateSelection() {
-        let indices = activeSelectionIndices.sorted()
+        let indices = activeSelectionIndices
         guard !indices.isEmpty else { return }
 
         var updatedMasks = masks
-        var duplicatedIndices: [Int] = []
+        var duplicatedIndices: Set<Int> = []
+        var ordinalMapping: [Int: Int] = [:]
+
         for index in indices {
-            let duplicate = offset(mask: masks[index], dx: 0.03, dy: 0.03)
+            var duplicate = offset(mask: masks[index], dx: 0.03, dy: 0.03).applyingSerializationOrdinal(nil)
+            if let ordinal = masks[index].serializationOrdinal {
+                let mappedOrdinal = ordinalMapping[ordinal] ?? nextAvailableOrdinal(in: updatedMasks, reserved: Set(ordinalMapping.values))
+                ordinalMapping[ordinal] = mappedOrdinal
+                duplicate = duplicate.applyingSerializationOrdinal(mappedOrdinal)
+            }
             updatedMasks.append(duplicate)
-            duplicatedIndices.append(updatedMasks.count - 1)
+            duplicatedIndices.insert(updatedMasks.count - 1)
         }
 
         commitSnapshot(
             IOMaskSnapshot(
                 masks: updatedMasks,
-                selectedMaskIndex: duplicatedIndices.first,
-                selectsAll: duplicatedIndices.count > 1
+                selectedMaskIndex: duplicatedIndices.sorted().first,
+                selectedMaskIndices: duplicatedIndices
             )
         )
     }
 
     private func toggleSelectAll() {
         guard !masks.isEmpty else { return }
-        selectsAll.toggle()
-        if selectsAll {
+        if allMasksSelected {
+            selectedMaskIndices = []
+            selectedMaskIndex = nil
+        } else {
+            selectedMaskIndices = Set(masks.indices)
             selectedMaskIndex = masks.indices.first
         }
+    }
+
+    private func invertSelection() {
+        guard !masks.isEmpty else { return }
+        let inverted = Set(masks.indices).subtracting(selectedMaskIndices)
+        selectedMaskIndices = inverted
+        if let selectedMaskIndex, inverted.contains(selectedMaskIndex) {
+            return
+        }
+        self.selectedMaskIndex = inverted.sorted().first
+    }
+
+    private func openFillEditor() {
+        fillEditorColor = color(from: activeSelectionIndices.first.flatMap { masks[$0].extras["fill"] }, fallback: .yellow)
+        showFillEditor = true
     }
 
     private func applyFill(_ hex: String?) {
@@ -444,38 +687,81 @@ struct ImageOcclusionWorkspaceView: View {
             IOMaskSnapshot(
                 masks: updatedMasks,
                 selectedMaskIndex: selectedMaskIndex,
-                selectsAll: selectsAll
+                selectedMaskIndices: Set(indices)
+            )
+        )
+    }
+
+    private func applyOcclusionMode(_ mode: IOOcclusionMode) {
+        occlusionMode = mode
+        guard !masks.isEmpty else { return }
+
+        let updatedMasks = masks.map { $0.applyingOccludeInactive(mode.occludesInactive) }
+        commitSnapshot(
+            IOMaskSnapshot(
+                masks: updatedMasks,
+                selectedMaskIndex: selectedMaskIndex,
+                selectedMaskIndices: Set(activeSelectionIndices)
+            )
+        )
+    }
+
+    private func groupSelection() {
+        let indices = activeSelectionIndices
+        guard indices.count >= 2 else { return }
+        let targetOrdinal = indices.compactMap { masks[$0].serializationOrdinal }.min()
+            ?? nextAvailableOrdinal(in: masks)
+        var updatedMasks = masks
+        for index in indices {
+            updatedMasks[index] = updatedMasks[index].applyingSerializationOrdinal(targetOrdinal)
+        }
+        commitSnapshot(
+            IOMaskSnapshot(
+                masks: updatedMasks,
+                selectedMaskIndex: selectedMaskIndex,
+                selectedMaskIndices: Set(indices)
+            )
+        )
+    }
+
+    private func ungroupSelection() {
+        let indices = activeSelectionIndices
+        guard !indices.isEmpty else { return }
+        var updatedMasks = masks
+        for index in indices {
+            updatedMasks[index] = updatedMasks[index].applyingSerializationOrdinal(nil)
+        }
+        commitSnapshot(
+            IOMaskSnapshot(
+                masks: updatedMasks,
+                selectedMaskIndex: selectedMaskIndex,
+                selectedMaskIndices: Set(indices)
             )
         )
     }
 
     private func alignSelection(_ mode: IOMaskAlignMode) {
-        let indices = activeSelectionIndices.sorted()
-        guard indices.count >= 2 else { return }
+        let indices = activeSelectionIndices
+        guard !indices.isEmpty else { return }
 
-        let selectionBounds = indices
-            .map { normalizedBounds(for: masks[$0]) }
-            .reduce(into: CGRect.null) { partialResult, rect in
-                partialResult = partialResult.union(rect)
-            }
-
+        let canvasBounds = CGRect(x: 0, y: 0, width: 1, height: 1)
         var updatedMasks = masks
         for index in indices {
             let maskBounds = normalizedBounds(for: updatedMasks[index])
             let delta: CGPoint
             switch mode {
             case .left:
-                delta = CGPoint(x: selectionBounds.minX - maskBounds.minX, y: 0)
+                delta = CGPoint(x: canvasBounds.minX - maskBounds.minX, y: 0)
             case .horizontalCenter:
-                delta = CGPoint(x: selectionBounds.midX - maskBounds.midX, y: 0)
+                delta = CGPoint(x: canvasBounds.midX - maskBounds.midX, y: 0)
             case .right:
-                delta = CGPoint(x: selectionBounds.maxX - maskBounds.maxX, y: 0)
+                delta = CGPoint(x: canvasBounds.maxX - maskBounds.maxX, y: 0)
             case .top:
-                delta = CGPoint(x: 0, y: selectionBounds.minY - maskBounds.minY)
+                delta = CGPoint(x: 0, y: canvasBounds.minY - maskBounds.minY)
             case .verticalCenter:
-                delta = CGPoint(x: 0, y: selectionBounds.midY - maskBounds.midY)
+                delta = CGPoint(x: 0, y: canvasBounds.midY - maskBounds.midY)
             case .bottom:
-                delta = CGPoint(x: 0, y: selectionBounds.maxY - maskBounds.maxY)
+                delta = CGPoint(x: 0, y: canvasBounds.maxY - maskBounds.maxY)
             }
             updatedMasks[index] = offset(mask: updatedMasks[index], dx: delta.x, dy: delta.y)
         }
@@ -484,9 +770,36 @@ struct ImageOcclusionWorkspaceView: View {
             IOMaskSnapshot(
                 masks: updatedMasks,
                 selectedMaskIndex: selectedMaskIndex,
-                selectsAll: selectsAll
+                selectedMaskIndices: Set(indices)
             )
         )
+    }
+
+    private func requestDismiss() {
+        if hasUnsavedChanges {
+            showDiscardConfirmation = true
+        } else {
+            dismiss()
+        }
+    }
+
+    private func saveWorkspace() {
+        onSave(masks)
+        dismiss()
+    }
+
+    private func handleTransformDidBegin() {
+        if transformStartSnapshot == nil {
+            transformStartSnapshot = currentSnapshot()
+        }
+    }
+
+    private func handleTransformDidEnd() {
+        guard let previousSnapshot = transformStartSnapshot else { return }
+        transformStartSnapshot = nil
+        let current = currentSnapshot()
+        guard current != previousSnapshot else { return }
+        registerUndo(previous: previousSnapshot, current: current)
     }
 
     private func sendZoomCommand(_ command: IOCanvasZoomCommand) {
@@ -494,29 +807,81 @@ struct ImageOcclusionWorkspaceView: View {
         zoomCommandID += 1
     }
 
+    private func groupedSelectionIndices(for index: Int, in masks: [IOMask]? = nil) -> Set<Int> {
+        let resolvedMasks = masks ?? self.masks
+        guard resolvedMasks.indices.contains(index) else { return [] }
+        guard let ordinal = resolvedMasks[index].serializationOrdinal else {
+            return [index]
+        }
+        return Set(resolvedMasks.indices.filter { resolvedMasks[$0].serializationOrdinal == ordinal })
+    }
+
+    private func nextAvailableOrdinal(in masks: [IOMask], reserved: Set<Int> = []) -> Int {
+        let currentMax = masks.compactMap(\.serializationOrdinal).max() ?? 0
+        var candidate = currentMax + 1
+        while reserved.contains(candidate) {
+            candidate += 1
+        }
+        return candidate
+    }
+
+    private func color(from hex: String?, fallback: Color) -> Color {
+        guard let hex, let color = UIColor(ioHex: hex) else {
+            return fallback
+        }
+        return Color(uiColor: color)
+    }
+
+    private func hexString(for color: Color) -> String {
+        let uiColor = UIColor(color)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return String(
+            format: "%02X%02X%02X%02X",
+            Int(round(red * 255)),
+            Int(round(green * 255)),
+            Int(round(blue * 255)),
+            Int(round(alpha * 255))
+        )
+    }
+
     private func currentSnapshot() -> IOMaskSnapshot {
-        IOMaskSnapshot(masks: masks, selectedMaskIndex: selectedMaskIndex, selectsAll: selectsAll)
+        IOMaskSnapshot(
+            masks: masks,
+            selectedMaskIndex: selectedMaskIndex,
+            selectedMaskIndices: Set(activeSelectionIndices)
+        )
     }
 
     private func commitSnapshot(_ snapshot: IOMaskSnapshot) {
         let previous = currentSnapshot()
         applySnapshot(snapshot)
+        registerUndo(previous: previous, current: snapshot)
+    }
+
+    private func registerUndo(previous: IOMaskSnapshot, current: IOMaskSnapshot) {
         undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-            self.restoreSnapshot(previous, redo: snapshot)
+            self.restoreSnapshot(previous, redo: current)
         }
     }
 
     private func restoreSnapshot(_ snapshot: IOMaskSnapshot, redo: IOMaskSnapshot) {
         applySnapshot(snapshot)
-        undoManager?.registerUndo(withTarget: UIApplication.shared) { _ in
-            self.restoreSnapshot(redo, redo: snapshot)
-        }
+        registerUndo(previous: redo, current: snapshot)
     }
 
     private func applySnapshot(_ snapshot: IOMaskSnapshot) {
         masks = snapshot.masks
-        selectedMaskIndex = snapshot.selectedMaskIndex
-        selectsAll = snapshot.selectsAll
+        selectedMaskIndices = snapshot.selectedMaskIndices.filter { snapshot.masks.indices.contains($0) }
+        if let selectedMaskIndex = snapshot.selectedMaskIndex, snapshot.masks.indices.contains(selectedMaskIndex) {
+            self.selectedMaskIndex = selectedMaskIndex
+        } else {
+            self.selectedMaskIndex = selectedMaskIndices.sorted().first
+        }
+        occlusionMode = snapshot.masks.contains(where: \.occludesInactive) ? .hideAllGuessOne : .hideOneGuessOne
     }
 
     private func normalizedBounds(for mask: IOMask) -> CGRect {
@@ -596,21 +961,29 @@ struct ZoomableOcclusionCanvasView: UIViewRepresentable {
     let image: UIImage
     @Binding var masks: [IOMask]
     @Binding var selectedMaskIndex: Int?
+    let selectedMaskIndices: Set<Int>
     let highlightedMaskIndices: Set<Int>
     let shapeType: IOShapeType
+    let maskOpacity: CGFloat
     let zoomCommand: IOCanvasZoomCommand
     let zoomCommandID: Int
     var onRequestText: ((CGPoint) -> Void)?
+    var onRequestTextEdit: ((Int) -> Void)?
     var onAppend: ((IOMask) -> Void)?
-    var onSelectionChange: ((Int?) -> Void)?
+    var onSelectionChange: ((OcclusionCanvasView.IOCanvasSelectionChange) -> Void)?
+    var onTransformDidBegin: (() -> Void)?
+    var onTransformDidEnd: (() -> Void)?
 
     func makeCoordinator() -> OcclusionCanvasView.Coordinator {
         OcclusionCanvasView.Coordinator(
             masks: $masks,
             selectedMaskIndex: $selectedMaskIndex,
             onRequestText: onRequestText,
+            onRequestTextEdit: onRequestTextEdit,
             onAppend: onAppend,
-            onSelectionChange: onSelectionChange
+            onSelectionChange: onSelectionChange,
+            onTransformDidBegin: onTransformDidBegin,
+            onTransformDidEnd: onTransformDidEnd
         )
     }
 
@@ -625,11 +998,16 @@ struct ZoomableOcclusionCanvasView: UIViewRepresentable {
         uiView.canvasView.image = image
         uiView.canvasView.masks = masks
         uiView.canvasView.selectedMaskIndex = selectedMaskIndex
+        uiView.canvasView.activeSelectionIndices = selectedMaskIndices
         uiView.canvasView.highlightedMaskIndices = highlightedMaskIndices
         uiView.canvasView.shapeType = shapeType
+        uiView.canvasView.maskOpacity = maskOpacity
         context.coordinator.onRequestText = onRequestText
+        context.coordinator.onRequestTextEdit = onRequestTextEdit
         context.coordinator.onAppend = onAppend
         context.coordinator.onSelectionChange = onSelectionChange
+        context.coordinator.onTransformDidBegin = onTransformDidBegin
+        context.coordinator.onTransformDidEnd = onTransformDidEnd
 
         if context.coordinator.lastZoomCommandID != zoomCommandID {
             context.coordinator.lastZoomCommandID = zoomCommandID
@@ -689,6 +1067,7 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
         case .zoomOut:
             setZoomScale(max(minimumZoomScale, zoomScale / 1.2), animated: true)
         case .fit:
+            layoutIfNeeded()
             relayoutCanvas(resetZoom: true)
         }
     }
@@ -714,8 +1093,8 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
     }
 
     private func fittedCanvasSize(for boundsSize: CGSize) -> CGSize {
-        let availableWidth = max(boundsSize.width - 24, 1)
-        let availableHeight = max(boundsSize.height - 24, 1)
+        let availableWidth = max(boundsSize.width - 8, 1)
+        let availableHeight = max(boundsSize.height - 8, 1)
         let scale = min(availableWidth / max(imageSize.width, 1), availableHeight / max(imageSize.height, 1))
         return CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
     }

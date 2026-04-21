@@ -31,7 +31,7 @@ enum IOShapeType: String, CaseIterable {
 
 // MARK: - Mask model
 
-enum IOMask {
+enum IOMask: Equatable {
     /// left/top/width/height in 0-1 fractions
     case rect(left: CGFloat, top: CGFloat, width: CGFloat, height: CGFloat, extras: [String: String])
     /// left/top = top-left corner of bounding box; rx/ry = radii, all 0-1 fractions
@@ -42,7 +42,7 @@ enum IOMask {
     case text(left: CGFloat, top: CGFloat, text: String, scale: CGFloat, fontSize: CGFloat, extras: [String: String])
 
     func occlusionText(index: Int) -> String {
-        let n = index + 1
+        let n = serializationOrdinal ?? (index + 1)
         switch self {
         case .rect(let l, let t, let w, let h, let extras):
             return clozeText(
@@ -90,6 +90,72 @@ enum IOMask {
         }
     }
 
+    var serializationOrdinal: Int? {
+        guard let raw = extras[Self.internalOrdinalKey], let ordinal = Int(raw) else {
+            return nil
+        }
+        return ordinal > 0 ? ordinal : nil
+    }
+
+    var occludesInactive: Bool {
+        extras["oi"] == "1"
+    }
+
+    func applyingSerializationOrdinal(_ ordinal: Int?) -> IOMask {
+        updatingExtras { currentExtras in
+            var updatedExtras = currentExtras
+            if let ordinal {
+                updatedExtras[Self.internalOrdinalKey] = String(ordinal)
+            } else {
+                updatedExtras.removeValue(forKey: Self.internalOrdinalKey)
+            }
+            return updatedExtras
+        }
+    }
+
+    func applyingOccludeInactive(_ enabled: Bool) -> IOMask {
+        updatingExtras { currentExtras in
+            var updatedExtras = currentExtras
+            if enabled {
+                updatedExtras["oi"] = "1"
+            } else {
+                updatedExtras.removeValue(forKey: "oi")
+            }
+            return updatedExtras
+        }
+    }
+
+    func updatingText(_ newText: String, fillHex: String?) -> IOMask {
+        switch self {
+        case .text(let left, let top, _, let scale, let fontSize, let extras):
+            var updatedExtras = extras
+            if let fillHex, !fillHex.isEmpty {
+                updatedExtras["fill"] = fillHex
+            } else {
+                updatedExtras.removeValue(forKey: "fill")
+            }
+            return .text(left: left, top: top, text: newText, scale: scale, fontSize: fontSize, extras: updatedExtras)
+        default:
+            return self
+        }
+    }
+
+    private func updatingExtras(_ transform: ([String: String]) -> [String: String]) -> IOMask {
+        switch self {
+        case .rect(let left, let top, let width, let height, let extras):
+            return .rect(left: left, top: top, width: width, height: height, extras: transform(extras))
+        case .ellipse(let left, let top, let rx, let ry, let extras):
+            return .ellipse(left: left, top: top, rx: rx, ry: ry, extras: transform(extras))
+        case .polygon(let points, let extras):
+            return .polygon(points: points, extras: transform(extras))
+        case .text(let left, let top, let text, let scale, let fontSize, let extras):
+            return .text(left: left, top: top, text: text, scale: scale, fontSize: fontSize, extras: transform(extras))
+        }
+    }
+
+    private static let internalKeyPrefix = "_amgi_"
+    private static let internalOrdinalKey = "_amgi_ordinal"
+
     private func clozeText(
         index: Int,
         shape: String,
@@ -99,6 +165,9 @@ enum IOMask {
     ) -> String {
         let extraTokens = extras.keys.sorted().compactMap { key -> String? in
             guard !reservedKeys.contains(key), let value = extras[key], !value.isEmpty else {
+                return nil
+            }
+            guard !key.hasPrefix(Self.internalKeyPrefix) else {
                 return nil
             }
             return "\(key)=\(value)"
@@ -228,7 +297,11 @@ struct AddImageOcclusionNoteView: View {
     }
 
     private var canSave: Bool {
-        selectedImage != nil && !masks.isEmpty
+        selectedImage != nil && imageURL != nil && !masks.isEmpty && !trimmedHeader.isEmpty
+    }
+
+    private var trimmedHeader: String {
+        header.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func canvasHeight(for image: UIImage) -> CGFloat {
@@ -264,7 +337,18 @@ struct AddImageOcclusionNoteView: View {
 
     @MainActor
     private func save() async {
-        guard let url = imageURL, !masks.isEmpty else { return }
+        guard !trimmedHeader.isEmpty else {
+            errorMessage = L("io_header_required_error")
+            return
+        }
+        guard let url = imageURL else {
+            errorMessage = L("io_image_missing_error")
+            return
+        }
+        guard !masks.isEmpty else {
+            errorMessage = L("io_masks_required_error")
+            return
+        }
         isSaving = true
         errorMessage = nil
 
@@ -294,17 +378,30 @@ struct OcclusionCanvasView: UIViewRepresentable {
     @Binding var selectedMaskIndex: Int?
     let shapeType: IOShapeType
     var highlightedMaskIndices: Set<Int> = []
+    var activeSelectionIndices: Set<Int> = []
+    var maskOpacity: CGFloat = 0.72
     var onRequestText: ((CGPoint) -> Void)?
+    var onRequestTextEdit: ((Int) -> Void)?
     var onAppend: ((IOMask) -> Void)?
-    var onSelectionChange: ((Int?) -> Void)?
+    var onSelectionChange: ((IOCanvasSelectionChange) -> Void)?
+    var onTransformDidBegin: (() -> Void)?
+    var onTransformDidEnd: (() -> Void)?
+
+    enum IOCanvasSelectionChange {
+        case replace(Int?)
+        case toggle(Int)
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             masks: $masks,
             selectedMaskIndex: $selectedMaskIndex,
             onRequestText: onRequestText,
+            onRequestTextEdit: onRequestTextEdit,
             onAppend: onAppend,
-            onSelectionChange: onSelectionChange
+            onSelectionChange: onSelectionChange,
+            onTransformDidBegin: onTransformDidBegin,
+            onTransformDidEnd: onTransformDidEnd
         )
     }
 
@@ -319,10 +416,15 @@ struct OcclusionCanvasView: UIViewRepresentable {
         uiView.masks = masks
         uiView.selectedMaskIndex = selectedMaskIndex
         uiView.highlightedMaskIndices = highlightedMaskIndices
+        uiView.activeSelectionIndices = activeSelectionIndices
+        uiView.maskOpacity = maskOpacity
         uiView.shapeType = shapeType
         context.coordinator.onRequestText = onRequestText
+        context.coordinator.onRequestTextEdit = onRequestTextEdit
         context.coordinator.onAppend = onAppend
         context.coordinator.onSelectionChange = onSelectionChange
+        context.coordinator.onTransformDidBegin = onTransformDidBegin
+        context.coordinator.onTransformDidEnd = onTransformDidEnd
         uiView.setNeedsDisplay()
     }
 
@@ -330,22 +432,31 @@ struct OcclusionCanvasView: UIViewRepresentable {
         @Binding var masks: [IOMask]
         @Binding var selectedMaskIndex: Int?
         var onRequestText: ((CGPoint) -> Void)?
+        var onRequestTextEdit: ((Int) -> Void)?
         var onAppend: ((IOMask) -> Void)?
-        var onSelectionChange: ((Int?) -> Void)?
+        var onSelectionChange: ((IOCanvasSelectionChange) -> Void)?
+        var onTransformDidBegin: (() -> Void)?
+        var onTransformDidEnd: (() -> Void)?
         var lastZoomCommandID = -1
 
         init(
             masks: Binding<[IOMask]>,
             selectedMaskIndex: Binding<Int?>,
             onRequestText: ((CGPoint) -> Void)?,
+            onRequestTextEdit: ((Int) -> Void)?,
             onAppend: ((IOMask) -> Void)?,
-            onSelectionChange: ((Int?) -> Void)?
+            onSelectionChange: ((IOCanvasSelectionChange) -> Void)?,
+            onTransformDidBegin: (() -> Void)?,
+            onTransformDidEnd: (() -> Void)?
         ) {
             _masks = masks
             _selectedMaskIndex = selectedMaskIndex
             self.onRequestText = onRequestText
+            self.onRequestTextEdit = onRequestTextEdit
             self.onAppend = onAppend
             self.onSelectionChange = onSelectionChange
+            self.onTransformDidBegin = onTransformDidBegin
+            self.onTransformDidEnd = onTransformDidEnd
         }
 
         func appendMask(_ mask: IOMask) {
@@ -369,18 +480,32 @@ struct OcclusionCanvasView: UIViewRepresentable {
             }
         }
 
-        func selectMask(_ index: Int?) {
-            selectedMaskIndex = index
-            onSelectionChange?(index)
+        func selectMask(_ selection: IOCanvasSelectionChange) {
+            if case .replace(let index) = selection {
+                selectedMaskIndex = index
+            }
+            onSelectionChange?(selection)
         }
 
         func requestText(at point: CGPoint) {
             onRequestText?(point)
         }
 
+        func requestTextEdit(at index: Int) {
+            onRequestTextEdit?(index)
+        }
+
         func updateMask(at index: Int, to mask: IOMask) {
             guard masks.indices.contains(index) else { return }
             masks[index] = mask
+        }
+
+        func beginTransform() {
+            onTransformDidBegin?()
+        }
+
+        func finishTransform() {
+            onTransformDidEnd?()
         }
     }
 }
@@ -401,7 +526,7 @@ final class OcclusionCanvasUIView: UIView {
     }
 
     private enum ActiveDrag {
-        case move(maskIndex: Int, start: CGPoint, original: IOMask)
+        case move(maskIndices: [Int], start: CGPoint, originals: [Int: IOMask])
         case resize(maskIndex: Int, handle: SelectionHandle, original: IOMask)
         case rotate(maskIndex: Int, pivot: CGPoint, startAngle: CGFloat, original: IOMask)
         case polygonVertex(maskIndex: Int, vertexIndex: Int)
@@ -421,8 +546,9 @@ final class OcclusionCanvasUIView: UIView {
         let center: CGPoint
     }
 
-    private let selectionOutset: CGFloat = 6
-    private let handleDiameter: CGFloat = 18
+    private let selectionOutset: CGFloat = 4
+    private let handleVisualDiameter: CGFloat = 12
+    private let handleHitDiameter: CGFloat = 28
     private let rotationHandleDistance: CGFloat = 34
     private let minimumBoxDimension: CGFloat = 24
     private let minimumNormalizedDimension: CGFloat = 0.02
@@ -433,6 +559,8 @@ final class OcclusionCanvasUIView: UIView {
     var selectedMaskIndex: Int?
     var shapeType: IOShapeType = .rect
     var highlightedMaskIndices: Set<Int> = []
+    var activeSelectionIndices: Set<Int> = []
+    var maskOpacity: CGFloat = 0.72
     weak var coordinator: OcclusionCanvasView.Coordinator?
 
     private var dragStart: CGPoint?
@@ -464,7 +592,7 @@ final class OcclusionCanvasUIView: UIView {
         let imgRect = imageRect(in: bounds)
         image.draw(in: imgRect)
 
-        let inactiveFill = UIColor(red: 1, green: 0.92, blue: 0.64, alpha: 0.75).cgColor
+        let inactiveFill = UIColor(red: 1, green: 0.92, blue: 0.64, alpha: maskOpacity).cgColor
         let inactiveStroke = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1).cgColor
 
         for (i, mask) in masks.enumerated() {
@@ -480,7 +608,7 @@ final class OcclusionCanvasUIView: UIView {
                     ctx: ctx,
                     mask: mask,
                     imgRect: imgRect,
-                    showsHandles: shapeType == .select && isSelected
+                    showsHandles: shapeType == .select && isSelected && activeSelectionIndices.count <= 1
                 )
             }
         }
@@ -555,7 +683,7 @@ final class OcclusionCanvasUIView: UIView {
             let angle = angleRadians(for: mask)
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: textFont(scale: scale, fontSize: fontSize, imgRect: imgRect),
-                .foregroundColor: UIColor.label
+                .foregroundColor: UIColor(ioHex: mask.extras["fill"] ?? "") ?? UIColor.label
             ]
 
             ctx.saveGState()
@@ -577,7 +705,7 @@ final class OcclusionCanvasUIView: UIView {
 
     private func drawOrdinal(ctx: CGContext, index: Int, mask: IOMask, imgRect: CGRect) {
         let center = maskCenter(for: mask, imgRect: imgRect)
-        let label = "\(index + 1)" as NSString
+        let label = "\(mask.serializationOrdinal ?? (index + 1))" as NSString
         let attrs: [NSAttributedString.Key: Any] = [
             .font: UIFont.boldSystemFont(ofSize: 10),
             .foregroundColor: UIColor.darkText
@@ -596,6 +724,7 @@ final class OcclusionCanvasUIView: UIView {
         switch g.state {
         case .began:
             if let drag = beginMaskDrag(at: loc, imgRect: imgRect) {
+                coordinator?.beginTransform()
                 activeDrag = drag
                 return
             }
@@ -614,6 +743,7 @@ final class OcclusionCanvasUIView: UIView {
         case .ended:
             if activeDrag != nil {
                 activeDrag = nil
+                coordinator?.finishTransform()
                 setNeedsDisplay()
                 return
             }
@@ -626,6 +756,9 @@ final class OcclusionCanvasUIView: UIView {
             currentDragRect = nil
             setNeedsDisplay()
         default:
+            if activeDrag != nil {
+                coordinator?.finishTransform()
+            }
             activeDrag = nil
             dragStart = nil
             currentDragRect = nil
@@ -652,12 +785,26 @@ final class OcclusionCanvasUIView: UIView {
         }
 
         let selected = hitTestMaskIndex(at: location, imgRect: imgRect)
-        selectedMaskIndex = selected
-        coordinator?.selectMask(selected)
+        if shapeType == .select, let selected {
+            coordinator?.selectMask(.toggle(selected))
+        } else {
+            selectedMaskIndex = selected
+            coordinator?.selectMask(.replace(selected))
+        }
         setNeedsDisplay()
     }
 
     @objc private func handleDoubleTap(_ g: UITapGestureRecognizer) {
+        if shapeType == .select {
+            let location = g.location(in: self)
+            let imgRect = imageRect(in: bounds)
+            if let hitIndex = hitTestMaskIndex(at: location, imgRect: imgRect),
+               case .text = masks[hitIndex] {
+                coordinator?.requestTextEdit(at: hitIndex)
+            }
+            return
+        }
+
         guard shapeType == .polygon else { return }
         if polygonPoints.count >= 3 {
             let imgRect = imageRect(in: bounds)
@@ -701,7 +848,8 @@ final class OcclusionCanvasUIView: UIView {
 
     private func maskFillColor(for mask: IOMask) -> UIColor? {
         guard let fill = mask.extras["fill"] else { return nil }
-        return UIColor(ioHex: fill)
+        guard let color = UIColor(ioHex: fill) else { return nil }
+        return color.withAlphaComponent(maskOpacity)
     }
 
     private func textFrame(
@@ -754,7 +902,7 @@ final class OcclusionCanvasUIView: UIView {
         ctx.setFillColor(handleFill.cgColor)
         for handle in SelectionHandle.allCases {
             guard let center = geometry.handleCenters[handle] else { continue }
-            let rect = handleRect(center: center).insetBy(dx: 1, dy: 1)
+            let rect = visualHandleRect(center: center).insetBy(dx: 0.5, dy: 0.5)
             ctx.fillEllipse(in: rect)
             ctx.strokeEllipse(in: rect)
         }
@@ -822,11 +970,13 @@ final class OcclusionCanvasUIView: UIView {
     }
 
     private func beginMaskDrag(at location: CGPoint, imgRect: CGRect) -> ActiveDrag? {
+        let selectionIndices = resolvedSelectionIndices()
         if shapeType == .select,
            let selectedMaskIndex,
            masks.indices.contains(selectedMaskIndex) {
             let selectedMask = masks[selectedMaskIndex]
-            if let handle = selectionHandle(at: location, mask: selectedMask, imgRect: imgRect) {
+            if selectionIndices.count <= 1,
+               let handle = selectionHandle(at: location, mask: selectedMask, imgRect: imgRect) {
                 if handle == .rotate {
                     let pivot = rotationPivot(for: selectedMask, imgRect: imgRect)
                     return .rotate(
@@ -838,8 +988,12 @@ final class OcclusionCanvasUIView: UIView {
                 }
                 return .resize(maskIndex: selectedMaskIndex, handle: handle, original: selectedMask)
             }
+            if selectionIndices.count > 1,
+               selectionIndices.contains(where: { maskContainsPoint(masks[$0], point: location, imgRect: imgRect) }) {
+                return .move(maskIndices: selectionIndices, start: location, originals: originalMasks(for: selectionIndices))
+            }
             if maskContainsPoint(selectedMask, point: location, imgRect: imgRect) {
-                return .move(maskIndex: selectedMaskIndex, start: location, original: selectedMask)
+                return .move(maskIndices: [selectedMaskIndex], start: location, originals: originalMasks(for: [selectedMaskIndex]))
             }
         }
 
@@ -871,16 +1025,21 @@ final class OcclusionCanvasUIView: UIView {
         }
         let hitMask = masks[hitIndex]
         selectedMaskIndex = hitIndex
-        coordinator?.selectMask(hitIndex)
-        return .move(maskIndex: hitIndex, start: location, original: hitMask)
+        coordinator?.selectMask(.replace(hitIndex))
+        return .move(maskIndices: [hitIndex], start: location, originals: [hitIndex: hitMask])
     }
 
     private func updateMaskDrag(_ drag: ActiveDrag, location: CGPoint, imgRect: CGRect) {
         switch drag {
-        case .move(let maskIndex, let start, let original):
+        case .move(let maskIndices, let start, let originals):
             let delta = CGPoint(x: location.x - start.x, y: location.y - start.y)
-            guard let updated = movedMask(original, delta: delta, imgRect: imgRect) else { return }
-            coordinator?.updateMask(at: maskIndex, to: updated)
+            for maskIndex in maskIndices {
+                guard let original = originals[maskIndex],
+                      let updated = movedMask(original, delta: delta, imgRect: imgRect) else {
+                    continue
+                }
+                coordinator?.updateMask(at: maskIndex, to: updated)
+            }
         case .resize(let maskIndex, let handle, let original):
             guard let updated = resizedMask(original, handle: handle, location: location, imgRect: imgRect) else { return }
             coordinator?.updateMask(at: maskIndex, to: updated)
@@ -1032,11 +1191,38 @@ final class OcclusionCanvasUIView: UIView {
 
     private func handleRect(center: CGPoint) -> CGRect {
         CGRect(
-            x: center.x - handleDiameter / 2,
-            y: center.y - handleDiameter / 2,
-            width: handleDiameter,
-            height: handleDiameter
+            x: center.x - handleHitDiameter / 2,
+            y: center.y - handleHitDiameter / 2,
+            width: handleHitDiameter,
+            height: handleHitDiameter
         )
+    }
+
+    private func visualHandleRect(center: CGPoint) -> CGRect {
+        CGRect(
+            x: center.x - handleVisualDiameter / 2,
+            y: center.y - handleVisualDiameter / 2,
+            width: handleVisualDiameter,
+            height: handleVisualDiameter
+        )
+    }
+
+    private func resolvedSelectionIndices() -> [Int] {
+        let indices = activeSelectionIndices.filter { masks.indices.contains($0) }.sorted()
+        if !indices.isEmpty {
+            return indices
+        }
+        guard let selectedMaskIndex, masks.indices.contains(selectedMaskIndex) else {
+            return []
+        }
+        return [selectedMaskIndex]
+    }
+
+    private func originalMasks(for indices: [Int]) -> [Int: IOMask] {
+        Dictionary(uniqueKeysWithValues: indices.compactMap { index in
+            guard masks.indices.contains(index) else { return nil }
+            return (index, masks[index])
+        })
     }
 
     private func polygonVertexIndex(near point: CGPoint, points: [CGPoint], imgRect: CGRect) -> Int? {
