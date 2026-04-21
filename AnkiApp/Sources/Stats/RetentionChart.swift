@@ -53,13 +53,13 @@ struct RetentionChart: View {
         var rows: [RetentionRow] = [
             row(L("common_today"),             tr.today),
             row(L("stats_retention_yesterday"), tr.yesterday),
-            row(L("stats_period_week"),         tr.week),
-            row(L("stats_period_month"),        tr.month),
-            row(L("stats_period_year"),         tr.year),
+            row(L("stats_retention_week"),      tr.week),
+            row(L("stats_retention_month"),     tr.month),
+            row(L("stats_retention_year"),      tr.year),
         ]
         // 仅全局=全部时才显示「全部时间」行，与上游 TrueRetention 逻辑一致
         if revlogRange == .all {
-            rows.append(row(L("stats_period_all"), tr.allTime))
+            rows.append(row(L("stats_retention_all_time"), tr.allTime))
         }
         return rows
     }

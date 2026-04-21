@@ -977,6 +977,10 @@
 "stats_retention_failed" = "Failed";
 "stats_retention_rate" = "Rate";
 "stats_retention_yesterday" = "Yesterday";
+"stats_retention_week" = "Last week";
+"stats_retention_month" = "Last month";
+"stats_retention_year" = "Last year";
+"stats_retention_all_time" = "All time";
 "stats_intervals_title" = "Review Intervals";
 "stats_intervals_subtitle" = "Delays until review cards are shown again.";
 "stats_intervals_empty" = "No data available";

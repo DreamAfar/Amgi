@@ -438,8 +438,8 @@
 "stats_today_reviewed" = "复习";
 "stats_today_time" = "用时";
 "stats_today_correct" = "正确率";
-"stats_today_mature" = "成熟卡";
-"stats_card_new" = "新卡片";
+"stats_today_mature" = "熟练卡";
+"stats_card_new" = "未学习";
 "stats_card_learn" = "学习中";
 "stats_card_review" = "复习";
 "stats_card_again" = "重来";
@@ -927,7 +927,7 @@
 "stats_added_title" = "新增";
 "stats_added_subtitle" = "新增的卡片数量。";
 "stats_added_empty" = "暂无数据";
-"stats_total" = "合计";
+"stats_total" = "总计";
 "stats_avg_day" = "日均";
 "stats_buttons_title" = "回答按钮";
 "stats_buttons_subtitle" = "按下每个按钮的次数。";
@@ -969,14 +969,18 @@
 "stats_avg_day_studied" = "日均（学习日）";
 "stats_retention_title" = "记忆保留率";
 "stats_retention_subtitle" = "间隔大于 1 天的卡片的通过率";
-"stats_retention_period" = "时段";
+"stats_retention_period" = "范围";
 "stats_retention_young" = "欠熟练";
 "stats_retention_mature" = "已熟练";
 "stats_retention_all" = "所有";
 "stats_retention_passed" = "通过";
-"stats_retention_failed" = "未通过";
+"stats_retention_failed" = "失败";
 "stats_retention_rate" = "保留率";
 "stats_retention_yesterday" = "昨天";
+"stats_retention_week" = "上周";
+"stats_retention_month" = "上个月";
+"stats_retention_year" = "近一年";
+"stats_retention_all_time" = "全部时间";
 "stats_intervals_title" = "复习间隔";
 "stats_intervals_subtitle" = "复习卡片再次出现前的间隔。";
 "stats_intervals_empty" = "暂无数据";
@@ -1007,16 +1011,16 @@
 "stats_period_3months_short" = "3个月";
 "stats_period_year_short" = "1年";
 "stats_period_all_short" = "全部";
-"stats_card_young" = "年轻卡";
-"stats_card_mature" = "成熟卡";
-"stats_card_relearning" = "重新学习";
-"stats_card_suspended" = "暂停";
-"stats_card_buried" = "搁置";
-"stats_total_count" = "合计：%d";
+"stats_card_young" = "欠熟练";
+"stats_card_mature" = "已熟练";
+"stats_card_relearning" = "重学中";
+"stats_card_suspended" = "已暂停";
+"stats_card_buried" = "已搁置";
+"stats_total_count" = "总计：%d";
 "stats_forecast_empty" = "复习卡片后可查看预测";
 "stats_review_learn" = "学习";
-"stats_review_relearn" = "重学";
-"stats_review_filtered" = "过滤";
+"stats_review_relearn" = "重新学习";
+"stats_review_filtered" = "已筛选";
 
 // MARK: - Stats Heatmap Optimization
 "stats_range_month" = "月";

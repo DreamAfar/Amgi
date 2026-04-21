@@ -979,6 +979,10 @@
 "stats_retention_failed" = "不正解";
 "stats_retention_rate" = "正解率";
 "stats_retention_yesterday" = "昨日";
+"stats_retention_week" = "直近1週間";
+"stats_retention_month" = "直近1か月";
+"stats_retention_year" = "直近1年";
+"stats_retention_all_time" = "全期間";
 "stats_intervals_title" = "復習間隔";
 "stats_intervals_subtitle" = "次の復習までの間隔日数と復習枚数";
 "stats_intervals_empty" = "データなし";
