@@ -355,12 +355,11 @@ struct CardWebView: UIViewRepresentable {
                 padding: 6px 10px; margin: 4px; font-size: 13px;
                 color: \(missingMediaColor);
             }
-            .nightMode { color: #f5f5f5; }
-            .night_mode { color: #f5f5f5; }
-            .nightMode .card {
-                color: #f5f5f5;
-                background-color: #111111;
-            }
+            body.nightMode,
+            body.night_mode,
+            .nightMode.card,
+            .night_mode.card,
+            .nightMode .card,
             .night_mode .card {
                 color: #f5f5f5;
                 background-color: #111111;
@@ -369,8 +368,8 @@ struct CardWebView: UIViewRepresentable {
             .nightMode img.drawing, .night_mode img.drawing { filter: invert(1) hue-rotate(180deg); }
             .nightMode .cloze:not([data-shape]) { color: #8fb8ff; }
             .night_mode .cloze:not([data-shape]) { color: #8fb8ff; }
-            .nightMode a { color: #8fb8ff; }
-            .night_mode a { color: #8fb8ff; }
+            .nightMode a, .nightMode a:visited, .nightMode a:active { color: #8fb8ff; }
+            .night_mode a, .night_mode a:visited, .night_mode a:active { color: #8fb8ff; }
         </style>
         <script>
         // ── Globals ──────────────────────────────────────────────────────────
