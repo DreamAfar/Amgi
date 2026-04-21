@@ -173,7 +173,6 @@
 "add_note_section_deck" = "デッキ";
 "add_note_success" = "ノートを追加しました";
 "add_note_failed" = "ノートの追加に失敗しました";
-"io_header_required_error" = "画像遮蔽の最初のフィールドは空にできません。";
 "io_image_missing_error" = "画像の準備ができていません。画像を選び直してから保存してください。";
 "io_masks_required_error" = "保存する前に少なくとも 1 つのマスクを追加してください。";
 

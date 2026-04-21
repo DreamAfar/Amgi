@@ -296,12 +296,9 @@ struct AddImageOcclusionNoteView: View {
         }
     }
 
+    // In Anki's IO notetype, occlusions are the first required field; header is a later optional field.
     private var canSave: Bool {
-        selectedImage != nil && imageURL != nil && !masks.isEmpty && !trimmedHeader.isEmpty
-    }
-
-    private var trimmedHeader: String {
-        header.trimmingCharacters(in: .whitespacesAndNewlines)
+        selectedImage != nil && imageURL != nil && !masks.isEmpty
     }
 
     private func canvasHeight(for image: UIImage) -> CGFloat {
@@ -337,10 +334,6 @@ struct AddImageOcclusionNoteView: View {
 
     @MainActor
     private func save() async {
-        guard !trimmedHeader.isEmpty else {
-            errorMessage = L("io_header_required_error")
-            return
-        }
         guard let url = imageURL else {
             errorMessage = L("io_image_missing_error")
             return

@@ -351,7 +351,7 @@ struct ImageOcclusionWorkspaceView: View {
                     }
                     .disabled(activeSelectionIndices.count < 2)
 
-                    toolbarIconButton(systemImage: "link.slash") {
+                    toolbarIconButton(systemImage: "link.slash", fallbackSystemImage: "scissors") {
                         ungroupSelection()
                     }
                     .disabled(activeSelectionIndices.isEmpty || !activeSelectionIndices.contains(where: { masks[$0].serializationOrdinal != nil }))
@@ -491,16 +491,22 @@ struct ImageOcclusionWorkspaceView: View {
     }
 
     @ViewBuilder
-    private func toolbarIconButton(systemImage: String, action: @escaping () -> Void) -> some View {
+    private func toolbarIconButton(systemImage: String, fallbackSystemImage: String? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            toolbarIcon(systemImage: systemImage)
+            toolbarIcon(systemImage: systemImage, fallbackSystemImage: fallbackSystemImage)
         }
         .buttonStyle(.plain)
     }
 
     @ViewBuilder
-    private func toolbarIcon(systemImage: String) -> some View {
-        Image(systemName: systemImage)
+    private func toolbarIcon(systemImage: String, fallbackSystemImage: String? = nil) -> some View {
+        let resolvedSymbol = if UIImage(systemName: systemImage) != nil {
+            systemImage
+        } else {
+            fallbackSystemImage ?? "questionmark"
+        }
+
+        Image(systemName: resolvedSymbol)
             .font(.system(size: 13, weight: .semibold))
             .amgiToolbarIconButton(size: 30)
     }

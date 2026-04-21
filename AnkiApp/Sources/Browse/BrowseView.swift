@@ -266,16 +266,6 @@ struct BrowseView: View {
                 scheduleSearch()
             }
         }
-        .fullScreenCover(isPresented: $showAddImageOcclusion) {
-            AddImageOcclusionNoteView {
-                scheduleSearch()
-            }
-        }
-        .fullScreenCover(item: $editIOItem) { item in
-            EditImageOcclusionNoteView(noteId: item.noteId) {
-                scheduleSearch()
-            }
-        }
         .sheet(isPresented: $showTagsManager, onDismiss: {
             activeSearchTask?.cancel()
             activeSearchTask = nil
@@ -433,6 +423,18 @@ struct BrowseView: View {
             async let notetypesLoad: Void = loadNotetypeNames()
             _ = await (decksLoad, tagsLoad, notetypesLoad)
             await performSearch()
+        }
+        // Present IO flows outside the searchable wrapper; otherwise the search host can
+        // immediately dismiss nested system pickers when Browse launches the IO add/edit pages.
+        .fullScreenCover(isPresented: $showAddImageOcclusion) {
+            AddImageOcclusionNoteView {
+                scheduleSearch()
+            }
+        }
+        .fullScreenCover(item: $editIOItem) { item in
+            EditImageOcclusionNoteView(noteId: item.noteId) {
+                scheduleSearch()
+            }
         }
         .toolbar(isEditing ? .hidden : .visible, for: .tabBar)
     }

@@ -173,7 +173,6 @@
 "add_note_section_deck" = "Deck";
 "add_note_success" = "Note added";
 "add_note_failed" = "Failed to add note";
-"io_header_required_error" = "The first image occlusion field cannot be empty.";
 "io_image_missing_error" = "The selected image is not ready yet. Pick the image again and then save.";
 "io_masks_required_error" = "Add at least one occlusion before saving.";
 
