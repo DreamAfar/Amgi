@@ -1,6 +1,9 @@
 import SwiftUI
 import PhotosUI
+import AnkiBackend
 import AnkiClients
+import AnkiKit
+import AnkiProto
 import Dependencies
 
 // MARK: - Shape type
@@ -183,8 +186,12 @@ enum IOMask: Equatable {
 
 struct AddImageOcclusionNoteView: View {
     @Environment(\.dismiss) private var dismiss
+    @Dependency(\.ankiBackend) private var backend
+    @Dependency(\.deckClient) private var deckClient
     @Dependency(\.imageOcclusionClient) private var client
 
+    @State private var decks: [DeckInfo] = []
+    @State private var selectedDeckId: Int64
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
     @State private var masks: [IOMask] = []
@@ -197,10 +204,34 @@ struct AddImageOcclusionNoteView: View {
     @State private var showOcclusionEditor = false
 
     let onSave: () -> Void
+    let preselectedDeckId: Int64?
+
+    init(onSave: @escaping () -> Void, preselectedDeckId: Int64? = nil) {
+        self.onSave = onSave
+        self.preselectedDeckId = preselectedDeckId
+        _selectedDeckId = State(initialValue: preselectedDeckId ?? 0)
+    }
 
     var body: some View {
         NavigationStack {
             Form {
+                Section(L("add_note_section_deck")) {
+                    Picker(L("add_note_section_deck"), selection: $selectedDeckId) {
+                        ForEach(decks) { deck in
+                            Text(deck.name).tag(deck.id)
+                        }
+                    }
+                }
+
+                Section(L("add_note_section_type")) {
+                    Text(L("browse_add_image_occlusion"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                } footer: {
+                    Text(L("io_add_flow_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+
                 Section {
                     PhotosPicker(
                         selection: $selectedItem,
@@ -264,6 +295,9 @@ struct AddImageOcclusionNoteView: View {
             .toolbar(.hidden, for: .tabBar)
             .navigationTitle(L("io_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                await loadDecks()
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
@@ -298,7 +332,35 @@ struct AddImageOcclusionNoteView: View {
 
     // In Anki's IO notetype, occlusions are the first required field; header is a later optional field.
     private var canSave: Bool {
-        selectedImage != nil && imageURL != nil && !masks.isEmpty
+        selectedDeckId != 0 && selectedImage != nil && imageURL != nil && !masks.isEmpty
+    }
+
+    @MainActor
+    private func loadDecks() async {
+        decks = (try? deckClient.fetchAll()) ?? []
+
+        if let preselectedDeckId, decks.contains(where: { $0.id == preselectedDeckId }) {
+            selectedDeckId = preselectedDeckId
+            return
+        }
+
+        if let currentDeckId = try? currentDeckID(), decks.contains(where: { $0.id == currentDeckId }) {
+            selectedDeckId = currentDeckId
+            return
+        }
+
+        if let firstDeck = decks.first {
+            selectedDeckId = firstDeck.id
+        }
+    }
+
+    private func currentDeckID() throws -> Int64 {
+        let currentDeck: Anki_Decks_Deck = try backend.invoke(
+            service: AnkiBackend.Service.decks,
+            method: AnkiBackend.DecksMethod.getCurrentDeck,
+            request: Anki_Generic_Empty()
+        )
+        return currentDeck.id
     }
 
     private func canvasHeight(for image: UIImage) -> CGFloat {
@@ -334,6 +396,9 @@ struct AddImageOcclusionNoteView: View {
 
     @MainActor
     private func save() async {
+        guard selectedDeckId != 0 else {
+            return
+        }
         guard let url = imageURL else {
             errorMessage = L("io_image_missing_error")
             return
@@ -351,7 +416,7 @@ struct AddImageOcclusionNoteView: View {
         let tags = tagsText.split(separator: " ").map(String.init).filter { !$0.isEmpty }
 
         do {
-            try client.addNote(url, occlusions, header, backExtra, tags)
+            try client.addNote(url, occlusions, header, backExtra, tags, selectedDeckId, 0)
             onSave()
             dismiss()
         } catch {

@@ -108,9 +108,12 @@ struct DeckDetailView: View {
             )
         }
         .fullScreenCover(isPresented: $showAddImageOcclusion) {
-            AddImageOcclusionNoteView {
-                Task { await loadCounts() }
-            }
+            AddImageOcclusionNoteView(
+                onSave: {
+                    Task { await loadCounts() }
+                },
+                preselectedDeckId: deck.id
+            )
         }
         .sheet(isPresented: $showConfig) {
             DeckConfigView(deckId: deck.id) {

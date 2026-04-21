@@ -633,6 +633,7 @@
 "io_nav_title" = "Image Occlusion";
 "io_section_image" = "Image";
 "io_pick_image" = "Choose Image";
+"io_add_flow_hint" = "New image occlusion notes are saved to the selected deck and use the fixed Image Occlusion note type.";
 "io_section_masks" = "Masks";
 "io_masks_hint" = "Tap and drag on the image to draw a mask rectangle.";
 "io_shape_picker_label" = "Shape";

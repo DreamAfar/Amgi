@@ -4,14 +4,17 @@ public import Foundation
 
 @DependencyClient
 public struct ImageOcclusionClient: Sendable {
-    /// Copies the image at the given URL into the Anki media folder and creates
-    /// an image occlusion note with the provided mask occlusions string.
+    /// Creates an image occlusion note from the given source image path.
+    /// The client is responsible for selecting the target deck/current deck state
+    /// before delegating to the backend image-occlusion add flow.
     public var addNote: @Sendable (
         _ imageURL: URL,
         _ occlusions: String,
         _ header: String,
         _ backExtra: String,
-        _ tags: [String]
+        _ tags: [String],
+        _ deckID: Int64,
+        _ notetypeID: Int64
     ) throws -> Void
 
     /// Ensures the image-occlusion notetype exists in the collection.

@@ -9,23 +9,30 @@ extension ImageOcclusionClient: DependencyKey {
         @Dependency(\.ankiBackend) var backend
 
         return Self(
-            addNote: { imageURL, occlusions, header, backExtra, tags in
+            addNote: { imageURL, occlusions, header, backExtra, tags, deckID, notetypeID in
                 // 1. Ensure the notetype exists
                 _ = try backend.call(
                     service: AnkiBackend.Service.imageOcclusion,
                     method: AnkiBackend.ImageOcclusionMethod.addImageOcclusionNotetype
                 )
 
-                // 2. Copy the image to the media folder
-                let mediaPath = try copyImageToMedia(imageURL: imageURL)
+                // 2. IO note creation saves into the backend's current deck.
+                var deckReq = Anki_Decks_DeckId()
+                deckReq.did = deckID
+                try backend.callVoid(
+                    service: AnkiBackend.Service.decks,
+                    method: AnkiBackend.DecksMethod.setCurrentDeck,
+                    request: deckReq
+                )
 
-                // 3. Add the note
+                // 3. Let the backend import the selected source file into media.
                 var req = Anki_ImageOcclusion_AddImageOcclusionNoteRequest()
-                req.imagePath = mediaPath
+                req.imagePath = imageURL.path
                 req.occlusions = occlusions
                 req.header = header
                 req.backExtra = backExtra
                 req.tags = tags
+                req.notetypeID = notetypeID
                 try backend.callVoid(
                     service: AnkiBackend.Service.imageOcclusion,
                     method: AnkiBackend.ImageOcclusionMethod.addImageOcclusionNote,
@@ -87,55 +94,8 @@ extension ImageOcclusionClient: DependencyKey {
     }()
 }
 
-// MARK: - Private helpers
-
-private func copyImageToMedia(imageURL: URL) throws -> String {
-    guard let mediaDir = currentMediaDirectoryURL() else {
-        throw ImageOcclusionError.noMediaDirectory
-    }
-
-    let ext = imageURL.pathExtension.isEmpty ? "jpg" : imageURL.pathExtension
-    let filename = "io_\(UUID().uuidString).\(ext)"
-    let dest = mediaDir.appendingPathComponent(filename)
-
-    if !FileManager.default.fileExists(atPath: mediaDir.path) {
-        try FileManager.default.createDirectory(at: mediaDir, withIntermediateDirectories: true)
-    }
-
-    if !FileManager.default.fileExists(atPath: dest.path) {
-        try FileManager.default.copyItem(at: imageURL, to: dest)
-    }
-
-    return filename
-}
-
-private func currentMediaDirectoryURL() -> URL? {
-    let selectedUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "用户1"
-    guard let appSupport = FileManager.default.urls(
-        for: .applicationSupportDirectory, in: .userDomainMask
-    ).first else { return nil }
-
-    let userFolder = sanitizedFolderName(selectedUser)
-    return appSupport
-        .appendingPathComponent("AnkiCollection", isDirectory: true)
-        .appendingPathComponent(userFolder, isDirectory: true)
-        .appendingPathComponent("media", isDirectory: true)
-}
-
-private func sanitizedFolderName(_ user: String) -> String {
-    let trimmed = user.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return "default" }
-    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
-    let mapped = trimmed.unicodeScalars.map { scalar -> Character in
-        allowed.contains(scalar) ? Character(scalar) : "_"
-    }
-    let folder = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
-    return folder.isEmpty ? "default" : folder
-}
-
 // MARK: - Error
 
 enum ImageOcclusionError: Error {
-    case noMediaDirectory
     case noteNotFound
 }

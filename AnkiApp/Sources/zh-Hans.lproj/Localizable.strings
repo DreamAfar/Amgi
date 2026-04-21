@@ -633,6 +633,7 @@
 "io_nav_title" = "图片遮罩";
 "io_section_image" = "图片";
 "io_pick_image" = "选择图片";
+"io_add_flow_hint" = "新的图片遮罩笔记会保存到所选牌组，并使用固定的图片遮罩笔记类型。";
 "io_section_masks" = "遮罩";
 "io_masks_hint" = "在图片上拖动以绘制遮罩矩形。";
 "io_shape_picker_label" = "形状";

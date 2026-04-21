@@ -633,6 +633,7 @@
 "io_nav_title" = "画像オクルージョン";
 "io_section_image" = "画像";
 "io_pick_image" = "画像を選択";
+"io_add_flow_hint" = "新しい画像オクルージョンノートは、選択したデッキに保存され、固定の画像オクルージョンノートタイプを使用します。";
 "io_section_masks" = "マスク";
 "io_masks_hint" = "画像上でドラッグしてマスクを描いてください。";
 "io_shape_picker_label" = "形状";
