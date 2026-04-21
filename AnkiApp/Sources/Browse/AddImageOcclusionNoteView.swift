@@ -1015,7 +1015,11 @@ final class OcclusionCanvasUIView: UIView {
            masks.indices.contains(selectedMaskIndex) {
             let selectedMask = masks[selectedMaskIndex]
             if maskContainsPoint(selectedMask, point: location, imgRect: imgRect) {
-                return .move(maskIndex: selectedMaskIndex, start: location, original: selectedMask)
+                return .move(
+                    maskIndices: [selectedMaskIndex],
+                    start: location,
+                    originals: originalMasks(for: [selectedMaskIndex])
+                )
             }
         }
 
