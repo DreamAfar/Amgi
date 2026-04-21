@@ -267,7 +267,12 @@ struct CardWebView: UIViewRepresentable {
                 --amgi-default-card-bg: \(defaultCardBackground);
                 --amgi-default-card-fg: \(textColor);
             }
-            html, body { background: transparent; overflow-x: hidden; }
+            html, body {
+                background: transparent;
+                overflow-x: hidden;
+                -webkit-text-size-adjust: 100%;
+                text-size-adjust: 100%;
+            }
             body {
                 font-family: -apple-system, system-ui;
                 font-size: 18px; line-height: 1.5;
@@ -286,6 +291,14 @@ struct CardWebView: UIViewRepresentable {
                 padding-bottom: var(--amgi-card-padding-bottom, 0px);
             }
             hr { border: none; border-top: 1px solid \(hrColor); margin: 16px 0; }
+            ruby {
+                ruby-position: over;
+                line-height: normal;
+            }
+            ruby rt {
+                font-size: 0.58em;
+                line-height: 1;
+            }
             img { max-width: 100%; max-height: 95vh; height: auto; border-radius: 8px; }
             li { text-align: start; }
             pre { text-align: left; }
@@ -342,8 +355,16 @@ struct CardWebView: UIViewRepresentable {
                 padding: 6px 10px; margin: 4px; font-size: 13px;
                 color: \(missingMediaColor);
             }
-            .nightMode, .nightMode .card { color: #f5f5f5; }
-            .night_mode, .night_mode .card { color: #f5f5f5; }
+            .nightMode { color: #f5f5f5; }
+            .night_mode { color: #f5f5f5; }
+            .nightMode .card {
+                color: #f5f5f5;
+                background-color: #111111;
+            }
+            .night_mode .card {
+                color: #f5f5f5;
+                background-color: #111111;
+            }
             .nightMode .latex, .night_mode .latex { filter: invert(100%); }
             .nightMode img.drawing, .night_mode img.drawing { filter: invert(1) hue-rotate(180deg); }
             .nightMode .cloze:not([data-shape]) { color: #8fb8ff; }
