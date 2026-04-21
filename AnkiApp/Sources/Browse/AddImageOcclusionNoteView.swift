@@ -223,9 +223,11 @@ struct AddImageOcclusionNoteView: View {
                     }
                 }
 
-                Section(L("add_note_section_type")) {
+                Section {
                     Text(L("browse_add_image_occlusion"))
                         .foregroundStyle(Color.amgiTextPrimary)
+                } header: {
+                    Text(L("add_note_section_type"))
                 } footer: {
                     Text(L("io_add_flow_hint"))
                         .amgiFont(.caption)
