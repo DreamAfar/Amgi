@@ -12,3 +12,4 @@ docs/
 .qwen/
 Tests/
 .vscode
+.github/copilot-instructions.md
