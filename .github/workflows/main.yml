@@ -77,25 +77,41 @@ jobs:
       - name: Build Debug Simulator (Compatibility Smoke Check)
         run: |
           set -o pipefail
-          xcodebuild build \
-            -project AnkiApp/AnkiApp.xcodeproj \
-            -scheme AnkiApp \
-            -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
-            -skipPackagePluginValidation \
-            -skipMacroValidation \
-            2>&1 | tee simulator-build.log
+          DERIVED_DATA_PATH="$RUNNER_TEMP/DerivedData"
+          if xcodebuild -list -project AnkiApp/AnkiApp.xcodeproj | grep -q "Tests"; then
+            xcodebuild build-for-testing \
+              -project AnkiApp/AnkiApp.xcodeproj \
+              -scheme AnkiApp \
+              -configuration Debug \
+              -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+              -derivedDataPath "$DERIVED_DATA_PATH" \
+              -skipPackagePluginValidation \
+              -skipMacroValidation \
+              2>&1 | tee simulator-build.log
+          else
+            xcodebuild build \
+              -project AnkiApp/AnkiApp.xcodeproj \
+              -scheme AnkiApp \
+              -configuration Debug \
+              -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+              -derivedDataPath "$DERIVED_DATA_PATH" \
+              -skipPackagePluginValidation \
+              -skipMacroValidation \
+              2>&1 | tee simulator-build.log
+          fi
 
       # ── 9.5. 运行集成测试验证（Sprint 3+ 质量检查）──────────────
       - name: Run Integration Tests (Sprint 3 Quality Check)
         continue-on-error: true
         run: |
           echo "=== Running 34+ Integration Tests ==="
+          DERIVED_DATA_PATH="$RUNNER_TEMP/DerivedData"
           if xcodebuild -list -project AnkiApp/AnkiApp.xcodeproj | grep -q "Tests"; then
-            xcodebuild test \
+            xcodebuild test-without-building \
               -project AnkiApp/AnkiApp.xcodeproj \
               -scheme AnkiApp \
               -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+              -derivedDataPath "$DERIVED_DATA_PATH" \
               -testClassPattern="(TagClientIntegrationTests|DeckClientIntegrationTests|CrossSystemIntegrationTests)" \
               2>&1 | tee test-results.log
           else
