@@ -201,24 +201,60 @@ struct UncommittedCardPreviewSheet: View {
         let notetypeCSS = notetype.config.css
 
         do {
-            let response: Anki_CardRendering_RenderCardResponse = try await Task.detached(priority: .userInitiated) {
+            let rendered: (frontHTML: String, backHTML: String, isEmpty: Bool) = try await Task.detached(priority: .userInitiated) {
+                func extractLatexIfNeeded(
+                    backend: AnkiBackend,
+                    html: String,
+                    svg: Bool
+                ) throws -> String {
+                    guard html.contains("[latex]") || html.contains("[$]") || html.contains("[$$]") else {
+                        return html
+                    }
+
+                    var request = Anki_CardRendering_ExtractLatexRequest()
+                    request.text = html
+                    request.svg = svg
+                    request.expandClozes = false
+
+                    let response: Anki_CardRendering_ExtractLatexResponse = try backend.invoke(
+                        service: AnkiBackend.Service.cardRendering,
+                        method: AnkiBackend.CardRenderingMethod.extractLatex,
+                        request: request
+                    )
+                    return response.text
+                }
+
                 var request = Anki_CardRendering_RenderUncommittedCardRequest()
                 request.note = previewNote
                 request.cardOrd = template.ord.val
                 request.template = template
                 request.fillEmpty = false
                 request.partialRender = false
-                return try backend.invoke(
+                let response: Anki_CardRendering_RenderCardResponse = try backend.invoke(
                     service: AnkiBackend.Service.cardRendering,
                     method: AnkiBackend.CardRenderingMethod.renderUncommittedCard,
                     request: request
-                ) as Anki_CardRendering_RenderCardResponse
+                )
+
+                return (
+                    frontHTML: try extractLatexIfNeeded(
+                        backend: backend,
+                        html: renderCardPreviewNodes(response.questionNodes),
+                        svg: response.latexSVG
+                    ),
+                    backHTML: try extractLatexIfNeeded(
+                        backend: backend,
+                        html: renderCardPreviewNodes(response.answerNodes),
+                        svg: response.latexSVG
+                    ),
+                    isEmpty: response.isEmpty
+                )
             }.value
 
             let cssTag = notetypeCSS.isEmpty ? "" : "<style>\(notetypeCSS)</style>"
-            renderedFrontHTML = cssTag + renderCardPreviewNodes(response.questionNodes)
-            renderedBackHTML = cssTag + renderCardPreviewNodes(response.answerNodes)
-            isEmptyCard = response.isEmpty
+            renderedFrontHTML = cssTag + rendered.frontHTML
+            renderedBackHTML = cssTag + rendered.backHTML
+            isEmptyCard = rendered.isEmpty
                 || (renderedFrontHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     && renderedBackHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             errorMessage = nil

@@ -333,8 +333,8 @@ final class ReviewSession {
                 request: renderReq
             )
 
-            renderedFrontHTML = renderNodes(rendered.questionNodes)
-            renderedBackHTML = renderNodes(rendered.answerNodes)
+            renderedFrontHTML = extractLatexIfNeeded(in: renderNodes(rendered.questionNodes), svg: rendered.latexSVG)
+            renderedBackHTML = extractLatexIfNeeded(in: renderNodes(rendered.answerNodes), svg: rendered.latexSVG)
 
             typedAnswerState = resolveTypedAnswerState(for: queued, frontHTML: renderedFrontHTML)
             frontHTML = makeTypedAnswerFrontHTML(typedAnswerState: typedAnswerState)
@@ -354,6 +354,29 @@ final class ReviewSession {
             renderedFrontHTML = frontHTML
             renderedBackHTML = backHTML
             typedAnswerState = nil
+        }
+    }
+
+    private func extractLatexIfNeeded(in html: String, svg: Bool) -> String {
+        guard html.contains("[latex]") || html.contains("[$]") || html.contains("[$$]") else {
+            return html
+        }
+
+        do {
+            var request = Anki_CardRendering_ExtractLatexRequest()
+            request.text = html
+            request.svg = svg
+            request.expandClozes = false
+
+            let response: Anki_CardRendering_ExtractLatexResponse = try backend.invoke(
+                service: AnkiBackend.Service.cardRendering,
+                method: AnkiBackend.CardRenderingMethod.extractLatex,
+                request: request
+            )
+            return response.text
+        } catch {
+            print("[ReviewSession] Latex extraction failed: \(error)")
+            return html
         }
     }
 

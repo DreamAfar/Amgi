@@ -363,6 +363,7 @@ extension AnkiBackend {
 
     // BackendCardRenderingService (27) has 3 backend-specific methods before delegated CardRenderingService methods.
     public enum CardRenderingMethod {
+        public static let extractLatex: UInt32 = 4
         public static let getEmptyCards: UInt32 = 5
         public static let renderExistingCard: UInt32 = 6
         public static let renderUncommittedCard: UInt32 = 7
