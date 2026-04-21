@@ -826,7 +826,7 @@ struct ImageOcclusionWorkspaceView: View {
     }
 
     private func color(from hex: String?, fallback: Color) -> Color {
-        guard let hex, let color = UIColor(ioHex: hex) else {
+        guard let hex, let color = workspaceUIColor(ioHex: hex) else {
             return fallback
         }
         return Color(uiColor: color)
@@ -846,6 +846,33 @@ struct ImageOcclusionWorkspaceView: View {
             Int(round(blue * 255)),
             Int(round(alpha * 255))
         )
+    }
+
+    private func workspaceUIColor(ioHex: String) -> UIColor? {
+        let sanitized = ioHex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        guard sanitized.count == 6 || sanitized.count == 8,
+              let value = UInt64(sanitized, radix: 16) else {
+            return nil
+        }
+
+        let red: CGFloat
+        let green: CGFloat
+        let blue: CGFloat
+        let alpha: CGFloat
+
+        if sanitized.count == 8 {
+            red = CGFloat((value & 0xFF000000) >> 24) / 255
+            green = CGFloat((value & 0x00FF0000) >> 16) / 255
+            blue = CGFloat((value & 0x0000FF00) >> 8) / 255
+            alpha = CGFloat(value & 0x000000FF) / 255
+        } else {
+            red = CGFloat((value & 0xFF0000) >> 16) / 255
+            green = CGFloat((value & 0x00FF00) >> 8) / 255
+            blue = CGFloat(value & 0x0000FF) / 255
+            alpha = 1
+        }
+
+        return UIColor(red: red, green: green, blue: blue, alpha: alpha)
     }
 
     private func currentSnapshot() -> IOMaskSnapshot {
