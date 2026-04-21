@@ -403,6 +403,7 @@ struct SettingsView: View {
 private struct SettingsInfoView: View {
     let title: String
     let message: String
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ScrollView {
@@ -414,6 +415,13 @@ private struct SettingsInfoView: View {
         }
         .background(Color.amgiBackground)
         .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(L("common_done")) { dismiss() }
+                    .amgiToolbarTextButton(tone: .neutral)
+            }
+        }
     }
 }
 

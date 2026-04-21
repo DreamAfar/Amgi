@@ -17,6 +17,7 @@ struct NoteEditorView: View {
     @State private var fieldValues: [String] = []
     @State private var fieldNames: [String] = []
     @State private var tags: String = ""
+    @State private var tagDraft = ""
     @State private var availableTags: [String] = []
     @State private var hasLoadedAvailableTags = false
     @State private var isLoadingAvailableTags = false
@@ -33,7 +34,21 @@ struct NoteEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     private var trimmedTags: String {
-        tags.trimmingCharacters(in: .whitespacesAndNewlines)
+        tagList.joined(separator: " ")
+    }
+
+    private var tagList: [String] {
+        var seen = Set<String>()
+        return tags
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .filter { seen.insert($0).inserted }
+    }
+
+    private var normalizedTagDraft: String {
+        tagDraft.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var hasUnsavedChanges: Bool {
@@ -96,33 +111,39 @@ struct NoteEditorView: View {
             }
 
             Section(L("add_note_section_tags")) {
-                TextField(L("add_note_tags_placeholder"), text: $tags)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
+                ForEach(tagList, id: \.self) { tag in
+                    Button {
+                        showTagPicker = true
+                    } label: {
+                        HStack {
+                            Text(tag)
+                                .amgiFont(.caption)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.amgiAccent.opacity(0.14), in: Capsule())
+                                .foregroundStyle(Color.amgiAccent)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            removeTag(tag)
+                        } label: {
+                            Label(L("tags_remove_swipe"), systemImage: "trash")
+                        }
+                    }
+                }
 
-                Button(action: { showTagPicker = true }) {
-                    Label(L("note_editor_select_tags"), systemImage: "ellipsis")
+                Button {
+                    showTagPicker = true
+                } label: {
+                    Label(L("tags_add_tag_title"), systemImage: "plus")
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .foregroundStyle(Color.amgiAccent)
                 .disabled(isLoadingAvailableTags)
-                
-                if !tags.isEmpty {
-                    HStack {
-                        Text(L("note_editor_current_tags"))
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                        Spacer()
-                        ForEach(tags.split(separator: " ").map(String.init), id: \.self) { tag in
-                            Text(tag)
-                                .amgiFont(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.amgiAccent.opacity(0.14), in: Capsule())
-                                .foregroundStyle(Color.amgiAccent)
-                        }
-                    }
-                }
             }
         }
         .scrollContentBackground(.hidden)
@@ -197,18 +218,35 @@ struct NoteEditorView: View {
 
     private var tagPickerSheet: some View {
         NavigationStack {
-            Group {
-                if isLoadingAvailableTags && availableTags.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List {
+            List {
+                Section(L("tags_add_name_section")) {
+                    HStack(spacing: AmgiSpacing.sm) {
+                        TextField(L("tags_add_placeholder"), text: $tagDraft)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+
+                        Button {
+                            addDraftTag()
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                        }
+                        .foregroundStyle(Color.amgiAccent)
+                        .disabled(normalizedTagDraft.isEmpty)
+                    }
+                }
+
+                Section(L("note_editor_available_tags")) {
+                    if isLoadingAvailableTags && availableTags.isEmpty {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    } else {
                         ForEach(availableTags.sorted(), id: \.self) { tag in
-                            Button(action: { addTag(tag) }) {
+                            Button(action: { toggleTag(tag) }) {
                                 HStack {
                                     Text(tag)
-                                    if tags.contains(tag) {
-                                        Spacer()
+                                    Spacer()
+                                    if tagList.contains(tag) {
                                         Image(systemName: "checkmark")
                                             .foregroundStyle(Color.amgiAccent)
                                     }
@@ -218,7 +256,7 @@ struct NoteEditorView: View {
                     }
                 }
             }
-            .navigationTitle(L("note_editor_available_tags"))
+            .navigationTitle(L("note_editor_select_tags"))
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 await ensureAvailableTagsLoaded()
@@ -331,15 +369,35 @@ struct NoteEditorView: View {
             print("[NoteEditorView] Failed to load tags: \(error)")
         }
     }
-    
+
+    private func addDraftTag() {
+        addTag(normalizedTagDraft)
+        tagDraft = ""
+    }
+
     private func addTag(_ tag: String) {
-        let tagSet = Set(tags.split(separator: " ").map(String.init))
-        if !tagSet.contains(tag) {
-            if tags.isEmpty {
-                tags = tag
-            } else {
-                tags += " \(tag)"
-            }
+        let normalized = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return }
+
+        var updatedTags = tagList
+        guard !updatedTags.contains(normalized) else { return }
+
+        updatedTags.append(normalized)
+        tags = updatedTags.joined(separator: " ")
+        if !availableTags.contains(normalized) {
+            availableTags.append(normalized)
+        }
+    }
+
+    private func removeTag(_ tag: String) {
+        tags = tagList.filter { $0 != tag }.joined(separator: " ")
+    }
+
+    private func toggleTag(_ tag: String) {
+        if tagList.contains(tag) {
+            removeTag(tag)
+        } else {
+            addTag(tag)
         }
     }
 
@@ -361,7 +419,7 @@ struct NoteEditorView: View {
         updatedNote.flds = newFlds
         updatedNote.sfld = newSfld
         updatedNote.csum = newCsum
-        updatedNote.tags = " \(tags.trimmingCharacters(in: .whitespaces)) "
+        updatedNote.tags = trimmedTags.isEmpty ? "" : " \(trimmedTags) "
 
         do {
             try noteClient.save(updatedNote)

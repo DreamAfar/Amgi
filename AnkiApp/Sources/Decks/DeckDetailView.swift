@@ -145,12 +145,6 @@ struct DeckDetailView: View {
         .sheet(isPresented: $showBrowse) {
             NavigationStack {
                 BrowseView(preselectedDeck: deck)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button(L("common_done")) { showBrowse = false }
-                                .amgiToolbarTextButton(tone: .neutral)
-                        }
-                    }
             }
         }
         .alert(L("deck_detail_add_subdeck"), isPresented: $showAddSubdeck) {
