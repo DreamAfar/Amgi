@@ -479,14 +479,14 @@ struct CardWebView: UIViewRepresentable {
 
         function amgiTrimMathJaxText(text) {
             return (text || '')
-                .replace(/<br[ ]*\/?>/gi, '\n')
-                .replace(/^\n*/, '')
-                .replace(/\n*$/, '');
+                .replace(/<br[ ]*\\/?>/gi, '\\n')
+                .replace(/^\\n*/, '')
+                .replace(/\\n*$/, '');
         }
 
         function amgiNormalizeMathJaxMarkup(html) {
             return (html || '').replace(
-                /<anki-mathjax(?:[^>]*?block="(.*?)")?[^>]*?>([\s\S]*?)<\/anki-mathjax>/gi,
+                /<anki-mathjax(?:[^>]*?block="(.*?)")?[^>]*?>([\\s\\S]*?)<\\/anki-mathjax>/gi,
                 function(_match, block, text) {
                     var trimmed = amgiTrimMathJaxText(text);
                     return (typeof block === 'string' && block !== 'false')
