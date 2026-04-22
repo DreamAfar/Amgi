@@ -60,6 +60,8 @@ struct BrowseView: View {
     @State private var activeSearchTask: Task<Void, Never>?
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var hasLoadedInitialData = false
+    @State private var showTopLevelDecksSheet = false
+    @State private var showChildDecksSheet = false
     @State private var showAllTagsSheet = false
 
     private let preselectedDeck: DeckInfo?
@@ -301,12 +303,73 @@ struct BrowseView: View {
                 scheduleSearch()
             }
         }
+        .sheet(isPresented: $showTopLevelDecksSheet) {
+            NavigationStack {
+                BrowseFilterQuickPickerSheet(
+                    title: L("browse_filter_by_deck"),
+                    allTitle: L("browse_filter_all"),
+                    options: topLevelDecks.map { deck in
+                        BrowseQuickPickerOption(id: String(deck.id), title: deck.name)
+                    },
+                    selectedOptionID: {
+                        guard let activeDeck, parentDeck?.id == activeDeck.id else { return nil }
+                        return String(activeDeck.id)
+                    }()
+                ) { selectedID in
+                    guard let selectedID,
+                          let deckID = Int64(selectedID),
+                          let deck = topLevelDecks.first(where: { $0.id == deckID }) else {
+                        parentDeck = nil
+                        activeDeck = nil
+                        return
+                    }
+                    parentDeck = deck
+                    activeDeck = deck
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showChildDecksSheet) {
+            NavigationStack {
+                BrowseFilterQuickPickerSheet(
+                    title: parentDeck.map { shortName($0.name) } ?? L("browse_filter_by_deck"),
+                    allTitle: L("browse_filter_all"),
+                    options: childDecks.map { deck in
+                        BrowseQuickPickerOption(id: String(deck.id), title: shortName(deck.name))
+                    },
+                    selectedOptionID: {
+                        guard let activeDeck, activeDeck.id != parentDeck?.id else { return nil }
+                        return String(activeDeck.id)
+                    }()
+                ) { selectedID in
+                    guard let selectedID,
+                          let deckID = Int64(selectedID),
+                          let deck = childDecks.first(where: { $0.id == deckID }) else {
+                        activeDeck = parentDeck
+                        return
+                    }
+                    activeDeck = deck
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showAllTagsSheet) {
             NavigationStack {
-                BrowseAllTagsSheet(tags: allTags, activeTag: activeTag) { selectedTag in
+                BrowseFilterQuickPickerSheet(
+                    title: L("browse_filter_by_tag"),
+                    allTitle: L("browse_filter_all"),
+                    options: allTags.map { tag in
+                        BrowseQuickPickerOption(id: tag, title: shortTagName(tag))
+                    },
+                    selectedOptionID: activeTag
+                ) { selectedTag in
                     activeTag = selectedTag
                 }
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showExportOptions) {
             NavigationStack {
@@ -783,32 +846,38 @@ struct BrowseView: View {
         VStack(spacing: 0) {
             // Top-level deck chips
             ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        chipButton(label: L("browse_filter_all"), isSelected: activeDeck == nil) {
-                            parentDeck = nil
-                            activeDeck = nil
-                        }
-                        .id(deckChipID(nil))
-                        ForEach(topLevelDecks) { deck in
-                            chipButton(
-                                label: deck.name,
-                                isSelected: parentDeck?.id == deck.id && activeDeck?.id == deck.id
-                            ) {
-                                if parentDeck?.id == deck.id && activeDeck?.id == deck.id {
-                                    parentDeck = nil
-                                    activeDeck = nil
-                                } else {
-                                    parentDeck = deck
-                                    activeDeck = deck
-                                }
-                            }
-                            .id(deckChipID(deck.id))
-                        }
+                HStack(spacing: 8) {
+                    chipButton(
+                        label: L("browse_filter_all"),
+                        isSelected: activeDeck == nil,
+                        onLongPress: topLevelDecks.isEmpty ? nil : { showTopLevelDecksSheet = true }
+                    ) {
+                        parentDeck = nil
+                        activeDeck = nil
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(topLevelDecks) { deck in
+                                chipButton(
+                                    label: deck.name,
+                                    isSelected: parentDeck?.id == deck.id && activeDeck?.id == deck.id
+                                ) {
+                                    if parentDeck?.id == deck.id && activeDeck?.id == deck.id {
+                                        parentDeck = nil
+                                        activeDeck = nil
+                                    } else {
+                                        parentDeck = deck
+                                        activeDeck = deck
+                                    }
+                                }
+                                .id(deckChipID(deck.id))
+                            }
+                        }
+                        .padding(.trailing)
+                        .padding(.vertical, 8)
+                    }
                 }
+                .padding(.leading)
                 .onAppear {
                     scrollToDeckChip(proxy: proxy, animated: false)
                 }
@@ -820,35 +889,38 @@ struct BrowseView: View {
             // Subdeck row — stays visible as long as a parent with children is selected
             if !childDecks.isEmpty {
                 ScrollViewReader { proxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            chipButton(
-                                label: L("browse_filter_all"),
-                                isSelected: activeDeck?.id == parentDeck?.id,
-                                small: true
-                            ) {
-                                if activeDeck?.id == parentDeck?.id {
-                                    parentDeck = nil
-                                    activeDeck = nil
-                                } else {
-                                    activeDeck = parentDeck
-                                }
-                            }
-                            .id(childDeckChipID(nil))
-                            ForEach(childDecks) { child in
-                                chipButton(
-                                    label: shortName(child.name),
-                                    isSelected: activeDeck?.id == child.id,
-                                    small: true
-                                ) {
-                                    activeDeck = activeDeck?.id == child.id ? parentDeck : child
-                                }
-                                .id(childDeckChipID(child.id))
+                    HStack(spacing: 8) {
+                        chipButton(
+                            label: L("browse_filter_all"),
+                            isSelected: activeDeck?.id == parentDeck?.id,
+                            small: true,
+                            onLongPress: childDecks.isEmpty ? nil : { showChildDecksSheet = true }
+                        ) {
+                            if activeDeck?.id == parentDeck?.id {
+                                parentDeck = nil
+                                activeDeck = nil
+                            } else {
+                                activeDeck = parentDeck
                             }
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(childDecks) { child in
+                                    chipButton(
+                                        label: shortName(child.name),
+                                        isSelected: activeDeck?.id == child.id,
+                                        small: true
+                                    ) {
+                                        activeDeck = activeDeck?.id == child.id ? parentDeck : child
+                                    }
+                                    .id(childDeckChipID(child.id))
+                                }
+                            }
+                            .padding(.trailing)
+                            .padding(.bottom, 8)
+                        }
                     }
+                    .padding(.leading)
                     .onAppear {
                         scrollToChildDeckChip(proxy: proxy, animated: false)
                     }
@@ -861,34 +933,36 @@ struct BrowseView: View {
             // Tag row
             if !allTags.isEmpty {
                 ScrollViewReader { proxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            chipButton(
-                                label: L("browse_filter_all"),
-                                isSelected: activeTag == nil,
-                                small: true,
-                                onLongPress: {
-                                    showAllTagsSheet = true
-                                }
-                            ) {
-                                activeTag = nil
+                    HStack(spacing: 8) {
+                        chipButton(
+                            label: L("browse_filter_all"),
+                            isSelected: activeTag == nil,
+                            small: true,
+                            onLongPress: {
+                                showAllTagsSheet = true
                             }
-                            .id(tagChipID(nil))
-
-                            ForEach(allTags, id: \.self) { tag in
-                                chipButton(
-                                    label: shortTagName(tag),
-                                    isSelected: activeTag == tag,
-                                    small: true
-                                ) {
-                                    activeTag = activeTag == tag ? nil : tag
-                                }
-                                .id(tagChipID(tag))
-                            }
+                        ) {
+                            activeTag = nil
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(allTags, id: \.self) { tag in
+                                    chipButton(
+                                        label: shortTagName(tag),
+                                        isSelected: activeTag == tag,
+                                        small: true
+                                    ) {
+                                        activeTag = activeTag == tag ? nil : tag
+                                    }
+                                    .id(tagChipID(tag))
+                                }
+                            }
+                            .padding(.trailing)
+                            .padding(.bottom, 8)
+                        }
                     }
+                    .padding(.leading)
                     .onAppear {
                         scrollToTagChip(proxy: proxy, animated: false)
                     }
@@ -954,7 +1028,8 @@ struct BrowseView: View {
     }
 
     private func scrollToDeckChip(proxy: ScrollViewProxy, animated: Bool = true) {
-        let target = deckChipID(activeDeck?.id)
+        guard let deckID = activeDeck?.id else { return }
+        let target = deckChipID(deckID)
         if animated {
             withAnimation(.easeInOut(duration: 0.2)) {
                 proxy.scrollTo(target, anchor: .center)
@@ -965,7 +1040,8 @@ struct BrowseView: View {
     }
 
     private func scrollToChildDeckChip(proxy: ScrollViewProxy, animated: Bool = true) {
-        let target = childDeckChipID(activeDeck?.id == parentDeck?.id ? nil : activeDeck?.id)
+        guard activeDeck?.id != parentDeck?.id, let deckID = activeDeck?.id else { return }
+        let target = childDeckChipID(deckID)
         if animated {
             withAnimation(.easeInOut(duration: 0.2)) {
                 proxy.scrollTo(target, anchor: .center)
@@ -976,6 +1052,7 @@ struct BrowseView: View {
     }
 
     private func scrollToTagChip(proxy: ScrollViewProxy, animated: Bool = true) {
+        guard let activeTag else { return }
         let target = tagChipID(activeTag)
         if animated {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -1332,9 +1409,16 @@ struct BrowseView: View {
     }
 }
 
-private struct BrowseAllTagsSheet: View {
-    let tags: [String]
-    let activeTag: String?
+private struct BrowseQuickPickerOption: Identifiable {
+    let id: String
+    let title: String
+}
+
+private struct BrowseFilterQuickPickerSheet: View {
+    let title: String
+    let allTitle: String
+    let options: [BrowseQuickPickerOption]
+    let selectedOptionID: String?
     let onSelect: (String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -1344,14 +1428,14 @@ private struct BrowseAllTagsSheet: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 10) {
-                tagButton(title: L("browse_filter_all"), isSelected: activeTag == nil) {
+                optionButton(title: allTitle, isSelected: selectedOptionID == nil) {
                     onSelect(nil)
                     dismiss()
                 }
 
-                ForEach(tags, id: \.self) { tag in
-                    tagButton(title: shortTagName(tag), isSelected: activeTag == tag) {
-                        onSelect(tag)
+                ForEach(options) { option in
+                    optionButton(title: option.title, isSelected: selectedOptionID == option.id) {
+                        onSelect(option.id)
                         dismiss()
                     }
                 }
@@ -1359,7 +1443,7 @@ private struct BrowseAllTagsSheet: View {
             .padding()
         }
         .background(Color.amgiBackground)
-        .navigationTitle(L("browse_filter_by_tag"))
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -1369,7 +1453,7 @@ private struct BrowseAllTagsSheet: View {
         }
     }
 
-    private func tagButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func optionButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(AmgiFont.caption.font)
@@ -1381,10 +1465,6 @@ private struct BrowseAllTagsSheet: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
-    }
-
-    private func shortTagName(_ tag: String) -> String {
-        String(tag.split(separator: "::").last ?? Substring(tag))
     }
 }
 

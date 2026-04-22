@@ -248,57 +248,58 @@ struct ImageOcclusionWorkspaceView: View {
     }
 
     private var toolPalette: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(IOShapeType.allCases, id: \.self) { tool in
-                    ioPaletteButton(
-                        title: tool.label,
-                        systemImage: tool.systemImage,
-                        isSelected: shapeType == tool
-                    ) {
-                        shapeType = tool
-                    }
+        HStack(spacing: 4) {
+            ForEach(IOShapeType.allCases, id: \.self) { tool in
+                ioPaletteButton(
+                    title: tool.label,
+                    systemImage: tool.systemImage,
+                    isSelected: shapeType == tool
+                ) {
+                    shapeType = tool
                 }
-
-                Menu {
-                    ForEach(IOMaskFillOption.allCases, id: \.self) { option in
-                        Button(option.label) {
-                            applyFill(option.hex)
-                        }
-                    }
-                    Divider()
-                    Button(L("io_fill_custom")) {
-                        openFillEditor()
-                    }
-                    Button(L("rich_text_color_default")) {
-                        applyFill(nil)
-                    }
-                } label: {
-                    ioPaletteChip(
-                        title: L("io_tool_fill"),
-                        systemImage: "paintpalette",
-                        isSelected: false
-                    )
-                }
-                .disabled(activeSelectionIndices.isEmpty)
-
-                Menu {
-                    ForEach(IOOcclusionMode.allCases, id: \.self) { mode in
-                        Button(mode.label) {
-                            applyOcclusionMode(mode)
-                        }
-                    }
-                } label: {
-                    ioPaletteChip(
-                        title: L("io_tool_mode"),
-                        systemImage: "square.stack.3d.up",
-                        isSelected: false
-                    )
-                }
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+
+            Menu {
+                ForEach(IOMaskFillOption.allCases, id: \.self) { option in
+                    Button(option.label) {
+                        applyFill(option.hex)
+                    }
+                }
+                Divider()
+                Button(L("io_fill_custom")) {
+                    openFillEditor()
+                }
+                Button(L("rich_text_color_default")) {
+                    applyFill(nil)
+                }
+            } label: {
+                ioPaletteChip(
+                    title: L("io_tool_fill"),
+                    systemImage: "paintpalette",
+                    isSelected: false
+                )
+            }
+            .frame(maxWidth: .infinity)
+            .disabled(activeSelectionIndices.isEmpty)
+
+            Menu {
+                ForEach(IOOcclusionMode.allCases, id: \.self) { mode in
+                    Button(mode.label) {
+                        applyOcclusionMode(mode)
+                    }
+                }
+            } label: {
+                ioPaletteChip(
+                    title: L("io_tool_mode"),
+                    systemImage: "square.stack.3d.up",
+                    isSelected: false
+                )
+            }
+            .frame(maxWidth: .infinity)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
         .background(Color.amgiSurface)
     }
 
@@ -478,15 +479,18 @@ struct ImageOcclusionWorkspaceView: View {
         systemImage: String,
         isSelected: Bool
     ) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
             Text(title)
-                .font(.caption2.weight(.medium))
-                .lineLimit(1)
+                .font(.system(size: 10, weight: .medium))
+                .lineLimit(2)
+                .minimumScaleFactor(0.65)
+                .multilineTextAlignment(.center)
         }
         .foregroundStyle(isSelected ? Color.white : Color.primary)
-        .frame(width: 60, height: 46)
+        .frame(maxWidth: .infinity, minHeight: 42)
+        .padding(.horizontal, 2)
         .background(isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
