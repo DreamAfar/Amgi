@@ -369,7 +369,11 @@ final class ReviewSession {
                 method: AnkiBackend.CardRenderingMethod.extractLatex,
                 request: request
             )
-            return response.text
+            let extracted = response.text
+            if extracted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return html
+            }
+            return extracted
         } catch {
             print("[ReviewSession] Latex extraction failed: \(error)")
             return html
