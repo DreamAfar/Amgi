@@ -1037,12 +1037,14 @@ struct CardWebView: UIViewRepresentable {
             if (!qa) return;
 
             stopAllSystemAudio();
-            amgiApplyCardState(state || {});
             var normalizedHTML = amgiNormalizeMathJaxMarkup(html || '');
-            amgiPreloadResources(normalizedHTML);
+            var preloadPromise = amgiPreloadResources(normalizedHTML);
 
-            qa.style.opacity = '0';
             try {
+                await preloadPromise;
+                amgiApplyCardState(state || {});
+                qa.style.opacity = '0';
+
                 try { await amgiSetInnerHTML(qa, normalizedHTML); }
                 catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
 

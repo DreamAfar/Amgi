@@ -975,6 +975,7 @@ struct BrowseView: View {
         .background(.bar)
     }
 
+    @ViewBuilder
     private func chipButton(
         label: String,
         isSelected: Bool,
@@ -982,7 +983,7 @@ struct BrowseView: View {
         onLongPress: (() -> Void)? = nil,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        let button = Button(action: action) {
             Text(label)
                 .font(small ? AmgiFont.caption.font : AmgiFont.body.font)
                 .padding(.horizontal, small ? 10 : 12)
@@ -992,8 +993,23 @@ struct BrowseView: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
-        .onLongPressGesture {
-            onLongPress?()
+
+        if let onLongPress {
+            button
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.45)
+                        .onEnded { _ in
+                            onLongPress()
+                        }
+                )
+                .simultaneousGesture(
+                    TapGesture(count: 2)
+                        .onEnded {
+                            onLongPress()
+                        }
+                )
+        } else {
+            button
         }
     }
 
