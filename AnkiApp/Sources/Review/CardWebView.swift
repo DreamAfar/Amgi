@@ -477,6 +477,25 @@ struct CardWebView: UIViewRepresentable {
             } catch(e) { console.error('Preload failed', e); }
         }
 
+        function amgiTrimMathJaxText(text) {
+            return (text || '')
+                .replace(/<br[ ]*\/?>/gi, '\n')
+                .replace(/^\n*/, '')
+                .replace(/\n*$/, '');
+        }
+
+        function amgiNormalizeMathJaxMarkup(html) {
+            return (html || '').replace(
+                /<anki-mathjax(?:[^>]*?block="(.*?)")?[^>]*?>([\s\S]*?)<\/anki-mathjax>/gi,
+                function(_match, block, text) {
+                    var trimmed = amgiTrimMathJaxText(text);
+                    return (typeof block === 'string' && block !== 'false')
+                        ? '\\[' + trimmed + '\\]'
+                        : '\\(' + trimmed + '\\)';
+                }
+            );
+        }
+
         // ── Hooks ────────────────────────────────────────────────────────────
         function amgiRunHooks(hooks) {
             if (!Array.isArray(hooks)) return Promise.resolve([]);
@@ -998,11 +1017,12 @@ struct CardWebView: UIViewRepresentable {
 
             stopAllSystemAudio();
             amgiApplyCardState(state || {});
-            amgiPreloadResources(html || '');
+            var normalizedHTML = amgiNormalizeMathJaxMarkup(html || '');
+            amgiPreloadResources(normalizedHTML);
 
             qa.style.opacity = '0';
             try {
-                try { await amgiSetInnerHTML(qa, html || ''); }
+                try { await amgiSetInnerHTML(qa, normalizedHTML); }
                 catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
 
                 await amgiRunHooks(window.onUpdateHook);

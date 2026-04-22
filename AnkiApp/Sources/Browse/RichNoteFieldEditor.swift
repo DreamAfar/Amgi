@@ -11,6 +11,10 @@ struct RichNoteFieldEditor: UIViewRepresentable {
     @Binding var htmlText: String
     var preservesSourceHTML = false
 
+    static func normalizedStoredHTML(_ text: String) -> String {
+        Coordinator.normalizedStoredHTML(from: text)
+    }
+
     private let doneButtonTitle = L("common_done")
     private let boldTitle = L("rich_text_action_bold")
     private let italicTitle = L("rich_text_action_italic")
@@ -66,7 +70,8 @@ struct RichNoteFieldEditor: UIViewRepresentable {
     }
 
     private func displayText(for html: String) -> String {
-        preservesSourceHTML ? html : Coordinator.plainText(from: html)
+        let normalized = Coordinator.normalizedStoredHTML(from: html)
+        return preservesSourceHTML ? normalized : Coordinator.plainText(from: normalized)
     }
 
     // MARK: - Toolbar
@@ -248,9 +253,10 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         }
 
         private func commit(_ plain: String) {
+            let normalized = Self.normalizedStoredHTML(from: plain)
             lastPlainText = plain
-            lastRenderedValue = plain
-            htmlText = plain
+            lastRenderedValue = normalized
+            htmlText = normalized
         }
 
         func insert(_ string: String) {
@@ -333,8 +339,63 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             return result.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
+        static func normalizedStoredHTML(from text: String) -> String {
+            guard text.localizedCaseInsensitiveContains("anki-mathjax") else { return text }
+            let pattern = #"<anki-mathjax(?:[^>]*?block=\"(.*?)\")?[^>]*?>(.*?)</anki-mathjax>"#
+            guard let regex = try? NSRegularExpression(
+                pattern: pattern,
+                options: [.caseInsensitive, .dotMatchesLineSeparators]
+            ) else {
+                return text
+            }
+
+            let source = text as NSString
+            var output = ""
+            var currentLocation = 0
+
+            for match in regex.matches(in: text, range: NSRange(location: 0, length: source.length)) {
+                let fullRange = match.range(at: 0)
+                output += source.substring(with: NSRange(location: currentLocation, length: fullRange.location - currentLocation))
+
+                let blockValue: String? = {
+                    let range = match.range(at: 1)
+                    guard range.location != NSNotFound else { return nil }
+                    return source.substring(with: range)
+                }()
+
+                let innerText: String = {
+                    let range = match.range(at: 2)
+                    guard range.location != NSNotFound else { return "" }
+                    return source.substring(with: range)
+                }()
+
+                let trimmed = trimMathJaxBreaks(in: innerText)
+                if let blockValue, !blockValue.isEmpty, blockValue.caseInsensitiveCompare("false") != .orderedSame {
+                    output += #"\["# + trimmed + #"\]"#
+                } else {
+                    output += #"\("# + trimmed + #"\)"#
+                }
+
+                currentLocation = fullRange.location + fullRange.length
+            }
+
+            output += source.substring(from: currentLocation)
+            return output
+        }
+
         private static func isLikelyHTML(_ text: String) -> Bool {
             text.contains("<") && text.contains(">")
+        }
+
+        private static func trimMathJaxBreaks(in text: String) -> String {
+            text
+                .replacingOccurrences(
+                    of: #"<br[ ]*/?>"#,
+                    with: "\n",
+                    options: [.regularExpression, .caseInsensitive]
+                )
+                .replacingOccurrences(of: #"^\n*"#, with: "", options: .regularExpression)
+                .replacingOccurrences(of: #"\n*$"#, with: "", options: .regularExpression)
         }
 
         private static func removeInlineHTMLFormatting(from text: String) -> String {

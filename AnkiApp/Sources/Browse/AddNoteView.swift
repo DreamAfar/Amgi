@@ -138,7 +138,7 @@ struct AddNoteView: View {
             get: { index < fieldValues.count ? fieldValues[index] : "" },
             set: { newValue in
                 if index < fieldValues.count {
-                    fieldValues[index] = newValue
+                    fieldValues[index] = RichNoteFieldEditor.normalizedStoredHTML(newValue)
                 }
             }
         )
@@ -218,7 +218,7 @@ struct AddNoteView: View {
             )
 
             // 2. Fill in fields and tags
-            note.fields = fieldValues
+            note.fields = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
             note.tags = tags.split(separator: " ").map(String.init)
 
             // 3. Add the note to the deck

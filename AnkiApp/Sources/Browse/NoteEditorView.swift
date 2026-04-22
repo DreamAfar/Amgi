@@ -274,7 +274,9 @@ struct NoteEditorView: View {
         Binding(
             get: { index < fieldValues.count ? fieldValues[index] : "" },
             set: { newValue in
-                if index < fieldValues.count { fieldValues[index] = newValue }
+                if index < fieldValues.count {
+                    fieldValues[index] = RichNoteFieldEditor.normalizedStoredHTML(newValue)
+                }
             }
         )
     }
@@ -350,6 +352,7 @@ struct NoteEditorView: View {
         fieldValues = noteData.flds
             .split(separator: "\u{1f}", omittingEmptySubsequences: false)
             .map(String.init)
+            .map(RichNoteFieldEditor.normalizedStoredHTML)
         while fieldValues.count < fieldNames.count { fieldValues.append("") }
         tags = noteData.tags.trimmingCharacters(in: .whitespaces)
         originalFieldValues = fieldValues
@@ -411,8 +414,9 @@ struct NoteEditorView: View {
 
     private func save() async {
         isSaving = true
-        let newFlds = fieldValues.joined(separator: "\u{1f}")
-        let newSfld = fieldValues.first ?? ""
+        let storedFieldValues = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
+        let newFlds = storedFieldValues.joined(separator: "\u{1f}")
+        let newSfld = storedFieldValues.first ?? ""
         let newCsum = Int64(newSfld.hashValue & 0xFFFFFFFF)
 
         var updatedNote = note
