@@ -126,85 +126,90 @@ struct EaseChart: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart(chartData, id: \.ease) { item in
-                    BarMark(
-                        x: .value("Ease", item.ease),
-                        y: .value("Cards", item.count)
-                    )
-                    .foregroundStyle((isFSRS ? difficultyColor(for: item.ease) : Color.indigo).gradient)
-
-                    if let selectedItem,
-                       selectedItem.ease == item.ease {
-                        let countLabel = L("stats_card_count")
-                        RuleMark(x: .value("Selected Ease", selectedItem.ease))
-                            .foregroundStyle(Color.amgiAccent.opacity(0.35))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                            .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
-                                StatsChartTooltip(
-                                    title: "\(selectedItem.ease)%",
-                                    lines: ["\(countLabel): \(selectedItem.count)"]
-                                )
-                            }
-                    }
-                }
-                .chartXScale(domain: xAxisLowerBound...xAxisUpperBound)
-                .chartOverlay { proxy in
-                    GeometryReader { geometry in
-                        Rectangle()
-                            .fill(Color.clear)
-                            .contentShape(Rectangle())
-                            .gesture(
-                                SpatialTapGesture()
-                                    .onEnded { value in
-                                        let plotFrame = geometry[proxy.plotAreaFrame]
-                                        let plotX = value.location.x - plotFrame.origin.x
-                                        guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
-                                              let ease: Int = proxy.value(atX: plotX)
-                                        else {
-                                            selectedEase = nil
-                                            return
-                                        }
-
-                                        let nearestEase = chartData.min(by: {
-                                            abs($0.ease - ease) < abs($1.ease - ease)
-                                        })?.ease
-                                        selectedEase = selectedEase == nearestEase ? nil : nearestEase
-                                    }
-                            )
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(values: xAxisValues) { value in
-                        AxisGridLine()
-                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let v = value.as(Int.self) {
-                            AxisValueLabel {
-                                Text("\(v)%")
-                                    .amgiFont(.micro)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-                        }
-                    }
-                }
-                .chartYScale(domain: 0...yAxisMax)
-                .chartYAxis {
-                    AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let raw = value.as(Double.self),
-                           let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                            AxisValueLabel {
-                                Text(tick.label)
-                                    .amgiFont(.micro)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-                        }
-                    }
-                }
-                .frame(height: 180)
+                easeChart()
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .amgiCard(elevated: true)
+    }
+
+    @ViewBuilder
+    private func easeChart() -> some View {
+        Chart(chartData, id: \.ease) { item in
+            BarMark(
+                x: .value("Ease", item.ease),
+                y: .value("Cards", item.count)
+            )
+            .foregroundStyle((isFSRS ? difficultyColor(for: item.ease) : Color.indigo).gradient)
+
+            if let selectedItem,
+               selectedItem.ease == item.ease {
+                let countLabel = L("stats_card_count")
+                RuleMark(x: .value("Selected Ease", selectedItem.ease))
+                    .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                        StatsChartTooltip(
+                            title: "\(selectedItem.ease)%",
+                            lines: ["\(countLabel): \(selectedItem.count)"]
+                        )
+                    }
+            }
+        }
+        .chartXScale(domain: xAxisLowerBound...xAxisUpperBound)
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle()
+                    .fill(Color.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        SpatialTapGesture()
+                            .onEnded { value in
+                                let plotFrame = geometry[proxy.plotAreaFrame]
+                                let plotX = value.location.x - plotFrame.origin.x
+                                guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
+                                      let ease: Int = proxy.value(atX: plotX)
+                                else {
+                                    selectedEase = nil
+                                    return
+                                }
+
+                                let nearestEase = chartData.min(by: {
+                                    abs($0.ease - ease) < abs($1.ease - ease)
+                                })?.ease
+                                selectedEase = selectedEase == nearestEase ? nil : nearestEase
+                            }
+                    )
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: xAxisValues) { value in
+                AxisGridLine()
+                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                if let v = value.as(Int.self) {
+                    AxisValueLabel {
+                        Text("\(v)%")
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                }
+            }
+        }
+        .chartYScale(domain: 0...yAxisMax)
+        .chartYAxis {
+            AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                if let raw = value.as(Double.self),
+                   let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                    AxisValueLabel {
+                        Text(tick.label)
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                }
+            }
+        }
+        .frame(height: 180)
     }
 }
