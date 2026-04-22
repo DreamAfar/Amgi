@@ -1001,53 +1001,67 @@ struct CardWebView: UIViewRepresentable {
             amgiPreloadResources(html || '');
 
             qa.style.opacity = '0';
-            try { await amgiSetInnerHTML(qa, html || ''); }
-            catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
+            try {
+                try { await amgiSetInnerHTML(qa, html || ''); }
+                catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
 
-            await amgiRunHooks(window.onUpdateHook);
+                await amgiRunHooks(window.onUpdateHook);
 
-            await window.MathJax.startup.promise
-                .then(function() {
-                    window.MathJax.typesetClear();
-                    return window.MathJax.typesetPromise([qa]);
-                })
-                .catch(function(error) { console.error('MathJax failed', error); });
+                try {
+                    var mathJax = window.MathJax;
+                    if (mathJax
+                        && mathJax.startup
+                        && mathJax.startup.promise
+                        && typeof mathJax.typesetPromise === 'function') {
+                        await mathJax.startup.promise
+                            .then(function() {
+                                if (typeof mathJax.typesetClear === 'function') {
+                                    mathJax.typesetClear();
+                                }
+                                return mathJax.typesetPromise([qa]);
+                            })
+                            .catch(function(error) { console.error('MathJax failed', error); });
+                    }
+                } catch (error) {
+                    console.error('MathJax unavailable', error);
+                }
 
-            qa.style.opacity = '1';
-            amgiScheduleCardThemeReport();
+                // Detect missing media
+                document.querySelectorAll('img').forEach(function(img) {
+                    img.onerror = function() {
+                        var hint = document.createElement('span');
+                        hint.className = 'missing-media';
+                        hint.textContent = '\\u26a0 ' + (img.getAttribute('src') || 'image');
+                        img.replaceWith(hint);
+                    };
+                    if (img.complete && img.naturalWidth === 0 && img.src) img.onerror();
+                });
+                document.querySelectorAll('.sound-btn').forEach(function(span) {
+                    var audio = span.querySelector('audio');
+                    if (!audio) return;
+                    audio.onerror = function() {
+                        var hint = document.createElement('span');
+                        hint.className = 'missing-media';
+                        hint.textContent = '\\u26a0 ' + (audio.getAttribute('src') || 'audio');
+                        span.replaceWith(hint);
+                    };
+                });
 
-            // Detect missing media
-            document.querySelectorAll('img').forEach(function(img) {
-                img.onerror = function() {
-                    var hint = document.createElement('span');
-                    hint.className = 'missing-media';
-                    hint.textContent = '\\u26a0 ' + (img.getAttribute('src') || 'image');
-                    img.replaceWith(hint);
-                };
-                if (img.complete && img.naturalWidth === 0 && img.src) img.onerror();
-            });
-            document.querySelectorAll('.sound-btn').forEach(function(span) {
-                var audio = span.querySelector('audio');
-                if (!audio) return;
-                audio.onerror = function() {
-                    var hint = document.createElement('span');
-                    hint.className = 'missing-media';
-                    hint.textContent = '\\u26a0 ' + (audio.getAttribute('src') || 'audio');
-                    span.replaceWith(hint);
-                };
-            });
+                var typeInput = document.getElementById('typeans');
+                if (typeInput) {
+                    var ensureVisible = function() { window.setTimeout(amgiEnsureTypedAnswerVisible, 180); };
+                    typeInput.addEventListener('focus', ensureVisible);
+                    typeInput.addEventListener('click', ensureVisible);
+                    typeInput.addEventListener('input', ensureVisible);
+                    typeInput.focus(); ensureVisible();
+                }
 
-            var typeInput = document.getElementById('typeans');
-            if (typeInput) {
-                var ensureVisible = function() { window.setTimeout(amgiEnsureTypedAnswerVisible, 180); };
-                typeInput.addEventListener('focus', ensureVisible);
-                typeInput.addEventListener('click', ensureVisible);
-                typeInput.addEventListener('input', ensureVisible);
-                typeInput.focus(); ensureVisible();
+                amgiSetupImageOcclusion();
+                await amgiRunHooks(window.onShownHook);
+            } finally {
+                qa.style.opacity = '1';
+                amgiScheduleCardThemeReport();
             }
-
-            amgiSetupImageOcclusion();
-            await amgiRunHooks(window.onShownHook);
         }
 
         // ── Serial queue (mirrors upstream _queueAction) ─────────────────────
