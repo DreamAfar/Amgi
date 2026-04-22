@@ -9,16 +9,17 @@ final class CardAssetScheme: NSObject, WKURLSchemeHandler {
         }
 
         let mediaRoot = CardMediaDirectory.currentMediaDirectoryURL()
+        let bundleRoot = Bundle.main.resourceURL
 
         if url.host?.lowercased() == "media", mediaRoot == nil {
             respond(to: urlSchemeTask, url: url, statusCode: 503, mimeType: "text/plain", data: Data())
             return
         }
 
-        // CardAssetPath.resolve only handles 'media' host.
+        // CardAssetPath.resolve only handles 'media' and 'assets' hosts.
         // For 'card' host, we don't serve files—the baseURL is just for relative URL resolution.
         // This is a no-op for card host; links will be handled by JavaScript handlers.
-        guard let fileURL = CardAssetPath.resolve(url: url, mediaRoot: mediaRoot) else {
+        guard let fileURL = CardAssetPath.resolve(url: url, mediaRoot: mediaRoot, bundleRoot: bundleRoot) else {
             // Not a resolvable asset path (e.g., 'card' host). Respond with 204 (No Content).
             respond(to: urlSchemeTask, url: url, statusCode: 204, mimeType: "text/plain", data: Data())
             return
