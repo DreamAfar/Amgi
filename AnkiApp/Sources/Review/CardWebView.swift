@@ -171,7 +171,7 @@ struct CardWebView: UIViewRepresentable {
                 baseTag: baseTag
             )
 
-            // Use cardBaseURL so that fonts and other resources load correctly.
+            // Use cardBaseURL so that MathJax, fonts, and other resources load correctly.
             // The CardAssetScheme handler processes amgi-asset:// URLs.
             webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
         } else if context.coordinator.lastContentSignature != contentSignature {
@@ -239,6 +239,8 @@ struct CardWebView: UIViewRepresentable {
         let missingMediaColor = isDarkMode ? "rgba(255,100,100,0.9)" : "rgba(200,40,40,0.8)"
         let playIconLiteral = jsStringLiteral(playIconHTML)
         let pauseIconLiteral = jsStringLiteral(pauseIconHTML)
+        let mathJaxConfigScriptURL = CardAssetPath.mathJaxConfigScriptURLString
+        let mathJaxCoreScriptURL = CardAssetPath.mathJaxCoreScriptURLString
 
         return """
         <!DOCTYPE html>
@@ -247,6 +249,8 @@ struct CardWebView: UIViewRepresentable {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         \(baseTag)
+        <script src="\(mathJaxConfigScriptURL)"></script>
+        <script src="\(mathJaxCoreScriptURL)" async></script>
         <style>
             :root {
                 color-scheme: \(colorScheme);
@@ -350,6 +354,7 @@ struct CardWebView: UIViewRepresentable {
                 color: #f5f5f5;
                 background-color: #111111;
             }
+            .nightMode .latex, .night_mode .latex { filter: invert(100%); }
             .nightMode img.drawing, .night_mode img.drawing { filter: invert(1) hue-rotate(180deg); }
             .nightMode .cloze:not([data-shape]) { color: #8fb8ff; }
             .night_mode .cloze:not([data-shape]) { color: #8fb8ff; }
@@ -1000,6 +1005,13 @@ struct CardWebView: UIViewRepresentable {
             catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
 
             await amgiRunHooks(window.onUpdateHook);
+
+            await window.MathJax.startup.promise
+                .then(function() {
+                    window.MathJax.typesetClear();
+                    return window.MathJax.typesetPromise([qa]);
+                })
+                .catch(function(error) { console.error('MathJax failed', error); });
 
             qa.style.opacity = '1';
             amgiScheduleCardThemeReport();
