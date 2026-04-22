@@ -1,7 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
-import AnkiKit
-import AnkiClients
+import AnkiReader
 import Dependencies
 
 struct ReaderDictionarySettingsView: View {

@@ -19,6 +19,7 @@ let package = Package(
         .library(name: "AnkiProto", targets: ["AnkiProto"]),
         .library(name: "AnkiBackend", targets: ["AnkiBackend"]),
         .library(name: "AnkiClients", targets: ["AnkiClients"]),
+        .library(name: "AnkiReader", targets: ["AnkiReader"]),
         .library(name: "AnkiSync", targets: ["AnkiSync"]),
     ],
     dependencies: [
@@ -53,6 +54,11 @@ let package = Package(
         // MARK: - Libraries
         .target(
             name: "AnkiKit",
+            exclude: [
+                "ReaderTypes.swift",
+                "DictionaryTypes.swift",
+                "AppDictionaryTypes.swift",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .target(
@@ -62,11 +68,39 @@ let package = Package(
                 "AnkiBackend",
                 "AnkiProto",
                 "AnkiSync",
-                .product(name: "CHoshiDicts", package: "hoshidicts"),
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
                 .product(name: "Logging", package: "swift-log"),
+            ],
+            exclude: [
+                "ReaderBookClient.swift",
+                "ReaderBookClient+Live.swift",
+                "DictionaryLookupClient.swift",
+                "DictionaryLookupClient+Live.swift",
+            ],
+            swiftSettings: sharedSwiftSettings
+        ),
+        .target(
+            name: "AnkiReader",
+            dependencies: [
+                "AnkiClients",
+                "AnkiKit",
+                "AnkiBackend",
+                "AnkiProto",
+                .product(name: "CHoshiDicts", package: "hoshidicts"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "DependenciesMacros", package: "swift-dependencies"),
+            ],
+            path: "Sources",
+            sources: [
+                "AnkiKit/ReaderTypes.swift",
+                "AnkiKit/DictionaryTypes.swift",
+                "AnkiKit/AppDictionaryTypes.swift",
+                "AnkiClients/ReaderBookClient.swift",
+                "AnkiClients/ReaderBookClient+Live.swift",
+                "AnkiClients/DictionaryLookupClient.swift",
+                "AnkiClients/DictionaryLookupClient+Live.swift",
             ],
             swiftSettings: sharedSwiftSettings + [
                 .interoperabilityMode(.Cxx),

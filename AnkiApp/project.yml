@@ -6,7 +6,6 @@ options:
 settings:
   base:
     CLANG_CXX_LANGUAGE_STANDARD: "gnu++20"
-    SWIFT_OBJC_INTEROP_MODE: objcxx
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
 packages:
@@ -34,6 +33,8 @@ targets:
     dependencies:
       - package: AnkiBridge
         product: AnkiKit
+      - package: AnkiBridge
+        product: AnkiReader
       - package: AnkiBridge
         product: AnkiClients
       - package: AnkiBridge

@@ -1,4 +1,3 @@
-public import AnkiKit
 public import Dependencies
 import DependenciesMacros
 

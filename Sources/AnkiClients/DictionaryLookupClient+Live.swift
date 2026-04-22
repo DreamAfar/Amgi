@@ -1,6 +1,5 @@
 import CHoshiDicts
 import Foundation
-import AnkiKit
 public import Dependencies
 
 private enum DictionaryLookupRuntimeError: LocalizedError {

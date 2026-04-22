@@ -135,26 +135,9 @@ struct EaseChart: View {
 
     @ViewBuilder
     private func easeChart() -> some View {
-        Chart(chartData, id: \.ease) { item in
-            BarMark(
-                x: .value("Ease", item.ease),
-                y: .value("Cards", item.count)
-            )
-            .foregroundStyle((isFSRS ? difficultyColor(for: item.ease) : Color.indigo).gradient)
-
-            if let selectedItem,
-               selectedItem.ease == item.ease {
-                let countLabel = L("stats_card_count")
-                RuleMark(x: .value("Selected Ease", selectedItem.ease))
-                    .foregroundStyle(Color.amgiAccent.opacity(0.35))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
-                        StatsChartTooltip(
-                            title: "\(selectedItem.ease)%",
-                            lines: ["\(countLabel): \(selectedItem.count)"]
-                        )
-                    }
-            }
+        Chart {
+            easeBarMarks()
+            selectedEaseRuleMark()
         }
         .chartXScale(domain: xAxisLowerBound...xAxisUpperBound)
         .chartOverlay { proxy in
@@ -211,5 +194,32 @@ struct EaseChart: View {
             }
         }
         .frame(height: 180)
+    }
+
+    @ChartContentBuilder
+    private func easeBarMarks() -> some ChartContent {
+        ForEach(chartData, id: \.ease) { item in
+            BarMark(
+                x: .value("Ease", item.ease),
+                y: .value("Cards", item.count)
+            )
+            .foregroundStyle((isFSRS ? difficultyColor(for: item.ease) : Color.indigo).gradient)
+        }
+    }
+
+    @ChartContentBuilder
+    private func selectedEaseRuleMark() -> some ChartContent {
+        if let selectedItem {
+            let countLabel = L("stats_card_count")
+            RuleMark(x: .value("Selected Ease", selectedItem.ease))
+                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                    StatsChartTooltip(
+                        title: "\(selectedItem.ease)%",
+                        lines: ["\(countLabel): \(selectedItem.count)"]
+                    )
+                }
+        }
     }
 }
