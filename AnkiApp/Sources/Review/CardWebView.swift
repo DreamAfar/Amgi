@@ -250,7 +250,7 @@ struct CardWebView: UIViewRepresentable {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         \(baseTag)
         <script src="\(mathJaxConfigScriptURL)"></script>
-        <script src="\(mathJaxCoreScriptURL)" async></script>
+        <script src="\(mathJaxCoreScriptURL)"></script>
         <style>
             :root {
                 color-scheme: \(colorScheme);
@@ -494,6 +494,27 @@ struct CardWebView: UIViewRepresentable {
                         : '\\(' + trimmed + '\\)';
                 }
             );
+        }
+
+        async function amgiWaitForMathJax(timeout) {
+            var deadline = Date.now() + (timeout || 0);
+            while (Date.now() <= deadline) {
+                var mathJax = window.MathJax;
+                if (mathJax
+                    && mathJax.startup
+                    && mathJax.startup.promise
+                    && typeof mathJax.typesetPromise === 'function') {
+                    try {
+                        await mathJax.startup.promise;
+                    } catch (error) {
+                        console.error('MathJax startup failed', error);
+                        return null;
+                    }
+                    return mathJax;
+                }
+                await new Promise(function(resolve) { window.setTimeout(resolve, 25); });
+            }
+            return null;
         }
 
         // ── Hooks ────────────────────────────────────────────────────────────
@@ -1028,18 +1049,12 @@ struct CardWebView: UIViewRepresentable {
                 await amgiRunHooks(window.onUpdateHook);
 
                 try {
-                    var mathJax = window.MathJax;
-                    if (mathJax
-                        && mathJax.startup
-                        && mathJax.startup.promise
-                        && typeof mathJax.typesetPromise === 'function') {
-                        await mathJax.startup.promise
-                            .then(function() {
-                                if (typeof mathJax.typesetClear === 'function') {
-                                    mathJax.typesetClear();
-                                }
-                                return mathJax.typesetPromise([qa]);
-                            })
+                    var mathJax = await amgiWaitForMathJax(1500);
+                    if (mathJax) {
+                        if (typeof mathJax.typesetClear === 'function') {
+                            mathJax.typesetClear();
+                        }
+                        await mathJax.typesetPromise([qa])
                             .catch(function(error) { console.error('MathJax failed', error); });
                     }
                 } catch (error) {

@@ -25,6 +25,10 @@ targets:
       - path: Sources
         excludes:
           - "**/*Tests.swift"
+          - "mathjax/**"
+      - path: Sources/mathjax
+        buildPhase: resources
+        type: folder
     dependencies:
       - package: AnkiBridge
         product: AnkiKit
