@@ -505,7 +505,8 @@ struct CardWebView: UIViewRepresentable {
         }
 
         function amgiContainsMathJaxMarkup(html) {
-            return /\\\(|\\\[/.test(html || '');
+            var source = html || '';
+            return source.includes('\\\\(') || source.includes('\\\\[');
         }
 
         function amgiLoadMathJaxScript(kind, src) {
