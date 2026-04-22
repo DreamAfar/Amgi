@@ -382,7 +382,7 @@ struct ReviewsChart: View {
         let plotFrame = geometry[proxy.plotAreaFrame]
         let plotX = value.location.x - plotFrame.origin.x
         guard plotX >= 0,
-              plotX <= proxy.plotAreaSize.width,
+              plotX <= proxy.plotSize.width,
               let bucket: Int = proxy.value(atX: plotX)
         else {
             selectedBucket = nil

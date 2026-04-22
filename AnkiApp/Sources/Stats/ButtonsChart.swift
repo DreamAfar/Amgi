@@ -241,12 +241,12 @@ struct ButtonsChart: View {
     ) {
         let plotFrame = geometry[proxy.plotAreaFrame]
         let plotX = value.location.x - plotFrame.origin.x
-        guard plotX >= 0, plotX <= proxy.plotAreaSize.width else {
+        guard plotX >= 0, plotX <= proxy.plotSize.width else {
             selectedBarKey = nil
             return
         }
 
-        let typeSlotWidth = proxy.plotAreaSize.width / CGFloat(max(cardTypes.count, 1))
+        let typeSlotWidth = proxy.plotSize.width / CGFloat(max(cardTypes.count, 1))
         let rawTypeIndex = Int(plotX / typeSlotWidth)
         let typeIndex = min(max(rawTypeIndex, 0), cardTypes.count - 1)
         let localX = plotX - CGFloat(typeIndex) * typeSlotWidth

@@ -65,6 +65,14 @@ struct EaseChart: View {
         )
     }
 
+    private var yAxisValues: [Double] {
+        yAxisTicks.map(\.plottedValue)
+    }
+
+    private func yAxisLabel(for raw: Double) -> String {
+        yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 })?.label ?? ""
+    }
+
     private func difficultyColor(for value: Int) -> Color {
         let clamped = max(0, min(100, value))
         let normalized = Double(clamped) / 100
@@ -180,7 +188,7 @@ struct EaseChart: View {
         let plotFrame = geometry[proxy.plotAreaFrame]
         let plotX = value.location.x - plotFrame.origin.x
         guard plotX >= 0,
-              plotX <= proxy.plotAreaSize.width,
+              plotX <= proxy.plotSize.width,
               let ease: Int = proxy.value(atX: plotX)
         else {
             selectedEase = nil
@@ -210,13 +218,13 @@ struct EaseChart: View {
 
     @AxisContentBuilder
     private func easeChartYAxis() -> some AxisContent {
-        AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
+        AxisMarks(position: .leading, values: yAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-            if let raw = value.as(Double.self),
-               let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                AxisValueLabel {
-                    Text(tick.label)
+
+            AxisValueLabel {
+                if let raw = value.as(Double.self) {
+                    Text(yAxisLabel(for: raw))
                         .amgiFont(.micro)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
