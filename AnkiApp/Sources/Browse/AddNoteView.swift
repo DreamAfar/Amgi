@@ -22,14 +22,22 @@ struct AddNoteView: View {
     @State private var errorMessage: String?
     @State private var previewErrorMessage: String?
     @State private var showPreviewError = false
+    @State private var shouldApplyDraftOnNextFieldLoad = false
 
     let onSave: () -> Void
     let preselectedDeckId: Int64?
+    let draft: AddNoteDraft?
 
-    init(onSave: @escaping () -> Void, preselectedDeckId: Int64? = nil) {
+    init(
+        onSave: @escaping () -> Void,
+        preselectedDeckId: Int64? = nil,
+        draft: AddNoteDraft? = nil
+    ) {
         self.onSave = onSave
         self.preselectedDeckId = preselectedDeckId
-        _selectedDeckId = State(initialValue: preselectedDeckId ?? 1)
+        self.draft = draft
+        _selectedDeckId = State(initialValue: draft?.deckID ?? preselectedDeckId ?? 1)
+        _tags = State(initialValue: draft?.tags.joined(separator: " ") ?? "")
     }
 
     var body: some View {
@@ -50,7 +58,7 @@ struct AddNoteView: View {
                         }
                     }
                     .onChange(of: selectedNotetypeId) {
-                        loadFields()
+                        loadFields(applyingDraft: consumePendingDraftApplication())
                     }
                 }
 
@@ -146,22 +154,20 @@ struct AddNoteView: View {
 
     private func loadData() async {
         decks = (try? deckClient.fetchAll()) ?? []
-        
-        // 如果没有预设置的牌组，选择第一个牌组
-        if preselectedDeckId == nil, let first = decks.first {
+
+        let preferredDeckID = draft?.deckID ?? preselectedDeckId
+        if let preferredDeckID, decks.contains(where: { $0.id == preferredDeckID }) {
+            selectedDeckId = preferredDeckID
+        } else if let first = decks.first {
             selectedDeckId = first.id
-        } else if let preselectedDeckId, !decks.contains(where: { $0.id == preselectedDeckId }) {
-            // 如果预设置的牌组不在列表中，选择第一个牌组
-            if let first = decks.first {
-                selectedDeckId = first.id
-            }
         }
 
         do {
             notetypeNames = try loadStandardNotetypeEntries(backend: backend)
-            if let first = notetypeNames.first {
-                selectedNotetypeId = first.0
-                loadFields()
+            if let preferredNotetypeID = resolvedPreferredNotetypeID() {
+                scheduleFieldLoad(for: preferredNotetypeID, applyingDraft: draft != nil)
+            } else if let first = notetypeNames.first {
+                scheduleFieldLoad(for: first.0, applyingDraft: draft != nil)
             } else {
                 selectedNotetypeId = 0
                 fieldNames = []
@@ -172,15 +178,44 @@ struct AddNoteView: View {
         }
     }
 
-    private func loadFields() {
+    private func loadFields(applyingDraft: Bool) {
         guard selectedNotetypeId != 0 else { return }
         do {
             let notetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
             fieldNames = notetype.fields.map(\.name)
-            fieldValues = Array(repeating: "", count: fieldNames.count)
+            if applyingDraft, let draft {
+                fieldValues = fieldNames.map { fieldName in
+                    RichNoteFieldEditor.normalizedStoredHTML(draft.fieldValues[fieldName] ?? "")
+                }
+            } else {
+                fieldValues = Array(repeating: "", count: fieldNames.count)
+            }
         } catch {
             print("[AddNote] Error loading fields: \(error)")
         }
+    }
+
+    private func resolvedPreferredNotetypeID() -> Int64? {
+        if let draftNotetypeID = draft?.notetypeID,
+           notetypeNames.contains(where: { $0.0 == draftNotetypeID }) {
+            return draftNotetypeID
+        }
+        return nil
+    }
+
+    private func scheduleFieldLoad(for notetypeID: Int64, applyingDraft: Bool) {
+        shouldApplyDraftOnNextFieldLoad = applyingDraft
+        if selectedNotetypeId == notetypeID {
+            loadFields(applyingDraft: consumePendingDraftApplication())
+        } else {
+            selectedNotetypeId = notetypeID
+        }
+    }
+
+    private func consumePendingDraftApplication() -> Bool {
+        let shouldApplyDraft = shouldApplyDraftOnNextFieldLoad
+        shouldApplyDraftOnNextFieldLoad = false
+        return shouldApplyDraft
     }
 
     private func fieldValue(at index: Int) -> String {

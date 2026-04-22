@@ -13,7 +13,7 @@ let sharedSwiftSettings: [SwiftSetting] = [
 
 let package = Package(
     name: "AnkiBridge",
-    platforms: [.iOS(.v17), .macOS(.v14)],
+    platforms: [.iOS(.v18), .macOS(.v15)],
     products: [
         .library(name: "AnkiKit", targets: ["AnkiKit"]),
         .library(name: "AnkiProto", targets: ["AnkiProto"]),
@@ -25,6 +25,7 @@ let package = Package(
         .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.0"),
+        .package(url: "https://github.com/Manhhao/hoshidicts.git", branch: "main"),
     ],
     targets: [
         // MARK: - Rust Bridge
@@ -61,12 +62,15 @@ let package = Package(
                 "AnkiBackend",
                 "AnkiProto",
                 "AnkiSync",
+                .product(name: "CHoshiDicts", package: "hoshidicts"),
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
                 .product(name: "Logging", package: "swift-log"),
             ],
-            swiftSettings: sharedSwiftSettings
+            swiftSettings: sharedSwiftSettings + [
+                .interoperabilityMode(.Cxx),
+            ]
         ),
         .target(
             name: "AnkiSync",

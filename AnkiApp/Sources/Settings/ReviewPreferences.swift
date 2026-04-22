@@ -18,6 +18,21 @@ enum ReviewPreferences {
     }
 }
 
+enum ReaderPreferences {
+    enum Keys {
+        static let deckID = "reader_pref_deck_id"
+        static let notetypeID = "reader_pref_notetype_id"
+        static let bookIDField = "reader_pref_book_id_field"
+        static let bookTitleField = "reader_pref_book_title_field"
+        static let chapterTitleField = "reader_pref_chapter_title_field"
+        static let chapterOrderField = "reader_pref_chapter_order_field"
+        static let contentField = "reader_pref_content_field"
+        static let languageField = "reader_pref_language_field"
+        static let verticalLayout = "reader_pref_vertical_layout"
+        static let fontSize = "reader_pref_font_size"
+    }
+}
+
 enum DebugPreferences {
     enum Keys {
         static let cardRenderDiagnosticsEnabled = "debug_pref_card_render_enabled"

@@ -1,0 +1,44 @@
+public import Foundation
+public import AnkiKit
+public import Dependencies
+import DependenciesMacros
+
+@DependencyClient
+public struct DictionaryLookupClient: Sendable {
+    public var lookup: @Sendable (_ text: String) async throws -> DictionaryLookupResult
+    public var loadState: @Sendable () async throws -> AppDictionaryLibraryState
+    public var importArchives: @Sendable (_ urls: [URL], _ kind: AppDictionaryKind) async throws -> AppDictionaryLibraryState
+    public var importRecommended: @Sendable () async throws -> AppDictionaryLibraryState
+    public var setEnabled: @Sendable (_ kind: AppDictionaryKind, _ dictionaryID: String, _ enabled: Bool) async throws -> AppDictionaryLibraryState
+    public var delete: @Sendable (_ kind: AppDictionaryKind, _ dictionaryID: String) async throws -> AppDictionaryLibraryState
+}
+
+extension DictionaryLookupClient: TestDependencyKey {
+    public static let testValue = DictionaryLookupClient(
+        lookup: { text in
+            DictionaryLookupResult(query: text, entries: [], isPlaceholder: false)
+        },
+        loadState: {
+            .empty
+        },
+        importArchives: { _, _ in
+            .empty
+        },
+        importRecommended: {
+            .empty
+        },
+        setEnabled: { _, _, _ in
+            .empty
+        },
+        delete: { _, _ in
+            .empty
+        }
+    )
+}
+
+extension DependencyValues {
+    public var dictionaryLookupClient: DictionaryLookupClient {
+        get { self[DictionaryLookupClient.self] }
+        set { self[DictionaryLookupClient.self] = newValue }
+    }
+}
