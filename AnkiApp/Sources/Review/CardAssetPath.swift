@@ -24,8 +24,8 @@ enum CardAssetPath {
             guard let mediaRoot else { return nil }
             return resolved(root: mediaRoot, relativePath: relativePath)
         case "assets":
-            guard let bundleRoot, relativePath.hasPrefix("mathjax/") else { return nil }
-            return resolved(root: bundleRoot, relativePath: relativePath)
+            guard relativePath.hasPrefix("mathjax/") else { return nil }
+            return resolvedMathJaxAsset(relativePath: relativePath, preferredRoot: bundleRoot)
         default:
             return nil
         }
@@ -59,6 +59,44 @@ enum CardAssetPath {
             path.removeFirst()
         }
         return path.removingPercentEncoding ?? path
+    }
+
+    private static func resolvedMathJaxAsset(relativePath: String, preferredRoot: URL?) -> URL? {
+        let candidateRelativePaths = [
+            relativePath,
+            "Sources/\(relativePath)",
+        ]
+
+        for root in mathJaxSearchRoots(preferredRoot: preferredRoot) {
+            for candidateRelativePath in candidateRelativePaths {
+                if let candidate = resolved(root: root, relativePath: candidateRelativePath),
+                   FileManager.default.fileExists(atPath: candidate.path) {
+                    return candidate
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private static func mathJaxSearchRoots(preferredRoot: URL?) -> [URL] {
+        let bundles = [Bundle.main] + Bundle.allBundles + Bundle.allFrameworks
+        let roots = [preferredRoot, Bundle.main.resourceURL] + bundles.flatMap { bundle in
+            [bundle.resourceURL, bundle.bundleURL]
+        }
+
+        var seen = Set<String>()
+        var uniqueRoots: [URL] = []
+
+        for root in roots {
+            guard let root else { continue }
+            let standardizedRoot = root.standardizedFileURL.resolvingSymlinksInPath()
+            let key = standardizedRoot.path
+            guard seen.insert(key).inserted else { continue }
+            uniqueRoots.append(standardizedRoot)
+        }
+
+        return uniqueRoots
     }
 
     private static func resolved(root: URL, relativePath: String) -> URL? {
