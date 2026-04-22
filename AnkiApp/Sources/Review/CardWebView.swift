@@ -157,8 +157,8 @@ struct CardWebView: UIViewRepresentable {
             context.coordinator.isPageLoaded = false
             context.coordinator.pendingUpdateScript = nil
             let htmlClass = Self.htmlClasses(isDarkMode: isDarkMode)
-            let playIconHTML = Self.audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
-            let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.circle", alt: "Pause", isDarkMode: isDarkMode)
+            let playIconHTML = Self.audioButtonIconHTML(systemName: "play.fill", alt: "Play", isDarkMode: isDarkMode)
+            let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.fill", alt: "Pause", isDarkMode: isDarkMode)
             let baseTag = CardAssetPath.mediaBaseTag()
             // Stash the show-card call so we can run it once the page finishes loading.
             context.coordinator.pendingUpdateScript = showCardScript
@@ -239,8 +239,8 @@ struct CardWebView: UIViewRepresentable {
         let missingMediaColor = isDarkMode ? "rgba(255,100,100,0.9)" : "rgba(200,40,40,0.8)"
         let playIconLiteral = jsStringLiteral(playIconHTML)
         let pauseIconLiteral = jsStringLiteral(pauseIconHTML)
-        let mathJaxConfigScriptURL = CardAssetPath.mathJaxConfigScriptURLString
-        let mathJaxCoreScriptURL = CardAssetPath.mathJaxCoreScriptURLString
+        let mathJaxConfigScriptURL = jsStringLiteral(CardAssetPath.mathJaxConfigScriptURLString)
+        let mathJaxCoreScriptURL = jsStringLiteral(CardAssetPath.mathJaxCoreScriptURLString)
 
         return """
         <!DOCTYPE html>
@@ -249,8 +249,6 @@ struct CardWebView: UIViewRepresentable {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         \(baseTag)
-        <script src="\(mathJaxConfigScriptURL)"></script>
-        <script src="\(mathJaxCoreScriptURL)"></script>
         <style>
             :root {
                 color-scheme: \(colorScheme);
@@ -327,7 +325,14 @@ struct CardWebView: UIViewRepresentable {
                 -webkit-tap-highlight-color: transparent; appearance: none;
             }
             .replay-btn:active { opacity: 0.7; }
-            .replay-btn img { width: 40px; height: 40px; display: block; }
+            .replay-btn .amgi-inline-icon {
+                width: 28px; height: 28px; display: block;
+                max-width: none; max-height: none;
+                margin: 0; padding: 0;
+                border: 0 !important; border-radius: 0 !important;
+                background: transparent !important; box-shadow: none !important;
+                object-fit: contain;
+            }
             video { max-width: 100%; height: auto; border-radius: 8px; margin: 8px 0; }
             .drawing { zoom: 50%; }
             .cloze:not([data-shape]) { display: inline !important; font-weight: 600; color: #1565c0; }
@@ -365,10 +370,13 @@ struct CardWebView: UIViewRepresentable {
         // ── Globals ──────────────────────────────────────────────────────────
         var PLAY_ICON_HTML = \(playIconLiteral);
         var PAUSE_ICON_HTML = \(pauseIconLiteral);
+        var MATHJAX_CONFIG_SCRIPT_URL = \(mathJaxConfigScriptURL);
+        var MATHJAX_CORE_SCRIPT_URL = \(mathJaxCoreScriptURL);
         window.__amgiAudioPlaying = false;
         window.onUpdateHook = [];
         window.onShownHook = [];
         window.__amgiUpdateQueue = Promise.resolve();
+        window.__amgiMathJaxLoadPromise = null;
         var amgiPreloadTemplate = document.createElement('template');
         var amgiPreloadDoc = document.implementation.createHTMLDocument('');
         var amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
@@ -496,6 +504,43 @@ struct CardWebView: UIViewRepresentable {
             );
         }
 
+        function amgiContainsMathJaxMarkup(html) {
+            return /\\\(|\\\[/.test(html || '');
+        }
+
+        function amgiLoadMathJaxScript(kind, src) {
+            return new Promise(function(resolve) {
+                var existing = document.querySelector('script[data-amgi-mathjax="' + kind + '"]');
+                if (existing) {
+                    if (existing.dataset.amgiLoaded === '1') {
+                        resolve();
+                        return;
+                    }
+                    existing.addEventListener('load', function() {
+                        existing.dataset.amgiLoaded = '1';
+                        resolve();
+                    }, { once: true });
+                    existing.addEventListener('error', function() {
+                        resolve();
+                    }, { once: true });
+                    return;
+                }
+
+                var script = document.createElement('script');
+                script.src = src;
+                script.async = false;
+                script.setAttribute('data-amgi-mathjax', kind);
+                script.addEventListener('load', function() {
+                    script.dataset.amgiLoaded = '1';
+                    resolve();
+                }, { once: true });
+                script.addEventListener('error', function() {
+                    resolve();
+                }, { once: true });
+                document.head.appendChild(script);
+            });
+        }
+
         async function amgiWaitForMathJax(timeout) {
             var deadline = Date.now() + (timeout || 0);
             while (Date.now() <= deadline) {
@@ -515,6 +560,27 @@ struct CardWebView: UIViewRepresentable {
                 await new Promise(function(resolve) { window.setTimeout(resolve, 25); });
             }
             return null;
+        }
+
+        async function amgiEnsureMathJaxReady(timeout) {
+            var readyMathJax = await amgiWaitForMathJax(0);
+            if (readyMathJax) {
+                return readyMathJax;
+            }
+
+            if (!window.__amgiMathJaxLoadPromise) {
+                window.__amgiMathJaxLoadPromise = (async function() {
+                    await amgiLoadMathJaxScript('config', MATHJAX_CONFIG_SCRIPT_URL);
+                    await amgiLoadMathJaxScript('core', MATHJAX_CORE_SCRIPT_URL);
+                    return await amgiWaitForMathJax(timeout || 1500);
+                })().catch(function(error) {
+                    console.error('MathJax load failed', error);
+                    window.__amgiMathJaxLoadPromise = null;
+                    return null;
+                });
+            }
+
+            return await window.__amgiMathJaxLoadPromise;
         }
 
         // ── Hooks ────────────────────────────────────────────────────────────
@@ -1038,29 +1104,39 @@ struct CardWebView: UIViewRepresentable {
 
             stopAllSystemAudio();
             var normalizedHTML = amgiNormalizeMathJaxMarkup(html || '');
+            var needsMathJax = amgiContainsMathJaxMarkup(normalizedHTML);
+            var shouldHideDuringUpdate = needsMathJax;
             var preloadPromise = amgiPreloadResources(normalizedHTML);
 
             try {
                 await preloadPromise;
-                amgiApplyCardState(state || {});
-                qa.style.opacity = '0';
+                if (shouldHideDuringUpdate) {
+                    amgiApplyCardState(state || {});
+                    qa.style.opacity = '0';
+                }
 
                 try { await amgiSetInnerHTML(qa, normalizedHTML); }
                 catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
 
+                if (!shouldHideDuringUpdate) {
+                    amgiApplyCardState(state || {});
+                }
+
                 await amgiRunHooks(window.onUpdateHook);
 
-                try {
-                    var mathJax = await amgiWaitForMathJax(1500);
-                    if (mathJax) {
-                        if (typeof mathJax.typesetClear === 'function') {
-                            mathJax.typesetClear();
+                if (needsMathJax) {
+                    try {
+                        var mathJax = await amgiEnsureMathJaxReady(1500);
+                        if (mathJax) {
+                            if (typeof mathJax.typesetClear === 'function') {
+                                mathJax.typesetClear();
+                            }
+                            await mathJax.typesetPromise([qa])
+                                .catch(function(error) { console.error('MathJax failed', error); });
                         }
-                        await mathJax.typesetPromise([qa])
-                            .catch(function(error) { console.error('MathJax failed', error); });
+                    } catch (error) {
+                        console.error('MathJax unavailable', error);
                     }
-                } catch (error) {
-                    console.error('MathJax unavailable', error);
                 }
 
                 // Detect missing media
@@ -1221,7 +1297,7 @@ struct CardWebView: UIViewRepresentable {
             let encoded = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? filename
             let replacement: String
             if showReplayButtons {
-                let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
+                let iconHTML = audioButtonIconHTML(systemName: "play.fill", alt: "Play", isDarkMode: isDarkMode)
                 replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><a class=\"replay-button replay-btn soundLink\" href=\"#\" draggable=\"false\" onclick=\"return playSound(this)\">\(iconHTML)</a></span>"
             } else {
                 replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio></span>"
@@ -1258,7 +1334,7 @@ struct CardWebView: UIViewRepresentable {
 
             let replacement: String
             if showReplayButtons {
-                let iconHTML = audioButtonIconHTML(systemName: "speaker.wave.2.circle", alt: "Speak", isDarkMode: isDarkMode)
+                let iconHTML = audioButtonIconHTML(systemName: "speaker.wave.2.fill", alt: "Speak", isDarkMode: isDarkMode)
                 replacement = "<a class=\"replay-button replay-btn tts-btn\" href=\"#\" draggable=\"false\" data-tts-text=\"\(htmlAttributeEscaped(spokenText))\" data-tts-lang=\"\(htmlAttributeEscaped(lang))\" data-tts-voices=\"\(htmlAttributeEscaped(voices))\" data-tts-speed=\"\(htmlAttributeEscaped(speed))\" onclick=\"return amgiSpeakTts(this)\">\(iconHTML)</a>"
             } else {
                 replacement = ""
@@ -1346,7 +1422,7 @@ struct CardWebView: UIViewRepresentable {
             return alt
         }
 
-        return "<img src=\"data:image/png;base64,\(data.base64EncodedString())\" alt=\"\(alt)\" draggable=\"false\" style=\"width:40px;height:40px;max-width:none;display:block;flex:none;\" />"
+        return "<img class=\"amgi-inline-icon\" src=\"data:image/png;base64,\(data.base64EncodedString())\" alt=\"\(alt)\" draggable=\"false\" style=\"width:28px;height:28px;max-width:none;display:block;flex:none;\" />"
     }
 
     private static func jsStringLiteral(_ value: String) -> String {
