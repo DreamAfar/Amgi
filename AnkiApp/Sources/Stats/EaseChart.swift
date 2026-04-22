@@ -135,65 +135,93 @@ struct EaseChart: View {
 
     @ViewBuilder
     private func easeChart() -> some View {
+        baseEaseChart
+            .chartXScale(domain: xAxisLowerBound...xAxisUpperBound)
+            .chartOverlay { proxy in
+                easeChartOverlay(proxy: proxy)
+            }
+            .chartXAxis {
+                easeChartXAxis()
+            }
+            .chartYScale(domain: 0...yAxisMax)
+            .chartYAxis {
+                easeChartYAxis()
+            }
+            .frame(height: 180)
+    }
+
+    private var baseEaseChart: some View {
         Chart {
             easeBarMarks()
             selectedEaseRuleMark()
         }
-        .chartXScale(domain: xAxisLowerBound...xAxisUpperBound)
-        .chartOverlay { proxy in
-            GeometryReader { geometry in
-                Rectangle()
-                    .fill(Color.clear)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        SpatialTapGesture()
-                            .onEnded { value in
-                                let plotFrame = geometry[proxy.plotAreaFrame]
-                                let plotX = value.location.x - plotFrame.origin.x
-                                guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
-                                      let ease: Int = proxy.value(atX: plotX)
-                                else {
-                                    selectedEase = nil
-                                    return
-                                }
+    }
 
-                                let nearestEase = chartData.min(by: {
-                                    abs($0.ease - ease) < abs($1.ease - ease)
-                                })?.ease
-                                selectedEase = selectedEase == nearestEase ? nil : nearestEase
-                            }
-                    )
-            }
+    @ViewBuilder
+    private func easeChartOverlay(proxy: ChartProxy) -> some View {
+        GeometryReader { geometry in
+            Rectangle()
+                .fill(Color.clear)
+                .contentShape(Rectangle())
+                .gesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            updateSelectedEase(for: value, proxy: proxy, geometry: geometry)
+                        }
+                )
         }
-        .chartXAxis {
-            AxisMarks(values: xAxisValues) { value in
-                AxisGridLine()
-                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                if let v = value.as(Int.self) {
-                    AxisValueLabel {
-                        Text("\(v)%")
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
+    }
+
+    private func updateSelectedEase(
+        for value: SpatialTapGesture.Value,
+        proxy: ChartProxy,
+        geometry: GeometryProxy
+    ) {
+        let plotFrame = geometry[proxy.plotAreaFrame]
+        let plotX = value.location.x - plotFrame.origin.x
+        guard plotX >= 0,
+              plotX <= proxy.plotAreaSize.width,
+              let ease: Int = proxy.value(atX: plotX)
+        else {
+            selectedEase = nil
+            return
+        }
+
+        let nearestEase = chartData.min(by: { lhs, rhs in
+            abs(lhs.ease - ease) < abs(rhs.ease - ease)
+        })?.ease
+        selectedEase = selectedEase == nearestEase ? nil : nearestEase
+    }
+
+    @AxisContentBuilder
+    private func easeChartXAxis() -> some AxisContent {
+        AxisMarks(values: xAxisValues) { value in
+            AxisGridLine()
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+            if let axisValue = value.as(Int.self) {
+                AxisValueLabel {
+                    Text("\(axisValue)%")
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
         }
-        .chartYScale(domain: 0...yAxisMax)
-        .chartYAxis {
-            AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                if let raw = value.as(Double.self),
-                   let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                    AxisValueLabel {
-                        Text(tick.label)
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
+    }
+
+    @AxisContentBuilder
+    private func easeChartYAxis() -> some AxisContent {
+        AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+            if let raw = value.as(Double.self),
+               let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                AxisValueLabel {
+                    Text(tick.label)
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
         }
-        .frame(height: 180)
     }
 
     @ChartContentBuilder
