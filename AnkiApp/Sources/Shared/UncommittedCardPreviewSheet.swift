@@ -202,28 +202,6 @@ struct UncommittedCardPreviewSheet: View {
 
         do {
             let rendered: (frontHTML: String, backHTML: String, isEmpty: Bool) = try await Task.detached(priority: .userInitiated) {
-                func extractLatexIfNeeded(
-                    backend: AnkiBackend,
-                    html: String,
-                    svg: Bool
-                ) throws -> String {
-                    guard html.contains("[latex]") || html.contains("[$]") || html.contains("[$$]") else {
-                        return html
-                    }
-
-                    var request = Anki_CardRendering_ExtractLatexRequest()
-                    request.text = html
-                    request.svg = svg
-                    request.expandClozes = false
-
-                    let response: Anki_CardRendering_ExtractLatexResponse = try backend.invoke(
-                        service: AnkiBackend.Service.cardRendering,
-                        method: AnkiBackend.CardRenderingMethod.extractLatex,
-                        request: request
-                    )
-                    return response.text
-                }
-
                 var request = Anki_CardRendering_RenderUncommittedCardRequest()
                 request.note = previewNote
                 request.cardOrd = template.ord.val
@@ -237,16 +215,8 @@ struct UncommittedCardPreviewSheet: View {
                 )
 
                 return (
-                    frontHTML: try extractLatexIfNeeded(
-                        backend: backend,
-                        html: renderCardPreviewNodes(response.questionNodes),
-                        svg: response.latexSvg
-                    ),
-                    backHTML: try extractLatexIfNeeded(
-                        backend: backend,
-                        html: renderCardPreviewNodes(response.answerNodes),
-                        svg: response.latexSvg
-                    ),
+                    frontHTML: renderCardPreviewNodes(response.questionNodes),
+                    backHTML: renderCardPreviewNodes(response.answerNodes),
                     isEmpty: response.isEmpty
                 )
             }.value

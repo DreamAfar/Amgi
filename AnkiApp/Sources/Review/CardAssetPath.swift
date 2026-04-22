@@ -5,13 +5,12 @@ enum CardAssetPath {
     static let scheme = "amgi-asset"
     static let cardBaseURL = URL(string: "amgi-asset://card/")!
     static let mediaBaseURL = URL(string: "amgi-asset://media/")!
-    static let mathJaxScriptURLString = "amgi-asset://assets/mathjax/tex-svg.js"
 
     static func mediaBaseTag() -> String {
         #"<base href="amgi-asset://media/">"#
     }
 
-    static func resolve(url: URL, mediaRoot: URL?, bundleRoot: URL?) -> URL? {
+    static func resolve(url: URL, mediaRoot: URL?) -> URL? {
         guard url.scheme?.lowercased() == scheme,
               let host = url.host?.lowercased() else {
             return nil
@@ -22,9 +21,6 @@ enum CardAssetPath {
         case "media":
             guard let mediaRoot else { return nil }
             return resolved(root: mediaRoot, relativePath: relativePath)
-        case "assets":
-            guard let bundleRoot, relativePath.hasPrefix("mathjax/") else { return nil }
-            return resolved(root: bundleRoot, relativePath: relativePath)
         default:
             return nil
         }

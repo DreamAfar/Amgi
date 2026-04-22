@@ -171,7 +171,7 @@ struct CardWebView: UIViewRepresentable {
                 baseTag: baseTag
             )
 
-            // Use cardBaseURL so that MathJax, fonts, and other resources load correctly.
+            // Use cardBaseURL so that fonts and other resources load correctly.
             // The CardAssetScheme handler processes amgi-asset:// URLs.
             webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
         } else if context.coordinator.lastContentSignature != contentSignature {
@@ -239,7 +239,6 @@ struct CardWebView: UIViewRepresentable {
         let missingMediaColor = isDarkMode ? "rgba(255,100,100,0.9)" : "rgba(200,40,40,0.8)"
         let playIconLiteral = jsStringLiteral(playIconHTML)
         let pauseIconLiteral = jsStringLiteral(pauseIconHTML)
-        let mathJaxScriptURL = CardAssetPath.mathJaxScriptURLString
 
         return """
         <!DOCTYPE html>
@@ -248,19 +247,6 @@ struct CardWebView: UIViewRepresentable {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         \(baseTag)
-        <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [["\\\\(", "\\\\)"], ["$", "$"]],
-                displayMath: [["$$", "$$"], ["\\\\[", "\\\\]"]],
-                processEscapes: true,
-                processEnvironments: false,
-                processRefs: false
-            },
-            startup: { typeset: false }
-        };
-        </script>
-        <script src="\(mathJaxScriptURL)" async></script>
         <style>
             :root {
                 color-scheme: \(colorScheme);
@@ -364,7 +350,6 @@ struct CardWebView: UIViewRepresentable {
                 color: #f5f5f5;
                 background-color: #111111;
             }
-            .nightMode .latex, .night_mode .latex { filter: invert(100%); }
             .nightMode img.drawing, .night_mode img.drawing { filter: invert(1) hue-rotate(180deg); }
             .nightMode .cloze:not([data-shape]) { color: #8fb8ff; }
             .night_mode .cloze:not([data-shape]) { color: #8fb8ff; }
@@ -567,76 +552,6 @@ struct CardWebView: UIViewRepresentable {
                 window.requestAnimationFrame(function() {
                     amgiReportCardTheme();
                 });
-            });
-        }
-
-        function amgiContainsInlineDollarMath(html) {
-            if (!html) return false;
-
-            var start = html.indexOf('$');
-            while (start !== -1) {
-                var end = html.indexOf('$', start + 1);
-                if (end === -1) return false;
-
-                var previous = start > 0 ? html.charAt(start - 1) : '';
-                var next = start + 1 < html.length ? html.charAt(start + 1) : '';
-                var following = end + 1 < html.length ? html.charAt(end + 1) : '';
-                if (previous !== '$' && next !== '$' && following !== '$' && end > start + 1) {
-                    return true;
-                }
-
-                start = html.indexOf('$', end + 1);
-            }
-
-            return false;
-        }
-
-        function amgiNeedsMathTypeset(html, container) {
-            if (container && container.querySelector('math, mjx-container, script[type^="math/tex"]')) {
-                return true;
-            }
-
-            if (!html) return false;
-            return html.indexOf('$$') !== -1
-                || html.indexOf('\\(') !== -1
-                || html.indexOf('\\[') !== -1
-                || html.indexOf('\\begin{') !== -1
-                || html.indexOf('\\frac') !== -1
-                || html.indexOf('\\sqrt') !== -1
-                || html.indexOf('\\text{') !== -1
-                || html.indexOf('<math') !== -1
-                || html.indexOf('math/tex') !== -1
-                || amgiContainsInlineDollarMath(html);
-        }
-
-        async function amgiTypesetMath(container, maxAttempts) {
-            if (!window.MathJax) return false;
-
-            var attempts = typeof maxAttempts === 'number' ? maxAttempts : 60;
-            var ready = false;
-            for (var i = 0; i < attempts; i++) {
-                if (window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
-                    ready = true;
-                    break;
-                }
-                await new Promise(function(resolve) { setTimeout(resolve, 50); });
-            }
-            if (!ready) return false;
-
-            try {
-                await window.MathJax.startup.promise;
-                if (typeof window.MathJax.typesetClear === 'function') window.MathJax.typesetClear();
-                if (typeof window.MathJax.typesetPromise === 'function') await window.MathJax.typesetPromise([container]);
-            } catch(e) { console.error('MathJax failed', e); }
-
-            return true;
-        }
-
-        function amgiTypesetMathWhenReady(container) {
-            amgiTypesetMath(container, 60).then(function(didTypeset) {
-                if (didTypeset) {
-                    amgiScheduleCardThemeReport();
-                }
             });
         }
 
@@ -1086,17 +1001,8 @@ struct CardWebView: UIViewRepresentable {
 
             await amgiRunHooks(window.onUpdateHook);
 
-            var shouldTypesetMath = amgiNeedsMathTypeset(html || '', qa);
-            var didTypesetMath = false;
-            if (shouldTypesetMath) {
-                didTypesetMath = await amgiTypesetMath(qa, 4);
-            }
-
             qa.style.opacity = '1';
             amgiScheduleCardThemeReport();
-            if (shouldTypesetMath && !didTypesetMath) {
-                amgiTypesetMathWhenReady(qa);
-            }
 
             // Detect missing media
             document.querySelectorAll('img').forEach(function(img) {
