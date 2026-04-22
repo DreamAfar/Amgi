@@ -64,6 +64,14 @@ struct HourlyChart: View {
         )
     }
 
+    private func plottedCorrectPct(_ value: Double) -> Double {
+        StatsDualAxisSupport.plottedValue(
+            value,
+            domainMax: rightAxisMax,
+            plottedMax: leftAxisMax
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_hourly_title"))
@@ -95,138 +103,177 @@ struct HourlyChart: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart {
-                    ForEach(entries) { entry in
-                        BarMark(
-                            x: .value("Hour", entry.hour),
-                            y: .value(L("stats_hourly_reviews"), entry.total),
-                            width: .fixed(9)
-                        )
-                        .foregroundStyle(
-                            Color(hue: 0.58, saturation: 0.5 + 0.5 * Double(entry.total) / Double(max(maxReviewCount, 1)), brightness: 0.7).gradient
-                        )
-                    }
-
-                    ForEach(entries) { entry in
-                        AreaMark(
-                            x: .value("Hour", entry.hour),
-                            y: .value(
-                                L("stats_hourly_correct_pct"),
-                                StatsDualAxisSupport.plottedValue(
-                                    entry.correctPct,
-                                    domainMax: rightAxisMax,
-                                    plottedMax: leftAxisMax
-                                )
-                            )
-                        )
-                        .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
-                        .interpolationMethod(.catmullRom)
-
-                        LineMark(
-                            x: .value("Hour", entry.hour),
-                            y: .value(
-                                L("stats_hourly_correct_pct"),
-                                StatsDualAxisSupport.plottedValue(
-                                    entry.correctPct,
-                                    domainMax: rightAxisMax,
-                                    plottedMax: leftAxisMax
-                                )
-                            ),
-                            series: .value("Series", "pct")
-                        )
-                        .foregroundStyle(.green.opacity(0.8))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5))
-                        .interpolationMethod(.catmullRom)
-                    }
-
-                    if let selectedEntry {
-                        let reviewsLabel = L("stats_hourly_reviews")
-                        let correctLabel = L("stats_hourly_correct_pct")
-                        let correctText = String(format: "%.1f%%", selectedEntry.correctPct)
-                        RuleMark(x: .value("Selected Hour", selectedEntry.hour))
-                            .foregroundStyle(Color.amgiAccent.opacity(0.35))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                            .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
-                                StatsChartTooltip(
-                                    title: "\(selectedEntry.hour)-\(selectedEntry.hour + 1)",
-                                    lines: [
-                                        "\(reviewsLabel): \(selectedEntry.total)",
-                                        "\(correctLabel): \(correctText) (\(selectedEntry.correct)/\(selectedEntry.total))"
-                                    ]
-                                )
-                            }
-                    }
-                }
-                .chartOverlay { proxy in
-                    GeometryReader { geometry in
-                        Rectangle()
-                            .fill(Color.clear)
-                            .contentShape(Rectangle())
-                            .gesture(
-                                SpatialTapGesture()
-                                    .onEnded { value in
-                                        let plotFrame = geometry[proxy.plotAreaFrame]
-                                        let plotX = value.location.x - plotFrame.origin.x
-                                        guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
-                                              let hour: Int = proxy.value(atX: plotX)
-                                        else {
-                                            selectedHour = nil
-                                            return
-                                        }
-
-                                        let nearestHour = entries.min(by: {
-                                            abs($0.hour - hour) < abs($1.hour - hour)
-                                        })?.hour
-                                        selectedHour = selectedHour == nearestHour ? nil : nearestHour
-                                    }
-                            )
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(values: Array(0...23)) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.2))
-                        if let h = value.as(Int.self) {
-                            AxisValueLabel(formatHour(h))
-                                .font(AmgiFont.micro.font)
-                                .foregroundStyle(Color.amgiTextSecondary.opacity(h % 2 == 0 ? 1 : 0.55))
-                        }
-                    }
-                }
-                .chartXScale(domain: 0...23)
-                .chartYScale(domain: 0...leftAxisMax)
-                .chartYAxis {
-                    AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let raw = value.as(Double.self),
-                           let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                            AxisValueLabel {
-                                Text(tick.label)
-                                    .amgiFont(.micro)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-                        }
-                    }
-
-                    AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
-                        if let raw = value.as(Double.self),
-                           let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                            AxisTick()
-                                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
-                            AxisValueLabel {
-                                Text(tick.label)
-                                    .amgiFont(.micro)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-                        }
-                    }
-                }
-                .frame(height: 200)
+                hourlyChart
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .amgiCard(elevated: true)
+    }
+
+    private var hourlyChart: some View {
+        baseHourlyChart
+            .chartOverlay { proxy in
+                hourlyChartOverlay(proxy: proxy)
+            }
+            .chartXAxis {
+                hourlyChartXAxis()
+            }
+            .chartXScale(domain: 0...23)
+            .chartYScale(domain: 0...leftAxisMax)
+            .chartYAxis {
+                hourlyChartYAxis()
+            }
+            .frame(height: 200)
+    }
+
+    private var baseHourlyChart: some View {
+        Chart {
+            hourlyBarMarks()
+            hourlyCorrectPctMarks()
+            selectedHourlyRuleMark()
+        }
+    }
+
+    @ChartContentBuilder
+    private func hourlyBarMarks() -> some ChartContent {
+        ForEach(entries) { entry in
+            BarMark(
+                x: .value("Hour", entry.hour),
+                y: .value(L("stats_hourly_reviews"), entry.total),
+                width: .fixed(9)
+            )
+            .foregroundStyle(
+                Color(
+                    hue: 0.58,
+                    saturation: 0.5 + 0.5 * Double(entry.total) / Double(max(maxReviewCount, 1)),
+                    brightness: 0.7
+                ).gradient
+            )
+        }
+    }
+
+    @ChartContentBuilder
+    private func hourlyCorrectPctMarks() -> some ChartContent {
+        ForEach(entries) { entry in
+            AreaMark(
+                x: .value("Hour", entry.hour),
+                y: .value(L("stats_hourly_correct_pct"), plottedCorrectPct(entry.correctPct))
+            )
+            .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+            .interpolationMethod(.catmullRom)
+
+            LineMark(
+                x: .value("Hour", entry.hour),
+                y: .value(L("stats_hourly_correct_pct"), plottedCorrectPct(entry.correctPct)),
+                series: .value("Series", "pct")
+            )
+            .foregroundStyle(.green.opacity(0.8))
+            .lineStyle(StrokeStyle(lineWidth: 1.5))
+            .interpolationMethod(.catmullRom)
+        }
+    }
+
+    @ChartContentBuilder
+    private func selectedHourlyRuleMark() -> some ChartContent {
+        if let selectedEntry {
+            RuleMark(x: .value("Selected Hour", selectedEntry.hour))
+                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                    StatsChartTooltip(
+                        title: "\(selectedEntry.hour)-\(selectedEntry.hour + 1)",
+                        lines: hourlyTooltipLines(for: selectedEntry)
+                    )
+                }
+        }
+    }
+
+    private func hourlyTooltipLines(for entry: HourEntry) -> [String] {
+        let reviewsLabel = L("stats_hourly_reviews")
+        let correctLabel = L("stats_hourly_correct_pct")
+        let correctText = String(format: "%.1f%%", entry.correctPct)
+        return [
+            "\(reviewsLabel): \(entry.total)",
+            "\(correctLabel): \(correctText) (\(entry.correct)/\(entry.total))"
+        ]
+    }
+
+    @ViewBuilder
+    private func hourlyChartOverlay(proxy: ChartProxy) -> some View {
+        GeometryReader { geometry in
+            Rectangle()
+                .fill(Color.clear)
+                .contentShape(Rectangle())
+                .gesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            updateSelectedHour(for: value, proxy: proxy, geometry: geometry)
+                        }
+                )
+        }
+    }
+
+    private func updateSelectedHour(
+        for value: SpatialTapGesture.Value,
+        proxy: ChartProxy,
+        geometry: GeometryProxy
+    ) {
+        let plotFrame = geometry[proxy.plotAreaFrame]
+        let plotX = value.location.x - plotFrame.origin.x
+        guard plotX >= 0,
+              plotX <= proxy.plotAreaSize.width,
+              let hour: Int = proxy.value(atX: plotX)
+        else {
+            selectedHour = nil
+            return
+        }
+
+        let nearestHour = entries.min(by: { lhs, rhs in
+            abs(lhs.hour - hour) < abs(rhs.hour - hour)
+        })?.hour
+        selectedHour = selectedHour == nearestHour ? nil : nearestHour
+    }
+
+    @AxisContentBuilder
+    private func hourlyChartXAxis() -> some AxisContent {
+        AxisMarks(values: Array(0...23)) { value in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.2))
+            if let hourValue = value.as(Int.self) {
+                AxisValueLabel(formatHour(hourValue))
+                    .font(AmgiFont.micro.font)
+                    .foregroundStyle(Color.amgiTextSecondary.opacity(hourValue % 2 == 0 ? 1 : 0.55))
+            }
+        }
+    }
+
+    @AxisContentBuilder
+    private func hourlyChartYAxis() -> some AxisContent {
+        AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+            if let raw = value.as(Double.self),
+               let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                AxisValueLabel {
+                    Text(tick.label)
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+        }
+
+        AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
+            if let raw = value.as(Double.self),
+               let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                AxisTick()
+                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+                AxisValueLabel {
+                    Text(tick.label)
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+        }
     }
 
     private func formatHour(_ hour: Int) -> String {

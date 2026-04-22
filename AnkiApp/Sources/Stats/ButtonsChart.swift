@@ -128,90 +128,133 @@ struct ButtonsChart: View {
         .amgiCard(elevated: true)
     }
 
-    @ViewBuilder
-    private var buttonsChart: some View {
-        let colorScale: KeyValuePairs<String, Color> = [
+    private var buttonsColorScale: KeyValuePairs<String, Color> {
+        [
             L("review_rating_again"): .red,
             L("review_rating_hard"): .orange,
             L("review_rating_good"): .green,
             L("review_rating_easy"): .blue,
         ]
-        Chart(entries) { entry in
-            BarMark(
-                x: .value("Type", entry.cardType),
-                y: .value("Count", entry.count)
-            )
-            .position(by: .value("Button", entry.button))
-            .foregroundStyle(by: .value("Button", entry.button))
+    }
 
-            if let selectedEntry,
-               selectedEntry.id == entry.id {
-                let countLabel = L("stats_card_count")
-                let correctLabel = L("stats_today_correct")
-                let correctText = String(format: "%.1f%%", correctPercentForType(selectedEntry.typeIndex))
-                RuleMark(x: .value("Selected Button", entry.button))
-                    .foregroundStyle(Color.amgiAccent.opacity(0.35))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
-                        let total = totalForType(selectedEntry.typeIndex)
-                        let share = total > 0 ? Double(selectedEntry.count) / Double(total) * 100 : 0
-                            let shareText = String(format: "%.1f%%", share)
-                        StatsChartTooltip(
-                            title: "\(selectedEntry.button) • \(selectedEntry.cardType)",
-                            lines: [
-                                "\(countLabel): \(selectedEntry.count) (\(shareText))",
-                                "\(correctLabel): \(correctText)"
-                            ]
-                        )
-                    }
+    @ViewBuilder
+    private var buttonsChart: some View {
+        baseButtonsChart
+            .chartForegroundStyleScale(buttonsColorScale)
+            .chartLegend(position: .bottom, spacing: 8)
+            .chartYScale(domain: 0...yAxisMax)
+            .chartYAxis {
+                buttonsChartYAxis()
             }
+            .chartOverlay { proxy in
+                buttonsChartOverlay(proxy: proxy)
+            }
+            .frame(height: 180)
+    }
+
+    private var baseButtonsChart: some View {
+        Chart(entries) { entry in
+            buttonBarMark(for: entry)
+            selectedButtonRuleMark(for: entry)
         }
-        .chartForegroundStyleScale(colorScale)
-        .chartLegend(position: .bottom, spacing: 8)
-        .chartYScale(domain: 0...yAxisMax)
-        .chartYAxis {
-            AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                if let raw = value.as(Double.self),
-                   let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                    AxisValueLabel {
-                        Text(tick.label)
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
+    }
+
+    @ChartContentBuilder
+    private func buttonBarMark(for entry: ButtonEntry) -> some ChartContent {
+        BarMark(
+            x: .value("Type", entry.cardType),
+            y: .value("Count", entry.count)
+        )
+        .position(by: .value("Button", entry.button))
+        .foregroundStyle(by: .value("Button", entry.button))
+    }
+
+    @ChartContentBuilder
+    private func selectedButtonRuleMark(for entry: ButtonEntry) -> some ChartContent {
+        if let selectedEntry,
+           selectedEntry.id == entry.id {
+            RuleMark(x: .value("Selected Button", entry.button))
+                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                    StatsChartTooltip(
+                        title: tooltipTitle(for: selectedEntry),
+                        lines: tooltipLines(for: selectedEntry)
+                    )
+                }
+        }
+    }
+
+    private func tooltipTitle(for entry: ButtonEntry) -> String {
+        "\(entry.button) • \(entry.cardType)"
+    }
+
+    private func tooltipLines(for entry: ButtonEntry) -> [String] {
+        let countLabel = L("stats_card_count")
+        let correctLabel = L("stats_today_correct")
+        let correctText = String(format: "%.1f%%", correctPercentForType(entry.typeIndex))
+        let total = totalForType(entry.typeIndex)
+        let share = total > 0 ? Double(entry.count) / Double(total) * 100 : 0
+        let shareText = String(format: "%.1f%%", share)
+
+        return [
+            "\(countLabel): \(entry.count) (\(shareText))",
+            "\(correctLabel): \(correctText)"
+        ]
+    }
+
+    @AxisContentBuilder
+    private func buttonsChartYAxis() -> some AxisContent {
+        AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+            if let raw = value.as(Double.self),
+               let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                AxisValueLabel {
+                    Text(tick.label)
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
         }
-        .chartOverlay { proxy in
-            GeometryReader { geometry in
-                Rectangle()
-                    .fill(Color.clear)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        SpatialTapGesture()
-                            .onEnded { value in
-                                let plotFrame = geometry[proxy.plotAreaFrame]
-                                let plotX = value.location.x - plotFrame.origin.x
-                                guard plotX >= 0, plotX <= proxy.plotAreaSize.width else {
-                                    selectedBarKey = nil
-                                    return
-                                }
+    }
 
-                                let typeSlotWidth = proxy.plotAreaSize.width / CGFloat(max(cardTypes.count, 1))
-                                let rawTypeIndex = Int(plotX / typeSlotWidth)
-                                let typeIndex = min(max(rawTypeIndex, 0), cardTypes.count - 1)
-                                let localX = plotX - CGFloat(typeIndex) * typeSlotWidth
-                                let buttonSlotWidth = typeSlotWidth / CGFloat(max(buttonLabels.count, 1))
-                                let rawButtonIndex = Int(localX / buttonSlotWidth)
-                                let buttonIndex = min(max(rawButtonIndex, 0), buttonLabels.count - 1)
-                                let key = "\(buttonIndex)-\(typeIndex)"
-
-                                selectedBarKey = selectedBarKey == key ? nil : key
-                            }
-                    )
-            }
+    @ViewBuilder
+    private func buttonsChartOverlay(proxy: ChartProxy) -> some View {
+        GeometryReader { geometry in
+            Rectangle()
+                .fill(Color.clear)
+                .contentShape(Rectangle())
+                .gesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            updateSelectedBarKey(for: value, proxy: proxy, geometry: geometry)
+                        }
+                )
         }
-        .frame(height: 180)
+    }
+
+    private func updateSelectedBarKey(
+        for value: SpatialTapGesture.Value,
+        proxy: ChartProxy,
+        geometry: GeometryProxy
+    ) {
+        let plotFrame = geometry[proxy.plotAreaFrame]
+        let plotX = value.location.x - plotFrame.origin.x
+        guard plotX >= 0, plotX <= proxy.plotAreaSize.width else {
+            selectedBarKey = nil
+            return
+        }
+
+        let typeSlotWidth = proxy.plotAreaSize.width / CGFloat(max(cardTypes.count, 1))
+        let rawTypeIndex = Int(plotX / typeSlotWidth)
+        let typeIndex = min(max(rawTypeIndex, 0), cardTypes.count - 1)
+        let localX = plotX - CGFloat(typeIndex) * typeSlotWidth
+        let buttonSlotWidth = typeSlotWidth / CGFloat(max(buttonLabels.count, 1))
+        let rawButtonIndex = Int(localX / buttonSlotWidth)
+        let buttonIndex = min(max(rawButtonIndex, 0), buttonLabels.count - 1)
+        let key = "\(buttonIndex)-\(typeIndex)"
+
+        selectedBarKey = selectedBarKey == key ? nil : key
     }
 }

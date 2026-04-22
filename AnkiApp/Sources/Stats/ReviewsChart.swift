@@ -158,6 +158,16 @@ struct ReviewsChart: View {
         return cumulativePoints.first(where: { $0.bucket == selectedBucket })
     }
 
+    private var reviewColorScale: KeyValuePairs<String, Color> {
+        [
+            L("stats_review_learn"): .blue,
+            L("stats_review_relearn"): .orange,
+            L("stats_card_young"): .green,
+            L("stats_card_mature"): .purple,
+            L("stats_review_filtered"): .gray,
+        ]
+    }
+
     private var xAxisMin: Int {
         let periodMin: Int
         switch period {
@@ -252,145 +262,177 @@ struct ReviewsChart: View {
 
     @ViewBuilder
     private var reviewChart: some View {
-        let colorScale: KeyValuePairs<String, Color> = [
-            L("stats_review_learn"):    .blue,
-            L("stats_review_relearn"):  .orange,
-            L("stats_card_young"):      .green,
-            L("stats_card_mature"):     .purple,
-            L("stats_review_filtered"): .gray,
-        ]
+        baseReviewChart
+            .chartForegroundStyleScale(reviewColorScale)
+            .chartOverlay { proxy in
+                reviewChartOverlay(proxy: proxy)
+            }
+            .chartXScale(domain: xAxisMin...0)
+            .chartYScale(domain: 0...leftAxisMax)
+            .chartXAxis {
+                reviewChartXAxis()
+            }
+            .chartYAxis {
+                reviewChartYAxis()
+            }
+            .frame(height: 200)
+    }
+
+    private var baseReviewChart: some View {
         Chart {
-            ForEach(entries) { entry in
-                BarMark(
-                    x: .value("Day", entry.bucket),
-                    y: .value("Value", entry.value),
-                    width: barWidth
-                )
-                .foregroundStyle(by: .value("Type", entry.type))
-            }
-            ForEach(cumulativePoints) { pt in
-                AreaMark(
-                    x: .value("Day", pt.bucket),
-                    y: .value(
-                        L("stats_reviews_cumulative"),
-                        StatsDualAxisSupport.plottedValue(
-                            Double(pt.cumulative),
-                            domainMax: rightAxisMax,
-                            plottedMax: leftAxisMax
-                        )
+            reviewBarMarks()
+            reviewCumulativeMarks()
+            selectedReviewRuleMark()
+        }
+    }
+
+    private func plottedCumulative(_ value: Int) -> Double {
+        StatsDualAxisSupport.plottedValue(
+            Double(value),
+            domainMax: rightAxisMax,
+            plottedMax: leftAxisMax
+        )
+    }
+
+    @ChartContentBuilder
+    private func reviewBarMarks() -> some ChartContent {
+        ForEach(entries) { entry in
+            BarMark(
+                x: .value("Day", entry.bucket),
+                y: .value("Value", entry.value),
+                width: barWidth
+            )
+            .foregroundStyle(by: .value("Type", entry.type))
+        }
+    }
+
+    @ChartContentBuilder
+    private func reviewCumulativeMarks() -> some ChartContent {
+        ForEach(cumulativePoints) { point in
+            AreaMark(
+                x: .value("Day", point.bucket),
+                y: .value(L("stats_reviews_cumulative"), plottedCumulative(point.cumulative))
+            )
+            .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+            .interpolationMethod(.monotone)
+
+            LineMark(
+                x: .value("Day", point.bucket),
+                y: .value(L("stats_reviews_cumulative"), plottedCumulative(point.cumulative)),
+                series: .value("Series", "cumulative")
+            )
+            .foregroundStyle(.secondary.opacity(0.7))
+            .lineStyle(StrokeStyle(lineWidth: 1.5))
+            .interpolationMethod(.monotone)
+            .accessibilityHidden(true)
+        }
+    }
+
+    @ChartContentBuilder
+    private func selectedReviewRuleMark() -> some ChartContent {
+        if let selectedBucket,
+           let selectedCumulativePoint,
+           !selectedBucketEntries.isEmpty {
+            RuleMark(x: .value("Selected Day", selectedBucket))
+                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                    StatsChartTooltip(
+                        title: statsBarRangeLabel(start: selectedBucket, bucketSize: bucketSize),
+                        lines: reviewTooltipLines(selectedCumulativePoint: selectedCumulativePoint)
                     )
+                }
+        }
+    }
+
+    private func reviewTooltipLines(selectedCumulativePoint: CumulativePoint) -> [String] {
+        let cumulativeLabel = L("stats_reviews_cumulative")
+        let reviewLines = selectedBucketEntries.map { entry in
+            if showTime {
+                return "\(entry.type): \(formatTime(entry.value))"
+            }
+            return "\(entry.type): \(entry.value)"
+        }
+        let cumulativeLine = showTime
+            ? "\(cumulativeLabel): \(formatTime(selectedCumulativePoint.cumulative))"
+            : "\(cumulativeLabel): \(selectedCumulativePoint.cumulative)"
+        return reviewLines + [cumulativeLine]
+    }
+
+    @ViewBuilder
+    private func reviewChartOverlay(proxy: ChartProxy) -> some View {
+        GeometryReader { geometry in
+            Rectangle()
+                .fill(Color.clear)
+                .contentShape(Rectangle())
+                .gesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            updateSelectedBucket(for: value, proxy: proxy, geometry: geometry)
+                        }
                 )
-                .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
-                .interpolationMethod(.monotone)
-
-                LineMark(
-                    x: .value("Day", pt.bucket),
-                    y: .value(
-                        L("stats_reviews_cumulative"),
-                        StatsDualAxisSupport.plottedValue(
-                            Double(pt.cumulative),
-                            domainMax: rightAxisMax,
-                            plottedMax: leftAxisMax
-                        )
-                    ),
-                    series: .value("Series", "cumulative")
-                )
-                .foregroundStyle(.secondary.opacity(0.7))
-                .lineStyle(StrokeStyle(lineWidth: 1.5))
-                .interpolationMethod(.monotone)
-                .accessibilityHidden(true)
-            }
-
-            if let selectedBucket,
-               let selectedCumulativePoint,
-               !selectedBucketEntries.isEmpty {
-                let cumulativeLabel = L("stats_reviews_cumulative")
-                RuleMark(x: .value("Selected Day", selectedBucket))
-                    .foregroundStyle(Color.amgiAccent.opacity(0.35))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
-                        StatsChartTooltip(
-                            title: statsBarRangeLabel(start: selectedBucket, bucketSize: bucketSize),
-                            lines: selectedBucketEntries.map { entry in
-                                if showTime {
-                                    return "\(entry.type): \(formatTime(entry.value))"
-                                } else {
-                                    return "\(entry.type): \(entry.value)"
-                                }
-                            } + [
-                                showTime
-                                    ? "\(cumulativeLabel): \(formatTime(selectedCumulativePoint.cumulative))"
-                                    : "\(cumulativeLabel): \(selectedCumulativePoint.cumulative)"
-                            ]
-                        )
-                    }
-            }
         }
-        .chartForegroundStyleScale(colorScale)
-        .chartOverlay { proxy in
-            GeometryReader { geometry in
-                Rectangle()
-                    .fill(Color.clear)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        SpatialTapGesture()
-                            .onEnded { value in
-                                let plotFrame = geometry[proxy.plotAreaFrame]
-                                let plotX = value.location.x - plotFrame.origin.x
-                                guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
-                                      let bucket: Int = proxy.value(atX: plotX)
-                                else {
-                                    selectedBucket = nil
-                                    return
-                                }
+    }
 
-                                let nearestBucket = Set(entries.map(\.bucket)).min(by: {
-                                    abs($0 - bucket) < abs($1 - bucket)
-                                })
-                                selectedBucket = selectedBucket == nearestBucket ? nil : nearestBucket
-                            }
-                    )
-            }
+    private func updateSelectedBucket(
+        for value: SpatialTapGesture.Value,
+        proxy: ChartProxy,
+        geometry: GeometryProxy
+    ) {
+        let plotFrame = geometry[proxy.plotAreaFrame]
+        let plotX = value.location.x - plotFrame.origin.x
+        guard plotX >= 0,
+              plotX <= proxy.plotAreaSize.width,
+              let bucket: Int = proxy.value(atX: plotX)
+        else {
+            selectedBucket = nil
+            return
         }
-        .chartXScale(domain: xAxisMin...0)
-        .chartYScale(domain: 0...leftAxisMax)
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { _ in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                AxisValueLabel()
-                    .font(AmgiFont.micro.font)
-                    .foregroundStyle(Color.amgiTextSecondary)
-            }
+
+        let nearestBucket = Set(entries.map(\.bucket)).min(by: { lhs, rhs in
+            abs(lhs - bucket) < abs(rhs - bucket)
+        })
+        selectedBucket = selectedBucket == nearestBucket ? nil : nearestBucket
+    }
+
+    @AxisContentBuilder
+    private func reviewChartXAxis() -> some AxisContent {
+        AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { _ in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+            AxisValueLabel()
+                .font(AmgiFont.micro.font)
+                .foregroundStyle(Color.amgiTextSecondary)
         }
-        .chartYAxis {
-            AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                if let raw = value.as(Double.self),
-                   let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                    AxisValueLabel {
-                        Text(tick.label)
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
+    }
+
+    @AxisContentBuilder
+    private func reviewChartYAxis() -> some AxisContent {
+        AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+            if let raw = value.as(Double.self),
+               let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                AxisValueLabel {
+                    Text(tick.label)
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
+        }
 
-            AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
-                if let raw = value.as(Double.self),
-                   let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                    AxisTick()
-                        .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
-                    AxisValueLabel {
-                        Text(tick.label)
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
+        AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
+            if let raw = value.as(Double.self),
+               let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                AxisTick()
+                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+                AxisValueLabel {
+                    Text(tick.label)
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
         }
-        .frame(height: 200)
     }
 
     private func footerItem(_ label: String, value: String) -> some View {

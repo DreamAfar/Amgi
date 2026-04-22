@@ -256,6 +256,19 @@ struct FutureDueChart: View {
         return cumulativePoints.first(where: { $0.startDay == selectedDay })
     }
 
+    private var selectedItem: DisplayPoint? {
+        guard let selectedDay else { return nil }
+        return filteredData.first(where: { $0.day == selectedDay })
+    }
+
+    private func plottedCumulative(_ value: Int) -> Double {
+        StatsDualAxisSupport.plottedValue(
+            Double(value),
+            domainMax: rightAxisMax,
+            plottedMax: leftAxisMax
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_future_due_title"))
@@ -282,138 +295,7 @@ struct FutureDueChart: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart {
-                    ForEach(filteredData) { item in
-                        BarMark(
-                            x: .value("Day", item.startDay),
-                            y: .value("Cards", item.count),
-                            width: barWidth
-                        )
-                        .foregroundStyle(item.endDay < 0 ? Color.red.gradient : Color.blue.gradient)
-                    }
-
-                    ForEach(cumulativePoints) { point in
-                        AreaMark(
-                            x: .value("Day", point.startDay),
-                            y: .value(
-                                "Cumulative",
-                                StatsDualAxisSupport.plottedValue(
-                                    Double(point.cumulative),
-                                    domainMax: rightAxisMax,
-                                    plottedMax: leftAxisMax
-                                )
-                            )
-                        )
-                        .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
-                        .interpolationMethod(.monotone)
-
-                        LineMark(
-                            x: .value("Day", point.startDay),
-                            y: .value(
-                                "Cumulative",
-                                StatsDualAxisSupport.plottedValue(
-                                    Double(point.cumulative),
-                                    domainMax: rightAxisMax,
-                                    plottedMax: leftAxisMax
-                                )
-                            ),
-                            series: .value("Series", "cumulative")
-                        )
-                        .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5))
-                        .interpolationMethod(.monotone)
-                    }
-
-                    if let selectedDay,
-                       let selectedItem = filteredData.first(where: { $0.day == selectedDay }),
-                       let selectedPoint {
-                        let countLabel = L("stats_card_count")
-                        let cumulativeLabel = L("stats_reviews_cumulative")
-                        RuleMark(x: .value("Selected Day", selectedDay))
-                            .foregroundStyle(Color.amgiAccent.opacity(0.35))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                            .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
-                                StatsChartTooltip(
-                                    title: statsBarRangeLabel(start: selectedItem.startDay, bucketSize: selectedItem.endDay - selectedItem.startDay + 1),
-                                    lines: [
-                                        "\(countLabel): \(selectedItem.count)",
-                                        "\(cumulativeLabel): \(selectedPoint.cumulative)"
-                                    ]
-                                )
-                            }
-                    }
-                }
-                .chartXScale(domain: xAxisLowerBound...xAxisUpperBound)
-                .chartOverlay { proxy in
-                    GeometryReader { geometry in
-                        Rectangle()
-                            .fill(Color.clear)
-                            .contentShape(Rectangle())
-                            .gesture(
-                                SpatialTapGesture()
-                                    .onEnded { value in
-                                        let plotFrame = geometry[proxy.plotAreaFrame]
-                                        let plotX = value.location.x - plotFrame.origin.x
-                                        guard plotX >= 0, plotX <= proxy.plotAreaSize.width,
-                                              let day: Int = proxy.value(atX: plotX)
-                                        else {
-                                            selectedDay = nil
-                                            return
-                                        }
-
-                                        let nearestDay = filteredData.min(by: {
-                                            abs($0.startDay - day) < abs($1.startDay - day)
-                                        })?.startDay
-                                        selectedDay = selectedDay == nearestDay ? nil : nearestDay
-                                    }
-                            )
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(values: xAxisTickValues) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let day = value.as(Int.self) {
-                            AxisValueLabel {
-                                Text(xAxisLabel(for: day))
-                                    .amgiFont(.micro)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.7)
-                                    .allowsTightening(true)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-                        }
-                    }
-                }
-                .chartYScale(domain: 0...leftAxisMax)
-                .chartYAxis {
-                    AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let raw = value.as(Double.self),
-                           let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                            AxisValueLabel {
-                                Text(tick.label)
-                                    .amgiFont(.micro)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-                        }
-                    }
-
-                    AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
-                        if let raw = value.as(Double.self),
-                           let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                            AxisTick()
-                                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
-                            AxisValueLabel {
-                                Text(tick.label)
-                                    .amgiFont(.micro)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-                        }
-                    }
-                }
-                .frame(height: 200)
+                futureDueChart
             }
 
             if futureDue.haveBacklog {
@@ -434,6 +316,171 @@ struct FutureDueChart: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .amgiCard(elevated: true)
+    }
+
+    private var futureDueChart: some View {
+        baseFutureDueChart
+            .chartXScale(domain: xAxisLowerBound...xAxisUpperBound)
+            .chartOverlay { proxy in
+                futureDueChartOverlay(proxy: proxy)
+            }
+            .chartXAxis {
+                futureDueChartXAxis()
+            }
+            .chartYScale(domain: 0...leftAxisMax)
+            .chartYAxis {
+                futureDueChartYAxis()
+            }
+            .frame(height: 200)
+    }
+
+    private var baseFutureDueChart: some View {
+        Chart {
+            futureDueBarMarks()
+            futureDueCumulativeMarks()
+            selectedFutureDueRuleMark()
+        }
+    }
+
+    @ChartContentBuilder
+    private func futureDueBarMarks() -> some ChartContent {
+        ForEach(filteredData) { item in
+            BarMark(
+                x: .value("Day", item.startDay),
+                y: .value("Cards", item.count),
+                width: barWidth
+            )
+            .foregroundStyle(item.endDay < 0 ? Color.red.gradient : Color.blue.gradient)
+        }
+    }
+
+    @ChartContentBuilder
+    private func futureDueCumulativeMarks() -> some ChartContent {
+        ForEach(cumulativePoints) { point in
+            AreaMark(
+                x: .value("Day", point.startDay),
+                y: .value("Cumulative", plottedCumulative(point.cumulative))
+            )
+            .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+            .interpolationMethod(.monotone)
+
+            LineMark(
+                x: .value("Day", point.startDay),
+                y: .value("Cumulative", plottedCumulative(point.cumulative)),
+                series: .value("Series", "cumulative")
+            )
+            .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
+            .lineStyle(StrokeStyle(lineWidth: 1.5))
+            .interpolationMethod(.monotone)
+        }
+    }
+
+    @ChartContentBuilder
+    private func selectedFutureDueRuleMark() -> some ChartContent {
+        if let selectedDay,
+           let selectedItem,
+           let selectedPoint {
+            let countLabel = L("stats_card_count")
+            let cumulativeLabel = L("stats_reviews_cumulative")
+            RuleMark(x: .value("Selected Day", selectedDay))
+                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                    StatsChartTooltip(
+                        title: statsBarRangeLabel(
+                            start: selectedItem.startDay,
+                            bucketSize: selectedItem.endDay - selectedItem.startDay + 1
+                        ),
+                        lines: [
+                            "\(countLabel): \(selectedItem.count)",
+                            "\(cumulativeLabel): \(selectedPoint.cumulative)"
+                        ]
+                    )
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func futureDueChartOverlay(proxy: ChartProxy) -> some View {
+        GeometryReader { geometry in
+            Rectangle()
+                .fill(Color.clear)
+                .contentShape(Rectangle())
+                .gesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            updateSelectedDay(for: value, proxy: proxy, geometry: geometry)
+                        }
+                )
+        }
+    }
+
+    private func updateSelectedDay(
+        for value: SpatialTapGesture.Value,
+        proxy: ChartProxy,
+        geometry: GeometryProxy
+    ) {
+        let plotFrame = geometry[proxy.plotAreaFrame]
+        let plotX = value.location.x - plotFrame.origin.x
+        guard plotX >= 0,
+              plotX <= proxy.plotAreaSize.width,
+              let day: Int = proxy.value(atX: plotX)
+        else {
+            selectedDay = nil
+            return
+        }
+
+        let nearestDay = filteredData.min(by: { lhs, rhs in
+            abs(lhs.startDay - day) < abs(rhs.startDay - day)
+        })?.startDay
+        selectedDay = selectedDay == nearestDay ? nil : nearestDay
+    }
+
+    @AxisContentBuilder
+    private func futureDueChartXAxis() -> some AxisContent {
+        AxisMarks(values: xAxisTickValues) { value in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+            if let day = value.as(Int.self) {
+                AxisValueLabel {
+                    Text(xAxisLabel(for: day))
+                        .amgiFont(.micro)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .allowsTightening(true)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+        }
+    }
+
+    @AxisContentBuilder
+    private func futureDueChartYAxis() -> some AxisContent {
+        AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+            if let raw = value.as(Double.self),
+               let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                AxisValueLabel {
+                    Text(tick.label)
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+        }
+
+        AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
+            if let raw = value.as(Double.self),
+               let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
+                AxisTick()
+                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+                AxisValueLabel {
+                    Text(tick.label)
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+        }
     }
 
     private func footerItem(_ label: String, value: String) -> some View {
