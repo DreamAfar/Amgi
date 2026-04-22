@@ -1006,13 +1006,21 @@ final class OcclusionCanvasUIView: UIView {
         switch mask {
         case .rect, .text:
             guard let box = boxTransform(for: mask, imgRect: imgRect) else { return false }
-            let local = rotate(point - box.origin, by: -box.angle)
+            let translated = CGPoint(
+                x: point.x - box.origin.x,
+                y: point.y - box.origin.y
+            )
+            let local = rotate(translated, by: -box.angle)
             return CGRect(origin: .zero, size: box.size).contains(local)
         case .ellipse:
             guard let box = boxTransform(for: mask, imgRect: imgRect),
                   box.size.width > 0,
                   box.size.height > 0 else { return false }
-            let local = rotate(point - box.origin, by: -box.angle)
+            let translated = CGPoint(
+                x: point.x - box.origin.x,
+                y: point.y - box.origin.y
+            )
+            let local = rotate(translated, by: -box.angle)
             let center = CGPoint(x: box.size.width / 2, y: box.size.height / 2)
             let normalizedX = (local.x - center.x) / (box.size.width / 2)
             let normalizedY = (local.y - center.y) / (box.size.height / 2)
@@ -1020,9 +1028,15 @@ final class OcclusionCanvasUIView: UIView {
         case .polygon(let pts, _):
             let path = UIBezierPath()
             guard let first = pts.first else { return false }
-            path.move(to: CGPoint(x: imgRect.minX + first.x * imgRect.width, y: imgRect.minY + first.y * imgRect.height))
+            path.move(to: CGPoint(
+                x: imgRect.minX + first.x * imgRect.width,
+                y: imgRect.minY + first.y * imgRect.height
+            ))
             for pt in pts.dropFirst() {
-                path.addLine(to: CGPoint(x: imgRect.minX + pt.x * imgRect.width, y: imgRect.minY + pt.y * imgRect.height))
+                path.addLine(to: CGPoint(
+                    x: imgRect.minX + pt.x * imgRect.width,
+                    y: imgRect.minY + pt.y * imgRect.height
+                ))
             }
             path.close()
             return path.contains(point)
@@ -1585,7 +1599,11 @@ final class OcclusionCanvasUIView: UIView {
     }
 
     private func transformedPoint(_ point: CGPoint, origin: CGPoint, angle: CGFloat) -> CGPoint {
-        origin + rotate(point, by: angle)
+        let rotated = rotate(point, by: angle)
+        return CGPoint(
+            x: origin.x + rotated.x,
+            y: origin.y + rotated.y
+        )
     }
 
     private func absolutePoint(for point: CGPoint, imgRect: CGRect) -> CGPoint {
@@ -1633,16 +1651,16 @@ final class OcclusionCanvasUIView: UIView {
     }
 
     private func rotate(_ point: CGPoint, by angle: CGFloat, around pivot: CGPoint) -> CGPoint {
-        rotate(point - pivot, by: angle) + pivot
+        let translated = CGPoint(
+            x: point.x - pivot.x,
+            y: point.y - pivot.y
+        )
+        let rotated = rotate(translated, by: angle)
+        return CGPoint(
+            x: rotated.x + pivot.x,
+            y: rotated.y + pivot.y
+        )
     }
-}
-
-private func + (lhs: CGPoint, rhs: CGPoint) -> CGPoint {
-    CGPoint(x: lhs.x + rhs.x, y: lhs.y + rhs.y)
-}
-
-private func - (lhs: CGPoint, rhs: CGPoint) -> CGPoint {
-    CGPoint(x: lhs.x - rhs.x, y: lhs.y - rhs.y)
 }
 
 private extension UIColor {
