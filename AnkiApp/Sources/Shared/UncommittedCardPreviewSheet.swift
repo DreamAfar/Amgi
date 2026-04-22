@@ -206,22 +206,31 @@ struct UncommittedCardPreviewSheet: View {
                     backend: AnkiBackend,
                     html: String,
                     svg: Bool
-                ) throws -> String {
+                ) -> String {
+                    if html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        return html
+                    }
+
                     var request = Anki_CardRendering_ExtractLatexRequest()
                     request.text = html
                     request.svg = svg
                     request.expandClozes = false
 
-                    let response: Anki_CardRendering_ExtractLatexResponse = try backend.invoke(
-                        service: AnkiBackend.Service.cardRendering,
-                        method: AnkiBackend.CardRenderingMethod.extractLatex,
-                        request: request
-                    )
-                    let extracted = response.text
-                    if extracted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    do {
+                        let response: Anki_CardRendering_ExtractLatexResponse = try backend.invoke(
+                            service: AnkiBackend.Service.cardRendering,
+                            method: AnkiBackend.CardRenderingMethod.extractLatex,
+                            request: request
+                        )
+                        let extracted = response.text
+                        if extracted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            return html
+                        }
+                        return extracted
+                    } catch {
+                        print("[UncommittedCardPreviewSheet] Latex extraction failed: \(error)")
                         return html
                     }
-                    return extracted
                 }
 
                 var request = Anki_CardRendering_RenderUncommittedCardRequest()
@@ -237,12 +246,12 @@ struct UncommittedCardPreviewSheet: View {
                 )
 
                 return (
-                    frontHTML: try extractLatexIfNeeded(
+                    frontHTML: extractLatexIfNeeded(
                         backend: backend,
                         html: renderCardPreviewNodes(response.questionNodes),
                         svg: response.latexSvg
                     ),
-                    backHTML: try extractLatexIfNeeded(
+                    backHTML: extractLatexIfNeeded(
                         backend: backend,
                         html: renderCardPreviewNodes(response.answerNodes),
                         svg: response.latexSvg

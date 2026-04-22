@@ -358,6 +358,10 @@ final class ReviewSession {
     }
 
     private func extractLatexIfNeeded(in html: String, svg: Bool) -> String {
+        if html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return html
+        }
+
         do {
             var request = Anki_CardRendering_ExtractLatexRequest()
             request.text = html
