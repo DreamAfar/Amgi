@@ -240,12 +240,12 @@ struct UncommittedCardPreviewSheet: View {
                     frontHTML: try extractLatexIfNeeded(
                         backend: backend,
                         html: renderCardPreviewNodes(response.questionNodes),
-                        svg: response.latexSVG
+                        svg: response.latexSvg
                     ),
                     backHTML: try extractLatexIfNeeded(
                         backend: backend,
                         html: renderCardPreviewNodes(response.answerNodes),
-                        svg: response.latexSVG
+                        svg: response.latexSvg
                     ),
                     isEmpty: response.isEmpty
                 )

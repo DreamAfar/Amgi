@@ -333,8 +333,8 @@ final class ReviewSession {
                 request: renderReq
             )
 
-            renderedFrontHTML = extractLatexIfNeeded(in: renderNodes(rendered.questionNodes), svg: rendered.latexSVG)
-            renderedBackHTML = extractLatexIfNeeded(in: renderNodes(rendered.answerNodes), svg: rendered.latexSVG)
+            renderedFrontHTML = extractLatexIfNeeded(in: renderNodes(rendered.questionNodes), svg: rendered.latexSvg)
+            renderedBackHTML = extractLatexIfNeeded(in: renderNodes(rendered.answerNodes), svg: rendered.latexSvg)
 
             typedAnswerState = resolveTypedAnswerState(for: queued, frontHTML: renderedFrontHTML)
             frontHTML = makeTypedAnswerFrontHTML(typedAnswerState: typedAnswerState)
