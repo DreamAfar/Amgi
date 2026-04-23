@@ -84,7 +84,7 @@ struct HeatmapChartOptimized: View {
 
     private var weeksToShow: Int {
         guard let minOffset = visibleData.keys.min() else { return 26 }
-        let totalDays = abs(minOffset) + 7
+        let totalDays = Swift.abs(minOffset) + 7
         let weeksNeeded = totalDays / 7 + 1
         return max(weeksNeeded, 26)
     }

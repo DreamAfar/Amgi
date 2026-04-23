@@ -447,7 +447,7 @@ struct FutureDueChart: View {
         var nearestDistance = Int.max
 
         for item in filteredData {
-            let distance = abs(item.startDay - day)
+            let distance = Swift.abs(item.startDay - day)
             if distance < nearestDistance {
                 nearestDistance = distance
                 nearestDay = item.startDay

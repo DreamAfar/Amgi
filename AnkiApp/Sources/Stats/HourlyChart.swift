@@ -238,7 +238,7 @@ struct HourlyChart: View {
         var nearestDistance = Int.max
 
         for entry in entries {
-            let distance = abs(entry.hour - hour)
+            let distance = Swift.abs(entry.hour - hour)
             if distance < nearestDistance {
                 nearestDistance = distance
                 nearestHour = entry.hour

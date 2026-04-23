@@ -171,7 +171,7 @@ struct RetrievabilityChart: View {
         var nearestDistance = Double.greatestFiniteMagnitude
 
         for item in chartData {
-            let distance = abs(item.center - retrievabilityValue)
+            let distance = Swift.abs(item.center - retrievabilityValue)
             if distance < nearestDistance {
                 nearestDistance = distance
                 nearestBucketStart = item.start

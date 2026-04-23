@@ -39,7 +39,7 @@ struct AddedChart: View {
         var buckets: [Int: Int] = [:]
         for (dayOffset, count) in added.added {
             let day = Int(dayOffset)
-            guard day <= 0, abs(day) <= maxDay else { continue }
+            guard day <= 0, Swift.abs(day) <= maxDay else { continue }
             let bucket = bkt == 1 ? day : -((-day) / bkt * bkt)
             buckets[bucket, default: 0] += Int(count)
         }
@@ -264,7 +264,7 @@ struct AddedChart: View {
         var nearestDistance = Int.max
 
         for item in filteredData {
-            let distance = abs(item.day - day)
+            let distance = Swift.abs(item.day - day)
             if distance < nearestDistance {
                 nearestDistance = distance
                 nearestDay = item.day

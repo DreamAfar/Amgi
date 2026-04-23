@@ -49,7 +49,7 @@ struct ReviewsChart: View {
         var bucketTotals: [Int: [Int: Int]] = [:]
         for (dayOffset, rev) in sourceMap {
             let day = Int(dayOffset)
-            guard day <= 0, abs(day) <= maxDay else { continue }
+            guard day <= 0, Swift.abs(day) <= maxDay else { continue }
             let bucket = bkt == 1 ? day : -((-day) / bkt * bkt)
             for (idx, kp) in Self.valueKeys.enumerated() {
                 let rawValue = Int(rev[keyPath: kp])
@@ -403,7 +403,7 @@ struct ReviewsChart: View {
             let candidate = entry.bucket
             guard seenBuckets.insert(candidate).inserted else { continue }
 
-            let distance = abs(candidate - bucket)
+            let distance = Swift.abs(candidate - bucket)
             if distance < nearestDistance {
                 nearestDistance = distance
                 nearestBucket = candidate

@@ -884,7 +884,7 @@ final class OcclusionCanvasUIView: UIView {
 
     private func makeRect(from a: CGPoint, to b: CGPoint) -> CGRect {
         CGRect(x: min(a.x, b.x), y: min(a.y, b.y),
-               width: abs(b.x - a.x), height: abs(b.y - a.y))
+               width: Swift.abs(b.x - a.x), height: Swift.abs(b.y - a.y))
     }
 
     private func imageRect(in bounds: CGRect) -> CGRect {
@@ -1583,7 +1583,7 @@ final class OcclusionCanvasUIView: UIView {
     private func extrasSettingAngle(_ extras: [String: String], radians: CGFloat) -> [String: String] {
         var updated = extras
         let degrees = normalizedDegrees(radians * 180 / .pi)
-        if abs(degrees) < 0.1 {
+        if Swift.abs(degrees) < 0.1 {
             updated.removeValue(forKey: "angle")
         } else {
             updated["angle"] = String(format: "%.3g", degrees)

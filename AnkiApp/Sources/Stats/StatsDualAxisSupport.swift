@@ -57,7 +57,7 @@ enum StatsDualAxisSupport {
 
     static func label(for targetValue: Double, in ticks: [StatsAxisTick], tolerance: Double = 0.0001) -> String {
         for tick in ticks {
-            let distance: Double = abs(tick.plottedValue - targetValue)
+            let distance: Double = Swift.abs(tick.plottedValue - targetValue)
             if distance < tolerance {
                 return tick.label
             }

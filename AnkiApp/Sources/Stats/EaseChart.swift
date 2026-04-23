@@ -199,7 +199,7 @@ struct EaseChart: View {
         var nearestDistance = Int.max
 
         for item in chartData {
-            let distance = abs(item.ease - ease)
+            let distance = Swift.abs(item.ease - ease)
             if distance < nearestDistance {
                 nearestDistance = distance
                 nearestEase = item.ease

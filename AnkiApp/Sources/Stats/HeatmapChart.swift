@@ -88,7 +88,7 @@ struct HeatmapChart: View {
     /// Number of weeks to show based on data range
     private var weeksToShow: Int {
         guard let minOffset = dayCountMap.keys.min() else { return 52 }
-        let totalDays = abs(minOffset) + 7 // add a week buffer
+        let totalDays = Swift.abs(minOffset) + 7 // add a week buffer
         let weeksNeeded = totalDays / 7 + 1
         return max(weeksNeeded, 52) // at least 1 year
     }

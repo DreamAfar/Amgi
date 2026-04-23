@@ -344,7 +344,7 @@ struct IntervalsChart: View {
         var nearestDistance = Int.max
 
         for bin in bins {
-            let distance = abs(bin.x - xValue)
+            let distance = Swift.abs(bin.x - xValue)
             if distance < nearestDistance {
                 nearestDistance = distance
                 nearestX = bin.x
