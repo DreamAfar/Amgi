@@ -318,6 +318,7 @@
 "settings_reader_display_progress_position" = "進捗位置";
 "settings_reader_display_progress_position_top" = "上";
 "settings_reader_display_progress_position_bottom" = "下";
+"settings_reader_popup_font_size" = "検索ポップアップ文字サイズ";
 "settings_reader_popup_width" = "幅";
 "settings_reader_popup_height" = "高さ";
 "settings_reader_popup_full_width" = "全幅表示";

@@ -265,6 +265,7 @@ struct ReaderDisplaySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.showProgressTop) private var showProgressTop = true
     @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
     @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
+    @AppStorage(ReaderPreferences.Keys.popupFontSize) private var popupFontSize = 14
     @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
     @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
 
@@ -367,6 +368,16 @@ struct ReaderDisplaySettingsView: View {
             .amgiSettingsListRowSurface()
 
             Section(L("settings_reader_display_section_popup")) {
+                HStack {
+                    Text(L("settings_reader_popup_font_size"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Text(L("settings_reader_font_size_value", popupFontSize))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                    Stepper("", value: $popupFontSize, in: 10...30)
+                        .labelsHidden()
+                }
+
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(L("settings_reader_popup_width"))

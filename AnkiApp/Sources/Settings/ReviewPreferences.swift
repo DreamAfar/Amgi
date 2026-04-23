@@ -43,6 +43,7 @@ enum ReaderPreferences {
         static let showProgressTop = "reader_pref_show_progress_top"
         static let popupWidth = "reader_pref_popup_width"
         static let popupHeight = "reader_pref_popup_height"
+        static let popupFontSize = "reader_pref_popup_font_size"
         static let popupFullWidth = "reader_pref_popup_full_width"
         static let popupSwipeToDismiss = "reader_pref_popup_swipe_to_dismiss"
         static let dictionaryMaxResults = "reader_pref_dictionary_max_results"

@@ -491,6 +491,7 @@ private struct ReaderChapterView: View {
     @AppStorage(ReaderPreferences.Keys.showProgressTop) private var showProgressTop = true
     @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
     @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
+    @AppStorage(ReaderPreferences.Keys.popupFontSize) private var popupFontSize = 14
     @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
     @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
     @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var dictionaryMaxResults = 16
@@ -560,7 +561,7 @@ private struct ReaderChapterView: View {
             let bottomInset = max(geometry.safeAreaInsets.bottom - 8, 14)
 
             VStack(spacing: 0) {
-                Color.clear
+                Color.amgiBackground
                     .frame(height: topOverlayHeight)
 
                 ZStack(alignment: .bottom) {
@@ -626,7 +627,7 @@ private struct ReaderChapterView: View {
                         .readerChromeButtonStyle()
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, bottomInset)
+                    .padding(.bottom, bottomInset * 1.5)
                 }
             }
             .background(Color.amgiBackground)
@@ -635,7 +636,7 @@ private struct ReaderChapterView: View {
                     title: showTitle ? book.title : nil,
                     progressLabel: showProgressTop ? progressLabel : nil
                 )
-                    .padding(.top, topSafeArea + 10)
+                    .padding(.top, topSafeArea + 4)
             }
             .overlay(alignment: .bottom) {
                 if showProgressTop == false {
@@ -645,14 +646,6 @@ private struct ReaderChapterView: View {
             }
             .overlay(alignment: .topTrailing) {
                 HStack(spacing: 10) {
-                    Button {
-                        pendingSelectionAction = .lookup
-                        selectionRequestID += 1
-                    } label: {
-                        ReaderChromeIconLabel(systemName: "text.magnifyingglass")
-                    }
-                    .readerChromeButtonStyle()
-
                     Button {
                         pendingSelectionAction = .addNote
                         selectionRequestID += 1
@@ -682,6 +675,7 @@ private struct ReaderChapterView: View {
                                 languageHint: lookupLanguageHint,
                                 popupWidth: CGFloat(popupWidth),
                                 popupHeight: CGFloat(popupHeight),
+                                popupFontSize: CGFloat(popupFontSize),
                                 isFullWidth: popupFullWidth,
                                 swipeToDismiss: popupSwipeToDismiss,
                                 onAddNote: {
@@ -849,6 +843,7 @@ private struct ReaderLookupPopup: View {
     let languageHint: String?
     let popupWidth: CGFloat
     let popupHeight: CGFloat
+    let popupFontSize: CGFloat
     let isFullWidth: Bool
     let swipeToDismiss: Bool
     let onAddNote: () -> Void
@@ -888,22 +883,37 @@ private struct ReaderLookupPopup: View {
         ReaderLookupSpeechPlayer.normalizedLanguageHint(languageHint, fallbackText: readingText ?? query)
     }
 
+    private var scale: CGFloat {
+        max(0.6, popupFontSize / 14)
+    }
+
+    private var headerWordFont: CGFloat { 14 * scale }
+    private var headerReadingFont: CGFloat { 7 * scale }
+    private var buttonIconFont: CGFloat { 14 * scale }
+    private var loadingFont: CGFloat { 13 * scale }
+    private var emptyFont: CGFloat { 13 * scale }
+    private var sectionDictionaryFont: CGFloat { 13 * scale }
+    private var sectionTermFont: CGFloat { 22 * scale }
+    private var sectionReadingFont: CGFloat { 14 * scale }
+    private var sectionDefinitionFont: CGFloat { 14 * scale }
+    private var sectionPitchFont: CGFloat { 12 * scale }
+    private var badgeFont: CGFloat { 13 * scale }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 16) {
-                HStack(alignment: .top, spacing: 12) {
-                    Text(query)
-                        .font(.system(size: 34, weight: .bold))
-                        .foregroundStyle(Color.amgiTextPrimary)
-                        .fixedSize(horizontal: false, vertical: true)
-
+                VStack(alignment: .leading, spacing: 2) {
                     if let readingText {
                         Text(readingText)
-                            .font(.system(size: 18, weight: .medium))
+                            .font(.system(size: headerReadingFont, weight: .medium))
                             .foregroundStyle(Color.amgiTextSecondary)
-                            .padding(.top, 10)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+
+                    Text(query)
+                        .font(.system(size: headerWordFont, weight: .bold))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: 0)
@@ -913,7 +923,7 @@ private struct ReaderLookupPopup: View {
                         ReaderLookupSpeechPlayer.shared.speak(query, languageHint: preferredSpeechLanguage)
                     } label: {
                         Image(systemName: "speaker.wave.2")
-                            .font(.title3.weight(.medium))
+                            .font(.system(size: buttonIconFont, weight: .medium))
                             .foregroundStyle(Color.amgiTextSecondary)
                             .frame(width: 40, height: 40)
                     }
@@ -921,7 +931,7 @@ private struct ReaderLookupPopup: View {
 
                     Button(action: onAddNote) {
                         Image(systemName: "plus")
-                            .font(.title2.weight(.medium))
+                            .font(.system(size: buttonIconFont, weight: .medium))
                             .foregroundStyle(Color.amgiTextSecondary)
                             .frame(width: 40, height: 40)
                     }
@@ -933,7 +943,7 @@ private struct ReaderLookupPopup: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(frequencyBadges) { badge in
-                            ReaderLookupFrequencyBadge(badge: badge)
+                            ReaderLookupFrequencyBadge(badge: badge, fontSize: badgeFont)
                         }
                     }
                 }
@@ -945,14 +955,16 @@ private struct ReaderLookupPopup: View {
                         HStack(spacing: 12) {
                             ProgressView()
                             Text(L("reader_lookup_loading"))
+                                .font(.system(size: loadingFont))
                                 .foregroundStyle(Color.amgiTextSecondary)
                         }
                     } else if let result, result.isPlaceholder {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(L("reader_lookup_placeholder"))
+                                .font(.system(size: emptyFont))
                                 .foregroundStyle(Color.amgiTextSecondary)
                             Text(L("reader_lookup_missing_source"))
-                                .font(.footnote)
+                                .font(.system(size: sectionPitchFont))
                                 .foregroundStyle(Color.amgiTextSecondary)
                         }
                     } else if sections.isEmpty == false {
@@ -961,10 +973,18 @@ private struct ReaderLookupPopup: View {
                                 Divider()
                                     .overlay(Color.amgiBorder.opacity(0.32))
                             }
-                            ReaderLookupSectionView(section: section)
+                            ReaderLookupSectionView(
+                                section: section,
+                                dictionaryFontSize: sectionDictionaryFont,
+                                termFontSize: sectionTermFont,
+                                readingFontSize: sectionReadingFont,
+                                definitionFontSize: sectionDefinitionFont,
+                                pitchFontSize: sectionPitchFont
+                            )
                         }
                     } else {
                         Text(L("reader_lookup_empty"))
+                            .font(.system(size: emptyFont))
                             .foregroundStyle(Color.amgiTextSecondary)
                     }
                 }
@@ -1101,7 +1121,7 @@ private extension View {
     func readerChromeButtonStyle() -> some View {
         if #available(iOS 26.0, *) {
             self
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
                 .controlSize(.large)
         } else {
@@ -1682,26 +1702,27 @@ private struct ReaderLookupSection: Identifiable {
 
 private struct ReaderLookupSectionView: View {
     let section: ReaderLookupSection
+    let dictionaryFontSize: CGFloat
+    let termFontSize: CGFloat
+    let readingFontSize: CGFloat
+    let definitionFontSize: CGFloat
+    let pitchFontSize: CGFloat
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(section.heading)
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(Color.amgiTextPrimary)
-
             if let dictionaryName = section.dictionaryName {
                 Text(dictionaryName)
-                    .font(.subheadline.weight(.medium))
+                    .font(.system(size: dictionaryFontSize, weight: .medium))
                     .foregroundStyle(Color.amgiTextSecondary)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(section.term)
-                    .font(.title2.weight(.bold))
+                    .font(.system(size: termFontSize, weight: .bold))
                     .foregroundStyle(Color.amgiTextPrimary)
                 if let reading = section.reading {
                     Text(reading)
-                        .font(.body)
+                        .font(.system(size: readingFontSize))
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
@@ -1709,7 +1730,7 @@ private struct ReaderLookupSectionView: View {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(section.definitions, id: \.self) { definition in
                     Text(definition)
-                        .font(.body)
+                        .font(.system(size: definitionFontSize))
                         .foregroundStyle(Color.amgiTextPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -1717,7 +1738,7 @@ private struct ReaderLookupSectionView: View {
 
             if let pitch = section.pitch {
                 Text(pitch)
-                    .font(.caption)
+                    .font(.system(size: pitchFontSize))
                     .foregroundStyle(Color.amgiTextSecondary)
             }
         }
@@ -1756,11 +1777,12 @@ private struct ReaderLookupBadge: Identifiable {
 
 private struct ReaderLookupFrequencyBadge: View {
     let badge: ReaderLookupBadge
+    let fontSize: CGFloat
 
     var body: some View {
         HStack(spacing: 0) {
             Text(badge.name)
-                .font(.headline.weight(.medium))
+                .font(.system(size: fontSize, weight: .medium))
                 .foregroundStyle(Color.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -1768,7 +1790,7 @@ private struct ReaderLookupFrequencyBadge: View {
 
             if badge.value.isEmpty == false {
                 Text(badge.value)
-                    .font(.headline.weight(.medium))
+                    .font(.system(size: fontSize, weight: .medium))
                     .foregroundStyle(Color.amgiTextPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)

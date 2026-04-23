@@ -318,6 +318,7 @@
 "settings_reader_display_progress_position" = "Progress Position";
 "settings_reader_display_progress_position_top" = "Top";
 "settings_reader_display_progress_position_bottom" = "Bottom";
+"settings_reader_popup_font_size" = "Lookup Font Size";
 "settings_reader_popup_width" = "Width";
 "settings_reader_popup_height" = "Height";
 "settings_reader_popup_full_width" = "Full-width";
