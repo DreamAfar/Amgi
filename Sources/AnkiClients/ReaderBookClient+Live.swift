@@ -110,6 +110,10 @@ private func fetchNotes(
         startIndex = endIndex
     }
 
+    if let notetypeID = configuration.notetypeID {
+        notes = notes.filter { $0.mid == notetypeID }
+    }
+
     return notes
 }
 

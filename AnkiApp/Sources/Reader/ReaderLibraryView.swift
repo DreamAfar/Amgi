@@ -5,11 +5,48 @@ import AnkiReader
 import AnkiClients
 import Dependencies
 
+private enum ReaderBookSortOption: String, CaseIterable, Identifiable {
+    case recent
+    case title
+    case progress
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .recent:
+            return L("reader_library_sort_recent")
+        case .title:
+            return L("reader_library_sort_title")
+        case .progress:
+            return L("reader_library_sort_progress")
+        }
+    }
+}
+
+private enum ReaderLibrarySettingsRoute: String, Identifiable {
+    case source
+    case dictionaries
+    case display
+    case advanced
+
+    var id: String { rawValue }
+}
+
+private enum ReaderChapterSheetRoute: String, Identifiable {
+    case chapters
+    case display
+    case settings
+
+    var id: String { rawValue }
+}
+
 struct ReaderLibraryView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.readerBookClient) var readerBookClient
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
+    @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
     @AppStorage(ReaderPreferences.Keys.bookIDField) private var bookIDField = ""
     @AppStorage(ReaderPreferences.Keys.bookTitleField) private var bookTitleField = ""
     @AppStorage(ReaderPreferences.Keys.chapterTitleField) private var chapterTitleField = ""
@@ -25,10 +62,15 @@ struct ReaderLibraryView: View {
     @State private var configurationProblem: String?
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var sortOption: ReaderBookSortOption = .recent
+    @State private var isSelecting = false
+    @State private var selectedBookIDs: Set<String> = []
+    @State private var settingsRoute: ReaderLibrarySettingsRoute?
 
     private var configurationSignature: String {
         [
             String(selectedDeckID),
+            String(selectedNotetypeID),
             bookIDField,
             bookTitleField,
             chapterTitleField,
@@ -38,6 +80,37 @@ struct ReaderLibraryView: View {
             String(verticalLayout),
             String(readerFontSize)
         ].joined(separator: "|")
+    }
+
+    private var sortedBooks: [ReaderBook] {
+        books.sorted { lhs, rhs in
+            switch sortOption {
+            case .recent:
+                let lhsDate = ReaderProgressStore.load(bookID: lhs.id)?.updatedAt ?? .distantPast
+                let rhsDate = ReaderProgressStore.load(bookID: rhs.id)?.updatedAt ?? .distantPast
+                if lhsDate != rhsDate {
+                    return lhsDate > rhsDate
+                }
+            case .progress:
+                let lhsProgress = progressValue(for: lhs)
+                let rhsProgress = progressValue(for: rhs)
+                if lhsProgress != rhsProgress {
+                    return lhsProgress > rhsProgress
+                }
+            case .title:
+                break
+            }
+
+            let titleComparison = lhs.title.localizedCaseInsensitiveCompare(rhs.title)
+            if titleComparison != .orderedSame {
+                return titleComparison == .orderedAscending
+            }
+            return lhs.id < rhs.id
+        }
+    }
+
+    private var bookGridColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 16, alignment: .top)]
     }
 
     var body: some View {
@@ -59,14 +132,36 @@ struct ReaderLibraryView: View {
                 )
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(books) { book in
-                            NavigationLink {
-                                ReaderBookDetailView(book: book)
-                            } label: {
-                                ReaderBookCard(book: book)
+                    VStack(alignment: .leading, spacing: 14) {
+                        if isSelecting {
+                            Text(L("reader_library_selected_count", selectedBookIDs.count))
+                                .font(.footnote)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .padding(.horizontal, 2)
+                        }
+
+                        LazyVGrid(columns: bookGridColumns, alignment: .leading, spacing: 16) {
+                            ForEach(sortedBooks) { book in
+                                if isSelecting {
+                                    Button {
+                                        toggleSelection(for: book)
+                                    } label: {
+                                        ReaderBookCard(
+                                            book: book,
+                                            isSelecting: true,
+                                            isSelected: selectedBookIDs.contains(book.id)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    NavigationLink {
+                                        ReaderBookDetailView(book: book)
+                                    } label: {
+                                        ReaderBookCard(book: book)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                     .padding(16)
@@ -77,8 +172,75 @@ struct ReaderLibraryView: View {
         .background(Color.amgiBackground)
         .navigationTitle(L("reader_library_title"))
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarLeading) {
+                Menu {
+                    Picker(L("reader_library_sort_menu"), selection: $sortOption) {
+                        ForEach(ReaderBookSortOption.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                } label: {
+                    Label(L("reader_library_sort_menu"), systemImage: "arrow.up.arrow.down.circle")
+                }
+
+                Button {
+                    if isSelecting {
+                        clearSelection()
+                    } else {
+                        isSelecting = true
+                    }
+                } label: {
+                    Text(isSelecting ? L("common_done") : L("reader_library_multi_select"))
+                }
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        settingsRoute = .source
+                    } label: {
+                        Label(L("settings_reader_section_source"), systemImage: "tray.full")
+                    }
+
+                    Button {
+                        settingsRoute = .dictionaries
+                    } label: {
+                        Label(L("settings_reader_manage_dictionaries"), systemImage: "character.book.closed")
+                    }
+
+                    Button {
+                        settingsRoute = .display
+                    } label: {
+                        Label(L("settings_reader_display_settings"), systemImage: "paintbrush")
+                    }
+
+                    Button {
+                        settingsRoute = .advanced
+                    } label: {
+                        Label(L("settings_reader_advanced_settings"), systemImage: "gearshape.2")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
         .task(id: configurationSignature) {
             await loadBooks()
+        }
+        .sheet(item: $settingsRoute) { route in
+            NavigationStack {
+                switch route {
+                case .source:
+                    ReaderSourceSettingsView()
+                case .dictionaries:
+                    ReaderDictionarySettingsView()
+                case .display:
+                    ReaderDisplaySettingsView()
+                case .advanced:
+                    ReaderAdvancedSettingsView()
+                }
+            }
         }
         .alert(L("common_error"), isPresented: $showError) {
             Button(L("common_ok"), role: .cancel) {}
@@ -114,6 +276,7 @@ struct ReaderLibraryView: View {
         do {
             let configuration = ReaderLibraryConfiguration(
                 deckName: selectedDeck.name,
+                notetypeID: selectedNotetypeID == 0 ? nil : Int64(selectedNotetypeID),
                 fieldMapping: ReaderFieldMapping(
                     bookIDField: bookIDField,
                     bookTitleField: bookTitleField,
@@ -124,6 +287,7 @@ struct ReaderLibraryView: View {
                 )
             )
             books = try readerBookClient.loadBooks(configuration)
+            selectedBookIDs.formIntersection(Set(books.map(\.id)))
         } catch {
             errorMessage = error.localizedDescription
             showError = true
@@ -131,10 +295,37 @@ struct ReaderLibraryView: View {
 
         isLoading = false
     }
+
+    private func progressValue(for book: ReaderBook) -> Double {
+        guard let savedProgress = ReaderProgressStore.load(bookID: book.id),
+              let chapterIndex = book.chapters.firstIndex(where: { $0.id == savedProgress.chapterID }),
+              !book.chapters.isEmpty else {
+            return 0
+        }
+
+        let base = Double(chapterIndex) / Double(book.chapters.count)
+        let chapterSlice = savedProgress.progress / Double(book.chapters.count)
+        return min(base + chapterSlice, 1)
+    }
+
+    private func toggleSelection(for book: ReaderBook) {
+        if selectedBookIDs.contains(book.id) {
+            selectedBookIDs.remove(book.id)
+        } else {
+            selectedBookIDs.insert(book.id)
+        }
+    }
+
+    private func clearSelection() {
+        selectedBookIDs.removeAll()
+        isSelecting = false
+    }
 }
 
 private struct ReaderBookCard: View {
     let book: ReaderBook
+    var isSelecting = false
+    var isSelected = false
 
     private var savedProgress: ReaderSavedProgress? {
         ReaderProgressStore.load(bookID: book.id)
@@ -190,7 +381,7 @@ private struct ReaderBookCard: View {
                         Text(previewText)
                             .font(.footnote)
                             .foregroundStyle(Color.amgiTextSecondary)
-                            .lineLimit(3)
+                            .lineLimit(4)
                     }
                 }
                 Spacer(minLength: 0)
@@ -210,6 +401,14 @@ private struct ReaderBookCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Color.amgiBorder.opacity(0.22), lineWidth: 1)
+        }
+        .overlay(alignment: .topTrailing) {
+            if isSelecting {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? Color.amgiAccent : Color.amgiTextSecondary)
+                    .padding(12)
+            }
         }
     }
 }
@@ -279,11 +478,13 @@ private struct ReaderChapterView: View {
         case lookup
     }
 
+    @Environment(\.dismiss) private var dismiss
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
     @AppStorage(ReaderPreferences.Keys.fontSize) private var readerFontSize = 24
+    @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
 
     let book: ReaderBook
     let chapter: ReaderChapter
@@ -299,6 +500,8 @@ private struct ReaderChapterView: View {
     @State private var lookupResult: DictionaryLookupResult?
     @State private var isLookingUp = false
     @State private var lookupErrorMessage: String?
+    @State private var activeSheet: ReaderChapterSheetRoute?
+    @State private var chapterNavigationTarget: ReaderChapter?
 
     private var currentChapterIndex: Int {
         book.chapters.firstIndex(where: { $0.id == chapter.id }) ?? 0
@@ -326,27 +529,88 @@ private struct ReaderChapterView: View {
         return book.chapters[currentChapterIndex + 1]
     }
 
+    private var progressLabel: String {
+        L("reader_reader_position", currentChapterIndex + 1, book.chapters.count, progress * 100)
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .bottom) {
             ReaderChapterWebView(
                 html: chapter.content,
                 isVertical: verticalLayout,
                 fontSize: Double(readerFontSize),
                 savedProgress: savedProgress,
                 selectionRequestID: selectionRequestID,
+                tapLookupEnabled: tapLookupEnabled,
                 onProgressChange: { newProgress in
                     progress = newProgress
                     ReaderProgressStore.save(bookID: book.id, chapterID: chapter.id, progress: newProgress)
                 },
                 onSelectionResolved: { selection in
                     handleResolvedSelection(selection)
+                },
+                onLookupRequested: { selection in
+                    handleTapLookup(selection)
                 }
             )
             .background(Color.amgiBackground)
             .ignoresSafeArea(edges: .bottom)
+
+            HStack {
+                Button {
+                    dismiss()
+                } label: {
+                    ReaderFloatingChromeButton(systemName: "chevron.left")
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(L("common_back")))
+
+                Spacer()
+
+                Menu {
+                    Button {
+                        activeSheet = .chapters
+                    } label: {
+                        Label(L("reader_reader_menu_chapters"), systemImage: "list.bullet")
+                    }
+
+                    Button {
+                        activeSheet = .display
+                    } label: {
+                        Label(L("settings_reader_display_settings"), systemImage: "paintbrush.pointed")
+                    }
+
+                    Button {
+                        activeSheet = .settings
+                    } label: {
+                        Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
+                    }
+                } label: {
+                    ReaderFloatingChromeButton(systemName: "slider.horizontal.3")
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
         }
-        .navigationTitle(chapter.title)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .safeAreaInset(edge: .top) {
+            VStack(spacing: 4) {
+                Text(book.title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .lineLimit(1)
+                Text(progressLabel)
+                    .font(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, 36)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+            .background(Color.amgiBackground.opacity(0.96))
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -365,41 +629,35 @@ private struct ReaderChapterView: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 10) {
-                Text(L("reader_reader_position", currentChapterIndex + 1, book.chapters.count, progress * 100))
-                    .font(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
-                    .monospacedDigit()
-
-                HStack(spacing: 12) {
-                    if let previousChapter {
-                        NavigationLink {
-                            ReaderChapterView(book: book, chapter: previousChapter)
-                        } label: {
-                            Label(L("reader_reader_previous_chapter"), systemImage: "chevron.left")
-                                .frame(maxWidth: .infinity)
+        .background(Color.amgiBackground)
+        .overlay {
+            if showLookupSheet {
+                ZStack(alignment: .bottom) {
+                    Color.black.opacity(0.001)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            showLookupSheet = false
                         }
-                        .buttonStyle(.bordered)
-                    }
 
-                    if let nextChapter {
-                        NavigationLink {
-                            ReaderChapterView(book: book, chapter: nextChapter)
-                        } label: {
-                            Label(L("reader_reader_next_chapter"), systemImage: "chevron.right")
-                                .frame(maxWidth: .infinity)
+                    ReaderLookupPopup(
+                        query: lookupQuery,
+                        result: lookupResult,
+                        isLoading: isLookingUp,
+                        onAddNote: {
+                            pendingDraft = makeDraft(for: lookupQuery)
+                            showLookupSheet = false
+                            showAddNoteSheet = true
+                        },
+                        onClose: {
+                            showLookupSheet = false
                         }
-                        .buttonStyle(.borderedProminent)
-                    }
+                    )
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 92)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 12)
-            .background(.ultraThinMaterial)
         }
-        .background(Color.amgiBackground)
         .sheet(isPresented: $showAddNoteSheet, onDismiss: {
             pendingDraft = nil
         }) {
@@ -407,21 +665,27 @@ private struct ReaderChapterView: View {
                 AddNoteView(onSave: {}, draft: pendingDraft)
             }
         }
-        .sheet(isPresented: $showLookupSheet) {
+        .sheet(item: $activeSheet) { route in
             NavigationStack {
-                ReaderLookupSheet(
-                    query: lookupQuery,
-                    result: lookupResult,
-                    isLoading: isLookingUp,
-                    onAddNote: {
-                        pendingDraft = makeDraft(for: lookupQuery)
-                        showLookupSheet = false
-                        showAddNoteSheet = true
+                switch route {
+                case .chapters:
+                    ReaderChapterListSheet(book: book, currentChapterID: chapter.id) { selectedChapter in
+                        activeSheet = nil
+                        if selectedChapter.id != chapter.id {
+                            chapterNavigationTarget = selectedChapter
+                        }
                     }
-                )
+                case .display:
+                    ReaderDisplaySettingsView()
+                case .settings:
+                    ReaderSettingsHomeView()
+                }
             }
-            .presentationDetents([.medium, .large])
         }
+        .navigationDestination(item: $chapterNavigationTarget) { target in
+            ReaderChapterView(book: book, chapter: target)
+        }
+        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: showLookupSheet)
         .alert(L("common_error"), isPresented: $showSelectionError) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
@@ -430,8 +694,7 @@ private struct ReaderChapterView: View {
     }
 
     private func handleResolvedSelection(_ selection: String?) {
-        let trimmedSelection = selection?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !trimmedSelection.isEmpty else {
+        guard let trimmedSelection = normalizedSelection(selection) else {
             lookupErrorMessage = L("reader_reader_empty_selection")
             showSelectionError = true
             return
@@ -442,23 +705,40 @@ private struct ReaderChapterView: View {
 
         switch action {
         case .lookup:
-            lookupQuery = trimmedSelection
-            lookupResult = nil
-            showLookupSheet = true
-            isLookingUp = true
-            Task {
-                do {
-                    lookupResult = try await dictionaryLookupClient.lookup(trimmedSelection)
-                } catch {
-                    showLookupSheet = false
-                    lookupErrorMessage = error.localizedDescription
-                    showSelectionError = true
-                }
-                isLookingUp = false
-            }
+            startLookup(for: trimmedSelection)
         case .addNote, .none:
             pendingDraft = makeDraft(for: trimmedSelection)
             showAddNoteSheet = true
+        }
+    }
+
+    private func handleTapLookup(_ selection: String?) {
+        guard let tappedSelection = normalizedSelection(selection) else {
+            return
+        }
+        pendingSelectionAction = nil
+        startLookup(for: tappedSelection)
+    }
+
+    private func normalizedSelection(_ selection: String?) -> String? {
+        let trimmedSelection = selection?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedSelection.isEmpty ? nil : trimmedSelection
+    }
+
+    private func startLookup(for query: String) {
+        lookupQuery = query
+        lookupResult = nil
+        showLookupSheet = true
+        isLookingUp = true
+        Task {
+            do {
+                lookupResult = try await dictionaryLookupClient.lookup(query)
+            } catch {
+                showLookupSheet = false
+                lookupErrorMessage = error.localizedDescription
+                showSelectionError = true
+            }
+            isLookingUp = false
         }
     }
 
@@ -482,61 +762,141 @@ private struct ReaderChapterView: View {
     }
 }
 
-private struct ReaderLookupSheet: View {
+private struct ReaderLookupPopup: View {
     let query: String
     let result: DictionaryLookupResult?
     let isLoading: Bool
     let onAddNote: () -> Void
+    let onClose: () -> Void
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(query)
-                        .font(.largeTitle.weight(.semibold))
+                        .font(.system(size: 34, weight: .semibold))
                         .foregroundStyle(Color.amgiTextPrimary)
                     Text(L("reader_lookup_query_label"))
                         .font(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
+                Spacer(minLength: 0)
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.amgiTextSecondary)
+                        .frame(width: 32, height: 32)
+                        .background(Color.amgiSurfaceElevated.opacity(0.9), in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
 
-                if isLoading {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                        Text(L("reader_lookup_loading"))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-                } else if let result, result.isPlaceholder {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(L("reader_lookup_placeholder"))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                        Text(L("reader_lookup_missing_source"))
-                            .font(.footnote)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-                } else if let result, result.entries.isEmpty == false {
-                    VStack(alignment: .leading, spacing: 12) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    if isLoading {
+                        HStack(spacing: 12) {
+                            ProgressView()
+                            Text(L("reader_lookup_loading"))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        }
+                    } else if let result, result.isPlaceholder {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(L("reader_lookup_placeholder"))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                            Text(L("reader_lookup_missing_source"))
+                                .font(.footnote)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        }
+                    } else if let result, result.entries.isEmpty == false {
                         ForEach(result.entries) { entry in
                             ReaderLookupEntryCard(entry: entry)
                         }
+                    } else {
+                        Text(L("reader_lookup_empty"))
+                            .foregroundStyle(Color.amgiTextSecondary)
                     }
-                } else {
-                    Text(L("reader_lookup_empty"))
-                        .foregroundStyle(Color.amgiTextSecondary)
                 }
-
-                Button(action: onAddNote) {
-                    Label(L("reader_lookup_add_note"), systemImage: "square.and.pencil")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
             }
-            .padding(20)
+            .scrollIndicators(.hidden)
+            .frame(maxHeight: 300)
+
+            Button(action: onAddNote) {
+                Label(L("reader_lookup_add_note"), systemImage: "square.and.pencil")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
         }
-        .scrollIndicators(.hidden)
+        .padding(18)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.12), radius: 24, y: 10)
+    }
+}
+
+private struct ReaderChapterListSheet: View {
+    let book: ReaderBook
+    let currentChapterID: Int64
+    let onSelect: (ReaderChapter) -> Void
+
+    var body: some View {
+        List {
+            ForEach(Array(book.chapters.enumerated()), id: \.element.id) { index, chapter in
+                Button {
+                    onSelect(chapter)
+                } label: {
+                    HStack(spacing: 12) {
+                        Text("\(index + 1)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.amgiAccent)
+                            .frame(width: 28, height: 28)
+                            .background(Color.amgiAccent.opacity(0.12), in: Circle())
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(chapter.title)
+                                .foregroundStyle(Color.amgiTextPrimary)
+                                .multilineTextAlignment(.leading)
+                            if let order = chapter.order {
+                                Text(order)
+                                    .font(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                        }
+
+                        Spacer(minLength: 0)
+
+                        if chapter.id == currentChapterID {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(Color.amgiAccent)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
-        .navigationTitle(L("reader_lookup_title"))
+        .navigationTitle(L("reader_reader_menu_chapters"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct ReaderFloatingChromeButton: View {
+    let systemName: String
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(Color.amgiTextPrimary)
+            .frame(width: 56, height: 56)
+            .background(.ultraThinMaterial, in: Circle())
+            .overlay {
+                Circle()
+                    .stroke(Color.amgiBorder.opacity(0.16), lineWidth: 1)
+            }
+            .shadow(color: Color.black.opacity(0.1), radius: 18, y: 8)
     }
 }
 
@@ -602,14 +962,17 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     let fontSize: Double
     let savedProgress: Double
     let selectionRequestID: Int
+    let tapLookupEnabled: Bool
     let onProgressChange: (Double) -> Void
     let onSelectionResolved: (String?) -> Void
+    let onLookupRequested: (String?) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             savedProgress: savedProgress,
             onProgressChange: onProgressChange,
-            onSelectionResolved: onSelectionResolved
+            onSelectionResolved: onSelectionResolved,
+            onLookupRequested: onLookupRequested
         )
     }
 
@@ -624,15 +987,26 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 forMainFrameOnly: true
             )
         )
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: Self.tapLookupScript,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true
+            )
+        )
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
-        webView.scrollView.showsHorizontalScrollIndicator = !isVertical
-        webView.scrollView.showsVerticalScrollIndicator = isVertical == false
+        webView.scrollView.showsHorizontalScrollIndicator = isVertical
+        webView.scrollView.showsVerticalScrollIndicator = !isVertical
         webView.scrollView.delegate = context.coordinator
         webView.navigationDelegate = context.coordinator
+        let tapRecognizer = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTapLookup(_:)))
+        tapRecognizer.cancelsTouchesInView = false
+        tapRecognizer.delegate = context.coordinator
+        webView.addGestureRecognizer(tapRecognizer)
         return webView
     }
 
@@ -671,6 +1045,81 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 window.amgiReaderLastSelection = current;
             }
         });
+    })();
+    """
+
+    private static let tapLookupScript = """
+    (function() {
+        function amgiReaderBoundaryCharacter(ch) {
+            return !ch || /[\s\u00A0.,!?;:'"()\[\]{}<>\/\\|`~@#$%^&*=+，。！？；：、“”‘’（）〔〕【】《》〈〉「」『』…—-]/.test(ch);
+        }
+
+        function amgiReaderAsciiWordCharacter(ch) {
+            return !!ch && /[A-Za-z0-9_'-]/.test(ch);
+        }
+
+        window.amgiReaderLookupTextAt = function(x, y) {
+            var node = null;
+            var offset = 0;
+
+            if (document.caretRangeFromPoint) {
+                var range = document.caretRangeFromPoint(x, y);
+                if (range) {
+                    node = range.startContainer;
+                    offset = range.startOffset;
+                }
+            } else if (document.caretPositionFromPoint) {
+                var position = document.caretPositionFromPoint(x, y);
+                if (position) {
+                    node = position.offsetNode;
+                    offset = position.offset;
+                }
+            }
+
+            if (!node || node.nodeType !== Node.TEXT_NODE) {
+                return '';
+            }
+
+            var parentElement = node.parentElement;
+            if (parentElement && parentElement.closest('a, button, input, textarea, select, audio, video')) {
+                return '';
+            }
+
+            var text = node.textContent || '';
+            if (!text.trim()) {
+                return '';
+            }
+
+            var index = Math.min(Math.max(offset, 0), Math.max(text.length - 1, 0));
+            if (index > 0 && amgiReaderBoundaryCharacter(text[index]) && !amgiReaderBoundaryCharacter(text[index - 1])) {
+                index -= 1;
+            }
+
+            var current = text[index] || '';
+            var previous = text[index - 1] || '';
+            if (amgiReaderAsciiWordCharacter(current) || amgiReaderAsciiWordCharacter(previous)) {
+                var start = amgiReaderAsciiWordCharacter(current) ? index : Math.max(index - 1, 0);
+                while (start > 0 && amgiReaderAsciiWordCharacter(text[start - 1])) {
+                    start -= 1;
+                }
+                var end = start;
+                while (end < text.length && amgiReaderAsciiWordCharacter(text[end])) {
+                    end += 1;
+                }
+                return text.slice(start, end).trim();
+            }
+
+            while (index < text.length && amgiReaderBoundaryCharacter(text[index])) {
+                index += 1;
+            }
+
+            var maxLength = 16;
+            var endIndex = index;
+            while (endIndex < text.length && !amgiReaderBoundaryCharacter(text[endIndex]) && endIndex - index < maxLength) {
+                endIndex += 1;
+            }
+            return text.slice(index, endIndex).trim();
+        };
     })();
     """
 
@@ -755,22 +1204,39 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             .joined()
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate, UIScrollViewDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         var parent: ReaderChapterWebView?
         var lastHTML = ""
         var pendingProgress: Double
         var lastSelectionRequestID = 0
         private let onProgressChange: (Double) -> Void
         let onSelectionResolved: (String?) -> Void
+        let onLookupRequested: (String?) -> Void
 
         init(
             savedProgress: Double,
             onProgressChange: @escaping (Double) -> Void,
-            onSelectionResolved: @escaping (String?) -> Void
+            onSelectionResolved: @escaping (String?) -> Void,
+            onLookupRequested: @escaping (String?) -> Void
         ) {
             self.pendingProgress = savedProgress
             self.onProgressChange = onProgressChange
             self.onSelectionResolved = onSelectionResolved
+            self.onLookupRequested = onLookupRequested
+        }
+
+        @objc func handleTapLookup(_ recognizer: UITapGestureRecognizer) {
+            guard recognizer.state == .ended,
+                  parent?.tapLookupEnabled == true,
+                  let webView = recognizer.view as? WKWebView else {
+                return
+            }
+
+            let point = recognizer.location(in: webView)
+            let script = "window.amgiReaderLookupTextAt ? window.amgiReaderLookupTextAt(\(point.x), \(point.y)) : ''"
+            webView.evaluateJavaScript(script) { [onLookupRequested] value, _ in
+                onLookupRequested(value as? String)
+            }
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -809,6 +1275,10 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 progress = Double(scrollView.contentOffset.y / maxOffset)
             }
             onProgressChange(min(max(progress, 0), 1))
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            true
         }
     }
 }

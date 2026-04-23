@@ -20,6 +20,8 @@ enum ReviewPreferences {
 
 enum ReaderPreferences {
     enum Keys {
+        static let showTab = "reader_pref_show_tab"
+        static let tapLookup = "reader_pref_tap_lookup"
         static let deckID = "reader_pref_deck_id"
         static let notetypeID = "reader_pref_notetype_id"
         static let bookIDField = "reader_pref_book_id_field"

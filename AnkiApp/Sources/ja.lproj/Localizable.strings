@@ -23,6 +23,7 @@
 // MARK: - ContentView / Tabs
 "tab_decks" = "デッキ";
 "tab_stats" = "統計";
+"tab_reader" = "リーダー";
 "tab_settings" = "設定";
 "tab_browse" = "ブラウズ";
 "menu_user_settings" = "ユーザー設定";
@@ -290,6 +291,12 @@
 "settings_reader_font_size" = "文字サイズ";
 "settings_reader_font_size_value" = "%d pt";
 "settings_reader_manage_dictionaries" = "辞書を管理";
+"settings_reader_show_tab" = "リーダータブを表示";
+"settings_reader_show_tab_description" = "有効にすると、統計タブと設定タブの間にリーダータブが表示されます。";
+"settings_reader_display_settings" = "表示設定";
+"settings_reader_advanced_settings" = "高度な設定";
+"settings_reader_tap_lookup" = "タップで検索";
+"settings_reader_tap_lookup_description" = "リーダー内のテキストをタップすると、すぐに辞書検索を開きます。";
 "settings_reader_dictionary_settings" = "辞書設定";
 "settings_reader_dictionary_section_recommended" = "おすすめ";
 "settings_reader_dictionary_download_recommended" = "おすすめ辞書をダウンロード";
@@ -342,6 +349,12 @@
 "settings_language_en" = "English";
 "settings_language_ja" = "日本語";
 "reader_library_title" = "リーダー";
+"reader_library_sort_menu" = "並べ替え";
+"reader_library_sort_title" = "タイトル";
+"reader_library_sort_recent" = "最近読んだ順";
+"reader_library_sort_progress" = "進捗順";
+"reader_library_multi_select" = "複数選択";
+"reader_library_selected_count" = "%d 件を選択中";
 "reader_library_empty_title" = "読める書籍がありません";
 "reader_library_empty_description" = "設定されたデッキに読書用の書籍データが見つかりませんでした。";
 "reader_library_missing_config_title" = "リーダー設定が必要です";
@@ -359,6 +372,7 @@
 "reader_lookup_missing_source" = "リーダー設定で辞書を読み込むか有効にすると、実際の検索を使えます。";
 "reader_lookup_empty" = "一致する辞書結果が見つかりませんでした。";
 "reader_lookup_add_note" = "ノート草稿に追加";
+"reader_reader_menu_chapters" = "章一覧";
 "reader_reader_previous_chapter" = "前の章";
 "reader_reader_next_chapter" = "次の章";
 "reader_reader_position" = "第 %1$d / %2$d 章   %.1f%%";

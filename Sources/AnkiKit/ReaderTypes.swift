@@ -25,10 +25,12 @@ public struct ReaderFieldMapping: Sendable, Hashable {
 
 public struct ReaderLibraryConfiguration: Sendable, Hashable {
     public var deckName: String
+    public var notetypeID: Int64?
     public var fieldMapping: ReaderFieldMapping
 
-    public init(deckName: String, fieldMapping: ReaderFieldMapping) {
+    public init(deckName: String, notetypeID: Int64? = nil, fieldMapping: ReaderFieldMapping) {
         self.deckName = deckName
+        self.notetypeID = notetypeID
         self.fieldMapping = fieldMapping
     }
 }

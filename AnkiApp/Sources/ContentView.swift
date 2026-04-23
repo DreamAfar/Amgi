@@ -14,6 +14,7 @@ struct ContentView: View {
         case decks
         case browse
         case stats
+        case reader
         case settings
     }
 
@@ -61,6 +62,7 @@ struct ContentView: View {
     @State private var exportDraft = ExportPackageDraft()
     @State private var importDraft = ImportPackageDraft()
     @State private var selectedTab: RootTab = .decks
+    @AppStorage(ReaderPreferences.Keys.showTab) private var isReaderTabEnabled = false
 
     private var isImportExportInProgress: Bool {
         importExportOperation != nil
@@ -95,6 +97,14 @@ struct ContentView: View {
                     NavigationStack {
                         StatsDashboardView(isActive: selectedTab == .stats)
                             .id(refreshID)
+                    }
+                }
+                if isReaderTabEnabled {
+                    Tab(L("tab_reader"), systemImage: "books.vertical", value: RootTab.reader) {
+                        NavigationStack {
+                            ReaderLibraryView()
+                                .id(refreshID)
+                        }
                     }
                 }
                 Tab(L("tab_settings"), systemImage: "gearshape", value: RootTab.settings) {
@@ -171,6 +181,11 @@ struct ContentView: View {
         }
         .onReceive(syncCoordinator.$state) { _ in
             updateSyncBadge()
+        }
+        .onChange(of: isReaderTabEnabled) {
+            if isReaderTabEnabled == false, selectedTab == .reader {
+                selectedTab = .settings
+            }
         }
         .task {
             updateSyncBadge()

@@ -23,6 +23,7 @@
 // MARK: - ContentView / Tabs
 "tab_decks" = "Decks";
 "tab_stats" = "Stats";
+"tab_reader" = "Reader";
 "tab_settings" = "Settings";
 "tab_browse" = "Browse";
 "menu_user_settings" = "User Settings";
@@ -290,6 +291,12 @@
 "settings_reader_font_size" = "Font Size";
 "settings_reader_font_size_value" = "%d pt";
 "settings_reader_manage_dictionaries" = "Manage Dictionaries";
+"settings_reader_show_tab" = "Show Reader Tab";
+"settings_reader_show_tab_description" = "When enabled, the Reader tab appears between Stats and Settings.";
+"settings_reader_display_settings" = "Display Settings";
+"settings_reader_advanced_settings" = "Advanced Settings";
+"settings_reader_tap_lookup" = "Tap to Lookup";
+"settings_reader_tap_lookup_description" = "Tap text in the reader to open dictionary lookup directly.";
 "settings_reader_dictionary_settings" = "Dictionary Settings";
 "settings_reader_dictionary_section_recommended" = "Recommended";
 "settings_reader_dictionary_download_recommended" = "Download Recommended Dictionaries";
@@ -342,6 +349,12 @@
 "settings_language_en" = "English";
 "settings_language_ja" = "日本語";
 "reader_library_title" = "Reader";
+"reader_library_sort_menu" = "Sort";
+"reader_library_sort_title" = "Title";
+"reader_library_sort_recent" = "Recently Read";
+"reader_library_sort_progress" = "Progress";
+"reader_library_multi_select" = "Multi-Select";
+"reader_library_selected_count" = "%d selected";
 "reader_library_empty_title" = "No Books Yet";
 "reader_library_empty_description" = "No readable books were found in the configured deck.";
 "reader_library_missing_config_title" = "Reader Setup Required";
@@ -359,6 +372,7 @@
 "reader_lookup_missing_source" = "Import or enable a dictionary in Reader settings to use real lookup.";
 "reader_lookup_empty" = "No dictionary matches found.";
 "reader_lookup_add_note" = "Add Note Draft";
+"reader_reader_menu_chapters" = "Chapters";
 "reader_reader_previous_chapter" = "Previous";
 "reader_reader_next_chapter" = "Next";
 "reader_reader_position" = "Chapter %1$d / %2$d   %.1f%%";

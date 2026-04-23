@@ -23,6 +23,7 @@
 // MARK: - ContentView / Tabs
 "tab_decks" = "牌组";
 "tab_stats" = "统计";
+"tab_reader" = "阅读器";
 "tab_settings" = "设置";
 "tab_browse" = "浏览";
 "menu_user_settings" = "用户管理设置";
@@ -290,6 +291,12 @@
 "settings_reader_font_size" = "字号";
 "settings_reader_font_size_value" = "%d 点";
 "settings_reader_manage_dictionaries" = "管理词典";
+"settings_reader_show_tab" = "在标签栏显示阅读器";
+"settings_reader_show_tab_description" = "开启后，会在统计和设置之间显示阅读器标签页。";
+"settings_reader_display_settings" = "显示设置";
+"settings_reader_advanced_settings" = "高级设置";
+"settings_reader_tap_lookup" = "点按查词";
+"settings_reader_tap_lookup_description" = "在阅读器中点按文本时，直接打开词典查询结果。";
 "settings_reader_dictionary_settings" = "词典设置";
 "settings_reader_dictionary_section_recommended" = "推荐词典";
 "settings_reader_dictionary_download_recommended" = "下载推荐词典";
@@ -342,6 +349,12 @@
 "settings_language_en" = "English";
 "settings_language_ja" = "日本語";
 "reader_library_title" = "阅读器";
+"reader_library_sort_menu" = "排序";
+"reader_library_sort_title" = "书名";
+"reader_library_sort_recent" = "最近阅读";
+"reader_library_sort_progress" = "阅读进度";
+"reader_library_multi_select" = "多选";
+"reader_library_selected_count" = "已选择 %d 本";
 "reader_library_empty_title" = "暂无可读书籍";
 "reader_library_empty_description" = "当前配置的牌组里还没有可供阅读的书籍内容。";
 "reader_library_missing_config_title" = "需要先完成阅读器设置";
@@ -359,6 +372,7 @@
 "reader_lookup_missing_source" = "请先到阅读器设置中导入或启用词典，再使用真实查词。";
 "reader_lookup_empty" = "没有找到匹配的词条。";
 "reader_lookup_add_note" = "加入笔记草稿";
+"reader_reader_menu_chapters" = "章节目录";
 "reader_reader_previous_chapter" = "上一章";
 "reader_reader_next_chapter" = "下一章";
 "reader_reader_position" = "第 %1$d / %2$d 章   %.1f%%";
