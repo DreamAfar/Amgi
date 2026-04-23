@@ -1132,6 +1132,11 @@ struct CardWebView: UIViewRepresentable {
             var needsMathJax = amgiContainsMathJaxMarkup(normalizedHTML);
             var preloadPromise = amgiPreloadResources(normalizedHTML);
 
+            // Hide instantly (no transition) to suppress the raw-DOM-swap flash.
+            qa.style.transition = 'none';
+            qa.style.opacity = '0';
+            void qa.offsetHeight; // force reflow so opacity:0 is committed
+
             try {
                 await preloadPromise;
                 amgiApplyCardState(state || {});
@@ -1189,6 +1194,9 @@ struct CardWebView: UIViewRepresentable {
                 amgiSetupImageOcclusion();
                 await amgiRunHooks(window.onShownHook);
             } finally {
+                // Fade content in after everything (MathJax, hooks) is ready.
+                qa.style.transition = 'opacity 0.12s ease-in';
+                qa.style.opacity = '1';
                 amgiScheduleCardThemeReport();
             }
         }
