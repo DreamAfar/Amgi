@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import AVFAudio
 import AnkiKit
 import AnkiReader
 import AnkiClients
@@ -44,6 +45,9 @@ private enum ReaderChapterSheetRoute: String, Identifiable {
 struct ReaderLibraryView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.readerBookClient) var readerBookClient
+
+    private static let bookCardWidth: CGFloat = 108
+    private static let bookGridSpacing: CGFloat = 12
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
@@ -110,7 +114,18 @@ struct ReaderLibraryView: View {
     }
 
     private var bookGridColumns: [GridItem] {
-        [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 16, alignment: .top)]
+        Array(
+            repeating: GridItem(
+                .fixed(Self.bookCardWidth),
+                spacing: Self.bookGridSpacing,
+                alignment: .top
+            ),
+            count: 3
+        )
+    }
+
+    private var gridContentWidth: CGFloat {
+        Self.bookCardWidth * 3 + Self.bookGridSpacing * 2
     }
 
     var body: some View {
@@ -163,6 +178,8 @@ struct ReaderLibraryView: View {
                                 }
                             }
                         }
+                        .frame(width: gridContentWidth)
+                        .frame(maxWidth: .infinity)
                     }
                     .padding(16)
                 }
@@ -191,8 +208,9 @@ struct ReaderLibraryView: View {
                         isSelecting = true
                     }
                 } label: {
-                    Text(isSelecting ? L("common_done") : L("reader_library_multi_select"))
+                    Image(systemName: isSelecting ? "checkmark.circle.fill" : "checkmark.circle")
                 }
+                .accessibilityLabel(Text(isSelecting ? L("common_done") : L("reader_library_multi_select")))
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -343,73 +361,48 @@ private struct ReaderBookCard: View {
         return min(base + chapterSlice, 1)
     }
 
-    private var previewText: String {
-        let content = book.chapters.first?.content ?? ""
-        let withoutTags = content.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
-        return withoutTags
-            .replacingOccurrences(of: "\n", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 14) {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.amgiAccent.opacity(0.22), Color.amgiSurfaceElevated],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+        VStack(alignment: .leading, spacing: 8) {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.amgiAccent.opacity(0.18), Color.amgiSurfaceElevated],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-                    .frame(width: 72, height: 96)
-                    .overlay {
-                        Image(systemName: "books.vertical.fill")
-                            .font(.system(size: 26, weight: .semibold))
-                            .foregroundStyle(Color.amgiAccent)
-                    }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(book.title)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(Color.amgiTextPrimary)
-                        .multilineTextAlignment(.leading)
-                    Text(L("reader_book_chapters", book.chapters.count))
-                        .font(.subheadline)
-                        .foregroundStyle(Color.amgiTextSecondary)
-                    if !previewText.isEmpty {
-                        Text(previewText)
-                            .font(.footnote)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                            .lineLimit(4)
+                )
+                .frame(width: ReaderLibraryView.bookCardWidth, height: 140)
+                .overlay {
+                    Image(systemName: "books.vertical.fill")
+                        .font(.system(size: 36, weight: .semibold))
+                        .foregroundStyle(Color.amgiAccent)
+                }
+                .overlay(alignment: .topTrailing) {
+                    if isSelecting {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isSelected ? Color.amgiAccent : Color.amgiTextSecondary)
+                            .padding(10)
                     }
                 }
-                Spacer(minLength: 0)
-            }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
+                }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(book.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.amgiTextPrimary)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                 ProgressView(value: progressValue)
                     .tint(Color.amgiAccent)
-                Text(L("reader_book_progress", progressValue * 100))
-                    .font(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
-                    .monospacedDigit()
             }
+            .frame(height: 42, alignment: .top)
         }
-        .padding(18)
-        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.amgiBorder.opacity(0.22), lineWidth: 1)
-        }
-        .overlay(alignment: .topTrailing) {
-            if isSelecting {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isSelected ? Color.amgiAccent : Color.amgiTextSecondary)
-                    .padding(12)
-            }
-        }
+        .frame(width: ReaderLibraryView.bookCardWidth)
     }
 }
 
@@ -551,12 +544,16 @@ private struct ReaderChapterView: View {
         return L("reader_reader_position_chapter_only", currentChapterIndex + 1, book.chapters.count)
     }
 
+    private var lookupLanguageHint: String? {
+        chapter.language?.nilIfBlank ?? book.language?.nilIfBlank
+    }
+
     var body: some View {
         GeometryReader { geometry in
-            let topSafeArea = max(geometry.safeAreaInsets.top, 25)
+            let topSafeArea = max(geometry.safeAreaInsets.top, 44)
             let showsTopInfo = showTitle || showProgressTop
-            let topOverlayHeight = topSafeArea + (showsTopInfo ? 44 : 12)
-            let bottomInset = max(geometry.safeAreaInsets.bottom, 12)
+            let topOverlayHeight = topSafeArea + (showsTopInfo ? 60 : 18)
+            let bottomInset = max(geometry.safeAreaInsets.bottom - 8, 14)
 
             VStack(spacing: 0) {
                 Color.clear
@@ -594,9 +591,9 @@ private struct ReaderChapterView: View {
                         Button {
                             dismiss()
                         } label: {
-                            ReaderFloatingChromeButton(systemName: "chevron.left")
+                            ReaderChromeIconLabel(systemName: "chevron.left")
                         }
-                        .buttonStyle(.plain)
+                        .readerChromeButtonStyle()
                         .accessibilityLabel(Text(L("common_back")))
 
                         Spacer()
@@ -620,11 +617,12 @@ private struct ReaderChapterView: View {
                                 Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
                             }
                         } label: {
-                            ReaderFloatingChromeButton(systemName: "slider.horizontal.3")
+                            ReaderChromeIconLabel(systemName: "ellipsis")
                         }
+                        .readerChromeButtonStyle()
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, bottomInset + 8)
+                    .padding(.bottom, bottomInset)
                 }
             }
             .background(Color.amgiBackground)
@@ -633,26 +631,33 @@ private struct ReaderChapterView: View {
                     title: showTitle ? book.title : nil,
                     progressLabel: showProgressTop ? progressLabel : nil
                 )
-                    .padding(.top, topSafeArea)
+                    .padding(.top, topSafeArea + 10)
             }
             .overlay(alignment: .bottom) {
                 if showProgressTop == false {
                     ReaderChapterBottomProgressOverlay(progressLabel: progressLabel)
-                        .padding(.bottom, bottomInset + 74)
+                        .padding(.bottom, bottomInset + 60)
                 }
             }
             .overlay(alignment: .topTrailing) {
-                ReaderTopActionCapsule(
-                    onLookup: {
+                HStack(spacing: 10) {
+                    Button {
                         pendingSelectionAction = .lookup
                         selectionRequestID += 1
-                    },
-                    onAddNote: {
+                    } label: {
+                        ReaderChromeIconLabel(systemName: "text.magnifyingglass")
+                    }
+                    .readerChromeButtonStyle()
+
+                    Button {
                         pendingSelectionAction = .addNote
                         selectionRequestID += 1
+                    } label: {
+                        ReaderChromeIconLabel(systemName: "plus")
                     }
-                )
-                .padding(.top, topSafeArea + 8)
+                    .readerChromeButtonStyle()
+                }
+                .padding(.top, topSafeArea + 14)
                 .padding(.trailing, 20)
             }
             .overlay {
@@ -670,6 +675,7 @@ private struct ReaderChapterView: View {
                                 query: lookupQuery,
                                 result: lookupResult,
                                 isLoading: isLookingUp,
+                                languageHint: lookupLanguageHint,
                                 popupWidth: CGFloat(popupWidth),
                                 popupHeight: CGFloat(popupHeight),
                                 isFullWidth: popupFullWidth,
@@ -790,20 +796,20 @@ private struct ReaderChapterView: View {
             ? max(size.width - horizontalMargin * 2, 0)
             : min(CGFloat(popupWidth), max(size.width - horizontalMargin * 2, 0))
         let popupHalfWidth = popupResolvedWidth / 2
-        let popupHalfHeight = min(CGFloat(popupHeight) / 2, max(size.height / 2 - 40, 120))
+        let popupHalfHeight = min(CGFloat(popupHeight) / 2, max(size.height / 2 - 56, 132))
 
         guard popupFullWidth == false, let lookupAnchor else {
             return CGPoint(
                 x: size.width / 2,
-                y: size.height - bottomInset - popupHalfHeight - 88
+                y: size.height - bottomInset - popupHalfHeight - 48
             )
         }
 
-        let proposedTopY = lookupAnchor.y - popupHalfHeight - 30
-        let fallbackBottomY = lookupAnchor.y + popupHalfHeight + 30
-        let minY = 110 + popupHalfHeight
-        let maxY = size.height - bottomInset - popupHalfHeight - 24
-        let resolvedY = proposedTopY >= minY ? proposedTopY : min(fallbackBottomY, maxY)
+        let proposedBottomY = lookupAnchor.y + popupHalfHeight + 26
+        let fallbackTopY = lookupAnchor.y - popupHalfHeight - 26
+        let minY = 136 + popupHalfHeight
+        let maxY = size.height - bottomInset - popupHalfHeight - 20
+        let resolvedY = proposedBottomY <= maxY ? proposedBottomY : max(fallbackTopY, minY)
         let resolvedX = min(
             max(lookupAnchor.x, popupHalfWidth + horizontalMargin),
             size.width - popupHalfWidth - horizontalMargin
@@ -836,6 +842,7 @@ private struct ReaderLookupPopup: View {
     let query: String
     let result: DictionaryLookupResult?
     let isLoading: Bool
+    let languageHint: String?
     let popupWidth: CGFloat
     let popupHeight: CGFloat
     let isFullWidth: Bool
@@ -845,30 +852,91 @@ private struct ReaderLookupPopup: View {
 
     @State private var dragOffset: CGFloat = 0
 
+    private var sections: [ReaderLookupSection] {
+        guard let result else {
+            return []
+        }
+
+        return result.entries.enumerated().map { index, entry in
+            ReaderLookupSection(index: index + 1, entry: entry)
+        }
+    }
+
+    private var primaryEntry: DictionaryLookupEntry? {
+        result?.entries.first
+    }
+
+    private var readingText: String? {
+        primaryEntry?.reading?.nilIfBlank
+    }
+
+    private var frequencyBadges: [ReaderLookupBadge] {
+        guard let frequency = primaryEntry?.frequency else {
+            return []
+        }
+
+        return frequency
+            .components(separatedBy: "  ")
+            .compactMap(ReaderLookupBadge.init(rawValue:))
+    }
+
+    private var preferredSpeechLanguage: String? {
+        ReaderLookupSpeechPlayer.normalizedLanguageHint(languageHint, fallbackText: readingText ?? query)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
+                HStack(alignment: .top, spacing: 12) {
                     Text(query)
-                        .font(.system(size: 34, weight: .semibold))
+                        .font(.system(size: 34, weight: .bold))
                         .foregroundStyle(Color.amgiTextPrimary)
-                    Text(L("reader_lookup_query_label"))
-                        .font(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if let readingText {
+                        Text(readingText)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                            .padding(.top, 10)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
+
                 Spacer(minLength: 0)
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(Color.amgiTextSecondary)
-                        .frame(width: 32, height: 32)
-                        .background(Color.amgiSurfaceElevated.opacity(0.9), in: Circle())
+
+                HStack(spacing: 6) {
+                    Button {
+                        ReaderLookupSpeechPlayer.shared.speak(query, languageHint: preferredSpeechLanguage)
+                    } label: {
+                        Image(systemName: "speaker.wave.2")
+                            .font(.title3.weight(.medium))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                            .frame(width: 40, height: 40)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: onAddNote) {
+                        Image(systemName: "plus")
+                            .font(.title2.weight(.medium))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                            .frame(width: 40, height: 40)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+            }
+
+            if frequencyBadges.isEmpty == false {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(frequencyBadges) { badge in
+                            ReaderLookupFrequencyBadge(badge: badge)
+                        }
+                    }
+                }
             }
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 14) {
                     if isLoading {
                         HStack(spacing: 12) {
                             ProgressView()
@@ -883,9 +951,13 @@ private struct ReaderLookupPopup: View {
                                 .font(.footnote)
                                 .foregroundStyle(Color.amgiTextSecondary)
                         }
-                    } else if let result, result.entries.isEmpty == false {
-                        ForEach(result.entries) { entry in
-                            ReaderLookupEntryCard(entry: entry)
+                    } else if sections.isEmpty == false {
+                        ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                            if index > 0 {
+                                Divider()
+                                    .overlay(Color.amgiBorder.opacity(0.32))
+                            }
+                            ReaderLookupSectionView(section: section)
                         }
                     } else {
                         Text(L("reader_lookup_empty"))
@@ -894,13 +966,7 @@ private struct ReaderLookupPopup: View {
                 }
             }
             .scrollIndicators(.hidden)
-            .frame(maxHeight: max(140, popupHeight - 120))
-
-            Button(action: onAddNote) {
-                Label(L("reader_lookup_add_note"), systemImage: "square.and.pencil")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
+            .frame(maxHeight: max(140, popupHeight - 94))
         }
         .padding(18)
         .frame(maxWidth: isFullWidth ? .infinity : popupWidth, alignment: .leading)
@@ -980,17 +1046,17 @@ private struct ReaderChapterInfoOverlay: View {
     let progressLabel: String?
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             if let title, !title.isEmpty {
                 Text(title)
-                    .font(.subheadline)
+                    .font(.headline.weight(.medium))
                     .foregroundStyle(Color.amgiTextSecondary)
                     .lineLimit(1)
             }
 
             if let progressLabel, !progressLabel.isEmpty {
                 Text(progressLabel)
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(Color.amgiTextSecondary)
                     .monospacedDigit()
                     .tracking(-0.3)
@@ -1015,108 +1081,30 @@ private struct ReaderChapterBottomProgressOverlay: View {
     }
 }
 
-private struct ReaderTopActionCapsule: View {
-    let onLookup: () -> Void
-    let onAddNote: () -> Void
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Button(action: onLookup) {
-                Image(systemName: "text.magnifyingglass")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.amgiTextPrimary)
-                    .frame(width: 54, height: 54)
-            }
-            .buttonStyle(.plain)
-
-            Rectangle()
-                .fill(Color.amgiBorder.opacity(0.2))
-                .frame(width: 1, height: 26)
-
-            Button(action: onAddNote) {
-                Image(systemName: "square.and.pencil")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.amgiTextPrimary)
-                    .frame(width: 54, height: 54)
-            }
-            .buttonStyle(.plain)
-        }
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay {
-            Capsule()
-                .stroke(Color.amgiBorder.opacity(0.16), lineWidth: 1)
-        }
-        .shadow(color: Color.black.opacity(0.1), radius: 18, y: 8)
-    }
-}
-
-private struct ReaderFloatingChromeButton: View {
+private struct ReaderChromeIconLabel: View {
     let systemName: String
 
     var body: some View {
         Image(systemName: systemName)
             .font(.title3.weight(.semibold))
             .foregroundStyle(Color.amgiTextPrimary)
-            .frame(width: 56, height: 56)
-            .background(.ultraThinMaterial, in: Circle())
-            .overlay {
-                Circle()
-                    .stroke(Color.amgiBorder.opacity(0.16), lineWidth: 1)
-            }
-            .shadow(color: Color.black.opacity(0.1), radius: 18, y: 8)
+            .frame(width: 22, height: 22)
     }
 }
 
-private struct ReaderLookupEntryCard: View {
-    let entry: DictionaryLookupEntry
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(entry.term)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.amgiTextPrimary)
-                if let reading = entry.reading, !reading.isEmpty {
-                    Text(reading)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.amgiTextSecondary)
-                }
-            }
-
-            if !entry.glossaries.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(entry.glossaries, id: \.self) { glossary in
-                        Text(glossary)
-                            .font(.body)
-                            .foregroundStyle(Color.amgiTextPrimary)
-                    }
-                }
-            }
-
-            if let frequency = entry.frequency, !frequency.isEmpty {
-                Text(frequency)
-                    .font(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
-            }
-
-            if let pitch = entry.pitch, !pitch.isEmpty {
-                Text(pitch)
-                    .font(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
-            }
-
-            if let source = entry.source, !source.isEmpty {
-                Text(source)
-                    .font(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.amgiBorder.opacity(0.22), lineWidth: 1)
+private extension View {
+    @ViewBuilder
+    func readerChromeButtonStyle() -> some View {
+        if #available(iOS 26.0, *) {
+            self
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
+        } else {
+            self
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
         }
     }
 }
@@ -1527,6 +1515,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         var lastSelectionRequestID = 0
         private var didRestoreInitialProgress = false
         private var isRestoringProgress = false
+        private var restoreGeneration = 0
         private let onProgressChange: (Double) -> Void
         let onSelectionResolved: (String?) -> Void
         let onLookupRequested: (String?, CGPoint) -> Void
@@ -1558,33 +1547,73 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            restoreProgress(in: webView.scrollView)
+            restoreGeneration += 1
+            restoreProgress(in: webView.scrollView, remainingAttempts: 8, generation: restoreGeneration)
         }
 
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
             reportProgress(for: scrollView)
         }
 
-        private func restoreProgress(in scrollView: UIScrollView) {
+        private func restoreProgress(
+            in scrollView: UIScrollView,
+            remainingAttempts: Int,
+            generation: Int
+        ) {
+            guard generation == restoreGeneration else {
+                return
+            }
+
             let clampedProgress = min(max(pendingProgress, 0), 1)
+            let maxOffset = maximumOffset(for: scrollView)
+
+            if clampedProgress > 0,
+               maxOffset <= 0,
+               remainingAttempts > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self, weak scrollView] in
+                    guard let self, let scrollView else {
+                        return
+                    }
+                    self.restoreProgress(
+                        in: scrollView,
+                        remainingAttempts: remainingAttempts - 1,
+                        generation: generation
+                    )
+                }
+                return
+            }
+
             let targetOffset: CGPoint
 
             if parent?.isVertical == true {
-                let maxOffset = max(scrollView.contentSize.width - scrollView.bounds.width, 0)
                 targetOffset = CGPoint(x: maxOffset * clampedProgress, y: 0)
             } else {
-                let maxOffset = max(scrollView.contentSize.height - scrollView.bounds.height, 0)
                 targetOffset = CGPoint(x: 0, y: maxOffset * clampedProgress)
             }
 
             didRestoreInitialProgress = false
             isRestoringProgress = true
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self, weak scrollView] in
+                guard let self, let scrollView, generation == self.restoreGeneration else {
+                    return
+                }
                 scrollView.setContentOffset(targetOffset, animated: false)
                 self.isRestoringProgress = false
                 self.didRestoreInitialProgress = true
-                self.reportProgress(for: scrollView)
+                if maxOffset > 0 {
+                    self.onProgressChange(clampedProgress)
+                } else {
+                    self.reportProgress(for: scrollView)
+                }
             }
+        }
+
+        private func maximumOffset(for scrollView: UIScrollView) -> CGFloat {
+            scrollView.layoutIfNeeded()
+            if parent?.isVertical == true {
+                return max(scrollView.contentSize.width - scrollView.bounds.width, 0)
+            }
+            return max(scrollView.contentSize.height - scrollView.bounds.height, 0)
         }
 
         private func reportProgress(for scrollView: UIScrollView) {
@@ -1605,6 +1634,217 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
             true
+        }
+    }
+}
+
+private struct ReaderLookupSection: Identifiable {
+    let index: Int
+    let heading: String
+    let dictionaryName: String?
+    let term: String
+    let reading: String?
+    let definitions: [String]
+    let pitch: String?
+
+    var id: String {
+        "\(index)-\(heading)-\(term)-\(dictionaryName ?? \"\")"
+    }
+
+    init(index: Int, entry: DictionaryLookupEntry) {
+        self.index = index
+        heading = L("reader_lookup_definition_section", index)
+        let parsed = Self.parseGlossaries(entry.glossaries)
+        dictionaryName = parsed.dictionaryName ?? entry.source?.nilIfBlank
+        term = entry.term
+        reading = entry.reading?.nilIfBlank
+        definitions = parsed.definitions
+        pitch = entry.pitch?.nilIfBlank
+    }
+
+    private static func parseGlossaries(_ glossaries: [String]) -> (dictionaryName: String?, definitions: [String]) {
+        guard let first = glossaries.first?.trimmingCharacters(in: .whitespacesAndNewlines),
+              let separator = first.firstIndex(of: ":") else {
+            return (nil, glossaries.filter { $0.nilIfBlank != nil })
+        }
+
+        let name = String(first[..<separator]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let firstDefinition = String(first[first.index(after: separator)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let rest = glossaries.dropFirst().map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let combined = ([firstDefinition] + rest).filter { !$0.isEmpty }
+        return (name.nilIfBlank, combined)
+    }
+}
+
+private struct ReaderLookupSectionView: View {
+    let section: ReaderLookupSection
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(section.heading)
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(Color.amgiTextPrimary)
+
+            if let dictionaryName = section.dictionaryName {
+                Text(dictionaryName)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(section.term)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(Color.amgiTextPrimary)
+                if let reading = section.reading {
+                    Text(reading)
+                        .font(.body)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(section.definitions, id: \.self) { definition in
+                    Text(definition)
+                        .font(.body)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            if let pitch = section.pitch {
+                Text(pitch)
+                    .font(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct ReaderLookupBadge: Identifiable {
+    let name: String
+    let value: String
+
+    var id: String {
+        "\(name)-\(value)"
+    }
+
+    init?(rawValue: String) {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else {
+            return nil
+        }
+
+        if let separator = trimmed.firstIndex(of: ":") {
+            let name = String(trimmed[..<separator]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = String(trimmed[trimmed.index(after: separator)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard name.isEmpty == false, value.isEmpty == false else {
+                return nil
+            }
+            self.name = name
+            self.value = value
+        } else {
+            self.name = trimmed
+            self.value = ""
+        }
+    }
+}
+
+private struct ReaderLookupFrequencyBadge: View {
+    let badge: ReaderLookupBadge
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(badge.name)
+                .font(.headline.weight(.medium))
+                .foregroundStyle(Color.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.amgiAccent)
+
+            if badge.value.isEmpty == false {
+                Text(badge.value)
+                    .font(.headline.weight(.medium))
+                    .foregroundStyle(Color.amgiTextPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(.systemBackground).opacity(0.9))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.amgiAccent.opacity(0.45), lineWidth: 1)
+        }
+    }
+}
+
+private final class ReaderLookupSpeechPlayer {
+    static let shared = ReaderLookupSpeechPlayer()
+
+    private let synthesizer = AVSpeechSynthesizer()
+
+    private init() {}
+
+    static func normalizedLanguageHint(_ languageHint: String?, fallbackText: String) -> String? {
+        if let trimmedHint = languageHint?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), trimmedHint.isEmpty == false {
+            switch trimmedHint {
+            case "ja", "ja-jp":
+                return "ja-JP"
+            case "zh", "zh-cn", "zh-hans":
+                return "zh-CN"
+            case "en", "en-us":
+                return "en-US"
+            default:
+                return languageHint
+            }
+        }
+
+        if fallbackText.containsJapaneseScript {
+            return "ja-JP"
+        }
+        return nil
+    }
+
+    func speak(_ text: String, languageHint: String?) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else {
+            return
+        }
+
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+        }
+
+        let utterance = AVSpeechUtterance(string: trimmed)
+        if let languageHint = Self.normalizedLanguageHint(languageHint, fallbackText: trimmed),
+           let voice = AVSpeechSynthesisVoice(language: languageHint) {
+            utterance.voice = voice
+        }
+        synthesizer.speak(utterance)
+    }
+}
+
+private extension Optional where Wrapped == String {
+    var nilIfBlank: String? {
+        switch self?.trimmingCharacters(in: .whitespacesAndNewlines) {
+        case let value? where value.isEmpty == false:
+            return value
+        default:
+            return nil
+        }
+    }
+}
+
+private extension String {
+    var containsJapaneseScript: Bool {
+        unicodeScalars.contains { scalar in
+            switch scalar.value {
+            case 0x3040...0x30FF, 0x31F0...0x31FF, 0x4E00...0x9FFF:
+                return true
+            default:
+                return false
+            }
         }
     }
 }

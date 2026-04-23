@@ -21,17 +21,6 @@ struct ReaderSettingsHomeView: View {
 
             Section {
                 NavigationLink {
-                    ReaderLibraryView()
-                } label: {
-                    Label(L("settings_reader_open_library"), systemImage: "books.vertical")
-                        .amgiFont(.body)
-                        .foregroundStyle(SettingsValueStyle.primary)
-                }
-            }
-            .amgiSettingsListRowSurface()
-
-            Section {
-                NavigationLink {
                     ReaderSourceSettingsView()
                 } label: {
                     Label(L("settings_reader_section_source"), systemImage: "tray.full")
@@ -433,30 +422,6 @@ struct ReaderAdvancedSettingsView: View {
 
     var body: some View {
         List {
-            Section {
-                NavigationLink {
-                    ReaderSourceSettingsView()
-                } label: {
-                    Label(L("settings_reader_section_source"), systemImage: "tray.full")
-                        .foregroundStyle(SettingsValueStyle.primary)
-                }
-
-                NavigationLink {
-                    ReaderDisplaySettingsView()
-                } label: {
-                    Label(L("settings_reader_display_settings"), systemImage: "paintbrush")
-                        .foregroundStyle(SettingsValueStyle.primary)
-                }
-
-                NavigationLink {
-                    ReaderDictionarySettingsView()
-                } label: {
-                    Label(L("settings_reader_dictionary_settings"), systemImage: "character.book.closed")
-                        .foregroundStyle(SettingsValueStyle.primary)
-                }
-            }
-            .amgiSettingsListRowSurface()
-
             Section {
                 Toggle(L("settings_reader_tap_lookup"), isOn: $tapLookupEnabled)
                     .foregroundStyle(SettingsValueStyle.primary)
