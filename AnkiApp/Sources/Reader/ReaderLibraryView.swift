@@ -1048,7 +1048,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     })();
     """
 
-    private static let tapLookupScript = """
+    private static let tapLookupScript = #"""
     (function() {
         function amgiReaderBoundaryCharacter(ch) {
             return !ch || /[\s\u00A0.,!?;:'"()\[\]{}<>\/\\|`~@#$%^&*=+，。！？；：、“”‘’（）〔〕【】《》〈〉「」『』…—-]/.test(ch);
@@ -1121,7 +1121,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             return text.slice(index, endIndex).trim();
         };
     })();
-    """
+    """#
 
     private func htmlDocument(for fragment: String) -> String {
         let textColor = colorScheme == .dark ? "#F2F4F8" : "#17212F"
