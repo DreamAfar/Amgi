@@ -70,7 +70,12 @@ struct EaseChart: View {
     }
 
     private func yAxisLabel(for raw: Double) -> String {
-        yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 })?.label ?? ""
+        for tick in yAxisTicks {
+            if abs(tick.plottedValue - raw) < 0.0001 {
+                return tick.label
+            }
+        }
+        return ""
     }
 
     private func difficultyColor(for value: Int) -> Color {

@@ -26,6 +26,14 @@ struct IntervalsChart: View {
         let leadingTicks: [StatsAxisTick]
         let selectedBin: IntervalBin?
         let selectedPoint: CumulativePoint?
+
+        var leadingTickValues: [Double] {
+            leadingTicks.map(\.plottedValue)
+        }
+
+        var trailingTickValues: [Double] {
+            trailingTicks.map(\.plottedValue)
+        }
     }
 
     enum IntervalRange: CaseIterable, Identifiable {
@@ -351,26 +359,26 @@ struct IntervalsChart: View {
 
     @AxisContentBuilder
     private func intervalsChartYAxis(state: IntervalChartState) -> some AxisContent {
-        AxisMarks(position: .leading, values: state.leadingTicks.map(\.plottedValue)) { value in
+        AxisMarks(position: .leading, values: state.leadingTickValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-            if let raw = value.as(Double.self),
-               let tick = state.leadingTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                AxisValueLabel {
-                    Text(tick.label)
+
+            AxisValueLabel {
+                if let raw = value.as(Double.self) {
+                    Text(StatsDualAxisSupport.label(for: raw, in: state.leadingTicks))
                         .amgiFont(.micro)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
         }
 
-        AxisMarks(position: .trailing, values: state.trailingTicks.map(\.plottedValue)) { value in
-            if let raw = value.as(Double.self),
-               let tick = state.trailingTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                AxisTick()
-                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
-                AxisValueLabel {
-                    Text(tick.label)
+        AxisMarks(position: .trailing, values: state.trailingTickValues) { value in
+            AxisTick()
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+
+            AxisValueLabel {
+                if let raw = value.as(Double.self) {
+                    Text(StatsDualAxisSupport.label(for: raw, in: state.trailingTicks))
                         .amgiFont(.micro)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }

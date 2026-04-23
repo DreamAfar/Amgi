@@ -75,6 +75,9 @@ struct ButtonsChart: View {
             formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
+    private var yAxisValues: [Double] {
+        yAxisTicks.map(\.plottedValue)
+    }
 
     private func totalForType(_ typeIndex: Int) -> Int {
         entries
@@ -205,13 +208,13 @@ struct ButtonsChart: View {
 
     @AxisContentBuilder
     private func buttonsChartYAxis() -> some AxisContent {
-        AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
+        AxisMarks(position: .leading, values: yAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-            if let raw = value.as(Double.self),
-               let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                AxisValueLabel {
-                    Text(tick.label)
+
+            AxisValueLabel {
+                if let raw = value.as(Double.self) {
+                    Text(StatsDualAxisSupport.label(for: raw, in: yAxisTicks))
                         .amgiFont(.micro)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }

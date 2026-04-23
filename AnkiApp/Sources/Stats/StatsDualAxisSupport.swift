@@ -55,6 +55,16 @@ enum StatsDualAxisSupport {
         return result
     }
 
+    static func label(for plottedValue: Double, in ticks: [StatsAxisTick], tolerance: Double = 0.0001) -> String {
+        for tick in ticks {
+            if abs(tick.plottedValue - plottedValue) < tolerance {
+                return tick.label
+            }
+        }
+
+        return ""
+    }
+
     private static func niceStep(_ rawStep: Double) -> Double {
         guard rawStep > 0 else { return 1 }
 

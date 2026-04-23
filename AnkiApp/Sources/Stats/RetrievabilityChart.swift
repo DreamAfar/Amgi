@@ -53,6 +53,9 @@ struct RetrievabilityChart: View {
             formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
+    private var yAxisValues: [Double] {
+        yAxisTicks.map(\.plottedValue)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
@@ -78,87 +81,127 @@ struct RetrievabilityChart: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart(chartData) { item in
-                    BarMark(
-                        x: .value("Retrievability", item.center),
-                        y: .value("Cards", item.count)
-                    )
-                    .foregroundStyle(bucketColor(for: item.center).gradient)
-
-                    if let selectedBucket,
-                       selectedBucket.start == item.start {
-                        let countLabel = L("stats_card_count")
-                        RuleMark(x: .value("Selected Retrievability", selectedBucket.center))
-                            .foregroundStyle(Color.amgiAccent.opacity(0.35))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                            .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
-                                StatsChartTooltip(
-                                    title: selectedBucket.label,
-                                    lines: ["\(countLabel): \(selectedBucket.count)"]
-                                )
-                            }
-                    }
-                }
-                .chartXScale(domain: 0...100)
-                .chartOverlay { proxy in
-                    GeometryReader { geometry in
-                        Rectangle()
-                            .fill(Color.clear)
-                            .contentShape(Rectangle())
-                            .gesture(
-                                SpatialTapGesture()
-                                    .onEnded { value in
-                                        let plotFrame = geometry[proxy.plotAreaFrame]
-                                        let plotX = value.location.x - plotFrame.origin.x
-                                        guard plotX >= 0,
-                                                plotX <= proxy.plotSize.width,
-                                              let retrievabilityValue: Double = proxy.value(atX: plotX)
-                                        else {
-                                            selectedBucketStart = nil
-                                            return
-                                        }
-
-                                        let nearestBucket = chartData.min(by: {
-                                            abs($0.center - retrievabilityValue) < abs($1.center - retrievabilityValue)
-                                        })?.start
-                                        selectedBucketStart = selectedBucketStart == nearestBucket ? nil : nearestBucket
-                                    }
-                            )
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(values: [0, 25, 50, 75, 100]) { value in
-                        AxisGridLine()
-                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let v = value.as(Int.self) {
-                            AxisValueLabel {
-                                Text("\(v)%")
-                                    .amgiFont(.micro)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-                        }
-                    }
-                }
-                .chartYScale(domain: 0...yAxisMax)
-                .chartYAxis {
-                    AxisMarks(position: .leading, values: yAxisTicks.map(\.plottedValue)) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                            .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-                        if let raw = value.as(Double.self),
-                           let tick = yAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                            AxisValueLabel {
-                                Text(tick.label)
-                                    .amgiFont(.micro)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                            }
-                        }
-                    }
-                }
-                .frame(height: 180)
+                retrievabilityChart
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .amgiCard(elevated: true)
+    }
+
+    private var retrievabilityChart: some View {
+        baseRetrievabilityChart
+            .chartXScale(domain: 0...100)
+            .chartOverlay { proxy in
+                retrievabilityChartOverlay(proxy: proxy)
+            }
+            .chartXAxis {
+                retrievabilityChartXAxis()
+            }
+            .chartYScale(domain: 0...yAxisMax)
+            .chartYAxis {
+                retrievabilityChartYAxis()
+            }
+            .frame(height: 180)
+    }
+
+    private var baseRetrievabilityChart: some View {
+        Chart(chartData) { item in
+            retrievabilityBarMark(for: item)
+            selectedRetrievabilityRuleMark(for: item)
+        }
+    }
+
+    @ChartContentBuilder
+    private func retrievabilityBarMark(for item: Bucket) -> some ChartContent {
+        BarMark(
+            x: .value("Retrievability", item.center),
+            y: .value("Cards", item.count)
+        )
+        .foregroundStyle(bucketColor(for: item.center).gradient)
+    }
+
+    @ChartContentBuilder
+    private func selectedRetrievabilityRuleMark(for item: Bucket) -> some ChartContent {
+        if let selectedBucket,
+           selectedBucket.start == item.start {
+            let countLabel = L("stats_card_count")
+            RuleMark(x: .value("Selected Retrievability", selectedBucket.center))
+                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                    StatsChartTooltip(
+                        title: selectedBucket.label,
+                        lines: ["\(countLabel): \(selectedBucket.count)"]
+                    )
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func retrievabilityChartOverlay(proxy: ChartProxy) -> some View {
+        GeometryReader { geometry in
+            Rectangle()
+                .fill(Color.clear)
+                .contentShape(Rectangle())
+                .gesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            updateSelectedBucketStart(for: value, proxy: proxy, geometry: geometry)
+                        }
+                )
+        }
+    }
+
+    private func updateSelectedBucketStart(
+        for value: SpatialTapGesture.Value,
+        proxy: ChartProxy,
+        geometry: GeometryProxy
+    ) {
+        let plotFrame = geometry[proxy.plotAreaFrame]
+        let plotX = value.location.x - plotFrame.origin.x
+        guard plotX >= 0,
+              plotX <= proxy.plotSize.width,
+              let retrievabilityValue: Double = proxy.value(atX: plotX)
+        else {
+            selectedBucketStart = nil
+            return
+        }
+
+        let nearestBucket = chartData.min(by: {
+            abs($0.center - retrievabilityValue) < abs($1.center - retrievabilityValue)
+        })?.start
+        selectedBucketStart = selectedBucketStart == nearestBucket ? nil : nearestBucket
+    }
+
+    @AxisContentBuilder
+    private func retrievabilityChartXAxis() -> some AxisContent {
+        AxisMarks(values: [0, 25, 50, 75, 100]) { value in
+            AxisGridLine()
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+            if let v = value.as(Int.self) {
+                AxisValueLabel {
+                    Text("\(v)%")
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+        }
+    }
+
+    @AxisContentBuilder
+    private func retrievabilityChartYAxis() -> some AxisContent {
+        AxisMarks(position: .leading, values: yAxisValues) { value in
+            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+
+            AxisValueLabel {
+                if let raw = value.as(Double.self) {
+                    Text(StatsDualAxisSupport.label(for: raw, in: yAxisTicks))
+                        .amgiFont(.micro)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+        }
     }
 
     private func bucketColor(for center: Double) -> Color {

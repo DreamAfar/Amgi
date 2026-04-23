@@ -83,6 +83,12 @@ struct AddedChart: View {
             formatter: { value in StatsDualAxisSupport.formatCount(value) }
         )
     }
+    private var leftAxisValues: [Double] {
+        leftAxisTicks.map(\.plottedValue)
+    }
+    private var rightAxisValues: [Double] {
+        rightAxisTicks.map(\.plottedValue)
+    }
     private var avgPerDay: Double {
         guard !filteredData.isEmpty else { return 0 }
         let span = filteredData.count * bucketSize
@@ -282,26 +288,26 @@ struct AddedChart: View {
 
     @AxisContentBuilder
     private func addedChartYAxis() -> some AxisContent {
-        AxisMarks(position: .leading, values: leftAxisTicks.map(\.plottedValue)) { value in
+        AxisMarks(position: .leading, values: leftAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
-            if let raw = value.as(Double.self),
-               let tick = leftAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                AxisValueLabel {
-                    Text(tick.label)
+
+            AxisValueLabel {
+                if let raw = value.as(Double.self) {
+                    Text(StatsDualAxisSupport.label(for: raw, in: leftAxisTicks))
                         .amgiFont(.micro)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
         }
 
-        AxisMarks(position: .trailing, values: rightAxisTicks.map(\.plottedValue)) { value in
-            if let raw = value.as(Double.self),
-               let tick = rightAxisTicks.first(where: { abs($0.plottedValue - raw) < 0.0001 }) {
-                AxisTick()
-                    .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
-                AxisValueLabel {
-                    Text(tick.label)
+        AxisMarks(position: .trailing, values: rightAxisValues) { value in
+            AxisTick()
+                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+
+            AxisValueLabel {
+                if let raw = value.as(Double.self) {
+                    Text(StatsDualAxisSupport.label(for: raw, in: rightAxisTicks))
                         .amgiFont(.micro)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
