@@ -46,9 +46,9 @@ struct ReaderLibraryView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.readerBookClient) var readerBookClient
 
-    private static let bookCardWidth: CGFloat = 100
-    private static let bookCoverHeight: CGFloat = 136
-    private static let bookGridSpacing: CGFloat = 12
+    fileprivate static let bookCardWidth: CGFloat = 100
+    fileprivate static let bookCoverHeight: CGFloat = 136
+    fileprivate static let bookGridSpacing: CGFloat = 12
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
@@ -1842,6 +1842,11 @@ private extension Optional where Wrapped == String {
 }
 
 private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     var containsJapaneseScript: Bool {
         unicodeScalars.contains { scalar in
             switch scalar.value {
