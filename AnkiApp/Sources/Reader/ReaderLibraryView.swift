@@ -659,36 +659,37 @@ private struct ReaderChapterView: View {
                 if showLookupSheet {
                     GeometryReader { popupGeometry in
                         ZStack {
-                        Color.black.opacity(0.001)
-                            .ignoresSafeArea()
-                            .onTapGesture {
-                                showLookupSheet = false
-                                lookupAnchor = nil
-                            }
+                            Color.black.opacity(0.001)
+                                .ignoresSafeArea()
+                                .onTapGesture {
+                                    showLookupSheet = false
+                                    lookupAnchor = nil
+                                }
 
-                        ReaderLookupPopup(
-                            query: lookupQuery,
-                            result: lookupResult,
-                            isLoading: isLookingUp,
-                            popupWidth: CGFloat(popupWidth),
-                            popupHeight: CGFloat(popupHeight),
-                            isFullWidth: popupFullWidth,
-                            swipeToDismiss: popupSwipeToDismiss,
-                            onAddNote: {
-                                pendingDraft = makeDraft(for: lookupQuery)
-                                showLookupSheet = false
-                                lookupAnchor = nil
-                                showAddNoteSheet = true
-                            },
-                            onClose: {
-                                showLookupSheet = false
-                                lookupAnchor = nil
-                            }
-                        )
-                        .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
-                        .padding(.horizontal, 14)
-                        .position(lookupPopupPosition(in: popupGeometry.size, bottomInset: bottomInset))
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                            ReaderLookupPopup(
+                                query: lookupQuery,
+                                result: lookupResult,
+                                isLoading: isLookingUp,
+                                popupWidth: CGFloat(popupWidth),
+                                popupHeight: CGFloat(popupHeight),
+                                isFullWidth: popupFullWidth,
+                                swipeToDismiss: popupSwipeToDismiss,
+                                onAddNote: {
+                                    pendingDraft = makeDraft(for: lookupQuery)
+                                    showLookupSheet = false
+                                    lookupAnchor = nil
+                                    showAddNoteSheet = true
+                                },
+                                onClose: {
+                                    showLookupSheet = false
+                                    lookupAnchor = nil
+                                }
+                            )
+                            .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
+                            .padding(.horizontal, 14)
+                            .position(lookupPopupPosition(in: popupGeometry.size, bottomInset: bottomInset))
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                     }
                 }
             }

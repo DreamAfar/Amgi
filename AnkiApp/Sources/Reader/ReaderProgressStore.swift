@@ -18,18 +18,23 @@ private struct ReaderLocalProgress {
     let payload: ReaderSavedProgress
 }
 
+private struct ReaderProgressCacheState {
+    var manifestPath: String?
+    var manifestModifiedAt: Date?
+    var manifest: ReaderProgressManifest?
+    var collectionManifest: ReaderProgressManifest?
+    var didLoadCollectionManifest = false
+}
+
 enum ReaderProgressStore {
     private static let keyPrefix = "reader.progress."
     private static let collectionConfigKey = "amgi.reader.progress"
     private static let mediaFileName = "amgi_reader_progress.json"
     private static let collectionWriteProgressStep = 0.01
     private static let collectionWriteInterval: TimeInterval = 10
+    private static let cacheLock = NSLock()
 
-    private static var cachedManifestPath: String?
-    private static var cachedManifestModifiedAt: Date?
-    private static var cachedManifest: ReaderProgressManifest?
-    private static var cachedCollectionManifest: ReaderProgressManifest?
-    private static var didLoadCollectionManifest = false
+    private nonisolated(unsafe) static var cacheState = ReaderProgressCacheState()
 
     static func load(bookID: String) -> ReaderSavedProgress? {
         let local = loadLocal(bookID: bookID)
@@ -104,8 +109,16 @@ enum ReaderProgressStore {
     }
 
     static func resetCollectionCache() {
-        didLoadCollectionManifest = false
-        cachedCollectionManifest = nil
+        withCacheState { state in
+            state.didLoadCollectionManifest = false
+            state.collectionManifest = nil
+        }
+    }
+
+    private static func withCacheState<T>(_ body: (inout ReaderProgressCacheState) -> T) -> T {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return body(&cacheState)
     }
 
     private static func loadLocal(bookID: String) -> ReaderLocalProgress? {
@@ -166,59 +179,84 @@ enum ReaderProgressStore {
     }
 
     private static func loadCollectionManifest() -> ReaderProgressManifest? {
-        if didLoadCollectionManifest {
-            return cachedCollectionManifest
+        let cachedManifest = withCacheState { state -> ReaderProgressManifest? in
+            guard state.didLoadCollectionManifest else {
+                return nil
+            }
+            return state.collectionManifest
+        }
+        if let cachedManifest {
+            return cachedManifest
         }
 
         @Dependency(\.ankiBackend) var backend
-        cachedCollectionManifest = try? backend.getConfigJSONValue(for: collectionConfigKey)
-        didLoadCollectionManifest = true
-        return cachedCollectionManifest
+        let manifest: ReaderProgressManifest? = try? backend.getConfigJSONValue(for: collectionConfigKey)
+        withCacheState { state in
+            state.collectionManifest = manifest
+            state.didLoadCollectionManifest = true
+        }
+        return manifest
     }
 
     private static func saveCollectionManifest(_ manifest: ReaderProgressManifest) {
         @Dependency(\.ankiBackend) var backend
 
         try? backend.setConfigJSONValue(manifest, for: collectionConfigKey)
-        cachedCollectionManifest = manifest
-        didLoadCollectionManifest = true
+        withCacheState { state in
+            state.collectionManifest = manifest
+            state.didLoadCollectionManifest = true
+        }
     }
 
     private static func loadLegacyMediaManifest() -> ReaderProgressManifest? {
         guard let url = manifestURL() else {
-            cachedManifestPath = nil
-            cachedManifestModifiedAt = nil
-            cachedManifest = nil
+            withCacheState { state in
+                state.manifestPath = nil
+                state.manifestModifiedAt = nil
+                state.manifest = nil
+            }
             return nil
         }
 
         let path = url.path(percentEncoded: false)
         let modifiedAt = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
 
-        if cachedManifestPath == path,
-           cachedManifestModifiedAt == modifiedAt {
+        let cachedManifest = withCacheState { state -> ReaderProgressManifest? in
+            guard state.manifestPath == path,
+                  state.manifestModifiedAt == modifiedAt else {
+                return nil
+            }
+            return state.manifest
+        }
+        if let cachedManifest {
             return cachedManifest
         }
 
         guard let data = try? Data(contentsOf: url),
               let manifest = try? JSONDecoder().decode(ReaderProgressManifest.self, from: data) else {
-            cachedManifestPath = path
-            cachedManifestModifiedAt = modifiedAt
-            cachedManifest = nil
+            withCacheState { state in
+                state.manifestPath = path
+                state.manifestModifiedAt = modifiedAt
+                state.manifest = nil
+            }
             return nil
         }
 
-        cachedManifestPath = path
-        cachedManifestModifiedAt = modifiedAt
-        cachedManifest = manifest
+        withCacheState { state in
+            state.manifestPath = path
+            state.manifestModifiedAt = modifiedAt
+            state.manifest = manifest
+        }
         return manifest
     }
 
     private static func removeLegacyMediaManifest() {
         guard let url = manifestURL() else {
-            cachedManifestPath = nil
-            cachedManifestModifiedAt = nil
-            cachedManifest = nil
+            withCacheState { state in
+                state.manifestPath = nil
+                state.manifestModifiedAt = nil
+                state.manifest = nil
+            }
             return
         }
 
@@ -226,9 +264,11 @@ enum ReaderProgressStore {
             try? FileManager.default.removeItem(at: url)
         }
 
-        cachedManifestPath = nil
-        cachedManifestModifiedAt = nil
-        cachedManifest = nil
+        withCacheState { state in
+            state.manifestPath = nil
+            state.manifestModifiedAt = nil
+            state.manifest = nil
+        }
     }
 
     private static func manifestURL() -> URL? {
