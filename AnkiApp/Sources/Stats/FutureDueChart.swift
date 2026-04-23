@@ -224,12 +224,7 @@ struct FutureDueChart: View {
     }
 
     private func axisLabel(for raw: Double, in ticks: [StatsAxisTick]) -> String {
-        for tick in ticks {
-            if abs(tick.plottedValue - raw) < 0.0001 {
-                return tick.label
-            }
-        }
-        return ""
+        StatsDualAxisSupport.label(for: raw, in: ticks)
     }
     private var dueTomorrow: Int { filteredData.first(where: { $0.day == 1 })?.count ?? 0 }
     private var avgPerDay: Double {
@@ -448,9 +443,17 @@ struct FutureDueChart: View {
             return
         }
 
-        let nearestDay = filteredData.min(by: { lhs, rhs in
-            abs(lhs.startDay - day) < abs(rhs.startDay - day)
-        })?.startDay
+        var nearestDay: Int?
+        var nearestDistance = Int.max
+
+        for item in filteredData {
+            let distance = abs(item.startDay - day)
+            if distance < nearestDistance {
+                nearestDistance = distance
+                nearestDay = item.startDay
+            }
+        }
+
         selectedDay = selectedDay == nearestDay ? nil : nearestDay
     }
 

@@ -260,9 +260,16 @@ struct AddedChart: View {
             return
         }
 
-        let nearestDay = filteredData.min(by: { lhs, rhs in
-            abs(lhs.day - day) < abs(rhs.day - day)
-        })?.day
+        var nearestDay: Int?
+        var nearestDistance = Int.max
+
+        for item in filteredData {
+            let distance = abs(item.day - day)
+            if distance < nearestDistance {
+                nearestDistance = distance
+                nearestDay = item.day
+            }
+        }
 
         if selectedDay == nearestDay {
             selectedDay = nil

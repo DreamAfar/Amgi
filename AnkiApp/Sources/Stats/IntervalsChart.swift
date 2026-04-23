@@ -340,9 +340,17 @@ struct IntervalsChart: View {
             return
         }
 
-        let nearestX = bins.min(by: { lhs, rhs in
-            abs(lhs.x - xValue) < abs(rhs.x - xValue)
-        })?.x
+        var nearestX: Int?
+        var nearestDistance = Int.max
+
+        for bin in bins {
+            let distance = abs(bin.x - xValue)
+            if distance < nearestDistance {
+                nearestDistance = distance
+                nearestX = bin.x
+            }
+        }
+
         selectedBinX = selectedBinX == nearestX ? nil : nearestX
     }
 

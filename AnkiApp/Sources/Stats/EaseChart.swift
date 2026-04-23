@@ -70,12 +70,7 @@ struct EaseChart: View {
     }
 
     private func yAxisLabel(for raw: Double) -> String {
-        for tick in yAxisTicks {
-            if abs(tick.plottedValue - raw) < 0.0001 {
-                return tick.label
-            }
-        }
-        return ""
+        StatsDualAxisSupport.label(for: raw, in: yAxisTicks)
     }
 
     private func difficultyColor(for value: Int) -> Color {
@@ -200,9 +195,17 @@ struct EaseChart: View {
             return
         }
 
-        let nearestEase = chartData.min(by: { lhs, rhs in
-            abs(lhs.ease - ease) < abs(rhs.ease - ease)
-        })?.ease
+        var nearestEase: Int?
+        var nearestDistance = Int.max
+
+        for item in chartData {
+            let distance = abs(item.ease - ease)
+            if distance < nearestDistance {
+                nearestDistance = distance
+                nearestEase = item.ease
+            }
+        }
+
         selectedEase = selectedEase == nearestEase ? nil : nearestEase
     }
 

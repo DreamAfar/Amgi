@@ -167,10 +167,18 @@ struct RetrievabilityChart: View {
             return
         }
 
-        let nearestBucket = chartData.min(by: {
-            abs($0.center - retrievabilityValue) < abs($1.center - retrievabilityValue)
-        })?.start
-        selectedBucketStart = selectedBucketStart == nearestBucket ? nil : nearestBucket
+        var nearestBucketStart: Int?
+        var nearestDistance = Double.greatestFiniteMagnitude
+
+        for item in chartData {
+            let distance = abs(item.center - retrievabilityValue)
+            if distance < nearestDistance {
+                nearestDistance = distance
+                nearestBucketStart = item.start
+            }
+        }
+
+        selectedBucketStart = selectedBucketStart == nearestBucketStart ? nil : nearestBucketStart
     }
 
     @AxisContentBuilder

@@ -234,9 +234,17 @@ struct HourlyChart: View {
             return
         }
 
-        let nearestHour = entries.min(by: { lhs, rhs in
-            abs(lhs.hour - hour) < abs(rhs.hour - hour)
-        })?.hour
+        var nearestHour: Int?
+        var nearestDistance = Int.max
+
+        for entry in entries {
+            let distance = abs(entry.hour - hour)
+            if distance < nearestDistance {
+                nearestDistance = distance
+                nearestHour = entry.hour
+            }
+        }
+
         selectedHour = selectedHour == nearestHour ? nil : nearestHour
     }
 

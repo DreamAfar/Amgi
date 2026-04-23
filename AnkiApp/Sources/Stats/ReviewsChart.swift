@@ -395,9 +395,21 @@ struct ReviewsChart: View {
             return
         }
 
-        let nearestBucket = Set(entries.map(\.bucket)).min(by: { lhs, rhs in
-            abs(lhs - bucket) < abs(rhs - bucket)
-        })
+        var seenBuckets: Set<Int> = []
+        var nearestBucket: Int?
+        var nearestDistance = Int.max
+
+        for entry in entries {
+            let candidate = entry.bucket
+            guard seenBuckets.insert(candidate).inserted else { continue }
+
+            let distance = abs(candidate - bucket)
+            if distance < nearestDistance {
+                nearestDistance = distance
+                nearestBucket = candidate
+            }
+        }
+
         selectedBucket = selectedBucket == nearestBucket ? nil : nearestBucket
     }
 
