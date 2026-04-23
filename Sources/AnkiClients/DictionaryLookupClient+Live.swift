@@ -234,7 +234,7 @@ private actor DictionaryLookupRuntime {
 
         let resolvedMaxResults = max(1, maxResults)
         let resolvedScanLength = max(1, scanLength)
-        let rawResults = Array(lookupEngine?.lookup(std.string(trimmed), resolvedMaxResults, resolvedScanLength) ?? [])
+        let rawResults = Array(lookupEngine?.lookup(std.string(trimmed), Int32(resolvedMaxResults), Int32(resolvedScanLength)) ?? [])
         return DictionaryLookupResult(
             query: trimmed,
             entries: rawResults.map(Self.makeEntry),
