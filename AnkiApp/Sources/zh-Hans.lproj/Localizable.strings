@@ -297,6 +297,31 @@
 "settings_reader_advanced_settings" = "高级设置";
 "settings_reader_tap_lookup" = "点按查词";
 "settings_reader_tap_lookup_description" = "在阅读器中点按文本时，直接打开词典查询结果。";
+"settings_reader_display_section_text" = "文字";
+"settings_reader_display_section_layout" = "版式";
+"settings_reader_display_section_display" = "显示";
+"settings_reader_display_section_popup" = "查词弹窗";
+"settings_reader_text_orientation" = "文字方向";
+"settings_reader_text_orientation_vertical" = "纵";
+"settings_reader_text_orientation_horizontal" = "横";
+"settings_reader_hide_furigana" = "隐藏振假名";
+"settings_reader_horizontal_padding" = "水平边距";
+"settings_reader_vertical_padding" = "垂直边距";
+"settings_reader_padding_value" = "%d%%";
+"settings_reader_layout_advanced" = "高级排版";
+"settings_reader_line_height" = "行高";
+"settings_reader_line_height_value" = "%.2f";
+"settings_reader_character_spacing" = "字间距";
+"settings_reader_character_spacing_value" = "%d%%";
+"settings_reader_display_show_title" = "显示标题";
+"settings_reader_display_show_percentage" = "显示百分比";
+"settings_reader_display_progress_position" = "进度位置";
+"settings_reader_display_progress_position_top" = "顶部";
+"settings_reader_display_progress_position_bottom" = "底部";
+"settings_reader_popup_width" = "宽度";
+"settings_reader_popup_height" = "高度";
+"settings_reader_popup_full_width" = "全宽显示";
+"settings_reader_popup_swipe_to_dismiss" = "下滑关闭";
 "settings_reader_dictionary_settings" = "词典设置";
 "settings_reader_dictionary_section_recommended" = "推荐词典";
 "settings_reader_dictionary_download_recommended" = "下载推荐词典";
@@ -308,6 +333,9 @@
 "settings_reader_dictionary_section_term" = "术语词典";
 "settings_reader_dictionary_section_frequency" = "词频词典";
 "settings_reader_dictionary_section_pitch" = "音调词典";
+"settings_reader_dictionary_section_settings" = "设置";
+"settings_reader_dictionary_max_results" = "最大结果数";
+"settings_reader_dictionary_scan_length" = "扫描长度";
 "settings_reader_dictionary_empty" = "还没有导入任何词典。";
 "settings_reader_dictionary_revision" = "版本：%@";
 "settings_reader_dictionary_busy" = "正在准备词典…";
@@ -376,6 +404,7 @@
 "reader_reader_previous_chapter" = "上一章";
 "reader_reader_next_chapter" = "下一章";
 "reader_reader_position" = "第 %1$d / %2$d 章   %.1f%%";
+"reader_reader_position_chapter_only" = "第 %1$d / %2$d 章";
 
 // MARK: - Backup
 "backup_nav_title" = "备份";

@@ -122,6 +122,50 @@ public final class AnkiBackend: Sendable {
         try callVoid(service: Service.collection, method: CollectionMethod.close, request: req)
     }
 
+    // MARK: - Collection Config
+
+    public func getConfigJSONValue<T: Decodable>(
+        for key: String,
+        decoder: JSONDecoder = JSONDecoder()
+    ) throws -> T? {
+        var req = Anki_Generic_String()
+        req.val = key
+
+        do {
+            let response: Anki_Generic_Json = try invoke(
+                service: Service.config,
+                method: ConfigMethod.getConfigJson,
+                request: req
+            )
+            return try decoder.decode(T.self, from: response.json)
+        } catch let error as BackendError where error.kind == .notFoundError {
+            return nil
+        }
+    }
+
+    public func setConfigJSONValue<T: Encodable>(
+        _ value: T,
+        for key: String,
+        encoder: JSONEncoder = JSONEncoder()
+    ) throws {
+        var req = Anki_Config_SetConfigJsonRequest()
+        req.key = key
+        req.valueJson = try encoder.encode(value)
+        req.undoable = false
+
+        try callVoid(
+            service: Service.config,
+            method: ConfigMethod.setConfigJsonNoUndo,
+            request: req
+        )
+    }
+
+    public func removeConfigValue(for key: String) throws {
+        var req = Anki_Generic_String()
+        req.val = key
+        try callVoid(service: Service.config, method: ConfigMethod.removeConfig, request: req)
+    }
+
     // MARK: - Raw FFI
 
     private func callRaw(service: UInt32, method: UInt32, input: Data) throws -> Data {
@@ -240,6 +284,9 @@ extension AnkiBackend {
     public enum Service {
         public static let sync: UInt32 = 1
         public static let collection: UInt32 = 3
+        // ConfigService/BackendConfigService sit between Decks and DeckConfig in
+        // the generated descriptor ordering used by rslib.
+        public static let config: UInt32 = 9
         public static let deckConfig: UInt32 = 11
         public static let cards: UInt32 = 5
         public static let decks: UInt32 = 7
@@ -280,6 +327,13 @@ extension AnkiBackend {
         public static let syncStatus: UInt32 = 4
         public static let syncCollection: UInt32 = 5
         public static let fullUploadOrDownload: UInt32 = 6
+    }
+
+    public enum ConfigMethod {
+        public static let getConfigJson: UInt32 = 0
+        public static let setConfigJson: UInt32 = 1
+        public static let setConfigJsonNoUndo: UInt32 = 2
+        public static let removeConfig: UInt32 = 3
     }
 
     // Method indices from BackendSchedulerService (service 13) dispatch table.

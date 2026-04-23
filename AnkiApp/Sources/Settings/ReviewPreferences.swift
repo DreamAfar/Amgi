@@ -32,6 +32,21 @@ enum ReaderPreferences {
         static let languageField = "reader_pref_language_field"
         static let verticalLayout = "reader_pref_vertical_layout"
         static let fontSize = "reader_pref_font_size"
+        static let hideFurigana = "reader_pref_hide_furigana"
+        static let horizontalPadding = "reader_pref_horizontal_padding"
+        static let verticalPadding = "reader_pref_vertical_padding"
+        static let layoutAdvanced = "reader_pref_layout_advanced"
+        static let lineHeight = "reader_pref_line_height"
+        static let characterSpacing = "reader_pref_character_spacing"
+        static let showTitle = "reader_pref_show_title"
+        static let showPercentage = "reader_pref_show_percentage"
+        static let showProgressTop = "reader_pref_show_progress_top"
+        static let popupWidth = "reader_pref_popup_width"
+        static let popupHeight = "reader_pref_popup_height"
+        static let popupFullWidth = "reader_pref_popup_full_width"
+        static let popupSwipeToDismiss = "reader_pref_popup_swipe_to_dismiss"
+        static let dictionaryMaxResults = "reader_pref_dictionary_max_results"
+        static let dictionaryScanLength = "reader_pref_dictionary_scan_length"
     }
 }
 

@@ -1,4 +1,5 @@
 import CHoshiDicts
+import AnkiBackend
 import Foundation
 public import Dependencies
 
@@ -19,6 +20,168 @@ private enum DictionaryLookupRuntimeError: LocalizedError {
     }
 }
 
+private struct SyncedDictionaryConfig: Codable {
+    var updatedAt: Date
+    var config: AppDictionaryConfig
+}
+
+private struct TimestampedDictionaryConfig {
+    var config: AppDictionaryConfig
+    var updatedAt: Date
+}
+
+public enum DictionaryLookupConfigMigration {
+    private static let configFileName = "config.json"
+    private static let collectionConfigKey = "amgi.reader.dictionaryConfig"
+    private static let legacyMirroredConfigFileName = "amgi_reader_dictionary_config.json"
+
+    public static func migrateLegacyMirroredConfigIfNeeded(backend: AnkiBackend) throws {
+        let profileID = sanitizedProfileID()
+        let local = try loadLocalConfig(profileID: profileID)
+        let collection = try loadCollectionConfig(backend: backend)
+        let legacyMirrored = try loadLegacyMirroredConfig(profileID: profileID)
+
+        let resolved: TimestampedDictionaryConfig?
+        switch (local, collection, legacyMirrored) {
+        case let (local?, collection?, legacyMirrored?):
+            resolved = [local, collection, legacyMirrored].max(by: { $0.updatedAt < $1.updatedAt })
+        case let (local?, collection?, nil):
+            resolved = local.updatedAt >= collection.updatedAt ? local : collection
+        case let (local?, nil, legacyMirrored?):
+            resolved = local.updatedAt >= legacyMirrored.updatedAt ? local : legacyMirrored
+        case let (nil, collection?, legacyMirrored?):
+            resolved = collection.updatedAt >= legacyMirrored.updatedAt ? collection : legacyMirrored
+        case let (local?, nil, nil):
+            resolved = local
+        case let (nil, collection?, nil):
+            resolved = collection
+        case let (nil, nil, legacyMirrored?):
+            resolved = legacyMirrored
+        case (nil, nil, nil):
+            resolved = nil
+        }
+
+        guard let resolved else {
+            return
+        }
+
+        if local?.config != resolved.config || local?.updatedAt != resolved.updatedAt {
+            try writeLocalConfig(resolved.config, updatedAt: resolved.updatedAt, profileID: profileID)
+        }
+
+        if collection?.config != resolved.config || collection?.updatedAt != resolved.updatedAt {
+            try writeCollectionConfig(resolved.config, updatedAt: resolved.updatedAt, backend: backend)
+        }
+
+        if legacyMirrored != nil {
+            try removeLegacyMirroredConfig(profileID: profileID)
+        }
+    }
+
+    private static func sanitizedProfileID() -> String {
+        let fallback = "default"
+        let rawProfileID = UserDefaults.standard.string(forKey: "selectedUser") ?? fallback
+        let trimmed = rawProfileID.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? fallback : trimmed
+    }
+
+    private static func loadCollectionConfig(backend: AnkiBackend) throws -> TimestampedDictionaryConfig? {
+        guard let synced: SyncedDictionaryConfig = try backend.getConfigJSONValue(for: collectionConfigKey) else {
+            return nil
+        }
+
+        return TimestampedDictionaryConfig(config: synced.config, updatedAt: synced.updatedAt)
+    }
+
+    private static func loadLocalConfig(profileID: String) throws -> TimestampedDictionaryConfig? {
+        let configURL = try configURL(profileID: profileID)
+        guard FileManager.default.fileExists(atPath: configURL.path(percentEncoded: false)) else {
+            return nil
+        }
+
+        let data = try Data(contentsOf: configURL)
+        let config = try JSONDecoder().decode(AppDictionaryConfig.self, from: data)
+        let updatedAt = try configURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate ?? .distantPast
+        return TimestampedDictionaryConfig(config: config, updatedAt: updatedAt)
+    }
+
+    private static func loadLegacyMirroredConfig(profileID: String) throws -> TimestampedDictionaryConfig? {
+        let configURL = try legacyMirroredConfigURL(profileID: profileID)
+        guard FileManager.default.fileExists(atPath: configURL.path(percentEncoded: false)) else {
+            return nil
+        }
+
+        let data = try Data(contentsOf: configURL)
+        let synced = try JSONDecoder().decode(SyncedDictionaryConfig.self, from: data)
+        return TimestampedDictionaryConfig(config: synced.config, updatedAt: synced.updatedAt)
+    }
+
+    private static func writeLocalConfig(
+        _ config: AppDictionaryConfig,
+        updatedAt: Date,
+        profileID: String
+    ) throws {
+        let configURL = try configURL(profileID: profileID)
+        let data = try JSONEncoder().encode(config)
+        try data.write(to: configURL, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.modificationDate: updatedAt],
+            ofItemAtPath: configURL.path(percentEncoded: false)
+        )
+    }
+
+    private static func writeCollectionConfig(
+        _ config: AppDictionaryConfig,
+        updatedAt: Date,
+        backend: AnkiBackend
+    ) throws {
+        let synced = SyncedDictionaryConfig(updatedAt: updatedAt, config: config)
+        try backend.setConfigJSONValue(synced, for: collectionConfigKey)
+    }
+
+    private static func rootDirectory(profileID: String) throws -> URL {
+        let baseDirectory = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? FileManager.default.temporaryDirectory
+
+        let directory = baseDirectory
+            .appendingPathComponent("ReaderDictionaries", isDirectory: true)
+            .appendingPathComponent(profileID, isDirectory: true)
+        if !FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)) {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+        return directory
+    }
+
+    private static func configURL(profileID: String) throws -> URL {
+        try rootDirectory(profileID: profileID).appendingPathComponent(configFileName)
+    }
+
+    private static func legacyMirroredConfigURL(profileID: String) throws -> URL {
+        let baseDirectory = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? FileManager.default.temporaryDirectory
+
+        let mediaDirectory = baseDirectory
+            .appendingPathComponent("AnkiCollection", isDirectory: true)
+            .appendingPathComponent(profileID, isDirectory: true)
+            .appendingPathComponent("media", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: mediaDirectory.path(percentEncoded: false)) {
+            try FileManager.default.createDirectory(at: mediaDirectory, withIntermediateDirectories: true)
+        }
+        return mediaDirectory.appendingPathComponent(legacyMirroredConfigFileName)
+    }
+
+    private static func removeLegacyMirroredConfig(profileID: String) throws {
+        let configURL = try legacyMirroredConfigURL(profileID: profileID)
+        if FileManager.default.fileExists(atPath: configURL.path(percentEncoded: false)) {
+            try? FileManager.default.removeItem(at: configURL)
+        }
+    }
+}
+
 private actor DictionaryLookupRuntime {
     private struct ManagedDictionary {
         var info: AppDictionaryInfo
@@ -31,6 +194,8 @@ private actor DictionaryLookupRuntime {
     }
 
     private static let configFileName = "config.json"
+    private static let collectionConfigKey = "amgi.reader.dictionaryConfig"
+    private static let legacyMirroredConfigFileName = "amgi_reader_dictionary_config.json"
     private static let recommendedArchives: [RecommendedArchive] = [
         RecommendedArchive(
             metadataURL: "https://github.com/yomidevs/jmdict-yomitan/releases/latest/download/JMdict_english.json",
@@ -42,6 +207,7 @@ private actor DictionaryLookupRuntime {
         ),
     ]
 
+    private let backend: AnkiBackend
     private var activeProfileID: String?
     private var termDictionaries: [ManagedDictionary] = []
     private var frequencyDictionaries: [ManagedDictionary] = []
@@ -50,7 +216,11 @@ private actor DictionaryLookupRuntime {
     private var deinflector: Deinflector?
     private var lookupEngine: Lookup?
 
-    func lookup(_ text: String) throws -> DictionaryLookupResult {
+    init(backend: AnkiBackend) {
+        self.backend = backend
+    }
+
+    func lookup(_ text: String, maxResults: Int) throws -> DictionaryLookupResult {
         try ensureLoaded()
 
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -62,7 +232,8 @@ private actor DictionaryLookupRuntime {
             return DictionaryLookupResult(query: trimmed, entries: [], isPlaceholder: true)
         }
 
-        let rawResults = Array(lookupEngine?.lookup(std.string(trimmed), Int32(16), 16) ?? [])
+        let resolvedMaxResults = max(1, maxResults)
+        let rawResults = Array(lookupEngine?.lookup(std.string(trimmed), Int32(resolvedMaxResults), 16) ?? [])
         return DictionaryLookupResult(
             query: trimmed,
             entries: rawResults.map(Self.makeEntry),
@@ -325,12 +496,47 @@ private actor DictionaryLookupRuntime {
     }
 
     private func loadConfig(profileID: String) throws -> AppDictionaryConfig? {
-        let configURL = try configURL(profileID: profileID)
-        guard FileManager.default.fileExists(atPath: configURL.path(percentEncoded: false)) else {
+        let local = try loadLocalConfig(profileID: profileID)
+        let collection = try loadCollectionConfig()
+        let legacyMirrored = try loadLegacyMirroredConfig(profileID: profileID)
+
+        let resolved: TimestampedDictionaryConfig?
+        switch (local, collection, legacyMirrored) {
+        case let (local?, collection?, legacyMirrored?):
+            resolved = [local, collection, legacyMirrored].max(by: { $0.updatedAt < $1.updatedAt })
+        case let (local?, collection?, nil):
+            resolved = local.updatedAt >= collection.updatedAt ? local : collection
+        case let (local?, nil, legacyMirrored?):
+            resolved = local.updatedAt >= legacyMirrored.updatedAt ? local : legacyMirrored
+        case let (nil, collection?, legacyMirrored?):
+            resolved = collection.updatedAt >= legacyMirrored.updatedAt ? collection : legacyMirrored
+        case let (local?, nil, nil):
+            resolved = local
+        case let (nil, collection?, nil):
+            resolved = collection
+        case let (nil, nil, legacyMirrored?):
+            resolved = legacyMirrored
+        case (nil, nil, nil):
+            resolved = nil
+        }
+
+        guard let resolved else {
             return nil
         }
-        let data = try Data(contentsOf: configURL)
-        return try JSONDecoder().decode(AppDictionaryConfig.self, from: data)
+
+        if local?.config != resolved.config || local?.updatedAt != resolved.updatedAt {
+            try writeLocalConfig(resolved.config, updatedAt: resolved.updatedAt, profileID: profileID)
+        }
+
+        if collection?.config != resolved.config || collection?.updatedAt != resolved.updatedAt {
+            try writeCollectionConfig(resolved.config, updatedAt: resolved.updatedAt)
+        }
+
+        if legacyMirrored != nil {
+            try removeLegacyMirroredConfig(profileID: profileID)
+        }
+
+        return resolved.config
     }
 
     private func saveConfig(profileID: String) throws {
@@ -358,13 +564,89 @@ private actor DictionaryLookupRuntime {
             }
         )
 
+        let updatedAt = Date()
+        try writeLocalConfig(config, updatedAt: updatedAt, profileID: profileID)
+        try writeCollectionConfig(config, updatedAt: updatedAt)
+        try removeLegacyMirroredConfig(profileID: profileID)
+    }
+
+    private func loadLocalConfig(profileID: String) throws -> TimestampedDictionaryConfig? {
+        let configURL = try configURL(profileID: profileID)
+        guard FileManager.default.fileExists(atPath: configURL.path(percentEncoded: false)) else {
+            return nil
+        }
+
+        let data = try Data(contentsOf: configURL)
+        let config = try JSONDecoder().decode(AppDictionaryConfig.self, from: data)
+        let updatedAt = try configURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate ?? .distantPast
+        return TimestampedDictionaryConfig(config: config, updatedAt: updatedAt)
+    }
+
+    private func loadCollectionConfig() throws -> TimestampedDictionaryConfig? {
+        guard let synced: SyncedDictionaryConfig = try backend.getConfigJSONValue(for: Self.collectionConfigKey) else {
+            return nil
+        }
+
+        return TimestampedDictionaryConfig(config: synced.config, updatedAt: synced.updatedAt)
+    }
+
+    private func loadLegacyMirroredConfig(profileID: String) throws -> TimestampedDictionaryConfig? {
+        let configURL = try legacyMirroredConfigURL(profileID: profileID)
+        guard FileManager.default.fileExists(atPath: configURL.path(percentEncoded: false)) else {
+            return nil
+        }
+
+        let data = try Data(contentsOf: configURL)
+        let synced = try JSONDecoder().decode(SyncedDictionaryConfig.self, from: data)
+        return TimestampedDictionaryConfig(config: synced.config, updatedAt: synced.updatedAt)
+    }
+
+    private func writeLocalConfig(
+        _ config: AppDictionaryConfig,
+        updatedAt: Date,
+        profileID: String
+    ) throws {
         let configURL = try configURL(profileID: profileID)
         let data = try JSONEncoder().encode(config)
         try data.write(to: configURL, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.modificationDate: updatedAt],
+            ofItemAtPath: configURL.path(percentEncoded: false)
+        )
+    }
+
+    private func writeCollectionConfig(
+        _ config: AppDictionaryConfig,
+        updatedAt: Date
+    ) throws {
+        let synced = SyncedDictionaryConfig(updatedAt: updatedAt, config: config)
+        try backend.setConfigJSONValue(synced, for: Self.collectionConfigKey)
     }
 
     private func configURL(profileID: String) throws -> URL {
         try rootDirectory(profileID: profileID).appendingPathComponent(Self.configFileName)
+    }
+
+    private func legacyMirroredConfigURL(profileID: String) throws -> URL {
+        let baseDirectory = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first!
+        let mediaDirectory = baseDirectory
+            .appendingPathComponent("AnkiCollection", isDirectory: true)
+            .appendingPathComponent(profileID, isDirectory: true)
+            .appendingPathComponent("media", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: mediaDirectory.path(percentEncoded: false)) {
+            try FileManager.default.createDirectory(at: mediaDirectory, withIntermediateDirectories: true)
+        }
+        return mediaDirectory.appendingPathComponent(Self.legacyMirroredConfigFileName)
+    }
+
+    private func removeLegacyMirroredConfig(profileID: String) throws {
+        let configURL = try legacyMirroredConfigURL(profileID: profileID)
+        if FileManager.default.fileExists(atPath: configURL.path(percentEncoded: false)) {
+            try? FileManager.default.removeItem(at: configURL)
+        }
     }
 
     private func dictionaryDirectory(for kind: AppDictionaryKind, profileID: String) throws -> URL {
@@ -529,10 +811,11 @@ private extension String {
 
 extension DictionaryLookupClient: DependencyKey {
     public static let liveValue: Self = {
-        let runtime = DictionaryLookupRuntime()
+        @Dependency(\.ankiBackend) var backend
+        let runtime = DictionaryLookupRuntime(backend: backend)
         return Self(
-            lookup: { text in
-                try await runtime.lookup(text)
+            lookup: { text, maxResults in
+                try await runtime.lookup(text, maxResults: maxResults)
             },
             loadState: {
                 try await runtime.loadState()

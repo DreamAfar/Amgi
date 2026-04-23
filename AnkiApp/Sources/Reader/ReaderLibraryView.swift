@@ -484,6 +484,20 @@ private struct ReaderChapterView: View {
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
     @AppStorage(ReaderPreferences.Keys.fontSize) private var readerFontSize = 24
+    @AppStorage(ReaderPreferences.Keys.hideFurigana) private var hideFurigana = false
+    @AppStorage(ReaderPreferences.Keys.horizontalPadding) private var horizontalPadding = 5
+    @AppStorage(ReaderPreferences.Keys.verticalPadding) private var verticalPadding = 0
+    @AppStorage(ReaderPreferences.Keys.lineHeight) private var lineHeight = 1.65
+    @AppStorage(ReaderPreferences.Keys.characterSpacing) private var characterSpacing = 0.0
+    @AppStorage(ReaderPreferences.Keys.showTitle) private var showTitle = true
+    @AppStorage(ReaderPreferences.Keys.showPercentage) private var showPercentage = true
+    @AppStorage(ReaderPreferences.Keys.showProgressTop) private var showProgressTop = true
+    @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
+    @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
+    @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
+    @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
+    @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var dictionaryMaxResults = 16
+    @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var dictionaryScanLength = 16
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
 
     let book: ReaderBook
@@ -500,6 +514,7 @@ private struct ReaderChapterView: View {
     @State private var lookupResult: DictionaryLookupResult?
     @State private var isLookingUp = false
     @State private var lookupErrorMessage: String?
+    @State private var lookupAnchor: CGPoint?
     @State private var activeSheet: ReaderChapterSheetRoute?
     @State private var chapterNavigationTarget: ReaderChapter?
 
@@ -530,134 +545,157 @@ private struct ReaderChapterView: View {
     }
 
     private var progressLabel: String {
-        L("reader_reader_position", currentChapterIndex + 1, book.chapters.count, progress * 100)
+        if showPercentage {
+            return L("reader_reader_position", currentChapterIndex + 1, book.chapters.count, progress * 100)
+        }
+        return L("reader_reader_position_chapter_only", currentChapterIndex + 1, book.chapters.count)
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            ReaderChapterWebView(
-                html: chapter.content,
-                isVertical: verticalLayout,
-                fontSize: Double(readerFontSize),
-                savedProgress: savedProgress,
-                selectionRequestID: selectionRequestID,
-                tapLookupEnabled: tapLookupEnabled,
-                onProgressChange: { newProgress in
-                    progress = newProgress
-                    ReaderProgressStore.save(bookID: book.id, chapterID: chapter.id, progress: newProgress)
-                },
-                onSelectionResolved: { selection in
-                    handleResolvedSelection(selection)
-                },
-                onLookupRequested: { selection in
-                    handleTapLookup(selection)
+        GeometryReader { geometry in
+            let topSafeArea = max(geometry.safeAreaInsets.top, 25)
+            let showsTopInfo = showTitle || showProgressTop
+            let topOverlayHeight = topSafeArea + (showsTopInfo ? 44 : 12)
+            let bottomInset = max(geometry.safeAreaInsets.bottom, 12)
+
+            VStack(spacing: 0) {
+                Color.clear
+                    .frame(height: topOverlayHeight)
+
+                ZStack(alignment: .bottom) {
+                    ReaderChapterWebView(
+                        html: chapter.content,
+                        isVertical: verticalLayout,
+                        fontSize: Double(readerFontSize),
+                        hideFurigana: hideFurigana,
+                        horizontalPadding: horizontalPadding,
+                        verticalPadding: verticalPadding,
+                        lineHeight: lineHeight,
+                        characterSpacing: characterSpacing,
+                        scanLength: dictionaryScanLength,
+                        savedProgress: savedProgress,
+                        selectionRequestID: selectionRequestID,
+                        tapLookupEnabled: tapLookupEnabled,
+                        onProgressChange: { newProgress in
+                            progress = newProgress
+                            ReaderProgressStore.save(bookID: book.id, chapterID: chapter.id, progress: newProgress)
+                        },
+                        onSelectionResolved: { selection in
+                            handleResolvedSelection(selection)
+                        },
+                        onLookupRequested: { selection, point in
+                            handleTapLookup(selection, at: point)
+                        }
+                    )
+                    .background(Color.amgiBackground)
+                    .ignoresSafeArea(edges: .bottom)
+
+                    HStack {
+                        Button {
+                            dismiss()
+                        } label: {
+                            ReaderFloatingChromeButton(systemName: "chevron.left")
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text(L("common_back")))
+
+                        Spacer()
+
+                        Menu {
+                            Button {
+                                activeSheet = .chapters
+                            } label: {
+                                Label(L("reader_reader_menu_chapters"), systemImage: "list.bullet")
+                            }
+
+                            Button {
+                                activeSheet = .display
+                            } label: {
+                                Label(L("settings_reader_display_settings"), systemImage: "paintbrush.pointed")
+                            }
+
+                            Button {
+                                activeSheet = .settings
+                            } label: {
+                                Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
+                            }
+                        } label: {
+                            ReaderFloatingChromeButton(systemName: "slider.horizontal.3")
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, bottomInset + 8)
                 }
-            )
+            }
             .background(Color.amgiBackground)
-            .ignoresSafeArea(edges: .bottom)
-
-            HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    ReaderFloatingChromeButton(systemName: "chevron.left")
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(L("common_back")))
-
-                Spacer()
-
-                Menu {
-                    Button {
-                        activeSheet = .chapters
-                    } label: {
-                        Label(L("reader_reader_menu_chapters"), systemImage: "list.bullet")
-                    }
-
-                    Button {
-                        activeSheet = .display
-                    } label: {
-                        Label(L("settings_reader_display_settings"), systemImage: "paintbrush.pointed")
-                    }
-
-                    Button {
-                        activeSheet = .settings
-                    } label: {
-                        Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
-                    }
-                } label: {
-                    ReaderFloatingChromeButton(systemName: "slider.horizontal.3")
+            .overlay(alignment: .top) {
+                ReaderChapterInfoOverlay(
+                    title: showTitle ? book.title : nil,
+                    progressLabel: showProgressTop ? progressLabel : nil
+                )
+                    .padding(.top, topSafeArea)
+            }
+            .overlay(alignment: .bottom) {
+                if showProgressTop == false {
+                    ReaderChapterBottomProgressOverlay(progressLabel: progressLabel)
+                        .padding(.bottom, bottomInset + 74)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-        }
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .safeAreaInset(edge: .top) {
-            VStack(spacing: 4) {
-                Text(book.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.amgiTextSecondary)
-                    .lineLimit(1)
-                Text(progressLabel)
-                    .font(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
-                    .monospacedDigit()
+            .overlay(alignment: .topTrailing) {
+                ReaderTopActionCapsule(
+                    onLookup: {
+                        pendingSelectionAction = .lookup
+                        selectionRequestID += 1
+                    },
+                    onAddNote: {
+                        pendingSelectionAction = .addNote
+                        selectionRequestID += 1
+                    }
+                )
+                .padding(.top, topSafeArea + 8)
+                .padding(.trailing, 20)
             }
-            .padding(.horizontal, 36)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
-            .background(Color.amgiBackground.opacity(0.96))
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    pendingSelectionAction = .lookup
-                    selectionRequestID += 1
-                } label: {
-                    Label(L("reader_reader_lookup"), systemImage: "text.magnifyingglass")
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    pendingSelectionAction = .addNote
-                    selectionRequestID += 1
-                } label: {
-                    Label(L("reader_reader_add_note"), systemImage: "square.and.pencil")
+            .overlay {
+                if showLookupSheet {
+                    GeometryReader { popupGeometry in
+                        ZStack {
+                        Color.black.opacity(0.001)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                showLookupSheet = false
+                                lookupAnchor = nil
+                            }
+
+                        ReaderLookupPopup(
+                            query: lookupQuery,
+                            result: lookupResult,
+                            isLoading: isLookingUp,
+                            popupWidth: CGFloat(popupWidth),
+                            popupHeight: CGFloat(popupHeight),
+                            isFullWidth: popupFullWidth,
+                            swipeToDismiss: popupSwipeToDismiss,
+                            onAddNote: {
+                                pendingDraft = makeDraft(for: lookupQuery)
+                                showLookupSheet = false
+                                lookupAnchor = nil
+                                showAddNoteSheet = true
+                            },
+                            onClose: {
+                                showLookupSheet = false
+                                lookupAnchor = nil
+                            }
+                        )
+                        .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
+                        .padding(.horizontal, 14)
+                        .position(lookupPopupPosition(in: popupGeometry.size, bottomInset: bottomInset))
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
             }
         }
         .background(Color.amgiBackground)
-        .overlay {
-            if showLookupSheet {
-                ZStack(alignment: .bottom) {
-                    Color.black.opacity(0.001)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            showLookupSheet = false
-                        }
-
-                    ReaderLookupPopup(
-                        query: lookupQuery,
-                        result: lookupResult,
-                        isLoading: isLookingUp,
-                        onAddNote: {
-                            pendingDraft = makeDraft(for: lookupQuery)
-                            showLookupSheet = false
-                            showAddNoteSheet = true
-                        },
-                        onClose: {
-                            showLookupSheet = false
-                        }
-                    )
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 92)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-        }
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showAddNoteSheet, onDismiss: {
             pendingDraft = nil
         }) {
@@ -686,6 +724,7 @@ private struct ReaderChapterView: View {
             ReaderChapterView(book: book, chapter: target)
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.88), value: showLookupSheet)
+        .ignoresSafeArea(edges: .top)
         .alert(L("common_error"), isPresented: $showSelectionError) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
@@ -712,12 +751,12 @@ private struct ReaderChapterView: View {
         }
     }
 
-    private func handleTapLookup(_ selection: String?) {
+    private func handleTapLookup(_ selection: String?, at point: CGPoint) {
         guard let tappedSelection = normalizedSelection(selection) else {
             return
         }
         pendingSelectionAction = nil
-        startLookup(for: tappedSelection)
+        startLookup(for: tappedSelection, anchor: point)
     }
 
     private func normalizedSelection(_ selection: String?) -> String? {
@@ -725,21 +764,51 @@ private struct ReaderChapterView: View {
         return trimmedSelection.isEmpty ? nil : trimmedSelection
     }
 
-    private func startLookup(for query: String) {
+    private func startLookup(for query: String, anchor: CGPoint? = nil) {
         lookupQuery = query
         lookupResult = nil
+        lookupAnchor = anchor
         showLookupSheet = true
         isLookingUp = true
         Task {
             do {
-                lookupResult = try await dictionaryLookupClient.lookup(query)
+                lookupResult = try await dictionaryLookupClient.lookup(query, dictionaryMaxResults)
             } catch {
                 showLookupSheet = false
+                lookupAnchor = nil
                 lookupErrorMessage = error.localizedDescription
                 showSelectionError = true
             }
             isLookingUp = false
         }
+    }
+
+    private func lookupPopupPosition(in size: CGSize, bottomInset: CGFloat) -> CGPoint {
+        let horizontalMargin: CGFloat = 18
+        let popupResolvedWidth = popupFullWidth
+            ? max(size.width - horizontalMargin * 2, 0)
+            : min(CGFloat(popupWidth), max(size.width - horizontalMargin * 2, 0))
+        let popupHalfWidth = popupResolvedWidth / 2
+        let popupHalfHeight = min(CGFloat(popupHeight) / 2, max(size.height / 2 - 40, 120))
+
+        guard popupFullWidth == false, let lookupAnchor else {
+            return CGPoint(
+                x: size.width / 2,
+                y: size.height - bottomInset - popupHalfHeight - 88
+            )
+        }
+
+        let proposedTopY = lookupAnchor.y - popupHalfHeight - 30
+        let fallbackBottomY = lookupAnchor.y + popupHalfHeight + 30
+        let minY = 110 + popupHalfHeight
+        let maxY = size.height - bottomInset - popupHalfHeight - 24
+        let resolvedY = proposedTopY >= minY ? proposedTopY : min(fallbackBottomY, maxY)
+        let resolvedX = min(
+            max(lookupAnchor.x, popupHalfWidth + horizontalMargin),
+            size.width - popupHalfWidth - horizontalMargin
+        )
+
+        return CGPoint(x: resolvedX, y: resolvedY)
     }
 
     private func makeDraft(for selectedText: String) -> AddNoteDraft {
@@ -766,8 +835,14 @@ private struct ReaderLookupPopup: View {
     let query: String
     let result: DictionaryLookupResult?
     let isLoading: Bool
+    let popupWidth: CGFloat
+    let popupHeight: CGFloat
+    let isFullWidth: Bool
+    let swipeToDismiss: Bool
     let onAddNote: () -> Void
     let onClose: () -> Void
+
+    @State private var dragOffset: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -818,7 +893,7 @@ private struct ReaderLookupPopup: View {
                 }
             }
             .scrollIndicators(.hidden)
-            .frame(maxHeight: 300)
+            .frame(maxHeight: max(140, popupHeight - 120))
 
             Button(action: onAddNote) {
                 Label(L("reader_lookup_add_note"), systemImage: "square.and.pencil")
@@ -827,12 +902,28 @@ private struct ReaderLookupPopup: View {
             .buttonStyle(.borderedProminent)
         }
         .padding(18)
+        .frame(maxWidth: isFullWidth ? .infinity : popupWidth, alignment: .leading)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
         }
         .shadow(color: Color.black.opacity(0.12), radius: 24, y: 10)
+        .offset(y: dragOffset)
+        .gesture(
+            swipeToDismiss ?
+                DragGesture(minimumDistance: 10)
+                .onChanged { value in
+                    dragOffset = max(0, value.translation.height)
+                }
+                .onEnded { value in
+                    if value.translation.height > 80 {
+                        onClose()
+                    }
+                    dragOffset = 0
+                }
+            : nil
+        )
     }
 }
 
@@ -880,6 +971,81 @@ private struct ReaderChapterListSheet: View {
         .background(Color.amgiBackground)
         .navigationTitle(L("reader_reader_menu_chapters"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct ReaderChapterInfoOverlay: View {
+    let title: String?
+    let progressLabel: String?
+
+    var body: some View {
+        VStack(spacing: 4) {
+            if let title, !title.isEmpty {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .lineLimit(1)
+            }
+
+            if let progressLabel, !progressLabel.isEmpty {
+                Text(progressLabel)
+                    .font(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .monospacedDigit()
+                    .tracking(-0.3)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 112)
+    }
+}
+
+private struct ReaderChapterBottomProgressOverlay: View {
+    let progressLabel: String
+
+    var body: some View {
+        Text(progressLabel)
+            .font(.caption)
+            .foregroundStyle(Color.amgiTextSecondary)
+            .monospacedDigit()
+            .tracking(-0.3)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 80)
+    }
+}
+
+private struct ReaderTopActionCapsule: View {
+    let onLookup: () -> Void
+    let onAddNote: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button(action: onLookup) {
+                Image(systemName: "text.magnifyingglass")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.amgiTextPrimary)
+                    .frame(width: 54, height: 54)
+            }
+            .buttonStyle(.plain)
+
+            Rectangle()
+                .fill(Color.amgiBorder.opacity(0.2))
+                .frame(width: 1, height: 26)
+
+            Button(action: onAddNote) {
+                Image(systemName: "square.and.pencil")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.amgiTextPrimary)
+                    .frame(width: 54, height: 54)
+            }
+            .buttonStyle(.plain)
+        }
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(Color.amgiBorder.opacity(0.16), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.1), radius: 18, y: 8)
     }
 }
 
@@ -946,9 +1112,9 @@ private struct ReaderLookupEntryCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Color.amgiBorder.opacity(0.22), lineWidth: 1)
         }
     }
@@ -960,12 +1126,18 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     let html: String
     let isVertical: Bool
     let fontSize: Double
+    let hideFurigana: Bool
+    let horizontalPadding: Int
+    let verticalPadding: Int
+    let lineHeight: Double
+    let characterSpacing: Double
+    let scanLength: Int
     let savedProgress: Double
     let selectionRequestID: Int
     let tapLookupEnabled: Bool
     let onProgressChange: (Double) -> Void
     let onSelectionResolved: (String?) -> Void
-    let onLookupRequested: (String?) -> Void
+    let onLookupRequested: (String?, CGPoint) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -1050,75 +1222,209 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
     private static let tapLookupScript = #"""
     (function() {
-        function amgiReaderBoundaryCharacter(ch) {
-            return !ch || /[\s\u00A0.,!?;:'"()\[\]{}<>\/\\|`~@#$%^&*=+，。！？；：、“”‘’（）〔〕【】《》〈〉「」『』…—-]/.test(ch);
-        }
+        window.amgiReaderSelection = {
+            selection: null,
+            scanDelimiters: '。、！？…‥「」『』（）()【】〈〉《》〔〕｛｝{}［］[]・：；:;，,.─\n\r',
 
-        function amgiReaderAsciiWordCharacter(ch) {
-            return !!ch && /[A-Za-z0-9_'-]/.test(ch);
-        }
+            isScanBoundary(char) {
+                return /^[\s\u3000]$/.test(char) || this.scanDelimiters.includes(char);
+            },
+
+            isFurigana(node) {
+                const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+                return !!element?.closest('rt, rp');
+            },
+
+            findParagraph(node) {
+                const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+                return element?.closest('p, li, blockquote, h1, h2, h3, h4, h5, h6, div') || document.body;
+            },
+
+            createWalker(rootNode) {
+                const root = rootNode || document.body;
+                return document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                    acceptNode: (node) => this.isFurigana(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+                });
+            },
+
+            inCharRange(charRange, x, y) {
+                const rects = charRange.getClientRects();
+                if (rects.length) {
+                    for (const rect of rects) {
+                        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                const rect = charRange.getBoundingClientRect();
+                return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+            },
+
+            getCaretRange(x, y) {
+                if (document.caretPositionFromPoint) {
+                    const position = document.caretPositionFromPoint(x, y);
+                    if (!position) {
+                        return null;
+                    }
+
+                    const range = document.createRange();
+                    range.setStart(position.offsetNode, position.offset);
+                    range.collapse(true);
+                    return range;
+                }
+
+                const element = document.elementFromPoint(x, y);
+                if (!element) {
+                    return null;
+                }
+
+                const container = element.closest('p, div, span, ruby, a, li, blockquote') || document.body;
+                const walker = this.createWalker(container);
+                const range = document.createRange();
+                let node;
+
+                while ((node = walker.nextNode())) {
+                    for (let index = 0; index < node.textContent.length; index += 1) {
+                        range.setStart(node, index);
+                        range.setEnd(node, index + 1);
+                        if (this.inCharRange(range, x, y)) {
+                            range.collapse(true);
+                            return range;
+                        }
+                    }
+                }
+
+                return document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
+            },
+
+            getCharacterAtPoint(x, y) {
+                const element = document.elementFromPoint(x, y);
+                if (element && element.closest('a, button, input, textarea, select, audio, video')) {
+                    return null;
+                }
+
+                const range = this.getCaretRange(x, y);
+                if (!range) {
+                    return null;
+                }
+
+                const node = range.startContainer;
+                if (node.nodeType !== Node.TEXT_NODE || this.isFurigana(node)) {
+                    return null;
+                }
+
+                const text = node.textContent || '';
+                const caret = range.startOffset;
+
+                for (const offset of [caret, caret - 1, caret + 1]) {
+                    if (offset < 0 || offset >= text.length) {
+                        continue;
+                    }
+
+                    const charRange = document.createRange();
+                    charRange.setStart(node, offset);
+                    charRange.setEnd(node, offset + 1);
+                    if (this.inCharRange(charRange, x, y)) {
+                        if (this.isScanBoundary(text[offset])) {
+                            return null;
+                        }
+                        return { node, offset };
+                    }
+                }
+
+                return null;
+            },
+
+            getSelectionRect(x, y) {
+                if (!this.selection?.ranges.length) {
+                    return null;
+                }
+
+                const first = this.selection.ranges[0];
+                const range = document.createRange();
+                range.setStart(first.node, first.start);
+                range.setEnd(first.node, Math.min(first.start + 1, first.node.textContent.length));
+
+                const rects = Array.from(range.getClientRects());
+                const rect = rects.find((entry) => x >= entry.left && x <= entry.right && y >= entry.top && y <= entry.bottom) || range.getBoundingClientRect();
+                return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+            },
+
+            clearSelection() {
+                window.getSelection()?.removeAllRanges();
+                this.selection = null;
+            },
+
+            selectText(x, y, maxLength) {
+                const hit = this.getCharacterAtPoint(x, y);
+                if (!hit) {
+                    this.clearSelection();
+                    return null;
+                }
+
+                if (this.selection && hit.node === this.selection.startNode && hit.offset === this.selection.startOffset) {
+                    this.clearSelection();
+                    return null;
+                }
+
+                this.clearSelection();
+
+                const container = this.findParagraph(hit.node) || document.body;
+                const walker = this.createWalker(container);
+                let text = '';
+                let node = hit.node;
+                let offset = hit.offset;
+                const ranges = [];
+
+                walker.currentNode = node;
+                while (text.length < maxLength && node) {
+                    const content = node.textContent || '';
+                    const start = offset;
+
+                    while (offset < content.length && text.length < maxLength) {
+                        const character = content[offset];
+                        if (this.isScanBoundary(character)) {
+                            break;
+                        }
+                        text += character;
+                        offset += 1;
+                    }
+
+                    if (offset > start) {
+                        ranges.push({ node, start, end: offset });
+                    }
+
+                    if (offset < content.length || text.length >= maxLength) {
+                        break;
+                    }
+
+                    node = walker.nextNode();
+                    offset = 0;
+                }
+
+                if (!text) {
+                    return null;
+                }
+
+                this.selection = {
+                    startNode: hit.node,
+                    startOffset: hit.offset,
+                    ranges,
+                    text
+                };
+
+                return {
+                    text,
+                    rect: this.getSelectionRect(x, y)
+                };
+            }
+        };
 
         window.amgiReaderLookupTextAt = function(x, y) {
-            var node = null;
-            var offset = 0;
-
-            if (document.caretRangeFromPoint) {
-                var range = document.caretRangeFromPoint(x, y);
-                if (range) {
-                    node = range.startContainer;
-                    offset = range.startOffset;
-                }
-            } else if (document.caretPositionFromPoint) {
-                var position = document.caretPositionFromPoint(x, y);
-                if (position) {
-                    node = position.offsetNode;
-                    offset = position.offset;
-                }
-            }
-
-            if (!node || node.nodeType !== Node.TEXT_NODE) {
-                return '';
-            }
-
-            var parentElement = node.parentElement;
-            if (parentElement && parentElement.closest('a, button, input, textarea, select, audio, video')) {
-                return '';
-            }
-
-            var text = node.textContent || '';
-            if (!text.trim()) {
-                return '';
-            }
-
-            var index = Math.min(Math.max(offset, 0), Math.max(text.length - 1, 0));
-            if (index > 0 && amgiReaderBoundaryCharacter(text[index]) && !amgiReaderBoundaryCharacter(text[index - 1])) {
-                index -= 1;
-            }
-
-            var current = text[index] || '';
-            var previous = text[index - 1] || '';
-            if (amgiReaderAsciiWordCharacter(current) || amgiReaderAsciiWordCharacter(previous)) {
-                var start = amgiReaderAsciiWordCharacter(current) ? index : Math.max(index - 1, 0);
-                while (start > 0 && amgiReaderAsciiWordCharacter(text[start - 1])) {
-                    start -= 1;
-                }
-                var end = start;
-                while (end < text.length && amgiReaderAsciiWordCharacter(text[end])) {
-                    end += 1;
-                }
-                return text.slice(start, end).trim();
-            }
-
-            while (index < text.length && amgiReaderBoundaryCharacter(text[index])) {
-                index += 1;
-            }
-
-            var maxLength = 16;
-            var endIndex = index;
-            while (endIndex < text.length && !amgiReaderBoundaryCharacter(text[endIndex]) && endIndex - index < maxLength) {
-                endIndex += 1;
-            }
-            return text.slice(index, endIndex).trim();
+            const result = window.amgiReaderSelection.selectText(x, y, window.amgiReaderScanLength || 16);
+            return result ? result.text : '';
         };
     })();
     """#
@@ -1130,7 +1436,16 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         let renderedContent = renderedFragment(for: fragment)
         let writingMode = isVertical ? "vertical-rl" : "horizontal-tb"
         let bodyWidthRule = isVertical ? "width: max-content; min-width: 100%;" : "max-width: 100%;"
-        let bodyPadding = isVertical ? "padding: 24px 28px 28px 28px;" : "padding: 24px 20px 40px 20px;"
+        let resolvedHorizontalPadding = max(horizontalPadding, 0)
+        let resolvedVerticalPadding = max(verticalPadding, 0)
+        let bodyPadding = isVertical
+            ? "padding: \(24 + resolvedVerticalPadding * 2)px \(28 + resolvedHorizontalPadding * 2)px \(28 + resolvedVerticalPadding * 2)px \(28 + resolvedHorizontalPadding * 2)px;"
+            : "padding: \(24 + resolvedVerticalPadding * 2)px \(20 + resolvedHorizontalPadding * 2)px \(40 + resolvedVerticalPadding * 2)px \(20 + resolvedHorizontalPadding * 2)px;"
+        let rubyRule = hideFurigana
+            ? "ruby rt { display: none; }"
+            : "ruby rt { font-size: 0.55em; color: rgba(127, 127, 127, 0.9); }"
+        let letterSpacing = characterSpacing / 100
+        let resolvedScanLength = max(scanLength, 1)
 
         return """
         <!doctype html>
@@ -1139,6 +1454,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         <meta charset=\"utf-8\">
         <meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no\">
         \(CardAssetPath.mediaBaseTag())
+        <script>
+        window.amgiReaderScanLength = \(resolvedScanLength);
+        </script>
         <style>
         html, body {
             margin: 0;
@@ -1152,8 +1470,8 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             text-orientation: mixed;
             font-family: -apple-system, BlinkMacSystemFont, \"SF Pro Text\", sans-serif;
             font-size: \(fontSize)px;
-            line-height: 1.85;
-            letter-spacing: 0.01em;
+            line-height: \(lineHeight);
+            letter-spacing: \(letterSpacing)em;
             \(bodyWidthRule)
             \(bodyPadding)
             box-sizing: border-box;
@@ -1172,10 +1490,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         a {
             color: \(linkColor);
         }
-        ruby rt {
-            font-size: 0.55em;
-            color: rgba(127, 127, 127, 0.9);
-        }
+        \(rubyRule)
         </style>
         </head>
         <body>\(renderedContent)</body>
@@ -1209,15 +1524,17 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         var lastHTML = ""
         var pendingProgress: Double
         var lastSelectionRequestID = 0
+        private var didRestoreInitialProgress = false
+        private var isRestoringProgress = false
         private let onProgressChange: (Double) -> Void
         let onSelectionResolved: (String?) -> Void
-        let onLookupRequested: (String?) -> Void
+        let onLookupRequested: (String?, CGPoint) -> Void
 
         init(
             savedProgress: Double,
             onProgressChange: @escaping (Double) -> Void,
             onSelectionResolved: @escaping (String?) -> Void,
-            onLookupRequested: @escaping (String?) -> Void
+            onLookupRequested: @escaping (String?, CGPoint) -> Void
         ) {
             self.pendingProgress = savedProgress
             self.onProgressChange = onProgressChange
@@ -1225,23 +1542,22 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             self.onLookupRequested = onLookupRequested
         }
 
-        @objc func handleTapLookup(_ recognizer: UITapGestureRecognizer) {
-            guard recognizer.state == .ended,
-                  parent?.tapLookupEnabled == true,
-                  let webView = recognizer.view as? WKWebView else {
+                @objc func handleTapLookup(_ recognizer: UITapGestureRecognizer) {
+                        guard recognizer.state == .ended,
+                                    parent?.tapLookupEnabled == true,
+                                    let webView = recognizer.view as? WKWebView else {
                 return
             }
 
             let point = recognizer.location(in: webView)
             let script = "window.amgiReaderLookupTextAt ? window.amgiReaderLookupTextAt(\(point.x), \(point.y)) : ''"
             webView.evaluateJavaScript(script) { [onLookupRequested] value, _ in
-                onLookupRequested(value as? String)
+                onLookupRequested(value as? String, point)
             }
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             restoreProgress(in: webView.scrollView)
-            reportProgress(for: webView.scrollView)
         }
 
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -1260,12 +1576,21 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 targetOffset = CGPoint(x: 0, y: maxOffset * clampedProgress)
             }
 
+            didRestoreInitialProgress = false
+            isRestoringProgress = true
             DispatchQueue.main.async {
                 scrollView.setContentOffset(targetOffset, animated: false)
+                self.isRestoringProgress = false
+                self.didRestoreInitialProgress = true
+                self.reportProgress(for: scrollView)
             }
         }
 
         private func reportProgress(for scrollView: UIScrollView) {
+            guard didRestoreInitialProgress, isRestoringProgress == false else {
+                return
+            }
+
             let progress: Double
             if parent?.isVertical == true {
                 let maxOffset = max(scrollView.contentSize.width - scrollView.bounds.width, 1)

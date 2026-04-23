@@ -297,6 +297,31 @@
 "settings_reader_advanced_settings" = "高度な設定";
 "settings_reader_tap_lookup" = "タップで検索";
 "settings_reader_tap_lookup_description" = "リーダー内のテキストをタップすると、すぐに辞書検索を開きます。";
+"settings_reader_display_section_text" = "文字";
+"settings_reader_display_section_layout" = "レイアウト";
+"settings_reader_display_section_display" = "表示";
+"settings_reader_display_section_popup" = "ポップアップ";
+"settings_reader_text_orientation" = "文字方向";
+"settings_reader_text_orientation_vertical" = "縦";
+"settings_reader_text_orientation_horizontal" = "横";
+"settings_reader_hide_furigana" = "ふりがなを隠す";
+"settings_reader_horizontal_padding" = "左右余白";
+"settings_reader_vertical_padding" = "上下余白";
+"settings_reader_padding_value" = "%d%%";
+"settings_reader_layout_advanced" = "高度なレイアウト";
+"settings_reader_line_height" = "行間";
+"settings_reader_line_height_value" = "%.2f";
+"settings_reader_character_spacing" = "字間";
+"settings_reader_character_spacing_value" = "%d%%";
+"settings_reader_display_show_title" = "タイトルを表示";
+"settings_reader_display_show_percentage" = "割合を表示";
+"settings_reader_display_progress_position" = "進捗位置";
+"settings_reader_display_progress_position_top" = "上";
+"settings_reader_display_progress_position_bottom" = "下";
+"settings_reader_popup_width" = "幅";
+"settings_reader_popup_height" = "高さ";
+"settings_reader_popup_full_width" = "全幅表示";
+"settings_reader_popup_swipe_to_dismiss" = "スワイプで閉じる";
 "settings_reader_dictionary_settings" = "辞書設定";
 "settings_reader_dictionary_section_recommended" = "おすすめ";
 "settings_reader_dictionary_download_recommended" = "おすすめ辞書をダウンロード";
@@ -308,6 +333,9 @@
 "settings_reader_dictionary_section_term" = "用語辞書";
 "settings_reader_dictionary_section_frequency" = "頻度辞書";
 "settings_reader_dictionary_section_pitch" = "アクセント辞書";
+"settings_reader_dictionary_section_settings" = "設定";
+"settings_reader_dictionary_max_results" = "最大結果数";
+"settings_reader_dictionary_scan_length" = "スキャン長";
 "settings_reader_dictionary_empty" = "まだ辞書が読み込まれていません。";
 "settings_reader_dictionary_revision" = "リビジョン: %@";
 "settings_reader_dictionary_busy" = "辞書を準備中...";
@@ -376,6 +404,7 @@
 "reader_reader_previous_chapter" = "前の章";
 "reader_reader_next_chapter" = "次の章";
 "reader_reader_position" = "第 %1$d / %2$d 章   %.1f%%";
+"reader_reader_position_chapter_only" = "第 %1$d / %2$d 章";
 
 // MARK: - Backup
 "backup_nav_title" = "バックアップ";

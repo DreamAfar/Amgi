@@ -1,5 +1,6 @@
 import SwiftUI
 import AnkiBackend
+import AnkiClients
 import AnkiKit
 import AnkiProto
 import AnkiSync
@@ -160,6 +161,9 @@ struct AnkiAppApp: App {
             mediaFolderPath: urls.mediaDirectory.path,
             mediaDbPath: urls.mediaDB.path
         )
+
+        ReaderProgressStore.migrateLegacyMediaIfNeeded()
+        try? DictionaryLookupConfigMigration.migrateLegacyMirroredConfigIfNeeded(backend: backend)
     }
 }
 

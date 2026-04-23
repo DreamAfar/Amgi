@@ -297,6 +297,31 @@
 "settings_reader_advanced_settings" = "Advanced Settings";
 "settings_reader_tap_lookup" = "Tap to Lookup";
 "settings_reader_tap_lookup_description" = "Tap text in the reader to open dictionary lookup directly.";
+"settings_reader_display_section_text" = "Text";
+"settings_reader_display_section_layout" = "Layout";
+"settings_reader_display_section_display" = "Display";
+"settings_reader_display_section_popup" = "Popup";
+"settings_reader_text_orientation" = "Text Orientation";
+"settings_reader_text_orientation_vertical" = "Vertical";
+"settings_reader_text_orientation_horizontal" = "Horizontal";
+"settings_reader_hide_furigana" = "Hide Furigana";
+"settings_reader_horizontal_padding" = "Horizontal Padding";
+"settings_reader_vertical_padding" = "Vertical Padding";
+"settings_reader_padding_value" = "%d%%";
+"settings_reader_layout_advanced" = "Advanced Layout";
+"settings_reader_line_height" = "Line Height";
+"settings_reader_line_height_value" = "%.2f";
+"settings_reader_character_spacing" = "Character Spacing";
+"settings_reader_character_spacing_value" = "%d%%";
+"settings_reader_display_show_title" = "Show Title";
+"settings_reader_display_show_percentage" = "Show Percentage";
+"settings_reader_display_progress_position" = "Progress Position";
+"settings_reader_display_progress_position_top" = "Top";
+"settings_reader_display_progress_position_bottom" = "Bottom";
+"settings_reader_popup_width" = "Width";
+"settings_reader_popup_height" = "Height";
+"settings_reader_popup_full_width" = "Full-width";
+"settings_reader_popup_swipe_to_dismiss" = "Swipe to Dismiss";
 "settings_reader_dictionary_settings" = "Dictionary Settings";
 "settings_reader_dictionary_section_recommended" = "Recommended";
 "settings_reader_dictionary_download_recommended" = "Download Recommended Dictionaries";
@@ -308,6 +333,9 @@
 "settings_reader_dictionary_section_term" = "Term Dictionaries";
 "settings_reader_dictionary_section_frequency" = "Frequency Dictionaries";
 "settings_reader_dictionary_section_pitch" = "Pitch Dictionaries";
+"settings_reader_dictionary_section_settings" = "Settings";
+"settings_reader_dictionary_max_results" = "Max Results";
+"settings_reader_dictionary_scan_length" = "Scan Length";
 "settings_reader_dictionary_empty" = "No dictionaries imported yet.";
 "settings_reader_dictionary_revision" = "Revision: %@";
 "settings_reader_dictionary_busy" = "Preparing dictionaries...";
@@ -376,6 +404,7 @@
 "reader_reader_previous_chapter" = "Previous";
 "reader_reader_next_chapter" = "Next";
 "reader_reader_position" = "Chapter %1$d / %2$d   %.1f%%";
+"reader_reader_position_chapter_only" = "Chapter %1$d / %2$d";
 
 // MARK: - Backup
 "backup_nav_title" = "Backups";

@@ -5,6 +5,8 @@ import Dependencies
 
 struct ReaderDictionarySettingsView: View {
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
+    @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var maxResults = 16
+    @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var scanLength = 16
 
     @State private var libraryState = AppDictionaryLibraryState.empty
     @State private var isBusy = false
@@ -33,22 +35,26 @@ struct ReaderDictionarySettingsView: View {
             }
             .listRowBackground(Color.amgiSurfaceElevated)
 
-            Section(L("settings_reader_dictionary_section_import")) {
-                importButton(
-                    title: L("settings_reader_dictionary_import_term"),
-                    systemImage: "text.book.closed",
-                    kind: .term
-                )
-                importButton(
-                    title: L("settings_reader_dictionary_import_frequency"),
-                    systemImage: "chart.bar",
-                    kind: .frequency
-                )
-                importButton(
-                    title: L("settings_reader_dictionary_import_pitch"),
-                    systemImage: "waveform.path.ecg",
-                    kind: .pitch
-                )
+            Section(L("settings_reader_dictionary_section_settings")) {
+                HStack {
+                    Text(L("settings_reader_dictionary_max_results"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    Text("\(maxResults)")
+                        .foregroundStyle(Color.amgiAccent)
+                    Stepper("", value: $maxResults, in: 1...50)
+                        .labelsHidden()
+                }
+
+                HStack {
+                    Text(L("settings_reader_dictionary_scan_length"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    Text("\(scanLength)")
+                        .foregroundStyle(Color.amgiAccent)
+                    Stepper("", value: $scanLength, in: 1...64)
+                        .labelsHidden()
+                }
             }
             .listRowBackground(Color.amgiSurfaceElevated)
 
@@ -76,8 +82,33 @@ struct ReaderDictionarySettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
         .navigationTitle(L("settings_reader_dictionary_settings"))
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .disabled(isBusy)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    importButton(
+                        title: L("settings_reader_dictionary_import_term"),
+                        systemImage: "text.book.closed",
+                        kind: .term
+                    )
+
+                    importButton(
+                        title: L("settings_reader_dictionary_import_frequency"),
+                        systemImage: "chart.bar",
+                        kind: .frequency
+                    )
+
+                    importButton(
+                        title: L("settings_reader_dictionary_import_pitch"),
+                        systemImage: "waveform.path.ecg",
+                        kind: .pitch
+                    )
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
         .overlay {
             if isBusy {
                 ZStack {

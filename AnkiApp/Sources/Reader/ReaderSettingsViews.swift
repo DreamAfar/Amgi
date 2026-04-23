@@ -265,11 +265,34 @@ struct ReaderSourceSettingsView: View {
 struct ReaderDisplaySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
     @AppStorage(ReaderPreferences.Keys.fontSize) private var readerFontSize = 24
+    @AppStorage(ReaderPreferences.Keys.hideFurigana) private var hideFurigana = false
+    @AppStorage(ReaderPreferences.Keys.horizontalPadding) private var horizontalPadding = 5
+    @AppStorage(ReaderPreferences.Keys.verticalPadding) private var verticalPadding = 0
+    @AppStorage(ReaderPreferences.Keys.layoutAdvanced) private var layoutAdvanced = false
+    @AppStorage(ReaderPreferences.Keys.lineHeight) private var lineHeight = 1.65
+    @AppStorage(ReaderPreferences.Keys.characterSpacing) private var characterSpacing = 0.0
+    @AppStorage(ReaderPreferences.Keys.showTitle) private var showTitle = true
+    @AppStorage(ReaderPreferences.Keys.showPercentage) private var showPercentage = true
+    @AppStorage(ReaderPreferences.Keys.showProgressTop) private var showProgressTop = true
+    @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
+    @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
+    @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
+    @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
 
     var body: some View {
         List {
-            Section(L("settings_reader_display_settings")) {
-                Toggle(L("settings_reader_vertical_layout"), isOn: $verticalLayout)
+            Section(L("settings_reader_display_section_text")) {
+                HStack {
+                    Text(L("settings_reader_text_orientation"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Picker("", selection: $verticalLayout) {
+                        Text(L("settings_reader_text_orientation_vertical")).tag(true)
+                        Text(L("settings_reader_text_orientation_horizontal")).tag(false)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 110)
+                }
 
                 HStack {
                     Text(L("settings_reader_font_size"))
@@ -280,6 +303,121 @@ struct ReaderDisplaySettingsView: View {
                     Stepper("", value: $readerFontSize, in: 16...40)
                         .labelsHidden()
                 }
+
+                Toggle(L("settings_reader_hide_furigana"), isOn: $hideFurigana)
+            }
+            .amgiSettingsListRowSurface()
+
+            Section(L("settings_reader_display_section_layout")) {
+                HStack {
+                    Text(L("settings_reader_horizontal_padding"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Text(L("settings_reader_padding_value", horizontalPadding))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                    Stepper("", value: $horizontalPadding, in: 0...20)
+                        .labelsHidden()
+                }
+
+                HStack {
+                    Text(L("settings_reader_vertical_padding"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Text(L("settings_reader_padding_value", verticalPadding))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                    Stepper("", value: $verticalPadding, in: 0...20)
+                        .labelsHidden()
+                }
+
+                Toggle(L("settings_reader_layout_advanced"), isOn: $layoutAdvanced)
+
+                if layoutAdvanced {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(L("settings_reader_line_height"))
+                                .foregroundStyle(SettingsValueStyle.primary)
+                            Spacer()
+                            Text(L("settings_reader_line_height_value", lineHeight))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                        }
+                        Slider(value: $lineHeight, in: 1.0...2.5, step: 0.05)
+                            .tint(Color.amgiAccent)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(L("settings_reader_character_spacing"))
+                                .foregroundStyle(SettingsValueStyle.primary)
+                            Spacer()
+                            Text(L("settings_reader_character_spacing_value", Int(characterSpacing)))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                        }
+                        Slider(value: $characterSpacing, in: -10...10, step: 1)
+                            .tint(Color.amgiAccent)
+                    }
+                }
+            }
+            .amgiSettingsListRowSurface()
+
+            Section(L("settings_reader_display_section_display")) {
+                Toggle(L("settings_reader_display_show_title"), isOn: $showTitle)
+                Toggle(L("settings_reader_display_show_percentage"), isOn: $showPercentage)
+
+                HStack {
+                    Text(L("settings_reader_display_progress_position"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Picker("", selection: $showProgressTop) {
+                        Text(L("settings_reader_display_progress_position_top")).tag(true)
+                        Text(L("settings_reader_display_progress_position_bottom")).tag(false)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 120)
+                }
+            }
+            .amgiSettingsListRowSurface()
+
+            Section(L("settings_reader_display_section_popup")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(L("settings_reader_popup_width"))
+                            .foregroundStyle(SettingsValueStyle.primary)
+                        Spacer()
+                        Text("\(popupWidth)")
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                    }
+                    Slider(
+                        value: Binding(
+                            get: { Double(popupWidth) },
+                            set: { popupWidth = Int($0.rounded()) }
+                        ),
+                        in: 240...420,
+                        step: 10
+                    )
+                    .tint(Color.amgiAccent)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(L("settings_reader_popup_height"))
+                            .foregroundStyle(SettingsValueStyle.primary)
+                        Spacer()
+                        Text("\(popupHeight)")
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                    }
+                    Slider(
+                        value: Binding(
+                            get: { Double(popupHeight) },
+                            set: { popupHeight = Int($0.rounded()) }
+                        ),
+                        in: 180...420,
+                        step: 10
+                    )
+                    .tint(Color.amgiAccent)
+                }
+
+                Toggle(L("settings_reader_popup_full_width"), isOn: $popupFullWidth)
+                Toggle(L("settings_reader_popup_swipe_to_dismiss"), isOn: $popupSwipeToDismiss)
             }
             .amgiSettingsListRowSurface()
         }
@@ -296,6 +434,30 @@ struct ReaderAdvancedSettingsView: View {
     var body: some View {
         List {
             Section {
+                NavigationLink {
+                    ReaderSourceSettingsView()
+                } label: {
+                    Label(L("settings_reader_section_source"), systemImage: "tray.full")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                }
+
+                NavigationLink {
+                    ReaderDisplaySettingsView()
+                } label: {
+                    Label(L("settings_reader_display_settings"), systemImage: "paintbrush")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                }
+
+                NavigationLink {
+                    ReaderDictionarySettingsView()
+                } label: {
+                    Label(L("settings_reader_dictionary_settings"), systemImage: "character.book.closed")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                }
+            }
+            .amgiSettingsListRowSurface()
+
+            Section {
                 Toggle(L("settings_reader_tap_lookup"), isOn: $tapLookupEnabled)
                     .foregroundStyle(SettingsValueStyle.primary)
             } footer: {
@@ -306,6 +468,6 @@ struct ReaderAdvancedSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
         .navigationTitle(L("settings_reader_advanced_settings"))
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
     }
 }
