@@ -1572,7 +1572,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             restoreGeneration += 1
-            restoreProgress(in: webView.scrollView, remainingAttempts: 8, generation: restoreGeneration)
+            restoreProgress(in: webView.scrollView, remainingAttempts: 40, generation: restoreGeneration)
         }
 
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -1604,6 +1604,14 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                         generation: generation
                     )
                 }
+                return
+            }
+
+            if clampedProgress > 0,
+               maxOffset <= 0 {
+                // Content size is still not ready; do not overwrite persisted progress to 0.
+                didRestoreInitialProgress = true
+                isRestoringProgress = false
                 return
             }
 
