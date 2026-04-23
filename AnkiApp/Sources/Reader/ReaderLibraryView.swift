@@ -46,7 +46,8 @@ struct ReaderLibraryView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.readerBookClient) var readerBookClient
 
-    private static let bookCardWidth: CGFloat = 108
+    private static let bookCardWidth: CGFloat = 100
+    private static let bookCoverHeight: CGFloat = 136
     private static let bookGridSpacing: CGFloat = 12
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
@@ -155,7 +156,7 @@ struct ReaderLibraryView: View {
                                 .padding(.horizontal, 2)
                         }
 
-                        LazyVGrid(columns: bookGridColumns, alignment: .leading, spacing: 16) {
+                        LazyVGrid(columns: bookGridColumns, alignment: .center, spacing: Self.bookGridSpacing) {
                             ForEach(sortedBooks) { book in
                                 if isSelecting {
                                     Button {
@@ -198,8 +199,9 @@ struct ReaderLibraryView: View {
                         }
                     }
                 } label: {
-                    Label(L("reader_library_sort_menu"), systemImage: "arrow.up.arrow.down.circle")
+                    Image(systemName: "arrow.up.arrow.down.circle")
                 }
+                .accessibilityLabel(Text(L("reader_library_sort_menu")))
 
                 Button {
                     if isSelecting {
@@ -362,7 +364,7 @@ private struct ReaderBookCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(
                     LinearGradient(
@@ -371,7 +373,7 @@ private struct ReaderBookCard: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: ReaderLibraryView.bookCardWidth, height: 140)
+                .frame(width: ReaderLibraryView.bookCardWidth, height: ReaderLibraryView.bookCoverHeight)
                 .overlay {
                     Image(systemName: "books.vertical.fill")
                         .font(.system(size: 36, weight: .semibold))
@@ -389,6 +391,7 @@ private struct ReaderBookCard: View {
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
                 }
+                .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(book.title)
@@ -396,11 +399,12 @@ private struct ReaderBookCard: View {
                     .foregroundStyle(Color.amgiTextPrimary)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: 34, alignment: .topLeading)
 
                 ProgressView(value: progressValue)
                     .tint(Color.amgiAccent)
             }
-            .frame(height: 42, alignment: .top)
+            .frame(height: 46, alignment: .top)
         }
         .frame(width: ReaderLibraryView.bookCardWidth)
     }
@@ -1648,7 +1652,7 @@ private struct ReaderLookupSection: Identifiable {
     let pitch: String?
 
     var id: String {
-        "\(index)-\(heading)-\(term)-\(dictionaryName ?? \"\")"
+        "\(index)-\(heading)-\(term)-\(dictionaryName ?? "")"
     }
 
     init(index: Int, entry: DictionaryLookupEntry) {
@@ -1779,6 +1783,7 @@ private struct ReaderLookupFrequencyBadge: View {
     }
 }
 
+@MainActor
 private final class ReaderLookupSpeechPlayer {
     static let shared = ReaderLookupSpeechPlayer()
 
