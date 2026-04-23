@@ -413,6 +413,29 @@ private struct ReaderBookCard: View {
 private struct ReaderBookDetailView: View {
     let book: ReaderBook
 
+    @AppStorage(ReaderPreferences.Keys.themeMode) private var themeModeRawValue = ReaderThemeMode.system.rawValue
+    @AppStorage(ReaderPreferences.Keys.customContentColor) private var customContentColorHex = "#FFFDF8"
+    @AppStorage(ReaderPreferences.Keys.customBackgroundColor) private var customBackgroundColorHex = "#FFFDF8"
+    @AppStorage(ReaderPreferences.Keys.customTextColor) private var customTextColorHex = "#17212F"
+    @AppStorage(ReaderPreferences.Keys.customHintColor) private var customHintColorHex = "#7F7F7F"
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var themeMode: ReaderThemeMode {
+        ReaderThemeMode(rawValue: themeModeRawValue) ?? .system
+    }
+    private var resolvedListBackground: Color {
+        switch themeMode {
+        case .system:
+            return colorScheme == .dark ? Color(red: 0.09, green: 0.11, blue: 0.15) : Color(red: 1.0, green: 0.99, blue: 0.97)
+        case .eyeCare:
+            return Color(red: 0.95, green: 0.98, blue: 0.95)
+        case .sepia:
+            return Color(red: 0.98, green: 0.95, blue: 0.88)
+        case .custom:
+            return Color(readerHex: customBackgroundColorHex, fallback: Color(red: 1.0, green: 0.99, blue: 0.97))
+        }
+    }
+
     private var savedProgress: ReaderSavedProgress? {
         ReaderProgressStore.load(bookID: book.id)
     }
@@ -463,7 +486,7 @@ private struct ReaderBookDetailView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(resolvedListBackground)
         .navigationTitle(book.title)
         .navigationBarTitleDisplayMode(.inline)
     }
