@@ -17,7 +17,7 @@ struct ReaderDictionarySettingsView: View {
 
     var body: some View {
         List {
-            Section(L("settings_reader_dictionary_section_recommended")) {
+            Section {
                 Button {
                     Task {
                         await downloadRecommendedDictionaries()
@@ -26,6 +26,8 @@ struct ReaderDictionarySettingsView: View {
                     Label(L("settings_reader_dictionary_download_recommended"), systemImage: "arrow.down.circle")
                 }
                 .disabled(isBusy)
+            } header: {
+                Text(L("settings_reader_dictionary_section_recommended"))
             } footer: {
                 Text(L("settings_reader_dictionary_recommended_description"))
             }
