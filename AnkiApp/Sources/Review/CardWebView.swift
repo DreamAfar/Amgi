@@ -23,6 +23,7 @@ struct CardWebView: UIViewRepresentable {
     let isAnswerSide: Bool
     let cardOrdinal: UInt32
     let replayRequestID: Int
+    let stopAudioRequestID: Int
     let typedAnswerRequestID: Int
     let replayMode: ReplayMode
     let showInlineAudioReplayButtons: Bool
@@ -40,6 +41,7 @@ struct CardWebView: UIViewRepresentable {
         isAnswerSide: Bool = false,
         cardOrdinal: UInt32 = 0,
         replayRequestID: Int = 0,
+        stopAudioRequestID: Int = 0,
         typedAnswerRequestID: Int = 0,
         replayMode: ReplayMode = .question,
         showInlineAudioReplayButtons: Bool = true,
@@ -56,6 +58,7 @@ struct CardWebView: UIViewRepresentable {
         self.isAnswerSide = isAnswerSide
         self.cardOrdinal = cardOrdinal
         self.replayRequestID = replayRequestID
+        self.stopAudioRequestID = stopAudioRequestID
         self.typedAnswerRequestID = typedAnswerRequestID
         self.replayMode = replayMode
         self.showInlineAudioReplayButtons = showInlineAudioReplayButtons
@@ -185,6 +188,11 @@ struct CardWebView: UIViewRepresentable {
         if replayRequestID != context.coordinator.lastReplayRequestID {
             context.coordinator.lastReplayRequestID = replayRequestID
             webView.evaluateJavaScript("window.amgiReplayAll && window.amgiReplayAll('" + replayMode.rawValue + "');", completionHandler: nil)
+        }
+
+        if stopAudioRequestID != context.coordinator.lastStopAudioRequestID {
+            context.coordinator.lastStopAudioRequestID = stopAudioRequestID
+            webView.evaluateJavaScript("window.amgiStopAllAudio && window.amgiStopAllAudio();", completionHandler: nil)
         }
 
         if typedAnswerRequestID != context.coordinator.lastTypedAnswerRequestID {
@@ -684,6 +692,20 @@ struct CardWebView: UIViewRepresentable {
                 if (!mustWaitForNetwork) resolve();
             });
         }
+        function amgiClearDynamicHeadResources() {
+            document.head.querySelectorAll('[data-amgi-card-head-resource="1"]').forEach(function(node) {
+                node.remove();
+            });
+        }
+        function amgiHoistDynamicHeadResources(element) {
+            amgiClearDynamicHeadResources();
+            Array.from(element.querySelectorAll('style, link[rel~="stylesheet"]')).forEach(function(resource) {
+                var clone = resource.cloneNode(true);
+                clone.setAttribute('data-amgi-card-head-resource', '1');
+                document.head.appendChild(clone);
+                resource.remove();
+            });
+        }
         async function amgiSetInnerHTML(element, html) {
             // Pause & drain video elements first (mirrors upstream setInnerHTML)
             Array.from(element.getElementsByTagName('video')).forEach(function(v) {
@@ -692,6 +714,7 @@ struct CardWebView: UIViewRepresentable {
                 v.load();
             });
             element.innerHTML = html;
+            amgiHoistDynamicHeadResources(element);
             for (var script of Array.from(element.getElementsByTagName('script'))) {
                 await amgiReplaceScript(script);
             }
@@ -720,6 +743,7 @@ struct CardWebView: UIViewRepresentable {
             });
             notifyAudioState(false);
         }
+        window.amgiStopAllAudio = stopAllSystemAudio;
         function collectAudioQueue(mode) {
             var all = Array.from(document.querySelectorAll('.anki-sound-audio'));
             if (mode === 'question') return all;
@@ -1468,6 +1492,7 @@ struct CardWebView: UIViewRepresentable {
         var lastPageSignature: String?
         var lastContentSignature: String?
         var lastReplayRequestID: Int = 0
+        var lastStopAudioRequestID: Int = 0
         var lastTypedAnswerRequestID: Int = 0
         var isPageLoaded = false
         var pendingUpdateScript: String?

@@ -25,6 +25,7 @@ struct ReviewView: View {
     @State private var showCardInfo = false
     @State private var currentCardStatsTarget: ReviewCardStatsTarget?
     @State private var replayRequestID = 0
+    @State private var stopAudioRequestID = 0
     @State private var isAudioPlaying = false
     @State private var autoAdvanceTask: Task<Void, Never>?
     @State private var answerFeedbackSymbol: String?
@@ -339,9 +340,13 @@ struct ReviewView: View {
         if prefShowAudioReplayButton {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    replayRequestID += 1
+                    if isAudioPlaying {
+                        stopAudioRequestID += 1
+                    } else {
+                        replayRequestID += 1
+                    }
                 } label: {
-                    Image(systemName: "play.circle")
+                    Image(systemName: isAudioPlaying ? "pause.circle" : "play.circle")
                 }
                 .disabled(session.currentCard == nil)
             }
@@ -413,6 +418,7 @@ struct ReviewView: View {
             isAnswerSide: session.showAnswer,
             cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
             replayRequestID: replayRequestID,
+            stopAudioRequestID: stopAudioRequestID,
             typedAnswerRequestID: typedAnswerRequestID,
             replayMode: replayMode,
             showInlineAudioReplayButtons: prefShowAudioReplayButton,

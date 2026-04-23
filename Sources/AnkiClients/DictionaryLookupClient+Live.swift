@@ -1,5 +1,5 @@
 import CHoshiDicts
-import AnkiBackend
+public import AnkiBackend
 import Foundation
 public import Dependencies
 
