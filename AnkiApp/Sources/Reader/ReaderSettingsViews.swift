@@ -3,6 +3,7 @@ import AnkiBackend
 import AnkiKit
 import AnkiClients
 import Dependencies
+import UIKit
 
 struct ReaderSettingsHomeView: View {
     @AppStorage(ReaderPreferences.Keys.showTab) private var isReaderTabEnabled = false
@@ -263,11 +264,53 @@ struct ReaderDisplaySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.showTitle) private var showTitle = true
     @AppStorage(ReaderPreferences.Keys.showPercentage) private var showPercentage = true
     @AppStorage(ReaderPreferences.Keys.showProgressTop) private var showProgressTop = true
+    @AppStorage(ReaderPreferences.Keys.themeMode) private var themeModeRawValue = ReaderThemeMode.system.rawValue
+    @AppStorage(ReaderPreferences.Keys.customContentColor) private var customContentColorHex = "#FFFDF8"
+    @AppStorage(ReaderPreferences.Keys.customBackgroundColor) private var customBackgroundColorHex = "#FFFDF8"
+    @AppStorage(ReaderPreferences.Keys.customTextColor) private var customTextColorHex = "#17212F"
+    @AppStorage(ReaderPreferences.Keys.customHintColor) private var customHintColorHex = "#7F7F7F"
     @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
     @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
     @AppStorage(ReaderPreferences.Keys.popupFontSize) private var popupFontSize = 14
+    @AppStorage(ReaderPreferences.Keys.popupFrequencyFontSize) private var popupFrequencyFontSize = 13
+    @AppStorage(ReaderPreferences.Keys.popupContentFontSize) private var popupContentFontSize = 14
+    @AppStorage(ReaderPreferences.Keys.popupDictionaryNameFontSize) private var popupDictionaryNameFontSize = 13
+    @AppStorage(ReaderPreferences.Keys.popupKanaFontSize) private var popupKanaFontSize = 14
     @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
     @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
+
+    private var themeMode: ReaderThemeMode {
+        get { ReaderThemeMode(rawValue: themeModeRawValue) ?? .system }
+        set { themeModeRawValue = newValue.rawValue }
+    }
+
+    private var customContentColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(readerHex: customContentColorHex, fallback: .init(red: 1.0, green: 253 / 255, blue: 248 / 255)) },
+            set: { customContentColorHex = $0.readerHexString() }
+        )
+    }
+
+    private var customBackgroundColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(readerHex: customBackgroundColorHex, fallback: .init(red: 1.0, green: 253 / 255, blue: 248 / 255)) },
+            set: { customBackgroundColorHex = $0.readerHexString() }
+        )
+    }
+
+    private var customTextColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(readerHex: customTextColorHex, fallback: .init(red: 23 / 255, green: 33 / 255, blue: 47 / 255)) },
+            set: { customTextColorHex = $0.readerHexString() }
+        )
+    }
+
+    private var customHintColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(readerHex: customHintColorHex, fallback: .init(red: 127 / 255, green: 127 / 255, blue: 127 / 255)) },
+            set: { customHintColorHex = $0.readerHexString() }
+        )
+    }
 
     var body: some View {
         List {
@@ -350,6 +393,26 @@ struct ReaderDisplaySettingsView: View {
             .amgiSettingsListRowSurface()
 
             Section(L("settings_reader_display_section_display")) {
+                HStack {
+                    Text(L("settings_reader_theme_mode"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Picker("", selection: Binding(get: { themeMode }, set: { themeMode = $0 })) {
+                        Text(L("settings_reader_theme_mode_system")).tag(ReaderThemeMode.system)
+                        Text(L("settings_reader_theme_mode_eye_care")).tag(ReaderThemeMode.eyeCare)
+                        Text(L("settings_reader_theme_mode_sepia")).tag(ReaderThemeMode.sepia)
+                        Text(L("settings_reader_theme_mode_custom")).tag(ReaderThemeMode.custom)
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                if themeMode == .custom {
+                    ColorPicker(L("settings_reader_theme_custom_content_color"), selection: customContentColorBinding, supportsOpacity: false)
+                    ColorPicker(L("settings_reader_theme_custom_background_color"), selection: customBackgroundColorBinding, supportsOpacity: false)
+                    ColorPicker(L("settings_reader_theme_custom_text_color"), selection: customTextColorBinding, supportsOpacity: false)
+                    ColorPicker(L("settings_reader_theme_custom_hint_color"), selection: customHintColorBinding, supportsOpacity: false)
+                }
+
                 Toggle(L("settings_reader_display_show_title"), isOn: $showTitle)
                 Toggle(L("settings_reader_display_show_percentage"), isOn: $showPercentage)
 
@@ -375,6 +438,46 @@ struct ReaderDisplaySettingsView: View {
                     Text(L("settings_reader_font_size_value", popupFontSize))
                         .foregroundStyle(SettingsValueStyle.highlight)
                     Stepper("", value: $popupFontSize, in: 10...30)
+                        .labelsHidden()
+                }
+
+                HStack {
+                    Text(L("settings_reader_popup_frequency_font_size"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Text(L("settings_reader_font_size_value", popupFrequencyFontSize))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                    Stepper("", value: $popupFrequencyFontSize, in: 10...30)
+                        .labelsHidden()
+                }
+
+                HStack {
+                    Text(L("settings_reader_popup_content_font_size"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Text(L("settings_reader_font_size_value", popupContentFontSize))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                    Stepper("", value: $popupContentFontSize, in: 10...30)
+                        .labelsHidden()
+                }
+
+                HStack {
+                    Text(L("settings_reader_popup_dictionary_name_font_size"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Text(L("settings_reader_font_size_value", popupDictionaryNameFontSize))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                    Stepper("", value: $popupDictionaryNameFontSize, in: 10...30)
+                        .labelsHidden()
+                }
+
+                HStack {
+                    Text(L("settings_reader_popup_kana_font_size"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Text(L("settings_reader_font_size_value", popupKanaFontSize))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                    Stepper("", value: $popupKanaFontSize, in: 10...30)
                         .labelsHidden()
                 }
 
@@ -425,6 +528,34 @@ struct ReaderDisplaySettingsView: View {
         .background(Color.amgiBackground)
         .navigationTitle(L("settings_reader_display_settings"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private extension Color {
+    init(readerHex: String, fallback: Color) {
+        let sanitized = readerHex.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard sanitized.count == 6,
+              let value = Int(sanitized, radix: 16) else {
+            self = fallback
+            return
+        }
+        let red = Double((value >> 16) & 0xFF) / 255.0
+        let green = Double((value >> 8) & 0xFF) / 255.0
+        let blue = Double(value & 0xFF) / 255.0
+        self = Color(red: red, green: green, blue: blue)
+    }
+
+    func readerHexString() -> String {
+        let uiColor = UIColor(self)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        guard uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return "#000000"
+        }
+        return String(format: "#%02X%02X%02X", Int(red * 255), Int(green * 255), Int(blue * 255))
     }
 }
 

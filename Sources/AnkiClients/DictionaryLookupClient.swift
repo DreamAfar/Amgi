@@ -4,7 +4,7 @@ import DependenciesMacros
 
 @DependencyClient
 public struct DictionaryLookupClient: Sendable {
-    public var lookup: @Sendable (_ text: String, _ maxResults: Int) async throws -> DictionaryLookupResult
+    public var lookup: @Sendable (_ text: String, _ maxResults: Int, _ scanLength: Int) async throws -> DictionaryLookupResult
     public var loadState: @Sendable () async throws -> AppDictionaryLibraryState
     public var importArchives: @Sendable (_ urls: [URL], _ kind: AppDictionaryKind) async throws -> AppDictionaryLibraryState
     public var importRecommended: @Sendable () async throws -> AppDictionaryLibraryState
@@ -14,7 +14,7 @@ public struct DictionaryLookupClient: Sendable {
 
 extension DictionaryLookupClient: TestDependencyKey {
     public static let testValue = DictionaryLookupClient(
-        lookup: { text, _ in
+        lookup: { text, _, _ in
             DictionaryLookupResult(query: text, entries: [], isPlaceholder: false)
         },
         loadState: {

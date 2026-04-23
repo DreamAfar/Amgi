@@ -319,6 +319,10 @@
 "settings_reader_display_progress_position_top" = "顶部";
 "settings_reader_display_progress_position_bottom" = "底部";
 "settings_reader_popup_font_size" = "查词字体大小";
+"settings_reader_popup_frequency_font_size" = "字频字体大小";
+"settings_reader_popup_content_font_size" = "词典内容字体大小";
+"settings_reader_popup_dictionary_name_font_size" = "词典名字体大小";
+"settings_reader_popup_kana_font_size" = "假名字体大小";
 "settings_reader_popup_width" = "宽度";
 "settings_reader_popup_height" = "高度";
 "settings_reader_popup_full_width" = "全宽显示";

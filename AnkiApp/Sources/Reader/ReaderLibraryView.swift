@@ -476,6 +476,7 @@ private struct ReaderChapterView: View {
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
@@ -489,9 +490,18 @@ private struct ReaderChapterView: View {
     @AppStorage(ReaderPreferences.Keys.showTitle) private var showTitle = true
     @AppStorage(ReaderPreferences.Keys.showPercentage) private var showPercentage = true
     @AppStorage(ReaderPreferences.Keys.showProgressTop) private var showProgressTop = true
+    @AppStorage(ReaderPreferences.Keys.themeMode) private var themeModeRawValue = ReaderThemeMode.system.rawValue
+    @AppStorage(ReaderPreferences.Keys.customContentColor) private var customContentColorHex = "#FFFDF8"
+    @AppStorage(ReaderPreferences.Keys.customBackgroundColor) private var customBackgroundColorHex = "#FFFDF8"
+    @AppStorage(ReaderPreferences.Keys.customTextColor) private var customTextColorHex = "#17212F"
+    @AppStorage(ReaderPreferences.Keys.customHintColor) private var customHintColorHex = "#7F7F7F"
     @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
     @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
     @AppStorage(ReaderPreferences.Keys.popupFontSize) private var popupFontSize = 14
+    @AppStorage(ReaderPreferences.Keys.popupFrequencyFontSize) private var popupFrequencyFontSize = 13
+    @AppStorage(ReaderPreferences.Keys.popupContentFontSize) private var popupContentFontSize = 14
+    @AppStorage(ReaderPreferences.Keys.popupDictionaryNameFontSize) private var popupDictionaryNameFontSize = 13
+    @AppStorage(ReaderPreferences.Keys.popupKanaFontSize) private var popupKanaFontSize = 14
     @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
     @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
     @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var dictionaryMaxResults = 16
@@ -553,6 +563,79 @@ private struct ReaderChapterView: View {
         chapter.language?.nilIfBlank ?? book.language?.nilIfBlank
     }
 
+    private var themeMode: ReaderThemeMode {
+        ReaderThemeMode(rawValue: themeModeRawValue) ?? .system
+    }
+
+    private var resolvedPageBackgroundHex: String {
+        switch themeMode {
+        case .system:
+            return colorScheme == .dark ? "#0F141C" : "#FFFDF8"
+        case .eyeCare:
+            return "#EAF4E4"
+        case .sepia:
+            return "#F4ECD8"
+        case .custom:
+            return Self.normalizedHexColor(customBackgroundColorHex, fallback: "#FFFDF8")
+        }
+    }
+
+    private var resolvedContentBackgroundHex: String {
+        switch themeMode {
+        case .system:
+            return colorScheme == .dark ? "#0F141C" : "#FFFDF8"
+        case .eyeCare:
+            return "#F3F9EF"
+        case .sepia:
+            return "#FAF1DE"
+        case .custom:
+            return Self.normalizedHexColor(customContentColorHex, fallback: "#FFFDF8")
+        }
+    }
+
+    private var resolvedTextColorHex: String {
+        switch themeMode {
+        case .system:
+            return colorScheme == .dark ? "#F2F4F8" : "#17212F"
+        case .eyeCare:
+            return "#253224"
+        case .sepia:
+            return "#5A4632"
+        case .custom:
+            return Self.normalizedHexColor(customTextColorHex, fallback: "#17212F")
+        }
+    }
+
+    private var resolvedHintColorHex: String {
+        switch themeMode {
+        case .system:
+            return "#7F7F7F"
+        case .eyeCare:
+            return "#64715D"
+        case .sepia:
+            return "#7A6852"
+        case .custom:
+            return Self.normalizedHexColor(customHintColorHex, fallback: "#7F7F7F")
+        }
+    }
+
+    private var chapterContentBackground: Color {
+        Color(readerHex: resolvedContentBackgroundHex, fallback: .amgiBackground)
+    }
+
+    private static func normalizedHexColor(_ value: String, fallback: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else {
+            return fallback
+        }
+        let normalized = trimmed.hasPrefix("#") ? trimmed : "#\(trimmed)"
+        let hex = normalized.dropFirst()
+        guard hex.count == 6, Int(hex, radix: 16) != nil else {
+            return fallback
+        }
+        return normalized.uppercased()
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let topSafeArea = max(geometry.safeAreaInsets.top, 44)
@@ -569,6 +652,10 @@ private struct ReaderChapterView: View {
                         html: chapter.content,
                         isVertical: verticalLayout,
                         fontSize: Double(readerFontSize),
+                        pageBackgroundHex: resolvedPageBackgroundHex,
+                        contentBackgroundHex: resolvedContentBackgroundHex,
+                        textColorHex: resolvedTextColorHex,
+                        hintColorHex: resolvedHintColorHex,
                         hideFurigana: hideFurigana,
                         horizontalPadding: horizontalPadding,
                         verticalPadding: verticalPadding,
@@ -636,6 +723,7 @@ private struct ReaderChapterView: View {
                     title: showTitle ? book.title : nil,
                     progressLabel: showProgressTop ? progressLabel : nil
                 )
+                    .background(chapterContentBackground)
                     .padding(.top, topSafeArea + 4)
             }
             .overlay(alignment: .bottom) {
@@ -675,7 +763,11 @@ private struct ReaderChapterView: View {
                                 languageHint: lookupLanguageHint,
                                 popupWidth: CGFloat(popupWidth),
                                 popupHeight: CGFloat(popupHeight),
-                                popupFontSize: CGFloat(popupFontSize),
+                                popupHeaderFontSize: CGFloat(popupFontSize),
+                                popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
+                                popupContentFontSize: CGFloat(popupContentFontSize),
+                                popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
+                                popupKanaFontSize: CGFloat(popupKanaFontSize),
                                 isFullWidth: popupFullWidth,
                                 swipeToDismiss: popupSwipeToDismiss,
                                 onAddNote: {
@@ -704,7 +796,7 @@ private struct ReaderChapterView: View {
         .sheet(isPresented: $showAddNoteSheet, onDismiss: {
             pendingDraft = nil
         }) {
-            if let pendingDraft {
+                lookupResult = try await dictionaryLookupClient.lookup(query, dictionaryMaxResults, dictionaryScanLength)
                 AddNoteView(onSave: {}, draft: pendingDraft)
             }
         }
@@ -843,7 +935,11 @@ private struct ReaderLookupPopup: View {
     let languageHint: String?
     let popupWidth: CGFloat
     let popupHeight: CGFloat
-    let popupFontSize: CGFloat
+    let popupHeaderFontSize: CGFloat
+    let popupFrequencyFontSize: CGFloat
+    let popupContentFontSize: CGFloat
+    let popupDictionaryNameFontSize: CGFloat
+    let popupKanaFontSize: CGFloat
     let isFullWidth: Bool
     let swipeToDismiss: Bool
     let onAddNote: () -> Void
@@ -883,21 +979,37 @@ private struct ReaderLookupPopup: View {
         ReaderLookupSpeechPlayer.normalizedLanguageHint(languageHint, fallbackText: readingText ?? query)
     }
 
-    private var scale: CGFloat {
-        max(0.6, popupFontSize / 14)
+    private var headerScale: CGFloat {
+        max(0.6, popupHeaderFontSize / 14)
     }
 
-    private var headerWordFont: CGFloat { 14 * scale }
-    private var headerReadingFont: CGFloat { 7 * scale }
-    private var buttonIconFont: CGFloat { 14 * scale }
-    private var loadingFont: CGFloat { 13 * scale }
-    private var emptyFont: CGFloat { 13 * scale }
-    private var sectionDictionaryFont: CGFloat { 13 * scale }
-    private var sectionTermFont: CGFloat { 22 * scale }
-    private var sectionReadingFont: CGFloat { 14 * scale }
-    private var sectionDefinitionFont: CGFloat { 14 * scale }
-    private var sectionPitchFont: CGFloat { 12 * scale }
-    private var badgeFont: CGFloat { 13 * scale }
+    private var contentScale: CGFloat {
+        max(0.6, popupContentFontSize / 14)
+    }
+
+    private var frequencyScale: CGFloat {
+        max(0.6, popupFrequencyFontSize / 13)
+    }
+
+    private var dictionaryNameScale: CGFloat {
+        max(0.6, popupDictionaryNameFontSize / 13)
+    }
+
+    private var kanaScale: CGFloat {
+        max(0.6, popupKanaFontSize / 14)
+    }
+
+    private var headerWordFont: CGFloat { 14 * headerScale }
+    private var headerReadingFont: CGFloat { 7 * kanaScale }
+    private var buttonIconFont: CGFloat { 14 * headerScale }
+    private var loadingFont: CGFloat { 13 * contentScale }
+    private var emptyFont: CGFloat { 13 * contentScale }
+    private var sectionDictionaryFont: CGFloat { 13 * dictionaryNameScale }
+    private var sectionTermFont: CGFloat { 22 * contentScale }
+    private var sectionReadingFont: CGFloat { 14 * kanaScale }
+    private var sectionDefinitionFont: CGFloat { 14 * contentScale }
+    private var sectionPitchFont: CGFloat { 12 * contentScale }
+    private var badgeFont: CGFloat { 13 * frequencyScale }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -939,18 +1051,18 @@ private struct ReaderLookupPopup: View {
                 }
             }
 
-            if frequencyBadges.isEmpty == false {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(frequencyBadges) { badge in
-                            ReaderLookupFrequencyBadge(badge: badge, fontSize: badgeFont)
-                        }
-                    }
-                }
-            }
-
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    if frequencyBadges.isEmpty == false {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(frequencyBadges) { badge in
+                                    ReaderLookupFrequencyBadge(badge: badge, fontSize: badgeFont)
+                                }
+                            }
+                        }
+                    }
+
                     if isLoading {
                         HStack(spacing: 12) {
                             ProgressView()
@@ -1139,6 +1251,10 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     let html: String
     let isVertical: Bool
     let fontSize: Double
+    let pageBackgroundHex: String
+    let contentBackgroundHex: String
+    let textColorHex: String
+    let hintColorHex: String
     let hideFurigana: Bool
     let horizontalPadding: Int
     let verticalPadding: Int
@@ -1239,8 +1355,16 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             selection: null,
             scanDelimiters: '。、！？…‥「」『』（）()【】〈〉《》〔〕｛｝{}［］[]・：；:;，,.─\n\r',
 
+            isWordDelimiter(char) {
+                return /[^\w\p{L}\p{N}]/u.test(char);
+            },
+
+            isJapaneseLike(char) {
+                return /[\u3040-\u30FF\u31F0-\u31FF\u4E00-\u9FFF\u3400-\u4DBF\u30FC]/u.test(char);
+            },
+
             isScanBoundary(char) {
-                return /^[\s\u3000]$/.test(char) || this.scanDelimiters.includes(char);
+                return /^[\s\u3000]$/.test(char) || this.scanDelimiters.includes(char) || this.isWordDelimiter(char);
             },
 
             isFurigana(node) {
@@ -1370,6 +1494,43 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 this.selection = null;
             },
 
+            expandStartOffset(hit) {
+                const initialContent = hit.node.textContent || '';
+                const initialChar = initialContent[hit.offset] || '';
+                if (this.isJapaneseLike(initialChar)) {
+                    return { node: hit.node, offset: hit.offset };
+                }
+
+                const container = this.findParagraph(hit.node) || document.body;
+                const walker = this.createWalker(container);
+                let node = hit.node;
+                let offset = hit.offset;
+
+                walker.currentNode = node;
+
+                while (node) {
+                    const content = node.textContent || '';
+
+                    while (offset > 0) {
+                        const previousChar = content[offset - 1];
+                        if (this.isScanBoundary(previousChar)) {
+                            return { node, offset };
+                        }
+                        offset -= 1;
+                    }
+
+                    const previousNode = walker.previousNode();
+                    if (!previousNode) {
+                        break;
+                    }
+
+                    node = previousNode;
+                    offset = (node.textContent || '').length;
+                }
+
+                return { node: hit.node, offset: 0 };
+            },
+
             selectText(x, y, maxLength) {
                 const hit = this.getCharacterAtPoint(x, y);
                 if (!hit) {
@@ -1387,8 +1548,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 const container = this.findParagraph(hit.node) || document.body;
                 const walker = this.createWalker(container);
                 let text = '';
-                let node = hit.node;
-                let offset = hit.offset;
+                const start = this.expandStartOffset(hit);
+                let node = start.node;
+                let offset = start.offset;
                 const ranges = [];
 
                 walker.currentNode = node;
@@ -1443,9 +1605,10 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     """#
 
     private func htmlDocument(for fragment: String) -> String {
-        let textColor = colorScheme == .dark ? "#F2F4F8" : "#17212F"
+        let textColor = textColorHex
         let linkColor = colorScheme == .dark ? "#8FB8FF" : "#1E5BB8"
-        let backgroundColor = colorScheme == .dark ? "#0F141C" : "#FFFDF8"
+        let backgroundColor = pageBackgroundHex
+        let contentBackgroundColor = contentBackgroundHex
         let renderedContent = renderedFragment(for: fragment)
         let writingMode = isVertical ? "vertical-rl" : "horizontal-tb"
         let bodyWidthRule = isVertical ? "width: max-content; min-width: 100%;" : "max-width: 100%;"
@@ -1456,7 +1619,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             : "padding: \(24 + resolvedVerticalPadding * 2)px \(20 + resolvedHorizontalPadding * 2)px \(40 + resolvedVerticalPadding * 2)px \(20 + resolvedHorizontalPadding * 2)px;"
         let rubyRule = hideFurigana
             ? "ruby rt { display: none; }"
-            : "ruby rt { font-size: 0.55em; color: rgba(127, 127, 127, 0.9); }"
+            : "ruby rt { font-size: 0.55em; color: \(hintColorHex); }"
         let letterSpacing = characterSpacing / 100
         let resolvedScanLength = max(scanLength, 1)
 
@@ -1488,6 +1651,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             \(bodyWidthRule)
             \(bodyPadding)
             box-sizing: border-box;
+            background: \(contentBackgroundColor);
         }
         p {
             margin: 0 0 1em 0;
@@ -1886,5 +2050,21 @@ private extension String {
                 return false
             }
         }
+    }
+}
+
+private extension Color {
+    init(readerHex: String, fallback: Color) {
+        let sanitized = readerHex.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard sanitized.count == 6,
+              let value = Int(sanitized, radix: 16) else {
+            self = fallback
+            return
+        }
+        let red = Double((value >> 16) & 0xFF) / 255.0
+        let green = Double((value >> 8) & 0xFF) / 255.0
+        let blue = Double(value & 0xFF) / 255.0
+        self = Color(red: red, green: green, blue: blue)
     }
 }

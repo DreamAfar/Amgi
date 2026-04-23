@@ -319,6 +319,10 @@
 "settings_reader_display_progress_position_top" = "Top";
 "settings_reader_display_progress_position_bottom" = "Bottom";
 "settings_reader_popup_font_size" = "Lookup Font Size";
+"settings_reader_popup_frequency_font_size" = "Frequency Font Size";
+"settings_reader_popup_content_font_size" = "Dictionary Content Font Size";
+"settings_reader_popup_dictionary_name_font_size" = "Dictionary Name Font Size";
+"settings_reader_popup_kana_font_size" = "Kana Font Size";
 "settings_reader_popup_width" = "Width";
 "settings_reader_popup_height" = "Height";
 "settings_reader_popup_full_width" = "Full-width";

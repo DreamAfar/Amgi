@@ -1,5 +1,14 @@
 import Foundation
 
+enum ReaderThemeMode: String, CaseIterable, Identifiable {
+    case system
+    case eyeCare
+    case sepia
+    case custom
+
+    var id: String { rawValue }
+}
+
 enum ReviewPreferences {
     enum Keys {
         static let autoplayAudio = "review_pref_autoplay_audio"
@@ -41,9 +50,18 @@ enum ReaderPreferences {
         static let showTitle = "reader_pref_show_title"
         static let showPercentage = "reader_pref_show_percentage"
         static let showProgressTop = "reader_pref_show_progress_top"
+        static let themeMode = "reader_pref_theme_mode"
+        static let customContentColor = "reader_pref_custom_content_color"
+        static let customBackgroundColor = "reader_pref_custom_background_color"
+        static let customTextColor = "reader_pref_custom_text_color"
+        static let customHintColor = "reader_pref_custom_hint_color"
         static let popupWidth = "reader_pref_popup_width"
         static let popupHeight = "reader_pref_popup_height"
         static let popupFontSize = "reader_pref_popup_font_size"
+        static let popupFrequencyFontSize = "reader_pref_popup_frequency_font_size"
+        static let popupContentFontSize = "reader_pref_popup_content_font_size"
+        static let popupDictionaryNameFontSize = "reader_pref_popup_dictionary_name_font_size"
+        static let popupKanaFontSize = "reader_pref_popup_kana_font_size"
         static let popupFullWidth = "reader_pref_popup_full_width"
         static let popupSwipeToDismiss = "reader_pref_popup_swipe_to_dismiss"
         static let dictionaryMaxResults = "reader_pref_dictionary_max_results"

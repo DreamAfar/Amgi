@@ -220,7 +220,7 @@ private actor DictionaryLookupRuntime {
         self.backend = backend
     }
 
-    func lookup(_ text: String, maxResults: Int) throws -> DictionaryLookupResult {
+    func lookup(_ text: String, maxResults: Int, scanLength: Int) throws -> DictionaryLookupResult {
         try ensureLoaded()
 
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -233,7 +233,8 @@ private actor DictionaryLookupRuntime {
         }
 
         let resolvedMaxResults = max(1, maxResults)
-        let rawResults = Array(lookupEngine?.lookup(std.string(trimmed), Int32(resolvedMaxResults), 16) ?? [])
+        let resolvedScanLength = max(1, scanLength)
+        let rawResults = Array(lookupEngine?.lookup(std.string(trimmed), Int32(resolvedMaxResults), Int32(resolvedScanLength)) ?? [])
         return DictionaryLookupResult(
             query: trimmed,
             entries: rawResults.map(Self.makeEntry),
@@ -814,8 +815,8 @@ extension DictionaryLookupClient: DependencyKey {
         @Dependency(\.ankiBackend) var backend
         let runtime = DictionaryLookupRuntime(backend: backend)
         return Self(
-            lookup: { text, maxResults in
-                try await runtime.lookup(text, maxResults: maxResults)
+            lookup: { text, maxResults, scanLength in
+                try await runtime.lookup(text, maxResults: maxResults, scanLength: scanLength)
             },
             loadState: {
                 try await runtime.loadState()
