@@ -30,7 +30,7 @@ enum ReaderProgressStore {
     private static let keyPrefix = "reader.progress."
     private static let collectionConfigKey = "amgi.reader.progress"
     private static let mediaFileName = "amgi_reader_progress.json"
-    private static let collectionWriteProgressStep = 0.01
+    private static let collectionWriteProgressStep: Double = 0.01
     private static let collectionWriteInterval: TimeInterval = 10
     private static let cacheLock = NSLock()
 
@@ -159,7 +159,8 @@ enum ReaderProgressStore {
         if existing.chapterID != payload.chapterID {
             return true
         }
-        if abs(existing.progress - payload.progress) >= collectionWriteProgressStep {
+        let progressDelta = Swift.abs(existing.progress - payload.progress)
+        if progressDelta >= collectionWriteProgressStep {
             return true
         }
         if payload.progress >= 0.999, existing.progress < 0.999 {
