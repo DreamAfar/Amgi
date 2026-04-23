@@ -458,6 +458,7 @@ private struct ReaderBookDetailView: View {
                             .foregroundStyle(Color.amgiTextPrimary)
                     }
                 }
+                .listRowBackground(resolvedListBackground)
             }
 
             Section(L("reader_book_chapters", book.chapters.count)) {
@@ -482,6 +483,7 @@ private struct ReaderBookDetailView: View {
                             }
                         }
                     }
+                    .listRowBackground(resolvedListBackground)
                 }
             }
         }
