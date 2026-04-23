@@ -157,8 +157,8 @@ struct CardWebView: UIViewRepresentable {
             context.coordinator.isPageLoaded = false
             context.coordinator.pendingUpdateScript = nil
             let htmlClass = Self.htmlClasses(isDarkMode: isDarkMode)
-            let playIconHTML = Self.audioButtonIconHTML(systemName: "play.fill", alt: "Play", isDarkMode: isDarkMode)
-            let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.fill", alt: "Pause", isDarkMode: isDarkMode)
+            let playIconHTML = Self.audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
+            let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.circle", alt: "Pause", isDarkMode: isDarkMode)
             let baseTag = CardAssetPath.mediaBaseTag()
             // Stash the show-card call so we can run it once the page finishes loading.
             context.coordinator.pendingUpdateScript = showCardScript
@@ -1106,22 +1106,14 @@ struct CardWebView: UIViewRepresentable {
             stopAllSystemAudio();
             var normalizedHTML = amgiNormalizeMathJaxMarkup(html || '');
             var needsMathJax = amgiContainsMathJaxMarkup(normalizedHTML);
-            var shouldHideDuringUpdate = needsMathJax;
             var preloadPromise = amgiPreloadResources(normalizedHTML);
 
             try {
                 await preloadPromise;
-                if (shouldHideDuringUpdate) {
-                    amgiApplyCardState(state || {});
-                    qa.style.opacity = '0';
-                }
+                amgiApplyCardState(state || {});
 
                 try { await amgiSetInnerHTML(qa, normalizedHTML); }
                 catch(e) { qa.innerHTML = '<div>Error: ' + String(e).replace(/\\n/g,'<br>') + '</div>'; }
-
-                if (!shouldHideDuringUpdate) {
-                    amgiApplyCardState(state || {});
-                }
 
                 await amgiRunHooks(window.onUpdateHook);
 
@@ -1173,7 +1165,6 @@ struct CardWebView: UIViewRepresentable {
                 amgiSetupImageOcclusion();
                 await amgiRunHooks(window.onShownHook);
             } finally {
-                qa.style.opacity = '1';
                 amgiScheduleCardThemeReport();
             }
         }
@@ -1298,7 +1289,7 @@ struct CardWebView: UIViewRepresentable {
             let encoded = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? filename
             let replacement: String
             if showReplayButtons {
-                let iconHTML = audioButtonIconHTML(systemName: "play.fill", alt: "Play", isDarkMode: isDarkMode)
+                let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
                 replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><a class=\"replay-button replay-btn soundLink\" href=\"#\" draggable=\"false\" onclick=\"return playSound(this)\">\(iconHTML)</a></span>"
             } else {
                 replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio></span>"
@@ -1335,7 +1326,7 @@ struct CardWebView: UIViewRepresentable {
 
             let replacement: String
             if showReplayButtons {
-                let iconHTML = audioButtonIconHTML(systemName: "speaker.wave.2.fill", alt: "Speak", isDarkMode: isDarkMode)
+                let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Speak", isDarkMode: isDarkMode)
                 replacement = "<a class=\"replay-button replay-btn tts-btn\" href=\"#\" draggable=\"false\" data-tts-text=\"\(htmlAttributeEscaped(spokenText))\" data-tts-lang=\"\(htmlAttributeEscaped(lang))\" data-tts-voices=\"\(htmlAttributeEscaped(voices))\" data-tts-speed=\"\(htmlAttributeEscaped(speed))\" onclick=\"return amgiSpeakTts(this)\">\(iconHTML)</a>"
             } else {
                 replacement = ""

@@ -341,7 +341,7 @@ struct ReviewView: View {
                 Button {
                     replayRequestID += 1
                 } label: {
-                    Image(systemName: "speaker.wave.2")
+                    Image(systemName: "play.circle")
                 }
                 .disabled(session.currentCard == nil)
             }
