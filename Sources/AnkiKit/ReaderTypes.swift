@@ -1,6 +1,7 @@
 public struct ReaderFieldMapping: Sendable, Hashable {
     public var bookIDField: String
     public var bookTitleField: String
+    public var bookCoverField: String?
     public var chapterTitleField: String
     public var chapterOrderField: String
     public var contentField: String
@@ -9,6 +10,7 @@ public struct ReaderFieldMapping: Sendable, Hashable {
     public init(
         bookIDField: String,
         bookTitleField: String,
+        bookCoverField: String? = nil,
         chapterTitleField: String,
         chapterOrderField: String,
         contentField: String,
@@ -16,6 +18,7 @@ public struct ReaderFieldMapping: Sendable, Hashable {
     ) {
         self.bookIDField = bookIDField
         self.bookTitleField = bookTitleField
+        self.bookCoverField = bookCoverField
         self.chapterTitleField = chapterTitleField
         self.chapterOrderField = chapterOrderField
         self.contentField = contentField
@@ -66,17 +69,20 @@ public struct ReaderChapter: Sendable, Hashable, Identifiable {
 public struct ReaderBook: Sendable, Hashable, Identifiable {
     public let id: String
     public var title: String
+    public var coverImagePath: String?
     public var language: String?
     public var chapters: [ReaderChapter]
 
     public init(
         id: String,
         title: String,
+        coverImagePath: String? = nil,
         language: String? = nil,
         chapters: [ReaderChapter]
     ) {
         self.id = id
         self.title = title
+        self.coverImagePath = coverImagePath
         self.language = language
         self.chapters = chapters
     }

@@ -70,6 +70,7 @@ struct ReaderSourceSettingsView: View {
     @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
     @AppStorage(ReaderPreferences.Keys.bookIDField) private var bookIDField = ""
     @AppStorage(ReaderPreferences.Keys.bookTitleField) private var bookTitleField = ""
+    @AppStorage(ReaderPreferences.Keys.bookCoverField) private var bookCoverField = ""
     @AppStorage(ReaderPreferences.Keys.chapterTitleField) private var chapterTitleField = ""
     @AppStorage(ReaderPreferences.Keys.chapterOrderField) private var chapterOrderField = ""
     @AppStorage(ReaderPreferences.Keys.contentField) private var contentField = ""
@@ -149,6 +150,7 @@ struct ReaderSourceSettingsView: View {
             Section(L("settings_reader_section_fields")) {
                 readerFieldRow(title: L("settings_reader_book_id_field"), selection: $bookIDField)
                 readerFieldRow(title: L("settings_reader_book_title_field"), selection: $bookTitleField)
+                readerFieldRow(title: L("settings_reader_book_cover_field"), selection: $bookCoverField)
                 readerFieldRow(title: L("settings_reader_chapter_title_field"), selection: $chapterTitleField)
                 readerFieldRow(title: L("settings_reader_chapter_order_field"), selection: $chapterOrderField)
                 readerFieldRow(title: L("settings_reader_content_field"), selection: $contentField)
@@ -236,6 +238,9 @@ struct ReaderSourceSettingsView: View {
         }
         if !validFields.contains(bookTitleField) {
             bookTitleField = ""
+        }
+        if !validFields.contains(bookCoverField) {
+            bookCoverField = ""
         }
         if !validFields.contains(chapterTitleField) {
             chapterTitleField = ""

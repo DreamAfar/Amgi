@@ -283,6 +283,7 @@
 "settings_reader_notetype" = "Note Type";
 "settings_reader_book_id_field" = "Book ID Field";
 "settings_reader_book_title_field" = "Book Title Field";
+"settings_reader_book_cover_field" = "Cover Field";
 "settings_reader_chapter_title_field" = "Chapter Title Field";
 "settings_reader_chapter_order_field" = "Chapter Order Field";
 "settings_reader_content_field" = "Content Field";
@@ -405,6 +406,9 @@
 "collection_preparing" = "Opening local data...";
 "reader_library_title" = "Books";
 "reader_library_sort_menu" = "Sort";
+"reader_library_layout_menu" = "Layout";
+"reader_library_layout_two_columns" = "2 Columns";
+"reader_library_layout_three_columns" = "3 Columns";
 "reader_library_sort_title" = "Title";
 "reader_library_sort_recent" = "Recently Read";
 "reader_library_sort_progress" = "Progress";

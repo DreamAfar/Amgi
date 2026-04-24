@@ -5,6 +5,7 @@ import AnkiKit
 import AnkiReader
 import AnkiClients
 import Dependencies
+import UIKit
 
 private enum ReaderBookSortOption: String, CaseIterable, Identifiable {
     case recent
@@ -46,18 +47,19 @@ struct ReaderLibraryView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.readerBookClient) var readerBookClient
 
-    fileprivate static let bookCardWidth: CGFloat = 100
-    fileprivate static let bookCoverHeight: CGFloat = 136
+    fileprivate static let bookCoverAspectRatio: CGFloat = 100 / 136
     fileprivate static let bookGridSpacing: CGFloat = 12
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
     @AppStorage(ReaderPreferences.Keys.bookIDField) private var bookIDField = ""
     @AppStorage(ReaderPreferences.Keys.bookTitleField) private var bookTitleField = ""
+    @AppStorage(ReaderPreferences.Keys.bookCoverField) private var bookCoverField = ""
     @AppStorage(ReaderPreferences.Keys.chapterTitleField) private var chapterTitleField = ""
     @AppStorage(ReaderPreferences.Keys.chapterOrderField) private var chapterOrderField = ""
     @AppStorage(ReaderPreferences.Keys.contentField) private var contentField = ""
     @AppStorage(ReaderPreferences.Keys.languageField) private var languageField = ""
+    @AppStorage(ReaderPreferences.Keys.bookshelfColumns) private var bookshelfColumns = 3
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
     @AppStorage(ReaderPreferences.Keys.fontSize) private var readerFontSize = 24
 
@@ -72,12 +74,17 @@ struct ReaderLibraryView: View {
     @State private var selectedBookIDs: Set<String> = []
     @State private var settingsRoute: ReaderLibrarySettingsRoute?
 
+    private var resolvedBookshelfColumns: Int {
+        bookshelfColumns == 2 ? 2 : 3
+    }
+
     private var configurationSignature: String {
         [
             String(selectedDeckID),
             String(selectedNotetypeID),
             bookIDField,
             bookTitleField,
+            bookCoverField,
             chapterTitleField,
             chapterOrderField,
             contentField,
@@ -117,16 +124,12 @@ struct ReaderLibraryView: View {
     private var bookGridColumns: [GridItem] {
         Array(
             repeating: GridItem(
-                .fixed(Self.bookCardWidth),
+                .flexible(minimum: 0, maximum: .infinity),
                 spacing: Self.bookGridSpacing,
                 alignment: .top
             ),
-            count: 3
+            count: resolvedBookshelfColumns
         )
-    }
-
-    private var gridContentWidth: CGFloat {
-        Self.bookCardWidth * 3 + Self.bookGridSpacing * 2
     }
 
     var body: some View {
@@ -156,7 +159,7 @@ struct ReaderLibraryView: View {
                                 .padding(.horizontal, 2)
                         }
 
-                        LazyVGrid(columns: bookGridColumns, alignment: .center, spacing: Self.bookGridSpacing) {
+                        LazyVGrid(columns: bookGridColumns, alignment: .leading, spacing: Self.bookGridSpacing) {
                             ForEach(sortedBooks) { book in
                                 if isSelecting {
                                     Button {
@@ -179,8 +182,6 @@ struct ReaderLibraryView: View {
                                 }
                             }
                         }
-                        .frame(width: gridContentWidth)
-                        .frame(maxWidth: .infinity)
                     }
                     .padding(16)
                 }
@@ -215,7 +216,23 @@ struct ReaderLibraryView: View {
                 .accessibilityLabel(Text(isSelecting ? L("common_done") : L("reader_library_multi_select")))
             }
 
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Menu {
+                    Picker(
+                        L("reader_library_layout_menu"),
+                        selection: Binding(
+                            get: { resolvedBookshelfColumns },
+                            set: { bookshelfColumns = $0 == 2 ? 2 : 3 }
+                        )
+                    ) {
+                        Text(L("reader_library_layout_two_columns")).tag(2)
+                        Text(L("reader_library_layout_three_columns")).tag(3)
+                    }
+                } label: {
+                    Image(systemName: resolvedBookshelfColumns == 2 ? "square.grid.2x2" : "square.grid.3x2")
+                }
+                .accessibilityLabel(Text(L("reader_library_layout_menu")))
+
                 Menu {
                     Button {
                         settingsRoute = .source
@@ -300,6 +317,7 @@ struct ReaderLibraryView: View {
                 fieldMapping: ReaderFieldMapping(
                     bookIDField: bookIDField,
                     bookTitleField: bookTitleField,
+                    bookCoverField: bookCoverField.isEmpty ? nil : bookCoverField,
                     chapterTitleField: chapterTitleField,
                     chapterOrderField: chapterOrderField,
                     contentField: contentField,
@@ -365,20 +383,9 @@ private struct ReaderBookCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.amgiAccent.opacity(0.18), Color.amgiSurfaceElevated],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: ReaderLibraryView.bookCardWidth, height: ReaderLibraryView.bookCoverHeight)
-                .overlay {
-                    Image(systemName: "books.vertical.fill")
-                        .font(.system(size: 36, weight: .semibold))
-                        .foregroundStyle(Color.amgiAccent)
-                }
+            ReaderBookCoverView(coverImagePath: book.coverImagePath)
+                .aspectRatio(ReaderLibraryView.bookCoverAspectRatio, contentMode: .fit)
+                .frame(maxWidth: .infinity)
                 .overlay(alignment: .topTrailing) {
                     if isSelecting {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -406,7 +413,83 @@ private struct ReaderBookCard: View {
             }
             .frame(height: 46, alignment: .top)
         }
-        .frame(width: ReaderLibraryView.bookCardWidth)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct ReaderBookCoverView: View {
+    let coverImagePath: String?
+
+    @State private var image: UIImage?
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [Color.amgiAccent.opacity(0.18), Color.amgiSurfaceElevated],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image(systemName: "books.vertical.fill")
+                        .font(.system(size: 36, weight: .semibold))
+                        .foregroundStyle(Color.amgiAccent)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
+            }
+            .task(id: coverImagePath) {
+                if let data = await ReaderBookCoverLoader.loadImageData(from: coverImagePath) {
+                    image = UIImage(data: data)
+                } else {
+                    image = nil
+                }
+            }
+    }
+}
+
+private enum ReaderBookCoverLoader {
+    static func loadImageData(from rawValue: String?) async -> Data? {
+        guard let rawValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+              rawValue.isEmpty == false else {
+            return nil
+        }
+
+        return await Task.detached(priority: .userInitiated) {
+            loadImageDataSynchronously(from: rawValue)
+        }.value
+    }
+
+    private static func loadImageDataSynchronously(from rawValue: String) -> Data? {
+        guard let url = resolvedURL(from: rawValue) else {
+            return nil
+        }
+        return try? Data(contentsOf: url)
+    }
+
+    private static func resolvedURL(from rawValue: String) -> URL? {
+        let decodedValue = rawValue.removingPercentEncoding ?? rawValue
+
+        if let directURL = URL(string: decodedValue),
+           let scheme = directURL.scheme?.lowercased(),
+           ["http", "https", "file"].contains(scheme) {
+            return directURL
+        }
+
+        guard let mediaDirectoryURL = CardMediaDirectory.currentMediaDirectoryURL() else {
+            return nil
+        }
+
+        return mediaDirectoryURL.appendingPathComponent(decodedValue)
     }
 }
 

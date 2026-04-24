@@ -283,6 +283,7 @@
 "settings_reader_notetype" = "ノートタイプ";
 "settings_reader_book_id_field" = "書籍IDフィールド";
 "settings_reader_book_title_field" = "書名フィールド";
+"settings_reader_book_cover_field" = "表紙画像フィールド";
 "settings_reader_chapter_title_field" = "章タイトルフィールド";
 "settings_reader_chapter_order_field" = "章順フィールド";
 "settings_reader_content_field" = "本文フィールド";
@@ -405,6 +406,9 @@
 "collection_preparing" = "ローカルデータを開いています…";
 "reader_library_title" = "本棚";
 "reader_library_sort_menu" = "並べ替え";
+"reader_library_layout_menu" = "レイアウト";
+"reader_library_layout_two_columns" = "2列";
+"reader_library_layout_three_columns" = "3列";
 "reader_library_sort_title" = "タイトル";
 "reader_library_sort_recent" = "最近読んだ順";
 "reader_library_sort_progress" = "進捗順";

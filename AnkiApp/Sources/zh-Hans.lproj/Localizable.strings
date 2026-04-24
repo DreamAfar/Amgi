@@ -283,6 +283,7 @@
 "settings_reader_notetype" = "笔记类型";
 "settings_reader_book_id_field" = "书籍标识字段";
 "settings_reader_book_title_field" = "书名字段";
+"settings_reader_book_cover_field" = "封面图字段";
 "settings_reader_chapter_title_field" = "章节标题字段";
 "settings_reader_chapter_order_field" = "章节序号字段";
 "settings_reader_content_field" = "正文字段";
@@ -405,6 +406,9 @@
 "collection_preparing" = "正在打开本地数据…";
 "reader_library_title" = "书架";
 "reader_library_sort_menu" = "排序";
+"reader_library_layout_menu" = "布局";
+"reader_library_layout_two_columns" = "2列";
+"reader_library_layout_three_columns" = "3列";
 "reader_library_sort_title" = "书名";
 "reader_library_sort_recent" = "最近阅读";
 "reader_library_sort_progress" = "阅读进度";

@@ -6,6 +6,11 @@ public import Dependencies
 import DependenciesMacros
 import Foundation
 
+private struct ReaderChapterRecord {
+    let chapter: ReaderChapter
+    let coverImagePath: String?
+}
+
 private func validatedDeckQuery(_ deckName: String) throws -> String {
     let trimmedDeckName = deckName.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmedDeckName.isEmpty else {
@@ -61,11 +66,46 @@ private func contentFieldValue(_ fieldName: String, in fieldMap: [String: String
     return rawValue
 }
 
-private func makeChapter(
+private func extractImageSource(from value: String) -> String? {
+    let range = NSRange(value.startIndex..<value.endIndex, in: value)
+    let pattern = #"<img[^>]*\bsrc\s*=\s*['"]?([^'" >]+)"#
+    guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+          let match = regex.firstMatch(in: value, options: [], range: range),
+          let sourceRange = Range(match.range(at: 1), in: value) else {
+        return nil
+    }
+    return String(value[sourceRange])
+}
+
+private func coverFieldValue(_ fieldName: String?, in fieldMap: [String: String]) -> String? {
+    guard let fieldName,
+          let rawValue = fieldMap[fieldName] else {
+        return nil
+    }
+
+    let trimmedValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard trimmedValue.isEmpty == false else {
+        return nil
+    }
+
+    if let imageSource = extractImageSource(from: trimmedValue)?
+        .trimmingCharacters(in: .whitespacesAndNewlines),
+       imageSource.isEmpty == false {
+        return imageSource
+    }
+
+    if trimmedValue.contains("<"), trimmedValue.contains(">") {
+        return nil
+    }
+
+    return trimmedValue
+}
+
+private func makeChapterRecord(
     note: NoteRecord,
     configuration: ReaderLibraryConfiguration,
     fieldNames: [String]
-) -> ReaderChapter? {
+) -> ReaderChapterRecord? {
     let fieldMap = decodeFieldMap(note: note, fieldNames: fieldNames)
     let mapping = configuration.fieldMapping
 
@@ -78,15 +118,19 @@ private func makeChapter(
     let chapterTitle = trimmedFieldValue(mapping.chapterTitleField, in: fieldMap) ?? bookTitle
     let chapterOrder = trimmedFieldValue(mapping.chapterOrderField, in: fieldMap)
     let language = mapping.languageField.flatMap { trimmedFieldValue($0, in: fieldMap) }
+    let coverImagePath = coverFieldValue(mapping.bookCoverField, in: fieldMap)
 
-    return ReaderChapter(
-        id: note.id,
-        bookID: bookID,
-        bookTitle: bookTitle,
-        title: chapterTitle,
-        order: chapterOrder,
-        content: content,
-        language: language
+    return ReaderChapterRecord(
+        chapter: ReaderChapter(
+            id: note.id,
+            bookID: bookID,
+            bookTitle: bookTitle,
+            title: chapterTitle,
+            order: chapterOrder,
+            content: content,
+            language: language
+        ),
+        coverImagePath: coverImagePath
     )
 }
 
@@ -151,6 +195,7 @@ private func buildBooks(
 ) throws -> [ReaderBook] {
     var fieldNamesByNotetypeID: [Int64: [String]] = [:]
     var chaptersByBookID: [String: [ReaderChapter]] = [:]
+    var coverImagePathByBookID: [String: String] = [:]
 
     for note in notes {
         let fieldNames: [String]
@@ -162,7 +207,7 @@ private func buildBooks(
             fieldNames = loadedFieldNames
         }
 
-        guard let chapter = makeChapter(
+        guard let record = makeChapterRecord(
             note: note,
             configuration: configuration,
             fieldNames: fieldNames
@@ -170,7 +215,11 @@ private func buildBooks(
             continue
         }
 
-        chaptersByBookID[chapter.bookID, default: []].append(chapter)
+        chaptersByBookID[record.chapter.bookID, default: []].append(record.chapter)
+        if let coverImagePath = record.coverImagePath,
+           coverImagePathByBookID[record.chapter.bookID] == nil {
+            coverImagePathByBookID[record.chapter.bookID] = coverImagePath
+        }
     }
 
     return chaptersByBookID.values
@@ -179,6 +228,7 @@ private func buildBooks(
             return ReaderBook(
                 id: sortedChapters[0].bookID,
                 title: sortedChapters[0].bookTitle,
+                coverImagePath: coverImagePathByBookID[sortedChapters[0].bookID],
                 language: sortedChapters.compactMap(\.language).first,
                 chapters: sortedChapters
             )
