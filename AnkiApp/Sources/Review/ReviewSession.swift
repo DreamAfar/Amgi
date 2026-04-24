@@ -333,8 +333,10 @@ final class ReviewSession {
                 request: renderReq
             )
 
-            renderedFrontHTML = extractLatexIfNeeded(in: renderNodes(rendered.questionNodes), svg: rendered.latexSvg)
-            renderedBackHTML = extractLatexIfNeeded(in: renderNodes(rendered.answerNodes), svg: rendered.latexSvg)
+            let renderedQuestionHTML = renderNodes(rendered.questionNodes)
+            let renderedAnswerHTML = renderNodes(rendered.answerNodes)
+            renderedFrontHTML = extractLatexIfNeeded(in: renderedQuestionHTML, svg: rendered.latexSvg)
+            renderedBackHTML = extractLatexIfNeeded(in: renderedAnswerHTML, svg: rendered.latexSvg)
 
             typedAnswerState = resolveTypedAnswerState(for: queued, frontHTML: renderedFrontHTML)
             frontHTML = makeTypedAnswerFrontHTML(typedAnswerState: typedAnswerState)
@@ -361,6 +363,9 @@ final class ReviewSession {
         if html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return html
         }
+        if !containsLegacyLatexMarkup(in: html) {
+            return html
+        }
 
         do {
             var request = Anki_CardRendering_ExtractLatexRequest()
@@ -382,6 +387,15 @@ final class ReviewSession {
             print("[ReviewSession] Latex extraction failed: \(error)")
             return html
         }
+    }
+
+    private func containsLegacyLatexMarkup(in html: String) -> Bool {
+        html.contains("[latex]")
+            || html.contains("[/latex]")
+            || html.contains("[$]")
+            || html.contains("[/$]")
+            || html.contains("[$$]")
+            || html.contains("[/$$]")
     }
 
     /// Extract the next interval from the scheduling state.

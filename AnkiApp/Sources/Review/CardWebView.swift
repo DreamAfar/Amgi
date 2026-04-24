@@ -1131,14 +1131,14 @@ struct CardWebView: UIViewRepresentable {
             var normalizedHTML = amgiNormalizeMathJaxMarkup(html || '');
             var needsMathJax = amgiContainsMathJaxMarkup(normalizedHTML);
             var preloadPromise = amgiPreloadResources(normalizedHTML);
-
-            // Hide instantly (no transition) to suppress the raw-DOM-swap flash.
-            qa.style.transition = 'none';
-            qa.style.opacity = '0';
-            void qa.offsetHeight; // force reflow so opacity:0 is committed
+            var mathJaxPromise = needsMathJax ? amgiEnsureMathJaxReady(1500) : Promise.resolve(null);
 
             try {
                 await preloadPromise;
+                // Keep the previous card visible while resources warm, and only
+                // hide right before swapping the DOM to avoid blank-frame flashes.
+                qa.style.transition = 'none';
+                qa.style.opacity = '0';
                 amgiApplyCardState(state || {});
 
                 try { await amgiSetInnerHTML(qa, normalizedHTML); }
@@ -1148,7 +1148,7 @@ struct CardWebView: UIViewRepresentable {
 
                 if (needsMathJax) {
                     try {
-                        var mathJax = await amgiEnsureMathJaxReady(1500);
+                        var mathJax = await mathJaxPromise;
                         if (mathJax) {
                             if (typeof mathJax.typesetClear === 'function') {
                                 mathJax.typesetClear();
@@ -1194,8 +1194,9 @@ struct CardWebView: UIViewRepresentable {
                 amgiSetupImageOcclusion();
                 await amgiRunHooks(window.onShownHook);
             } finally {
-                // Fade content in after everything (MathJax, hooks) is ready.
-                qa.style.transition = 'opacity 0.12s ease-in';
+                // Avoid a forced fade-in on every flip/next-card update; it reads
+                // as a content reload once MathJax and scripts are involved.
+                qa.style.transition = 'none';
                 qa.style.opacity = '1';
                 amgiScheduleCardThemeReport();
             }
@@ -1230,6 +1231,9 @@ struct CardWebView: UIViewRepresentable {
                         var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
                         if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
                         var ph = amgiPrefetchHTMLValue();
+                        if (amgiContainsMathJaxMarkup(html || '') || amgiContainsMathJaxMarkup(ph || '')) {
+                            void amgiEnsureMathJaxReady(1500);
+                        }
                         if (ph) amgiAllImagesLoaded().then(function() { return amgiPreloadResources(ph); });
                     }
                 );
