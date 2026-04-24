@@ -5,6 +5,28 @@ public enum SyncDirection: Sendable {
     case download
 }
 
+public enum SyncFullSyncRequirementKind: Sendable, Equatable {
+    case conflict
+    case downloadOnly
+    case uploadOnly
+}
+
+public struct SyncFullSyncRequirement: Sendable, Equatable {
+    public var kind: SyncFullSyncRequirementKind
+    public var serverUsn: Int32?
+    public var serverMessage: String?
+
+    public init(
+        kind: SyncFullSyncRequirementKind,
+        serverUsn: Int32? = nil,
+        serverMessage: String? = nil
+    ) {
+        self.kind = kind
+        self.serverUsn = serverUsn
+        self.serverMessage = serverMessage
+    }
+}
+
 public struct SyncError: Error, Sendable, Equatable {
     public let message: String
     public let isRetryable: Bool
@@ -55,6 +77,8 @@ public struct MediaSyncSummary: Sendable, Equatable {
 public enum SyncProgressEvent: Sendable {
     case connecting
     case normalSync
+    case normalSyncProgress(stage: String, added: String, removed: String)
+    case fullSyncRequired(SyncFullSyncRequirement)
     case fullDownloading
     case fullUploading
     case checkingDatabase

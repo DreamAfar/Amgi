@@ -61,22 +61,6 @@ private func syncMediaEnabled() -> Bool {
     return UserDefaults.standard.bool(forKey: SyncPreferenceValues.syncMediaKey)
 }
 
-/// Returns total note count, or -1 on failure (non-fatal).
-private func countNotes(backend: AnkiBackend) -> Int {
-    do {
-        var req = Anki_Search_SearchRequest()
-        req.search = "deck:*"
-        let resp: Anki_Search_SearchResponse = try backend.invoke(
-            service: AnkiBackend.Service.search,
-            method: AnkiBackend.SearchMethod.searchNotes,
-            request: req
-        )
-        return resp.ids.count
-    } catch {
-        return -1
-    }
-}
-
 private actor SyncProgressEmitter {
     private var continuation: AsyncThrowingStream<SyncProgressEvent, any Error>.Continuation?
 
@@ -96,6 +80,83 @@ private actor SyncProgressEmitter {
     func finish(throwing error: any Error) {
         continuation?.finish(throwing: error)
         continuation = nil
+    }
+}
+
+private struct NormalSyncProgressSnapshot: Equatable {
+    let stage: String
+    let added: String
+    let removed: String
+}
+
+private func latestCollectionProgress(backend: AnkiBackend) -> Anki_Collection_Progress? {
+    try? backend.invoke(
+        service: AnkiBackend.Service.collection,
+        method: AnkiBackend.CollectionMethod.latestProgress
+    )
+}
+
+private func startNormalSyncProgressPolling(
+    backend: AnkiBackend,
+    emitter: SyncProgressEmitter
+) -> Task<Void, Never> {
+    Task.detached(priority: .utility) {
+        var lastSnapshot: NormalSyncProgressSnapshot?
+
+        while !Task.isCancelled {
+            if let progress = latestCollectionProgress(backend: backend),
+               case .normalSync(let normalSync)? = progress.value {
+                let snapshot = NormalSyncProgressSnapshot(
+                    stage: normalSync.stage,
+                    added: normalSync.added,
+                    removed: normalSync.removed
+                )
+                if snapshot != lastSnapshot {
+                    lastSnapshot = snapshot
+                    await emitter.yield(
+                        .normalSyncProgress(
+                            stage: snapshot.stage,
+                            added: snapshot.added,
+                            removed: snapshot.removed
+                        )
+                    )
+                }
+            }
+
+            try? await Task.sleep(nanoseconds: 150_000_000)
+        }
+    }
+}
+
+private func stopProgressPolling(_ task: Task<Void, Never>?) async {
+    task?.cancel()
+    _ = await task?.result
+}
+
+private func fullSyncRequirement(from response: Anki_Sync_SyncCollectionResponse) -> SyncFullSyncRequirement? {
+    let serverUsn: Int32? = response.serverMediaUsn
+
+    switch response.required {
+    case .fullSync:
+        return SyncFullSyncRequirement(
+            kind: .conflict,
+            serverUsn: serverUsn,
+            serverMessage: response.serverMessage.nilIfBlank
+        )
+    case .fullDownload:
+        return SyncFullSyncRequirement(
+            kind: .downloadOnly,
+            serverUsn: serverUsn,
+            serverMessage: response.serverMessage.nilIfBlank
+        )
+    case .fullUpload:
+        return SyncFullSyncRequirement(
+            kind: .uploadOnly,
+            serverUsn: serverUsn,
+            serverMessage: response.serverMessage.nilIfBlank
+        )
+    default:
+        return nil
     }
 }
 
@@ -205,15 +266,16 @@ extension SyncClient: DependencyKey {
 
                             await emitter.yield(.connecting)
 
-                            // Count notes before sync to compute delta
-                            let noteCountBefore = countNotes(backend: syncBackend)
-
                             var auth = configuredSyncAuth(hostKey: hostKey)
                             var req = Anki_Sync_SyncCollectionRequest()
                             req.auth = auth
                             req.syncMedia = false
 
                             let responseBytes: Data
+                            let pollTask = startNormalSyncProgressPolling(
+                                backend: syncBackend,
+                                emitter: emitter
+                            )
                             do {
                                 responseBytes = try syncBackend.call(
                                     service: AnkiBackend.Service.sync,
@@ -221,15 +283,23 @@ extension SyncClient: DependencyKey {
                                     request: req
                                 )
                             } catch let error as BackendError {
+                                await stopProgressPolling(pollTask)
                                 if error.isSyncAuthError { throw SyncError.authFailed }
                                 throw SyncError(message: error.message)
                             }
+                            await stopProgressPolling(pollTask)
 
                             let response = try Anki_Sync_SyncCollectionResponse(serializedBytes: responseBytes)
                             logger.info("syncWithProgress: required=\(response.required), serverMessage='\(response.serverMessage)'")
 
                             if response.hasNewEndpoint, !response.newEndpoint.isEmpty {
                                 auth.endpoint = response.newEndpoint
+                            }
+
+                            if let requirement = fullSyncRequirement(from: response) {
+                                await emitter.yield(.fullSyncRequired(requirement))
+                                await emitter.finish()
+                                return
                             }
 
                             switch response.required {
@@ -239,51 +309,10 @@ extension SyncClient: DependencyKey {
                             case .normalSync:
                                 await emitter.yield(.normalSync)
 
-                            case .fullSync, .fullDownload:
-                                await emitter.yield(.fullDownloading)
-                                var dlReq = Anki_Sync_FullUploadOrDownloadRequest()
-                                dlReq.auth = auth
-                                dlReq.upload = false
-                                dlReq.serverUsn = response.serverMediaUsn
-                                do {
-                                    try syncBackend.callVoid(
-                                        service: AnkiBackend.Service.sync,
-                                        method: AnkiBackend.SyncMethod.fullUploadOrDownload,
-                                        request: dlReq
-                                    )
-                                } catch let error as BackendError {
-                                    if error.isSyncAuthError { throw SyncError.authFailed }
-                                    throw SyncError(message: error.message)
-                                }
-                                await emitter.yield(.checkingDatabase)
-                                do {
-                                    _ = try syncBackend.call(
-                                        service: AnkiBackend.Service.collection,
-                                        method: AnkiBackend.CheckDatabaseMethod.checkDatabase
-                                    )
-                                } catch {
-                                    logger.warning("CheckDatabase failed after full download: \(error)")
-                                }
-
-                            case .fullUpload:
-                                await emitter.yield(.fullUploading)
-                                var ulReq = Anki_Sync_FullUploadOrDownloadRequest()
-                                ulReq.auth = auth
-                                ulReq.upload = true
-                                ulReq.serverUsn = response.serverMediaUsn
-                                do {
-                                    try syncBackend.callVoid(
-                                        service: AnkiBackend.Service.sync,
-                                        method: AnkiBackend.SyncMethod.fullUploadOrDownload,
-                                        request: ulReq
-                                    )
-                                } catch let error as BackendError {
-                                    if error.isSyncAuthError { throw SyncError.authFailed }
-                                    throw SyncError(message: error.message)
-                                }
-
                             case .UNRECOGNIZED(let v):
                                 logger.warning("Unrecognized sync required value: \(v)")
+                            case .fullSync, .fullDownload, .fullUpload:
+                                break
                             }
 
                             if syncMediaEnabled() {
@@ -347,14 +376,6 @@ extension SyncClient: DependencyKey {
                                 forKey: SyncPreferenceValues.lastCollectionSyncKey
                             )
 
-                            // Emit note count delta
-                            let noteCountAfter = countNotes(backend: syncBackend)
-                            if noteCountBefore >= 0, noteCountAfter >= 0 {
-                                let added = max(0, noteCountAfter - noteCountBefore)
-                                let removed = max(0, noteCountBefore - noteCountAfter)
-                                await emitter.yield(.noteStats(added: added, removed: removed))
-                            }
-
                             await emitter.yield(.completed(SyncSummary()))
                             await emitter.finish()
                         } catch {
@@ -364,7 +385,7 @@ extension SyncClient: DependencyKey {
                     continuation.onTermination = { @Sendable _ in task.cancel() }
                 }
             },
-            fullSync: { direction in
+            fullSync: { direction, serverUsn in
                 let hostKey = KeychainHelper.loadHostKey() ?? ""
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }
 
@@ -373,6 +394,9 @@ extension SyncClient: DependencyKey {
                 var req = Anki_Sync_FullUploadOrDownloadRequest()
                 req.auth = auth
                 req.upload = (direction == .upload)
+                if let serverUsn {
+                    req.serverUsn = serverUsn
+                }
 
                 do {
                     try syncBackend.callVoid(
@@ -521,5 +545,12 @@ extension SyncClient: DependencyKey {
             logger.error("Login failed: \(error.message)")
             throw SyncError.authFailed
         }
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

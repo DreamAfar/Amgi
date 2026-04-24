@@ -488,6 +488,9 @@
 "sync_no_server_desc" = "デバイス間でコレクションを同期するにはサーバーを設定してください。";
 "sync_full_required_title" = "完全同期が必要です";
 "sync_full_required_desc" = "コレクションに大きな変更があり、一方を完全に置き換える必要があります。";
+"sync_full_conflict_desc" = "この端末とサーバーのデッキに競合があり、自動では統合できません。どちらを残すか選んでください。ダウンロードはローカルを上書きし、アップロードはサーバーを上書きします。";
+"sync_full_download_confirm_desc" = "ローカルコレクションは空です。サーバーからダウンロードしてローカルを置き換えますか？";
+"sync_full_upload_confirm_desc" = "サーバー側のコレクションは空です。ローカルデータをアップロードしてサーバーを置き換えますか？";
 "sync_btn_download" = "サーバーからダウンロード";
 "sync_btn_upload" = "サーバーにアップロード";
 "sync_full_downloading" = "完全なコレクションをダウンロード中…";
@@ -527,6 +530,8 @@
 "sync_log_checking_db" = "データベース整合性を確認中…";
 "sync_log_media_stats" = "メディア：%@ 確認済み、%@ 追加済み、%@ 削除済み";
 "sync_log_complete" = "完了";
+"sync_log_added_updated" = "追加/更新：%@";
+"sync_log_removed" = "削除：%@";
 "sync_log_notes_added" = "\u2191 %d 件のノートが追加されました";
 "sync_log_notes_removed" = "\u2193 %d 件のノートが削除されました";
 "sync_log_notes_stats_both" = "\u2191 %d 件追加、\u2193 %d 件削除";

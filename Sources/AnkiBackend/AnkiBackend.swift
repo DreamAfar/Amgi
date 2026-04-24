@@ -169,8 +169,15 @@ public final class AnkiBackend: Sendable {
     // MARK: - Raw FFI
 
     private func callRaw(service: UInt32, method: UInt32, input: Data) throws -> Data {
-        lock.lock()
-        defer { lock.unlock() }
+        let shouldLock = !(service == Service.collection && method == CollectionMethod.latestProgress)
+        if shouldLock {
+            lock.lock()
+        }
+        defer {
+            if shouldLock {
+                lock.unlock()
+            }
+        }
 
         var outPtr: UnsafeMutablePointer<UInt8>? = nil
         var outLen: Int = 0

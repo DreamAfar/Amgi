@@ -50,8 +50,8 @@ struct SyncSheet: View {
                     successView(summary)
                 case .error(let message):
                     errorView(message)
-                case .needsFullSync:
-                    fullSyncChoiceView
+                case .needsFullSync(let requirement):
+                    fullSyncChoiceView(requirement)
                 case .noServer:
                     noServerView
                 }
@@ -478,39 +478,62 @@ struct SyncSheet: View {
 
     // MARK: - Full Sync Choice View
 
-    private var fullSyncChoiceView: some View {
+    private func fullSyncChoiceView(_ requirement: SyncFullSyncRequirement) -> some View {
         VStack(spacing: 16) {
             Label(L("sync_full_required_title"), systemImage: "arrow.triangle.2.circlepath")
                 .amgiStatusText(.warning, font: .sectionHeading)
-            Text(L("sync_full_required_desc"))
+            Text(fullSyncDescription(for: requirement))
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
                 .multilineTextAlignment(.center)
 
             VStack(spacing: 8) {
-                Button {
-                    Task { await fullSync(.download) }
-                } label: {
-                    Label(L("sync_btn_download"), systemImage: "arrow.down.circle")
-                        .frame(maxWidth: .infinity)
+                if requirement.kind != .uploadOnly {
+                    Button {
+                        Task { await fullSync(.download, requirement: requirement) }
+                    } label: {
+                        Label(L("sync_btn_download"), systemImage: "arrow.down.circle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.amgiAccent)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.amgiAccent)
 
-                Button {
-                    Task { await fullSync(.upload) }
-                } label: {
-                    Label(L("sync_btn_upload"), systemImage: "arrow.up.circle")
-                        .frame(maxWidth: .infinity)
+                if requirement.kind != .downloadOnly {
+                    Button {
+                        Task { await fullSync(.upload, requirement: requirement) }
+                    } label: {
+                        Label(L("sync_btn_upload"), systemImage: "arrow.up.circle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(requirement.kind == .uploadOnly ? .borderedProminent : .bordered)
+                    .tint(Color.amgiAccent)
                 }
-                .buttonStyle(.bordered)
-                .tint(Color.amgiAccent)
+            }
+
+            if let serverMessage = requirement.serverMessage,
+               serverMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+                Text(serverMessage)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextTertiary)
+                    .multilineTextAlignment(.center)
             }
         }
     }
 
-    private func fullSync(_ direction: SyncDirection) async {
-        syncCoordinator.startFullSync(direction, syncClient: syncClient)
+    private func fullSync(_ direction: SyncDirection, requirement: SyncFullSyncRequirement) async {
+        syncCoordinator.startFullSync(direction, requirement: requirement, syncClient: syncClient)
+    }
+
+    private func fullSyncDescription(for requirement: SyncFullSyncRequirement) -> String {
+        switch requirement.kind {
+        case .conflict:
+            return L("sync_full_conflict_desc")
+        case .downloadOnly:
+            return L("sync_full_download_confirm_desc")
+        case .uploadOnly:
+            return L("sync_full_upload_confirm_desc")
+        }
     }
 }
 

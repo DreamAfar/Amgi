@@ -15,7 +15,7 @@ enum AppSyncState {
     case syncingMedia(total: Int, downloaded: Int)
     case success(SyncSummary)
     case error(String)
-    case needsFullSync
+    case needsFullSync(SyncFullSyncRequirement)
     case noServer
 }
 
@@ -115,7 +115,7 @@ final class AppSyncCoordinator: ObservableObject {
                 }
             } catch let err as SyncError where err == .fullSyncRequired {
                 await MainActor.run {
-                    self.state = .needsFullSync
+                    self.state = .needsFullSync(SyncFullSyncRequirement(kind: .conflict))
                 }
             } catch {
                 await MainActor.run {
@@ -135,7 +135,11 @@ final class AppSyncCoordinator: ObservableObject {
         }
     }
 
-    func startFullSync(_ direction: SyncDirection, syncClient: SyncClient) {
+    func startFullSync(
+        _ direction: SyncDirection,
+        requirement: SyncFullSyncRequirement,
+        syncClient: SyncClient
+    ) {
         guard activeTask == nil else { return }
 
         logEntries.removeAll()
@@ -148,7 +152,7 @@ final class AppSyncCoordinator: ObservableObject {
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             do {
-                try await syncClient.fullSync(direction)
+                try await syncClient.fullSync(direction, requirement.serverUsn)
                 await MainActor.run {
                     self.appendLog(L("sync_log_complete"))
                     self.state = .success(SyncSummary())
@@ -204,6 +208,18 @@ final class AppSyncCoordinator: ObservableObject {
 
     private func apply(_ event: SyncProgressEvent, syncMediaEnabled: Bool) {
         switch event {
+        case .fullSyncRequired(let requirement):
+            if let message = requirement.serverMessage?.nilIfBlank {
+                appendLog(message)
+            }
+            state = .needsFullSync(requirement)
+        case .normalSyncProgress(let stage, _, _):
+            let stageMessage = stage.nilIfBlank ?? L("sync_log_syncing_changes")
+            let logMessage = Self.logMessage(for: event)
+            if logMessage.isEmpty == false {
+                appendLog(logMessage)
+            }
+            state = .syncing(stageMessage)
         case .mediaProgress(let total, let downloaded):
             mediaProgress = (total, downloaded)
             state = .syncingMedia(total: total, downloaded: downloaded)
@@ -227,6 +243,17 @@ final class AppSyncCoordinator: ObservableObject {
             return L("sync_log_connecting")
         case .normalSync:
             return L("sync_log_syncing_changes")
+        case .normalSyncProgress(_, let added, let removed):
+            var lines: [String] = []
+            if let added = added.nilIfBlank {
+                lines.append(L("sync_log_added_updated", added))
+            }
+            if let removed = removed.nilIfBlank {
+                lines.append(L("sync_log_removed", removed))
+            }
+            return lines.joined(separator: "\n")
+        case .fullSyncRequired:
+            return ""
         case .fullDownloading:
             return L("sync_full_downloading")
         case .fullUploading:
@@ -254,5 +281,12 @@ final class AppSyncCoordinator: ObservableObject {
         case .completed:
             return L("sync_log_complete")
         }
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
