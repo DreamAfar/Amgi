@@ -1,4 +1,4 @@
-public import Foundation
+import Foundation
 
 public enum AppDictionaryKind: String, CaseIterable, Codable, Identifiable, Sendable {
     case term

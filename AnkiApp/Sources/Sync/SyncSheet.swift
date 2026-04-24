@@ -134,6 +134,9 @@ struct SyncSheet: View {
                                         Text(entry.message)
                                             .amgiFont(.caption)
                                             .foregroundStyle(Color.amgiTextSecondary)
+                                            .lineLimit(nil)
+                                            .multilineTextAlignment(.leading)
+                                            .fixedSize(horizontal: false, vertical: true)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                     }
                                     .padding(.horizontal, 8)
@@ -221,6 +224,9 @@ struct SyncSheet: View {
                                         Text(entry.message)
                                             .amgiFont(.caption)
                                             .foregroundStyle(Color.amgiTextSecondary)
+                                            .lineLimit(nil)
+                                            .multilineTextAlignment(.leading)
+                                            .fixedSize(horizontal: false, vertical: true)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                     }
                                     .padding(.horizontal, 8)

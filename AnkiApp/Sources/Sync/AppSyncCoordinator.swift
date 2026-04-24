@@ -187,7 +187,12 @@ final class AppSyncCoordinator: ObservableObject {
     }
 
     private func appendLog(_ message: String) {
-        logEntries.append(AppSyncLogEntry(date: .now, message: message))
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return }
+        if logEntries.last?.message == trimmed {
+            return
+        }
+        logEntries.append(AppSyncLogEntry(date: .now, message: trimmed))
     }
 
     private func beginBackgroundExecutionIfNeeded() {
@@ -245,11 +250,11 @@ final class AppSyncCoordinator: ObservableObject {
             return L("sync_log_syncing_changes")
         case .normalSyncProgress(_, let added, let removed):
             var lines: [String] = []
-            if let added = added.nilIfBlank {
-                lines.append(L("sync_log_added_updated", added))
+            if let added = localizedSyncProgressLine(added, key: "sync_log_added_updated") {
+                lines.append(added)
             }
-            if let removed = removed.nilIfBlank {
-                lines.append(L("sync_log_removed", removed))
+            if let removed = localizedSyncProgressLine(removed, key: "sync_log_removed") {
+                lines.append(removed)
             }
             return lines.joined(separator: "\n")
         case .fullSyncRequired:
@@ -281,6 +286,31 @@ final class AppSyncCoordinator: ObservableObject {
         case .completed:
             return L("sync_log_complete")
         }
+    }
+
+    private static func localizedSyncProgressLine(_ raw: String, key: String) -> String? {
+        guard let trimmed = raw.nilIfBlank else {
+            return nil
+        }
+
+        if let payload = syncProgressPayload(from: trimmed) {
+            return L(key, payload)
+        }
+
+        return trimmed
+    }
+
+    private static func syncProgressPayload(from text: String) -> String? {
+        let separators = [": ", "：", ":"]
+        for separator in separators {
+            if let range = text.range(of: separator) {
+                let payload = String(text[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if payload.isEmpty == false {
+                    return payload
+                }
+            }
+        }
+        return nil
     }
 }
 

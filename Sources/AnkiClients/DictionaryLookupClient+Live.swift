@@ -416,8 +416,8 @@ private actor DictionaryLookupRuntime {
         }
 
         lookupEngine = Lookup(&dictQuery, &deinflector)
-        self.dictQuery = dictQuery
-        self.deinflector = deinflector
+        self.dictQuery = .some(consume dictQuery)
+        self.deinflector = .some(consume deinflector)
     }
 
     private func importArchive(at url: URL, kind: AppDictionaryKind, requiresSecurityScope: Bool) throws {
