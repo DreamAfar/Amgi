@@ -294,6 +294,11 @@
 "settings_reader_show_tab" = "Show Reader Tab";
 "settings_reader_show_tab_description" = "When enabled, the Reader tab appears between Stats and Settings.";
 "settings_reader_display_settings" = "Display Settings";
+"settings_reader_theme_mode" = "Theme Mode";
+"settings_reader_theme_mode_system" = "System";
+"settings_reader_theme_mode_eye_care" = "Eye Care";
+"settings_reader_theme_mode_sepia" = "Sepia";
+"settings_reader_theme_mode_custom" = "Custom";
 "settings_reader_advanced_settings" = "Lookup Settings";
 "settings_reader_tap_lookup" = "Tap to Lookup";
 "settings_reader_tap_lookup_description" = "Tap text in the reader to open dictionary lookup directly.";

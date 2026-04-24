@@ -22,8 +22,11 @@ struct DeckListHeatmapCard: View {
     @State private var hasLoadedFullHistory = false
     @State private var loadError = false
 
-    init(refreshID: Int) {
+    let showsExternalLoading: Bool
+
+    init(refreshID: Int, showsExternalLoading: Bool = false) {
         self.refreshID = refreshID
+        self.showsExternalLoading = showsExternalLoading
         _graphs = State(initialValue: DeckListHeatmapCache.load())
         _isLoading = State(initialValue: true)
         _hasLoadedFullHistory = State(
@@ -39,10 +42,11 @@ struct DeckListHeatmapCard: View {
                 HeatmapChart(reviews: graphs.reviews, compactHeight: deckListHeatmapHeight)
                     .frame(maxWidth: .infinity)
                     .overlay(alignment: .center) {
-                        if isLoading {
+                        if isLoading || showsExternalLoading {
                             ProgressView()
                                 .padding(10)
                                 .background(.ultraThinMaterial, in: Circle())
+                                .allowsHitTesting(false)
                         }
                     }
                     .overlay(alignment: .bottomLeading) {
@@ -80,11 +84,12 @@ struct DeckListHeatmapCard: View {
                     .animation(.easeInOut(duration: 0.2), value: isLoading)
                     .animation(.easeInOut(duration: 0.2), value: isLoadingMoreHistory)
                     .animation(.easeInOut(duration: 0.2), value: hasLoadedFullHistory)
-            } else if isLoading {
+            } else if isLoading || showsExternalLoading {
                 // First load only — no cached data yet
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
+                    .allowsHitTesting(false)
             } else if loadError {
                 ContentUnavailableView(
                     L("deck_list_heatmap_title"),

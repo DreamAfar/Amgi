@@ -76,10 +76,9 @@ struct AnkiAppApp: App {
     @ViewBuilder
     private var startupLoadingView: some View {
         let cachedTree = DeckTreeCache.load()
-        let cachedHeatmap = DeckListHeatmapCache.load()
 
-        if onboardingCompleted, (!cachedTree.isEmpty || cachedHeatmap != nil) {
-            StartupDeckSnapshotView(tree: cachedTree, heatmapReviews: cachedHeatmap?.reviews)
+        if onboardingCompleted, !cachedTree.isEmpty {
+            StartupDeckSnapshotView(tree: cachedTree, heatmapReviews: nil)
         } else {
             Color.amgiBackground
                 .ignoresSafeArea()

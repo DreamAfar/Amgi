@@ -673,9 +673,10 @@ private struct ReaderChapterView: View {
             let showsTopInfo = showTitle || showProgressTop
             let topOverlayHeight = topSafeArea + (showsTopInfo ? 60 : 18)
             let bottomInset = max(geometry.safeAreaInsets.bottom - 8, 14)
+            let bottomChromePadding = max(geometry.safeAreaInsets.bottom - 18, 6)
 
             VStack(spacing: 0) {
-                Color.amgiBackground
+                chapterContentBackground
                     .frame(height: topOverlayHeight)
 
                 ZStack(alignment: .bottom) {
@@ -707,7 +708,7 @@ private struct ReaderChapterView: View {
                             handleTapLookup(selection, sentence: sentence, at: point)
                         }
                     )
-                    .background(Color.amgiBackground)
+                    .background(chapterContentBackground)
                     .ignoresSafeArea(edges: .bottom)
 
                     HStack {
@@ -745,16 +746,16 @@ private struct ReaderChapterView: View {
                         .readerChromeButtonStyle()
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, bottomInset * 1.5)
+                    .padding(.bottom, bottomChromePadding)
                 }
             }
-            .background(Color.amgiBackground)
+            .background(chapterContentBackground)
             .overlay(alignment: .top) {
                 ReaderChapterInfoOverlay(
                     title: showTitle ? book.title : nil,
-                    progressLabel: showProgressTop ? progressLabel : nil
+                    progressLabel: showProgressTop ? progressLabel : nil,
+                    background: chapterContentBackground
                 )
-                    .background(chapterContentBackground)
                     .padding(.top, topSafeArea + 4)
             }
             .overlay(alignment: .bottom) {
@@ -821,7 +822,7 @@ private struct ReaderChapterView: View {
                 }
             }
         }
-        .background(Color.amgiBackground)
+        .background(chapterContentBackground)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showAddNoteSheet, onDismiss: {
@@ -1031,8 +1032,8 @@ private struct ReaderLookupPopup: View {
     }
 
     private var displayedQueryText: String {
-        matchedQueryText
-            ?? primaryEntry?.term.nilIfBlank
+        primaryEntry?.term.nilIfBlank
+            ?? matchedQueryText
             ?? query
     }
 
@@ -1100,49 +1101,49 @@ private struct ReaderLookupPopup: View {
     private var badgeFont: CGFloat { 13 * frequencyScale }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let readingText {
-                        Text(readingText)
-                            .font(.system(size: headerReadingFont, weight: .medium))
-                            .foregroundStyle(Color.amgiTextSecondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        if let readingText {
+                            Text(readingText)
+                                .font(.system(size: headerReadingFont, weight: .medium))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Text(displayedQueryText)
+                            .font(.system(size: headerWordFont, weight: .bold))
+                            .foregroundStyle(Color.amgiTextPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Text(displayedQueryText)
-                        .font(.system(size: headerWordFont, weight: .bold))
-                        .foregroundStyle(Color.amgiTextPrimary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+
+                    HStack(spacing: 4) {
+                        Button {
+                            ReaderLookupSpeechPlayer.shared.speak(displayedQueryText, languageHint: preferredSpeechLanguage)
+                        } label: {
+                            Image(systemName: "speaker.wave.2")
+                                .font(.system(size: buttonIconFont, weight: .medium))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .frame(width: 34, height: 34)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            onAddNote(notePayload)
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: buttonIconFont, weight: .medium))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .frame(width: 34, height: 34)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
-                Spacer(minLength: 0)
-
-                HStack(spacing: 6) {
-                    Button {
-                        ReaderLookupSpeechPlayer.shared.speak(displayedQueryText, languageHint: preferredSpeechLanguage)
-                    } label: {
-                        Image(systemName: "speaker.wave.2")
-                            .font(.system(size: buttonIconFont, weight: .medium))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                            .frame(width: 40, height: 40)
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        onAddNote(notePayload)
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: buttonIconFont, weight: .medium))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                            .frame(width: 40, height: 40)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 12) {
                     if frequencyBadges.isEmpty == false {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
@@ -1191,9 +1192,9 @@ private struct ReaderLookupPopup: View {
                     }
                 }
             }
-            .scrollIndicators(.hidden)
-            .frame(maxHeight: max(140, popupHeight - 94))
         }
+        .scrollIndicators(.hidden)
+        .frame(maxHeight: max(140, popupHeight - 36))
         .padding(18)
         .frame(maxWidth: isFullWidth ? .infinity : popupWidth, alignment: .leading)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -1270,6 +1271,7 @@ private struct ReaderChapterListSheet: View {
 private struct ReaderChapterInfoOverlay: View {
     let title: String?
     let progressLabel: String?
+    let background: Color
 
     var body: some View {
         VStack(spacing: 6) {
@@ -1290,6 +1292,7 @@ private struct ReaderChapterInfoOverlay: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 112)
+        .background(background)
     }
 }
 
@@ -2120,27 +2123,40 @@ private struct ReaderLookupFrequencyBadge: View {
     let badge: ReaderLookupBadge
     let fontSize: CGFloat
 
+    private var horizontalPadding: CGFloat {
+        max(6, fontSize * 0.62)
+    }
+
+    private var verticalPadding: CGFloat {
+        max(3, fontSize * 0.24)
+    }
+
+    private var cornerRadius: CGFloat {
+        max(6, fontSize * 0.65)
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             Text(badge.name)
                 .font(.system(size: fontSize, weight: .medium))
                 .foregroundStyle(Color.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, verticalPadding)
                 .background(Color.amgiAccent)
 
             if badge.value.isEmpty == false {
                 Text(badge.value)
                     .font(.system(size: fontSize, weight: .medium))
                     .foregroundStyle(Color.amgiTextPrimary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.vertical, verticalPadding)
                     .background(Color(.systemBackground).opacity(0.9))
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .fixedSize(horizontal: true, vertical: true)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(Color.amgiAccent.opacity(0.45), lineWidth: 1)
         }
     }

@@ -294,6 +294,11 @@
 "settings_reader_show_tab" = "在标签栏显示阅读器";
 "settings_reader_show_tab_description" = "开启后，会在统计和设置之间显示阅读器标签页。";
 "settings_reader_display_settings" = "显示设置";
+"settings_reader_theme_mode" = "主题模式";
+"settings_reader_theme_mode_system" = "跟随系统";
+"settings_reader_theme_mode_eye_care" = "护眼";
+"settings_reader_theme_mode_sepia" = "棕褐";
+"settings_reader_theme_mode_custom" = "自定义";
 "settings_reader_advanced_settings" = "查词设置";
 "settings_reader_tap_lookup" = "点按查词";
 "settings_reader_tap_lookup_description" = "在阅读器中点按文本时，直接打开词典查询结果。";

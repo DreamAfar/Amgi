@@ -27,7 +27,7 @@ struct BrowseView: View {
     @State private var sortReverse = true
     @State private var notetypeNamesByID: [Int64: String] = [:]
     @AppStorage("browse_show_notetype_subtitle") private var showNotetypeSubtitle = true
-    @State private var isLoading = false
+    @State private var isLoading = true
     @State private var hasMorePages = true
     @State private var showAddNote = false
     @State private var showAddImageOcclusion = false
@@ -59,6 +59,7 @@ struct BrowseView: View {
     @State private var isExportingSelection = false
     @State private var activeSearchTask: Task<Void, Never>?
     @State private var searchDebounceTask: Task<Void, Never>?
+    @State private var searchGeneration = 0
     @State private var hasLoadedInitialData = false
     @State private var showTopLevelDecksSheet = false
     @State private var showChildDecksSheet = false
@@ -1188,18 +1189,25 @@ struct BrowseView: View {
         searchDebounceTask = nil
         activeSearchTask?.cancel()
         activeSearchTask = nil
+        searchGeneration += 1
+        let generation = searchGeneration
+        if notes.isEmpty {
+            isLoading = true
+        }
         if debounce {
             searchDebounceTask = Task {
                 try? await Task.sleep(for: .milliseconds(300))
                 guard !Task.isCancelled else { return }
-                await performSearch()
+                await performSearch(generation: generation)
             }
         } else {
-            activeSearchTask = Task { await performSearch() }
+            activeSearchTask = Task { await performSearch(generation: generation) }
         }
     }
 
-    private func performSearch() async {
+    private func performSearch(generation: Int? = nil) async {
+        let generation = generation ?? nextSearchGeneration()
+        guard generation == searchGeneration else { return }
         isLoading = true
         let query = buildQuery()
         let client = noteClient
@@ -1210,6 +1218,7 @@ struct BrowseView: View {
                 try client.searchIdsSorted(query, sortField.backendColumn, sortReverse)
             }.value
             try Task.checkCancellation()
+            guard generation == searchGeneration else { return }
             allNoteIDs = ids
             if isEditing {
                 let visibleIDs = Set(allNoteIDs)
@@ -1219,17 +1228,28 @@ struct BrowseView: View {
                 try client.fetchBatch(Array(ids.prefix(pageSize)))
             }.value
             try Task.checkCancellation()
+            guard generation == searchGeneration else { return }
             notes = orderedNotes(firstBatch, matching: Array(ids.prefix(pageSize)))
             hasMorePages = ids.count > pageSize
         } catch is CancellationError {
-            isLoading = false
+            if generation == searchGeneration {
+                isLoading = false
+            }
             return
         } catch {
+            guard generation == searchGeneration else { return }
             allNoteIDs = []
             notes = []
             hasMorePages = false
         }
-        isLoading = false
+        if generation == searchGeneration {
+            isLoading = false
+        }
+    }
+
+    private func nextSearchGeneration() -> Int {
+        searchGeneration += 1
+        return searchGeneration
     }
 
     private func loadNextPage() async {

@@ -294,6 +294,11 @@
 "settings_reader_show_tab" = "リーダータブを表示";
 "settings_reader_show_tab_description" = "有効にすると、統計タブと設定タブの間にリーダータブが表示されます。";
 "settings_reader_display_settings" = "表示設定";
+"settings_reader_theme_mode" = "テーマモード";
+"settings_reader_theme_mode_system" = "システム";
+"settings_reader_theme_mode_eye_care" = "目に優しい";
+"settings_reader_theme_mode_sepia" = "セピア";
+"settings_reader_theme_mode_custom" = "カスタム";
 "settings_reader_advanced_settings" = "検索設定";
 "settings_reader_tap_lookup" = "タップで検索";
 "settings_reader_tap_lookup_description" = "リーダー内のテキストをタップすると、すぐに辞書検索を開きます。";

@@ -46,7 +46,7 @@ struct DeckListView: View {
                 List {
                     if showDeckListHeatmap {
                         Section {
-                            DeckListHeatmapCard(refreshID: heatmapRefreshID)
+                            DeckListHeatmapCard(refreshID: heatmapRefreshID, showsExternalLoading: isLoading)
                                 .listRowInsets(EdgeInsets())
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
@@ -83,14 +83,6 @@ struct DeckListView: View {
                 .refreshable {
                     await loadDecks()
                     refreshHeatmap()
-                }
-                .overlay(alignment: .top) {
-                    if isLoading {
-                        ProgressView()
-                            .tint(Color.amgiAccent)
-                            .amgiCapsuleControl(horizontalPadding: 12, verticalPadding: 8)
-                            .padding(.top, 8)
-                    }
                 }
             }
         }
