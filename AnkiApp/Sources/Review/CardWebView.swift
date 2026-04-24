@@ -19,6 +19,7 @@ struct CardWebView: UIViewRepresentable {
     }
 
     let html: String
+    let cardCSS: String
     let autoplayEnabled: Bool
     let isAnswerSide: Bool
     let cardOrdinal: UInt32
@@ -37,6 +38,7 @@ struct CardWebView: UIViewRepresentable {
 
     init(
         html: String,
+        cardCSS: String = "",
         autoplayEnabled: Bool = true,
         isAnswerSide: Bool = false,
         cardOrdinal: UInt32 = 0,
@@ -54,6 +56,7 @@ struct CardWebView: UIViewRepresentable {
         onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil
     ) {
         self.html = html
+        self.cardCSS = cardCSS
         self.autoplayEnabled = autoplayEnabled
         self.isAnswerSide = isAnswerSide
         self.cardOrdinal = cardOrdinal
@@ -134,7 +137,8 @@ struct CardWebView: UIViewRepresentable {
         let alignTop = hasTypedAnswerInput || contentAlignment == .top
         let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
         let pageSignature = "\(isDarkMode)"
-        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(processedHTML.hashValue)|\(prefetchHTML?.hashValue ?? 0)"
+        let cssSignature = "\(cardCSS.hashValue)"
+        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(cssSignature)|\(processedHTML.hashValue)|\(prefetchHTML?.hashValue ?? 0)"
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
@@ -144,6 +148,7 @@ struct CardWebView: UIViewRepresentable {
         let showCardScript = Self.showCardScript(
             processedHTML: processedHTML,
             prefetchHTML: prefetchHTML,
+            cardCSS: cardCSS,
             isAnswerSide: isAnswerSide,
             bodyClass: bodyClass,
             autoplayEnabled: autoplayEnabled,
@@ -257,6 +262,7 @@ struct CardWebView: UIViewRepresentable {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         \(baseTag)
+        <style id="amgi-card-css"></style>
         <style>
             :root {
                 color-scheme: \(colorScheme);
@@ -407,6 +413,13 @@ struct CardWebView: UIViewRepresentable {
             document.body.style.setProperty('--amgi-body-padding-bottom', (s.bodyPaddingBottom || 16) + 'px');
             document.body.classList.toggle('amgi-centered', !s.alignTop);
             if (qa) qa.style.setProperty('--amgi-card-padding-bottom', (s.cardPaddingBottom || 0) + 'px');
+        }
+        function amgiSetCardCSS(cssText) {
+            var style = document.getElementById('amgi-card-css');
+            if (!style) return;
+            var next = cssText || '';
+            if (style.textContent === next) return;
+            style.textContent = next;
         }
 
         // ── Resource preloading ──────────────────────────────────────────────
@@ -1284,6 +1297,7 @@ struct CardWebView: UIViewRepresentable {
     private static func showCardScript(
         processedHTML: String,
         prefetchHTML: String?,
+        cardCSS: String,
         isAnswerSide: Bool,
         bodyClass: String,
         autoplayEnabled: Bool,
@@ -1293,14 +1307,16 @@ struct CardWebView: UIViewRepresentable {
         cardPaddingBottom: Int
     ) -> String {
         let htmlLit = jsStringLiteral(processedHTML)
+        let cssLit = jsStringLiteral(cardCSS)
         let autoplay = autoplayEnabled ? "true" : "false"
         let alignTopStr = alignTop ? "true" : "false"
+        let applyCSS = "amgiSetCardCSS(\(cssLit));"
 
         if isAnswerSide {
-            return "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
+            return applyCSS + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
         } else {
             let prefetchLit = jsStringLiteral(prefetchHTML ?? "")
-            return "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
+            return applyCSS + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
         }
     }
 

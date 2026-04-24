@@ -414,6 +414,7 @@ struct ReviewView: View {
 
         CardWebView(
             html: cardHTML,
+            cardCSS: session.cardCSS,
             autoplayEnabled: session.autoplayAudio && prefAutoplayAudio,
             isAnswerSide: session.showAnswer,
             cardOrdinal: session.currentCard?.card.templateIdx ?? 0,

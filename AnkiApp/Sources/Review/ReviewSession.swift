@@ -18,6 +18,7 @@ final class ReviewSession {
 
     private(set) var frontHTML: String = ""
     private(set) var backHTML: String = ""
+    private(set) var cardCSS: String = ""
     private(set) var showAnswer: Bool = false
     private(set) var autoplayAudio: Bool = true
     private(set) var waitForAudioBeforeAutoAdvance: Bool = false
@@ -341,20 +342,14 @@ final class ReviewSession {
             typedAnswerState = resolveTypedAnswerState(for: queued, frontHTML: renderedFrontHTML)
             frontHTML = makeTypedAnswerFrontHTML(typedAnswerState: typedAnswerState)
             backHTML = renderedBackHTML
-
-            if !rendered.css.isEmpty {
-                let cssTag = "<style>\(rendered.css)</style>"
-                renderedFrontHTML = cssTag + renderedFrontHTML
-                renderedBackHTML = cssTag + renderedBackHTML
-                frontHTML = cssTag + frontHTML
-                backHTML = cssTag + backHTML
-            }
+            cardCSS = rendered.css
         } catch {
             print("[ReviewSession] Render failed for card \(queued.card.id): \(error)")
             frontHTML = "<p>Error rendering card</p>"
             backHTML = "<p>Error rendering card</p>"
             renderedFrontHTML = frontHTML
             renderedBackHTML = backHTML
+            cardCSS = ""
             typedAnswerState = nil
         }
     }
