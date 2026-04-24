@@ -2296,7 +2296,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             savedProgress: Double,
             onProgressChange: @escaping (Double) -> Void,
             onSelectionResolved: @escaping (String?) -> Void,
-            onLookupRequested: @escaping (String?, String?, CGPoint) -> Void
+            onLookupRequested: @escaping (ReaderTapLookupRequest, CGPoint) -> Void
         ) {
             self.pendingProgress = savedProgress
             self.onProgressChange = onProgressChange
