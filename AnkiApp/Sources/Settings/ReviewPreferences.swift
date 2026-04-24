@@ -66,6 +66,7 @@ enum ReaderPreferences {
         static let popupSwipeToDismiss = "reader_pref_popup_swipe_to_dismiss"
         static let dictionaryMaxResults = "reader_pref_dictionary_max_results"
         static let dictionaryScanLength = "reader_pref_dictionary_scan_length"
+        static let lookupNoteTemplate = "reader_pref_lookup_note_template"
     }
 }
 

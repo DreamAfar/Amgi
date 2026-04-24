@@ -532,6 +532,7 @@ private struct ReaderChapterView: View {
     @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var dictionaryMaxResults = 16
     @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var dictionaryScanLength = 16
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
+    @AppStorage(ReaderPreferences.Keys.lookupNoteTemplate) private var lookupNoteTemplateData = ""
 
     let book: ReaderBook
     let chapter: ReaderChapter
@@ -544,6 +545,7 @@ private struct ReaderChapterView: View {
     @State private var pendingSelectionAction: SelectionAction?
     @State private var showLookupSheet = false
     @State private var lookupQuery = ""
+    @State private var lookupSentence: String?
     @State private var lookupResult: DictionaryLookupResult?
     @State private var isLookingUp = false
     @State private var lookupErrorMessage: String?
@@ -590,6 +592,10 @@ private struct ReaderChapterView: View {
 
     private var themeMode: ReaderThemeMode {
         ReaderThemeMode(rawValue: themeModeRawValue) ?? .system
+    }
+
+    private var lookupNoteTemplate: ReaderLookupNoteTemplate {
+        ReaderLookupNoteTemplate.decode(from: lookupNoteTemplateData)
     }
 
     private var resolvedPageBackgroundHex: String {
@@ -697,8 +703,8 @@ private struct ReaderChapterView: View {
                         onSelectionResolved: { selection in
                             handleResolvedSelection(selection)
                         },
-                        onLookupRequested: { selection, point in
-                            handleTapLookup(selection, at: point)
+                        onLookupRequested: { selection, sentence, point in
+                            handleTapLookup(selection, sentence: sentence, at: point)
                         }
                     )
                     .background(Color.amgiBackground)
@@ -795,8 +801,8 @@ private struct ReaderChapterView: View {
                                 popupKanaFontSize: CGFloat(popupKanaFontSize),
                                 isFullWidth: popupFullWidth,
                                 swipeToDismiss: popupSwipeToDismiss,
-                                onAddNote: {
-                                    pendingDraft = makeDraft(for: lookupQuery)
+                                onAddNote: { payload in
+                                    pendingDraft = makeLookupDraft(from: payload)
                                     showLookupSheet = false
                                     lookupAnchor = nil
                                     showAddNoteSheet = true
@@ -821,9 +827,12 @@ private struct ReaderChapterView: View {
         .sheet(isPresented: $showAddNoteSheet, onDismiss: {
             pendingDraft = nil
         }) {
-                lookupResult = try await dictionaryLookupClient.lookup(query, dictionaryMaxResults, dictionaryScanLength)
-                AddNoteView(onSave: {}, draft: pendingDraft)
-            }
+            AddNoteView(
+                onSave: {
+                    pendingDraft = nil
+                },
+                draft: pendingDraft
+            )
         }
         .sheet(item: $activeSheet) { route in
             NavigationStack {
@@ -873,12 +882,12 @@ private struct ReaderChapterView: View {
         }
     }
 
-    private func handleTapLookup(_ selection: String?, at point: CGPoint) {
+    private func handleTapLookup(_ selection: String?, sentence: String?, at point: CGPoint) {
         guard let tappedSelection = normalizedSelection(selection) else {
             return
         }
         pendingSelectionAction = nil
-        startLookup(for: tappedSelection, anchor: point)
+        startLookup(for: tappedSelection, sentence: sentence, anchor: point)
     }
 
     private func normalizedSelection(_ selection: String?) -> String? {
@@ -886,15 +895,27 @@ private struct ReaderChapterView: View {
         return trimmedSelection.isEmpty ? nil : trimmedSelection
     }
 
-    private func startLookup(for query: String, anchor: CGPoint? = nil) {
+    private func normalizedSentence(_ sentence: String?) -> String? {
+        let trimmedSentence = sentence?
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedSentence.isEmpty ? nil : trimmedSentence
+    }
+
+    private func startLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil) {
         lookupQuery = query
+        lookupSentence = normalizedSentence(sentence)
         lookupResult = nil
         lookupAnchor = anchor
         showLookupSheet = true
         isLookingUp = true
         Task {
             do {
-                lookupResult = try await dictionaryLookupClient.lookup(query, dictionaryMaxResults)
+                lookupResult = try await dictionaryLookupClient.lookup(
+                    query,
+                    dictionaryMaxResults,
+                    dictionaryScanLength
+                )
             } catch {
                 showLookupSheet = false
                 lookupAnchor = nil
@@ -933,10 +954,11 @@ private struct ReaderChapterView: View {
         return CGPoint(x: resolvedX, y: resolvedY)
     }
 
-    private func makeDraft(for selectedText: String) -> AddNoteDraft {
+    private func makeDraft(for selectedText: String, sentence: String? = nil) -> AddNoteDraft {
         let sourceDescription = [book.title, chapter.title]
             .filter { !$0.isEmpty }
             .joined(separator: " • ")
+        let resolvedSentence = normalizedSentence(sentence) ?? selectedText
 
         return AddNoteDraft(
             deckID: selectedDeckID == 0 ? nil : Int64(selectedDeckID),
@@ -944,11 +966,25 @@ private struct ReaderChapterView: View {
                 "Front": selectedText,
                 "Text": selectedText,
                 "Expression": selectedText,
-                "Sentence": selectedText,
+                "Sentence": resolvedSentence,
                 "Back": sourceDescription,
                 "Source": sourceDescription,
                 "Extra": sourceDescription
             ]
+        )
+    }
+
+    private func makeLookupDraft(from payload: ReaderLookupNotePayload) -> AddNoteDraft {
+        let sourceDescription = [book.title, chapter.title]
+            .filter { !$0.isEmpty }
+            .joined(separator: " • ")
+        var resolvedPayload = payload
+        resolvedPayload.sentence = normalizedSentence(payload.sentence) ?? lookupSentence
+
+        return lookupNoteTemplate.makeDraft(
+            payload: resolvedPayload,
+            fallbackDeckID: selectedDeckID == 0 ? nil : Int64(selectedDeckID),
+            sourceDescription: sourceDescription
         )
     }
 }
@@ -967,7 +1003,7 @@ private struct ReaderLookupPopup: View {
     let popupKanaFontSize: CGFloat
     let isFullWidth: Bool
     let swipeToDismiss: Bool
-    let onAddNote: () -> Void
+    let onAddNote: (ReaderLookupNotePayload) -> Void
     let onClose: () -> Void
 
     @State private var dragOffset: CGFloat = 0
@@ -986,8 +1022,35 @@ private struct ReaderLookupPopup: View {
         result?.entries.first
     }
 
+    private var matchedQueryText: String? {
+        primaryEntry?.source?
+            .components(separatedBy: "•")
+            .first?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfBlank
+    }
+
+    private var displayedQueryText: String {
+        matchedQueryText
+            ?? primaryEntry?.term.nilIfBlank
+            ?? query
+    }
+
     private var readingText: String? {
         primaryEntry?.reading?.nilIfBlank
+    }
+
+    private var noteDefinitions: [String] {
+        sections.flatMap(\.definitions)
+    }
+
+    private var notePayload: ReaderLookupNotePayload {
+        ReaderLookupNotePayload(
+            term: displayedQueryText,
+            reading: readingText,
+            sentence: nil,
+            definitions: noteDefinitions
+        )
     }
 
     private var frequencyBadges: [ReaderLookupBadge] {
@@ -1001,7 +1064,7 @@ private struct ReaderLookupPopup: View {
     }
 
     private var preferredSpeechLanguage: String? {
-        ReaderLookupSpeechPlayer.normalizedLanguageHint(languageHint, fallbackText: readingText ?? query)
+        ReaderLookupSpeechPlayer.normalizedLanguageHint(languageHint, fallbackText: readingText ?? displayedQueryText)
     }
 
     private var headerScale: CGFloat {
@@ -1047,7 +1110,7 @@ private struct ReaderLookupPopup: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Text(query)
+                    Text(displayedQueryText)
                         .font(.system(size: headerWordFont, weight: .bold))
                         .foregroundStyle(Color.amgiTextPrimary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1057,7 +1120,7 @@ private struct ReaderLookupPopup: View {
 
                 HStack(spacing: 6) {
                     Button {
-                        ReaderLookupSpeechPlayer.shared.speak(query, languageHint: preferredSpeechLanguage)
+                        ReaderLookupSpeechPlayer.shared.speak(displayedQueryText, languageHint: preferredSpeechLanguage)
                     } label: {
                         Image(systemName: "speaker.wave.2")
                             .font(.system(size: buttonIconFont, weight: .medium))
@@ -1066,7 +1129,9 @@ private struct ReaderLookupPopup: View {
                     }
                     .buttonStyle(.plain)
 
-                    Button(action: onAddNote) {
+                    Button {
+                        onAddNote(notePayload)
+                    } label: {
                         Image(systemName: "plus")
                             .font(.system(size: buttonIconFont, weight: .medium))
                             .foregroundStyle(Color.amgiTextSecondary)
@@ -1291,7 +1356,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     let tapLookupEnabled: Bool
     let onProgressChange: (Double) -> Void
     let onSelectionResolved: (String?) -> Void
-    let onLookupRequested: (String?, CGPoint) -> Void
+    let onLookupRequested: (String?, String?, CGPoint) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -1379,6 +1444,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         window.amgiReaderSelection = {
             selection: null,
             scanDelimiters: '。、！？…‥「」『』（）()【】〈〉《》〔〕｛｝{}［］[]・：；:;，,.─\n\r',
+            sentenceDelimiters: '。！？!?…‥\n\r',
 
             isWordDelimiter(char) {
                 return /[^\w\p{L}\p{N}]/u.test(char);
@@ -1407,6 +1473,74 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
                     acceptNode: (node) => this.isFurigana(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
                 });
+            },
+
+            buildTextIndex(rootNode) {
+                const walker = this.createWalker(rootNode);
+                const segments = [];
+                let text = '';
+                let node;
+
+                while ((node = walker.nextNode())) {
+                    const content = node.textContent || '';
+                    if (!content) {
+                        continue;
+                    }
+
+                    const start = text.length;
+                    text += content;
+                    segments.push({ node, start, end: text.length });
+                }
+
+                return { text, segments };
+            },
+
+            absoluteOffsetForNode(segments, targetNode, targetOffset) {
+                const segment = segments.find((entry) => entry.node === targetNode);
+                if (!segment) {
+                    return null;
+                }
+
+                const clampedOffset = Math.min(
+                    Math.max(targetOffset, 0),
+                    segment.end - segment.start
+                );
+                return segment.start + clampedOffset;
+            },
+
+            extractSentence(container, startNode, startOffset, selectedText) {
+                const index = this.buildTextIndex(container);
+                const fullText = index.text;
+                if (!fullText) {
+                    return '';
+                }
+
+                const absoluteStart = this.absoluteOffsetForNode(index.segments, startNode, startOffset);
+                if (absoluteStart === null) {
+                    return fullText.trim();
+                }
+
+                let sentenceStart = absoluteStart;
+                while (
+                    sentenceStart > 0 &&
+                    !this.sentenceDelimiters.includes(fullText[sentenceStart - 1])
+                ) {
+                    sentenceStart -= 1;
+                }
+
+                let sentenceEnd = absoluteStart + Math.max(selectedText.length, 1);
+                while (
+                    sentenceEnd < fullText.length &&
+                    !this.sentenceDelimiters.includes(fullText[sentenceEnd])
+                ) {
+                    sentenceEnd += 1;
+                }
+
+                if (sentenceEnd < fullText.length) {
+                    sentenceEnd += 1;
+                }
+
+                return fullText.slice(sentenceStart, sentenceEnd).trim();
             },
 
             inCharRange(charRange, x, y) {
@@ -1612,18 +1746,24 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                     startNode: hit.node,
                     startOffset: hit.offset,
                     ranges,
-                    text
+                    text,
+                    sentence: this.extractSentence(container, hit.node, hit.offset, text)
                 };
 
                 return {
                     text,
+                    sentence: this.selection.sentence,
                     rect: this.getSelectionRect(x, y)
                 };
             }
         };
 
+        window.amgiReaderLookupPayloadAt = function(x, y) {
+            return window.amgiReaderSelection.selectText(x, y, window.amgiReaderScanLength || 16);
+        };
+
         window.amgiReaderLookupTextAt = function(x, y) {
-            const result = window.amgiReaderSelection.selectText(x, y, window.amgiReaderScanLength || 16);
+            const result = window.amgiReaderLookupPayloadAt(x, y);
             return result ? result.text : '';
         };
     })();
@@ -1731,13 +1871,13 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         private var restoreGeneration = 0
         private let onProgressChange: (Double) -> Void
         let onSelectionResolved: (String?) -> Void
-        let onLookupRequested: (String?, CGPoint) -> Void
+        let onLookupRequested: (String?, String?, CGPoint) -> Void
 
         init(
             savedProgress: Double,
             onProgressChange: @escaping (Double) -> Void,
             onSelectionResolved: @escaping (String?) -> Void,
-            onLookupRequested: @escaping (String?, CGPoint) -> Void
+            onLookupRequested: @escaping (String?, String?, CGPoint) -> Void
         ) {
             self.pendingProgress = savedProgress
             self.onProgressChange = onProgressChange
@@ -1753,9 +1893,13 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             }
 
             let point = recognizer.location(in: webView)
-            let script = "window.amgiReaderLookupTextAt ? window.amgiReaderLookupTextAt(\(point.x), \(point.y)) : ''"
+            let script = "window.amgiReaderLookupPayloadAt ? window.amgiReaderLookupPayloadAt(\(point.x), \(point.y)) : null"
             webView.evaluateJavaScript(script) { [onLookupRequested] value, _ in
-                onLookupRequested(value as? String, point)
+                if let payload = value as? [String: Any] {
+                    onLookupRequested(payload["text"] as? String, payload["sentence"] as? String, point)
+                } else {
+                    onLookupRequested(nil, nil, point)
+                }
             }
         }
 

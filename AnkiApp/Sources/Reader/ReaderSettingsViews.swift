@@ -560,7 +560,63 @@ private extension Color {
 }
 
 struct ReaderAdvancedSettingsView: View {
+    @Dependency(\.deckClient) var deckClient
+    @Dependency(\.ankiBackend) var backend
+
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
+    @AppStorage(ReaderPreferences.Keys.lookupNoteTemplate) private var lookupNoteTemplateData = ""
+
+    @State private var decks: [DeckInfo] = []
+    @State private var notetypeNames: [(Int64, String)] = []
+    @State private var availableFields: [String] = []
+
+    private var lookupNoteTemplate: ReaderLookupNoteTemplate {
+        ReaderLookupNoteTemplate.decode(from: lookupNoteTemplateData)
+    }
+
+    private var selectedTemplateDeckLabel: String {
+        guard !decks.isEmpty else {
+            return L("settings_reader_no_decks")
+        }
+        guard let deckID = lookupNoteTemplate.deckID else {
+            return L("settings_reader_not_set")
+        }
+        return decks.first(where: { $0.id == deckID })?.name ?? L("settings_reader_not_set")
+    }
+
+    private var selectedTemplateNotetypeLabel: String {
+        guard !notetypeNames.isEmpty else {
+            return L("settings_reader_no_notetypes")
+        }
+        guard let notetypeID = lookupNoteTemplate.notetypeID else {
+            return L("settings_reader_not_set")
+        }
+        return notetypeNames.first(where: { $0.0 == notetypeID })?.1 ?? L("settings_reader_not_set")
+    }
+
+    private var templateDeckSelection: Binding<Int> {
+        Binding(
+            get: { lookupNoteTemplate.deckID.map { Int($0) } ?? 0 },
+            set: { newValue in
+                updateTemplate { template in
+                    template.deckID = newValue == 0 ? nil : Int64(newValue)
+                }
+            }
+        )
+    }
+
+    private var templateNotetypeSelection: Binding<Int> {
+        Binding(
+            get: { lookupNoteTemplate.notetypeID.map { Int($0) } ?? 0 },
+            set: { newValue in
+                let resolvedID = newValue == 0 ? nil : Int64(newValue)
+                updateTemplate { template in
+                    template.notetypeID = resolvedID
+                }
+                loadTemplateFields(for: resolvedID)
+            }
+        )
+    }
 
     var body: some View {
         List {
@@ -571,10 +627,184 @@ struct ReaderAdvancedSettingsView: View {
                 Text(L("settings_reader_tap_lookup_description"))
             }
             .amgiSettingsListRowSurface()
+
+            Section(L("settings_reader_note_add_settings")) {
+                HStack {
+                    Label(L("settings_reader_note_template_deck"), systemImage: "rectangle.stack")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Menu {
+                        Picker(L("settings_reader_note_template_deck"), selection: templateDeckSelection) {
+                            Text(L("settings_reader_not_set"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(0)
+                            ForEach(decks) { deck in
+                                Text(deck.name)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(Int(deck.id))
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: selectedTemplateDeckLabel)
+                    }
+                    .disabled(decks.isEmpty)
+                }
+
+                HStack {
+                    Label(L("settings_reader_note_template_notetype"), systemImage: "square.text.square")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Menu {
+                        Picker(L("settings_reader_note_template_notetype"), selection: templateNotetypeSelection) {
+                            Text(L("settings_reader_not_set"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(0)
+                            ForEach(notetypeNames, id: \.0) { id, name in
+                                Text(name)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(Int(id))
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: selectedTemplateNotetypeLabel)
+                    }
+                    .disabled(notetypeNames.isEmpty)
+                }
+            } footer: {
+                Text(L("settings_reader_note_add_settings_description"))
+            }
+            .amgiSettingsListRowSurface()
+
+            Section(L("settings_reader_note_template_fields")) {
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_term_field"),
+                    selection: templateFieldBinding(\.termField)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_reading_field"),
+                    selection: templateFieldBinding(\.readingField)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_sentence_field"),
+                    selection: templateFieldBinding(\.sentenceField)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_definition1_field"),
+                    selection: templateFieldBinding(\.definition1Field)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_definition2_field"),
+                    selection: templateFieldBinding(\.definition2Field)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_definition3_field"),
+                    selection: templateFieldBinding(\.definition3Field)
+                )
+            } footer: {
+                Text(L("settings_reader_note_template_supported_fields"))
+            }
+            .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
         .navigationTitle(L("settings_reader_advanced_settings"))
         .navigationBarTitleDisplayMode(.large)
+        .task {
+            await loadData()
+        }
+    }
+
+    @ViewBuilder
+    private func noteTemplateFieldRow(title: String, selection: Binding<String>) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(SettingsValueStyle.primary)
+            Spacer()
+            Menu {
+                Picker(title, selection: selection) {
+                    Text(L("settings_reader_not_set"))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .tag("")
+                    ForEach(availableFields, id: \.self) { fieldName in
+                        Text(fieldName)
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .tag(fieldName)
+                    }
+                }
+            } label: {
+                SettingsOptionCapsuleLabel(title: selection.wrappedValue.isEmpty ? L("settings_reader_not_set") : selection.wrappedValue)
+            }
+            .disabled(availableFields.isEmpty)
+        }
+    }
+
+    private func templateFieldBinding(_ keyPath: WritableKeyPath<ReaderLookupNoteTemplate, String>) -> Binding<String> {
+        Binding(
+            get: { lookupNoteTemplate[keyPath: keyPath] },
+            set: { newValue in
+                updateTemplate { template in
+                    template[keyPath: keyPath] = newValue
+                }
+            }
+        )
+    }
+
+    private func loadData() async {
+        decks = (try? deckClient.fetchNamesOnly()) ?? []
+
+        do {
+            notetypeNames = try loadStandardNotetypeEntries(backend: backend)
+        } catch {
+            notetypeNames = []
+        }
+
+        var template = lookupNoteTemplate
+        if let deckID = template.deckID,
+           !decks.contains(where: { $0.id == deckID }) {
+            template.deckID = nil
+        }
+        if let notetypeID = template.notetypeID,
+           !notetypeNames.contains(where: { $0.0 == notetypeID }) {
+            template.notetypeID = nil
+            template.clearInvalidFields(validFields: [])
+        }
+        storeTemplateIfChanged(template)
+        loadTemplateFields(for: template.notetypeID)
+    }
+
+    private func loadTemplateFields(for notetypeID: Int64?) {
+        guard let notetypeID else {
+            availableFields = []
+            updateTemplate { template in
+                template.clearInvalidFields(validFields: [])
+            }
+            return
+        }
+
+        do {
+            let notetype = try fetchNotetype(backend: backend, id: notetypeID)
+            availableFields = notetype.fields.map(\.name)
+            updateTemplate { template in
+                template.clearInvalidFields(validFields: availableFields)
+            }
+        } catch {
+            availableFields = []
+            updateTemplate { template in
+                template.clearInvalidFields(validFields: [])
+            }
+        }
+    }
+
+    private func updateTemplate(_ update: (inout ReaderLookupNoteTemplate) -> Void) {
+        var template = lookupNoteTemplate
+        update(&template)
+        storeTemplateIfChanged(template)
+    }
+
+    private func storeTemplateIfChanged(_ template: ReaderLookupNoteTemplate) {
+        guard template != lookupNoteTemplate else {
+            return
+        }
+        lookupNoteTemplateData = template.encodedString()
     }
 }
