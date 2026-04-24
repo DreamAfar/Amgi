@@ -302,8 +302,10 @@ extension DeckClient: DependencyKey {
                     request: req
                 )
             },
-            updateDeckConfig: { deckId, config, applyToChildren, fsrsEnabled in
-                let context = try deckConfigContext(backend: backend, deckId: deckId)
+            updateDeckConfig: { deckId, config, applyToChildren, fsrsEnabled, newCardsIgnoreReviewLimit, applyAllParentLimits in
+                var context = try deckConfigContext(backend: backend, deckId: deckId)
+                context.newCardsIgnoreReviewLimit = newCardsIgnoreReviewLimit
+                context.applyAllParentLimits = applyAllParentLimits
                 let req = makeDeckConfigUpdateRequest(
                     deckId: deckId,
                     context: context,

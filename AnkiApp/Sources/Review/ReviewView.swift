@@ -49,6 +49,7 @@ struct ReviewView: View {
     @State private var isKeyboardVisible = false
     @State private var cardChromeUIColor: UIColor = .systemBackground
     @State private var cardChromeIsDark = false
+    @State private var autoAdvanceDeadline: Date?
 
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var prefShowContextMenuButton = true
@@ -288,6 +289,7 @@ struct ReviewView: View {
                 HStack(spacing: 12) {
                     DeckCountsView(counts: session.remainingCounts)
                     Spacer()
+                    autoAdvanceTimerView
                     currentCardFlagView
                     Text(L("review_reviewed_count", session.sessionStats.reviewed))
                         .font(.caption)
@@ -309,6 +311,16 @@ struct ReviewView: View {
             .toolbarBackground(cardChromeColor, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(resolvedCardChromeIsDark ? .dark : .light, for: .navigationBar)
+        }
+    }
+
+    @ViewBuilder
+    private var autoAdvanceTimerView: some View {
+        if let fallbackSeconds = session.currentAutoAdvanceDelay, fallbackSeconds > 0 {
+            ReviewAutoAdvanceTimerView(
+                deadline: autoAdvanceDeadline,
+                fallbackSeconds: fallbackSeconds
+            )
         }
     }
 
@@ -868,14 +880,18 @@ struct ReviewView: View {
         }
     }
 
+    @MainActor
     private func scheduleAutoAdvanceIfNeeded() {
         autoAdvanceTask?.cancel()
+        autoAdvanceDeadline = nil
         guard !session.isFinished, session.currentCard != nil else { return }
         guard let delaySeconds = session.currentAutoAdvanceDelay else { return }
         guard delaySeconds > 0 else { return }
         if session.waitForAudioBeforeAutoAdvance && isAudioPlaying {
             return
         }
+
+        autoAdvanceDeadline = Date().addingTimeInterval(delaySeconds)
 
         autoAdvanceTask = Task {
             let delayNanos = UInt64(delaySeconds * 1_000_000_000)
@@ -886,8 +902,10 @@ struct ReviewView: View {
             await MainActor.run {
                 guard !session.isFinished, session.currentCard != nil else { return }
                 if session.waitForAudioBeforeAutoAdvance && isAudioPlaying {
+                    autoAdvanceDeadline = nil
                     return
                 }
+                autoAdvanceDeadline = nil
                 session.performAutoAdvanceAction()
             }
         }
@@ -978,6 +996,41 @@ private struct ReviewSetDueDateSheet: View {
                 }
             }
         }
+    }
+}
+
+private struct ReviewAutoAdvanceTimerView: View {
+    let deadline: Date?
+    let fallbackSeconds: Double
+
+    var body: some View {
+        Group {
+            if let deadline {
+                TimelineView(.periodic(from: .now, by: 0.1)) { context in
+                    timerLabel(seconds: max(deadline.timeIntervalSince(context.date), 0))
+                }
+            } else {
+                timerLabel(seconds: fallbackSeconds)
+            }
+        }
+    }
+
+    private func timerLabel(seconds: Double) -> some View {
+        Label {
+            Text(formattedSeconds(seconds))
+                .monospacedDigit()
+        } icon: {
+            Image(systemName: "timer")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
+    private func formattedSeconds(_ seconds: Double) -> String {
+        if seconds >= 10 {
+            return "\(Int(seconds.rounded()))s"
+        }
+        return String(format: "%.1fs", seconds)
     }
 }
 

@@ -253,10 +253,7 @@ private actor DictionaryLookupRuntime {
 
     func mediaFile(dictionary: String, mediaPath: String) throws -> Data {
         try ensureLoaded()
-        guard let dictQuery else {
-            return Data()
-        }
-        let bytes = dictQuery.get_media_file(std.string(dictionary), std.string(mediaPath))
+        let bytes = dictQuery?.get_media_file(std.string(dictionary), std.string(mediaPath)) ?? []
         return Data(bytes.map { UInt8(bitPattern: $0) })
     }
 
@@ -395,24 +392,19 @@ private actor DictionaryLookupRuntime {
     }
 
     private func rebuildLookupQuery() {
-        deinflector = Deinflector()
-        dictQuery = DictionaryQuery()
+        var deinflector = Deinflector()
+        var dictQuery = DictionaryQuery()
 
         for dictionary in termDictionaries where dictionary.info.isEnabled {
-            dictQuery?.add_term_dict(std.string(dictionary.path.path(percentEncoded: false)))
+            dictQuery.add_term_dict(std.string(dictionary.path.path(percentEncoded: false)))
         }
 
         for dictionary in frequencyDictionaries where dictionary.info.isEnabled {
-            dictQuery?.add_freq_dict(std.string(dictionary.path.path(percentEncoded: false)))
+            dictQuery.add_freq_dict(std.string(dictionary.path.path(percentEncoded: false)))
         }
 
         for dictionary in pitchDictionaries where dictionary.info.isEnabled {
-            dictQuery?.add_pitch_dict(std.string(dictionary.path.path(percentEncoded: false)))
-        }
-
-        guard var dictQuery, var deinflector else {
-            lookupEngine = nil
-            return
+            dictQuery.add_pitch_dict(std.string(dictionary.path.path(percentEncoded: false)))
         }
 
         lookupEngine = Lookup(&dictQuery, &deinflector)

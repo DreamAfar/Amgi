@@ -38,6 +38,8 @@ struct DeckConfigView: View {
 
     @State private var newCardInsertOrder: Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder = .due
     @State private var newMix: Anki_DeckConfig_DeckConfig.Config.ReviewMix = .mixWithReviews
+    @State private var newCardGatherPriority: Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority = .deck
+    @State private var newCardSortOrder: Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder = .template
     @State private var reviewOrder: Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder = .day
     @State private var interdayLearningMix: Anki_DeckConfig_DeckConfig.Config.ReviewMix = .mixWithReviews
     @State private var leechAction: Anki_DeckConfig_DeckConfig.Config.LeechAction = .suspend
@@ -56,30 +58,28 @@ struct DeckConfigView: View {
     @State private var answerAction: Anki_DeckConfig_DeckConfig.Config.AnswerAction = .buryCard
 
     @State private var maximumReviewIntervalDays: Int32 = 36500
+    @State private var minimumLapseIntervalDays: Int32 = 1
+    @State private var newPerDayMinimum: Int32 = 0
     @State private var intervalMultiplierPercent: Double = 100
+    @State private var initialEasePercent: Double = 250
     @State private var hardMultiplierPercent: Double = 120
     @State private var easyMultiplierPercent: Double = 130
+    @State private var lapseMultiplierPercent: Double = 0
+    @State private var historicalRetentionPercent: Double = 90
     @State private var configName: String = ""
     @State private var selectedPresetID: Int64 = 0
     @State private var presetUseCount: UInt32 = 0
     @State private var disableAutoplay = false
     @State private var waitForAudio = false
     @State private var skipQuestionWhenReplayingAnswer = false
+    @State private var newCardsIgnoreReviewLimit = false
+    @State private var applyAllParentLimits = false
     @State private var easyDayPercentages: [Double] = Array(repeating: 100, count: 7)
     @State private var applyToChildren = false
     @State private var isManagingPreset = false
     @State private var showDeletePresetConfirmation = false
     @State private var showRenamePresetPrompt = false
     @State private var renamePresetDraft = ""
-
-    // Collapsible section expanded states
-    @State private var orderExpanded = false
-    @State private var fsrsExpanded = false
-    @State private var buryExpanded = false
-    @State private var timerExpanded = false
-    @State private var autoAdvanceExpanded = false
-    @State private var advancedExpanded = false
-    @State private var easyDaysExpanded = false
 
     var body: some View {
         NavigationStack {
@@ -218,6 +218,42 @@ struct DeckConfigView: View {
         reviewMixLabel(newMix)
     }
 
+    private var newCardGatherPriorityLabel: String {
+        switch newCardGatherPriority {
+        case .deck:
+            return L("deck_config_new_gather_priority_deck")
+        case .deckThenRandomNotes:
+            return L("deck_config_new_gather_priority_deck_then_random_notes")
+        case .lowestPosition:
+            return L("deck_config_new_gather_priority_position_lowest_first")
+        case .highestPosition:
+            return L("deck_config_new_gather_priority_position_highest_first")
+        case .randomNotes:
+            return L("deck_config_new_gather_priority_random_notes")
+        case .randomCards:
+            return L("deck_config_new_gather_priority_random_cards")
+        default:
+            return L("deck_config_new_gather_priority_deck")
+        }
+    }
+
+    private var newCardSortOrderLabel: String {
+        switch newCardSortOrder {
+        case .template:
+            return L("deck_config_sort_order_template_then_gather")
+        case .noSort:
+            return L("deck_config_sort_order_gather")
+        case .templateThenRandom:
+            return L("deck_config_sort_order_card_template_then_random")
+        case .randomNoteThenTemplate:
+            return L("deck_config_sort_order_random_note_then_template")
+        case .randomCard:
+            return L("deck_config_sort_order_random")
+        default:
+            return L("deck_config_sort_order_template_then_gather")
+        }
+    }
+
     private var leechActionLabel: String {
         switch leechAction {
         case .suspend:
@@ -233,12 +269,28 @@ struct DeckConfigView: View {
         switch reviewOrder {
         case .day:
             return L("deck_config_review_order_day")
+        case .dayThenDeck:
+            return L("deck_config_review_order_day_then_deck")
+        case .deckThenDay:
+            return L("deck_config_review_order_deck_then_day")
         case .intervalsAscending:
             return L("deck_config_review_order_asc")
         case .intervalsDescending:
             return L("deck_config_review_order_desc")
+        case .easeAscending:
+            return L("deck_config_review_order_ease_asc")
+        case .easeDescending:
+            return L("deck_config_review_order_ease_desc")
+        case .retrievabilityAscending:
+            return L("deck_config_review_order_retrievability_asc")
+        case .retrievabilityDescending:
+            return L("deck_config_review_order_retrievability_desc")
         case .random:
             return L("deck_config_order_random")
+        case .added:
+            return L("deck_config_review_order_added")
+        case .reverseAdded:
+            return L("deck_config_review_order_reverse_added")
         default:
             return L("deck_config_review_order_day")
         }
@@ -383,6 +435,12 @@ struct DeckConfigView: View {
                 Stepper("\(reviewsPerDay)", value: $reviewsPerDay, in: 0...10000)
                     .foregroundStyle(Color.amgiAccent)
             }
+            LabeledContent(L("deck_config_new_per_day_minimum")) {
+                Stepper("\(newPerDayMinimum)", value: $newPerDayMinimum, in: 0...1000)
+                    .foregroundStyle(Color.amgiAccent)
+            }
+            Toggle(L("deck_config_new_cards_ignore_review_limit"), isOn: $newCardsIgnoreReviewLimit)
+            Toggle(L("deck_config_apply_all_parent_limits"), isOn: $applyAllParentLimits)
         }
         .listRowBackground(Color.amgiSurfaceElevated)
     }
@@ -411,17 +469,6 @@ struct DeckConfigView: View {
                     }
                 } label: {
                     optionCapsule(newCardInsertOrderLabel)
-                }
-            }
-            LabeledContent(L("deck_config_new_mix")) {
-                Menu {
-                    Picker(L("deck_config_new_mix"), selection: $newMix) {
-                        Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                        Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                        Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
-                    }
-                } label: {
-                    optionCapsule(newMixLabel)
                 }
             }
         }
@@ -455,281 +502,329 @@ struct DeckConfigView: View {
     }
 
     private var orderSection: some View {
-        DisclosureGroup(L("deck_config_section_order"), isExpanded: $orderExpanded) {
-            Group {
-                LabeledContent(L("deck_config_review_order")) {
-                    Menu {
-                        Picker(L("deck_config_review_order"), selection: $reviewOrder) {
-                            Text(L("deck_config_review_order_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
-                            Text(L("deck_config_review_order_asc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
-                            Text(L("deck_config_review_order_desc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
-                            Text(L("deck_config_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
-                        }
-                    } label: {
-                        optionCapsule(reviewOrderLabel)
+        Section(L("deck_config_section_order")) {
+            LabeledContent(L("deck_config_new_gather_priority")) {
+                Menu {
+                    Picker(L("deck_config_new_gather_priority"), selection: $newCardGatherPriority) {
+                        Text(L("deck_config_new_gather_priority_deck")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deck)
+                        Text(L("deck_config_new_gather_priority_deck_then_random_notes")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deckThenRandomNotes)
+                        Text(L("deck_config_new_gather_priority_position_lowest_first")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.lowestPosition)
+                        Text(L("deck_config_new_gather_priority_position_highest_first")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.highestPosition)
+                        Text(L("deck_config_new_gather_priority_random_notes")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.randomNotes)
+                        Text(L("deck_config_new_gather_priority_random_cards")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.randomCards)
                     }
-                }
-                LabeledContent(L("deck_config_interday_mix")) {
-                    Menu {
-                        Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
-                            Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                            Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                            Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
-                        }
-                    } label: {
-                        optionCapsule(interdayLearningMixLabel)
-                    }
+                } label: {
+                    optionCapsule(newCardGatherPriorityLabel)
                 }
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            LabeledContent(L("deck_config_new_card_sort_order")) {
+                Menu {
+                    Picker(L("deck_config_new_card_sort_order"), selection: $newCardSortOrder) {
+                        Text(L("deck_config_sort_order_template_then_gather")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.template)
+                        Text(L("deck_config_sort_order_gather")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.noSort)
+                        Text(L("deck_config_sort_order_card_template_then_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.templateThenRandom)
+                        Text(L("deck_config_sort_order_random_note_then_template")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.randomNoteThenTemplate)
+                        Text(L("deck_config_sort_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.randomCard)
+                    }
+                } label: {
+                    optionCapsule(newCardSortOrderLabel)
+                }
+            }
+            LabeledContent(L("deck_config_new_mix")) {
+                Menu {
+                    Picker(L("deck_config_new_mix"), selection: $newMix) {
+                        Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                        Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                        Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+                    }
+                } label: {
+                    optionCapsule(newMixLabel)
+                }
+            }
+            LabeledContent(L("deck_config_review_order")) {
+                Menu {
+                    Picker(L("deck_config_review_order"), selection: $reviewOrder) {
+                        Text(L("deck_config_review_order_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
+                        Text(L("deck_config_review_order_day_then_deck")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.dayThenDeck)
+                        Text(L("deck_config_review_order_deck_then_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.deckThenDay)
+                        Text(L("deck_config_review_order_asc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
+                        Text(L("deck_config_review_order_desc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
+                        Text(L("deck_config_review_order_ease_asc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.easeAscending)
+                        Text(L("deck_config_review_order_ease_desc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.easeDescending)
+                        Text(L("deck_config_review_order_retrievability_asc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.retrievabilityAscending)
+                        Text(L("deck_config_review_order_retrievability_desc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.retrievabilityDescending)
+                        Text(L("deck_config_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
+                        Text(L("deck_config_review_order_added")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.added)
+                        Text(L("deck_config_review_order_reverse_added")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.reverseAdded)
+                    }
+                } label: {
+                    optionCapsule(reviewOrderLabel)
+                }
+            }
+            LabeledContent(L("deck_config_interday_mix")) {
+                Menu {
+                    Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
+                        Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                        Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                        Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+                    }
+                } label: {
+                    optionCapsule(interdayLearningMixLabel)
+                }
+            }
         }
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-        .padding(.vertical, 10)
+        .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     private var fsrsSection: some View {
-        DisclosureGroup(L("deck_config_section_fsrs"), isExpanded: $fsrsExpanded) {
-            Group {
-                Toggle(L("deck_config_fsrs_enable"), isOn: $fsrsEnabled)
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(L("deck_config_desired_retention"))
-                        Spacer()
-                        Text("\(Int(desiredRetentionPercent))%")
-                            .foregroundStyle(Color.amgiAccent)
-                    }
-                    Slider(value: $desiredRetentionPercent, in: 70...97, step: 1)
-                        .tint(Color.amgiAccent)
+        Section(L("deck_config_section_fsrs")) {
+            Toggle(L("deck_config_fsrs_enable"), isOn: $fsrsEnabled)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_desired_retention"))
+                    Spacer()
+                    Text("\(Int(desiredRetentionPercent))%")
+                        .foregroundStyle(Color.amgiAccent)
                 }
-                if fsrsEnabled {
-                    LabeledContent(L("deck_config_fsrs_weights")) {
-                        TextField(L("deck_config_fsrs_weights_hint"), text: $fsrsWeights)
-                            .multilineTextAlignment(.trailing)
-                            .font(.monospaced(.caption)())
-                            .foregroundStyle(Color.amgiAccent)
-                    }
+                Slider(value: $desiredRetentionPercent, in: 70...97, step: 1)
+                    .tint(Color.amgiAccent)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_historical_retention"))
+                    Spacer()
+                    Text("\(Int(historicalRetentionPercent))%")
+                        .foregroundStyle(Color.amgiAccent)
+                }
+                Slider(value: $historicalRetentionPercent, in: 70...100, step: 1)
+                    .tint(Color.amgiAccent)
+            }
+            if fsrsEnabled {
+                LabeledContent(L("deck_config_fsrs_weights")) {
+                    TextField(L("deck_config_fsrs_weights_hint"), text: $fsrsWeights)
+                        .multilineTextAlignment(.trailing)
+                        .font(.monospaced(.caption)())
+                        .foregroundStyle(Color.amgiAccent)
+                }
 
-                    Section(L("deck_config_fsrs_simulator_section")) {
-                        TextField(L("deck_config_fsrs_simulator_search_hint"), text: $fsrsSimulationSearch)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(L("deck_config_fsrs_simulator_section"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
 
-                        Button {
-                            Task { await runFsrsSimulation() }
-                        } label: {
-                            HStack {
-                                if isSimulatingFsrs {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                }
-                                Text(isSimulatingFsrs ? L("deck_config_fsrs_simulator_running") : L("deck_config_fsrs_simulator_run"))
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.amgiAccent)
-                        .disabled(isSimulatingFsrs)
-
-                        if !retentionWorkload.isEmpty {
-                            ForEach(retentionWorkload, id: \.retention) { row in
-                                HStack {
-                                    Text("\(row.retention)%")
-                                    Spacer()
-                                    Text(String(format: "%.2f", row.cost))
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                        .monospacedDigit()
-                                }
-                                .amgiFont(.caption)
-                            }
-                        } else {
-                            Text(L("deck_config_fsrs_simulator_empty"))
-                                .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                        }
-                    }
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    TextField(L("deck_config_fsrs_simulator_search_hint"), text: $fsrsSimulationSearch)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
 
                     Button {
-                        Task { await optimizeFsrsPresets() }
+                        Task { await runFsrsSimulation() }
                     } label: {
                         HStack {
-                            if isOptimizingFsrs {
+                            if isSimulatingFsrs {
                                 ProgressView()
                                     .controlSize(.small)
                             }
-                            Text(isOptimizingFsrs ? L("deck_config_fsrs_optimize_running") : L("deck_config_fsrs_optimize_presets"))
+                            Text(isSimulatingFsrs ? L("deck_config_fsrs_simulator_running") : L("deck_config_fsrs_simulator_run"))
                         }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color.amgiAccent)
-                    .disabled(isOptimizingFsrs)
+                    .disabled(isSimulatingFsrs)
+
+                    if !retentionWorkload.isEmpty {
+                        ForEach(retentionWorkload, id: \.retention) { row in
+                            HStack {
+                                Text("\(row.retention)%")
+                                Spacer()
+                                Text(String(format: "%.2f", row.cost))
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .monospacedDigit()
+                            }
+                            .amgiFont(.caption)
+                        }
+                    } else {
+                        Text(L("deck_config_fsrs_simulator_empty"))
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
                 }
+
+                Button {
+                    Task { await optimizeFsrsPresets() }
+                } label: {
+                    HStack {
+                        if isOptimizingFsrs {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Text(isOptimizingFsrs ? L("deck_config_fsrs_optimize_running") : L("deck_config_fsrs_optimize_presets"))
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.amgiAccent)
+                .disabled(isOptimizingFsrs)
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
         }
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-        .padding(.vertical, 10)
+        .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     private var burySection: some View {
-        DisclosureGroup(L("deck_config_section_bury"), isExpanded: $buryExpanded) {
-            Group {
-                Toggle(L("deck_config_bury_new"), isOn: $buryNew)
-                Toggle(L("deck_config_bury_reviews"), isOn: $buryReviews)
-                Toggle(L("deck_config_bury_interday"), isOn: $buryInterdayLearning)
-            }
-            .listRowBackground(Color.amgiSurfaceElevated)
+        Section(L("deck_config_section_bury")) {
+            Toggle(L("deck_config_bury_new"), isOn: $buryNew)
+            Toggle(L("deck_config_bury_reviews"), isOn: $buryReviews)
+            Toggle(L("deck_config_bury_interday"), isOn: $buryInterdayLearning)
         }
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-        .padding(.vertical, 10)
+        .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     private var timerSection: some View {
-        DisclosureGroup(L("deck_config_section_timer"), isExpanded: $timerExpanded) {
-            Group {
-                Toggle(L("deck_config_show_timer"), isOn: $showTimer)
-                LabeledContent(L("deck_config_timer_cap")) {
-                    Stepper(L("deck_config_seconds_fmt", capAnswerTimeToSecs), value: $capAnswerTimeToSecs, in: 5...600)
-                        .foregroundStyle(Color.amgiAccent)
-                }
-                Toggle(L("deck_config_stop_timer_on_answer"), isOn: $stopTimerOnAnswer)
+        Section(L("deck_config_section_timer")) {
+            Toggle(L("deck_config_show_timer"), isOn: $showTimer)
+            LabeledContent(L("deck_config_timer_cap")) {
+                Stepper(L("deck_config_seconds_fmt", capAnswerTimeToSecs), value: $capAnswerTimeToSecs, in: 5...600)
+                    .foregroundStyle(Color.amgiAccent)
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            Toggle(L("deck_config_stop_timer_on_answer"), isOn: $stopTimerOnAnswer)
         }
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-        .padding(.vertical, 10)
+        .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     private var autoAdvanceSection: some View {
-        DisclosureGroup(L("deck_config_section_auto_advance"), isExpanded: $autoAdvanceExpanded) {
-            Group {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(L("deck_config_question_secs"))
-                        Spacer()
-                        Text(String(format: "%.1f s", secondsToShowQuestion))
-                            .foregroundStyle(Color.amgiAccent)
-                    }
-                    Slider(value: $secondsToShowQuestion, in: 0...60, step: 0.5)
-                        .tint(Color.amgiAccent)
+        Section(L("deck_config_section_auto_advance")) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_question_secs"))
+                    Spacer()
+                    Text(String(format: "%.1f s", secondsToShowQuestion))
+                        .foregroundStyle(Color.amgiAccent)
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(L("deck_config_answer_secs"))
-                        Spacer()
-                        Text(String(format: "%.1f s", secondsToShowAnswer))
-                            .foregroundStyle(Color.amgiAccent)
-                    }
-                    Slider(value: $secondsToShowAnswer, in: 0...60, step: 0.5)
-                        .tint(Color.amgiAccent)
+                Slider(value: $secondsToShowQuestion, in: 0...60, step: 0.5)
+                    .tint(Color.amgiAccent)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_answer_secs"))
+                    Spacer()
+                    Text(String(format: "%.1f s", secondsToShowAnswer))
+                        .foregroundStyle(Color.amgiAccent)
                 }
-                LabeledContent(L("deck_config_after_question")) {
-                    Menu {
-                        Picker(L("deck_config_after_question"), selection: $questionAction) {
-                            Text(L("deck_config_action_show_answer")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
-                            Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
-                        }
-                    } label: {
-                        optionCapsule(questionActionLabel)
+                Slider(value: $secondsToShowAnswer, in: 0...60, step: 0.5)
+                    .tint(Color.amgiAccent)
+            }
+            LabeledContent(L("deck_config_after_question")) {
+                Menu {
+                    Picker(L("deck_config_after_question"), selection: $questionAction) {
+                        Text(L("deck_config_action_show_answer")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
+                        Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
                     }
-                }
-                LabeledContent(L("deck_config_after_answer")) {
-                    Menu {
-                        Picker(L("deck_config_after_answer"), selection: $answerAction) {
-                            Text(L("deck_config_action_bury")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
-                            Text(L("deck_config_action_again")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
-                            Text(L("deck_config_action_hard")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
-                            Text(L("deck_config_action_good")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
-                            Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
-                        }
-                    } label: {
-                        optionCapsule(answerActionLabel)
-                    }
+                } label: {
+                    optionCapsule(questionActionLabel)
                 }
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            LabeledContent(L("deck_config_after_answer")) {
+                Menu {
+                    Picker(L("deck_config_after_answer"), selection: $answerAction) {
+                        Text(L("deck_config_action_bury")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
+                        Text(L("deck_config_action_again")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
+                        Text(L("deck_config_action_hard")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
+                        Text(L("deck_config_action_good")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
+                        Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
+                    }
+                } label: {
+                    optionCapsule(answerActionLabel)
+                }
+            }
         }
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-        .padding(.vertical, 10)
+        .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     private var advancedSection: some View {
-        DisclosureGroup(L("deck_config_section_advanced"), isExpanded: $advancedExpanded) {
-            Group {
-                Toggle(L("deck_config_disable_autoplay"), isOn: $disableAutoplay)
-                Toggle(L("deck_config_wait_audio"), isOn: $waitForAudio)
-                Toggle(L("deck_config_skip_question_audio"), isOn: $skipQuestionWhenReplayingAnswer)
-                LabeledContent(L("deck_config_max_interval")) {
-                    Stepper(L("deck_config_days_fmt", maximumReviewIntervalDays), value: $maximumReviewIntervalDays, in: 1...36500)
+        Section(L("deck_config_section_advanced")) {
+            Toggle(L("deck_config_disable_autoplay"), isOn: $disableAutoplay)
+            Toggle(L("deck_config_wait_audio"), isOn: $waitForAudio)
+            Toggle(L("deck_config_skip_question_audio"), isOn: $skipQuestionWhenReplayingAnswer)
+            LabeledContent(L("deck_config_max_interval")) {
+                Stepper(L("deck_config_days_fmt", maximumReviewIntervalDays), value: $maximumReviewIntervalDays, in: 1...36500)
+                    .foregroundStyle(Color.amgiAccent)
+            }
+            LabeledContent(L("deck_config_minimum_lapse_interval")) {
+                Stepper(L("deck_config_days_fmt", minimumLapseIntervalDays), value: $minimumLapseIntervalDays, in: 1...36500)
+                    .foregroundStyle(Color.amgiAccent)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_initial_ease"))
+                    Spacer()
+                    Text("\(Int(initialEasePercent))%")
                         .foregroundStyle(Color.amgiAccent)
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(L("deck_config_interval_mult"))
-                        Spacer()
-                        Text("\(Int(intervalMultiplierPercent))%")
-                            .foregroundStyle(Color.amgiAccent)
-                    }
-                    Slider(value: $intervalMultiplierPercent, in: 50...200, step: 1)
-                        .tint(Color.amgiAccent)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(L("deck_config_hard_mult"))
-                        Spacer()
-                        Text("\(Int(hardMultiplierPercent))%")
-                            .foregroundStyle(Color.amgiAccent)
-                    }
-                    Slider(value: $hardMultiplierPercent, in: 80...200, step: 1)
-                        .tint(Color.amgiAccent)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(L("deck_config_easy_mult"))
-                        Spacer()
-                        Text("\(Int(easyMultiplierPercent))%")
-                            .foregroundStyle(Color.amgiAccent)
-                    }
-                    Slider(value: $easyMultiplierPercent, in: 100...300, step: 1)
-                        .tint(Color.amgiAccent)
-                }
+                Slider(value: $initialEasePercent, in: 130...400, step: 1)
+                    .tint(Color.amgiAccent)
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_interval_mult"))
+                    Spacer()
+                    Text("\(Int(intervalMultiplierPercent))%")
+                        .foregroundStyle(Color.amgiAccent)
+                }
+                Slider(value: $intervalMultiplierPercent, in: 50...200, step: 1)
+                    .tint(Color.amgiAccent)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_lapse_multiplier"))
+                    Spacer()
+                    Text("\(Int(lapseMultiplierPercent))%")
+                        .foregroundStyle(Color.amgiAccent)
+                }
+                Slider(value: $lapseMultiplierPercent, in: 0...100, step: 1)
+                    .tint(Color.amgiAccent)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_hard_mult"))
+                    Spacer()
+                    Text("\(Int(hardMultiplierPercent))%")
+                        .foregroundStyle(Color.amgiAccent)
+                }
+                Slider(value: $hardMultiplierPercent, in: 80...200, step: 1)
+                    .tint(Color.amgiAccent)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("deck_config_easy_mult"))
+                    Spacer()
+                    Text("\(Int(easyMultiplierPercent))%")
+                        .foregroundStyle(Color.amgiAccent)
+                }
+                Slider(value: $easyMultiplierPercent, in: 100...300, step: 1)
+                    .tint(Color.amgiAccent)
+            }
         }
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-        .padding(.vertical, 10)
+        .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     private var easyDaysSection: some View {
-        DisclosureGroup(L("deck_config_section_easy_days"), isExpanded: $easyDaysExpanded) {
-            Group {
-                ForEach(0..<7, id: \.self) { idx in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(weekdayName(idx))
-                            Spacer()
-                            Text("\(Int(easyDayPercentages[idx]))%")
-                                .foregroundStyle(Color.amgiAccent)
-                        }
-                        Slider(value: Binding(
-                            get: { easyDayPercentages[idx] },
-                            set: { easyDayPercentages[idx] = $0 }
-                        ), in: 50...150, step: 1)
-                        .tint(Color.amgiAccent)
+        Section(L("deck_config_section_easy_days")) {
+            ForEach(0..<7, id: \.self) { idx in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(weekdayName(idx))
+                        Spacer()
+                        Text("\(Int(easyDayPercentages[idx]))%")
+                            .foregroundStyle(Color.amgiAccent)
                     }
-                    .padding(.vertical, 2)
+                    Slider(value: Binding(
+                        get: { easyDayPercentages[idx] },
+                        set: { easyDayPercentages[idx] = $0 }
+                    ), in: 50...150, step: 1)
+                    .tint(Color.amgiAccent)
                 }
+                .padding(.vertical, 2)
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
         }
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-        .padding(.vertical, 10)
+        .listRowBackground(Color.amgiSurfaceElevated)
     }
     
     private func loadConfig() async {
@@ -764,6 +859,7 @@ struct DeckConfigView: View {
                 // Extract values from config
                 newCardsPerDay = Int32(cfg.newPerDay)
                 reviewsPerDay = Int32(cfg.reviewsPerDay)
+                newPerDayMinimum = Int32(cfg.newPerDayMinimum)
                 learningStepsText = formatSteps(cfg.learnSteps)
                 relearningStepsText = formatSteps(cfg.relearnSteps)
                 graduatingGoodDays = Int32(cfg.graduatingIntervalGood)
@@ -772,6 +868,8 @@ struct DeckConfigView: View {
 
                 newCardInsertOrder = cfg.newCardInsertOrder
                 newMix = cfg.newMix
+                newCardGatherPriority = cfg.newCardGatherPriority
+                newCardSortOrder = cfg.newCardSortOrder
                 reviewOrder = cfg.reviewOrder
                 interdayLearningMix = cfg.interdayLearningMix
                 leechAction = cfg.leechAction
@@ -793,9 +891,15 @@ struct DeckConfigView: View {
                 answerAction = cfg.answerAction
 
                 maximumReviewIntervalDays = Int32(cfg.maximumReviewInterval)
+                minimumLapseIntervalDays = Int32(max(cfg.minimumLapseInterval, 1))
+                initialEasePercent = cfg.initialEase > 0 ? Double(cfg.initialEase * 100) : 250
                 intervalMultiplierPercent = Double(cfg.intervalMultiplier * 100)
+                lapseMultiplierPercent = Double(cfg.lapseMultiplier * 100)
                 hardMultiplierPercent = Double(cfg.hardMultiplier * 100)
                 easyMultiplierPercent = Double(cfg.easyMultiplier * 100)
+                historicalRetentionPercent = cfg.historicalRetention > 0 ? Double(cfg.historicalRetention * 100) : 90
+                newCardsIgnoreReviewLimit = effectiveContext.newCardsIgnoreReviewLimit
+                applyAllParentLimits = effectiveContext.applyAllParentLimits
                 if cfg.easyDaysPercentages.count == 7 {
                     easyDayPercentages = cfg.easyDaysPercentages.map { Double($0) * 100 }
                 } else {
@@ -1024,6 +1128,7 @@ struct DeckConfigView: View {
         cfg.skipQuestionWhenReplayingAnswer = skipQuestionWhenReplayingAnswer
         cfg.newPerDay = UInt32(max(0, newCardsPerDay))
         cfg.reviewsPerDay = UInt32(max(0, reviewsPerDay))
+        cfg.newPerDayMinimum = UInt32(max(0, newPerDayMinimum))
         cfg.learnSteps = parseSteps(learningStepsText)
         cfg.relearnSteps = parseSteps(relearningStepsText)
         cfg.graduatingIntervalGood = UInt32(max(0, graduatingGoodDays))
@@ -1032,6 +1137,8 @@ struct DeckConfigView: View {
 
         cfg.newCardInsertOrder = newCardInsertOrder
         cfg.newMix = newMix
+        cfg.newCardGatherPriority = newCardGatherPriority
+        cfg.newCardSortOrder = newCardSortOrder
         cfg.reviewOrder = reviewOrder
         cfg.interdayLearningMix = interdayLearningMix
         cfg.leechAction = leechAction
@@ -1050,12 +1157,16 @@ struct DeckConfigView: View {
         cfg.answerAction = answerAction
 
         cfg.maximumReviewInterval = UInt32(max(1, maximumReviewIntervalDays))
+        cfg.minimumLapseInterval = UInt32(max(1, minimumLapseIntervalDays))
+        cfg.initialEase = Float(initialEasePercent / 100)
         cfg.intervalMultiplier = Float(intervalMultiplierPercent / 100)
+        cfg.lapseMultiplier = Float(lapseMultiplierPercent / 100)
         cfg.hardMultiplier = Float(hardMultiplierPercent / 100)
         cfg.easyMultiplier = Float(easyMultiplierPercent / 100)
         cfg.easyDaysPercentages = easyDayPercentages.map { Float($0 / 100) }
 
         cfg.desiredRetention = Float(desiredRetentionPercent / 100)
+        cfg.historicalRetention = Float(historicalRetentionPercent / 100)
 
         if fsrsEnabled {
             let weights = parseFloatArray(fsrsWeights)
@@ -1083,7 +1194,14 @@ struct DeckConfigView: View {
         isSaving = true
 
         do {
-            try deckClient.updateDeckConfig(deckId, updatedConfig, applyToChildren, fsrsEnabled)
+            try deckClient.updateDeckConfig(
+                deckId,
+                updatedConfig,
+                applyToChildren,
+                fsrsEnabled,
+                newCardsIgnoreReviewLimit,
+                applyAllParentLimits
+            )
             if dismissOnSuccess {
                 onDismiss()
             } else {

@@ -102,7 +102,7 @@ struct DeckDetailView: View {
                     Button {
                         showConfig = true
                     } label: {
-                        Label(L("deck_detail_config"), systemImage: "slider.horizontal.3")
+                        Label(L("deck_config_title"), systemImage: "slider.horizontal.3")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")

@@ -18,7 +18,14 @@ public struct DeckClient: Sendable {
     public var selectDeckPreset: @Sendable (_ deckId: Int64, _ config: Anki_DeckConfig_DeckConfig, _ applyToChildren: Bool) throws -> Void
     public var createDeckPreset: @Sendable (_ deckId: Int64, _ baseConfig: Anki_DeckConfig_DeckConfig, _ name: String, _ applyToChildren: Bool) throws -> Void
     public var deleteDeckPreset: @Sendable (_ deckId: Int64, _ removingConfigId: Int64, _ fallbackConfig: Anki_DeckConfig_DeckConfig, _ applyToChildren: Bool) throws -> Void
-    public var updateDeckConfig: @Sendable (_ deckId: Int64, _ config: Anki_DeckConfig_DeckConfig, _ applyToChildren: Bool, _ fsrsEnabled: Bool) throws -> Void
+    public var updateDeckConfig: @Sendable (
+        _ deckId: Int64,
+        _ config: Anki_DeckConfig_DeckConfig,
+        _ applyToChildren: Bool,
+        _ fsrsEnabled: Bool,
+        _ newCardsIgnoreReviewLimit: Bool,
+        _ applyAllParentLimits: Bool
+    ) throws -> Void
     public var getRetentionWorkload: @Sendable (_ weights: [Float], _ search: String) throws -> [UInt32: Float]
     public var optimizeFsrsPresets: @Sendable (_ deckId: Int64, _ selectedConfig: Anki_DeckConfig_DeckConfig) throws -> Void
 }
