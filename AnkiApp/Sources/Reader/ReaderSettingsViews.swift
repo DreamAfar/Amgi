@@ -261,7 +261,7 @@ struct ReaderDisplaySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
     @AppStorage(ReaderPreferences.Keys.fontSize) private var readerFontSize = 24
     @AppStorage(ReaderPreferences.Keys.hideFurigana) private var hideFurigana = false
-    @AppStorage(ReaderPreferences.Keys.horizontalPadding) private var horizontalPadding = 5
+    @AppStorage(ReaderPreferences.Keys.horizontalPadding) private var horizontalPadding = 2
     @AppStorage(ReaderPreferences.Keys.verticalPadding) private var verticalPadding = 0
     @AppStorage(ReaderPreferences.Keys.layoutAdvanced) private var layoutAdvanced = false
     @AppStorage(ReaderPreferences.Keys.lineHeight) private var lineHeight = 1.65

@@ -471,7 +471,7 @@ struct SyncSheet: View {
             Button(L("btn_retry")) {
                 Task { await startSync() }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(BorderedProminentButtonStyle())
             .tint(Color.amgiAccent)
         }
     }
@@ -495,19 +495,30 @@ struct SyncSheet: View {
                         Label(L("sync_btn_download"), systemImage: "arrow.down.circle")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(BorderedProminentButtonStyle())
                     .tint(Color.amgiAccent)
                 }
 
                 if requirement.kind != .downloadOnly {
-                    Button {
-                        Task { await fullSync(.upload, requirement: requirement) }
-                    } label: {
-                        Label(L("sync_btn_upload"), systemImage: "arrow.up.circle")
-                            .frame(maxWidth: .infinity)
+                    if requirement.kind == .uploadOnly {
+                        Button {
+                            Task { await fullSync(.upload, requirement: requirement) }
+                        } label: {
+                            Label(L("sync_btn_upload"), systemImage: "arrow.up.circle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(BorderedProminentButtonStyle())
+                        .tint(Color.amgiAccent)
+                    } else {
+                        Button {
+                            Task { await fullSync(.upload, requirement: requirement) }
+                        } label: {
+                            Label(L("sync_btn_upload"), systemImage: "arrow.up.circle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(BorderedButtonStyle())
+                        .tint(Color.amgiAccent)
                     }
-                    .buttonStyle(requirement.kind == .uploadOnly ? .borderedProminent : .bordered)
-                    .tint(Color.amgiAccent)
                 }
             }
 

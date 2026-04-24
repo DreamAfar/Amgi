@@ -347,7 +347,7 @@
 "settings_reader_popup_kana_font_size" = "かな文字サイズ";
 "settings_reader_popup_width" = "幅";
 "settings_reader_popup_height" = "高さ";
-"settings_reader_popup_full_width" = "全幅表示";
+"settings_reader_popup_full_width" = "Full-width";
 "settings_reader_popup_swipe_to_dismiss" = "スワイプで閉じる";
 "settings_reader_dictionary_settings" = "辞書設定";
 "settings_reader_dictionary_section_recommended" = "おすすめ";

@@ -596,7 +596,7 @@ private struct ReaderChapterView: View {
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
     @AppStorage(ReaderPreferences.Keys.fontSize) private var readerFontSize = 24
     @AppStorage(ReaderPreferences.Keys.hideFurigana) private var hideFurigana = false
-    @AppStorage(ReaderPreferences.Keys.horizontalPadding) private var horizontalPadding = 5
+    @AppStorage(ReaderPreferences.Keys.horizontalPadding) private var horizontalPadding = 2
     @AppStorage(ReaderPreferences.Keys.verticalPadding) private var verticalPadding = 0
     @AppStorage(ReaderPreferences.Keys.lineHeight) private var lineHeight = 1.65
     @AppStorage(ReaderPreferences.Keys.characterSpacing) private var characterSpacing = 0.0
@@ -638,6 +638,7 @@ private struct ReaderChapterView: View {
     @State private var isLookingUp = false
     @State private var lookupErrorMessage: String?
     @State private var lookupAnchor: CGPoint?
+    @State private var activeLookupRequestID = UUID()
     @State private var activeSheet: ReaderChapterSheetRoute?
     @State private var chapterNavigationTarget: ReaderChapter?
 
@@ -783,12 +784,13 @@ private struct ReaderChapterView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let topSafeArea = geometry.safeAreaInsets.top
+            let topSafeArea = max(UIApplication.readerTopSafeArea, geometry.safeAreaInsets.top)
+            let bottomSafeArea = max(UIApplication.readerBottomSafeArea, geometry.safeAreaInsets.bottom)
             let showsTopInfo = showTitle || showProgressTop
-            let topOverlayTopPadding = max(topSafeArea - 6, 4)
-            let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 30 : 8)
-            let bottomInset = max(geometry.safeAreaInsets.bottom - 8, 14)
-            let bottomChromePadding = max(geometry.safeAreaInsets.bottom - 18, 6)
+            let topOverlayTopPadding = max(topSafeArea, 25)
+            let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 34 : 10)
+            let bottomInset = max(bottomSafeArea - 8, 14)
+            let bottomChromePadding = max(bottomSafeArea - 18, 6)
 
             VStack(spacing: 0) {
                 chapterContentBackground
@@ -820,8 +822,8 @@ private struct ReaderChapterView: View {
                         onSelectionResolved: { selection in
                             handleResolvedSelection(selection)
                         },
-                        onLookupRequested: { selection, sentence, point in
-                            handleTapLookup(selection, sentence: sentence, at: point)
+                        onLookupRequested: { request, point in
+                            handleTapLookup(request, at: point)
                         }
                     )
                     .background(chapterContentBackground)
@@ -890,7 +892,7 @@ private struct ReaderChapterView: View {
                     }
                     .readerChromeButtonStyle()
                 }
-                .padding(.top, topSafeArea + 14)
+                .padding(.top, topOverlayTopPadding)
                 .padding(.trailing, 20)
             }
             .overlay {
@@ -999,12 +1001,13 @@ private struct ReaderChapterView: View {
         }
     }
 
-    private func handleTapLookup(_ selection: String?, sentence: String?, at point: CGPoint) {
-        guard let tappedSelection = normalizedSelection(selection) else {
+    private func handleTapLookup(_ request: ReaderTapLookupRequest, at point: CGPoint) {
+        let candidates = normalizedLookupCandidates(preferred: request.text, extras: request.candidates)
+        guard let tappedSelection = candidates.first else {
             return
         }
         pendingSelectionAction = nil
-        startLookup(for: tappedSelection, sentence: sentence, anchor: point)
+        startLookup(for: tappedSelection, candidates: candidates, sentence: request.sentence, anchor: point)
     }
 
     private func normalizedSelection(_ selection: String?) -> String? {
@@ -1019,25 +1022,129 @@ private struct ReaderChapterView: View {
         return trimmedSentence.isEmpty ? nil : trimmedSentence
     }
 
-    private func startLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil) {
-        lookupQuery = query
+    private func normalizedLookupCandidates(preferred: String?, extras: [String]) -> [String] {
+        var ordered: [String] = []
+        var seen = Set<String>()
+
+        for candidate in [preferred].compactMap({ $0 }) + extras {
+            guard let normalized = normalizedSelection(candidate) else {
+                continue
+            }
+            let key = normalized.lowercased()
+            guard seen.insert(key).inserted else {
+                continue
+            }
+            ordered.append(normalized)
+        }
+
+        return ordered
+    }
+
+    private func matchedLookupText(from result: DictionaryLookupResult) -> String? {
+        result.entries.first?.source?
+            .components(separatedBy: "•")
+            .first?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfBlank
+    }
+
+    private func lookupScore(
+        for result: DictionaryLookupResult,
+        query: String,
+        candidateIndex: Int
+    ) -> Int {
+        guard let entry = result.entries.first else {
+            return -10_000 - candidateIndex
+        }
+
+        let matchedText = matchedLookupText(from: result) ?? ""
+        let exactMatchedBonus = matchedText == query ? 10_000 : 0
+        let exactTermBonus = entry.term == query ? 6_000 : 0
+        let matchedLengthScore = matchedText.count * 100
+        let termLengthScore = entry.term.count * 10
+        let readingScore = entry.reading?.count ?? 0
+        return exactMatchedBonus + exactTermBonus + matchedLengthScore + termLengthScore + readingScore - candidateIndex
+    }
+
+    private func resolveLookup(
+        queries: [String]
+    ) async throws -> (query: String, result: DictionaryLookupResult) {
+        var fallback: (query: String, result: DictionaryLookupResult)?
+        var best: (query: String, result: DictionaryLookupResult, score: Int)?
+
+        for (index, query) in queries.enumerated() {
+            let result = try await dictionaryLookupClient.lookup(
+                query,
+                dictionaryMaxResults,
+                dictionaryScanLength
+            )
+
+            if fallback == nil {
+                fallback = (query, result)
+            }
+
+            let score = lookupScore(for: result, query: query, candidateIndex: index)
+            if let best, best.score >= score {
+                continue
+            }
+
+            best = (query, result, score)
+
+            if let matchedText = matchedLookupText(from: result),
+               matchedText == query {
+                break
+            }
+        }
+
+        if let best {
+            return (best.query, best.result)
+        }
+
+        guard let fallback else {
+            let query = queries.first ?? ""
+            return (query, DictionaryLookupResult(query: query))
+        }
+        return fallback
+    }
+
+    private func startLookup(
+        for query: String,
+        candidates: [String] = [],
+        sentence: String? = nil,
+        anchor: CGPoint? = nil
+    ) {
+        let lookupQueries = normalizedLookupCandidates(preferred: query, extras: candidates)
+        guard let initialQuery = lookupQueries.first else {
+            return
+        }
+
+        lookupQuery = initialQuery
         lookupSentence = normalizedSentence(sentence)
         lookupResult = nil
         lookupAnchor = anchor
         showLookupSheet = true
         isLookingUp = true
+        let lookupRequestID = UUID()
+        activeLookupRequestID = lookupRequestID
         Task {
             do {
-                lookupResult = try await dictionaryLookupClient.lookup(
-                    query,
-                    dictionaryMaxResults,
-                    dictionaryScanLength
-                )
+                let resolved = try await resolveLookup(queries: lookupQueries)
+                guard activeLookupRequestID == lookupRequestID else {
+                    return
+                }
+                lookupQuery = resolved.query
+                lookupResult = resolved.result
             } catch {
+                guard activeLookupRequestID == lookupRequestID else {
+                    return
+                }
                 showLookupSheet = false
                 lookupAnchor = nil
                 lookupErrorMessage = error.localizedDescription
                 showSelectionError = true
+            }
+            guard activeLookupRequestID == lookupRequestID else {
+                return
             }
             isLookingUp = false
         }
@@ -1129,37 +1236,10 @@ private struct ReaderLookupPopup: View {
 
     private var popupCornerRadius: CGFloat { 18 }
 
-    private var glassTint: LinearGradient {
-        if colorScheme == .dark {
-            return LinearGradient(
-                colors: [
-                    Color.white.opacity(0.12),
-                    Color.white.opacity(0.04),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            return LinearGradient(
-                colors: [
-                    Color.white.opacity(0.52),
-                    Color.white.opacity(0.20),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-    }
-
-    private var glassHighlight: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color.white.opacity(colorScheme == .dark ? 0.22 : 0.42),
-                Color.white.opacity(0.0),
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+    private var popupBackgroundFill: Color {
+        colorScheme == .dark
+            ? Color(.secondarySystemBackground).opacity(0.96)
+            : Color(.systemBackground).opacity(0.96)
     }
 
     private var sections: [ReaderLookupSection] {
@@ -1352,17 +1432,7 @@ private struct ReaderLookupPopup: View {
         .frame(maxWidth: isFullWidth ? .infinity : popupWidth, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)
-                .fill(.thinMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)
-                        .fill(glassTint)
-                }
-                .overlay(alignment: .top) {
-                    RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)
-                        .fill(glassHighlight)
-                        .frame(height: 56)
-                        .clipShape(RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous))
-                }
+                .fill(popupBackgroundFill)
         }
         .overlay {
             RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)
@@ -1505,6 +1575,30 @@ private extension View {
     }
 }
 
+private extension UIApplication {
+    static var readerSafeAreaInsets: UIEdgeInsets {
+        shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .safeAreaInsets ?? .zero
+    }
+
+    static var readerTopSafeArea: CGFloat {
+        readerSafeAreaInsets.top
+    }
+
+    static var readerBottomSafeArea: CGFloat {
+        readerSafeAreaInsets.bottom
+    }
+}
+
+private struct ReaderTapLookupRequest {
+    let text: String?
+    let candidates: [String]
+    let sentence: String?
+}
+
 private struct ReaderChapterWebView: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -1527,7 +1621,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     let tapLookupEnabled: Bool
     let onProgressChange: (Double) -> Void
     let onSelectionResolved: (String?) -> Void
-    let onLookupRequested: (String?, String?, CGPoint) -> Void
+    let onLookupRequested: (ReaderTapLookupRequest, CGPoint) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -1634,6 +1728,51 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return !!element?.closest('rt, rp');
             },
 
+            isTransparentColor(cssColor) {
+                return cssColor === 'transparent' || (typeof cssColor === 'string' && /^rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/i.test(cssColor));
+            },
+
+            isTransparentElement(element) {
+                if (!element || element === document.body || element === document.documentElement) {
+                    return false;
+                }
+
+                const style = window.getComputedStyle(element);
+                return (
+                    style.display === 'none' ||
+                    style.visibility === 'hidden' ||
+                    Number.parseFloat(style.opacity || '1') <= 0 ||
+                    (
+                        style.backgroundImage === 'none' &&
+                        this.isTransparentColor(style.backgroundColor)
+                    )
+                );
+            },
+
+            getHitElements(x, y) {
+                if (document.elementsFromPoint) {
+                    const elements = document.elementsFromPoint(x, y);
+                    return elements.filter((element, index) => elements.indexOf(element) === index);
+                }
+
+                const element = document.elementFromPoint(x, y);
+                return element ? [element] : [];
+            },
+
+            getTextHitElement(x, y) {
+                const elements = this.getHitElements(x, y);
+                for (const element of elements) {
+                    if (element.closest('audio, video, button, input, textarea, select')) {
+                        continue;
+                    }
+                    if (this.isTransparentElement(element)) {
+                        continue;
+                    }
+                    return element;
+                }
+                return elements[0] || null;
+            },
+
             findParagraph(node) {
                 const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
                 return element?.closest('p, li, blockquote, h1, h2, h3, h4, h5, h6, div') || document.body;
@@ -1677,6 +1816,85 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                     segment.end - segment.start
                 );
                 return segment.start + clampedOffset;
+            },
+
+            collectForwardText(fullText, startOffset, maxLength) {
+                let text = '';
+                let offset = startOffset;
+
+                while (offset < fullText.length && text.length < maxLength) {
+                    const character = fullText[offset];
+                    if (this.isScanBoundary(character)) {
+                        break;
+                    }
+                    text += character;
+                    offset += 1;
+                }
+
+                return text;
+            },
+
+            buildLookupCandidates(container, hit, maxLength) {
+                const index = this.buildTextIndex(container);
+                const fullText = index.text;
+                const absoluteHit = this.absoluteOffsetForNode(index.segments, hit.node, hit.offset);
+                if (absoluteHit === null || absoluteHit >= fullText.length) {
+                    return [];
+                }
+
+                const hitCharacter = fullText[absoluteHit];
+                if (!hitCharacter || this.isScanBoundary(hitCharacter)) {
+                    return [];
+                }
+
+                const candidateStarts = [];
+                const appendStart = (startOffset) => {
+                    if (startOffset < 0 || startOffset >= fullText.length) {
+                        return;
+                    }
+                    const character = fullText[startOffset];
+                    if (!character || this.isScanBoundary(character)) {
+                        return;
+                    }
+                    if (!candidateStarts.includes(startOffset)) {
+                        candidateStarts.push(startOffset);
+                    }
+                };
+
+                if (this.isJapaneseLike(hitCharacter)) {
+                    appendStart(absoluteHit);
+                    const maxBacktrack = Math.min(Math.max(maxLength - 1, 0), 8, absoluteHit);
+                    for (let delta = 1; delta <= maxBacktrack; delta += 1) {
+                        const startOffset = absoluteHit - delta;
+                        if (this.isScanBoundary(fullText[startOffset])) {
+                            break;
+                        }
+                        appendStart(startOffset);
+                    }
+                } else {
+                    let wordStart = absoluteHit;
+                    while (wordStart > 0 && !this.isScanBoundary(fullText[wordStart - 1])) {
+                        wordStart -= 1;
+                    }
+                    appendStart(wordStart);
+                    appendStart(absoluteHit);
+                    for (let delta = 1; delta <= 3; delta += 1) {
+                        const startOffset = absoluteHit - delta;
+                        if (startOffset < wordStart) {
+                            break;
+                        }
+                        appendStart(startOffset);
+                    }
+                }
+
+                const candidates = [];
+                for (const startOffset of candidateStarts) {
+                    const text = this.collectForwardText(fullText, startOffset, maxLength);
+                    if (text && !candidates.includes(text)) {
+                        candidates.push(text);
+                    }
+                }
+                return candidates;
             },
 
             extractSentence(container, startNode, startOffset, selectedText) {
@@ -1742,7 +1960,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                     return range;
                 }
 
-                const element = document.elementFromPoint(x, y);
+                const element = this.getTextHitElement(x, y);
                 if (!element) {
                     return null;
                 }
@@ -1766,7 +1984,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
             },
 
-            getCharacterAtPoint(x, y) {
+            getCharacterAtExactPoint(x, y) {
                 const element = document.elementFromPoint(x, y);
                 if (element && element.closest('a, button, input, textarea, select, audio, video')) {
                     return null;
@@ -1801,6 +2019,34 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                     }
                 }
 
+                return null;
+            },
+
+            getLookupCandidatePoints(x, y) {
+                return [
+                    [x, y],
+                    [x, y - 4],
+                    [x, y + 4],
+                    [x - 4, y],
+                    [x + 4, y],
+                    [x - 6, y - 6],
+                    [x + 6, y - 6],
+                    [x - 6, y + 6],
+                    [x + 6, y + 6],
+                    [x, y - 8],
+                    [x, y + 8],
+                    [x - 8, y],
+                    [x + 8, y]
+                ];
+            },
+
+            getCharacterAtPoint(x, y) {
+                for (const [candidateX, candidateY] of this.getLookupCandidatePoints(x, y)) {
+                    const hit = this.getCharacterAtExactPoint(candidateX, candidateY);
+                    if (hit) {
+                        return hit;
+                    }
+                }
                 return null;
             },
 
@@ -1876,6 +2122,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 this.clearSelection();
 
                 const container = this.findParagraph(hit.node) || document.body;
+                const candidates = this.buildLookupCandidates(container, hit, maxLength);
                 const walker = this.createWalker(container);
                 let text = '';
                 const start = this.expandStartOffset(hit);
@@ -1923,6 +2170,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
                 return {
                     text,
+                    candidates,
                     sentence: this.selection.sentence,
                     rect: this.getSelectionRect(x, y)
                 };
@@ -1951,8 +2199,8 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         let resolvedHorizontalPadding = max(horizontalPadding, 0)
         let resolvedVerticalPadding = max(verticalPadding, 0)
         let bodyPadding = isVertical
-            ? "padding: \(24 + resolvedVerticalPadding * 2)px \(28 + resolvedHorizontalPadding * 2)px \(28 + resolvedVerticalPadding * 2)px \(28 + resolvedHorizontalPadding * 2)px;"
-            : "padding: \(24 + resolvedVerticalPadding * 2)px \(20 + resolvedHorizontalPadding * 2)px \(40 + resolvedVerticalPadding * 2)px \(20 + resolvedHorizontalPadding * 2)px;"
+            ? "padding: \(20 + resolvedVerticalPadding * 2)px \(20 + resolvedHorizontalPadding * 2)px \(24 + resolvedVerticalPadding * 2)px \(20 + resolvedHorizontalPadding * 2)px;"
+            : "padding: \(20 + resolvedVerticalPadding * 2)px \(14 + resolvedHorizontalPadding * 2)px \(32 + resolvedVerticalPadding * 2)px \(14 + resolvedHorizontalPadding * 2)px;"
         let rubyRule = hideFurigana
             ? "ruby rt { display: none; }"
             : "ruby rt { font-size: 0.55em; color: \(hintColorHex); }"
@@ -2042,7 +2290,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         private var restoreGeneration = 0
         private let onProgressChange: (Double) -> Void
         let onSelectionResolved: (String?) -> Void
-        let onLookupRequested: (String?, String?, CGPoint) -> Void
+        let onLookupRequested: (ReaderTapLookupRequest, CGPoint) -> Void
 
         init(
             savedProgress: Double,
@@ -2056,10 +2304,10 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             self.onLookupRequested = onLookupRequested
         }
 
-                @objc func handleTapLookup(_ recognizer: UITapGestureRecognizer) {
-                        guard recognizer.state == .ended,
-                                    parent?.tapLookupEnabled == true,
-                                    let webView = recognizer.view as? WKWebView else {
+        @objc func handleTapLookup(_ recognizer: UITapGestureRecognizer) {
+            guard recognizer.state == .ended,
+                  parent?.tapLookupEnabled == true,
+                  let webView = recognizer.view as? WKWebView else {
                 return
             }
 
@@ -2067,9 +2315,17 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             let script = "window.amgiReaderLookupPayloadAt ? window.amgiReaderLookupPayloadAt(\(point.x), \(point.y)) : null"
             webView.evaluateJavaScript(script) { [onLookupRequested] value, _ in
                 if let payload = value as? [String: Any] {
-                    onLookupRequested(payload["text"] as? String, payload["sentence"] as? String, point)
+                    let request = ReaderTapLookupRequest(
+                        text: payload["text"] as? String,
+                        candidates: payload["candidates"] as? [String] ?? [],
+                        sentence: payload["sentence"] as? String
+                    )
+                    onLookupRequested(request, point)
                 } else {
-                    onLookupRequested(nil, nil, point)
+                    onLookupRequested(
+                        ReaderTapLookupRequest(text: nil, candidates: [], sentence: nil),
+                        point
+                    )
                 }
             }
         }

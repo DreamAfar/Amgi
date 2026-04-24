@@ -347,7 +347,7 @@
 "settings_reader_popup_kana_font_size" = "假名字体大小";
 "settings_reader_popup_width" = "宽度";
 "settings_reader_popup_height" = "高度";
-"settings_reader_popup_full_width" = "全宽显示";
+"settings_reader_popup_full_width" = "Full-width";
 "settings_reader_popup_swipe_to_dismiss" = "下滑关闭";
 "settings_reader_dictionary_settings" = "词典设置";
 "settings_reader_dictionary_section_recommended" = "推荐词典";
