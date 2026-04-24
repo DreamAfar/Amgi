@@ -675,6 +675,12 @@ private struct ReaderChapterView: View {
         }
     }
 
+    private var resolvedLinkColorHex: String {
+        themeMode == .system
+            ? systemLinkColorHex
+            : (colorScheme == .dark ? "#8FB8FF" : "#1E5BB8")
+    }
+
     private var chapterContentBackground: Color {
         Color(readerHex: resolvedContentBackgroundHex, fallback: .amgiSurfaceElevated)
     }
@@ -714,6 +720,7 @@ private struct ReaderChapterView: View {
                         contentBackgroundHex: resolvedContentBackgroundHex,
                         textColorHex: resolvedTextColorHex,
                         hintColorHex: resolvedHintColorHex,
+                        linkColorHex: resolvedLinkColorHex,
                         hideFurigana: hideFurigana,
                         horizontalPadding: horizontalPadding,
                         verticalPadding: verticalPadding,
@@ -1425,6 +1432,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     let contentBackgroundHex: String
     let textColorHex: String
     let hintColorHex: String
+    let linkColorHex: String
     let hideFurigana: Bool
     let horizontalPadding: Int
     let verticalPadding: Int
@@ -1851,9 +1859,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
     private func htmlDocument(for fragment: String) -> String {
         let textColor = textColorHex
-        let linkColor = themeMode == .system
-            ? systemLinkColorHex
-            : (colorScheme == .dark ? "#8FB8FF" : "#1E5BB8")
+        let linkColor = linkColorHex
         let backgroundColor = pageBackgroundHex
         let contentBackgroundColor = contentBackgroundHex
         let renderedContent = renderedFragment(for: fragment)
