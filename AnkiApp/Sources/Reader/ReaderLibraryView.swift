@@ -696,8 +696,8 @@ private struct ReaderChapterView: View {
         GeometryReader { geometry in
             let topSafeArea = geometry.safeAreaInsets.top
             let showsTopInfo = showTitle || showProgressTop
-            let topOverlayTopPadding = max(topSafeArea - 2, 6)
-            let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 38 : 10)
+            let topOverlayTopPadding = max(topSafeArea - 6, 4)
+            let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 30 : 8)
             let bottomInset = max(geometry.safeAreaInsets.bottom - 8, 14)
             let bottomChromePadding = max(geometry.safeAreaInsets.bottom - 18, 6)
 
@@ -1368,7 +1368,7 @@ private struct ReaderChapterInfoOverlay: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 112)
-        .padding(.vertical, 2)
+        .padding(.vertical, 1)
         .background(background)
     }
 }
