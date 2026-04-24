@@ -397,7 +397,13 @@ struct ReaderDisplaySettingsView: View {
                     Text(L("settings_reader_theme_mode"))
                         .foregroundStyle(SettingsValueStyle.primary)
                     Spacer()
-                    Picker("", selection: Binding(get: { themeMode }, set: { themeMode = $0 })) {
+                    Picker(
+                        "",
+                        selection: Binding(
+                            get: { ReaderThemeMode(rawValue: themeModeRawValue) ?? .system },
+                            set: { themeModeRawValue = $0.rawValue }
+                        )
+                    ) {
                         Text(L("settings_reader_theme_mode_system")).tag(ReaderThemeMode.system)
                         Text(L("settings_reader_theme_mode_eye_care")).tag(ReaderThemeMode.eyeCare)
                         Text(L("settings_reader_theme_mode_sepia")).tag(ReaderThemeMode.sepia)
@@ -628,7 +634,7 @@ struct ReaderAdvancedSettingsView: View {
             }
             .amgiSettingsListRowSurface()
 
-            Section(L("settings_reader_note_add_settings")) {
+            Section {
                 HStack {
                     Label(L("settings_reader_note_template_deck"), systemImage: "rectangle.stack")
                         .foregroundStyle(SettingsValueStyle.primary)
@@ -670,12 +676,14 @@ struct ReaderAdvancedSettingsView: View {
                     }
                     .disabled(notetypeNames.isEmpty)
                 }
+            } header: {
+                Text(L("settings_reader_note_add_settings"))
             } footer: {
                 Text(L("settings_reader_note_add_settings_description"))
             }
             .amgiSettingsListRowSurface()
 
-            Section(L("settings_reader_note_template_fields")) {
+            Section {
                 noteTemplateFieldRow(
                     title: L("settings_reader_note_template_term_field"),
                     selection: templateFieldBinding(\.termField)
@@ -700,6 +708,8 @@ struct ReaderAdvancedSettingsView: View {
                     title: L("settings_reader_note_template_definition3_field"),
                     selection: templateFieldBinding(\.definition3Field)
                 )
+            } header: {
+                Text(L("settings_reader_note_template_fields"))
             } footer: {
                 Text(L("settings_reader_note_template_supported_fields"))
             }

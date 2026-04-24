@@ -14,6 +14,7 @@ import UIKit
 struct AnkiAppApp: App {
     @State private var onboardingCompleted = UserDefaults.standard.bool(forKey: "onboardingCompleted")
     @State private var startupPhase: StartupPhase = .loading
+    @StateObject private var collectionState = AppCollectionState.shared
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
     @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
 
@@ -62,6 +63,7 @@ struct AnkiAppApp: App {
                 }
             }
             .task { await initializeBackend() }
+            .environmentObject(collectionState)
             .environment(\.locale, currentLocale)
             .preferredColorScheme(preferredColorScheme)
             .onChange(of: appLanguageRaw) { _, newValue in
@@ -108,7 +110,6 @@ struct AnkiAppApp: App {
         do {
             let selectedUser = AppUserStore.loadSelectedUser()
             let urls = AppUserStore.collectionURLs(for: selectedUser)
-            let hasStartupSnapshot = onboardingCompleted && (!DeckTreeCache.load().isEmpty || DeckListHeatmapCache.load() != nil)
 
             let backend = try await Task.detached(priority: .userInitiated) {
                 try AnkiBackend(preferredLangs: ["en"])
@@ -118,17 +119,23 @@ struct AnkiAppApp: App {
                 $0.ankiBackend = backend
             }
 
-            if hasStartupSnapshot {
+            collectionState.markOpening()
+
+            if onboardingCompleted {
                 startupPhase = .ready
                 Task.detached(priority: .userInitiated) {
                     do {
                         try Self.openCollection(using: backend, urls: urls)
                         await MainActor.run {
+                            AppCollectionState.shared.markReady()
                             NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
                         }
                     } catch {
                         await MainActor.run {
-                            startupPhase = .failed("Startup failed: \(error.localizedDescription)")
+                            AppCollectionState.shared.markFailed(error.localizedDescription)
+                            if DeckTreeCache.load().isEmpty && DeckListHeatmapCache.load() == nil {
+                                startupPhase = .failed("Startup failed: \(error.localizedDescription)")
+                            }
                         }
                     }
                 }
@@ -136,6 +143,7 @@ struct AnkiAppApp: App {
                 try await Task.detached(priority: .userInitiated) {
                     try Self.openCollection(using: backend, urls: urls)
                 }.value
+                collectionState.markReady()
                 startupPhase = .ready
                 NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
             }

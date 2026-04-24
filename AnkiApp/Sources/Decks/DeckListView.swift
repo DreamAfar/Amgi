@@ -7,6 +7,7 @@ import Dependencies
 struct DeckListView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
+    @ObservedObject private var collectionState = AppCollectionState.shared
     @AppStorage(DeckListHeatmapSettings.showKey) private var showDeckListHeatmap = true
 
     @State private var tree: [DeckTreeNode] = []
@@ -56,6 +57,7 @@ struct DeckListView: View {
                             DeckRowView(
                                 node: node,
                                 depth: 0,
+                                isCollectionReady: collectionState.isReady,
                                 onDeckChanged: {
                                     Task { await loadDecks() }
                                     refreshHeatmap()
@@ -145,9 +147,21 @@ struct DeckListView: View {
                 refreshHeatmap()
             }
         }
+        .onChange(of: collectionState.isReady) { _, isReady in
+            guard isReady else { return }
+            Task {
+                await loadDecks()
+                refreshHeatmap()
+            }
+        }
     }
 
     private func loadDecks() async {
+        guard collectionState.isReady else {
+            isLoading = tree.isEmpty
+            return
+        }
+
         isLoading = true
         do {
             let freshTree = try deckClient.fetchTree()
@@ -160,6 +174,7 @@ struct DeckListView: View {
     }
 
     private func deleteDeck() async {
+        guard collectionState.isReady else { return }
         guard let node = deckToDelete else { return }
         do {
             try deckClient.delete(node.id)
@@ -182,12 +197,12 @@ struct DeckListView: View {
     }
 
     private func refreshHeatmap() {
-        guard showDeckListHeatmap else { return }
+        guard showDeckListHeatmap, collectionState.isReady else { return }
         heatmapRefreshID += 1
     }
 
     private func exportDeck(_ node: DeckTreeNode) async {
-        guard !isExportingDeck else { return }
+        guard collectionState.isReady, !isExportingDeck else { return }
         isExportingDeck = true
         defer { isExportingDeck = false }
 
@@ -219,6 +234,7 @@ private struct DeckRowView: View {
     @Dependency(\.deckClient) var deckClient
     let node: DeckTreeNode
     let depth: Int
+    let isCollectionReady: Bool
     let onDeckChanged: () -> Void
     let onDeleteRequested: (DeckTreeNode) -> Void
     let onExportRequested: (DeckTreeNode) -> Void
@@ -300,6 +316,7 @@ private struct DeckRowView: View {
         } label: {
             Label(L("deck_row_delete"), systemImage: "trash")
         }
+        .disabled(!isCollectionReady)
 
         Button {
             renameText = node.name
@@ -308,6 +325,7 @@ private struct DeckRowView: View {
             Label(L("deck_row_rename"), systemImage: "pencil")
         }
         .tint(Color.amgiAccent)
+        .disabled(!isCollectionReady)
 
         Button {
             onExportRequested(node)
@@ -315,6 +333,7 @@ private struct DeckRowView: View {
             Label(L("deck_row_export"), systemImage: "square.and.arrow.up")
         }
         .tint(Color.amgiPositive)
+        .disabled(!isCollectionReady)
     }
 
     private var childrenList: some View {
@@ -322,6 +341,7 @@ private struct DeckRowView: View {
             DeckRowView(
                 node: child,
                 depth: depth + 1,
+                isCollectionReady: isCollectionReady,
                 onDeckChanged: onDeckChanged,
                 onDeleteRequested: onDeleteRequested,
                 onExportRequested: onExportRequested
@@ -344,6 +364,7 @@ private struct DeckRowView: View {
     }
 
     private func renameDeck() async {
+        guard isCollectionReady else { return }
         let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         do {

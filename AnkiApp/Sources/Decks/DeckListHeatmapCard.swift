@@ -7,6 +7,7 @@ import SwiftProtobuf
 struct DeckListHeatmapCard: View {
     @Dependency(\.statsClient) var statsClient
     @Dependency(\.deckClient) var deckClient
+    @ObservedObject private var collectionState = AppCollectionState.shared
     @AppStorage(DeckListHeatmapSettings.heightKey) private var deckListHeatmapHeight = DeckListHeatmapSettings.defaultHeight
     @AppStorage(DeckListHeatmapSettings.scopeKey) private var heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
     @AppStorage(DeckListHeatmapSettings.selectedDeckIDKey) private var selectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
@@ -95,12 +96,21 @@ struct DeckListHeatmapCard: View {
             }
         }
         .task(id: refreshID) {
+            guard collectionState.isReady else {
+                isLoading = graphs != nil
+                return
+            }
             await loadStats()
+        }
+        .onChange(of: collectionState.isReady) { _, isReady in
+            guard isReady else { return }
+            Task { await loadStats() }
         }
     }
 
     @MainActor
     private func loadStats() async {
+        guard collectionState.isReady else { return }
         isLoading = true
         isLoadingMoreHistory = false
         hasLoadedFullHistory = false
@@ -124,7 +134,7 @@ struct DeckListHeatmapCard: View {
 
     @MainActor
     private func loadFullHistory() async {
-        guard !isLoadingMoreHistory else { return }
+        guard collectionState.isReady, !isLoadingMoreHistory else { return }
         isLoadingMoreHistory = true
         do {
             let query = try resolvedSearchQuery()

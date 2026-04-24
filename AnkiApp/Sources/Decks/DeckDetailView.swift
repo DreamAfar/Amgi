@@ -8,6 +8,7 @@ struct DeckDetailView: View {
     let deck: DeckInfo
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
+    @ObservedObject private var collectionState = AppCollectionState.shared
     @State private var counts: DeckCounts = .zero
     @State private var childDecks: [DeckTreeNode] = []
     @State private var showReview = false
@@ -25,6 +26,12 @@ struct DeckDetailView: View {
     @State private var showBrowse = false
     @State private var showAddSubdeck = false
     @State private var newSubdeckName = ""
+
+    init(deck: DeckInfo) {
+        self.deck = deck
+        _counts = State(initialValue: deck.counts)
+        _childDecks = State(initialValue: Self.cachedChildren(parentId: deck.id))
+    }
 
     private var shortTitle: String {
         String(deck.name.split(separator: "::", omittingEmptySubsequences: true).last ?? Substring(deck.name))
@@ -50,6 +57,7 @@ struct DeckDetailView: View {
                     Image(systemName: "doc.text.magnifyingglass")
                 }
                 .accessibilityLabel(L("deck_detail_browse"))
+                .disabled(!collectionState.isReady)
 
                 Button {
                     showStats = true
@@ -57,6 +65,7 @@ struct DeckDetailView: View {
                     Image(systemName: "chart.bar")
                 }
                 .accessibilityLabel(L("deck_detail_stats"))
+                .disabled(!collectionState.isReady)
 
                 Menu {
                     Button {
@@ -74,6 +83,7 @@ struct DeckDetailView: View {
                     Image(systemName: "plus")
                 }
                 .accessibilityLabel(L("browse_add_accessibility"))
+                .disabled(!collectionState.isReady)
 
                 Menu {
                     Button {
@@ -97,6 +107,7 @@ struct DeckDetailView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+                .disabled(!collectionState.isReady)
             }
         }
         .sheet(isPresented: $showAddNote) {
@@ -183,8 +194,22 @@ struct DeckDetailView: View {
             Text(actionError ?? L("label_error_unknown"))
         }
         .task {
+            guard collectionState.isReady else { return }
             await loadCounts()
             await loadChildren()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
+            Task {
+                await loadCounts()
+                await loadChildren()
+            }
+        }
+        .onChange(of: collectionState.isReady) { _, isReady in
+            guard isReady else { return }
+            Task {
+                await loadCounts()
+                await loadChildren()
+            }
         }
     }
 
@@ -232,7 +257,7 @@ struct DeckDetailView: View {
                     .amgiFont(.bodyEmphasis)
             }
             .foregroundStyle(Color.amgiAccent)
-            .disabled(counts.total == 0)
+            .disabled(!collectionState.isReady || counts.total == 0)
             .listRowBackground(Color.amgiSurfaceElevated)
         }
     }
@@ -272,6 +297,7 @@ struct DeckDetailView: View {
     }
 
     private func loadCounts() async {
+        guard collectionState.isReady else { return }
         do {
             counts = try deckClient.countsForDeck(deck.id)
             print("[DeckDetail] Counts for '\(deck.name)' (\(deck.id)): new=\(counts.newCount), learn=\(counts.learnCount), review=\(counts.reviewCount)")
@@ -282,6 +308,7 @@ struct DeckDetailView: View {
     }
 
     private func loadChildren() async {
+        guard collectionState.isReady else { return }
         do {
             let tree = try deckClient.fetchTree()
             childDecks = findChildren(in: tree, parentId: deck.id)
@@ -300,6 +327,7 @@ struct DeckDetailView: View {
     }
 
     private func renameChildDeck() async {
+        guard collectionState.isReady else { return }
         guard let child = selectedChildDeck else { return }
         let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -315,6 +343,7 @@ struct DeckDetailView: View {
     }
 
     private func deleteChildDeck() async {
+        guard collectionState.isReady else { return }
         guard let child = selectedChildDeck else { return }
         do {
             try deckClient.delete(child.id)
@@ -336,6 +365,7 @@ struct DeckDetailView: View {
     }
 
     private func createSubdeck() async {
+        guard collectionState.isReady else { return }
         let trimmed = newSubdeckName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         let fullName = "\(deck.name)::\(trimmed)"
@@ -346,5 +376,18 @@ struct DeckDetailView: View {
             actionError = error.localizedDescription
             showActionError = true
         }
+    }
+
+    private static func cachedChildren(parentId: Int64) -> [DeckTreeNode] {
+        findCachedChildren(in: DeckTreeCache.load(), parentId: parentId)
+    }
+
+    private static func findCachedChildren(in nodes: [DeckTreeNode], parentId: Int64) -> [DeckTreeNode] {
+        for node in nodes {
+            if node.id == parentId { return node.children }
+            let found = findCachedChildren(in: node.children, parentId: parentId)
+            if !found.isEmpty { return found }
+        }
+        return []
     }
 }

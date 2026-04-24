@@ -36,6 +36,7 @@ struct ContentView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.syncClient) var syncClient
     @ObservedObject private var syncCoordinator = AppSyncCoordinator.shared
+    @ObservedObject private var collectionState = AppCollectionState.shared
 
     @State private var showSync = false
     @State private var showImport = false
@@ -89,21 +90,33 @@ struct ContentView: View {
                 }
                 Tab(value: RootTab.browse, role: .search) {
                     NavigationStack {
-                        BrowseView(isActive: selectedTab == .browse)
-                            .id(refreshID)
+                        if collectionState.isReady {
+                            BrowseView(isActive: selectedTab == .browse)
+                                .id(refreshID)
+                        } else {
+                            CollectionPreparingView()
+                        }
                     }
                 }
                 Tab(L("tab_stats"), systemImage: "chart.bar", value: RootTab.stats) {
                     NavigationStack {
-                        StatsDashboardView(isActive: selectedTab == .stats)
-                            .id(refreshID)
+                        if collectionState.isReady {
+                            StatsDashboardView(isActive: selectedTab == .stats)
+                                .id(refreshID)
+                        } else {
+                            CollectionPreparingView()
+                        }
                     }
                 }
                 if isReaderTabEnabled {
                     Tab(L("tab_reader"), systemImage: "books.vertical", value: RootTab.reader) {
                         NavigationStack {
-                            ReaderLibraryView()
-                                .id(refreshID)
+                            if collectionState.isReady {
+                                ReaderLibraryView()
+                                    .id(refreshID)
+                            } else {
+                                CollectionPreparingView()
+                            }
                         }
                     }
                 }
@@ -189,21 +202,11 @@ struct ContentView: View {
         }
         .task {
             updateSyncBadge()
-            // CheckDatabase runs in background after UI is visible — avoids blocking cold start
-            Task.detached(priority: .background) {
-                @Dependency(\.ankiBackend) var backend
-                let start = Date()
-                do {
-                    let result = try backend.call(
-                        service: AnkiBackend.Service.collection,
-                        method: AnkiBackend.CheckDatabaseMethod.checkDatabase
-                    )
-                    let elapsed = Date().timeIntervalSince(start)
-                    logger.info("CheckDatabase completed in \(elapsed, format: .fixed(precision: 2))s (\(result.count) bytes)")
-                } catch {
-                    logger.warning("CheckDatabase failed: \(error)")
-                }
-            }
+            runCheckDatabaseIfReady()
+        }
+        .onChange(of: collectionState.isReady) { _, isReady in
+            guard isReady else { return }
+            runCheckDatabaseIfReady()
         }
         .fileImporter(isPresented: $showImport, allowedContentTypes: [.data]) { result in
             handleImport(result)
@@ -327,6 +330,7 @@ struct ContentView: View {
                     }
                 }
             }
+            .disabled(!collectionState.isReady)
 
             Menu {
                 Button(L("menu_add_deck")) {
@@ -342,6 +346,7 @@ struct ContentView: View {
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
+            .disabled(!collectionState.isReady)
         }
     }
 
@@ -374,7 +379,27 @@ struct ContentView: View {
         }
     }
 
+    private func runCheckDatabaseIfReady() {
+        guard collectionState.isReady else { return }
+        // CheckDatabase runs in background after UI is visible and collection is open.
+        Task.detached(priority: .background) {
+            @Dependency(\.ankiBackend) var backend
+            let start = Date()
+            do {
+                let result = try backend.call(
+                    service: AnkiBackend.Service.collection,
+                    method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+                )
+                let elapsed = Date().timeIntervalSince(start)
+                logger.info("CheckDatabase completed in \(elapsed, format: .fixed(precision: 2))s (\(result.count) bytes)")
+            } catch {
+                logger.warning("CheckDatabase failed: \(error)")
+            }
+        }
+    }
+
     private func createDeck() async {
+        guard collectionState.isReady else { return }
         let name = newDeckName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
         do {
@@ -396,12 +421,15 @@ struct ContentView: View {
         defer { isSwitchingUser = false }
 
         do {
+            collectionState.markOpening()
             try reopenCollection(for: user)
 
             selectedUser = user
             AppUserStore.setSelectedUser(user)
             refreshID = UUID()
+            collectionState.markReady()
         } catch {
+            collectionState.markFailed(error.localizedDescription)
             userSwitchError = error.localizedDescription
             showUserSwitchError = true
         }
@@ -410,9 +438,12 @@ struct ContentView: View {
     @MainActor
     private func reopenCurrentCollectionAfterReset() async {
         do {
+            collectionState.markOpening()
             try reopenCollection(for: selectedUser)
             refreshID = UUID()
+            collectionState.markReady()
         } catch {
+            collectionState.markFailed(error.localizedDescription)
             userSwitchError = error.localizedDescription
             showUserSwitchError = true
         }
@@ -446,7 +477,7 @@ struct ContentView: View {
     }
 
     private func presentExportOptions() {
-        guard !isImportExportInProgress else { return }
+        guard collectionState.isReady, !isImportExportInProgress else { return }
 
         Task {
             let decks = ((try? deckClient.fetchAll()) ?? []).sorted { $0.name < $1.name }
@@ -461,7 +492,7 @@ struct ContentView: View {
     }
 
     private func startExport(using draft: ExportPackageDraft) {
-        guard !isImportExportInProgress else { return }
+        guard collectionState.isReady, !isImportExportInProgress else { return }
 
         let configuration: ImportHelper.ExportPackageConfiguration
         switch draft.kind {
@@ -526,7 +557,7 @@ struct ContentView: View {
     }
 
     private func startImport(from url: URL, configuration: ImportHelper.ImportPackageConfiguration) {
-        guard !isImportExportInProgress else { return }
+        guard collectionState.isReady, !isImportExportInProgress else { return }
 
         importExportOperation = .importing
         let backend = self.backend
@@ -553,5 +584,16 @@ struct ContentView: View {
                 importMessage = "Import failed: \(error.localizedDescription)"
             }
         }
+    }
+}
+
+private struct CollectionPreparingView: View {
+    var body: some View {
+        ContentUnavailableView(
+            L("deck_list_nav_title"),
+            systemImage: "externaldrive",
+            description: Text(L("collection_preparing"))
+        )
+        .background(Color.amgiBackground)
     }
 }
