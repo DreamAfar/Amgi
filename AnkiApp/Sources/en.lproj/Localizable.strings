@@ -299,6 +299,10 @@
 "settings_reader_theme_mode_eye_care" = "Eye Care";
 "settings_reader_theme_mode_sepia" = "Sepia";
 "settings_reader_theme_mode_custom" = "Custom";
+"settings_reader_theme_custom_content_color" = "Content Background";
+"settings_reader_theme_custom_background_color" = "Reader Background";
+"settings_reader_theme_custom_text_color" = "Text Colour";
+"settings_reader_theme_custom_hint_color" = "Hint Colour";
 "settings_reader_advanced_settings" = "Lookup Settings";
 "settings_reader_tap_lookup" = "Tap to Lookup";
 "settings_reader_tap_lookup_description" = "Tap text in the reader to open dictionary lookup directly.";

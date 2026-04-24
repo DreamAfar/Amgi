@@ -299,6 +299,10 @@
 "settings_reader_theme_mode_eye_care" = "护眼";
 "settings_reader_theme_mode_sepia" = "棕褐";
 "settings_reader_theme_mode_custom" = "自定义";
+"settings_reader_theme_custom_content_color" = "正文底色";
+"settings_reader_theme_custom_background_color" = "阅读器背景色";
+"settings_reader_theme_custom_text_color" = "文字颜色";
+"settings_reader_theme_custom_hint_color" = "辅助文字颜色";
 "settings_reader_advanced_settings" = "查词设置";
 "settings_reader_tap_lookup" = "点按查词";
 "settings_reader_tap_lookup_description" = "在阅读器中点按文本时，直接打开词典查询结果。";

@@ -299,6 +299,10 @@
 "settings_reader_theme_mode_eye_care" = "目に優しい";
 "settings_reader_theme_mode_sepia" = "セピア";
 "settings_reader_theme_mode_custom" = "カスタム";
+"settings_reader_theme_custom_content_color" = "本文背景色";
+"settings_reader_theme_custom_background_color" = "リーダー背景色";
+"settings_reader_theme_custom_text_color" = "文字色";
+"settings_reader_theme_custom_hint_color" = "補助文字色";
 "settings_reader_advanced_settings" = "検索設定";
 "settings_reader_tap_lookup" = "タップで検索";
 "settings_reader_tap_lookup_description" = "リーダー内のテキストをタップすると、すぐに辞書検索を開きます。";

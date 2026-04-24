@@ -262,7 +262,6 @@ struct CardWebView: UIViewRepresentable {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         \(baseTag)
-        <style id="amgi-card-css"></style>
         <style>
             :root {
                 color-scheme: \(colorScheme);
@@ -380,6 +379,7 @@ struct CardWebView: UIViewRepresentable {
             .nightMode a, .nightMode a:visited, .nightMode a:active { color: #8fb8ff; }
             .night_mode a, .night_mode a:visited, .night_mode a:active { color: #8fb8ff; }
         </style>
+        <style id="amgi-card-css"></style>
         <script>
         // ── Globals ──────────────────────────────────────────────────────────
         var PLAY_ICON_HTML = \(playIconLiteral);

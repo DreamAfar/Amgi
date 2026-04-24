@@ -423,10 +423,15 @@ private struct ReaderBookDetailView: View {
     private var themeMode: ReaderThemeMode {
         ReaderThemeMode(rawValue: themeModeRawValue) ?? .system
     }
+
+    private var systemListBackground: Color {
+        .amgiBackground
+    }
+
     private var resolvedListBackground: Color {
         switch themeMode {
         case .system:
-            return colorScheme == .dark ? Color(red: 0.09, green: 0.11, blue: 0.15) : Color(red: 1.0, green: 0.99, blue: 0.97)
+            return systemListBackground
         case .eyeCare:
             return Color(red: 0.95, green: 0.98, blue: 0.95)
         case .sepia:
@@ -598,10 +603,30 @@ private struct ReaderChapterView: View {
         ReaderLookupNoteTemplate.decode(from: lookupNoteTemplateData)
     }
 
+    private var systemPageBackgroundHex: String {
+        colorScheme == .dark ? "#000000" : "#F2F2F7"
+    }
+
+    private var systemContentBackgroundHex: String {
+        colorScheme == .dark ? "#24262E" : "#FFFFFF"
+    }
+
+    private var systemTextColorHex: String {
+        colorScheme == .dark ? "#FFFFFF" : "#000000"
+    }
+
+    private var systemHintColorHex: String {
+        colorScheme == .dark ? "#D1D1D1" : "#8E8E93"
+    }
+
+    private var systemLinkColorHex: String {
+        colorScheme == .dark ? "#7AC7FF" : "#055FD6"
+    }
+
     private var resolvedPageBackgroundHex: String {
         switch themeMode {
         case .system:
-            return colorScheme == .dark ? "#0F141C" : "#FFFDF8"
+            return systemPageBackgroundHex
         case .eyeCare:
             return "#EAF4E4"
         case .sepia:
@@ -614,7 +639,7 @@ private struct ReaderChapterView: View {
     private var resolvedContentBackgroundHex: String {
         switch themeMode {
         case .system:
-            return colorScheme == .dark ? "#0F141C" : "#FFFDF8"
+            return systemContentBackgroundHex
         case .eyeCare:
             return "#F3F9EF"
         case .sepia:
@@ -627,7 +652,7 @@ private struct ReaderChapterView: View {
     private var resolvedTextColorHex: String {
         switch themeMode {
         case .system:
-            return colorScheme == .dark ? "#F2F4F8" : "#17212F"
+            return systemTextColorHex
         case .eyeCare:
             return "#253224"
         case .sepia:
@@ -640,7 +665,7 @@ private struct ReaderChapterView: View {
     private var resolvedHintColorHex: String {
         switch themeMode {
         case .system:
-            return "#7F7F7F"
+            return systemHintColorHex
         case .eyeCare:
             return "#64715D"
         case .sepia:
@@ -651,7 +676,7 @@ private struct ReaderChapterView: View {
     }
 
     private var chapterContentBackground: Color {
-        Color(readerHex: resolvedContentBackgroundHex, fallback: .amgiBackground)
+        Color(readerHex: resolvedContentBackgroundHex, fallback: .amgiSurfaceElevated)
     }
 
     private static func normalizedHexColor(_ value: String, fallback: String) -> String {
@@ -669,9 +694,10 @@ private struct ReaderChapterView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let topSafeArea = max(geometry.safeAreaInsets.top, 44)
+            let topSafeArea = geometry.safeAreaInsets.top
             let showsTopInfo = showTitle || showProgressTop
-            let topOverlayHeight = topSafeArea + (showsTopInfo ? 60 : 18)
+            let topOverlayTopPadding = max(topSafeArea - 2, 6)
+            let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 38 : 10)
             let bottomInset = max(geometry.safeAreaInsets.bottom - 8, 14)
             let bottomChromePadding = max(geometry.safeAreaInsets.bottom - 18, 6)
 
@@ -756,7 +782,7 @@ private struct ReaderChapterView: View {
                     progressLabel: showProgressTop ? progressLabel : nil,
                     background: chapterContentBackground
                 )
-                    .padding(.top, topSafeArea + 4)
+                    .padding(.top, topOverlayTopPadding)
             }
             .overlay(alignment: .bottom) {
                 if showProgressTop == false {
@@ -991,6 +1017,8 @@ private struct ReaderChapterView: View {
 }
 
 private struct ReaderLookupPopup: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let query: String
     let result: DictionaryLookupResult?
     let isLoading: Bool
@@ -1008,6 +1036,41 @@ private struct ReaderLookupPopup: View {
     let onClose: () -> Void
 
     @State private var dragOffset: CGFloat = 0
+
+    private var popupCornerRadius: CGFloat { 18 }
+
+    private var glassTint: LinearGradient {
+        if colorScheme == .dark {
+            return LinearGradient(
+                colors: [
+                    Color.white.opacity(0.12),
+                    Color.white.opacity(0.04),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            return LinearGradient(
+                colors: [
+                    Color.white.opacity(0.52),
+                    Color.white.opacity(0.20),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+
+    private var glassHighlight: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(colorScheme == .dark ? 0.22 : 0.42),
+                Color.white.opacity(0.0),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
 
     private var sections: [ReaderLookupSection] {
         guard let result else {
@@ -1197,12 +1260,25 @@ private struct ReaderLookupPopup: View {
         .frame(maxHeight: max(140, popupHeight - 36))
         .padding(18)
         .frame(maxWidth: isFullWidth ? .infinity : popupWidth, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
+        .background {
+            RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)
+                .fill(.thinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)
+                        .fill(glassTint)
+                }
+                .overlay(alignment: .top) {
+                    RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)
+                        .fill(glassHighlight)
+                        .frame(height: 56)
+                        .clipShape(RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous))
+                }
         }
-        .shadow(color: Color.black.opacity(0.12), radius: 24, y: 10)
+        .overlay {
+            RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)
+                .stroke(Color.white.opacity(colorScheme == .dark ? 0.14 : 0.34), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.10), radius: 18, y: 8)
         .offset(y: dragOffset)
         .gesture(
             swipeToDismiss ?
@@ -1274,17 +1350,17 @@ private struct ReaderChapterInfoOverlay: View {
     let background: Color
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 2) {
             if let title, !title.isEmpty {
                 Text(title)
-                    .font(.headline.weight(.medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.amgiTextSecondary)
                     .lineLimit(1)
             }
 
             if let progressLabel, !progressLabel.isEmpty {
                 Text(progressLabel)
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
                     .monospacedDigit()
                     .tracking(-0.3)
@@ -1292,6 +1368,7 @@ private struct ReaderChapterInfoOverlay: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 112)
+        .padding(.vertical, 2)
         .background(background)
     }
 }
@@ -1774,7 +1851,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
     private func htmlDocument(for fragment: String) -> String {
         let textColor = textColorHex
-        let linkColor = colorScheme == .dark ? "#8FB8FF" : "#1E5BB8"
+        let linkColor = themeMode == .system
+            ? systemLinkColorHex
+            : (colorScheme == .dark ? "#8FB8FF" : "#1E5BB8")
         let backgroundColor = pageBackgroundHex
         let contentBackgroundColor = contentBackgroundHex
         let renderedContent = renderedFragment(for: fragment)
