@@ -1240,7 +1240,6 @@
 "settings_info_review" = "復習動作はデッキ設定ごとに設定されます。";
 "settings_review_section_audio" = "音声";
 "settings_review_section_ui" = "復習 UI";
-"settings_review_autoplay_audio" = "音声を自動再生";
 "settings_review_play_audio_in_silent_mode" = "サイレントモードでも音声再生";
 "settings_review_show_context_menu_button" = "コンテキストメニューボタンを表示";
 "settings_review_show_audio_replay_button" = "音声リプレイボタンを表示";

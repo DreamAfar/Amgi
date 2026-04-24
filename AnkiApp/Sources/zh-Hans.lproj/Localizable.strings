@@ -1238,7 +1238,6 @@
 "settings_info_review" = "复习行为通过牌组设置逐个配置。";
 "settings_review_section_audio" = "音频";
 "settings_review_section_ui" = "复习界面";
-"settings_review_autoplay_audio" = "自动播放音频";
 "settings_review_play_audio_in_silent_mode" = "静音模式下播放音频";
 "settings_review_show_context_menu_button" = "显示上下文菜单按钮";
 "settings_review_show_audio_replay_button" = "显示音频重播按钮";

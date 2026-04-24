@@ -50,7 +50,6 @@ struct ReviewView: View {
     @State private var cardChromeUIColor: UIColor = .systemBackground
     @State private var cardChromeIsDark = false
 
-    @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var prefAutoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var prefShowContextMenuButton = true
     @AppStorage(ReviewPreferences.Keys.showAudioReplayButton) private var prefShowAudioReplayButton = true
@@ -415,7 +414,7 @@ struct ReviewView: View {
         CardWebView(
             html: cardHTML,
             cardCSS: session.cardCSS,
-            autoplayEnabled: session.autoplayAudio && prefAutoplayAudio,
+            autoplayEnabled: session.autoplayAudio,
             isAnswerSide: session.showAnswer,
             cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
             replayRequestID: replayRequestID,

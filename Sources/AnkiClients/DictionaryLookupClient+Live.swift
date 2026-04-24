@@ -410,11 +410,14 @@ private actor DictionaryLookupRuntime {
             dictQuery?.add_pitch_dict(std.string(dictionary.path.path(percentEncoded: false)))
         }
 
-        if dictQuery != nil, deinflector != nil {
-            lookupEngine = Lookup(&dictQuery!, &deinflector!)
-        } else {
+        guard var dictQuery, var deinflector else {
             lookupEngine = nil
+            return
         }
+
+        lookupEngine = Lookup(&dictQuery, &deinflector)
+        self.dictQuery = dictQuery
+        self.deinflector = deinflector
     }
 
     private func importArchive(at url: URL, kind: AppDictionaryKind, requiresSecurityScope: Bool) throws {
@@ -892,7 +895,7 @@ extension DictionaryLookupClient: DependencyKey {
                 try await runtime.lookup(text, maxResults: maxResults, scanLength: scanLength)
             },
             loadStyles: {
-                try await runtime.loadStyles()
+                await runtime.loadStyles()
             },
             mediaFile: { dictionary, mediaPath in
                 try await runtime.mediaFile(dictionary: dictionary, mediaPath: mediaPath)

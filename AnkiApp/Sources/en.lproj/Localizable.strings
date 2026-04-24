@@ -1233,7 +1233,6 @@
 "settings_info_review" = "Review behavior is configured per deck in deck settings.";
 "settings_review_section_audio" = "Audio";
 "settings_review_section_ui" = "Review UI";
-"settings_review_autoplay_audio" = "Autoplay audio";
 "settings_review_play_audio_in_silent_mode" = "Play audio in silent mode";
 "settings_review_show_context_menu_button" = "Show context menu button";
 "settings_review_show_audio_replay_button" = "Show audio replay button";

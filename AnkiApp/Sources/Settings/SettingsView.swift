@@ -447,7 +447,6 @@ private struct ReviewOptionsView: View {
         }
     }
 
-    @AppStorage(ReviewPreferences.Keys.autoplayAudio) private var autoplayAudio = true
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var playAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var showContextMenuButton = true
     @AppStorage(ReviewPreferences.Keys.showAudioReplayButton) private var showAudioReplayButton = true
@@ -471,7 +470,6 @@ private struct ReviewOptionsView: View {
     var body: some View {
         List {
             Section(L("settings_review_section_audio")) {
-                Toggle(L("settings_review_autoplay_audio"), isOn: $autoplayAudio)
                 Toggle(L("settings_review_play_audio_in_silent_mode"), isOn: $playAudioInSilentMode)
             }
             .amgiSettingsListRowSurface()
