@@ -363,6 +363,16 @@
 "settings_reader_dictionary_section_settings" = "Settings";
 "settings_reader_dictionary_max_results" = "Max Results";
 "settings_reader_dictionary_scan_length" = "Scan Length";
+"settings_reader_dictionary_collapse_dictionaries" = "Collapse dictionaries";
+"settings_reader_dictionary_compact_glossaries" = "Compact glossaries";
+"settings_reader_dictionary_section_audio" = "Dictionary Audio";
+"settings_reader_dictionary_local_audio" = "Enable local audio";
+"settings_reader_dictionary_audio_autoplay" = "Autoplay audio after lookup";
+"settings_reader_dictionary_audio_playback_mode" = "Audio playback mode";
+"settings_reader_dictionary_audio_mode_interrupt" = "Interrupt others";
+"settings_reader_dictionary_audio_mode_duck" = "Duck others";
+"settings_reader_dictionary_audio_mode_mix" = "Mix with others";
+"settings_reader_dictionary_audio_source_template" = "Remote audio source template";
 "settings_reader_dictionary_empty" = "No dictionaries imported yet.";
 "settings_reader_dictionary_revision" = "Revision: %@";
 "settings_reader_dictionary_busy" = "Preparing dictionaries...";
@@ -430,6 +440,7 @@
 "reader_lookup_placeholder" = "No dictionaries are enabled yet.";
 "reader_lookup_missing_source" = "Import or enable a dictionary in Reader settings to use real lookup.";
 "reader_lookup_empty" = "No dictionary matches found.";
+"reader_lookup_unknown_dictionary" = "Unnamed dictionary";
 "reader_lookup_add_note" = "Add Note Draft";
 "reader_lookup_definition_section" = "Definition %lld:";
 "reader_reader_menu_chapters" = "Chapters";

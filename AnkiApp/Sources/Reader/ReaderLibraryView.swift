@@ -617,6 +617,12 @@ private struct ReaderChapterView: View {
     @AppStorage(ReaderPreferences.Keys.popupKanaFontSize) private var popupKanaFontSize = 14
     @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
     @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
+    @AppStorage(ReaderPreferences.Keys.popupCollapseDictionaries) private var popupCollapseDictionaries = false
+    @AppStorage(ReaderPreferences.Keys.popupCompactGlossaries) private var popupCompactGlossaries = true
+    @AppStorage(ReaderPreferences.Keys.popupAudioSourceTemplate) private var popupAudioSourceTemplate = ReaderLookupAudioDefaults.defaultTemplate
+    @AppStorage(ReaderPreferences.Keys.popupLocalAudioEnabled) private var popupLocalAudioEnabled = false
+    @AppStorage(ReaderPreferences.Keys.popupAudioAutoplay) private var popupAudioAutoplay = false
+    @AppStorage(ReaderPreferences.Keys.popupAudioPlaybackMode) private var popupAudioPlaybackModeRawValue = ReaderLookupAudioPlaybackMode.interrupt.rawValue
     @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var dictionaryMaxResults = 16
     @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var dictionaryScanLength = 16
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
@@ -638,7 +644,6 @@ private struct ReaderChapterView: View {
     @State private var isLookingUp = false
     @State private var lookupErrorMessage: String?
     @State private var lookupAnchor: CGPoint?
-    @State private var activeLookupRequestID = UUID()
     @State private var activeSheet: ReaderChapterSheetRoute?
     @State private var chapterNavigationTarget: ReaderChapter?
 
@@ -685,6 +690,10 @@ private struct ReaderChapterView: View {
 
     private var lookupNoteTemplate: ReaderLookupNoteTemplate {
         ReaderLookupNoteTemplate.decode(from: lookupNoteTemplateData)
+    }
+
+    private var popupAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
+        ReaderLookupAudioDefaults.resolvedPlaybackMode(popupAudioPlaybackModeRawValue)
     }
 
     private var systemPageBackgroundHex: String {
@@ -822,8 +831,8 @@ private struct ReaderChapterView: View {
                         onSelectionResolved: { selection in
                             handleResolvedSelection(selection)
                         },
-                        onLookupRequested: { request, point in
-                            handleTapLookup(request, at: point)
+                        onLookupRequested: { selection, sentence, point in
+                            handleTapLookup(selection, sentence: sentence, at: point)
                         }
                     )
                     .background(chapterContentBackground)
@@ -910,16 +919,22 @@ private struct ReaderChapterView: View {
                                 query: lookupQuery,
                                 result: lookupResult,
                                 isLoading: isLookingUp,
+                                sentence: lookupSentence,
                                 languageHint: lookupLanguageHint,
                                 popupWidth: CGFloat(popupWidth),
                                 popupHeight: CGFloat(popupHeight),
-                                popupHeaderFontSize: CGFloat(popupFontSize),
                                 popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
                                 popupContentFontSize: CGFloat(popupContentFontSize),
                                 popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
                                 popupKanaFontSize: CGFloat(popupKanaFontSize),
                                 isFullWidth: popupFullWidth,
                                 swipeToDismiss: popupSwipeToDismiss,
+                                collapseDictionaries: popupCollapseDictionaries,
+                                compactGlossaries: popupCompactGlossaries,
+                                audioSourceTemplate: popupAudioSourceTemplate,
+                                localAudioEnabled: popupLocalAudioEnabled,
+                                audioAutoplay: popupAudioAutoplay,
+                                audioPlaybackMode: popupAudioPlaybackMode,
                                 onAddNote: { payload in
                                     pendingDraft = makeLookupDraft(from: payload)
                                     showLookupSheet = false
@@ -1001,13 +1016,12 @@ private struct ReaderChapterView: View {
         }
     }
 
-    private func handleTapLookup(_ request: ReaderTapLookupRequest, at point: CGPoint) {
-        let candidates = normalizedLookupCandidates(preferred: request.text, extras: request.candidates)
-        guard let tappedSelection = candidates.first else {
+    private func handleTapLookup(_ selection: String?, sentence: String?, at point: CGPoint) {
+        guard let tappedSelection = normalizedSelection(selection) else {
             return
         }
         pendingSelectionAction = nil
-        startLookup(for: tappedSelection, candidates: candidates, sentence: request.sentence, anchor: point)
+        startLookup(for: tappedSelection, sentence: sentence, anchor: point)
     }
 
     private func normalizedSelection(_ selection: String?) -> String? {
@@ -1022,129 +1036,25 @@ private struct ReaderChapterView: View {
         return trimmedSentence.isEmpty ? nil : trimmedSentence
     }
 
-    private func normalizedLookupCandidates(preferred: String?, extras: [String]) -> [String] {
-        var ordered: [String] = []
-        var seen = Set<String>()
-
-        for candidate in [preferred].compactMap({ $0 }) + extras {
-            guard let normalized = normalizedSelection(candidate) else {
-                continue
-            }
-            let key = normalized.lowercased()
-            guard seen.insert(key).inserted else {
-                continue
-            }
-            ordered.append(normalized)
-        }
-
-        return ordered
-    }
-
-    private func matchedLookupText(from result: DictionaryLookupResult) -> String? {
-        result.entries.first?.source?
-            .components(separatedBy: "•")
-            .first?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nilIfBlank
-    }
-
-    private func lookupScore(
-        for result: DictionaryLookupResult,
-        query: String,
-        candidateIndex: Int
-    ) -> Int {
-        guard let entry = result.entries.first else {
-            return -10_000 - candidateIndex
-        }
-
-        let matchedText = matchedLookupText(from: result) ?? ""
-        let exactMatchedBonus = matchedText == query ? 10_000 : 0
-        let exactTermBonus = entry.term == query ? 6_000 : 0
-        let matchedLengthScore = matchedText.count * 100
-        let termLengthScore = entry.term.count * 10
-        let readingScore = entry.reading?.count ?? 0
-        return exactMatchedBonus + exactTermBonus + matchedLengthScore + termLengthScore + readingScore - candidateIndex
-    }
-
-    private func resolveLookup(
-        queries: [String]
-    ) async throws -> (query: String, result: DictionaryLookupResult) {
-        var fallback: (query: String, result: DictionaryLookupResult)?
-        var best: (query: String, result: DictionaryLookupResult, score: Int)?
-
-        for (index, query) in queries.enumerated() {
-            let result = try await dictionaryLookupClient.lookup(
-                query,
-                dictionaryMaxResults,
-                dictionaryScanLength
-            )
-
-            if fallback == nil {
-                fallback = (query, result)
-            }
-
-            let score = lookupScore(for: result, query: query, candidateIndex: index)
-            if let best, best.score >= score {
-                continue
-            }
-
-            best = (query, result, score)
-
-            if let matchedText = matchedLookupText(from: result),
-               matchedText == query {
-                break
-            }
-        }
-
-        if let best {
-            return (best.query, best.result)
-        }
-
-        guard let fallback else {
-            let query = queries.first ?? ""
-            return (query, DictionaryLookupResult(query: query))
-        }
-        return fallback
-    }
-
-    private func startLookup(
-        for query: String,
-        candidates: [String] = [],
-        sentence: String? = nil,
-        anchor: CGPoint? = nil
-    ) {
-        let lookupQueries = normalizedLookupCandidates(preferred: query, extras: candidates)
-        guard let initialQuery = lookupQueries.first else {
-            return
-        }
-
-        lookupQuery = initialQuery
+    private func startLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil) {
+        lookupQuery = query
         lookupSentence = normalizedSentence(sentence)
         lookupResult = nil
         lookupAnchor = anchor
         showLookupSheet = true
         isLookingUp = true
-        let lookupRequestID = UUID()
-        activeLookupRequestID = lookupRequestID
         Task {
             do {
-                let resolved = try await resolveLookup(queries: lookupQueries)
-                guard activeLookupRequestID == lookupRequestID else {
-                    return
-                }
-                lookupQuery = resolved.query
-                lookupResult = resolved.result
+                lookupResult = try await dictionaryLookupClient.lookup(
+                    query,
+                    dictionaryMaxResults,
+                    dictionaryScanLength
+                )
             } catch {
-                guard activeLookupRequestID == lookupRequestID else {
-                    return
-                }
                 showLookupSheet = false
                 lookupAnchor = nil
                 lookupErrorMessage = error.localizedDescription
                 showSelectionError = true
-            }
-            guard activeLookupRequestID == lookupRequestID else {
-                return
             }
             isLookingUp = false
         }
@@ -1219,16 +1129,22 @@ private struct ReaderLookupPopup: View {
     let query: String
     let result: DictionaryLookupResult?
     let isLoading: Bool
+    let sentence: String?
     let languageHint: String?
     let popupWidth: CGFloat
     let popupHeight: CGFloat
-    let popupHeaderFontSize: CGFloat
     let popupFrequencyFontSize: CGFloat
     let popupContentFontSize: CGFloat
     let popupDictionaryNameFontSize: CGFloat
     let popupKanaFontSize: CGFloat
     let isFullWidth: Bool
     let swipeToDismiss: Bool
+    let collapseDictionaries: Bool
+    let compactGlossaries: Bool
+    let audioSourceTemplate: String
+    let localAudioEnabled: Bool
+    let audioAutoplay: Bool
+    let audioPlaybackMode: ReaderLookupAudioPlaybackMode
     let onAddNote: (ReaderLookupNotePayload) -> Void
     let onClose: () -> Void
 
@@ -1240,69 +1156,6 @@ private struct ReaderLookupPopup: View {
         colorScheme == .dark
             ? Color(.secondarySystemBackground).opacity(0.96)
             : Color(.systemBackground).opacity(0.96)
-    }
-
-    private var sections: [ReaderLookupSection] {
-        guard let result else {
-            return []
-        }
-
-        return result.entries.enumerated().map { index, entry in
-            ReaderLookupSection(index: index + 1, entry: entry)
-        }
-    }
-
-    private var primaryEntry: DictionaryLookupEntry? {
-        result?.entries.first
-    }
-
-    private var matchedQueryText: String? {
-        primaryEntry?.source?
-            .components(separatedBy: "•")
-            .first?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nilIfBlank
-    }
-
-    private var displayedQueryText: String {
-        primaryEntry?.term.nilIfBlank
-            ?? matchedQueryText
-            ?? query
-    }
-
-    private var readingText: String? {
-        primaryEntry?.reading?.nilIfBlank
-    }
-
-    private var noteDefinitions: [String] {
-        sections.flatMap(\.definitions)
-    }
-
-    private var notePayload: ReaderLookupNotePayload {
-        ReaderLookupNotePayload(
-            term: displayedQueryText,
-            reading: readingText,
-            sentence: nil,
-            definitions: noteDefinitions
-        )
-    }
-
-    private var frequencyBadges: [ReaderLookupBadge] {
-        guard let frequency = primaryEntry?.frequency else {
-            return []
-        }
-
-        return frequency
-            .components(separatedBy: "  ")
-            .compactMap(ReaderLookupBadge.init(rawValue:))
-    }
-
-    private var preferredSpeechLanguage: String? {
-        ReaderLookupSpeechPlayer.normalizedLanguageHint(languageHint, fallbackText: readingText ?? displayedQueryText)
-    }
-
-    private var headerScale: CGFloat {
-        max(0.6, popupHeaderFontSize / 14)
     }
 
     private var contentScale: CGFloat {
@@ -1317,112 +1170,50 @@ private struct ReaderLookupPopup: View {
         max(0.6, popupDictionaryNameFontSize / 13)
     }
 
-    private var kanaScale: CGFloat {
-        max(0.6, popupKanaFontSize / 14)
-    }
-
-    private var headerWordFont: CGFloat { 14 * headerScale }
-    private var headerReadingFont: CGFloat { 7 * kanaScale }
-    private var buttonIconFont: CGFloat { 14 * headerScale }
     private var loadingFont: CGFloat { 13 * contentScale }
     private var emptyFont: CGFloat { 13 * contentScale }
     private var sectionDictionaryFont: CGFloat { 13 * dictionaryNameScale }
-    private var sectionTermFont: CGFloat { 22 * contentScale }
-    private var sectionReadingFont: CGFloat { 14 * kanaScale }
-    private var sectionDefinitionFont: CGFloat { 14 * contentScale }
-    private var sectionPitchFont: CGFloat { 12 * contentScale }
-    private var badgeFont: CGFloat { 13 * frequencyScale }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        if let readingText {
-                            Text(readingText)
-                                .font(.system(size: headerReadingFont, weight: .medium))
-                                .foregroundStyle(Color.amgiTextSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-
-                        Text(displayedQueryText)
-                            .font(.system(size: headerWordFont, weight: .bold))
-                            .foregroundStyle(Color.amgiTextPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    HStack(spacing: 4) {
-                        Button {
-                            ReaderLookupSpeechPlayer.shared.speak(displayedQueryText, languageHint: preferredSpeechLanguage)
-                        } label: {
-                            Image(systemName: "speaker.wave.2")
-                                .font(.system(size: buttonIconFont, weight: .medium))
-                                .foregroundStyle(Color.amgiTextSecondary)
-                                .frame(width: 34, height: 34)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            onAddNote(notePayload)
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: buttonIconFont, weight: .medium))
-                                .foregroundStyle(Color.amgiTextSecondary)
-                                .frame(width: 34, height: 34)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    if frequencyBadges.isEmpty == false {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(frequencyBadges) { badge in
-                                    ReaderLookupFrequencyBadge(badge: badge, fontSize: badgeFont)
-                                }
-                            }
-                        }
-                    }
-
-                    if isLoading {
-                        HStack(spacing: 12) {
-                            ProgressView()
-                            Text(L("reader_lookup_loading"))
-                                .font(.system(size: loadingFont))
-                                .foregroundStyle(Color.amgiTextSecondary)
-                        }
-                    } else if let result, result.isPlaceholder {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L("reader_lookup_placeholder"))
-                                .font(.system(size: emptyFont))
-                                .foregroundStyle(Color.amgiTextSecondary)
-                            Text(L("reader_lookup_missing_source"))
-                                .font(.system(size: sectionPitchFont))
-                                .foregroundStyle(Color.amgiTextSecondary)
-                        }
-                    } else if sections.isEmpty == false {
-                        ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-                            if index > 0 {
-                                Divider()
-                                    .overlay(Color.amgiBorder.opacity(0.32))
-                            }
-                            ReaderLookupSectionView(
-                                section: section,
-                                dictionaryFontSize: sectionDictionaryFont,
-                                termFontSize: sectionTermFont,
-                                readingFontSize: sectionReadingFont,
-                                definitionFontSize: sectionDefinitionFont,
-                                pitchFontSize: sectionPitchFont
-                            )
-                        }
-                    } else {
-                        Text(L("reader_lookup_empty"))
-                            .font(.system(size: emptyFont))
+            VStack(alignment: .leading, spacing: 12) {
+                if isLoading {
+                    HStack(spacing: 12) {
+                        ProgressView()
+                        Text(L("reader_lookup_loading"))
+                            .font(.system(size: loadingFont))
                             .foregroundStyle(Color.amgiTextSecondary)
                     }
+                } else if let result, result.isPlaceholder {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(L("reader_lookup_placeholder"))
+                            .font(.system(size: emptyFont))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                        Text(L("reader_lookup_missing_source"))
+                            .font(.system(size: sectionDictionaryFont))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                } else if let result, result.entries.isEmpty == false {
+                    ReaderLookupRichEntriesView(
+                        result: result,
+                        languageHint: languageHint,
+                        popupContentFontSize: popupContentFontSize,
+                        popupDictionaryNameFontSize: popupDictionaryNameFontSize,
+                        popupKanaFontSize: popupKanaFontSize,
+                        popupFrequencyFontSize: popupFrequencyFontSize,
+                        collapseDictionaries: collapseDictionaries,
+                        compactGlossaries: compactGlossaries,
+                        audioSourceTemplate: audioSourceTemplate,
+                        localAudioEnabled: localAudioEnabled,
+                        audioAutoplay: audioAutoplay,
+                        audioPlaybackMode: audioPlaybackMode,
+                        sentence: sentence,
+                        onAddNote: onAddNote
+                    )
+                } else {
+                    Text(L("reader_lookup_empty"))
+                        .font(.system(size: emptyFont))
+                        .foregroundStyle(Color.amgiTextSecondary)
                 }
             }
         }
@@ -1593,12 +1384,6 @@ private extension UIApplication {
     }
 }
 
-private struct ReaderTapLookupRequest {
-    let text: String?
-    let candidates: [String]
-    let sentence: String?
-}
-
 private struct ReaderChapterWebView: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -1621,7 +1406,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     let tapLookupEnabled: Bool
     let onProgressChange: (Double) -> Void
     let onSelectionResolved: (String?) -> Void
-    let onLookupRequested: (ReaderTapLookupRequest, CGPoint) -> Void
+    let onLookupRequested: (String?, String?, CGPoint) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -1709,73 +1494,20 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         window.amgiReaderSelection = {
             selection: null,
             scanDelimiters: '。、！？…‥「」『』（）()【】〈〉《》〔〕｛｝{}［］[]・：；:;，,.─\n\r',
-            sentenceDelimiters: '。！？!?…‥\n\r',
-
-            isWordDelimiter(char) {
-                return /[^\w\p{L}\p{N}]/u.test(char);
-            },
-
-            isJapaneseLike(char) {
-                return /[\u3040-\u30FF\u31F0-\u31FF\u4E00-\u9FFF\u3400-\u4DBF\u30FC]/u.test(char);
-            },
+            sentenceDelimiters: '。！？.!?\n\r',
 
             isScanBoundary(char) {
-                return /^[\s\u3000]$/.test(char) || this.scanDelimiters.includes(char) || this.isWordDelimiter(char);
+                return /^[\s\u3000]$/.test(char) || this.scanDelimiters.includes(char);
             },
 
             isFurigana(node) {
-                const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-                return !!element?.closest('rt, rp');
-            },
-
-            isTransparentColor(cssColor) {
-                return cssColor === 'transparent' || (typeof cssColor === 'string' && /^rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/i.test(cssColor));
-            },
-
-            isTransparentElement(element) {
-                if (!element || element === document.body || element === document.documentElement) {
-                    return false;
-                }
-
-                const style = window.getComputedStyle(element);
-                return (
-                    style.display === 'none' ||
-                    style.visibility === 'hidden' ||
-                    Number.parseFloat(style.opacity || '1') <= 0 ||
-                    (
-                        style.backgroundImage === 'none' &&
-                        this.isTransparentColor(style.backgroundColor)
-                    )
-                );
-            },
-
-            getHitElements(x, y) {
-                if (document.elementsFromPoint) {
-                    const elements = document.elementsFromPoint(x, y);
-                    return elements.filter((element, index) => elements.indexOf(element) === index);
-                }
-
-                const element = document.elementFromPoint(x, y);
-                return element ? [element] : [];
-            },
-
-            getTextHitElement(x, y) {
-                const elements = this.getHitElements(x, y);
-                for (const element of elements) {
-                    if (element.closest('audio, video, button, input, textarea, select')) {
-                        continue;
-                    }
-                    if (this.isTransparentElement(element)) {
-                        continue;
-                    }
-                    return element;
-                }
-                return elements[0] || null;
+                const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+                return !!el?.closest('rt, rp');
             },
 
             findParagraph(node) {
-                const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-                return element?.closest('p, li, blockquote, h1, h2, h3, h4, h5, h6, div') || document.body;
+                let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+                return el?.closest('p, .glossary-content') || null;
             },
 
             createWalker(rootNode) {
@@ -1783,153 +1515,6 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
                     acceptNode: (node) => this.isFurigana(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
                 });
-            },
-
-            buildTextIndex(rootNode) {
-                const walker = this.createWalker(rootNode);
-                const segments = [];
-                let text = '';
-                let node;
-
-                while ((node = walker.nextNode())) {
-                    const content = node.textContent || '';
-                    if (!content) {
-                        continue;
-                    }
-
-                    const start = text.length;
-                    text += content;
-                    segments.push({ node, start, end: text.length });
-                }
-
-                return { text, segments };
-            },
-
-            absoluteOffsetForNode(segments, targetNode, targetOffset) {
-                const segment = segments.find((entry) => entry.node === targetNode);
-                if (!segment) {
-                    return null;
-                }
-
-                const clampedOffset = Math.min(
-                    Math.max(targetOffset, 0),
-                    segment.end - segment.start
-                );
-                return segment.start + clampedOffset;
-            },
-
-            collectForwardText(fullText, startOffset, maxLength) {
-                let text = '';
-                let offset = startOffset;
-
-                while (offset < fullText.length && text.length < maxLength) {
-                    const character = fullText[offset];
-                    if (this.isScanBoundary(character)) {
-                        break;
-                    }
-                    text += character;
-                    offset += 1;
-                }
-
-                return text;
-            },
-
-            buildLookupCandidates(container, hit, maxLength) {
-                const index = this.buildTextIndex(container);
-                const fullText = index.text;
-                const absoluteHit = this.absoluteOffsetForNode(index.segments, hit.node, hit.offset);
-                if (absoluteHit === null || absoluteHit >= fullText.length) {
-                    return [];
-                }
-
-                const hitCharacter = fullText[absoluteHit];
-                if (!hitCharacter || this.isScanBoundary(hitCharacter)) {
-                    return [];
-                }
-
-                const candidateStarts = [];
-                const appendStart = (startOffset) => {
-                    if (startOffset < 0 || startOffset >= fullText.length) {
-                        return;
-                    }
-                    const character = fullText[startOffset];
-                    if (!character || this.isScanBoundary(character)) {
-                        return;
-                    }
-                    if (!candidateStarts.includes(startOffset)) {
-                        candidateStarts.push(startOffset);
-                    }
-                };
-
-                if (this.isJapaneseLike(hitCharacter)) {
-                    appendStart(absoluteHit);
-                    const maxBacktrack = Math.min(Math.max(maxLength - 1, 0), 8, absoluteHit);
-                    for (let delta = 1; delta <= maxBacktrack; delta += 1) {
-                        const startOffset = absoluteHit - delta;
-                        if (this.isScanBoundary(fullText[startOffset])) {
-                            break;
-                        }
-                        appendStart(startOffset);
-                    }
-                } else {
-                    let wordStart = absoluteHit;
-                    while (wordStart > 0 && !this.isScanBoundary(fullText[wordStart - 1])) {
-                        wordStart -= 1;
-                    }
-                    appendStart(wordStart);
-                    appendStart(absoluteHit);
-                    for (let delta = 1; delta <= 3; delta += 1) {
-                        const startOffset = absoluteHit - delta;
-                        if (startOffset < wordStart) {
-                            break;
-                        }
-                        appendStart(startOffset);
-                    }
-                }
-
-                const candidates = [];
-                for (const startOffset of candidateStarts) {
-                    const text = this.collectForwardText(fullText, startOffset, maxLength);
-                    if (text && !candidates.includes(text)) {
-                        candidates.push(text);
-                    }
-                }
-                return candidates;
-            },
-
-            extractSentence(container, startNode, startOffset, selectedText) {
-                const index = this.buildTextIndex(container);
-                const fullText = index.text;
-                if (!fullText) {
-                    return '';
-                }
-
-                const absoluteStart = this.absoluteOffsetForNode(index.segments, startNode, startOffset);
-                if (absoluteStart === null) {
-                    return fullText.trim();
-                }
-
-                let sentenceStart = absoluteStart;
-                while (
-                    sentenceStart > 0 &&
-                    !this.sentenceDelimiters.includes(fullText[sentenceStart - 1])
-                ) {
-                    sentenceStart -= 1;
-                }
-
-                let sentenceEnd = absoluteStart + Math.max(selectedText.length, 1);
-                while (
-                    sentenceEnd < fullText.length &&
-                    !this.sentenceDelimiters.includes(fullText[sentenceEnd])
-                ) {
-                    sentenceEnd += 1;
-                }
-
-                if (sentenceEnd < fullText.length) {
-                    sentenceEnd += 1;
-                }
-
-                return fullText.slice(sentenceStart, sentenceEnd).trim();
             },
 
             inCharRange(charRange, x, y) {
@@ -1949,23 +1534,23 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
             getCaretRange(x, y) {
                 if (document.caretPositionFromPoint) {
-                    const position = document.caretPositionFromPoint(x, y);
-                    if (!position) {
+                    const pos = document.caretPositionFromPoint(x, y);
+                    if (!pos) {
                         return null;
                     }
 
                     const range = document.createRange();
-                    range.setStart(position.offsetNode, position.offset);
+                    range.setStart(pos.offsetNode, pos.offset);
                     range.collapse(true);
                     return range;
                 }
 
-                const element = this.getTextHitElement(x, y);
+                const element = document.elementFromPoint(x, y);
                 if (!element) {
                     return null;
                 }
 
-                const container = element.closest('p, div, span, ruby, a, li, blockquote') || document.body;
+                const container = element.closest('p, div, span, ruby, a') || document.body;
                 const walker = this.createWalker(container);
                 const range = document.createRange();
                 let node;
@@ -1984,19 +1569,18 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
             },
 
-            getCharacterAtExactPoint(x, y) {
-                const element = document.elementFromPoint(x, y);
-                if (element && element.closest('a, button, input, textarea, select, audio, video')) {
-                    return null;
-                }
-
+            getCharacterAtPoint(x, y) {
                 const range = this.getCaretRange(x, y);
                 if (!range) {
                     return null;
                 }
 
                 const node = range.startContainer;
-                if (node.nodeType !== Node.TEXT_NODE || this.isFurigana(node)) {
+                if (node.nodeType !== Node.TEXT_NODE) {
+                    return null;
+                }
+
+                if (this.isFurigana(node)) {
                     return null;
                 }
 
@@ -2022,32 +1606,74 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return null;
             },
 
-            getLookupCandidatePoints(x, y) {
-                return [
-                    [x, y],
-                    [x, y - 4],
-                    [x, y + 4],
-                    [x - 4, y],
-                    [x + 4, y],
-                    [x - 6, y - 6],
-                    [x + 6, y - 6],
-                    [x - 6, y + 6],
-                    [x + 6, y + 6],
-                    [x, y - 8],
-                    [x, y + 8],
-                    [x - 8, y],
-                    [x + 8, y]
-                ];
-            },
+            getSentence(startNode, startOffset) {
+                const container = this.findParagraph(startNode) || document.body;
+                const walker = this.createWalker(container);
+                const trailingSentenceChars = '」』）】!?！？…';
 
-            getCharacterAtPoint(x, y) {
-                for (const [candidateX, candidateY] of this.getLookupCandidatePoints(x, y)) {
-                    const hit = this.getCharacterAtExactPoint(candidateX, candidateY);
-                    if (hit) {
-                        return hit;
+                walker.currentNode = startNode;
+                const partsBefore = [];
+                let node = startNode;
+                let limit = startOffset;
+
+                while (node) {
+                    const text = node.textContent || '';
+                    let foundStart = false;
+                    for (let i = limit - 1; i >= 0; i -= 1) {
+                        if (this.sentenceDelimiters.includes(text[i])) {
+                            partsBefore.push(text.slice(i + 1, limit));
+                            foundStart = true;
+                            break;
+                        }
+                    }
+
+                    if (foundStart) {
+                        break;
+                    }
+
+                    partsBefore.push(text.slice(0, limit));
+                    node = walker.previousNode();
+                    if (node) {
+                        limit = node.textContent.length;
                     }
                 }
-                return null;
+
+                walker.currentNode = startNode;
+                const partsAfter = [];
+                node = startNode;
+                let start = startOffset;
+
+                while (node) {
+                    const text = node.textContent || '';
+                    let foundEnd = false;
+
+                    for (let i = start; i < text.length; i += 1) {
+                        if (this.sentenceDelimiters.includes(text[i])) {
+                            let end = i + 1;
+
+                            while (end < text.length) {
+                                if (!trailingSentenceChars.includes(text[end])) {
+                                    break;
+                                }
+                                end += 1;
+                            }
+                            partsAfter.push(text.slice(start, end));
+                            foundEnd = true;
+                            break;
+                        }
+                    }
+
+                    if (foundEnd) {
+                        break;
+                    }
+
+                    partsAfter.push(text.slice(start));
+
+                    node = walker.nextNode();
+                    start = 0;
+                }
+
+                return (partsBefore.reverse().join('') + partsAfter.join('')).trim();
             },
 
             getSelectionRect(x, y) {
@@ -2070,43 +1696,6 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 this.selection = null;
             },
 
-            expandStartOffset(hit) {
-                const initialContent = hit.node.textContent || '';
-                const initialChar = initialContent[hit.offset] || '';
-                if (this.isJapaneseLike(initialChar)) {
-                    return { node: hit.node, offset: hit.offset };
-                }
-
-                const container = this.findParagraph(hit.node) || document.body;
-                const walker = this.createWalker(container);
-                let node = hit.node;
-                let offset = hit.offset;
-
-                walker.currentNode = node;
-
-                while (node) {
-                    const content = node.textContent || '';
-
-                    while (offset > 0) {
-                        const previousChar = content[offset - 1];
-                        if (this.isScanBoundary(previousChar)) {
-                            return { node, offset };
-                        }
-                        offset -= 1;
-                    }
-
-                    const previousNode = walker.previousNode();
-                    if (!previousNode) {
-                        break;
-                    }
-
-                    node = previousNode;
-                    offset = (node.textContent || '').length;
-                }
-
-                return { node: hit.node, offset: 0 };
-            },
-
             selectText(x, y, maxLength) {
                 const hit = this.getCharacterAtPoint(x, y);
                 if (!hit) {
@@ -2122,12 +1711,10 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 this.clearSelection();
 
                 const container = this.findParagraph(hit.node) || document.body;
-                const candidates = this.buildLookupCandidates(container, hit, maxLength);
                 const walker = this.createWalker(container);
                 let text = '';
-                const start = this.expandStartOffset(hit);
-                let node = start.node;
-                let offset = start.offset;
+                let node = hit.node;
+                let offset = hit.offset;
                 const ranges = [];
 
                 walker.currentNode = node;
@@ -2164,14 +1751,13 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                     startNode: hit.node,
                     startOffset: hit.offset,
                     ranges,
-                    text,
-                    sentence: this.extractSentence(container, hit.node, hit.offset, text)
+                    text
                 };
 
+                const sentence = this.getSentence(hit.node, hit.offset);
                 return {
                     text,
-                    candidates,
-                    sentence: this.selection.sentence,
+                    sentence,
                     rect: this.getSelectionRect(x, y)
                 };
             }
@@ -2290,13 +1876,13 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         private var restoreGeneration = 0
         private let onProgressChange: (Double) -> Void
         let onSelectionResolved: (String?) -> Void
-        let onLookupRequested: (ReaderTapLookupRequest, CGPoint) -> Void
+        let onLookupRequested: (String?, String?, CGPoint) -> Void
 
         init(
             savedProgress: Double,
             onProgressChange: @escaping (Double) -> Void,
             onSelectionResolved: @escaping (String?) -> Void,
-            onLookupRequested: @escaping (ReaderTapLookupRequest, CGPoint) -> Void
+            onLookupRequested: @escaping (String?, String?, CGPoint) -> Void
         ) {
             self.pendingProgress = savedProgress
             self.onProgressChange = onProgressChange
@@ -2315,17 +1901,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             let script = "window.amgiReaderLookupPayloadAt ? window.amgiReaderLookupPayloadAt(\(point.x), \(point.y)) : null"
             webView.evaluateJavaScript(script) { [onLookupRequested] value, _ in
                 if let payload = value as? [String: Any] {
-                    let request = ReaderTapLookupRequest(
-                        text: payload["text"] as? String,
-                        candidates: payload["candidates"] as? [String] ?? [],
-                        sentence: payload["sentence"] as? String
-                    )
-                    onLookupRequested(request, point)
+                    onLookupRequested(payload["text"] as? String, payload["sentence"] as? String, point)
                 } else {
-                    onLookupRequested(
-                        ReaderTapLookupRequest(text: nil, candidates: [], sentence: nil),
-                        point
-                    )
+                    onLookupRequested(nil, nil, point)
                 }
             }
         }
@@ -2452,6 +2030,90 @@ private struct ReaderLookupSection: Identifiable {
         reading = entry.reading?.nilIfBlank
         definitions = parsed.definitions
         pitch = entry.pitch?.nilIfBlank
+    }
+
+    init(
+        index: Int,
+        dictionaryName: String?,
+        term: String,
+        reading: String?,
+        definitions: [String],
+        pitch: String?
+    ) {
+        self.index = index
+        self.heading = L("reader_lookup_definition_section", index)
+        self.dictionaryName = dictionaryName
+        self.term = term
+        self.reading = reading?.nilIfBlank
+        self.definitions = definitions.filter { $0.nilIfBlank != nil }
+        self.pitch = pitch?.nilIfBlank
+    }
+
+    static func sections(startingAt startIndex: Int, entry: DictionaryLookupEntry) -> [ReaderLookupSection] {
+        let groupedGlossaries = groupedGlossaries(from: entry)
+        guard groupedGlossaries.isEmpty == false else {
+            return [ReaderLookupSection(index: startIndex, entry: entry)]
+        }
+
+        return groupedGlossaries.enumerated().map { offset, group in
+            ReaderLookupSection(
+                index: startIndex + offset,
+                dictionaryName: group.dictionaryName ?? entry.source?.nilIfBlank,
+                term: entry.term,
+                reading: entry.reading,
+                definitions: group.definitions,
+                pitch: pitchText(for: entry, preferredDictionary: group.dictionaryName)
+            )
+        }
+    }
+
+    private static func groupedGlossaries(from entry: DictionaryLookupEntry) -> [(dictionaryName: String?, definitions: [String])] {
+        guard entry.structuredGlossaries.isEmpty == false else {
+            return []
+        }
+
+        var groups: [(dictionaryName: String?, definitions: [String])] = []
+        for glossary in entry.structuredGlossaries {
+            let dictionaryName = glossary.dictionary.nilIfBlank
+            let definitions = glossary.definitions.filter { $0.nilIfBlank != nil }
+            guard definitions.isEmpty == false else {
+                continue
+            }
+
+            if let existingIndex = groups.firstIndex(where: { $0.dictionaryName == dictionaryName }) {
+                groups[existingIndex].definitions.append(contentsOf: definitions)
+            } else {
+                groups.append((dictionaryName, definitions))
+            }
+        }
+        return groups
+    }
+
+    private static func pitchText(for entry: DictionaryLookupEntry, preferredDictionary: String?) -> String? {
+        guard entry.structuredPitches.isEmpty == false else {
+            return entry.pitch?.nilIfBlank
+        }
+
+        let matchedPitches = entry.structuredPitches.filter { pitch in
+            preferredDictionary == nil || pitch.dictionary.nilIfBlank == preferredDictionary
+        }
+        let source = matchedPitches.isEmpty ? entry.structuredPitches : matchedPitches
+        let rendered = source.compactMap { pitch -> String? in
+            guard pitch.positions.isEmpty == false else {
+                return nil
+            }
+            let positions = pitch.positions.map(String.init).joined(separator: ", ")
+            guard positions.isEmpty == false else {
+                return nil
+            }
+            if let dictionaryName = pitch.dictionary.nilIfBlank {
+                return "\(dictionaryName): \(positions)"
+            }
+            return positions
+        }
+        .joined(separator: "  ")
+
+        return rendered.nilIfBlank ?? entry.pitch?.nilIfBlank
     }
 
     private static func parseGlossaries(_ glossaries: [String]) -> (dictionaryName: String?, definitions: [String]) {

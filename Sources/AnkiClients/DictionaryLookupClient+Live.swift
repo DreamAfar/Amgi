@@ -235,11 +235,29 @@ private actor DictionaryLookupRuntime {
         let resolvedMaxResults = max(1, maxResults)
         let resolvedScanLength = max(1, scanLength)
         let rawResults = Array(lookupEngine?.lookup(std.string(trimmed), Int32(resolvedMaxResults), resolvedScanLength) ?? [])
+        let styles = loadStyles()
         return DictionaryLookupResult(
             query: trimmed,
             entries: rawResults.map(Self.makeEntry),
-            isPlaceholder: false
+            isPlaceholder: false,
+            dictionaryStyles: styles
         )
+    }
+
+    func loadStyles() -> [String: String] {
+        Array(dictQuery?.get_styles() ?? [])
+            .reduce(into: [String: String]()) { result, style in
+                result[String(style.dict_name)] = String(style.styles)
+            }
+    }
+
+    func mediaFile(dictionary: String, mediaPath: String) throws -> Data {
+        try ensureLoaded()
+        guard let dictQuery else {
+            return Data()
+        }
+        let bytes = dictQuery.get_media_file(std.string(dictionary), std.string(mediaPath))
+        return Data(bytes.map { UInt8(bitPattern: $0) })
     }
 
     func loadState() throws -> AppDictionaryLibraryState {
@@ -694,6 +712,44 @@ private actor DictionaryLookupRuntime {
             glossaryLines(dictName: String(glossary.dict_name), rawGlossary: String(glossary.glossary))
         }
 
+        let structuredGlossaries = Array(result.term.glossaries).map { glossary in
+            DictionaryLookupGlossary(
+                dictionary: String(glossary.dict_name),
+                content: String(glossary.glossary),
+                definitions: flattenGlossary(String(glossary.glossary)),
+                definitionTags: String(glossary.definition_tags).nilIfEmpty,
+                termTags: String(glossary.term_tags).nilIfEmpty
+            )
+        }
+
+        let structuredFrequencies = Array(result.term.frequencies).map { entry in
+            DictionaryLookupFrequency(
+                dictionary: String(entry.dict_name),
+                frequencies: Array(entry.frequencies).map { frequency in
+                    let displayValue = String(frequency.display_value)
+                    return DictionaryLookupFrequencyValue(
+                        value: Int(frequency.value),
+                        displayValue: displayValue.nilIfEmpty
+                    )
+                }
+            )
+        }
+
+        let structuredPitches = Array(result.term.pitches).map { entry in
+            let positions = Array(entry.pitch_positions)
+                .map(Int.init)
+                .reduce(into: [Int]()) { output, position in
+                    if output.contains(position) == false {
+                        output.append(position)
+                    }
+                }
+
+            return DictionaryLookupPitch(
+                dictionary: String(entry.dict_name),
+                positions: positions
+            )
+        }
+
         let frequency = Array(result.term.frequencies)
             .compactMap { entry -> String? in
                 let values = Array(entry.frequencies).map { frequency -> String in
@@ -718,15 +774,32 @@ private actor DictionaryLookupRuntime {
             .joined(separator: "  ")
 
         let trace = Array(result.trace.reversed())
-            .map { String($0.name) }
+            .map {
+                DictionaryLookupDeinflectionStep(
+                    name: String($0.name),
+                    description: String($0.description).nilIfEmpty
+                )
+            }
+        let traceText = trace
+            .map(\.name)
             .filter { !$0.isEmpty }
             .joined(separator: " -> ")
         let matched = String(result.matched)
-        let source = trace.isEmpty ? matched : "\(matched) • \(trace)"
+        let source = traceText.isEmpty ? matched : "\(matched) • \(traceText)"
+        let rules = String(result.term.rules)
+            .split(separator: " ")
+            .map(String.init)
+            .filter { $0.isEmpty == false }
 
         return DictionaryLookupEntry(
             term: String(result.term.expression),
             reading: String(result.term.reading).nilIfEmpty,
+            matched: matched.nilIfEmpty,
+            rules: rules,
+            deinflectionTrace: trace,
+            structuredGlossaries: structuredGlossaries,
+            structuredFrequencies: structuredFrequencies,
+            structuredPitches: structuredPitches,
             glossaries: glossaries,
             frequency: frequency.nilIfEmpty,
             pitch: pitch.nilIfEmpty,
@@ -817,6 +890,12 @@ extension DictionaryLookupClient: DependencyKey {
         return Self(
             lookup: { text, maxResults, scanLength in
                 try await runtime.lookup(text, maxResults: maxResults, scanLength: scanLength)
+            },
+            loadStyles: {
+                try await runtime.loadStyles()
+            },
+            mediaFile: { dictionary, mediaPath in
+                try await runtime.mediaFile(dictionary: dictionary, mediaPath: mediaPath)
             },
             loadState: {
                 try await runtime.loadState()

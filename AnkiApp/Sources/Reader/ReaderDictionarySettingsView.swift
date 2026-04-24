@@ -7,6 +7,12 @@ struct ReaderDictionarySettingsView: View {
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
     @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var maxResults = 16
     @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var scanLength = 16
+    @AppStorage(ReaderPreferences.Keys.popupCollapseDictionaries) private var collapseDictionaries = false
+    @AppStorage(ReaderPreferences.Keys.popupCompactGlossaries) private var compactGlossaries = true
+    @AppStorage(ReaderPreferences.Keys.popupAudioSourceTemplate) private var audioSourceTemplate = ReaderLookupAudioDefaults.defaultTemplate
+    @AppStorage(ReaderPreferences.Keys.popupLocalAudioEnabled) private var localAudioEnabled = false
+    @AppStorage(ReaderPreferences.Keys.popupAudioAutoplay) private var audioAutoplay = false
+    @AppStorage(ReaderPreferences.Keys.popupAudioPlaybackMode) private var audioPlaybackModeRawValue = ReaderLookupAudioPlaybackMode.interrupt.rawValue
 
     @State private var libraryState = AppDictionaryLibraryState.empty
     @State private var isBusy = false
@@ -54,6 +60,43 @@ struct ReaderDictionarySettingsView: View {
                         .foregroundStyle(Color.amgiAccent)
                     Stepper("", value: $scanLength, in: 1...64)
                         .labelsHidden()
+                }
+
+                Toggle(L("settings_reader_dictionary_collapse_dictionaries"), isOn: $collapseDictionaries)
+                    .foregroundStyle(Color.amgiTextPrimary)
+
+                Toggle(L("settings_reader_dictionary_compact_glossaries"), isOn: $compactGlossaries)
+                    .foregroundStyle(Color.amgiTextPrimary)
+            }
+            .listRowBackground(Color.amgiSurfaceElevated)
+
+            Section(L("settings_reader_dictionary_section_audio")) {
+                Toggle(L("settings_reader_dictionary_local_audio"), isOn: $localAudioEnabled)
+                    .foregroundStyle(Color.amgiTextPrimary)
+
+                Toggle(L("settings_reader_dictionary_audio_autoplay"), isOn: $audioAutoplay)
+                    .foregroundStyle(Color.amgiTextPrimary)
+
+                Picker(
+                    L("settings_reader_dictionary_audio_playback_mode"),
+                    selection: Binding(
+                        get: { ReaderLookupAudioDefaults.resolvedPlaybackMode(audioPlaybackModeRawValue) },
+                        set: { audioPlaybackModeRawValue = $0.rawValue }
+                    )
+                ) {
+                    ForEach(ReaderLookupAudioPlaybackMode.allCases) { mode in
+                        Text(title(for: mode)).tag(mode)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L("settings_reader_dictionary_audio_source_template"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+
+                    TextField("", text: $audioSourceTemplate, prompt: Text(ReaderLookupAudioDefaults.defaultTemplate))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .textFieldStyle(.roundedBorder)
                 }
             }
             .listRowBackground(Color.amgiSurfaceElevated)
@@ -127,7 +170,11 @@ struct ReaderDictionarySettingsView: View {
             }
         }
         .task {
+            ReaderLookupLocalAudioServer.shared.setEnabled(localAudioEnabled)
             await refreshState()
+        }
+        .onChange(of: localAudioEnabled) { _, enabled in
+            ReaderLookupLocalAudioServer.shared.setEnabled(enabled)
         }
         .fileImporter(
             isPresented: $showImporter,
@@ -258,6 +305,17 @@ struct ReaderDictionarySettingsView: View {
             } catch {
                 show(error)
             }
+        }
+    }
+
+    private func title(for mode: ReaderLookupAudioPlaybackMode) -> String {
+        switch mode {
+        case .interrupt:
+            return L("settings_reader_dictionary_audio_mode_interrupt")
+        case .duck:
+            return L("settings_reader_dictionary_audio_mode_duck")
+        case .mix:
+            return L("settings_reader_dictionary_audio_mode_mix")
         }
     }
 

@@ -363,6 +363,16 @@
 "settings_reader_dictionary_section_settings" = "設定";
 "settings_reader_dictionary_max_results" = "最大結果数";
 "settings_reader_dictionary_scan_length" = "スキャン長";
+"settings_reader_dictionary_collapse_dictionaries" = "辞書グループを折りたたむ";
+"settings_reader_dictionary_compact_glossaries" = "語釈をコンパクト表示";
+"settings_reader_dictionary_section_audio" = "辞書音声";
+"settings_reader_dictionary_local_audio" = "ローカル音声を有効化";
+"settings_reader_dictionary_audio_autoplay" = "検索後に音声を自動再生";
+"settings_reader_dictionary_audio_playback_mode" = "音声再生モード";
+"settings_reader_dictionary_audio_mode_interrupt" = "他の音声を中断";
+"settings_reader_dictionary_audio_mode_duck" = "他の音声を小さくする";
+"settings_reader_dictionary_audio_mode_mix" = "他の音声と同時再生";
+"settings_reader_dictionary_audio_source_template" = "リモート音声ソーステンプレート";
 "settings_reader_dictionary_empty" = "まだ辞書が読み込まれていません。";
 "settings_reader_dictionary_revision" = "リビジョン: %@";
 "settings_reader_dictionary_busy" = "辞書を準備中...";
@@ -430,6 +440,7 @@
 "reader_lookup_placeholder" = "有効な辞書がまだありません。";
 "reader_lookup_missing_source" = "リーダー設定で辞書を読み込むか有効にすると、実際の検索を使えます。";
 "reader_lookup_empty" = "一致する辞書結果が見つかりませんでした。";
+"reader_lookup_unknown_dictionary" = "名称未設定の辞書";
 "reader_lookup_add_note" = "ノート草稿に追加";
 "reader_lookup_definition_section" = "解説%lld：";
 "reader_reader_menu_chapters" = "章一覧";

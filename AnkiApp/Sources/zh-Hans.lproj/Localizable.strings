@@ -363,6 +363,16 @@
 "settings_reader_dictionary_section_settings" = "设置";
 "settings_reader_dictionary_max_results" = "最大结果数";
 "settings_reader_dictionary_scan_length" = "扫描长度";
+"settings_reader_dictionary_collapse_dictionaries" = "折叠词典分组";
+"settings_reader_dictionary_compact_glossaries" = "压缩释义列表";
+"settings_reader_dictionary_section_audio" = "词典音频";
+"settings_reader_dictionary_local_audio" = "启用本地音频库";
+"settings_reader_dictionary_audio_autoplay" = "查词后自动播放音频";
+"settings_reader_dictionary_audio_playback_mode" = "音频播放模式";
+"settings_reader_dictionary_audio_mode_interrupt" = "打断其他音频";
+"settings_reader_dictionary_audio_mode_duck" = "压低其他音频";
+"settings_reader_dictionary_audio_mode_mix" = "与其他音频混播";
+"settings_reader_dictionary_audio_source_template" = "远程音频源模板";
 "settings_reader_dictionary_empty" = "还没有导入任何词典。";
 "settings_reader_dictionary_revision" = "版本：%@";
 "settings_reader_dictionary_busy" = "正在准备词典…";
@@ -430,6 +440,7 @@
 "reader_lookup_placeholder" = "当前还没有启用任何词典。";
 "reader_lookup_missing_source" = "请先到阅读器设置中导入或启用词典，再使用真实查词。";
 "reader_lookup_empty" = "没有找到匹配的词条。";
+"reader_lookup_unknown_dictionary" = "未命名字典";
 "reader_lookup_add_note" = "加入笔记草稿";
 "reader_lookup_definition_section" = "解释%lld：";
 "reader_reader_menu_chapters" = "章节目录";
