@@ -24,9 +24,13 @@ public struct DeckClient: Sendable {
         _ applyToChildren: Bool,
         _ fsrsEnabled: Bool,
         _ newCardsIgnoreReviewLimit: Bool,
-        _ applyAllParentLimits: Bool
+        _ applyAllParentLimits: Bool,
+        _ fsrsHealthCheck: Bool
     ) throws -> Void
     public var getRetentionWorkload: @Sendable (_ weights: [Float], _ search: String) throws -> [UInt32: Float]
+    public var computeFsrsParams: @Sendable (_ request: Anki_Scheduler_ComputeFsrsParamsRequest) throws -> Anki_Scheduler_ComputeFsrsParamsResponse
+    public var simulateFsrsReview: @Sendable (_ request: Anki_Scheduler_SimulateFsrsReviewRequest) throws -> Anki_Scheduler_SimulateFsrsReviewResponse
+    public var simulateFsrsWorkload: @Sendable (_ request: Anki_Scheduler_SimulateFsrsReviewRequest) throws -> Anki_Scheduler_SimulateFsrsWorkloadResponse
     public var optimizeFsrsPresets: @Sendable (_ deckId: Int64, _ selectedConfig: Anki_DeckConfig_DeckConfig) throws -> Void
 }
 

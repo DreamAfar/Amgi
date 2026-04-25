@@ -35,6 +35,20 @@ struct DeckConfigView: View {
     @State private var isSimulatingFsrs = false
     @State private var fsrsSimulationSearch: String = ""
     @State private var retentionWorkload: [(retention: UInt32, cost: Float)] = []
+    @State private var fsrsHealthCheck = false
+    @State private var showFsrsSimulator = false
+    @State private var fsrsSimulatorMode: FsrsSimulatorMode = .review
+    @State private var fsrsSimulatorDays = 365
+    @State private var fsrsSimulatorAdditionalCards = 0
+    @State private var fsrsSimulatorRetentionPercent: Double = 90
+    @State private var fsrsSimulatorNewLimit = 20
+    @State private var fsrsSimulatorReviewLimit = 9999
+    @State private var fsrsSimulatorMaxInterval = 36500
+    @State private var fsrsSimulatorSearch = ""
+    @State private var fsrsSimulatorIgnoreNewLimit = false
+    @State private var fsrsSimulatorReviewOrder: Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder = .day
+    @State private var fsrsSimulatorSuspendLeeches = false
+    @State private var fsrsSimulatorResult: FsrsSimulatorResult?
 
     @State private var newCardInsertOrder: Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder = .due
     @State private var newMix: Anki_DeckConfig_DeckConfig.Config.ReviewMix = .mixWithReviews
@@ -80,6 +94,18 @@ struct DeckConfigView: View {
     @State private var showDeletePresetConfirmation = false
     @State private var showRenamePresetPrompt = false
     @State private var renamePresetDraft = ""
+
+    private enum FsrsSimulatorMode: String, CaseIterable, Identifiable {
+        case review
+        case workload
+
+        var id: String { rawValue }
+    }
+
+    private struct FsrsSimulatorResult {
+        var summary: [(String, String)]
+        var rows: [(String, String, String)]
+    }
 
     var body: some View {
         NavigationStack {
@@ -160,6 +186,9 @@ struct DeckConfigView: View {
                 }
             } message: {
                 Text(L("deck_config_name"))
+            }
+            .sheet(isPresented: $showFsrsSimulator) {
+                fsrsSimulatorSheet
             }
             .task {
                 await loadConfig()
@@ -266,7 +295,11 @@ struct DeckConfigView: View {
     }
 
     private var reviewOrderLabel: String {
-        switch reviewOrder {
+        reviewOrderText(reviewOrder)
+    }
+
+    private func reviewOrderText(_ value: Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder) -> String {
+        switch value {
         case .day:
             return L("deck_config_review_order_day")
         case .dayThenDeck:
@@ -600,11 +633,15 @@ struct DeckConfigView: View {
                     .tint(Color.amgiAccent)
             }
             if fsrsEnabled {
-                LabeledContent(L("deck_config_fsrs_weights")) {
-                    TextField(L("deck_config_fsrs_weights_hint"), text: $fsrsWeights)
-                        .multilineTextAlignment(.trailing)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("deck_config_fsrs_weights"))
+
+                    TextField(L("deck_config_fsrs_weights_hint"), text: $fsrsWeights, axis: .vertical)
+                        .lineLimit(2...6)
                         .font(.monospaced(.caption)())
                         .foregroundStyle(Color.amgiAccent)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -612,45 +649,42 @@ struct DeckConfigView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
 
-                    TextField(L("deck_config_fsrs_simulator_search_hint"), text: $fsrsSimulationSearch)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-
                     Button {
-                        Task { await runFsrsSimulation() }
+                        openFsrsSimulator(.workload)
                     } label: {
-                        HStack {
-                            if isSimulatingFsrs {
-                                ProgressView()
-                                    .controlSize(.small)
-                            }
-                            Text(isSimulatingFsrs ? L("deck_config_fsrs_simulator_running") : L("deck_config_fsrs_simulator_run"))
-                        }
+                        Text(L("deck_config_fsrs_help_decide"))
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color.amgiAccent)
-                    .disabled(isSimulatingFsrs)
 
-                    if !retentionWorkload.isEmpty {
-                        ForEach(retentionWorkload, id: \.retention) { row in
-                            HStack {
-                                Text("\(row.retention)%")
-                                Spacer()
-                                Text(String(format: "%.2f", row.cost))
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                                    .monospacedDigit()
-                            }
-                            .amgiFont(.caption)
-                        }
-                    } else {
-                        Text(L("deck_config_fsrs_simulator_empty"))
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                    Button {
+                        openFsrsSimulator(.review)
+                    } label: {
+                        Text(L("deck_config_fsrs_simulator_open"))
                     }
+                    .buttonStyle(.bordered)
+                    .tint(Color.amgiAccent)
                 }
 
                 Button {
-                    Task { await optimizeFsrsPresets() }
+                    Task { await optimizeCurrentFsrsPreset() }
+                } label: {
+                    HStack {
+                        if isOptimizingFsrs {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Text(isOptimizingFsrs ? L("deck_config_fsrs_optimize_running") : L("deck_config_fsrs_optimize_current"))
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.amgiAccent)
+                .disabled(isOptimizingFsrs)
+
+                Toggle(L("deck_config_fsrs_health_check"), isOn: $fsrsHealthCheck)
+
+                Button {
+                    Task { await optimizeAllFsrsPresets() }
                 } label: {
                     HStack {
                         if isOptimizingFsrs {
@@ -666,6 +700,142 @@ struct DeckConfigView: View {
             }
         }
         .listRowBackground(Color.amgiSurfaceElevated)
+    }
+
+    private var fsrsSimulatorSheet: some View {
+        NavigationStack {
+            Form {
+                Section(L("deck_config_fsrs_simulator_settings")) {
+                    Picker(L("deck_config_fsrs_simulator_type"), selection: $fsrsSimulatorMode) {
+                        Text(L("deck_config_fsrs_simulator_type_review")).tag(FsrsSimulatorMode.review)
+                        Text(L("deck_config_fsrs_simulator_type_workload")).tag(FsrsSimulatorMode.workload)
+                    }
+                    .pickerStyle(.segmented)
+
+                    LabeledContent(L("deck_config_fsrs_simulator_days")) {
+                        TextField("", value: $fsrsSimulatorDays, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+
+                    LabeledContent(L("deck_config_fsrs_simulator_additional_cards")) {
+                        TextField("", value: $fsrsSimulatorAdditionalCards, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+
+                    if fsrsSimulatorMode == .review {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(L("deck_config_desired_retention"))
+                                Spacer()
+                                Text("\(Int(fsrsSimulatorRetentionPercent))%")
+                                    .foregroundStyle(Color.amgiAccent)
+                            }
+                            Slider(value: $fsrsSimulatorRetentionPercent, in: 70...99, step: 1)
+                                .tint(Color.amgiAccent)
+                        }
+                    }
+
+                    LabeledContent(L("deck_config_daily_new")) {
+                        TextField("", value: $fsrsSimulatorNewLimit, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+
+                    LabeledContent(L("deck_config_daily_review")) {
+                        TextField("", value: $fsrsSimulatorReviewLimit, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+
+                    TextField(L("deck_config_fsrs_simulator_search_hint"), text: $fsrsSimulatorSearch, axis: .vertical)
+                        .lineLimit(1...3)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                }
+
+                Section(L("deck_config_section_advanced")) {
+                    LabeledContent(L("deck_config_max_interval")) {
+                        TextField("", value: $fsrsSimulatorMaxInterval, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+
+                    Picker(L("deck_config_review_order"), selection: $fsrsSimulatorReviewOrder) {
+                        Text(reviewOrderText(.day)).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
+                        Text(reviewOrderText(.intervalsAscending)).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
+                        Text(reviewOrderText(.intervalsDescending)).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
+                        Text(reviewOrderText(.retrievabilityDescending)).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.retrievabilityDescending)
+                    }
+
+                    Toggle(L("deck_config_new_cards_ignore_review_limit"), isOn: $fsrsSimulatorIgnoreNewLimit)
+                    Toggle(L("deck_config_fsrs_simulator_suspend_leeches"), isOn: $fsrsSimulatorSuspendLeeches)
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Button {
+                            Task { await runFsrsSimulator() }
+                        } label: {
+                            if isSimulatingFsrs {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text(L("deck_config_fsrs_simulator_run"))
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.amgiAccent)
+                        .disabled(isSimulatingFsrs)
+
+                        Button(L("deck_config_fsrs_simulator_clear")) {
+                            fsrsSimulatorResult = nil
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button(L("deck_config_fsrs_simulator_save_to_preset")) {
+                            Task { await saveFsrsSimulatorSettingsToPreset() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                Section(L("deck_config_fsrs_simulator_result")) {
+                    if let fsrsSimulatorResult {
+                        ForEach(fsrsSimulatorResult.summary, id: \.0) { item in
+                            LabeledContent(item.0, value: item.1)
+                        }
+
+                        ForEach(fsrsSimulatorResult.rows, id: \.0) { row in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(row.0)
+                                    .font(.headline)
+                                HStack {
+                                    Text(row.1)
+                                    Spacer()
+                                    Text(row.2)
+                                        .foregroundStyle(Color.amgiTextSecondary)
+                                }
+                                .amgiFont(.caption)
+                            }
+                        }
+                    } else {
+                        Text(L("deck_config_fsrs_simulator_empty"))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                }
+            }
+            .navigationTitle(L("deck_config_fsrs_simulator_section"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done")) {
+                        showFsrsSimulator = false
+                    }
+                }
+            }
+        }
     }
 
     private var burySection: some View {
@@ -900,6 +1070,7 @@ struct DeckConfigView: View {
                 historicalRetentionPercent = cfg.historicalRetention > 0 ? Double(cfg.historicalRetention * 100) : 90
                 newCardsIgnoreReviewLimit = effectiveContext.newCardsIgnoreReviewLimit
                 applyAllParentLimits = effectiveContext.applyAllParentLimits
+                fsrsHealthCheck = effectiveContext.fsrsHealthCheck
                 if cfg.easyDaysPercentages.count == 7 {
                     easyDayPercentages = cfg.easyDaysPercentages.map { Double($0) * 100 }
                 } else {
@@ -1053,7 +1224,40 @@ struct DeckConfigView: View {
         await persistConfig(updatedConfig, dismissOnSuccess: false)
     }
 
-    private func optimizeFsrsPresets() async {
+    private func optimizeCurrentFsrsPreset() async {
+        guard let config else { return }
+
+        isOptimizingFsrs = true
+        defer { isOptimizingFsrs = false }
+
+        do {
+            let cfg = config.config
+            var req = Anki_Scheduler_ComputeFsrsParamsRequest()
+            req.search = fsrsSimulatorSearchText(from: cfg)
+            req.currentParams = effectiveFsrsWeights(from: cfg)
+            req.ignoreRevlogsBeforeMs = ignoreRevlogsBeforeMs(from: cfg.ignoreRevlogsBeforeDate)
+            req.numOfRelearningSteps = relearningStepsInDay(cfg.relearnSteps)
+            req.healthCheck = fsrsHealthCheck
+
+            let response = try deckClient.computeFsrsParams(req)
+            guard !response.params.isEmpty else {
+                errorMessage = L("deck_config_fsrs_optimize_no_reviews")
+                showError = true
+                return
+            }
+
+            fsrsWeights = response.params.map { String(format: "%.4f", $0) }.joined(separator: ", ")
+            if response.hasHealthCheckPassed && !response.healthCheckPassed {
+                errorMessage = L("deck_config_fsrs_health_check_failed")
+                showError = true
+            }
+        } catch {
+            errorMessage = L("deck_config_error_save", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func optimizeAllFsrsPresets() async {
         guard let config else { return }
 
         isOptimizingFsrs = true
@@ -1112,6 +1316,84 @@ struct DeckConfigView: View {
             showError = true
         }
     }
+
+    private func openFsrsSimulator(_ mode: FsrsSimulatorMode) {
+        fsrsSimulatorMode = mode
+        fsrsSimulatorDays = 365
+        fsrsSimulatorAdditionalCards = 0
+        fsrsSimulatorRetentionPercent = desiredRetentionPercent
+        fsrsSimulatorNewLimit = Int(max(0, newCardsPerDay))
+        fsrsSimulatorReviewLimit = mode == .workload ? 9999 : Int(max(0, reviewsPerDay))
+        fsrsSimulatorMaxInterval = Int(max(1, maximumReviewIntervalDays))
+        fsrsSimulatorSearch = fsrsSimulationSearch.isEmpty ? defaultFsrsSearch : fsrsSimulationSearch
+        fsrsSimulatorIgnoreNewLimit = newCardsIgnoreReviewLimit
+        fsrsSimulatorReviewOrder = reviewOrder
+        fsrsSimulatorSuspendLeeches = leechAction == .suspend
+        fsrsSimulatorResult = nil
+        showFsrsSimulator = true
+    }
+
+    private func runFsrsSimulator() async {
+        guard let config else { return }
+
+        let weights = effectiveFsrsWeights(from: config.config)
+        guard !weights.isEmpty else {
+            fsrsSimulatorResult = FsrsSimulatorResult(summary: [], rows: [])
+            return
+        }
+
+        isSimulatingFsrs = true
+        defer { isSimulatingFsrs = false }
+
+        do {
+            var req = Anki_Scheduler_SimulateFsrsReviewRequest()
+            req.params = weights
+            req.desiredRetention = Float(fsrsSimulatorRetentionPercent / 100)
+            req.deckSize = UInt32(max(0, fsrsSimulatorAdditionalCards))
+            req.daysToSimulate = UInt32(max(1, fsrsSimulatorDays))
+            req.newLimit = UInt32(max(0, fsrsSimulatorNewLimit))
+            req.reviewLimit = UInt32(max(0, fsrsSimulatorReviewLimit))
+            req.maxInterval = UInt32(max(1, fsrsSimulatorMaxInterval))
+            req.search = fsrsSimulatorSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+            req.newCardsIgnoreReviewLimit = fsrsSimulatorIgnoreNewLimit
+            req.easyDaysPercentages = easyDayPercentages.map { Float($0 / 100) }
+            req.reviewOrder = fsrsSimulatorReviewOrder
+            req.historicalRetention = Float(historicalRetentionPercent / 100)
+            req.learningStepCount = UInt32(parseSteps(learningStepsText).count)
+            req.relearningStepCount = UInt32(parseSteps(relearningStepsText).count)
+            if fsrsSimulatorSuspendLeeches {
+                req.suspendAfterLapseCount = UInt32(max(1, leechThreshold))
+            }
+
+            switch fsrsSimulatorMode {
+            case .review:
+                let response = try deckClient.simulateFsrsReview(req)
+                fsrsSimulatorResult = renderReviewSimulation(response)
+            case .workload:
+                let response = try deckClient.simulateFsrsWorkload(req)
+                fsrsSimulatorResult = renderWorkloadSimulation(response)
+            }
+        } catch {
+            errorMessage = L("deck_config_error_save", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func saveFsrsSimulatorSettingsToPreset() async {
+        if fsrsSimulatorMode == .review {
+            desiredRetentionPercent = fsrsSimulatorRetentionPercent
+        }
+        newCardsPerDay = Int32(max(0, fsrsSimulatorNewLimit))
+        reviewsPerDay = Int32(max(0, fsrsSimulatorReviewLimit))
+        maximumReviewIntervalDays = Int32(max(1, fsrsSimulatorMaxInterval))
+        fsrsSimulationSearch = fsrsSimulatorSearch
+        newCardsIgnoreReviewLimit = fsrsSimulatorIgnoreNewLimit
+        reviewOrder = fsrsSimulatorReviewOrder
+        leechAction = fsrsSimulatorSuspendLeeches ? .suspend : .tagOnly
+
+        guard let updatedConfig = makeEditedConfigDraft() else { return }
+        await persistConfig(updatedConfig, dismissOnSuccess: false)
+    }
     
     private func saveConfig(applyToChildren: Bool = false) {
         guard let config = makeEditedConfigDraft() else { return }
@@ -1167,6 +1449,7 @@ struct DeckConfigView: View {
 
         cfg.desiredRetention = Float(desiredRetentionPercent / 100)
         cfg.historicalRetention = Float(historicalRetentionPercent / 100)
+        cfg.paramSearch = fsrsSimulationSearch.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if fsrsEnabled {
             let weights = parseFloatArray(fsrsWeights)
@@ -1200,7 +1483,8 @@ struct DeckConfigView: View {
                 applyToChildren,
                 fsrsEnabled,
                 newCardsIgnoreReviewLimit,
-                applyAllParentLimits
+                applyAllParentLimits,
+                fsrsHealthCheck
             )
             if dismissOnSuccess {
                 onDismiss()
@@ -1249,6 +1533,83 @@ struct DeckConfigView: View {
         text
             .split(whereSeparator: { $0 == " " || $0 == "," || $0 == "\n" || $0 == "\t" })
             .compactMap { Float($0) }
+    }
+
+    private var defaultFsrsSearch: String {
+        let escapedName = configName.replacingOccurrences(of: "\"", with: "\\\"")
+        return "preset:\"\(escapedName)\" -is:suspended"
+    }
+
+    private func fsrsSimulatorSearchText(from cfg: Anki_DeckConfig_DeckConfig.Config) -> String {
+        let search = cfg.paramSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        return search.isEmpty ? defaultFsrsSearch : search
+    }
+
+    private func effectiveFsrsWeights(from cfg: Anki_DeckConfig_DeckConfig.Config) -> [Float] {
+        let editedWeights = parseFloatArray(fsrsWeights)
+        if !editedWeights.isEmpty { return editedWeights }
+        if !cfg.fsrsParams6.isEmpty { return cfg.fsrsParams6 }
+        if !cfg.fsrsParams5.isEmpty { return cfg.fsrsParams5 }
+        return cfg.fsrsParams4
+    }
+
+    private func ignoreRevlogsBeforeMs(from value: String) -> Int64 {
+        guard !value.isEmpty else { return 0 }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        guard let date = formatter.date(from: value) else { return 0 }
+        return Int64(date.timeIntervalSince1970 * 1000)
+    }
+
+    private func relearningStepsInDay(_ steps: [Float]) -> UInt32 {
+        var count: UInt32 = 0
+        var accumulated: Float = 0
+        for step in steps {
+            accumulated += step
+            if accumulated >= 1440 { break }
+            count += 1
+        }
+        return count
+    }
+
+    private func renderReviewSimulation(_ response: Anki_Scheduler_SimulateFsrsReviewResponse) -> FsrsSimulatorResult {
+        let totalNew = response.dailyNewCount.reduce(0, +)
+        let totalReview = response.dailyReviewCount.reduce(0, +)
+        let totalTime = response.dailyTimeCost.reduce(0, +)
+        let memorized = response.accumulatedKnowledgeAcquisition.last ?? 0
+        let days = max(response.dailyReviewCount.count, 1)
+
+        return FsrsSimulatorResult(
+            summary: [
+                (L("deck_config_fsrs_simulator_total_new"), "\(totalNew)"),
+                (L("deck_config_fsrs_simulator_total_reviews"), "\(totalReview)"),
+                (L("deck_config_fsrs_simulator_avg_reviews"), String(format: "%.1f", Double(totalReview) / Double(days))),
+                (L("deck_config_fsrs_simulator_total_time"), String(format: "%.1f", Double(totalTime))),
+                (L("deck_config_fsrs_simulator_memorized"), String(format: "%.1f", Double(memorized)))
+            ],
+            rows: []
+        )
+    }
+
+    private func renderWorkloadSimulation(_ response: Anki_Scheduler_SimulateFsrsWorkloadResponse) -> FsrsSimulatorResult {
+        let rows = response.cost.keys.sorted().map { retention in
+            let cost = response.cost[retention] ?? 0
+            let count = response.reviewCount[retention] ?? 0
+            let memorized = response.memorized[retention] ?? 0
+            return (
+                "\(retention)%",
+                L("deck_config_fsrs_simulator_workload_cost", String(format: "%.2f", Double(cost))),
+                L("deck_config_fsrs_simulator_workload_cards", count, String(format: "%.1f", Double(memorized)))
+            )
+        }
+
+        return FsrsSimulatorResult(
+            summary: [(L("deck_config_fsrs_simulator_points"), "\(rows.count)")],
+            rows: rows
+        )
     }
 
     private func weekdayName(_ idx: Int) -> String {

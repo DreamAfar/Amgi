@@ -359,6 +359,12 @@ extension AnkiBackend {
         public static let scheduleCardsAsNew: UInt32 = 17
         // SetDueDate = proto index 16 + offset 3 = 19
         public static let setDueDate: UInt32 = 19
+        // ComputeFsrsParams = proto index 27 + offset 3 = 30
+        public static let computeFsrsParams: UInt32 = 30
+        // SimulateFsrsReview = proto index 30 + offset 3 = 33
+        public static let simulateFsrsReview: UInt32 = 33
+        // SimulateFsrsWorkload = proto index 31 + offset 3 = 34
+        public static let simulateFsrsWorkload: UInt32 = 34
     }
 
     public enum NotesMethod {

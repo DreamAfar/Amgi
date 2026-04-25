@@ -302,10 +302,11 @@ extension DeckClient: DependencyKey {
                     request: req
                 )
             },
-            updateDeckConfig: { deckId, config, applyToChildren, fsrsEnabled, newCardsIgnoreReviewLimit, applyAllParentLimits in
+            updateDeckConfig: { deckId, config, applyToChildren, fsrsEnabled, newCardsIgnoreReviewLimit, applyAllParentLimits, fsrsHealthCheck in
                 var context = try deckConfigContext(backend: backend, deckId: deckId)
                 context.newCardsIgnoreReviewLimit = newCardsIgnoreReviewLimit
                 context.applyAllParentLimits = applyAllParentLimits
+                context.fsrsHealthCheck = fsrsHealthCheck
                 let req = makeDeckConfigUpdateRequest(
                     deckId: deckId,
                     context: context,
@@ -338,6 +339,27 @@ extension DeckClient: DependencyKey {
                     request: req
                 )
                 return response.costs
+            },
+            computeFsrsParams: { request in
+                try backend.invoke(
+                    service: AnkiBackend.Service.scheduler,
+                    method: AnkiBackend.SchedulerMethod.computeFsrsParams,
+                    request: request
+                )
+            },
+            simulateFsrsReview: { request in
+                try backend.invoke(
+                    service: AnkiBackend.Service.scheduler,
+                    method: AnkiBackend.SchedulerMethod.simulateFsrsReview,
+                    request: request
+                )
+            },
+            simulateFsrsWorkload: { request in
+                try backend.invoke(
+                    service: AnkiBackend.Service.scheduler,
+                    method: AnkiBackend.SchedulerMethod.simulateFsrsWorkload,
+                    request: request
+                )
             },
             optimizeFsrsPresets: { deckId, selectedConfig in
                 let context = try deckConfigContext(backend: backend, deckId: deckId)
