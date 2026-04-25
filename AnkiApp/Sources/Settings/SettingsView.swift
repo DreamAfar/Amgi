@@ -457,6 +457,8 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var showNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var openLinksExternally = true
     @AppStorage(ReviewPreferences.Keys.lookupPopupEnabled) private var lookupPopupEnabled = true
+    @AppStorage(ReviewPreferences.Keys.lookupPopupFrontEnabled) private var lookupPopupFrontEnabled = false
+    @AppStorage(ReviewPreferences.Keys.lookupPopupBackEnabled) private var lookupPopupBackEnabled = true
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var cardContentAlignmentRaw = CardAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var glassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var autoMatchCardBackground = true
@@ -485,6 +487,10 @@ private struct ReviewOptionsView: View {
                 Toggle(L("settings_review_show_next_review_time"), isOn: $showNextReviewTime)
                 Toggle(L("settings_review_open_links_externally"), isOn: $openLinksExternally)
                 Toggle(L("settings_review_lookup_popup_enabled"), isOn: $lookupPopupEnabled)
+                if lookupPopupEnabled {
+                    Toggle(L("settings_review_lookup_popup_front_enabled"), isOn: $lookupPopupFrontEnabled)
+                    Toggle(L("settings_review_lookup_popup_back_enabled"), isOn: $lookupPopupBackEnabled)
+                }
                 Toggle(L("settings_review_auto_match_card_background"), isOn: $autoMatchCardBackground)
 
                 if #available(iOS 26.0, *) {

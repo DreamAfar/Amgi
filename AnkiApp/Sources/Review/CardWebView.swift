@@ -427,12 +427,13 @@ struct CardWebView: UIViewRepresentable {
         }
 
         function amgiCardLookupPayloadAt(x, y, scanLength) {
-            if (!amgiIsAnswerSide() || !amgiLookupPopupEnabled()) return null;
+            if (!amgiLookupPopupEnabled()) return null;
             var target = document.elementFromPoint(x, y);
             if (!target) return null;
             if (target.closest('a, button, input, textarea, select, option, [contenteditable], .replay-button, .replay-btn, .sound-btn, #image-occlusion-canvas')) {
                 return null;
             }
+            if (target.closest('rt, rp')) return null;
 
             var range = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
             if (!range && document.caretPositionFromPoint) {
@@ -444,6 +445,8 @@ struct CardWebView: UIViewRepresentable {
             }
             var node = range && range.startContainer;
             if (!node || node.nodeType !== Node.TEXT_NODE) return null;
+            var parent = node.parentElement;
+            if (parent && parent.closest('rt, rp')) return null;
 
             var text = node.textContent || '';
             var start = Math.min(range.startOffset, text.length);
@@ -468,6 +471,8 @@ struct CardWebView: UIViewRepresentable {
         }
 
         document.addEventListener('click', function(event) {
+            var state = amgiCardState();
+            if (state.renderedAt && Date.now() - state.renderedAt < 300) return;
             var payload = amgiCardLookupPayloadAt(event.clientX, event.clientY, 16);
             if (!payload) return;
             window.webkit.messageHandlers.amgiLookupText.postMessage(payload);
@@ -1293,6 +1298,7 @@ struct CardWebView: UIViewRepresentable {
                         alignTop: !!alignTop,
                         bodyPaddingBottom: bodyPaddingBottom || 16,
                         cardPaddingBottom: cardPaddingBottom || 0,
+                        renderedAt: Date.now(),
                         prefetchHTML: prefetchHTML || ''
                     },
                     function() {
@@ -1326,6 +1332,7 @@ struct CardWebView: UIViewRepresentable {
                         alignTop: !!alignTop,
                         bodyPaddingBottom: bodyPaddingBottom || 16,
                         cardPaddingBottom: cardPaddingBottom || 0,
+                        renderedAt: Date.now(),
                         prefetchHTML: ''
                     },
                     function() {

@@ -66,6 +66,8 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var prefShowNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var prefOpenLinksExternally = true
     @AppStorage(ReviewPreferences.Keys.lookupPopupEnabled) private var prefLookupPopupEnabled = true
+    @AppStorage(ReviewPreferences.Keys.lookupPopupFrontEnabled) private var prefLookupPopupFrontEnabled = false
+    @AppStorage(ReviewPreferences.Keys.lookupPopupBackEnabled) private var prefLookupPopupBackEnabled = true
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var prefAutoMatchCardBackground = true
@@ -90,6 +92,10 @@ struct ReviewView: View {
 
     private var prefCardContentAlignment: CardWebView.ContentAlignment {
         CardWebView.ContentAlignment(rawValue: prefCardContentAlignmentRaw) ?? .top
+    }
+
+    private var isLookupPopupEnabledForCurrentSide: Bool {
+        prefLookupPopupEnabled && (session.showAnswer ? prefLookupPopupBackEnabled : prefLookupPopupFrontEnabled)
     }
 
     private var popupAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
@@ -164,9 +170,7 @@ struct ReviewView: View {
             scheduleAutoAdvanceIfNeeded()
         }
         .onChange(of: session.showAnswer) { _, _ in
-            if session.showAnswer == false {
-                lookupStack.removeAll()
-            }
+            lookupStack.removeAll()
             scheduleAutoAdvanceIfNeeded()
         }
         .onChange(of: isAudioPlaying) { _, _ in
@@ -174,6 +178,16 @@ struct ReviewView: View {
         }
         .onChange(of: prefLookupPopupEnabled) { _, isEnabled in
             if isEnabled == false {
+                lookupStack.removeAll()
+            }
+        }
+        .onChange(of: prefLookupPopupFrontEnabled) { _, _ in
+            if isLookupPopupEnabledForCurrentSide == false {
+                lookupStack.removeAll()
+            }
+        }
+        .onChange(of: prefLookupPopupBackEnabled) { _, _ in
+            if isLookupPopupEnabledForCurrentSide == false {
                 lookupStack.removeAll()
             }
         }
@@ -477,7 +491,7 @@ struct ReviewView: View {
                 replayMode: replayMode,
                 showInlineAudioReplayButtons: prefShowAudioReplayButton,
                 openLinksExternally: prefOpenLinksExternally,
-                lookupPopupEnabled: prefLookupPopupEnabled,
+                lookupPopupEnabled: isLookupPopupEnabledForCurrentSide,
                 prefetchHTML: session.showAnswer ? nil : session.backHTML,
                 contentAlignment: prefCardContentAlignment,
                 bottomContentInset: actionBarHeight,
@@ -646,8 +660,7 @@ struct ReviewView: View {
     }
 
     private func handleCardLookup(_ selection: String?, sentence: String?, at point: CGPoint) {
-        guard session.showAnswer,
-              prefLookupPopupEnabled,
+        guard isLookupPopupEnabledForCurrentSide,
               let query = normalizedLookupText(selection) else {
             return
         }
@@ -655,7 +668,7 @@ struct ReviewView: View {
     }
 
     private func startCardLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil, stacksOnTop: Bool = false) {
-        guard prefLookupPopupEnabled else {
+        guard isLookupPopupEnabledForCurrentSide else {
             lookupStack.removeAll()
             return
         }

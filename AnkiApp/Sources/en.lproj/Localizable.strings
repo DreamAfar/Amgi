@@ -1300,6 +1300,8 @@
 "settings_review_show_next_review_time" = "Show next review time";
 "settings_review_open_links_externally" = "Open links in external browser";
 "settings_review_lookup_popup_enabled" = "Enable lookup popup";
+"settings_review_lookup_popup_front_enabled" = "Enable on front side";
+"settings_review_lookup_popup_back_enabled" = "Enable on back side";
 "settings_review_auto_match_card_background" = "Auto-match toolbar background to card";
 "settings_review_glass_answer_buttons" = "Liquid Glass Buttons (iOS 26+)";
 "settings_review_card_alignment" = "Card content alignment";

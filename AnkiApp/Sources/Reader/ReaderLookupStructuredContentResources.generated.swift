@@ -35,11 +35,11 @@ function el(tag, props = {}, children = []) {
             element.setAttribute(key, value);
         }
     }
-    
+
     if (children.length) {
         element.append(...children);
     }
-    
+
     return element;
 }
 
@@ -113,6 +113,198 @@ function lookupTextFromHref(href, fallbackText = '') {
     } catch {}
     return decodeURIComponent(rawHref.replace(/^#/, '')).trim() || fallback;
 }
+
+window.hoshiSelection = {
+    scanDelimiters: '。、！？…‥「」『』（）()【】〈〉《》〔〕｛｝{}［］[]・：；:;，,.─\n\r',
+    sentenceDelimiters: '。！？.!?\n\r',
+
+    isScanBoundary(char) {
+        return /^[\s\u3000]$/.test(char) || this.scanDelimiters.includes(char);
+    },
+
+    isFurigana(node) {
+        const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+        return !!el?.closest('rt, rp');
+    },
+
+    findParagraph(node) {
+        const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+        return el?.closest('.glossary-content, p, li, div') || null;
+    },
+
+    createWalker(rootNode) {
+        return document.createTreeWalker(rootNode || document.body, NodeFilter.SHOW_TEXT, {
+            acceptNode: (node) => this.isFurigana(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+        });
+    },
+
+    inCharRange(charRange, x, y) {
+        const rects = charRange.getClientRects();
+        if (rects.length) {
+            for (const rect of rects) {
+                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        const rect = charRange.getBoundingClientRect();
+        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    },
+
+    getCaretRange(x, y) {
+        if (document.caretPositionFromPoint) {
+            const position = document.caretPositionFromPoint(x, y);
+            if (!position) {
+                return null;
+            }
+            const range = document.createRange();
+            range.setStart(position.offsetNode, position.offset);
+            range.collapse(true);
+            return range;
+        }
+        if (document.caretRangeFromPoint) {
+            return document.caretRangeFromPoint(x, y);
+        }
+        const element = document.elementFromPoint(x, y);
+        const container = element?.closest('.glossary-content, p, div, span, ruby, a') || document.body;
+        const walker = this.createWalker(container);
+        const range = document.createRange();
+        let node;
+        while (node = walker.nextNode()) {
+            for (let i = 0; i < node.textContent.length; i++) {
+                range.setStart(node, i);
+                range.setEnd(node, i + 1);
+                if (this.inCharRange(range, x, y)) {
+                    range.collapse(true);
+                    return range;
+                }
+            }
+        }
+        return null;
+    },
+
+    getCharacterAtPoint(x, y) {
+        const range = this.getCaretRange(x, y);
+        const node = range?.startContainer;
+        if (!node || node.nodeType !== Node.TEXT_NODE || this.isFurigana(node)) {
+            return null;
+        }
+
+        const text = node.textContent || '';
+        const caret = range.startOffset;
+        for (const offset of [caret, caret - 1, caret + 1]) {
+            if (offset < 0 || offset >= text.length) {
+                continue;
+            }
+            const charRange = document.createRange();
+            charRange.setStart(node, offset);
+            charRange.setEnd(node, offset + 1);
+            if (this.inCharRange(charRange, x, y)) {
+                if (this.isScanBoundary(text[offset])) {
+                    return null;
+                }
+                return { node, offset };
+            }
+        }
+        return null;
+    },
+
+    getSentence(startNode, startOffset) {
+        const container = this.findParagraph(startNode) || document.body;
+        const walker = this.createWalker(container);
+        const trailingSentenceChars = '」』）】!?！？…';
+        walker.currentNode = startNode;
+
+        const partsBefore = [];
+        let node = startNode;
+        let limit = startOffset;
+        while (node) {
+            const text = node.textContent || '';
+            let foundStart = false;
+            for (let i = limit - 1; i >= 0; i--) {
+                if (this.sentenceDelimiters.includes(text[i])) {
+                    partsBefore.push(text.slice(i + 1, limit));
+                    foundStart = true;
+                    break;
+                }
+            }
+            if (foundStart) {
+                break;
+            }
+            partsBefore.push(text.slice(0, limit));
+            node = walker.previousNode();
+            if (node) {
+                limit = node.textContent.length;
+            }
+        }
+
+        walker.currentNode = startNode;
+        const partsAfter = [];
+        node = startNode;
+        let start = startOffset;
+        while (node) {
+            const text = node.textContent || '';
+            let foundEnd = false;
+            for (let i = start; i < text.length; i++) {
+                if (this.sentenceDelimiters.includes(text[i])) {
+                    let end = i + 1;
+                    while (end < text.length && trailingSentenceChars.includes(text[end])) {
+                        end += 1;
+                    }
+                    partsAfter.push(text.slice(start, end));
+                    foundEnd = true;
+                    break;
+                }
+            }
+            if (foundEnd) {
+                break;
+            }
+            partsAfter.push(text.slice(start));
+            node = walker.nextNode();
+            start = 0;
+        }
+
+        return (partsBefore.reverse().join('') + partsAfter.join('')).trim();
+    },
+
+    selectText(x, y, maxLength) {
+        const hit = this.getCharacterAtPoint(x, y);
+        if (!hit) {
+            return null;
+        }
+
+        const container = this.findParagraph(hit.node) || document.body;
+        const walker = this.createWalker(container);
+        let text = '';
+        let node = hit.node;
+        let offset = hit.offset;
+        walker.currentNode = node;
+
+        while (text.length < maxLength && node) {
+            const content = node.textContent || '';
+            while (offset < content.length && text.length < maxLength) {
+                const char = content[offset];
+                if (this.isScanBoundary(char)) {
+                    break;
+                }
+                text += char;
+                offset += 1;
+            }
+            if (offset < content.length || text.length >= maxLength) {
+                break;
+            }
+            node = walker.nextNode();
+            offset = 0;
+        }
+
+        const normalized = text.trim();
+        if (!normalized) {
+            return null;
+        }
+        return { text: normalized, sentence: this.getSentence(hit.node, hit.offset) };
+    }
+};
 
 function textNodeLookupPayloadAt(x, y, scanLength = 16) {
     const range = document.caretRangeFromPoint?.(x, y) ??
@@ -375,7 +567,7 @@ function applyTableStyles(html) {
     const tableStyle = 'table-layout:auto;border-collapse:collapse;';
     const cellStyle = 'border-style:solid;padding:0.25em;vertical-align:top;border-width:1px;border-color:currentColor;';
     const thStyle = 'font-weight:bold;' + cellStyle;
-    
+
     return html
     .replace(/<table(?=[>\s])/g, `<table style="${tableStyle}"`)
     .replace(/<th(?=[>\s])/g, `<th style="${thStyle}"`)
@@ -396,10 +588,10 @@ function constructSingleGlossaryHtml(entryIndex) {
     if (!window.lookupEntries || entryIndex >= window.lookupEntries.length) {
         return {};
     }
-    
+
     const entry = window.lookupEntries[entryIndex];
     const glossaries = {};
-    
+
     let lastDict = null;
     let currentGlossary = '';
     let prevTags = null;
@@ -407,7 +599,7 @@ function constructSingleGlossaryHtml(entryIndex) {
         if (!lastDict) {
             return;
         }
-        
+
         let html = `<div style="text-align: left;" class="yomitan-glossary"><ol>${currentGlossary}</ol>`;
         const css = window.dictionaryStyles?.[lastDict] ?? '';
         if (css) {
@@ -424,11 +616,11 @@ function constructSingleGlossaryHtml(entryIndex) {
             html += `<style>${COMPACT_GLOSSARIES_ANKI}</style>`;
         }
         html += `</div>`;
-        
+
         glossaries[lastDict] = html;
         currentGlossary = '';
     };
-    
+
     entry.glossaries.forEach(g => {
         const dictName = g.dictionary;
         const dictChanged = lastDict !== dictName;
@@ -437,14 +629,14 @@ function constructSingleGlossaryHtml(entryIndex) {
             lastDict = dictName;
             prevTags = null;
         }
-        
+
         const tempDiv = document.createElement('div');
         try {
             renderStructuredContent(tempDiv, JSON.parse(g.content), null, dictName, true);
         } catch {
             renderStructuredContent(tempDiv, g.content, null, dictName, true);
         }
-        
+
         const parsedTags = parseTags(g.definitionTags).filter(tag => !NUMERIC_TAG.test(tag));
         const posTags = [...new Set(parsedTags.filter(isPartOfSpeech))].sort();
         const currentTags = JSON.stringify(posTags);
@@ -460,7 +652,7 @@ function constructSingleGlossaryHtml(entryIndex) {
         currentGlossary += `<li data-dictionary="${dictName}"><i>${label}</i> <span>${content}</span></li>`
         prevTags = currentTags;
     });
-    
+
     flush();
     return glossaries;
 }
@@ -469,24 +661,24 @@ function constructGlossaryHtml(entryIndex) {
     if (!window.lookupEntries || entryIndex >= window.lookupEntries.length) {
         return null;
     }
-    
+
     const entry = window.lookupEntries[entryIndex];
     let glossaryItems = '';
     const styles = {};
     let lastDict = '';
     let prevTags = null;
     let index = 0;
-    
+
     entry.glossaries.forEach(g => {
         const dictName = g.dictionary;
-        
+
         const tempDiv = document.createElement('div');
         try {
             renderStructuredContent(tempDiv, JSON.parse(g.content), null, dictName, true);
         } catch {
             renderStructuredContent(tempDiv, g.content, null, dictName, true);
         }
-        
+
         index++;
         let label = '';
         const parsedTags = parseTags(g.definitionTags).filter(tag => !NUMERIC_TAG.test(tag));
@@ -502,20 +694,20 @@ function constructGlossaryHtml(entryIndex) {
         else {
             label = tags ? `(${index}, ${tags})` : `(${index})`
         }
-        
+
         glossaryItems += `<li data-dictionary="${dictName}"><i>${label}</i> <span>${applyTableStyles(tempDiv.innerHTML)}</span></li>`;
         prevTags = currentTags;
-        
+
         const css = window.dictionaryStyles?.[dictName];
         if (css && !styles[dictName]) {
             styles[dictName] = css;
         }
     });
-    
+
     let result = '<div style="text-align: left;" class="yomitan-glossary"><ol>';
     result += glossaryItems;
     result += '</ol>';
-    
+
     for (const [dictName, css] of Object.entries(styles)) {
         const scopedCss = constructDictCss(css, dictName);
         const formatted = scopedCss
@@ -537,7 +729,7 @@ function constructFrequencyHtml(frequencies) {
     if (!frequencies || frequencies.length === 0) {
         return '';
     }
-    
+
     let result = '<ul style="text-align: left;">';
     frequencies.forEach(freqGroup => {
         if (!freqGroup?.frequencies?.length) {
@@ -556,7 +748,7 @@ function constructPitchPositionHtml(pitches) {
     if (!pitches?.length) {
         return '';
     }
-    
+
     let result = '<ol>';
     pitches.forEach(pitchGroup => {
         pitchGroup.pitchPositions.forEach(pos => {
@@ -571,7 +763,7 @@ function constructPitchCategories(pitches, reading, rules) {
     if (!pitches?.length) {
         return '';
     }
-    
+
     const verbOrAdj = isVerbOrAdjective(rules);
     const categories = [];
     pitches.forEach(pitchGroup => {
@@ -606,7 +798,7 @@ function createDefinitionImage(data, dictionary, exporting = false) {
         sizeUnits,
         data: nodeData,
     } = data;
-    
+
     const hasPreferredWidth = (typeof preferredWidth === 'number');
     const hasPreferredHeight = (typeof preferredHeight === 'number');
     const hasDimensions = (hasPreferredWidth || hasPreferredHeight || typeof data.width === 'number' || typeof data.height === 'number');
@@ -620,30 +812,30 @@ function createDefinitionImage(data, dictionary, exporting = false) {
                        preferredWidth :
                        (hasPreferredHeight ? preferredHeight / invAspectRatio : width)
                        );
-    
+
     const node = document.createElement(exporting ? 'span' : 'a');
     node.classList.add('gloss-image-link');
     if (!exporting) {
         node.target = '_blank';
         node.rel = 'noreferrer noopener';
     }
-    
+
     const imageContainer = document.createElement('span');
     imageContainer.classList.add('gloss-image-container');
     node.appendChild(imageContainer);
-    
+
     const aspectRatioSizer = document.createElement('span');
     aspectRatioSizer.classList.add('gloss-image-sizer');
     imageContainer.appendChild(aspectRatioSizer);
-    
+
     const imageBackground = document.createElement('span');
     imageBackground.classList.add('gloss-image-background');
     imageContainer.appendChild(imageBackground);
-    
+
     const overlay = document.createElement('span');
     overlay.classList.add('gloss-image-container-overlay');
     imageContainer.appendChild(overlay);
-    
+
     node.dataset.path = path;
     node.dataset.dictionary = dictionary;
     node.dataset.hasAspectRatio = 'true';
@@ -658,16 +850,16 @@ function createDefinitionImage(data, dictionary, exporting = false) {
     if (typeof sizeUnits === 'string') {
         node.dataset.sizeUnits = sizeUnits;
     }
-    
+
     aspectRatioSizer.style.paddingTop = `${invAspectRatio * 100}%`;
-    
+
     if (typeof border === 'string') { imageContainer.style.border = border; }
     if (typeof borderRadius === 'string') { imageContainer.style.borderRadius = borderRadius; }
     imageContainer.style.width = `${usedWidth}em`;
     if (typeof title === 'string') {
         imageContainer.title = title;
     }
-    
+
     if (!exporting) {
         const imageUrl = `image://?dictionary=${encodeURIComponent(dictionary)}&path=${encodeURIComponent(path)}`;
         if (shouldRenderDefinitionImageToCanvas(path, appearance, usedWidth, invAspectRatio)) {
@@ -698,13 +890,13 @@ function createDefinitionImageCanvas(imageUrl, alt, onLoad) {
     canvas.classList.add('gloss-image');
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', alt);
-    
+
     const sourceImage = new Image();
     sourceImage.addEventListener('load', () => {
         onLoad(canvas, sourceImage);
     }, {once: true});
     sourceImage.src = imageUrl;
-    
+
     return canvas;
 }
 
@@ -719,20 +911,20 @@ function renderDefinitionImageToCanvas(canvas, image, usedWidth, invAspectRatio,
                            maxCanvasSize / Math.max(pixelWidth, pixelHeight),
                            Math.sqrt((maxCanvasSize * maxCanvasSize) / (pixelWidth * pixelHeight))
                            );
-    
+
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     canvas.width = Math.round(pixelWidth * scale);
     canvas.height = Math.round(pixelHeight * scale);
-    
+
     const context = canvas.getContext('2d');
     if (!context) {
         return;
     }
-    
+
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    
+
     if (appearance === 'monochrome') {
         context.globalCompositeOperation = 'source-in';
         context.fillStyle = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? '#ffffff' : '#000000';
@@ -745,22 +937,22 @@ function renderRasterDefinitionImageToCanvas(canvas, image, imageContainer, aspe
     if (!hasDimensions) {
         imageContainer.style.width = `${Math.min(image.naturalWidth, window.innerWidth - 20)}px`;
     }
-    
+
     const invAspectRatio = image.naturalHeight / image.naturalWidth;
     const scaleFactor = Math.ceil(window.devicePixelRatio);
-    
+
     aspectRatioSizer.style.paddingTop = `${invAspectRatio * 100}%`;
-    
+
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     canvas.width = Math.round(imageContainer.clientWidth * scaleFactor);
     canvas.height = Math.round(imageContainer.clientWidth * invAspectRatio * scaleFactor);
-    
+
     const context = canvas.getContext('2d');
     if (!context) {
         return;
     }
-    
+
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
 }
@@ -770,7 +962,7 @@ function getFrequencyHarmonicRank(frequencies) {
     if (!frequencies || frequencies.length === 0) {
         return DEFAULT_HARMONIC_RANK;
     }
-    
+
     const values = [];
     const seenDictionaries = new Set();
     frequencies.forEach(freqGroup => {
@@ -781,12 +973,12 @@ function getFrequencyHarmonicRank(frequencies) {
         if (dictionary) {
             seenDictionaries.add(dictionary);
         }
-        
+
         const firstFreq = freqGroup?.frequencies?.[0];
         if (!firstFreq) {
             return;
         }
-        
+
         const displayValue = firstFreq.displayValue;
         if (displayValue != null) {
             const match = String(displayValue).match(/^\d+/);
@@ -798,17 +990,17 @@ function getFrequencyHarmonicRank(frequencies) {
                 }
             }
         }
-        
+
         const val = firstFreq.value;
         if (val && val > 0) {
             values.push(val);
         }
     });
-    
+
     if (values.length === 0) {
         return DEFAULT_HARMONIC_RANK;
     }
-    
+
     const sumOfReciprocals = values.reduce((sum, val) => sum + (1 / val), 0);
     return String(Math.floor(values.length / sumOfReciprocals));
 }
@@ -823,13 +1015,13 @@ async function mineEntry(expression, reading, frequencies, pitches, rules, match
     const glossaryFirst = Object.values(singleGlossaries)[0] || '';
     const pitchPositions = constructPitchPositionHtml(pitches);
     const pitchCategories = constructPitchCategories(pitches, reading, rules);
-    
+
     if (!audioUrls[idx] && window.audioSources?.length && window.needsAudio) {
         audioUrls[idx] = await fetchAudioUrl(expression, reading || expression);
     }
-    
+
     const audio = audioUrls[idx] || '';
-    
+
     return await webkit.messageHandlers.mineEntry.postMessage({
         expression,
         reading,
@@ -865,7 +1057,7 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
         });
         return;
     }
-    
+
     if (Array.isArray(node)) {
         const isStringArray = node.every(item => typeof item === 'string');
         const insideSpan = parent.tagName === 'SPAN';
@@ -880,7 +1072,7 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
             parent.appendChild(ul);
             return;
         }
-        
+
         const items = node.map(item =>
             item?.type === 'structured-content' ? item.content : item
         );
@@ -896,15 +1088,15 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
             parent.appendChild(ul);
             return;
         }
-        
+
         node.forEach(child => renderStructuredContent(parent, child, language, dictName, exporting));
         return;
     }
-    
+
     if (!node || typeof node !== 'object') {
         return;
     }
-    
+
     if (node.type === 'structured-content') {
         const container = document.createElement('span');
         container.classList.add('structured-content');
@@ -912,17 +1104,17 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
         renderStructuredContent(container, node.content, language, dictName, exporting);
         return;
     }
-    
+
     if (node.tag === 'img') {
         parent.appendChild(createDefinitionImage(node, dictName, exporting));
         return;
     }
-    
+
     const tagName = node.tag || 'span';
     const element = document.createElement(tagName);
     element.classList.add(`gloss-sc-${tagName}`);
     let nextLanguage = language;
-    
+
     if (node.href) {
         element.setAttribute('href', node.href);
         const isExternal = /^https?:\/\//i.test(node.href);
@@ -936,16 +1128,16 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
             }
         };
     }
-    
+
     if (node.title) {
         element.setAttribute('title', node.title);
     }
-    
+
     if (node.lang) {
         element.setAttribute('lang', node.lang);
         nextLanguage = node.lang;
     }
-    
+
     if (node.data) {
         // this is necessary to fix formatting in dicts like daijisen
         for (const [k, v] of Object.entries(node.data)) {
@@ -953,23 +1145,23 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
             element.setAttribute(`data-sc${isCJK ? '' : '-'}${toKebabCase(k)}`, v);
         }
     }
-    
+
     if (node.style) {
         Object.assign(element.style, node.style);
     }
-    
+
     if (node.content) {
         renderStructuredContent(element, node.content, nextLanguage, dictName, exporting);
     }
-    
+
     if (node.colSpan) {
         element.setAttribute('colspan', node.colSpan);
     }
-    
+
     if (node.rowSpan) {
         element.setAttribute('rowspan', node.rowSpan);
     }
-    
+
     if (tagName === 'table') {
         const container = document.createElement('div');
         container.classList.add('gloss-sc-table-container');
@@ -977,7 +1169,7 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
         parent.appendChild(container);
         return;
     }
-    
+
     parent.appendChild(element);
 }
 
@@ -1065,30 +1257,30 @@ function getPitchCategory(reading, pitchAccentValue, verbOrAdjective = false) {
 function createPitchHtml(reading, pitchValue) {
     const morae = getKanaMorae(reading);
     const container = el('span', { className: 'pronunciation-text' });
-    
+
     for (let i = 0; i < morae.length; i++) {
         const mora = morae[i];
         const isHigh = isMoraPitchHigh(i, pitchValue);
         const isHighNext = isMoraPitchHigh(i + 1, pitchValue);
-        
+
         const moraSpan = el('span', {
             className: 'pronunciation-mora',
             'data-pitch': isHigh ? 'high' : 'low',
             'data-pitch-next': isHighNext ? 'high' : 'low',
             textContent: mora
         });
-        
+
         moraSpan.appendChild(el('span', { className: 'pronunciation-mora-line' }));
         container.appendChild(moraSpan);
     }
-    
+
     return container;
 }
 
 function createPitchGroup(pitchData, reading) {
     const container = el('div', { className: 'pitch-group', 'data-details': pitchData.dictionary });
     container.appendChild(el('span', { className: 'pitch-dict-label', textContent: pitchData.dictionary }));
-    
+
     const list = el('ul', { className: 'pitch-entries' });
     pitchData.pitchPositions.forEach((pitch) => {
         const li = el('li');
@@ -1097,7 +1289,7 @@ function createPitchGroup(pitchData, reading) {
         list.appendChild(li);
     });
     container.appendChild(list);
-    
+
     return container;
 }
 
@@ -1137,7 +1329,7 @@ function createTags(entry) {
 async function fetchAudioUrl(expression, reading) {
     const templates = window.audioSources;
     if (!templates?.length) return null;
-    
+
     for (const template of templates) {
         const url = template
         .replace('{term}', encodeURIComponent(expression))
@@ -1158,7 +1350,7 @@ function playWordAudio(audioUrl) {
     if (!playHandler) {
         return false;
     }
-    
+
     try {
         playHandler.postMessage({
             url: audioUrl,
@@ -1200,7 +1392,7 @@ function createAudioButton(expression, reading, entryIndex) {
 function createEntryHeader(entry, idx) {
     const { expression, reading, matched, frequencies, pitches, rules } = entry;
     const header = el('div', { className: 'entry-header' });
-    
+
     const expressionSpan = el('span', { className: 'expression' });
     let needsScroll = false;
     if (reading && reading !== expression) {
@@ -1215,13 +1407,13 @@ function createEntryHeader(entry, idx) {
     } else {
         header.appendChild(expressionSpan);
     }
-    
+
     const buttonsContainer = el('div', { className: 'header-buttons' });
-    
+
     if (window.audioSources?.length) {
         buttonsContainer.appendChild(createAudioButton(expression, reading, idx));
     }
-    
+
     const mineButton = el('button', {
         className: 'mine-button',
         textContent: '+',
@@ -1240,7 +1432,7 @@ function createEntryHeader(entry, idx) {
                 }
                 mineButton.disabled = wasAdded && !window.allowDupes;
             };
-            
+
             if (isAnkiConnect) {
                 await checkDuplicate();
             } else {
@@ -1256,9 +1448,9 @@ function createEntryHeader(entry, idx) {
         }
         mineButton.disabled = isDuplicate && !window.allowDupes;
     });
-    
+
     header.appendChild(buttonsContainer);
-    
+
     return header;
 }
 
@@ -1267,11 +1459,11 @@ function createGlossarySection(dictName, contents, isFirst) {
     if (!window.collapseDictionaries || isFirst) {
         details.open = true;
     }
-    
+
     const summary = el('summary', { className: 'dict-label' });
     summary.appendChild(el('span', { className: 'dict-name', textContent: dictName }));
     details.appendChild(summary);
-    
+
     const dictWrapper = document.createElement('div');
     dictWrapper.setAttribute('data-dictionary', dictName);
     const compactCss = window.compactGlossaries ? `
@@ -1299,7 +1491,7 @@ function createGlossarySection(dictName, contents, isFirst) {
             content: "";
         }
     ` : '';
-    
+
     const dictStyle = window.dictionaryStyles?.[dictName] ?? '';
     dictWrapper.appendChild(el('style', {
         textContent: `
@@ -1311,7 +1503,7 @@ function createGlossarySection(dictName, contents, isFirst) {
             }
         `.trim()
     }));
-    
+
     const termTags = [...new Set(parseTags(contents[0]?.termTags))];
     const renderContent = (parent, content) => {
         try {
@@ -1320,12 +1512,12 @@ function createGlossarySection(dictName, contents, isFirst) {
             renderStructuredContent(parent, content, null, dictName);
         }
     };
-    
+
     const termTagsRow = createGlossaryTags(termTags);
     if (termTagsRow) {
         dictWrapper.appendChild(termTagsRow);
     }
-    
+
     if (contents.length > 1) {
         const ol = el('ol');
         let prevTags = null;
@@ -1359,7 +1551,7 @@ function createGlossarySection(dictName, contents, isFirst) {
             dictWrapper.appendChild(wrapper);
         });
     }
-    
+
     details.appendChild(dictWrapper);
     return details;
 }
@@ -1369,22 +1561,22 @@ window.renderPopup = function() {
     if (!window.entryCount) {
         return;
     }
-    
+
     (async () => {
         for (let idx = 0; idx < window.entryCount; idx++) {
             const entry = await webkit.messageHandlers.getEntry.postMessage(idx);
             if (!entry) continue;
-            
+
             window.lookupEntries ??= [];
             window.lookupEntries[idx] = entry;
-            
+
             if (idx > 0) {
                 container.appendChild(document.createElement('hr'));
             }
-            
+
             const entryDiv = el('div', { className: 'entry' });
             entryDiv.appendChild(createEntryHeader(entry, idx));
-            
+
             if (window.audioEnableAutoplay && window.audioSources?.length && idx == 0) {
                 setTimeout(() => {
                     const audioButton = entryDiv.querySelector('.audio-button');
@@ -1393,15 +1585,15 @@ window.renderPopup = function() {
                     }
                 }, 70);
             }
-            
+
             const tags = createTags(entry);
             if (tags) {
                 entryDiv.appendChild(tags);
             }
-            
+
             container.appendChild(entryDiv);
             await new Promise(r => requestAnimationFrame(r));
-            
+
             const grouped = {};
             entry.glossaries.forEach(g => {
                 (grouped[g.dictionary] ??= []).push({
@@ -1410,7 +1602,7 @@ window.renderPopup = function() {
                     termTags: g.termTags
                 });
             });
-            
+
             const dictNames = Object.keys(grouped);
             for (let dictIdx = 0; dictIdx < dictNames.length; dictIdx++) {
                 entryDiv.appendChild(createGlossarySection(dictNames[dictIdx], grouped[dictNames[dictIdx]], dictIdx === 0));
@@ -1418,13 +1610,13 @@ window.renderPopup = function() {
             }
         }
     })();
-    
+
     if (window.customCSS) {
         const customStyle = document.createElement('style');
         customStyle.textContent = window.customCSS;
         document.body.appendChild(customStyle);
     }
-    
+
     container.addEventListener('click', (e) => {
         const target = e.target?.nodeType === Node.TEXT_NODE ? e.target.parentElement : e.target;
         if (!target?.closest('.glossary-content')) {

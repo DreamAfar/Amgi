@@ -1307,6 +1307,8 @@
 "settings_review_show_next_review_time" = "次回回答時刻を表示";
 "settings_review_open_links_externally" = "リンクを外部ブラウザで開く";
 "settings_review_lookup_popup_enabled" = "辞書ポップアップを有効にする";
+"settings_review_lookup_popup_front_enabled" = "表面カードで有効";
+"settings_review_lookup_popup_back_enabled" = "裏面カードで有効";
 "settings_review_auto_match_card_background" = "ツールバー背景をカードに自動一致";
 "settings_review_glass_answer_buttons" = "液状ガラスボタン（iOS 26+）";
 "settings_review_card_alignment" = "カード内容の配置";

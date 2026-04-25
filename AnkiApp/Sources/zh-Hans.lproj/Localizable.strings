@@ -1305,6 +1305,8 @@
 "settings_review_show_next_review_time" = "显示下次答题时间";
 "settings_review_open_links_externally" = "在外部浏览器中打开链接";
 "settings_review_lookup_popup_enabled" = "启用查词弹窗";
+"settings_review_lookup_popup_front_enabled" = "正面卡片启用";
+"settings_review_lookup_popup_back_enabled" = "背面卡片启用";
 "settings_review_auto_match_card_background" = "工具栏背景自动匹配卡片";
 "settings_review_glass_answer_buttons" = "液态玻璃按钮（iOS 26+）";
 "settings_review_card_alignment" = "模板内容对齐";

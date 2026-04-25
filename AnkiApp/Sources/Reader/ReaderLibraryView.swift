@@ -544,9 +544,14 @@ private struct ReaderBookDetailView: View {
                     } label: {
                         Label(L("reader_book_continue"), systemImage: "book.fill")
                             .foregroundStyle(Color.amgiTextPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 18)
+                            .background(Color.amgiSurfaceElevated.opacity(0.72), in: Capsule())
                     }
                 }
-                .listRowBackground(resolvedListBackground)
+                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                .listRowBackground(Color.clear)
             }
 
             Section(L("reader_book_chapters", book.chapters.count)) {
@@ -568,12 +573,16 @@ private struct ReaderBookDetailView: View {
                                         .font(.caption)
                                         .foregroundStyle(Color.amgiTextSecondary)
                                         .lineLimit(1)
-                                        .amgiCapsuleControl(horizontalPadding: 8, verticalPadding: 3)
                                 }
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 14)
+                        .background(Color.amgiSurfaceElevated.opacity(0.72), in: Capsule())
                     }
-                    .listRowBackground(resolvedListBackground)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                    .listRowBackground(Color.clear)
                 }
             }
         }
@@ -841,7 +850,9 @@ private struct ReaderChapterView: View {
                             handleResolvedSelection(selection)
                         },
                         onLookupRequested: { selection, sentence, point, rect in
-                            handleTapLookup(selection, sentence: sentence, at: point, rect: rect)
+                            let offsetPoint = CGPoint(x: point.x, y: point.y + topOverlayHeight)
+                            let offsetRect = rect.map { $0.offsetBy(dx: 0, dy: topOverlayHeight) }
+                            handleTapLookup(selection, sentence: sentence, at: offsetPoint, rect: offsetRect)
                         }
                     )
                     .background(chapterContentBackground)
@@ -956,10 +967,7 @@ private struct ReaderChapterView: View {
                                         startLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)
                                     },
                                     onClose: {
-                                        removeLookupPopup(id: popup.id)
-                                        if lookupStack.isEmpty {
-                                            lookupHighlightClearRequestID += 1
-                                        }
+                                        closeLookupPopup(id: popup.id)
                                     }
                                 )
                                 .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
@@ -1046,6 +1054,8 @@ private struct ReaderChapterView: View {
 
     private func handleTapLookup(_ selection: String?, sentence: String?, at point: CGPoint, rect: CGRect?) {
         guard let tappedSelection = normalizedSelection(selection) else {
+            lookupStack.removeAll()
+            lookupHighlightClearRequestID += 1
             return
         }
         pendingSelectionAction = nil
@@ -1109,6 +1119,13 @@ private struct ReaderChapterView: View {
 
     private func removeLookupPopup(id: UUID) {
         lookupStack.removeAll { $0.id == id }
+    }
+
+    private func closeLookupPopup(id: UUID) {
+        removeLookupPopup(id: id)
+        if lookupStack.isEmpty {
+            lookupHighlightClearRequestID += 1
+        }
     }
 
     private func lookupPopupPosition(in size: CGSize, bottomInset: CGFloat, anchor: CGPoint?, anchorRect: CGRect?, stackDepth: Int) -> CGPoint {
