@@ -22,6 +22,7 @@ struct DeckConfigView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var isSaving = false
+    @State private var expandedPercentWheelID: String?
     
     // Form state
     @State private var newCardsPerDay: Int32 = 20
@@ -425,6 +426,7 @@ struct DeckConfigView: View {
     }
 
     private func percentWheelPicker(
+        id: String,
         _ title: String,
         value: Binding<Double>,
         in range: ClosedRange<Int>
@@ -438,22 +440,36 @@ struct DeckConfigView: View {
             HStack {
                 Text(title)
                 Spacer()
-                Text("\(intValue.wrappedValue)%")
-                    .foregroundStyle(Color.amgiAccent)
-                    .monospacedDigit()
+
+                Button {
+                    withAnimation(.snappy(duration: 0.18)) {
+                        expandedPercentWheelID = expandedPercentWheelID == id ? nil : id
+                    }
+                } label: {
+                    Text("\(intValue.wrappedValue)%")
+                        .foregroundStyle(Color.amgiAccent)
+                        .monospacedDigit()
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
 
-            Picker(title, selection: intValue) {
-                ForEach(Array(range), id: \.self) { percent in
-                    Text("\(percent)%")
-                        .tag(percent)
+            if expandedPercentWheelID == id {
+                HStack {
+                    Spacer()
+                    Picker(title, selection: intValue) {
+                        ForEach(Array(range), id: \.self) { percent in
+                            Text("\(percent)%")
+                                .tag(percent)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 156, height: 86)
+                    .clipped()
+                    .onChange(of: intValue.wrappedValue) { _, _ in
+                        wheelPickerFeedback()
+                    }
                 }
-            }
-            .pickerStyle(.wheel)
-            .frame(height: 96)
-            .clipped()
-            .onChange(of: intValue.wrappedValue) { _, _ in
-                wheelPickerFeedback()
             }
         }
     }
@@ -990,11 +1006,11 @@ struct DeckConfigView: View {
             LabeledContent(L("deck_config_minimum_lapse_interval")) {
                 editableNumberStepper($minimumLapseIntervalDays, in: 1...36500, unitFormatKey: "deck_config_days_fmt")
             }
-            percentWheelPicker(L("deck_config_initial_ease"), value: $initialEasePercent, in: 130...400)
-            percentWheelPicker(L("deck_config_interval_mult"), value: $intervalMultiplierPercent, in: 50...200)
-            percentWheelPicker(L("deck_config_lapse_multiplier"), value: $lapseMultiplierPercent, in: 0...100)
-            percentWheelPicker(L("deck_config_hard_mult"), value: $hardMultiplierPercent, in: 80...200)
-            percentWheelPicker(L("deck_config_easy_mult"), value: $easyMultiplierPercent, in: 100...300)
+            percentWheelPicker(id: "initialEase", L("deck_config_initial_ease"), value: $initialEasePercent, in: 130...400)
+            percentWheelPicker(id: "intervalMultiplier", L("deck_config_interval_mult"), value: $intervalMultiplierPercent, in: 50...200)
+            percentWheelPicker(id: "lapseMultiplier", L("deck_config_lapse_multiplier"), value: $lapseMultiplierPercent, in: 0...100)
+            percentWheelPicker(id: "hardMultiplier", L("deck_config_hard_mult"), value: $hardMultiplierPercent, in: 80...200)
+            percentWheelPicker(id: "easyMultiplier", L("deck_config_easy_mult"), value: $easyMultiplierPercent, in: 100...300)
         }
         .listRowBackground(Color.amgiSurfaceElevated)
     }
@@ -1003,6 +1019,7 @@ struct DeckConfigView: View {
         Section(L("deck_config_section_easy_days")) {
             ForEach(0..<7, id: \.self) { idx in
                 percentWheelPicker(
+                    id: "easyDay-\(idx)",
                     weekdayName(idx),
                     value: Binding(
                         get: { easyDayPercentages[idx] },

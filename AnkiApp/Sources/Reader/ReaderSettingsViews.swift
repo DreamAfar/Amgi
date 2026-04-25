@@ -298,6 +298,8 @@ struct ReaderDisplaySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.hideFurigana) private var hideFurigana = false
     @AppStorage(ReaderPreferences.Keys.horizontalPadding) private var horizontalPadding = 2
     @AppStorage(ReaderPreferences.Keys.verticalPadding) private var verticalPadding = 0
+    @AppStorage(ReaderPreferences.Keys.avoidPageBreak) private var avoidPageBreak = false
+    @AppStorage(ReaderPreferences.Keys.justifyText) private var justifyText = false
     @AppStorage(ReaderPreferences.Keys.layoutAdvanced) private var layoutAdvanced = false
     @AppStorage(ReaderPreferences.Keys.lineHeight) private var lineHeight = 1.65
     @AppStorage(ReaderPreferences.Keys.characterSpacing) private var characterSpacing = 0.0
@@ -420,6 +422,8 @@ struct ReaderDisplaySettingsView: View {
                         .labelsHidden()
                 }
 
+                Toggle(L("settings_reader_avoid_page_break"), isOn: $avoidPageBreak)
+                Toggle(L("settings_reader_justify_text"), isOn: $justifyText)
                 Toggle(L("settings_reader_layout_advanced"), isOn: $layoutAdvanced)
 
                 if layoutAdvanced {

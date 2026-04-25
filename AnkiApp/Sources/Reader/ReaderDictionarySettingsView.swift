@@ -18,10 +18,27 @@ struct ReaderDictionarySettingsView: View {
     @State private var isBusy = false
     @State private var showImporter = false
     @State private var pendingImportKind: AppDictionaryKind = .term
+    @State private var selectedDictionaryKind: AppDictionaryKind = .term
     @State private var errorMessage: String?
     @State private var showError = false
 
     private static let zipArchiveType = UTType(filenameExtension: "zip") ?? .data
+
+    private var selectedDictionaries: [AppDictionaryInfo] {
+        switch selectedDictionaryKind {
+        case .term:
+            return libraryState.termDictionaries
+        case .frequency:
+            return libraryState.frequencyDictionaries
+        case .pitch:
+            return libraryState.pitchDictionaries
+        }
+    }
+
+    private var hasUpdatableDictionaries: Bool {
+        (libraryState.termDictionaries + libraryState.frequencyDictionaries + libraryState.pitchDictionaries)
+            .contains { $0.index.isUpdatable && $0.index.indexURL.isEmpty == false }
+    }
 
     var body: some View {
         List {
@@ -34,6 +51,15 @@ struct ReaderDictionarySettingsView: View {
                     Label(L("settings_reader_dictionary_download_recommended"), systemImage: "arrow.down.circle")
                 }
                 .disabled(isBusy)
+
+                Button {
+                    Task {
+                        await updateDictionaries()
+                    }
+                } label: {
+                    Label(L("settings_reader_dictionary_update"), systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(isBusy || hasUpdatableDictionaries == false)
             } header: {
                 Text(L("settings_reader_dictionary_section_recommended"))
             } footer: {
@@ -101,25 +127,21 @@ struct ReaderDictionarySettingsView: View {
             }
             .listRowBackground(Color.amgiSurfaceElevated)
 
-            dictionarySection(
-                title: L("settings_reader_dictionary_section_term"),
-                icon: "text.book.closed",
-                kind: .term,
-                dictionaries: libraryState.termDictionaries
-            )
+            Section {
+                Picker("", selection: $selectedDictionaryKind) {
+                    ForEach(AppDictionaryKind.allCases) { kind in
+                        Text(title(for: kind)).tag(kind)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+            .listRowBackground(Color.amgiSurfaceElevated)
 
             dictionarySection(
-                title: L("settings_reader_dictionary_section_frequency"),
-                icon: "chart.bar",
-                kind: .frequency,
-                dictionaries: libraryState.frequencyDictionaries
-            )
-
-            dictionarySection(
-                title: L("settings_reader_dictionary_section_pitch"),
-                icon: "waveform.path.ecg",
-                kind: .pitch,
-                dictionaries: libraryState.pitchDictionaries
+                title: title(for: selectedDictionaryKind),
+                icon: icon(for: selectedDictionaryKind),
+                kind: selectedDictionaryKind,
+                dictionaries: selectedDictionaries
             )
         }
         .scrollContentBackground(.hidden)
@@ -308,6 +330,17 @@ struct ReaderDictionarySettingsView: View {
         }
     }
 
+    private func updateDictionaries() async {
+        isBusy = true
+        defer { isBusy = false }
+
+        do {
+            libraryState = try await dictionaryLookupClient.updateDictionaries()
+        } catch {
+            show(error)
+        }
+    }
+
     private func title(for mode: ReaderLookupAudioPlaybackMode) -> String {
         switch mode {
         case .interrupt:
@@ -316,6 +349,28 @@ struct ReaderDictionarySettingsView: View {
             return L("settings_reader_dictionary_audio_mode_duck")
         case .mix:
             return L("settings_reader_dictionary_audio_mode_mix")
+        }
+    }
+
+    private func title(for kind: AppDictionaryKind) -> String {
+        switch kind {
+        case .term:
+            return L("settings_reader_dictionary_section_term")
+        case .frequency:
+            return L("settings_reader_dictionary_section_frequency")
+        case .pitch:
+            return L("settings_reader_dictionary_section_pitch")
+        }
+    }
+
+    private func icon(for kind: AppDictionaryKind) -> String {
+        switch kind {
+        case .term:
+            return "text.book.closed"
+        case .frequency:
+            return "chart.bar"
+        case .pitch:
+            return "waveform.path.ecg"
         }
     }
 

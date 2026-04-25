@@ -332,6 +332,8 @@
 "settings_reader_horizontal_padding" = "水平边距";
 "settings_reader_vertical_padding" = "垂直边距";
 "settings_reader_padding_value" = "%d%%";
+"settings_reader_avoid_page_break" = "避免分页断开";
+"settings_reader_justify_text" = "两端对齐";
 "settings_reader_layout_advanced" = "高级排版";
 "settings_reader_line_height" = "行高";
 "settings_reader_line_height_value" = "%.2f";
@@ -354,6 +356,7 @@
 "settings_reader_dictionary_settings" = "词典设置";
 "settings_reader_dictionary_section_recommended" = "推荐词典";
 "settings_reader_dictionary_download_recommended" = "下载推荐词典";
+"settings_reader_dictionary_update" = "更新词典";
 "settings_reader_dictionary_recommended_description" = "下载用于日语查词的 JMdict 和 Jiten 词频词典。";
 "settings_reader_dictionary_section_import" = "导入 Yomitan 压缩包";
 "settings_reader_dictionary_import_term" = "导入术语词典";
@@ -1301,6 +1304,7 @@
 "settings_review_show_remaining_days" = "显示剩余天数";
 "settings_review_show_next_review_time" = "显示下次答题时间";
 "settings_review_open_links_externally" = "在外部浏览器中打开链接";
+"settings_review_lookup_popup_enabled" = "启用查词弹窗";
 "settings_review_auto_match_card_background" = "工具栏背景自动匹配卡片";
 "settings_review_glass_answer_buttons" = "液态玻璃按钮（iOS 26+）";
 "settings_review_card_alignment" = "模板内容对齐";

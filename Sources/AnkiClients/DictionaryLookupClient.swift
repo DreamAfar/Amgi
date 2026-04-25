@@ -10,6 +10,7 @@ public struct DictionaryLookupClient: Sendable {
     public var loadState: @Sendable () async throws -> AppDictionaryLibraryState
     public var importArchives: @Sendable (_ urls: [URL], _ kind: AppDictionaryKind) async throws -> AppDictionaryLibraryState
     public var importRecommended: @Sendable () async throws -> AppDictionaryLibraryState
+    public var updateDictionaries: @Sendable () async throws -> AppDictionaryLibraryState
     public var setEnabled: @Sendable (_ kind: AppDictionaryKind, _ dictionaryID: String, _ enabled: Bool) async throws -> AppDictionaryLibraryState
     public var delete: @Sendable (_ kind: AppDictionaryKind, _ dictionaryID: String) async throws -> AppDictionaryLibraryState
 }
@@ -32,6 +33,9 @@ extension DictionaryLookupClient: TestDependencyKey {
             .empty
         },
         importRecommended: {
+            .empty
+        },
+        updateDictionaries: {
             .empty
         },
         setEnabled: { _, _, _ in

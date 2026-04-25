@@ -47,6 +47,8 @@ enum ReaderPreferences {
         static let hideFurigana = "reader_pref_hide_furigana"
         static let horizontalPadding = "reader_pref_horizontal_padding"
         static let verticalPadding = "reader_pref_vertical_padding"
+        static let avoidPageBreak = "reader_pref_avoid_page_break"
+        static let justifyText = "reader_pref_justify_text"
         static let layoutAdvanced = "reader_pref_layout_advanced"
         static let lineHeight = "reader_pref_line_height"
         static let characterSpacing = "reader_pref_character_spacing"

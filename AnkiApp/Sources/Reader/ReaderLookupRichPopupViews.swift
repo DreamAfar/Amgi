@@ -9,6 +9,7 @@ import UIKit
 struct ReaderLookupRichEntriesView: View {
     let result: DictionaryLookupResult
     let languageHint: String?
+    let popupFontSize: CGFloat
     let popupContentFontSize: CGFloat
     let popupDictionaryNameFontSize: CGFloat
     let popupKanaFontSize: CGFloat
@@ -37,6 +38,7 @@ struct ReaderLookupRichEntriesView: View {
                     entry: entry,
                     dictionaryStyles: result.dictionaryStyles,
                     languageHint: languageHint,
+                    termFontSize: popupFontSize,
                     contentFontSize: popupContentFontSize,
                     dictionaryNameFontSize: popupDictionaryNameFontSize,
                     kanaFontSize: popupKanaFontSize,
@@ -66,6 +68,7 @@ private struct ReaderLookupEntryRichView: View {
     let entry: DictionaryLookupEntry
     let dictionaryStyles: [String: String]
     let languageHint: String?
+    let termFontSize: CGFloat
     let contentFontSize: CGFloat
     let dictionaryNameFontSize: CGFloat
     let kanaFontSize: CGFloat
@@ -142,7 +145,7 @@ private struct ReaderLookupEntryRichView: View {
                     }
 
                     Text(entry.term)
-                        .font(.system(size: max(18, contentFontSize * 1.55), weight: .bold))
+                        .font(.system(size: max(18, termFontSize * 1.55), weight: .bold))
                         .foregroundStyle(Color.amgiTextPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                 }

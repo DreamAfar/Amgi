@@ -6,6 +6,7 @@ public import Dependencies
 private enum DictionaryLookupRuntimeError: LocalizedError {
     case importFailed([String])
     case dictionaryNotFound(String)
+    case noUpdatableDictionaries
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +17,8 @@ private enum DictionaryLookupRuntimeError: LocalizedError {
             return "Failed to import: \(files.joined(separator: ", "))."
         case let .dictionaryNotFound(dictionaryID):
             return "Dictionary not found: \(dictionaryID)"
+        case .noUpdatableDictionaries:
+            return "No updatable dictionaries found."
         }
     }
 }
@@ -269,7 +272,7 @@ private actor DictionaryLookupRuntime {
         var didImport = false
         for url in urls {
             do {
-                try importArchive(at: url, kind: kind, requiresSecurityScope: true)
+                _ = try importArchive(at: url, kind: kind, requiresSecurityScope: true)
                 didImport = true
             } catch {
                 failedFiles.append(url.lastPathComponent)
@@ -301,7 +304,50 @@ private actor DictionaryLookupRuntime {
             let downloadURL = URL(string: remoteIndex.downloadURL)!
             let (temporaryFile, _) = try await URLSession.shared.download(from: downloadURL)
             temporaryFiles.append(temporaryFile)
-            try importArchive(at: temporaryFile, kind: archive.kind, requiresSecurityScope: false)
+            _ = try importArchive(at: temporaryFile, kind: archive.kind, requiresSecurityScope: false)
+        }
+
+        try reloadState(for: currentProfileID())
+        return libraryState()
+    }
+
+    func updateDictionaries() async throws -> AppDictionaryLibraryState {
+        try ensureLoaded()
+
+        let candidates = allDictionariesForUpdate()
+        guard candidates.isEmpty == false else {
+            throw DictionaryLookupRuntimeError.noUpdatableDictionaries
+        }
+
+        var temporaryFiles: [URL] = []
+        defer {
+            for file in temporaryFiles {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+
+        for candidate in candidates {
+            let index = candidate.dictionary.info.index
+            guard index.isUpdatable,
+                  let metadataURL = URL(string: index.indexURL) else {
+                continue
+            }
+
+            let (data, _) = try await URLSession.shared.data(from: metadataURL)
+            let remoteIndex = try JSONDecoder().decode(AppDictionaryIndex.self, from: data)
+            guard remoteIndex.revision != index.revision,
+                  let downloadURL = URL(string: remoteIndex.downloadURL) else {
+                continue
+            }
+
+            let oldPath = candidate.dictionary.path
+            let oldTitle = index.title
+            let (temporaryFile, _) = try await URLSession.shared.download(from: downloadURL)
+            temporaryFiles.append(temporaryFile)
+            let importedTitle = try importArchive(at: temporaryFile, kind: candidate.kind, requiresSecurityScope: false)
+            if importedTitle != oldTitle {
+                try? FileManager.default.removeItem(at: oldPath)
+            }
         }
 
         try reloadState(for: currentProfileID())
@@ -411,7 +457,8 @@ private actor DictionaryLookupRuntime {
         lookupEngine = Lookup(&dictQuery!, &deinflector!)
     }
 
-    private func importArchive(at url: URL, kind: AppDictionaryKind, requiresSecurityScope: Bool) throws {
+    @discardableResult
+    private func importArchive(at url: URL, kind: AppDictionaryKind, requiresSecurityScope: Bool) throws -> String {
         let startedAccess = requiresSecurityScope ? url.startAccessingSecurityScopedResource() : false
         if requiresSecurityScope && !startedAccess {
             throw DictionaryLookupRuntimeError.importFailed([url.lastPathComponent])
@@ -433,6 +480,7 @@ private actor DictionaryLookupRuntime {
         guard importResult.success else {
             throw DictionaryLookupRuntimeError.importFailed([url.lastPathComponent])
         }
+        return String(importResult.title)
     }
 
     private func libraryState() -> AppDictionaryLibraryState {
@@ -441,6 +489,12 @@ private actor DictionaryLookupRuntime {
             frequencyDictionaries: frequencyDictionaries.map(\.info),
             pitchDictionaries: pitchDictionaries.map(\.info)
         )
+    }
+
+    private func allDictionariesForUpdate() -> [(dictionary: ManagedDictionary, kind: AppDictionaryKind)] {
+        termDictionaries.map { ($0, .term) }
+            + frequencyDictionaries.map { ($0, .frequency) }
+            + pitchDictionaries.map { ($0, .pitch) }
     }
 
     private func collectDictionaries(
@@ -899,6 +953,9 @@ extension DictionaryLookupClient: DependencyKey {
             },
             importRecommended: {
                 try await runtime.importRecommended()
+            },
+            updateDictionaries: {
+                try await runtime.updateDictionaries()
             },
             setEnabled: { kind, dictionaryID, enabled in
                 try await runtime.setEnabled(kind: kind, dictionaryID: dictionaryID, enabled: enabled)

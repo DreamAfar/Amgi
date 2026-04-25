@@ -64,11 +64,13 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var prefShowRemainingDays = true
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var prefShowNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var prefOpenLinksExternally = true
+    @AppStorage(ReviewPreferences.Keys.lookupPopupEnabled) private var prefLookupPopupEnabled = true
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var prefAutoMatchCardBackground = true
     @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
     @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
+    @AppStorage(ReaderPreferences.Keys.popupFontSize) private var popupFontSize = 14
     @AppStorage(ReaderPreferences.Keys.popupFrequencyFontSize) private var popupFrequencyFontSize = 13
     @AppStorage(ReaderPreferences.Keys.popupContentFontSize) private var popupContentFontSize = 14
     @AppStorage(ReaderPreferences.Keys.popupDictionaryNameFontSize) private var popupDictionaryNameFontSize = 13
@@ -168,6 +170,11 @@ struct ReviewView: View {
         }
         .onChange(of: isAudioPlaying) { _, _ in
             scheduleAutoAdvanceIfNeeded()
+        }
+        .onChange(of: prefLookupPopupEnabled) { _, isEnabled in
+            if isEnabled == false {
+                lookupStack.removeAll()
+            }
         }
         .onDisappear {
             autoAdvanceTask?.cancel()
@@ -469,6 +476,7 @@ struct ReviewView: View {
                 replayMode: replayMode,
                 showInlineAudioReplayButtons: prefShowAudioReplayButton,
                 openLinksExternally: prefOpenLinksExternally,
+                lookupPopupEnabled: prefLookupPopupEnabled,
                 prefetchHTML: session.showAnswer ? nil : session.backHTML,
                 contentAlignment: prefCardContentAlignment,
                 bottomContentInset: actionBarHeight,
@@ -598,6 +606,7 @@ struct ReviewView: View {
                             languageHint: nil,
                             popupWidth: CGFloat(popupWidth),
                             popupHeight: CGFloat(popupHeight),
+                            popupFontSize: CGFloat(popupFontSize),
                             popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
                             popupContentFontSize: CGFloat(popupContentFontSize),
                             popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
@@ -637,6 +646,7 @@ struct ReviewView: View {
 
     private func handleCardLookup(_ selection: String?, sentence: String?, at point: CGPoint) {
         guard session.showAnswer,
+              prefLookupPopupEnabled,
               let query = normalizedLookupText(selection) else {
             return
         }
@@ -644,6 +654,11 @@ struct ReviewView: View {
     }
 
     private func startCardLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil, stacksOnTop: Bool = false) {
+        guard prefLookupPopupEnabled else {
+            lookupStack.removeAll()
+            return
+        }
+
         let popup = ReaderLookupPopupState(
             query: query,
             sentence: normalizedLookupText(sentence),

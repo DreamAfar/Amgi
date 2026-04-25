@@ -332,6 +332,8 @@
 "settings_reader_horizontal_padding" = "Horizontal Padding";
 "settings_reader_vertical_padding" = "Vertical Padding";
 "settings_reader_padding_value" = "%d%%";
+"settings_reader_avoid_page_break" = "Avoid Page Break";
+"settings_reader_justify_text" = "Justify Text";
 "settings_reader_layout_advanced" = "Advanced Layout";
 "settings_reader_line_height" = "Line Height";
 "settings_reader_line_height_value" = "%.2f";
@@ -354,6 +356,7 @@
 "settings_reader_dictionary_settings" = "Dictionary Settings";
 "settings_reader_dictionary_section_recommended" = "Recommended";
 "settings_reader_dictionary_download_recommended" = "Download Recommended Dictionaries";
+"settings_reader_dictionary_update" = "Update Dictionaries";
 "settings_reader_dictionary_recommended_description" = "Downloads JMdict and Jiten frequency dictionaries for Japanese lookup.";
 "settings_reader_dictionary_section_import" = "Import Yomitan Archives";
 "settings_reader_dictionary_import_term" = "Import Term Dictionary";
@@ -1296,6 +1299,7 @@
 "settings_review_show_remaining_days" = "Show remaining days";
 "settings_review_show_next_review_time" = "Show next review time";
 "settings_review_open_links_externally" = "Open links in external browser";
+"settings_review_lookup_popup_enabled" = "Enable lookup popup";
 "settings_review_auto_match_card_background" = "Auto-match toolbar background to card";
 "settings_review_glass_answer_buttons" = "Liquid Glass Buttons (iOS 26+)";
 "settings_review_card_alignment" = "Card content alignment";
