@@ -2,6 +2,7 @@ import SwiftUI
 import WebKit
 import AnkiKit
 import AnkiClients
+import AnkiReader
 import Dependencies
 import UIKit
 
