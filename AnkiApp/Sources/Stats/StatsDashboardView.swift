@@ -193,7 +193,7 @@ struct StatsDashboardView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color.amgiSurfaceElevated)
+        .background(Color.amgiSurface)
         .overlay(
             Capsule()
                 .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
