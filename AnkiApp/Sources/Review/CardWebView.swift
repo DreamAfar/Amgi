@@ -473,6 +473,59 @@ struct CardWebView: UIViewRepresentable {
             }
             return { nodes: nodes, hitIndex: hitIndex };
         }
+        function amgiIsLatinLookupChar(character) {
+            return /^[A-Za-z0-9]$/.test(character || '');
+        }
+        function amgiLatinWordPayloadAt(nodeInfo, hit, maxLength) {
+            var selected = '';
+            var backward = '';
+
+            for (var backIndex = nodeInfo.hitIndex; backIndex >= 0 && backward.length < maxLength; backIndex--) {
+                var backText = nodeInfo.nodes[backIndex].textContent || '';
+                var backOffset = backIndex === nodeInfo.hitIndex ? hit.offset - 1 : backText.length - 1;
+                for (var b = backOffset; b >= 0 && backward.length + selected.length < maxLength; b--) {
+                    var backChar = backText[b];
+                    if (!amgiIsLatinLookupChar(backChar)) {
+                        backIndex = -1;
+                        break;
+                    }
+                    backward = backChar + backward;
+                }
+            }
+
+            for (var forwardIndex = nodeInfo.hitIndex; forwardIndex < nodeInfo.nodes.length && backward.length + selected.length < maxLength; forwardIndex++) {
+                var forwardText = nodeInfo.nodes[forwardIndex].textContent || '';
+                var forwardOffset = forwardIndex === nodeInfo.hitIndex ? hit.offset : 0;
+                for (var f = forwardOffset; f < forwardText.length && backward.length + selected.length < maxLength; f++) {
+                    var forwardChar = forwardText[f];
+                    if (!amgiIsLatinLookupChar(forwardChar)) {
+                        forwardIndex = nodeInfo.nodes.length;
+                        break;
+                    }
+                    selected += forwardChar;
+                }
+            }
+
+            return (backward + selected).trim();
+        }
+        function amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters) {
+            var selected = '';
+
+            for (var forwardIndex = nodeInfo.hitIndex; forwardIndex < nodeInfo.nodes.length && selected.length < maxLength; forwardIndex++) {
+                var forwardText = nodeInfo.nodes[forwardIndex].textContent || '';
+                var forwardOffset = forwardIndex === nodeInfo.hitIndex ? hit.offset : 0;
+                for (var f = forwardOffset; f < forwardText.length && selected.length < maxLength; f++) {
+                    var forwardChar = forwardText[f];
+                    if (delimiters.indexOf(forwardChar) !== -1) {
+                        forwardIndex = nodeInfo.nodes.length;
+                        break;
+                    }
+                    selected += forwardChar;
+                }
+            }
+
+            return selected.trim();
+        }
 
         function amgiApplyCardState(state) {
             window.__amgiCardState = Object.assign({}, window.__amgiCardState || {}, state || {});
@@ -502,22 +555,11 @@ struct CardWebView: UIViewRepresentable {
             var nodeInfo = amgiLookupNodesInContainer(container, hit.node);
             if (nodeInfo.hitIndex < 0) return null;
 
-            var selected = '';
-
-            for (var forwardIndex = nodeInfo.hitIndex; forwardIndex < nodeInfo.nodes.length && selected.length < maxLength; forwardIndex++) {
-                var forwardText = nodeInfo.nodes[forwardIndex].textContent || '';
-                var forwardOffset = forwardIndex === nodeInfo.hitIndex ? hit.offset : 0;
-                for (var f = forwardOffset; f < forwardText.length && selected.length < maxLength; f++) {
-                    var forwardChar = forwardText[f];
-                    if (delimiters.indexOf(forwardChar) !== -1) {
-                        forwardIndex = nodeInfo.nodes.length;
-                        break;
-                    }
-                    selected += forwardChar;
-                }
-            }
-
-            selected = selected.trim();
+            var hitText = hit.node.textContent || '';
+            var hitChar = hitText[hit.offset] || '';
+            var selected = amgiIsLatinLookupChar(hitChar)
+                ? amgiLatinWordPayloadAt(nodeInfo, hit, maxLength)
+                : amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters);
             if (!selected) return null;
             return {
                 text: selected,
