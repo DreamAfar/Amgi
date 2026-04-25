@@ -415,6 +415,64 @@ struct CardWebView: UIViewRepresentable {
         function amgiLookupPopupEnabled() { return !!(amgiCardState().lookupPopupEnabled); }
         function amgiReplayModeValue() { return amgiCardState().replayMode || 'question'; }
         function amgiPrefetchHTMLValue() { return amgiCardState().prefetchHTML || ''; }
+        function amgiIsLookupFuriganaNode(node) {
+            var element = node && node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+            return !!(element && element.closest('rt, rp'));
+        }
+        function amgiLookupContainerForNode(node) {
+            var element = node && node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+            return (element && element.closest('p, li, div, section, article, td, th')) || document.getElementById('qa') || document.body;
+        }
+        function amgiLookupTextWalker(root) {
+            return document.createTreeWalker(root || document.body, NodeFilter.SHOW_TEXT, {
+                acceptNode: function(node) {
+                    return amgiIsLookupFuriganaNode(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+                }
+            });
+        }
+        function amgiPointInRange(range, x, y) {
+            var rects = range.getClientRects ? Array.from(range.getClientRects()) : [];
+            if (!rects.length) rects = [range.getBoundingClientRect()];
+            return rects.some(function(rect) {
+                return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+            });
+        }
+        function amgiLookupCharacterAtPoint(x, y) {
+            var range = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
+            if (!range && document.caretPositionFromPoint) {
+                var position = document.caretPositionFromPoint(x, y);
+                if (position) {
+                    range = document.createRange();
+                    range.setStart(position.offsetNode, position.offset);
+                }
+            }
+            var node = range && range.startContainer;
+            if (!node || node.nodeType !== Node.TEXT_NODE || amgiIsLookupFuriganaNode(node)) return null;
+
+            var text = node.textContent || '';
+            for (var i = 0, offsets = [range.startOffset, range.startOffset - 1, range.startOffset + 1]; i < offsets.length; i++) {
+                var offset = offsets[i];
+                if (offset < 0 || offset >= text.length) continue;
+                var charRange = document.createRange();
+                charRange.setStart(node, offset);
+                charRange.setEnd(node, offset + 1);
+                if (amgiPointInRange(charRange, x, y)) {
+                    return { node: node, offset: offset };
+                }
+            }
+            return null;
+        }
+        function amgiLookupNodesInContainer(root, hitNode) {
+            var walker = amgiLookupTextWalker(root);
+            var nodes = [];
+            var hitIndex = -1;
+            var node;
+            while (node = walker.nextNode()) {
+                if (node === hitNode) hitIndex = nodes.length;
+                nodes.push(node);
+            }
+            return { nodes: nodes, hitIndex: hitIndex };
+        }
 
         function amgiApplyCardState(state) {
             window.__amgiCardState = Object.assign({}, window.__amgiCardState || {}, state || {});
@@ -435,36 +493,35 @@ struct CardWebView: UIViewRepresentable {
             }
             if (target.closest('rt, rp')) return null;
 
-            var range = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
-            if (!range && document.caretPositionFromPoint) {
-                var position = document.caretPositionFromPoint(x, y);
-                if (position) {
-                    range = document.createRange();
-                    range.setStart(position.offsetNode, position.offset);
-                }
-            }
-            var node = range && range.startContainer;
-            if (!node || node.nodeType !== Node.TEXT_NODE) return null;
-            var parent = node.parentElement;
-            if (parent && parent.closest('rt, rp')) return null;
+            var hit = amgiLookupCharacterAtPoint(x, y);
+            if (!hit) return null;
 
-            var text = node.textContent || '';
-            var start = Math.min(range.startOffset, text.length);
-            var end = start;
             var maxLength = Math.max(1, scanLength || 16);
             var delimiters = ' \\t\\n\\r。、！？…‥「」『』（）()【】〈〉《》〔〕｛｝{}［］[]・：；:;，,.─';
-            while (start > 0 && delimiters.indexOf(text[start - 1]) === -1 && end - start < maxLength) {
-                start -= 1;
-            }
-            while (end < text.length && delimiters.indexOf(text[end]) === -1 && end - start < maxLength) {
-                end += 1;
+            var container = amgiLookupContainerForNode(hit.node);
+            var nodeInfo = amgiLookupNodesInContainer(container, hit.node);
+            if (nodeInfo.hitIndex < 0) return null;
+
+            var selected = '';
+
+            for (var forwardIndex = nodeInfo.hitIndex; forwardIndex < nodeInfo.nodes.length && selected.length < maxLength; forwardIndex++) {
+                var forwardText = nodeInfo.nodes[forwardIndex].textContent || '';
+                var forwardOffset = forwardIndex === nodeInfo.hitIndex ? hit.offset : 0;
+                for (var f = forwardOffset; f < forwardText.length && selected.length < maxLength; f++) {
+                    var forwardChar = forwardText[f];
+                    if (delimiters.indexOf(forwardChar) !== -1) {
+                        forwardIndex = nodeInfo.nodes.length;
+                        break;
+                    }
+                    selected += forwardChar;
+                }
             }
 
-            var selected = text.slice(start, end).trim();
+            selected = selected.trim();
             if (!selected) return null;
             return {
                 text: selected,
-                sentence: text.trim(),
+                sentence: (container.textContent || '').trim(),
                 x: x,
                 y: y
             };

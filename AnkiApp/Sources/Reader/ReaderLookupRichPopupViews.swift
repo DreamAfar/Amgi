@@ -225,10 +225,12 @@ private struct ReaderLookupEntryRichView: View {
             } else if entry.glossaries.isEmpty == false {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(entry.glossaries, id: \.self) { glossary in
-                        Text(glossary)
-                            .font(.system(size: max(13, contentFontSize)))
-                            .foregroundStyle(Color.amgiTextPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        ReaderLookupPlainGlossaryTextView(
+                            text: glossary,
+                            fontSize: max(13, contentFontSize),
+                            onLookupRequested: onLookupRequested
+                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
@@ -261,6 +263,149 @@ private struct ReaderLookupEntryRichView: View {
             return
         }
         await ReaderLookupWordAudioPlayer.shared.play(url: url, mode: audioPlaybackMode)
+    }
+}
+
+private struct ReaderLookupPlainGlossaryTextView: UIViewRepresentable {
+    let text: String
+    let fontSize: CGFloat
+    let onLookupRequested: (String, String?) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onLookupRequested: onLookupRequested)
+    }
+
+    func makeUIView(context: Context) -> UITextView {
+        let textView = UITextView()
+        textView.isEditable = false
+        textView.isSelectable = false
+        textView.isScrollEnabled = false
+        textView.backgroundColor = .clear
+        textView.textContainer.lineFragmentPadding = 0
+        textView.textContainerInset = .zero
+        textView.adjustsFontForContentSizeCategory = false
+        textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let recognizer = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        recognizer.cancelsTouchesInView = false
+        textView.addGestureRecognizer(recognizer)
+        context.coordinator.textView = textView
+        return textView
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width, width > 0 else { return nil }
+        let fit = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: max(1, fit.height))
+    }
+
+    func updateUIView(_ textView: UITextView, context: Context) {
+        context.coordinator.onLookupRequested = onLookupRequested
+        let font = UIFont.systemFont(ofSize: fontSize)
+        if textView.text != text {
+            textView.text = text
+        }
+        if textView.font != font {
+            textView.font = font
+        }
+        textView.textColor = UIColor(Color.amgiTextPrimary)
+    }
+
+    final class Coordinator: NSObject {
+        weak var textView: UITextView?
+        var onLookupRequested: (String, String?) -> Void
+
+        private let delimiters = CharacterSet.whitespacesAndNewlines.union(
+            CharacterSet(charactersIn: "。、！？…‥「」『』（）()【】〈〉《》〔〕｛｝{}［］[]・：；:;，,.─/\\\"'“”‘’")
+        )
+        private let sentenceDelimiters = CharacterSet(charactersIn: "。！？.!?\n\r")
+
+        init(onLookupRequested: @escaping (String, String?) -> Void) {
+            self.onLookupRequested = onLookupRequested
+        }
+
+        @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
+            guard let textView else { return }
+            let point = recognizer.location(in: textView)
+            guard let payload = lookupPayload(in: textView, at: point) else {
+                return
+            }
+            onLookupRequested(payload.text, payload.sentence)
+        }
+
+        private func lookupPayload(in textView: UITextView, at point: CGPoint) -> (text: String, sentence: String?)? {
+            let layoutManager = textView.layoutManager
+            let textContainer = textView.textContainer
+            let textStorage = textView.textStorage
+            guard textStorage.length > 0 else { return nil }
+
+            let usedRect = layoutManager.usedRect(for: textContainer)
+            let containerPoint = CGPoint(
+                x: point.x - textView.textContainerInset.left - usedRect.origin.x,
+                y: point.y - textView.textContainerInset.top - usedRect.origin.y
+            )
+            var index = layoutManager.characterIndex(for: containerPoint, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
+            if index >= textStorage.length {
+                index = textStorage.length - 1
+            }
+
+            let nsText = textStorage.string as NSString
+            if isDelimiter(nsText, at: index), index > 0 {
+                index -= 1
+            }
+            guard isDelimiter(nsText, at: index) == false else {
+                return nil
+            }
+
+            let wordRange = wordRange(in: nsText, around: index)
+            guard wordRange.length > 0 else { return nil }
+            let word = nsText.substring(with: wordRange).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard word.isEmpty == false else { return nil }
+            return (word, sentence(in: nsText, around: index))
+        }
+
+        private func wordRange(in text: NSString, around index: Int) -> NSRange {
+            let lowerLimit = max(0, index - 16)
+            let upperLimit = min(text.length, index + 17)
+            var start = index
+            var end = index + 1
+
+            while start > lowerLimit && isDelimiter(text, at: start - 1) == false {
+                start -= 1
+            }
+            while end < upperLimit && isDelimiter(text, at: end) == false {
+                end += 1
+            }
+
+            return NSRange(location: start, length: max(0, end - start))
+        }
+
+        private func sentence(in text: NSString, around index: Int) -> String? {
+            var start = index
+            var end = index
+            while start > 0 && isSentenceDelimiter(text, at: start - 1) == false {
+                start -= 1
+            }
+            while end < text.length && isSentenceDelimiter(text, at: end) == false {
+                end += 1
+            }
+            if end < text.length {
+                end += 1
+            }
+            let range = NSRange(location: start, length: max(0, end - start))
+            let value = text.substring(with: range).trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.isEmpty ? nil : value
+        }
+
+        private func isDelimiter(_ text: NSString, at index: Int) -> Bool {
+            guard index >= 0, index < text.length else { return true }
+            return text.substring(with: NSRange(location: index, length: 1)).rangeOfCharacter(from: delimiters) != nil
+        }
+
+        private func isSentenceDelimiter(_ text: NSString, at index: Int) -> Bool {
+            guard index >= 0, index < text.length else { return true }
+            return text.substring(with: NSRange(location: index, length: 1)).rangeOfCharacter(from: sentenceDelimiters) != nil
+        }
     }
 }
 
