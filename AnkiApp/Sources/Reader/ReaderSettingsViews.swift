@@ -770,6 +770,34 @@ struct ReaderAdvancedSettingsView: View {
                     title: L("settings_reader_note_template_definition3_field"),
                     selection: templateFieldBinding(\.definition3Field)
                 )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_dictionaries_field"),
+                    selection: templateFieldBinding(\.dictionariesField)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_frequency_field"),
+                    selection: templateFieldBinding(\.frequencyField)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_pitch_field"),
+                    selection: templateFieldBinding(\.pitchField)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_deinflection_field"),
+                    selection: templateFieldBinding(\.deinflectionField)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_matched_field"),
+                    selection: templateFieldBinding(\.matchedField)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_source_field"),
+                    selection: templateFieldBinding(\.sourceField)
+                )
+                noteTemplateFieldRow(
+                    title: L("settings_reader_note_template_rules_field"),
+                    selection: templateFieldBinding(\.rulesField)
+                )
             } header: {
                 Text(L("settings_reader_note_template_fields"))
             } footer: {

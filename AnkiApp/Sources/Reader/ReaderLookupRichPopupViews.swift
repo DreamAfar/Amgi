@@ -104,8 +104,48 @@ private struct ReaderLookupEntryRichView: View {
             term: entry.term,
             reading: entry.reading?.nilIfBlank,
             sentence: sentence,
-            definitions: entry.structuredGlossaries.flatMap(\.definitions)
+            definitions: entry.structuredGlossaries.flatMap(\.definitions),
+            dictionaries: dictionaryNamesText.nilIfBlank,
+            frequency: frequencyText.nilIfBlank,
+            pitch: pitchText.nilIfBlank,
+            deinflection: deinflectionText.nilIfBlank,
+            matched: entry.matched?.nilIfBlank,
+            source: entry.source?.nilIfBlank,
+            rules: rulesText.nilIfBlank
         )
+    }
+
+    private var dictionaryNamesText: String {
+        let names = entry.structuredGlossaries.map(\.dictionary)
+            .compactMap { $0.nilIfBlank }
+            .reduce(into: [String]()) { output, name in
+                if output.contains(name) == false {
+                    output.append(name)
+                }
+            }
+        return names.joined(separator: ", ")
+    }
+
+    private var frequencyText: String {
+        entry.frequency?.nilIfBlank
+            ?? frequencyBadges.map { item in
+                item.title.isEmpty ? item.value : "\(item.title): \(item.value)"
+            }
+            .joined(separator: "  ")
+    }
+
+    private var pitchText: String {
+        entry.pitch?.nilIfBlank ?? pitchTexts.joined(separator: "  ")
+    }
+
+    private var deinflectionText: String {
+        entry.deinflectionTrace.map(\.name)
+            .filter { $0.isEmpty == false }
+            .joined(separator: " -> ")
+    }
+
+    private var rulesText: String {
+        entry.rules.joined(separator: " ")
     }
 
     private var frequencyBadges: [ReaderLookupBadgeItem] {
@@ -556,17 +596,27 @@ private struct ReaderLookupStructuredGlossaryWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            webView.evaluateJavaScript("document.documentElement.scrollHeight") { value, _ in
-                guard let number = value as? NSNumber else {
+            updateContentHeight(for: webView)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak webView] in
+                guard let webView else { return }
+                self.updateContentHeight(for: webView)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak webView] in
+                guard let webView else { return }
+                self.updateContentHeight(for: webView)
+            }
+        }
+
+        private func updateContentHeight(for webView: WKWebView) {
+            let script = """
+            Math.ceil(document.getElementById('content')?.getBoundingClientRect().height || 0)
+            """
+            webView.evaluateJavaScript(script) { value, _ in
+                guard let number = value as? NSNumber,
+                      let sizingWebView = webView as? ReaderLookupSizingWebView else {
                     return
                 }
-                let height = CGFloat(truncating: number)
-                if height > 0 {
-                    webView.invalidateIntrinsicContentSize()
-                    if let sizingWebView = webView as? ReaderLookupSizingWebView {
-                        sizingWebView.contentHeight = height
-                    }
-                }
+                sizingWebView.setContentHeight(CGFloat(truncating: number))
             }
         }
 
@@ -759,6 +809,14 @@ private final class ReaderLookupSizingWebView: WKWebView {
         didSet {
             invalidateIntrinsicContentSize()
         }
+    }
+
+    func setContentHeight(_ height: CGFloat) {
+        let resolvedHeight = max(44, ceil(height))
+        guard abs(resolvedHeight - contentHeight) > 0.5 else {
+            return
+        }
+        contentHeight = resolvedHeight
     }
 
     override var intrinsicContentSize: CGSize {

@@ -320,7 +320,14 @@
 "settings_reader_note_template_definition1_field" = "词典释义1字段";
 "settings_reader_note_template_definition2_field" = "词典释义2字段";
 "settings_reader_note_template_definition3_field" = "词典释义3字段";
-"settings_reader_note_template_supported_fields" = "支持字段：单词、拼音/日语假名/英语音标、上下文句子、词典释义1、词典释义2、词典释义3。未映射的字段会留空。";
+"settings_reader_note_template_dictionaries_field" = "词典名字段";
+"settings_reader_note_template_frequency_field" = "词频字段";
+"settings_reader_note_template_pitch_field" = "音调字段";
+"settings_reader_note_template_deinflection_field" = "变形路径字段";
+"settings_reader_note_template_matched_field" = "命中文本字段";
+"settings_reader_note_template_source_field" = "来源字段";
+"settings_reader_note_template_rules_field" = "规则字段";
+"settings_reader_note_template_supported_fields" = "支持字段：单词、拼音/日语假名/英语音标、上下文句子、词典释义1-3、词典名、词频、音调、变形路径、命中文本、来源、规则。未映射的字段会留空。";
 "settings_reader_display_section_text" = "文字";
 "settings_reader_display_section_layout" = "版式";
 "settings_reader_display_section_display" = "显示";

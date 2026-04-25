@@ -6,6 +6,13 @@ struct ReaderLookupNotePayload: Sendable, Hashable {
     var reading: String?
     var sentence: String?
     var definitions: [String]
+    var dictionaries: String?
+    var frequency: String?
+    var pitch: String?
+    var deinflection: String?
+    var matched: String?
+    var source: String?
+    var rules: String?
 
     var normalizedDefinitions: [String] {
         definitions
@@ -23,6 +30,13 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     var definition1Field: String
     var definition2Field: String
     var definition3Field: String
+    var dictionariesField: String
+    var frequencyField: String
+    var pitchField: String
+    var deinflectionField: String
+    var matchedField: String
+    var sourceField: String
+    var rulesField: String
 
     static let empty = Self()
 
@@ -34,7 +48,14 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         sentenceField: String = "",
         definition1Field: String = "",
         definition2Field: String = "",
-        definition3Field: String = ""
+        definition3Field: String = "",
+        dictionariesField: String = "",
+        frequencyField: String = "",
+        pitchField: String = "",
+        deinflectionField: String = "",
+        matchedField: String = "",
+        sourceField: String = "",
+        rulesField: String = ""
     ) {
         self.deckID = deckID
         self.notetypeID = notetypeID
@@ -44,6 +65,13 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         self.definition1Field = definition1Field
         self.definition2Field = definition2Field
         self.definition3Field = definition3Field
+        self.dictionariesField = dictionariesField
+        self.frequencyField = frequencyField
+        self.pitchField = pitchField
+        self.deinflectionField = deinflectionField
+        self.matchedField = matchedField
+        self.sourceField = sourceField
+        self.rulesField = rulesField
     }
 
     var hasMappedFields: Bool {
@@ -53,9 +81,53 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
             sentenceField,
             definition1Field,
             definition2Field,
-            definition3Field
+            definition3Field,
+            dictionariesField,
+            frequencyField,
+            pitchField,
+            deinflectionField,
+            matchedField,
+            sourceField,
+            rulesField
         ]
         .contains { !$0.isEmpty }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case deckID
+        case notetypeID
+        case termField
+        case readingField
+        case sentenceField
+        case definition1Field
+        case definition2Field
+        case definition3Field
+        case dictionariesField
+        case frequencyField
+        case pitchField
+        case deinflectionField
+        case matchedField
+        case sourceField
+        case rulesField
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        deckID = try container.decodeIfPresent(Int64.self, forKey: .deckID)
+        notetypeID = try container.decodeIfPresent(Int64.self, forKey: .notetypeID)
+        termField = try container.decodeIfPresent(String.self, forKey: .termField) ?? ""
+        readingField = try container.decodeIfPresent(String.self, forKey: .readingField) ?? ""
+        sentenceField = try container.decodeIfPresent(String.self, forKey: .sentenceField) ?? ""
+        definition1Field = try container.decodeIfPresent(String.self, forKey: .definition1Field) ?? ""
+        definition2Field = try container.decodeIfPresent(String.self, forKey: .definition2Field) ?? ""
+        definition3Field = try container.decodeIfPresent(String.self, forKey: .definition3Field) ?? ""
+        dictionariesField = try container.decodeIfPresent(String.self, forKey: .dictionariesField) ?? ""
+        frequencyField = try container.decodeIfPresent(String.self, forKey: .frequencyField) ?? ""
+        pitchField = try container.decodeIfPresent(String.self, forKey: .pitchField) ?? ""
+        deinflectionField = try container.decodeIfPresent(String.self, forKey: .deinflectionField) ?? ""
+        matchedField = try container.decodeIfPresent(String.self, forKey: .matchedField) ?? ""
+        sourceField = try container.decodeIfPresent(String.self, forKey: .sourceField) ?? ""
+        rulesField = try container.decodeIfPresent(String.self, forKey: .rulesField) ?? ""
     }
 
     func encodedString() -> String {
@@ -81,6 +153,13 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         if !validFields.contains(definition1Field) { definition1Field = "" }
         if !validFields.contains(definition2Field) { definition2Field = "" }
         if !validFields.contains(definition3Field) { definition3Field = "" }
+        if !validFields.contains(dictionariesField) { dictionariesField = "" }
+        if !validFields.contains(frequencyField) { frequencyField = "" }
+        if !validFields.contains(pitchField) { pitchField = "" }
+        if !validFields.contains(deinflectionField) { deinflectionField = "" }
+        if !validFields.contains(matchedField) { matchedField = "" }
+        if !validFields.contains(sourceField) { sourceField = "" }
+        if !validFields.contains(rulesField) { rulesField = "" }
     }
 
     func makeDraft(
@@ -106,6 +185,13 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         assign(definition1Field, definitions[safe: 0])
         assign(definition2Field, definitions[safe: 1])
         assign(definition3Field, definitions[safe: 2])
+        assign(dictionariesField, payload.dictionaries)
+        assign(frequencyField, payload.frequency)
+        assign(pitchField, payload.pitch)
+        assign(deinflectionField, payload.deinflection)
+        assign(matchedField, payload.matched)
+        assign(sourceField, payload.source)
+        assign(rulesField, payload.rules)
 
         if fieldValues.isEmpty {
             let resolvedSentence = payload.sentence?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank ?? payload.term

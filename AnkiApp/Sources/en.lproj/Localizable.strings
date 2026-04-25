@@ -320,7 +320,14 @@
 "settings_reader_note_template_definition1_field" = "Dictionary Definition 1 Field";
 "settings_reader_note_template_definition2_field" = "Dictionary Definition 2 Field";
 "settings_reader_note_template_definition3_field" = "Dictionary Definition 3 Field";
-"settings_reader_note_template_supported_fields" = "Supported fields: word, pinyin/Japanese kana/English phonetic, context sentence, dictionary definition 1, dictionary definition 2, dictionary definition 3. Unmapped fields stay empty.";
+"settings_reader_note_template_dictionaries_field" = "Dictionary Names Field";
+"settings_reader_note_template_frequency_field" = "Frequency Field";
+"settings_reader_note_template_pitch_field" = "Pitch Accent Field";
+"settings_reader_note_template_deinflection_field" = "Deinflection Trace Field";
+"settings_reader_note_template_matched_field" = "Matched Text Field";
+"settings_reader_note_template_source_field" = "Source Field";
+"settings_reader_note_template_rules_field" = "Rules Field";
+"settings_reader_note_template_supported_fields" = "Supported fields: word, pinyin/Japanese kana/English phonetic, context sentence, dictionary definitions 1-3, dictionary names, frequency, pitch accent, deinflection trace, matched text, source, and rules. Unmapped fields stay empty.";
 "settings_reader_display_section_text" = "Text";
 "settings_reader_display_section_layout" = "Layout";
 "settings_reader_display_section_display" = "Display";

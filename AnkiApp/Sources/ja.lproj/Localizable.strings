@@ -320,7 +320,14 @@
 "settings_reader_note_template_definition1_field" = "辞書定義1フィールド";
 "settings_reader_note_template_definition2_field" = "辞書定義2フィールド";
 "settings_reader_note_template_definition3_field" = "辞書定義3フィールド";
-"settings_reader_note_template_supported_fields" = "対応フィールド：単語、ピンイン/日本語かな/英語発音、文脈文、辞書定義1、辞書定義2、辞書定義3。未対応のフィールドは空のままです。";
+"settings_reader_note_template_dictionaries_field" = "辞書名フィールド";
+"settings_reader_note_template_frequency_field" = "頻度フィールド";
+"settings_reader_note_template_pitch_field" = "アクセントフィールド";
+"settings_reader_note_template_deinflection_field" = "活用戻し経路フィールド";
+"settings_reader_note_template_matched_field" = "一致テキストフィールド";
+"settings_reader_note_template_source_field" = "ソースフィールド";
+"settings_reader_note_template_rules_field" = "ルールフィールド";
+"settings_reader_note_template_supported_fields" = "対応フィールド：単語、ピンイン/日本語かな/英語発音、文脈文、辞書定義1-3、辞書名、頻度、アクセント、活用戻し経路、一致テキスト、ソース、ルール。未対応のフィールドは空のままです。";
 "settings_reader_display_section_text" = "文字";
 "settings_reader_display_section_layout" = "レイアウト";
 "settings_reader_display_section_display" = "表示";
