@@ -594,6 +594,7 @@ private struct ReaderChapterView: View {
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
+    @AppStorage(ReaderPreferences.Keys.selectedFont) private var selectedFont = ReaderFontOption.defaultValue
     @AppStorage(ReaderPreferences.Keys.fontSize) private var readerFontSize = 24
     @AppStorage(ReaderPreferences.Keys.hideFurigana) private var hideFurigana = false
     @AppStorage(ReaderPreferences.Keys.horizontalPadding) private var horizontalPadding = 2
@@ -809,6 +810,7 @@ private struct ReaderChapterView: View {
                     ReaderChapterWebView(
                         html: chapter.content,
                         isVertical: verticalLayout,
+                        fontFamily: ReaderFontOption.resolved(selectedFont).cssFontFamily,
                         fontSize: Double(readerFontSize),
                         pageBackgroundHex: resolvedPageBackgroundHex,
                         contentBackgroundHex: resolvedContentBackgroundHex,
@@ -1389,6 +1391,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
     let html: String
     let isVertical: Bool
+    let fontFamily: String
     let fontSize: Double
     let pageBackgroundHex: String
     let contentBackgroundHex: String
@@ -1814,7 +1817,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         body {
             writing-mode: \(writingMode);
             text-orientation: mixed;
-            font-family: -apple-system, BlinkMacSystemFont, \"SF Pro Text\", sans-serif;
+            font-family: \(fontFamily);
             font-size: \(fontSize)px;
             line-height: \(lineHeight);
             letter-spacing: \(letterSpacing)em;

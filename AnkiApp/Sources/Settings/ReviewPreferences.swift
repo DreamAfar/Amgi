@@ -41,6 +41,7 @@ enum ReaderPreferences {
         static let languageField = "reader_pref_language_field"
         static let bookshelfColumns = "reader_pref_bookshelf_columns"
         static let verticalLayout = "reader_pref_vertical_layout"
+        static let selectedFont = "reader_pref_selected_font"
         static let fontSize = "reader_pref_font_size"
         static let hideFurigana = "reader_pref_hide_furigana"
         static let horizontalPadding = "reader_pref_horizontal_padding"

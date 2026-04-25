@@ -5,6 +5,40 @@ import AnkiClients
 import Dependencies
 import UIKit
 
+enum ReaderFontOption: String, CaseIterable, Identifiable {
+    case hiraginoMincho = "Hiragino Mincho ProN"
+    case hiraginoKakuGothic = "Hiragino Kaku Gothic ProN"
+    case system = "system"
+
+    static let defaultValue = ReaderFontOption.hiraginoMincho.rawValue
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .hiraginoMincho:
+            return "Hiragino Mincho ProN"
+        case .hiraginoKakuGothic:
+            return "Hiragino Kaku Gothic ProN"
+        case .system:
+            return L("settings_reader_font_system")
+        }
+    }
+
+    var cssFontFamily: String {
+        switch self {
+        case .hiraginoMincho, .hiraginoKakuGothic:
+            return "\"\(rawValue)\", serif"
+        case .system:
+            return "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", sans-serif"
+        }
+    }
+
+    static func resolved(_ rawValue: String) -> ReaderFontOption {
+        ReaderFontOption(rawValue: rawValue) ?? .hiraginoMincho
+    }
+}
+
 struct ReaderSettingsHomeView: View {
     @AppStorage(ReaderPreferences.Keys.showTab) private var isReaderTabEnabled = false
 
@@ -259,6 +293,7 @@ struct ReaderSourceSettingsView: View {
 
 struct ReaderDisplaySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
+    @AppStorage(ReaderPreferences.Keys.selectedFont) private var selectedFont = ReaderFontOption.defaultValue
     @AppStorage(ReaderPreferences.Keys.fontSize) private var readerFontSize = 24
     @AppStorage(ReaderPreferences.Keys.hideFurigana) private var hideFurigana = false
     @AppStorage(ReaderPreferences.Keys.horizontalPadding) private var horizontalPadding = 2
@@ -320,6 +355,24 @@ struct ReaderDisplaySettingsView: View {
     var body: some View {
         List {
             Section(L("settings_reader_display_section_text")) {
+                HStack {
+                    Text(L("settings_reader_font"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Picker(
+                        L("settings_reader_font"),
+                        selection: Binding(
+                            get: { ReaderFontOption.resolved(selectedFont) },
+                            set: { selectedFont = $0.rawValue }
+                        )
+                    ) {
+                        ForEach(ReaderFontOption.allCases) { font in
+                            Text(font.title).tag(font)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
                 HStack {
                     Text(L("settings_reader_text_orientation"))
                         .foregroundStyle(SettingsValueStyle.primary)

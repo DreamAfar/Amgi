@@ -392,24 +392,23 @@ private actor DictionaryLookupRuntime {
     }
 
     private func rebuildLookupQuery() {
-        var deinflector = Deinflector()
-        var dictQuery = DictionaryQuery()
+        lookupEngine = nil
+        deinflector = Deinflector()
+        dictQuery = DictionaryQuery()
 
         for dictionary in termDictionaries where dictionary.info.isEnabled {
-            dictQuery.add_term_dict(std.string(dictionary.path.path(percentEncoded: false)))
+            dictQuery?.add_term_dict(std.string(dictionary.path.path(percentEncoded: false)))
         }
 
         for dictionary in frequencyDictionaries where dictionary.info.isEnabled {
-            dictQuery.add_freq_dict(std.string(dictionary.path.path(percentEncoded: false)))
+            dictQuery?.add_freq_dict(std.string(dictionary.path.path(percentEncoded: false)))
         }
 
         for dictionary in pitchDictionaries where dictionary.info.isEnabled {
-            dictQuery.add_pitch_dict(std.string(dictionary.path.path(percentEncoded: false)))
+            dictQuery?.add_pitch_dict(std.string(dictionary.path.path(percentEncoded: false)))
         }
 
-        lookupEngine = Lookup(&dictQuery, &deinflector)
-        self.dictQuery = .some(consume dictQuery)
-        self.deinflector = .some(consume deinflector)
+        lookupEngine = Lookup(&dictQuery!, &deinflector!)
     }
 
     private func importArchive(at url: URL, kind: AppDictionaryKind, requiresSecurityScope: Bool) throws {
