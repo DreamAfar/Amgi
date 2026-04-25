@@ -567,6 +567,8 @@ private struct ReaderBookDetailView: View {
                                     Text(order)
                                         .font(.caption)
                                         .foregroundStyle(Color.amgiTextSecondary)
+                                        .lineLimit(1)
+                                        .amgiCapsuleControl(horizontalPadding: 8, verticalPadding: 3)
                                 }
                             }
                         }
@@ -638,13 +640,8 @@ private struct ReaderChapterView: View {
     @State private var showAddNoteSheet = false
     @State private var showSelectionError = false
     @State private var pendingSelectionAction: SelectionAction?
-    @State private var showLookupSheet = false
-    @State private var lookupQuery = ""
-    @State private var lookupSentence: String?
-    @State private var lookupResult: DictionaryLookupResult?
-    @State private var isLookingUp = false
     @State private var lookupErrorMessage: String?
-    @State private var lookupAnchor: CGPoint?
+    @State private var lookupStack: [ReaderLookupPopupState] = []
     @State private var activeSheet: ReaderChapterSheetRoute?
     @State private var chapterNavigationTarget: ReaderChapter?
 
@@ -907,51 +904,61 @@ private struct ReaderChapterView: View {
                 .padding(.trailing, 20)
             }
             .overlay {
-                if showLookupSheet {
+                if lookupStack.isEmpty == false {
                     GeometryReader { popupGeometry in
                         ZStack {
                             Color.black.opacity(0.001)
                                 .ignoresSafeArea()
                                 .onTapGesture {
-                                    showLookupSheet = false
-                                    lookupAnchor = nil
+                                    lookupStack.removeAll()
                                 }
 
-                            ReaderLookupPopup(
-                                query: lookupQuery,
-                                result: lookupResult,
-                                isLoading: isLookingUp,
-                                sentence: lookupSentence,
-                                languageHint: lookupLanguageHint,
-                                popupWidth: CGFloat(popupWidth),
-                                popupHeight: CGFloat(popupHeight),
-                                popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
-                                popupContentFontSize: CGFloat(popupContentFontSize),
-                                popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
-                                popupKanaFontSize: CGFloat(popupKanaFontSize),
-                                isFullWidth: popupFullWidth,
-                                swipeToDismiss: popupSwipeToDismiss,
-                                collapseDictionaries: popupCollapseDictionaries,
-                                compactGlossaries: popupCompactGlossaries,
-                                audioSourceTemplate: popupAudioSourceTemplate,
-                                localAudioEnabled: popupLocalAudioEnabled,
-                                audioAutoplay: popupAudioAutoplay,
-                                audioPlaybackMode: popupAudioPlaybackMode,
-                                onAddNote: { payload in
-                                    pendingDraft = makeLookupDraft(from: payload)
-                                    showLookupSheet = false
-                                    lookupAnchor = nil
-                                    showAddNoteSheet = true
-                                },
-                                onClose: {
-                                    showLookupSheet = false
-                                    lookupAnchor = nil
-                                }
-                            )
-                            .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
-                            .padding(.horizontal, 14)
-                            .position(lookupPopupPosition(in: popupGeometry.size, bottomInset: bottomInset))
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            ForEach(Array(lookupStack.enumerated()), id: \.element.id) { index, popup in
+                                ReaderLookupPopup(
+                                    query: popup.query,
+                                    result: popup.result,
+                                    isLoading: popup.isLoading,
+                                    sentence: popup.sentence,
+                                    languageHint: lookupLanguageHint,
+                                    popupWidth: CGFloat(popupWidth),
+                                    popupHeight: CGFloat(popupHeight),
+                                    popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
+                                    popupContentFontSize: CGFloat(popupContentFontSize),
+                                    popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
+                                    popupKanaFontSize: CGFloat(popupKanaFontSize),
+                                    isFullWidth: popupFullWidth,
+                                    swipeToDismiss: popupSwipeToDismiss,
+                                    collapseDictionaries: popupCollapseDictionaries,
+                                    compactGlossaries: popupCompactGlossaries,
+                                    audioSourceTemplate: popupAudioSourceTemplate,
+                                    localAudioEnabled: popupLocalAudioEnabled,
+                                    audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
+                                    audioPlaybackMode: popupAudioPlaybackMode,
+                                    onAddNote: { payload in
+                                        pendingDraft = makeLookupDraft(from: payload, sentence: popup.sentence)
+                                        lookupStack.removeAll()
+                                        showAddNoteSheet = true
+                                    },
+                                    onLookupRequested: { query, sentence in
+                                        startLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)
+                                    },
+                                    onClose: {
+                                        removeLookupPopup(id: popup.id)
+                                    }
+                                )
+                                .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
+                                .padding(.horizontal, 14)
+                                .position(
+                                    lookupPopupPosition(
+                                        in: popupGeometry.size,
+                                        bottomInset: bottomInset,
+                                        anchor: popup.anchor,
+                                        stackDepth: index
+                                    )
+                                )
+                                .zIndex(Double(index))
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            }
                         }
                     }
                 }
@@ -990,7 +997,7 @@ private struct ReaderChapterView: View {
         .navigationDestination(item: $chapterNavigationTarget) { target in
             ReaderChapterView(book: book, chapter: target)
         }
-        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: showLookupSheet)
+        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: lookupStack)
         .ignoresSafeArea(edges: .top)
         .alert(L("common_error"), isPresented: $showSelectionError) {
             Button(L("common_ok"), role: .cancel) {}
@@ -1038,52 +1045,71 @@ private struct ReaderChapterView: View {
         return trimmedSentence.isEmpty ? nil : trimmedSentence
     }
 
-    private func startLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil) {
-        lookupQuery = query
-        lookupSentence = normalizedSentence(sentence)
-        lookupResult = nil
-        lookupAnchor = anchor
-        showLookupSheet = true
-        isLookingUp = true
+    private func startLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil, stacksOnTop: Bool = false) {
+        let popup = ReaderLookupPopupState(
+            query: query,
+            sentence: normalizedSentence(sentence),
+            anchor: anchor,
+            isLoading: true
+        )
+
+        if stacksOnTop {
+            lookupStack.append(popup)
+        } else {
+            lookupStack = [popup]
+        }
+
         Task {
             do {
-                lookupResult = try await dictionaryLookupClient.lookup(
+                let result = try await dictionaryLookupClient.lookup(
                     query,
                     dictionaryMaxResults,
                     dictionaryScanLength
                 )
+                updateLookupPopup(id: popup.id, result: result, isLoading: false)
             } catch {
-                showLookupSheet = false
-                lookupAnchor = nil
+                removeLookupPopup(id: popup.id)
                 lookupErrorMessage = error.localizedDescription
                 showSelectionError = true
             }
-            isLookingUp = false
         }
     }
 
-    private func lookupPopupPosition(in size: CGSize, bottomInset: CGFloat) -> CGPoint {
+    private func updateLookupPopup(id: UUID, result: DictionaryLookupResult, isLoading: Bool) {
+        guard let index = lookupStack.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+        lookupStack[index].result = result
+        lookupStack[index].isLoading = isLoading
+    }
+
+    private func removeLookupPopup(id: UUID) {
+        lookupStack.removeAll { $0.id == id }
+    }
+
+    private func lookupPopupPosition(in size: CGSize, bottomInset: CGFloat, anchor: CGPoint?, stackDepth: Int) -> CGPoint {
         let horizontalMargin: CGFloat = 18
         let popupResolvedWidth = popupFullWidth
             ? max(size.width - horizontalMargin * 2, 0)
             : min(CGFloat(popupWidth), max(size.width - horizontalMargin * 2, 0))
         let popupHalfWidth = popupResolvedWidth / 2
         let popupHalfHeight = min(CGFloat(popupHeight) / 2, max(size.height / 2 - 56, 132))
+        let stackedOffset = CGFloat(stackDepth) * min(36, popupHalfHeight * 0.22)
 
-        guard popupFullWidth == false, let lookupAnchor else {
+        guard popupFullWidth == false, let anchor else {
             return CGPoint(
                 x: size.width / 2,
-                y: size.height - bottomInset - popupHalfHeight - 48
+                y: max(136 + popupHalfHeight, size.height - bottomInset - popupHalfHeight - 48 - stackedOffset)
             )
         }
 
-        let proposedBottomY = lookupAnchor.y + popupHalfHeight + 26
-        let fallbackTopY = lookupAnchor.y - popupHalfHeight - 26
+        let proposedBottomY = anchor.y + popupHalfHeight + 26 - stackedOffset
+        let fallbackTopY = anchor.y - popupHalfHeight - 26 - stackedOffset
         let minY = 136 + popupHalfHeight
         let maxY = size.height - bottomInset - popupHalfHeight - 20
         let resolvedY = proposedBottomY <= maxY ? proposedBottomY : max(fallbackTopY, minY)
         let resolvedX = min(
-            max(lookupAnchor.x, popupHalfWidth + horizontalMargin),
+            max(anchor.x, popupHalfWidth + horizontalMargin),
             size.width - popupHalfWidth - horizontalMargin
         )
 
@@ -1110,12 +1136,12 @@ private struct ReaderChapterView: View {
         )
     }
 
-    private func makeLookupDraft(from payload: ReaderLookupNotePayload) -> AddNoteDraft {
+    private func makeLookupDraft(from payload: ReaderLookupNotePayload, sentence: String?) -> AddNoteDraft {
         let sourceDescription = [book.title, chapter.title]
             .filter { !$0.isEmpty }
             .joined(separator: " • ")
         var resolvedPayload = payload
-        resolvedPayload.sentence = normalizedSentence(payload.sentence) ?? lookupSentence
+        resolvedPayload.sentence = normalizedSentence(payload.sentence) ?? sentence
 
         return lookupNoteTemplate.makeDraft(
             payload: resolvedPayload,
@@ -1125,7 +1151,16 @@ private struct ReaderChapterView: View {
     }
 }
 
-private struct ReaderLookupPopup: View {
+struct ReaderLookupPopupState: Identifiable, Hashable {
+    let id = UUID()
+    var query: String
+    var sentence: String?
+    var anchor: CGPoint?
+    var result: DictionaryLookupResult?
+    var isLoading: Bool
+}
+
+struct ReaderLookupPopup: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let query: String
@@ -1147,7 +1182,8 @@ private struct ReaderLookupPopup: View {
     let localAudioEnabled: Bool
     let audioAutoplay: Bool
     let audioPlaybackMode: ReaderLookupAudioPlaybackMode
-    let onAddNote: (ReaderLookupNotePayload) -> Void
+    let onAddNote: ((ReaderLookupNotePayload) -> Void)?
+    let onLookupRequested: (String, String?) -> Void
     let onClose: () -> Void
 
     @State private var dragOffset: CGFloat = 0
@@ -1210,7 +1246,8 @@ private struct ReaderLookupPopup: View {
                         audioAutoplay: audioAutoplay,
                         audioPlaybackMode: audioPlaybackMode,
                         sentence: sentence,
-                        onAddNote: onAddNote
+                        onAddNote: onAddNote,
+                        onLookupRequested: onLookupRequested
                     )
                 } else {
                     Text(L("reader_lookup_empty"))
@@ -1276,6 +1313,8 @@ private struct ReaderChapterListSheet: View {
                                 Text(order)
                                     .font(.caption)
                                     .foregroundStyle(Color.amgiTextSecondary)
+                                    .lineLimit(1)
+                                    .amgiCapsuleControl(horizontalPadding: 8, verticalPadding: 3)
                             }
                         }
 

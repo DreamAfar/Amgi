@@ -29,12 +29,14 @@ struct CardWebView: UIViewRepresentable {
     let replayMode: ReplayMode
     let showInlineAudioReplayButtons: Bool
     let openLinksExternally: Bool
+    let lookupPopupEnabled: Bool
     let prefetchHTML: String?
     let contentAlignment: ContentAlignment
     let bottomContentInset: CGFloat
     let onTypedAnswerSubmitted: ((String?) -> Void)?
     let onAudioStateChange: ((Bool) -> Void)?
     let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
+    let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
 
     init(
         html: String,
@@ -48,12 +50,14 @@ struct CardWebView: UIViewRepresentable {
         replayMode: ReplayMode = .question,
         showInlineAudioReplayButtons: Bool = true,
         openLinksExternally: Bool = true,
+        lookupPopupEnabled: Bool = true,
         prefetchHTML: String? = nil,
         contentAlignment: ContentAlignment = .center,
         bottomContentInset: CGFloat = 0,
         onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
         onAudioStateChange: ((Bool) -> Void)? = nil,
-        onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil
+        onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil,
+        onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil
     ) {
         self.html = html
         self.cardCSS = cardCSS
@@ -66,19 +70,22 @@ struct CardWebView: UIViewRepresentable {
         self.replayMode = replayMode
         self.showInlineAudioReplayButtons = showInlineAudioReplayButtons
         self.openLinksExternally = openLinksExternally
+        self.lookupPopupEnabled = lookupPopupEnabled
         self.prefetchHTML = prefetchHTML
         self.contentAlignment = contentAlignment
         self.bottomContentInset = bottomContentInset
         self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
         self.onAudioStateChange = onAudioStateChange
         self.onCardBackgroundColorChange = onCardBackgroundColorChange
+        self.onLookupRequested = onLookupRequested
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             onTypedAnswerSubmitted: onTypedAnswerSubmitted,
             onAudioStateChange: onAudioStateChange,
-            onCardBackgroundColorChange: onCardBackgroundColorChange
+            onCardBackgroundColorChange: onCardBackgroundColorChange,
+            onLookupRequested: onLookupRequested
         )
     }
 
@@ -92,6 +99,7 @@ struct CardWebView: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "amgiStopTts")
         config.userContentController.add(context.coordinator, name: "amgiSubmitTypedAnswer")
         config.userContentController.add(context.coordinator, name: "amgiCardTheme")
+        config.userContentController.add(context.coordinator, name: "amgiLookupText")
         
         // Enable media playback without user interaction
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -113,6 +121,7 @@ struct CardWebView: UIViewRepresentable {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiStopTts")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSubmitTypedAnswer")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiCardTheme")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiLookupText")
         coordinator.stopTTS()
     }
 
@@ -138,7 +147,7 @@ struct CardWebView: UIViewRepresentable {
         let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
         let pageSignature = "\(isDarkMode)"
         let cssSignature = "\(cardCSS.hashValue)"
-        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(cssSignature)|\(processedHTML.hashValue)|\(prefetchHTML?.hashValue ?? 0)"
+        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(lookupPopupEnabled)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(cssSignature)|\(processedHTML.hashValue)|\(prefetchHTML?.hashValue ?? 0)"
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
@@ -150,6 +159,7 @@ struct CardWebView: UIViewRepresentable {
             prefetchHTML: prefetchHTML,
             cardCSS: cardCSS,
             isAnswerSide: isAnswerSide,
+            lookupPopupEnabled: lookupPopupEnabled,
             bodyClass: bodyClass,
             autoplayEnabled: autoplayEnabled,
             replayMode: replayMode.rawValue,
@@ -402,6 +412,7 @@ struct CardWebView: UIViewRepresentable {
         function amgiCardState() { return window.__amgiCardState || {}; }
         function amgiAutoplayEnabled() { return !!(amgiCardState().autoplayEnabled); }
         function amgiIsAnswerSide() { return !!(amgiCardState().isAnswerSide); }
+        function amgiLookupPopupEnabled() { return !!(amgiCardState().lookupPopupEnabled); }
         function amgiReplayModeValue() { return amgiCardState().replayMode || 'question'; }
         function amgiPrefetchHTMLValue() { return amgiCardState().prefetchHTML || ''; }
 
@@ -414,6 +425,54 @@ struct CardWebView: UIViewRepresentable {
             document.body.classList.toggle('amgi-centered', !s.alignTop);
             if (qa) qa.style.setProperty('--amgi-card-padding-bottom', (s.cardPaddingBottom || 0) + 'px');
         }
+
+        function amgiCardLookupPayloadAt(x, y, scanLength) {
+            if (!amgiIsAnswerSide() || !amgiLookupPopupEnabled()) return null;
+            var target = document.elementFromPoint(x, y);
+            if (!target) return null;
+            if (target.closest('a, button, input, textarea, select, option, [contenteditable], .replay-button, .replay-btn, .sound-btn, #image-occlusion-canvas')) {
+                return null;
+            }
+
+            var range = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
+            if (!range && document.caretPositionFromPoint) {
+                var position = document.caretPositionFromPoint(x, y);
+                if (position) {
+                    range = document.createRange();
+                    range.setStart(position.offsetNode, position.offset);
+                }
+            }
+            var node = range && range.startContainer;
+            if (!node || node.nodeType !== Node.TEXT_NODE) return null;
+
+            var text = node.textContent || '';
+            var start = Math.min(range.startOffset, text.length);
+            var end = start;
+            var maxLength = Math.max(1, scanLength || 16);
+            var delimiters = ' \\t\\n\\r。、！？…‥「」『』（）()【】〈〉《》〔〕｛｝{}［］[]・：；:;，,.─';
+            while (start > 0 && delimiters.indexOf(text[start - 1]) === -1 && end - start < maxLength) {
+                start -= 1;
+            }
+            while (end < text.length && delimiters.indexOf(text[end]) === -1 && end - start < maxLength) {
+                end += 1;
+            }
+
+            var selected = text.slice(start, end).trim();
+            if (!selected) return null;
+            return {
+                text: selected,
+                sentence: text.trim(),
+                x: x,
+                y: y
+            };
+        }
+
+        document.addEventListener('click', function(event) {
+            var payload = amgiCardLookupPayloadAt(event.clientX, event.clientY, 16);
+            if (!payload) return;
+            window.webkit.messageHandlers.amgiLookupText.postMessage(payload);
+        }, false);
+
         function amgiSetCardCSS(cssText) {
             var style = document.getElementById('amgi-card-css');
             if (!style) return;
@@ -1221,12 +1280,13 @@ struct CardWebView: UIViewRepresentable {
         }
 
         // ── Public API called from Swift via evaluateJavaScript ───────────────
-        function _showQuestion(html, prefetchHTML, bodyclass, autoplay, replayMode, alignTop, bodyPaddingBottom, cardPaddingBottom) {
+        function _showQuestion(html, prefetchHTML, bodyclass, autoplay, replayMode, alignTop, bodyPaddingBottom, cardPaddingBottom, lookupPopupEnabled) {
             amgiQueueAction(function() {
                 return amgiUpdateQA(
                     html,
                     {
                         isAnswerSide: false,
+                        lookupPopupEnabled: !!lookupPopupEnabled,
                         bodyClass: bodyclass,
                         autoplayEnabled: !!autoplay,
                         replayMode: replayMode || 'question',
@@ -1253,12 +1313,13 @@ struct CardWebView: UIViewRepresentable {
             });
         }
 
-        function _showAnswer(html, bodyclass, autoplay, replayMode, alignTop, bodyPaddingBottom, cardPaddingBottom) {
+        function _showAnswer(html, bodyclass, autoplay, replayMode, alignTop, bodyPaddingBottom, cardPaddingBottom, lookupPopupEnabled) {
             amgiQueueAction(function() {
                 return amgiUpdateQA(
                     html,
                     {
                         isAnswerSide: true,
+                        lookupPopupEnabled: !!lookupPopupEnabled,
                         bodyClass: bodyclass,
                         autoplayEnabled: !!autoplay,
                         replayMode: replayMode || 'answerOnly',
@@ -1299,6 +1360,7 @@ struct CardWebView: UIViewRepresentable {
         prefetchHTML: String?,
         cardCSS: String,
         isAnswerSide: Bool,
+        lookupPopupEnabled: Bool,
         bodyClass: String,
         autoplayEnabled: Bool,
         replayMode: String,
@@ -1309,14 +1371,15 @@ struct CardWebView: UIViewRepresentable {
         let htmlLit = jsStringLiteral(processedHTML)
         let cssLit = jsStringLiteral(cardCSS)
         let autoplay = autoplayEnabled ? "true" : "false"
+        let lookupEnabled = lookupPopupEnabled ? "true" : "false"
         let alignTopStr = alignTop ? "true" : "false"
         let applyCSS = "amgiSetCardCSS(\(cssLit));"
 
         if isAnswerSide {
-            return applyCSS + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
+            return applyCSS + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         } else {
             let prefetchLit = jsStringLiteral(prefetchHTML ?? "")
-            return applyCSS + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom)" + ");"
+            return applyCSS + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         }
     }
 
@@ -1529,17 +1592,20 @@ struct CardWebView: UIViewRepresentable {
         let onTypedAnswerSubmitted: ((String?) -> Void)?
         private let onAudioStateChange: ((Bool) -> Void)?
         private let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
+        private let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
         private var lastThemePayload: String?
         private let speechSynthesizer = AVSpeechSynthesizer()
 
         init(
             onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
             onAudioStateChange: ((Bool) -> Void)? = nil,
-            onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil
+            onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil,
+            onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil
         ) {
             self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
             self.onAudioStateChange = onAudioStateChange
             self.onCardBackgroundColorChange = onCardBackgroundColorChange
+            self.onLookupRequested = onLookupRequested
             super.init()
             speechSynthesizer.delegate = self
         }
@@ -1584,6 +1650,16 @@ struct CardWebView: UIViewRepresentable {
                 lastThemePayload = payload
                 guard let color = Self.parseCSSColor(colorString) else { return }
                 onCardBackgroundColorChange?(color, isDark)
+                return
+            }
+
+            if message.name == "amgiLookupText" {
+                guard let body = message.body as? [String: Any] else { return }
+                let text = body["text"] as? String
+                let sentence = body["sentence"] as? String
+                let x = (body["x"] as? NSNumber).map { CGFloat(truncating: $0) } ?? 0
+                let y = (body["y"] as? NSNumber).map { CGFloat(truncating: $0) } ?? 0
+                onLookupRequested?(text, sentence, CGPoint(x: x, y: y))
                 return
             }
 

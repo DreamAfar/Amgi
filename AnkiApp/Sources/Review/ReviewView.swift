@@ -19,6 +19,7 @@ struct ReviewView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.cardClient) var cardClient
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
 
     @State private var session: ReviewSession
     @State private var editingNote: NoteRecord?
@@ -50,6 +51,9 @@ struct ReviewView: View {
     @State private var cardChromeUIColor: UIColor = .systemBackground
     @State private var cardChromeIsDark = false
     @State private var autoAdvanceDeadline: Date?
+    @State private var lookupStack: [ReaderLookupPopupState] = []
+    @State private var lookupErrorMessage: String?
+    @State private var showLookupError = false
 
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var prefShowContextMenuButton = true
@@ -63,10 +67,30 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var prefAutoMatchCardBackground = true
+    @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
+    @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
+    @AppStorage(ReaderPreferences.Keys.popupFrequencyFontSize) private var popupFrequencyFontSize = 13
+    @AppStorage(ReaderPreferences.Keys.popupContentFontSize) private var popupContentFontSize = 14
+    @AppStorage(ReaderPreferences.Keys.popupDictionaryNameFontSize) private var popupDictionaryNameFontSize = 13
+    @AppStorage(ReaderPreferences.Keys.popupKanaFontSize) private var popupKanaFontSize = 14
+    @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
+    @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
+    @AppStorage(ReaderPreferences.Keys.popupCollapseDictionaries) private var popupCollapseDictionaries = false
+    @AppStorage(ReaderPreferences.Keys.popupCompactGlossaries) private var popupCompactGlossaries = true
+    @AppStorage(ReaderPreferences.Keys.popupAudioSourceTemplate) private var popupAudioSourceTemplate = ReaderLookupAudioDefaults.defaultTemplate
+    @AppStorage(ReaderPreferences.Keys.popupLocalAudioEnabled) private var popupLocalAudioEnabled = false
+    @AppStorage(ReaderPreferences.Keys.popupAudioAutoplay) private var popupAudioAutoplay = false
+    @AppStorage(ReaderPreferences.Keys.popupAudioPlaybackMode) private var popupAudioPlaybackModeRawValue = ReaderLookupAudioPlaybackMode.interrupt.rawValue
+    @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var dictionaryMaxResults = 16
+    @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var dictionaryScanLength = 16
     @State private var actionBarHeight: CGFloat = 0
 
     private var prefCardContentAlignment: CardWebView.ContentAlignment {
         CardWebView.ContentAlignment(rawValue: prefCardContentAlignmentRaw) ?? .top
+    }
+
+    private var popupAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
+        ReaderLookupAudioDefaults.resolvedPlaybackMode(popupAudioPlaybackModeRawValue)
     }
 
     private var cardChromeColor: Color {
@@ -133,9 +157,13 @@ struct ReviewView: View {
             }
         }
         .onChange(of: session.currentCard?.card.id) { _, _ in
+            lookupStack.removeAll()
             scheduleAutoAdvanceIfNeeded()
         }
         .onChange(of: session.showAnswer) { _, _ in
+            if session.showAnswer == false {
+                lookupStack.removeAll()
+            }
             scheduleAutoAdvanceIfNeeded()
         }
         .onChange(of: isAudioPlaying) { _, _ in
@@ -262,6 +290,11 @@ struct ReviewView: View {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
             Text(undoErrorMessage ?? L("common_unknown_error"))
+        }
+        .alert(L("common_error"), isPresented: $showLookupError) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(lookupErrorMessage ?? L("common_unknown_error"))
         }
         .alert(L("browse_batch_delete_notes"), isPresented: $showDeleteNoteConfirm) {
             Button(L("common_cancel"), role: .cancel) {}
@@ -423,36 +456,43 @@ struct ReviewView: View {
             ? (session.includeQuestionAudioOnAnswerReplay ? .answerWithQuestion : .answerOnly)
             : .question
 
-        CardWebView(
-            html: cardHTML,
-            cardCSS: session.cardCSS,
-            autoplayEnabled: session.autoplayAudio,
-            isAnswerSide: session.showAnswer,
-            cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
-            replayRequestID: replayRequestID,
-            stopAudioRequestID: stopAudioRequestID,
-            typedAnswerRequestID: typedAnswerRequestID,
-            replayMode: replayMode,
-            showInlineAudioReplayButtons: prefShowAudioReplayButton,
-            openLinksExternally: prefOpenLinksExternally,
-            prefetchHTML: session.showAnswer ? nil : session.backHTML,
-            contentAlignment: prefCardContentAlignment,
-            bottomContentInset: actionBarHeight,
-            onTypedAnswerSubmitted: { typedAnswer in
-                session.revealAnswer(typedAnswer: typedAnswer)
-            },
-            onAudioStateChange: { isPlaying in
-                Task { @MainActor in
-                    self.isAudioPlaying = isPlaying
+        ZStack {
+            CardWebView(
+                html: cardHTML,
+                cardCSS: session.cardCSS,
+                autoplayEnabled: session.autoplayAudio,
+                isAnswerSide: session.showAnswer,
+                cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
+                replayRequestID: replayRequestID,
+                stopAudioRequestID: stopAudioRequestID,
+                typedAnswerRequestID: typedAnswerRequestID,
+                replayMode: replayMode,
+                showInlineAudioReplayButtons: prefShowAudioReplayButton,
+                openLinksExternally: prefOpenLinksExternally,
+                prefetchHTML: session.showAnswer ? nil : session.backHTML,
+                contentAlignment: prefCardContentAlignment,
+                bottomContentInset: actionBarHeight,
+                onTypedAnswerSubmitted: { typedAnswer in
+                    session.revealAnswer(typedAnswer: typedAnswer)
+                },
+                onAudioStateChange: { isPlaying in
+                    Task { @MainActor in
+                        self.isAudioPlaying = isPlaying
+                    }
+                },
+                onCardBackgroundColorChange: { color, isDark in
+                    Task { @MainActor in
+                        self.cardChromeUIColor = color
+                        self.cardChromeIsDark = isDark
+                    }
+                },
+                onLookupRequested: { selection, sentence, point in
+                    handleCardLookup(selection, sentence: sentence, at: point)
                 }
-            },
-            onCardBackgroundColorChange: { color, isDark in
-                Task { @MainActor in
-                    self.cardChromeUIColor = color
-                    self.cardChromeIsDark = isDark
-                }
-            }
-        )
+            )
+
+            reviewLookupOverlay
+        }
         .overlay(alignment: .bottom) {
             cardActionBar
                 .onGeometryChange(for: CGFloat.self) { geo in
@@ -536,6 +576,150 @@ struct ReviewView: View {
         // opaque strip over the card content again. The surrounding review screen
         // still provides the toolbar/safe-area chrome color.
         .background(.clear)
+    }
+
+    @ViewBuilder
+    private var reviewLookupOverlay: some View {
+        if lookupStack.isEmpty == false {
+            GeometryReader { geometry in
+                ZStack {
+                    Color.black.opacity(0.001)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            lookupStack.removeAll()
+                        }
+
+                    ForEach(Array(lookupStack.enumerated()), id: \.element.id) { index, popup in
+                        ReaderLookupPopup(
+                            query: popup.query,
+                            result: popup.result,
+                            isLoading: popup.isLoading,
+                            sentence: popup.sentence,
+                            languageHint: nil,
+                            popupWidth: CGFloat(popupWidth),
+                            popupHeight: CGFloat(popupHeight),
+                            popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
+                            popupContentFontSize: CGFloat(popupContentFontSize),
+                            popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
+                            popupKanaFontSize: CGFloat(popupKanaFontSize),
+                            isFullWidth: popupFullWidth,
+                            swipeToDismiss: popupSwipeToDismiss,
+                            collapseDictionaries: popupCollapseDictionaries,
+                            compactGlossaries: popupCompactGlossaries,
+                            audioSourceTemplate: popupAudioSourceTemplate,
+                            localAudioEnabled: popupLocalAudioEnabled,
+                            audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
+                            audioPlaybackMode: popupAudioPlaybackMode,
+                            onAddNote: nil,
+                            onLookupRequested: { query, sentence in
+                                startCardLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)
+                            },
+                            onClose: {
+                                removeLookupPopup(id: popup.id)
+                            }
+                        )
+                        .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
+                        .padding(.horizontal, 14)
+                        .position(
+                            lookupPopupPosition(
+                                in: geometry.size,
+                                anchor: popup.anchor,
+                                stackDepth: index
+                            )
+                        )
+                        .zIndex(Double(index))
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+            }
+        }
+    }
+
+    private func handleCardLookup(_ selection: String?, sentence: String?, at point: CGPoint) {
+        guard session.showAnswer,
+              let query = normalizedLookupText(selection) else {
+            return
+        }
+        startCardLookup(for: query, sentence: sentence, anchor: point)
+    }
+
+    private func startCardLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil, stacksOnTop: Bool = false) {
+        let popup = ReaderLookupPopupState(
+            query: query,
+            sentence: normalizedLookupText(sentence),
+            anchor: anchor,
+            isLoading: true
+        )
+
+        if stacksOnTop {
+            lookupStack.append(popup)
+        } else {
+            lookupStack = [popup]
+        }
+
+        Task {
+            do {
+                let result = try await dictionaryLookupClient.lookup(
+                    query,
+                    dictionaryMaxResults,
+                    dictionaryScanLength
+                )
+                updateLookupPopup(id: popup.id, result: result, isLoading: false)
+            } catch {
+                removeLookupPopup(id: popup.id)
+                lookupErrorMessage = error.localizedDescription
+                showLookupError = true
+            }
+        }
+    }
+
+    private func updateLookupPopup(id: UUID, result: DictionaryLookupResult, isLoading: Bool) {
+        guard let index = lookupStack.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+        lookupStack[index].result = result
+        lookupStack[index].isLoading = isLoading
+    }
+
+    private func removeLookupPopup(id: UUID) {
+        lookupStack.removeAll { $0.id == id }
+    }
+
+    private func normalizedLookupText(_ text: String?) -> String? {
+        let trimmed = text?
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func lookupPopupPosition(in size: CGSize, anchor: CGPoint?, stackDepth: Int) -> CGPoint {
+        let horizontalMargin: CGFloat = 18
+        let bottomInset = max(actionBarHeight, 28)
+        let popupResolvedWidth = popupFullWidth
+            ? max(size.width - horizontalMargin * 2, 0)
+            : min(CGFloat(popupWidth), max(size.width - horizontalMargin * 2, 0))
+        let popupHalfWidth = popupResolvedWidth / 2
+        let popupHalfHeight = min(CGFloat(popupHeight) / 2, max(size.height / 2 - 56, 132))
+        let stackedOffset = CGFloat(stackDepth) * min(36, popupHalfHeight * 0.22)
+
+        guard popupFullWidth == false, let anchor else {
+            return CGPoint(
+                x: size.width / 2,
+                y: max(24 + popupHalfHeight, size.height - bottomInset - popupHalfHeight - 20 - stackedOffset)
+            )
+        }
+
+        let proposedBottomY = anchor.y + popupHalfHeight + 26 - stackedOffset
+        let fallbackTopY = anchor.y - popupHalfHeight - 26 - stackedOffset
+        let minY = 24 + popupHalfHeight
+        let maxY = size.height - bottomInset - popupHalfHeight - 20
+        let resolvedY = proposedBottomY <= maxY ? proposedBottomY : max(fallbackTopY, minY)
+        let resolvedX = min(
+            max(anchor.x, popupHalfWidth + horizontalMargin),
+            size.width - popupHalfWidth - horizontalMargin
+        )
+
+        return CGPoint(x: resolvedX, y: resolvedY)
     }
 
     private var answerButtons: some View {

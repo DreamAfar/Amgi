@@ -20,7 +20,8 @@ struct ReaderLookupRichEntriesView: View {
     let audioAutoplay: Bool
     let audioPlaybackMode: ReaderLookupAudioPlaybackMode
     let sentence: String?
-    let onAddNote: (ReaderLookupNotePayload) -> Void
+    let onAddNote: ((ReaderLookupNotePayload) -> Void)?
+    let onLookupRequested: (String, String?) -> Void
 
     @State private var autoplayedEntryID: String?
 
@@ -50,7 +51,8 @@ struct ReaderLookupRichEntriesView: View {
                     onAutoplayConsumed: {
                         autoplayedEntryID = entry.id
                     },
-                    onAddNote: onAddNote
+                    onAddNote: onAddNote,
+                    onLookupRequested: onLookupRequested
                 )
             }
         }
@@ -76,7 +78,8 @@ private struct ReaderLookupEntryRichView: View {
     let sentence: String?
     let shouldAutoplay: Bool
     let onAutoplayConsumed: () -> Void
-    let onAddNote: (ReaderLookupNotePayload) -> Void
+    let onAddNote: ((ReaderLookupNotePayload) -> Void)?
+    let onLookupRequested: (String, String?) -> Void
 
     @State private var isResolvingAudio = false
 
@@ -165,15 +168,17 @@ private struct ReaderLookupEntryRichView: View {
                     }
                     .buttonStyle(.plain)
 
-                    Button {
-                        onAddNote(notePayload)
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: max(14, contentFontSize), weight: .medium))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                            .frame(width: 32, height: 32)
+                    if let onAddNote {
+                        Button {
+                            onAddNote(notePayload)
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: max(14, contentFontSize), weight: .medium))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .frame(width: 32, height: 32)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
 
@@ -210,7 +215,8 @@ private struct ReaderLookupEntryRichView: View {
                         dictionaryStyle: dictionaryStyles[group.dictionary] ?? "",
                         dictionaryNameFontSize: dictionaryNameFontSize,
                         collapseByDefault: collapseDictionaries && index > 0,
-                        compactGlossaries: compactGlossaries
+                        compactGlossaries: compactGlossaries,
+                        onLookupRequested: onLookupRequested
                     )
                 }
             } else if entry.glossaries.isEmpty == false {
@@ -262,6 +268,7 @@ private struct ReaderLookupGlossaryGroupView: View {
     let dictionaryNameFontSize: CGFloat
     let collapseByDefault: Bool
     let compactGlossaries: Bool
+    let onLookupRequested: (String, String?) -> Void
 
     @State private var isExpanded = true
 
@@ -271,7 +278,8 @@ private struct ReaderLookupGlossaryGroupView: View {
                 dictionary: dictionary,
                 glossaries: glossaries,
                 dictionaryStyle: dictionaryStyle,
-                compactGlossaries: compactGlossaries
+                compactGlossaries: compactGlossaries,
+                onLookupRequested: onLookupRequested
             )
             .frame(maxWidth: .infinity, minHeight: 40)
         } label: {
@@ -293,6 +301,7 @@ private struct ReaderLookupStructuredGlossaryWebView: UIViewRepresentable {
     let glossaries: [DictionaryLookupGlossary]
     let dictionaryStyle: String
     let compactGlossaries: Bool
+    let onLookupRequested: (String, String?) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -300,6 +309,7 @@ private struct ReaderLookupStructuredGlossaryWebView: UIViewRepresentable {
             glossaries: glossaries,
             dictionaryStyle: dictionaryStyle,
             compactGlossaries: compactGlossaries,
+            onLookupRequested: onLookupRequested,
             loadMediaData: { dictionary, mediaPath in
                 try await dictionaryLookupClient.mediaFile(dictionary, mediaPath)
             }
@@ -311,6 +321,7 @@ private struct ReaderLookupStructuredGlossaryWebView: UIViewRepresentable {
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.setURLSchemeHandler(context.coordinator, forURLScheme: "image")
         configuration.userContentController.add(context.coordinator, name: "openLink")
+        configuration.userContentController.add(context.coordinator, name: "lookupText")
 
         let webView = ReaderLookupSizingWebView(frame: .zero, configuration: configuration)
         webView.isOpaque = false
@@ -334,6 +345,7 @@ private struct ReaderLookupStructuredGlossaryWebView: UIViewRepresentable {
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "openLink")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "lookupText")
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKURLSchemeHandler {
@@ -344,6 +356,7 @@ private struct ReaderLookupStructuredGlossaryWebView: UIViewRepresentable {
         private var glossaries: [DictionaryLookupGlossary]
         private var dictionaryStyle: String
         private var compactGlossaries: Bool
+        private let onLookupRequested: (String, String?) -> Void
         private let loadMediaData: @Sendable (String, String) async throws -> Data
 
         init(
@@ -351,12 +364,14 @@ private struct ReaderLookupStructuredGlossaryWebView: UIViewRepresentable {
             glossaries: [DictionaryLookupGlossary],
             dictionaryStyle: String,
             compactGlossaries: Bool,
+            onLookupRequested: @escaping (String, String?) -> Void,
             loadMediaData: @escaping @Sendable (String, String) async throws -> Data
         ) {
             self.dictionary = dictionary
             self.glossaries = glossaries
             self.dictionaryStyle = dictionaryStyle
             self.compactGlossaries = compactGlossaries
+            self.onLookupRequested = onLookupRequested
             self.loadMediaData = loadMediaData
             super.init()
             html = Self.makeHTML(
@@ -408,6 +423,15 @@ private struct ReaderLookupStructuredGlossaryWebView: UIViewRepresentable {
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "lookupText" {
+                guard let payload = message.body as? [String: Any],
+                      let text = (payload["text"] as? String)?.nilIfBlank else {
+                    return
+                }
+                onLookupRequested(text, payload["sentence"] as? String)
+                return
+            }
+
             guard message.name == "openLink",
                   let urlString = message.body as? String,
                   let url = URL(string: urlString) else {

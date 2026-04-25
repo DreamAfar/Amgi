@@ -86,6 +86,67 @@ function openExternalLink(url) {
     webkit.messageHandlers.openLink.postMessage(url);
 }
 
+function postLookupText(text, sentence = '') {
+    const normalized = (text || '').trim();
+    if (!normalized) {
+        return false;
+    }
+    webkit.messageHandlers.lookupText?.postMessage({text: normalized, sentence});
+    return true;
+}
+
+function lookupTextFromHref(href, fallbackText = '') {
+    const fallback = (fallbackText || '').trim();
+    const rawHref = (href || '').trim();
+    if (!rawHref) {
+        return fallback;
+    }
+    try {
+        const queryText = rawHref.startsWith('?') ? rawHref.slice(1) : rawHref;
+        const params = new URLSearchParams(queryText);
+        for (const key of ['query', 'term', 'text', 'expression']) {
+            const value = params.get(key);
+            if (value?.trim()) {
+                return value.trim();
+            }
+        }
+    } catch {}
+    return decodeURIComponent(rawHref.replace(/^#/, '')).trim() || fallback;
+}
+
+function textNodeLookupPayloadAt(x, y, scanLength = 16) {
+    const range = document.caretRangeFromPoint?.(x, y) ??
+        (() => {
+            const position = document.caretPositionFromPoint?.(x, y);
+            if (!position) {
+                return null;
+            }
+            const nextRange = document.createRange();
+            nextRange.setStart(position.offsetNode, position.offset);
+            return nextRange;
+        })();
+    const node = range?.startContainer;
+    if (!node || node.nodeType !== Node.TEXT_NODE) {
+        return null;
+    }
+
+    const text = node.textContent || '';
+    let start = Math.min(range.startOffset, text.length);
+    let end = start;
+    const delimiters = ' \t\n\r。、！？…‥「」『』（）()【】〈〉《》〔〕｛｝{}［］[]・：；:;，,.─';
+    while (start > 0 && !delimiters.includes(text[start - 1]) && end - start < scanLength) {
+        start -= 1;
+    }
+    while (end < text.length && !delimiters.includes(text[end]) && end - start < scanLength) {
+        end += 1;
+    }
+    const selected = text.slice(start, end).trim();
+    if (!selected) {
+        return null;
+    }
+    return {text: selected, sentence: text.trim()};
+}
+
 function showDescription(element) {
     const description = element.getAttribute('data-description');
     if (!description) {
@@ -867,10 +928,11 @@ function renderStructuredContent(parent, node, language = null, dictName = null,
         const isExternal = /^https?:\/\//i.test(node.href);
         element.onclick = (e) => {
             e.preventDefault();
+            e.stopPropagation();
             if (isExternal) {
                 openExternalLink(node.href);
             } else {
-                // TODO: handle redirect to other entry
+                postLookupText(lookupTextFromHref(node.href, element.textContent));
             }
         };
     }
@@ -1366,12 +1428,21 @@ window.renderPopup = function() {
     container.addEventListener('click', (e) => {
         const target = e.target?.nodeType === Node.TEXT_NODE ? e.target.parentElement : e.target;
         if (!target?.closest('.glossary-content')) {
-            webkit.messageHandlers.tapOutside.postMessage(null);
+            webkit.messageHandlers.tapOutside?.postMessage(null);
             return;
         }
         const selected = window.hoshiSelection?.selectText(e.clientX, e.clientY, 16);
+        if (selected?.text) {
+            postLookupText(selected.text, selected.sentence || '');
+            return;
+        }
+        const payload = textNodeLookupPayloadAt(e.clientX, e.clientY, 16);
+        if (payload) {
+            postLookupText(payload.text, payload.sentence || '');
+            return;
+        }
         if (!selected) {
-            webkit.messageHandlers.tapOutside.postMessage(null);
+            webkit.messageHandlers.tapOutside?.postMessage(null);
             return;
         }
     });
