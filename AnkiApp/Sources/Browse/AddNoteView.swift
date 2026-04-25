@@ -22,6 +22,8 @@ struct AddNoteView: View {
     @State private var errorMessage: String?
     @State private var previewErrorMessage: String?
     @State private var showPreviewError = false
+    @State private var showPreviewSheet = false
+    @State private var previewNotetype: Anki_Notetypes_Notetype?
     @State private var shouldApplyDraftOnNextFieldLoad = false
 
     let onSave: () -> Void
@@ -122,8 +124,15 @@ struct AddNoteView: View {
                     Button(L("common_cancel")) { dismiss() }
                         .amgiToolbarTextButton(tone: .neutral)
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("card_template_preview_btn")) {
+                        showPreview()
+                    }
+                    .amgiToolbarTextButton(tone: .neutral)
+                    .disabled(selectedNotetypeId == 0 || fieldNames.isEmpty || isSaving)
+                }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L("add_note_button")) {
+                    Button(L("common_add")) {
                         Task { await save() }
                     }
                     .amgiToolbarTextButton()
@@ -137,6 +146,19 @@ struct AddNoteView: View {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {
                 Text(previewErrorMessage ?? L("common_unknown_error"))
+            }
+            .sheet(isPresented: $showPreviewSheet) {
+                if let previewNotetype {
+                    UncommittedCardPreviewSheet(
+                        title: L("note_editor_preview_title"),
+                        emptyMessage: L("note_editor_preview_empty_card"),
+                        notetype: previewNotetype,
+                        allowsTemplateSelection: true,
+                        loadPreviewNote: {
+                            buildPreviewNote()
+                        }
+                    )
+                }
             }
         }
     }
@@ -236,6 +258,25 @@ struct AddNoteView: View {
             previewErrorMessage = error.localizedDescription
             showPreviewError = true
         }
+    }
+
+    @MainActor
+    private func showPreview() {
+        guard selectedNotetypeId != 0 else { return }
+        do {
+            previewNotetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
+            showPreviewSheet = true
+        } catch {
+            previewErrorMessage = error.localizedDescription
+            showPreviewError = true
+        }
+    }
+
+    private func buildPreviewNote() -> Anki_Notes_Note {
+        var preview = makeEmptyCardPreviewNote(notetypeId: selectedNotetypeId, fieldCount: fieldNames.count)
+        preview.fields = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
+        preview.tags = tags.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        return preview
     }
 
     private func save() async {

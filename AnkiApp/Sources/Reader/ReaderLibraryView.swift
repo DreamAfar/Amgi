@@ -536,57 +536,86 @@ private struct ReaderBookDetailView: View {
     }
 
     var body: some View {
-        List {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
             if let resumeChapter {
-                Section {
-                    NavigationLink {
-                        ReaderChapterView(book: book, chapter: resumeChapter)
-                    } label: {
-                        Label(L("reader_book_continue"), systemImage: "book.fill")
-                            .foregroundStyle(Color.amgiTextPrimary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 18)
-                            .background(Color.amgiSurfaceElevated.opacity(0.72), in: Capsule())
+                NavigationLink {
+                    ReaderChapterView(book: book, chapter: resumeChapter)
+                } label: {
+                    HStack(spacing: 16) {
+                        Image(systemName: "book.fill")
+                            .font(.title2.weight(.semibold))
+                        Text(L("reader_book_continue"))
+                            .font(.headline)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(Color.amgiTextSecondary.opacity(0.62))
                     }
+                    .foregroundStyle(Color.amgiTextPrimary)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 22)
+                    .background(Color.amgiSurfaceElevated.opacity(0.72), in: Capsule())
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                .listRowBackground(Color.clear)
+                .buttonStyle(.plain)
             }
 
-            Section(L("reader_book_chapters", book.chapters.count)) {
-                ForEach(Array(book.chapters.enumerated()), id: \.element.id) { index, chapter in
-                    NavigationLink {
-                        ReaderChapterView(book: book, chapter: chapter)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Text("\(index + 1)")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Color.amgiAccent)
-                                .frame(width: 28, height: 28)
-                                .background(Color.amgiAccent.opacity(0.12), in: Circle())
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(chapter.title)
-                                    .foregroundStyle(Color.amgiTextPrimary)
-                                if let order = chapter.order {
-                                    Text(order)
-                                        .font(.caption)
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                        .lineLimit(1)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(L("reader_book_chapters", book.chapters.count))
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(Color.amgiTextSecondary)
+                        .padding(.leading, 4)
+
+                    VStack(spacing: 0) {
+                        ForEach(Array(book.chapters.enumerated()), id: \.element.id) { index, chapter in
+                            NavigationLink {
+                                ReaderChapterView(book: book, chapter: chapter)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Text("\(index + 1)")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(Color.amgiAccent)
+                                        .frame(width: 28, height: 28)
+                                        .background(Color.amgiAccent.opacity(0.12), in: Circle())
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(chapter.title)
+                                            .font(.headline)
+                                            .foregroundStyle(Color.amgiTextPrimary)
+                                        if let order = chapter.order {
+                                            Text(order)
+                                                .font(.caption)
+                                                .foregroundStyle(Color.amgiTextSecondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.headline.weight(.semibold))
+                                        .foregroundStyle(Color.amgiTextSecondary.opacity(0.62))
                                 }
+                                .padding(.horizontal, 28)
+                                .padding(.vertical, 18)
+                            }
+                            .buttonStyle(.plain)
+
+                            if index < book.chapters.count - 1 {
+                                Divider()
+                                    .padding(.leading, 68)
+                                    .padding(.trailing, 28)
+                                    .overlay(Color.amgiBorder.opacity(0.24))
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 14)
-                        .background(Color.amgiSurfaceElevated.opacity(0.72), in: Capsule())
                     }
-                    .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
-                    .listRowBackground(Color.clear)
+                    .background(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(Color.amgiSurfaceElevated.opacity(0.72))
+                    )
                 }
             }
+            .padding(.horizontal, 28)
+            .padding(.top, 44)
+            .padding(.bottom, 140)
         }
-        .scrollContentBackground(.hidden)
         .background(resolvedListBackground)
         .navigationTitle(book.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -1794,7 +1823,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
             clearSelection() {
                 window.getSelection()?.removeAllRanges();
-                CSS.highlights?.delete('amgi-reader-selection');
+                CSS.highlights?.clear();
                 this.selection = null;
             },
 

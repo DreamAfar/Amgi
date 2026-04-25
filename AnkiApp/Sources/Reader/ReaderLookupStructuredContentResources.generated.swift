@@ -339,6 +339,74 @@ function textNodeLookupPayloadAt(x, y, scanLength = 16) {
     return {text: selected, sentence: text.trim()};
 }
 
+function elementTextLookupPayloadAt(root, x, y, scanLength = 16) {
+    const contentRoot = root || document.body;
+    const walker = window.hoshiSelection?.createWalker(contentRoot);
+    if (!walker) {
+        return null;
+    }
+
+    let hitNode = null;
+    let hitOffset = -1;
+    let node;
+    const range = document.createRange();
+    while (node = walker.nextNode()) {
+        const text = node.textContent || '';
+        for (let offset = 0; offset < text.length; offset += 1) {
+            if (window.hoshiSelection.isScanBoundary(text[offset])) {
+                continue;
+            }
+            range.setStart(node, offset);
+            range.setEnd(node, offset + 1);
+            if (window.hoshiSelection.inCharRange(range, x, y)) {
+                hitNode = node;
+                hitOffset = offset;
+                break;
+            }
+        }
+        if (hitNode) {
+            break;
+        }
+    }
+
+    if (!hitNode) {
+        return null;
+    }
+
+    const nodes = [];
+    let hitIndex = -1;
+    const scanWalker = window.hoshiSelection.createWalker(contentRoot);
+    while (node = scanWalker.nextNode()) {
+        if (node === hitNode) {
+            hitIndex = nodes.length;
+        }
+        nodes.push(node);
+    }
+    if (hitIndex < 0) {
+        return null;
+    }
+
+    let selected = '';
+    for (let nodeIndex = hitIndex; nodeIndex < nodes.length && selected.length < scanLength; nodeIndex += 1) {
+        const text = nodes[nodeIndex].textContent || '';
+        const startOffset = nodeIndex === hitIndex ? hitOffset : 0;
+        for (let offset = startOffset; offset < text.length && selected.length < scanLength; offset += 1) {
+            const character = text[offset];
+            if (window.hoshiSelection.isScanBoundary(character)) {
+                nodeIndex = nodes.length;
+                break;
+            }
+            selected += character;
+        }
+    }
+
+    selected = selected.trim();
+    if (!selected) {
+        return null;
+    }
+    return {text: selected, sentence: (contentRoot.textContent || '').trim()};
+}
+
 function showDescription(element) {
     const description = element.getAttribute('data-description');
     if (!description) {
@@ -1623,9 +1691,15 @@ window.renderPopup = function() {
             webkit.messageHandlers.tapOutside?.postMessage(null);
             return;
         }
+        const glossaryRoot = target.closest('.glossary-content');
         const selected = window.hoshiSelection?.selectText(e.clientX, e.clientY, 16);
         if (selected?.text) {
             postLookupText(selected.text, selected.sentence || '');
+            return;
+        }
+        const elementPayload = elementTextLookupPayloadAt(glossaryRoot, e.clientX, e.clientY, 16);
+        if (elementPayload) {
+            postLookupText(elementPayload.text, elementPayload.sentence || '');
             return;
         }
         const payload = textNodeLookupPayloadAt(e.clientX, e.clientY, 16);
