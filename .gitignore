@@ -12,5 +12,6 @@ docs/
 .qwen/
 Tests/
 .vscode
+.codex
 .github/copilot-instructions.md
 Hoshi-Reader
