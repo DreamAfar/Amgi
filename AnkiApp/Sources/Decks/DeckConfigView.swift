@@ -1,4 +1,8 @@
 import SwiftUI
+#if os(iOS)
+import AudioToolbox
+import UIKit
+#endif
 import AnkiClients
 import AnkiKit
 import AnkiProto
@@ -387,6 +391,80 @@ struct DeckConfigView: View {
         .amgiCapsuleControl()
     }
 
+    private func editableNumberStepper(
+        _ value: Binding<Int32>,
+        in range: ClosedRange<Int32>,
+        unitFormatKey: String? = nil
+    ) -> some View {
+        let boundedValue = Binding<Int32>(
+            get: { value.wrappedValue },
+            set: { value.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }
+        )
+
+        return Stepper(value: boundedValue, in: range) {
+            HStack(spacing: 4) {
+                TextField("", value: boundedValue, format: .number)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .font(.monospaced(.body)())
+                    .frame(minWidth: 52, idealWidth: 72, maxWidth: 96)
+
+                if let unitFormatKey {
+                    Text(unitLabel(from: unitFormatKey))
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+        }
+        .foregroundStyle(Color.amgiAccent)
+    }
+
+    private func unitLabel(from formatKey: String) -> String {
+        L(formatKey, 1)
+            .replacingOccurrences(of: "1", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func percentWheelPicker(
+        _ title: String,
+        value: Binding<Double>,
+        in range: ClosedRange<Int>
+    ) -> some View {
+        let intValue = Binding<Int>(
+            get: { Int(value.wrappedValue.rounded()) },
+            set: { value.wrappedValue = Double(min(max($0, range.lowerBound), range.upperBound)) }
+        )
+
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text("\(intValue.wrappedValue)%")
+                    .foregroundStyle(Color.amgiAccent)
+                    .monospacedDigit()
+            }
+
+            Picker(title, selection: intValue) {
+                ForEach(Array(range), id: \.self) { percent in
+                    Text("\(percent)%")
+                        .tag(percent)
+                }
+            }
+            .pickerStyle(.wheel)
+            .frame(height: 96)
+            .clipped()
+            .onChange(of: intValue.wrappedValue) { _, _ in
+                wheelPickerFeedback()
+            }
+        }
+    }
+
+    private func wheelPickerFeedback() {
+        #if os(iOS)
+        UISelectionFeedbackGenerator().selectionChanged()
+        AudioServicesPlaySystemSound(1104)
+        #endif
+    }
+
     // MARK: - Extracted Sections
 
     private var basicSection: some View {
@@ -461,16 +539,13 @@ struct DeckConfigView: View {
     private var dailyLimitsSection: some View {
         Section(L("deck_config_section_daily")) {
             LabeledContent(L("deck_config_daily_new")) {
-                Stepper("\(newCardsPerDay)", value: $newCardsPerDay, in: 0...1000)
-                    .foregroundStyle(Color.amgiAccent)
+                editableNumberStepper($newCardsPerDay, in: 0...9999)
             }
             LabeledContent(L("deck_config_daily_review")) {
-                Stepper("\(reviewsPerDay)", value: $reviewsPerDay, in: 0...10000)
-                    .foregroundStyle(Color.amgiAccent)
+                editableNumberStepper($reviewsPerDay, in: 0...9999)
             }
             LabeledContent(L("deck_config_new_per_day_minimum")) {
-                Stepper("\(newPerDayMinimum)", value: $newPerDayMinimum, in: 0...1000)
-                    .foregroundStyle(Color.amgiAccent)
+                editableNumberStepper($newPerDayMinimum, in: 0...9999)
             }
             Toggle(L("deck_config_new_cards_ignore_review_limit"), isOn: $newCardsIgnoreReviewLimit)
             Toggle(L("deck_config_apply_all_parent_limits"), isOn: $applyAllParentLimits)
@@ -487,12 +562,10 @@ struct DeckConfigView: View {
                     .foregroundStyle(Color.amgiAccent)
             }
             LabeledContent(L("deck_config_good_interval")) {
-                Stepper(L("deck_config_days_fmt", graduatingGoodDays), value: $graduatingGoodDays, in: 0...365)
-                    .foregroundStyle(Color.amgiAccent)
+                editableNumberStepper($graduatingGoodDays, in: 0...365, unitFormatKey: "deck_config_days_fmt")
             }
             LabeledContent(L("deck_config_easy_interval")) {
-                Stepper(L("deck_config_days_fmt", graduatingEasyDays), value: $graduatingEasyDays, in: 0...365)
-                    .foregroundStyle(Color.amgiAccent)
+                editableNumberStepper($graduatingEasyDays, in: 0...365, unitFormatKey: "deck_config_days_fmt")
             }
             LabeledContent(L("deck_config_insert_order")) {
                 Menu {
@@ -517,8 +590,7 @@ struct DeckConfigView: View {
                     .foregroundStyle(Color.amgiAccent)
             }
             LabeledContent(L("deck_config_leech_threshold")) {
-                Stepper(L("deck_config_times_fmt", leechThreshold), value: $leechThreshold, in: 1...50)
-                    .foregroundStyle(Color.amgiAccent)
+                editableNumberStepper($leechThreshold, in: 1...9999, unitFormatKey: "deck_config_times_fmt")
             }
             LabeledContent(L("deck_config_leech_action")) {
                 Menu {
@@ -851,8 +923,7 @@ struct DeckConfigView: View {
         Section(L("deck_config_section_timer")) {
             Toggle(L("deck_config_show_timer"), isOn: $showTimer)
             LabeledContent(L("deck_config_timer_cap")) {
-                Stepper(L("deck_config_seconds_fmt", capAnswerTimeToSecs), value: $capAnswerTimeToSecs, in: 5...600)
-                    .foregroundStyle(Color.amgiAccent)
+                editableNumberStepper($capAnswerTimeToSecs, in: 5...600, unitFormatKey: "deck_config_seconds_fmt")
             }
             Toggle(L("deck_config_stop_timer_on_answer"), isOn: $stopTimerOnAnswer)
         }
@@ -914,63 +985,16 @@ struct DeckConfigView: View {
             Toggle(L("deck_config_wait_audio"), isOn: $waitForAudio)
             Toggle(L("deck_config_skip_question_audio"), isOn: $skipQuestionWhenReplayingAnswer)
             LabeledContent(L("deck_config_max_interval")) {
-                Stepper(L("deck_config_days_fmt", maximumReviewIntervalDays), value: $maximumReviewIntervalDays, in: 1...36500)
-                    .foregroundStyle(Color.amgiAccent)
+                editableNumberStepper($maximumReviewIntervalDays, in: 1...36500, unitFormatKey: "deck_config_days_fmt")
             }
             LabeledContent(L("deck_config_minimum_lapse_interval")) {
-                Stepper(L("deck_config_days_fmt", minimumLapseIntervalDays), value: $minimumLapseIntervalDays, in: 1...36500)
-                    .foregroundStyle(Color.amgiAccent)
+                editableNumberStepper($minimumLapseIntervalDays, in: 1...36500, unitFormatKey: "deck_config_days_fmt")
             }
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(L("deck_config_initial_ease"))
-                    Spacer()
-                    Text("\(Int(initialEasePercent))%")
-                        .foregroundStyle(Color.amgiAccent)
-                }
-                Slider(value: $initialEasePercent, in: 130...400, step: 1)
-                    .tint(Color.amgiAccent)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(L("deck_config_interval_mult"))
-                    Spacer()
-                    Text("\(Int(intervalMultiplierPercent))%")
-                        .foregroundStyle(Color.amgiAccent)
-                }
-                Slider(value: $intervalMultiplierPercent, in: 50...200, step: 1)
-                    .tint(Color.amgiAccent)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(L("deck_config_lapse_multiplier"))
-                    Spacer()
-                    Text("\(Int(lapseMultiplierPercent))%")
-                        .foregroundStyle(Color.amgiAccent)
-                }
-                Slider(value: $lapseMultiplierPercent, in: 0...100, step: 1)
-                    .tint(Color.amgiAccent)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(L("deck_config_hard_mult"))
-                    Spacer()
-                    Text("\(Int(hardMultiplierPercent))%")
-                        .foregroundStyle(Color.amgiAccent)
-                }
-                Slider(value: $hardMultiplierPercent, in: 80...200, step: 1)
-                    .tint(Color.amgiAccent)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(L("deck_config_easy_mult"))
-                    Spacer()
-                    Text("\(Int(easyMultiplierPercent))%")
-                        .foregroundStyle(Color.amgiAccent)
-                }
-                Slider(value: $easyMultiplierPercent, in: 100...300, step: 1)
-                    .tint(Color.amgiAccent)
-            }
+            percentWheelPicker(L("deck_config_initial_ease"), value: $initialEasePercent, in: 130...400)
+            percentWheelPicker(L("deck_config_interval_mult"), value: $intervalMultiplierPercent, in: 50...200)
+            percentWheelPicker(L("deck_config_lapse_multiplier"), value: $lapseMultiplierPercent, in: 0...100)
+            percentWheelPicker(L("deck_config_hard_mult"), value: $hardMultiplierPercent, in: 80...200)
+            percentWheelPicker(L("deck_config_easy_mult"), value: $easyMultiplierPercent, in: 100...300)
         }
         .listRowBackground(Color.amgiSurfaceElevated)
     }
@@ -978,19 +1002,14 @@ struct DeckConfigView: View {
     private var easyDaysSection: some View {
         Section(L("deck_config_section_easy_days")) {
             ForEach(0..<7, id: \.self) { idx in
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(weekdayName(idx))
-                        Spacer()
-                        Text("\(Int(easyDayPercentages[idx]))%")
-                            .foregroundStyle(Color.amgiAccent)
-                    }
-                    Slider(value: Binding(
+                percentWheelPicker(
+                    weekdayName(idx),
+                    value: Binding(
                         get: { easyDayPercentages[idx] },
                         set: { easyDayPercentages[idx] = $0 }
-                    ), in: 50...150, step: 1)
-                    .tint(Color.amgiAccent)
-                }
+                    ),
+                    in: 50...150
+                )
                 .padding(.vertical, 2)
             }
         }
