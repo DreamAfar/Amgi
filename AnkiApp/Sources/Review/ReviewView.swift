@@ -4,6 +4,7 @@ import AVFAudio
 import AnkiBackend
 import AnkiKit
 import AnkiClients
+import AnkiReader
 import AnkiProto
 import SwiftProtobuf
 import Dependencies
