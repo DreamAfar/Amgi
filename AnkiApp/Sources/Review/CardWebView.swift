@@ -476,37 +476,39 @@ struct CardWebView: UIViewRepresentable {
         function amgiIsLatinLookupChar(character) {
             return /^[A-Za-z0-9]$/.test(character || '');
         }
+        function amgiFlattenedLookupItems(root) {
+            var walker = amgiLookupTextWalker(root);
+            var items = [];
+            var node;
+            while (node = walker.nextNode()) {
+                var content = node.textContent || '';
+                for (var index = 0; index < content.length; index++) {
+                    items.push({ node: node, offset: index, character: content[index] });
+                }
+            }
+            return items;
+        }
         function amgiLatinWordPayloadAt(nodeInfo, hit, maxLength) {
-            var selected = '';
-            var backward = '';
-
-            for (var backIndex = nodeInfo.hitIndex; backIndex >= 0 && backward.length < maxLength; backIndex--) {
-                var backText = nodeInfo.nodes[backIndex].textContent || '';
-                var backOffset = backIndex === nodeInfo.hitIndex ? hit.offset - 1 : backText.length - 1;
-                for (var b = backOffset; b >= 0 && backward.length + selected.length < maxLength; b--) {
-                    var backChar = backText[b];
-                    if (!amgiIsLatinLookupChar(backChar)) {
-                        backIndex = -1;
-                        break;
-                    }
-                    backward = backChar + backward;
+            var items = amgiFlattenedLookupItems(amgiLookupContainerForNode(hit.node));
+            var hitIndex = -1;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].node === hit.node && items[i].offset === hit.offset) {
+                    hitIndex = i;
+                    break;
                 }
             }
+            if (hitIndex < 0) return '';
 
-            for (var forwardIndex = nodeInfo.hitIndex; forwardIndex < nodeInfo.nodes.length && backward.length + selected.length < maxLength; forwardIndex++) {
-                var forwardText = nodeInfo.nodes[forwardIndex].textContent || '';
-                var forwardOffset = forwardIndex === nodeInfo.hitIndex ? hit.offset : 0;
-                for (var f = forwardOffset; f < forwardText.length && backward.length + selected.length < maxLength; f++) {
-                    var forwardChar = forwardText[f];
-                    if (!amgiIsLatinLookupChar(forwardChar)) {
-                        forwardIndex = nodeInfo.nodes.length;
-                        break;
-                    }
-                    selected += forwardChar;
-                }
+            var start = hitIndex;
+            var end = hitIndex;
+            while (start > 0 && end - (start - 1) + 1 <= maxLength && amgiIsLatinLookupChar(items[start - 1].character)) {
+                start--;
+            }
+            while (end + 1 < items.length && (end + 1) - start + 1 <= maxLength && amgiIsLatinLookupChar(items[end + 1].character)) {
+                end++;
             }
 
-            return (backward + selected).trim();
+            return items.slice(start, end + 1).map(function(item) { return item.character; }).join('').trim();
         }
         function amgiLookupRangeRect(node, start, end) {
             var range = document.createRange();
@@ -569,38 +571,6 @@ struct CardWebView: UIViewRepresentable {
 
             return chars.slice(start, end + 1).map(function(item) { return item.character; }).join('');
         }
-        function amgiNativeLatinWordPayloadFromOffset(hit, offset, maxLength, moveBackward) {
-            var selection = window.getSelection && window.getSelection();
-            if (!selection || !selection.modify) return '';
-
-            var content = hit.node.textContent || '';
-            var caretOffset = Math.min(Math.max(offset, 0), content.length);
-            var caretRange = document.createRange();
-            caretRange.setStart(hit.node, caretOffset);
-            caretRange.collapse(true);
-
-            try {
-                selection.removeAllRanges();
-                selection.addRange(caretRange);
-                if (moveBackward) selection.modify('move', 'backward', 'word');
-                selection.modify('extend', 'forward', 'word');
-            } catch (_) {
-                selection.removeAllRanges();
-                return '';
-            }
-
-            if (!selection.rangeCount) return '';
-            var rawText = selection.getRangeAt(0).toString() || '';
-            selection.removeAllRanges();
-
-            var match = rawText.match(/[A-Za-z0-9]+(?:[A-Za-z0-9'-]*[A-Za-z0-9])?/);
-            return match ? match[0].slice(0, maxLength) : '';
-        }
-        function amgiNativeLatinWordPayloadAt(hit, maxLength) {
-            var fromStart = amgiNativeLatinWordPayloadFromOffset(hit, hit.offset, maxLength, false);
-            var fromAfter = amgiNativeLatinWordPayloadFromOffset(hit, hit.offset + 1, maxLength, true);
-            return fromStart.length >= fromAfter.length ? fromStart : fromAfter;
-        }
         function amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters) {
             var selected = '';
 
@@ -651,7 +621,7 @@ struct CardWebView: UIViewRepresentable {
             var hitText = hit.node.textContent || '';
             var hitChar = hitText[hit.offset] || '';
             var selected = amgiIsLatinLookupChar(hitChar)
-                ? (amgiNativeLatinWordPayloadAt(hit, maxLength) || amgiLatinWordPayloadAt(nodeInfo, hit, maxLength))
+                ? amgiLatinWordPayloadAt(nodeInfo, hit, maxLength)
                 : amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters);
             if (amgiIsLatinLookupChar(hitChar) && selected.length === 1) {
                 var bodyNodeInfo = amgiLookupNodesInContainer(document.body, hit.node);

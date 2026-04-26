@@ -1950,67 +1950,19 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return text ? { text, ranges: this.rangesFromVisualItems(selected) } : null;
             },
 
-            nativeLatinSelectionFromOffset(container, hit, offset, maxLength, moveBackward) {
-                const selection = window.getSelection();
-                if (!selection?.modify) {
-                    return null;
-                }
+            flattenedTextItems(container) {
+                const walker = this.createWalker(container);
+                const items = [];
+                let node;
 
-                const content = hit.node.textContent || '';
-                const caretOffset = Math.min(Math.max(offset, 0), content.length);
-                const caretRange = document.createRange();
-                caretRange.setStart(hit.node, caretOffset);
-                caretRange.collapse(true);
-
-                try {
-                    selection.removeAllRanges();
-                    selection.addRange(caretRange);
-                    if (moveBackward) {
-                        selection.modify('move', 'backward', 'word');
+                while ((node = walker.nextNode())) {
+                    const content = node.textContent || '';
+                    for (let index = 0; index < content.length; index += 1) {
+                        items.push({ node, offset: index, character: content[index] });
                     }
-                    selection.modify('extend', 'forward', 'word');
-                } catch (_) {
-                    selection.removeAllRanges();
-                    return null;
                 }
 
-                if (!selection.rangeCount) {
-                    return null;
-                }
-
-                const selectedRange = selection.getRangeAt(0).cloneRange();
-                selection.removeAllRanges();
-
-                if (selectedRange.startContainer.nodeType !== Node.TEXT_NODE || selectedRange.endContainer.nodeType !== Node.TEXT_NODE) {
-                    return null;
-                }
-
-                const rawText = selectedRange.toString() || '';
-                const match = rawText.match(/[A-Za-z0-9]+(?:[A-Za-z0-9'-]*[A-Za-z0-9])?/);
-                if (!match) {
-                    return null;
-                }
-
-                const text = match[0].slice(0, maxLength);
-                return text ? {
-                    text,
-                    ranges: this.rangesBetween(
-                        container,
-                        selectedRange.startContainer,
-                        selectedRange.startOffset,
-                        selectedRange.endContainer,
-                        selectedRange.endOffset
-                    )
-                } : null;
-            },
-
-            nativeLatinSelectionAt(container, hit, maxLength) {
-                const candidates = [
-                    this.nativeLatinSelectionFromOffset(container, hit, hit.offset, maxLength, false),
-                    this.nativeLatinSelectionFromOffset(container, hit, hit.offset + 1, maxLength, true)
-                ].filter(Boolean);
-
-                return candidates.sort((lhs, rhs) => rhs.text.length - lhs.text.length)[0] || null;
+                return items;
             },
 
             latinSelectionAt(container, hit, maxLength) {
@@ -2019,80 +1971,38 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                     return null;
                 }
 
-                const nativeSelected = this.nativeLatinSelectionAt(container, hit, maxLength);
-                if (nativeSelected && nativeSelected.text.length > 1) {
-                    return nativeSelected;
+                const items = this.flattenedTextItems(container);
+                const hitIndex = items.findIndex((item) => item.node === hit.node && item.offset === hit.offset);
+                if (hitIndex < 0) {
+                    return null;
                 }
 
-                let startNode = hit.node;
-                let startOffset = hit.offset;
-                let endNode = hit.node;
-                let endOffset = hit.offset + 1;
-                let before = '';
-                let after = hitText[hit.offset];
-                let node = hit.node;
-                let offset = hit.offset - 1;
-                let walker = this.createWalker(container);
+                let start = hitIndex;
+                let end = hitIndex;
 
-                walker.currentNode = hit.node;
-                while (node && before.length + after.length < maxLength) {
-                    const content = node.textContent || '';
-                    let reachedBoundary = false;
-
-                    for (let i = offset; i >= 0 && before.length + after.length < maxLength; i -= 1) {
-                        const character = content[i];
-                        if (!this.isLatinLookupChar(character)) {
-                            reachedBoundary = true;
-                            break;
-                        }
-                        before = character + before;
-                        startNode = node;
-                        startOffset = i;
-                    }
-
-                    if (reachedBoundary) {
+                while (start > 0 && end - (start - 1) + 1 <= maxLength) {
+                    if (!this.isLatinLookupChar(items[start - 1].character)) {
                         break;
                     }
-
-                    node = walker.previousNode();
-                    offset = node ? (node.textContent || '').length - 1 : -1;
+                    start -= 1;
                 }
 
-                node = hit.node;
-                offset = hit.offset + 1;
-                walker = this.createWalker(container);
-                walker.currentNode = hit.node;
-                while (node && before.length + after.length < maxLength) {
-                    const content = node.textContent || '';
-                    let reachedBoundary = false;
-
-                    for (let i = offset; i < content.length && before.length + after.length < maxLength; i += 1) {
-                        const character = content[i];
-                        if (!this.isLatinLookupChar(character)) {
-                            reachedBoundary = true;
-                            break;
-                        }
-                        after += character;
-                        endNode = node;
-                        endOffset = i + 1;
-                    }
-
-                    if (reachedBoundary) {
+                while (end + 1 < items.length && (end + 1) - start + 1 <= maxLength) {
+                    if (!this.isLatinLookupChar(items[end + 1].character)) {
                         break;
                     }
-
-                    node = walker.nextNode();
-                    offset = 0;
+                    end += 1;
                 }
 
-                const text = (before + after).trim();
+                const selectedItems = items.slice(start, end + 1);
+                const text = selectedItems.map((item) => item.character).join('').trim();
                 if (!text) {
                     return null;
                 }
 
                 const selected = {
                     text,
-                    ranges: this.rangesBetween(container, startNode, startOffset, endNode, endOffset)
+                    ranges: this.rangesFromVisualItems(selectedItems)
                 };
 
                 if (text.length === 1) {
