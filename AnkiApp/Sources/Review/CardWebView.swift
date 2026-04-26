@@ -569,6 +569,33 @@ struct CardWebView: UIViewRepresentable {
 
             return chars.slice(start, end + 1).map(function(item) { return item.character; }).join('');
         }
+        function amgiNativeLatinWordPayloadAt(hit, maxLength) {
+            var selection = window.getSelection && window.getSelection();
+            if (!selection || !selection.modify) return '';
+
+            var content = hit.node.textContent || '';
+            var caretOffset = Math.min(hit.offset + 1, content.length);
+            var caretRange = document.createRange();
+            caretRange.setStart(hit.node, caretOffset);
+            caretRange.collapse(true);
+
+            try {
+                selection.removeAllRanges();
+                selection.addRange(caretRange);
+                selection.modify('move', 'backward', 'word');
+                selection.modify('extend', 'forward', 'word');
+            } catch (_) {
+                selection.removeAllRanges();
+                return '';
+            }
+
+            if (!selection.rangeCount) return '';
+            var rawText = selection.getRangeAt(0).toString() || '';
+            selection.removeAllRanges();
+
+            var match = rawText.match(/[A-Za-z0-9]+(?:[A-Za-z0-9'-]*[A-Za-z0-9])?/);
+            return match ? match[0].slice(0, maxLength) : '';
+        }
         function amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters) {
             var selected = '';
 
@@ -619,7 +646,7 @@ struct CardWebView: UIViewRepresentable {
             var hitText = hit.node.textContent || '';
             var hitChar = hitText[hit.offset] || '';
             var selected = amgiIsLatinLookupChar(hitChar)
-                ? amgiLatinWordPayloadAt(nodeInfo, hit, maxLength)
+                ? (amgiNativeLatinWordPayloadAt(hit, maxLength) || amgiLatinWordPayloadAt(nodeInfo, hit, maxLength))
                 : amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters);
             if (amgiIsLatinLookupChar(hitChar) && selected.length === 1) {
                 selected = amgiVisualLatinWordPayloadAt(nodeInfo, hit, maxLength) || selected;

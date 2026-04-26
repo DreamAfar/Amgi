@@ -1950,10 +1950,67 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return text ? { text, ranges: this.rangesFromVisualItems(selected) } : null;
             },
 
+            nativeLatinSelectionAt(container, hit, maxLength) {
+                const selection = window.getSelection();
+                if (!selection?.modify) {
+                    return null;
+                }
+
+                const content = hit.node.textContent || '';
+                const caretOffset = Math.min(hit.offset + 1, content.length);
+                const caretRange = document.createRange();
+                caretRange.setStart(hit.node, caretOffset);
+                caretRange.collapse(true);
+
+                try {
+                    selection.removeAllRanges();
+                    selection.addRange(caretRange);
+                    selection.modify('move', 'backward', 'word');
+                    selection.modify('extend', 'forward', 'word');
+                } catch (_) {
+                    selection.removeAllRanges();
+                    return null;
+                }
+
+                if (!selection.rangeCount) {
+                    return null;
+                }
+
+                const selectedRange = selection.getRangeAt(0).cloneRange();
+                selection.removeAllRanges();
+
+                if (selectedRange.startContainer.nodeType !== Node.TEXT_NODE || selectedRange.endContainer.nodeType !== Node.TEXT_NODE) {
+                    return null;
+                }
+
+                const rawText = selectedRange.toString() || '';
+                const match = rawText.match(/[A-Za-z0-9]+(?:[A-Za-z0-9'-]*[A-Za-z0-9])?/);
+                if (!match) {
+                    return null;
+                }
+
+                const text = match[0].slice(0, maxLength);
+                return text ? {
+                    text,
+                    ranges: this.rangesBetween(
+                        container,
+                        selectedRange.startContainer,
+                        selectedRange.startOffset,
+                        selectedRange.endContainer,
+                        selectedRange.endOffset
+                    )
+                } : null;
+            },
+
             latinSelectionAt(container, hit, maxLength) {
                 const hitText = hit.node.textContent || '';
                 if (!this.isLatinLookupChar(hitText[hit.offset])) {
                     return null;
+                }
+
+                const nativeSelected = this.nativeLatinSelectionAt(container, hit, maxLength);
+                if (nativeSelected && nativeSelected.text.length > 1) {
+                    return nativeSelected;
                 }
 
                 let startNode = hit.node;
