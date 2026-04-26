@@ -237,7 +237,13 @@ private actor DictionaryLookupRuntime {
 
         let resolvedMaxResults = max(1, maxResults)
         let resolvedScanLength = max(1, scanLength)
-        let rawResults = Array(lookupEngine?.lookup(std.string(trimmed), Int32(resolvedMaxResults), resolvedScanLength) ?? [])
+        var rawResults = performLookup(trimmed, maxResults: resolvedMaxResults, scanLength: resolvedScanLength)
+        let lowercaseQuery = trimmed.lowercased()
+        if rawResults.isEmpty,
+           lowercaseQuery != trimmed,
+           Self.containsASCIIUppercase(trimmed) {
+            rawResults = performLookup(lowercaseQuery, maxResults: resolvedMaxResults, scanLength: resolvedScanLength)
+        }
         let styles = loadStyles()
         return DictionaryLookupResult(
             query: trimmed,
@@ -245,6 +251,14 @@ private actor DictionaryLookupRuntime {
             isPlaceholder: false,
             dictionaryStyles: styles
         )
+    }
+
+    private func performLookup(_ query: String, maxResults: Int, scanLength: Int) -> [LookupResult] {
+        Array(lookupEngine?.lookup(std.string(query), Int32(maxResults), scanLength) ?? [])
+    }
+
+    private static func containsASCIIUppercase(_ text: String) -> Bool {
+        text.unicodeScalars.contains { (65...90).contains(Int($0.value)) }
     }
 
     func loadStyles() -> [String: String] {

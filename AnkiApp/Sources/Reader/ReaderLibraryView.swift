@@ -542,7 +542,7 @@ private struct ReaderBookDetailView: View {
                 NavigationLink {
                     ReaderChapterView(book: book, chapter: resumeChapter)
                 } label: {
-                    HStack(spacing: 16) {
+                    HStack(spacing: 14) {
                         Image(systemName: "book.fill")
                             .font(.title2.weight(.semibold))
                         Text(L("reader_book_continue"))
@@ -553,8 +553,8 @@ private struct ReaderBookDetailView: View {
                             .foregroundStyle(Color.amgiTextSecondary.opacity(0.62))
                     }
                     .foregroundStyle(Color.amgiTextPrimary)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 22)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
                     .background(Color.amgiSurfaceElevated.opacity(0.72), in: Capsule())
                 }
                 .buttonStyle(.plain)
@@ -575,39 +575,40 @@ private struct ReaderBookDetailView: View {
                                     Text("\(index + 1)")
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(Color.amgiAccent)
-                                        .frame(width: 28, height: 28)
+                                        .frame(width: 24, height: 24)
                                         .background(Color.amgiAccent.opacity(0.12), in: Circle())
-                                    VStack(alignment: .leading, spacing: 4) {
+                                    VStack(alignment: .leading, spacing: 2) {
                                         Text(chapter.title)
-                                            .font(.headline)
+                                            .font(.subheadline.weight(.semibold))
                                             .foregroundStyle(Color.amgiTextPrimary)
+                                            .lineLimit(1)
                                         if let order = chapter.order {
                                             Text(order)
-                                                .font(.caption)
+                                                .font(.caption2)
                                                 .foregroundStyle(Color.amgiTextSecondary)
                                                 .lineLimit(1)
                                         }
                                     }
                                     Spacer()
                                     Image(systemName: "chevron.right")
-                                        .font(.headline.weight(.semibold))
+                                        .font(.subheadline.weight(.semibold))
                                         .foregroundStyle(Color.amgiTextSecondary.opacity(0.62))
                                 }
-                                .padding(.horizontal, 28)
-                                .padding(.vertical, 18)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
                             }
                             .buttonStyle(.plain)
 
                             if index < book.chapters.count - 1 {
                                 Divider()
-                                    .padding(.leading, 68)
-                                    .padding(.trailing, 28)
+                                    .padding(.leading, 60)
+                                    .padding(.trailing, 24)
                                     .overlay(Color.amgiBorder.opacity(0.24))
                             }
                         }
                     }
                     .background(
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
                             .fill(Color.amgiSurfaceElevated.opacity(0.72))
                     )
                 }
