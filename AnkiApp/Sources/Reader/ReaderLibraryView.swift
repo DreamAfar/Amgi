@@ -849,6 +849,7 @@ private struct ReaderChapterView: View {
                 ZStack(alignment: .bottom) {
                     ReaderChapterWebView(
                         html: chapter.content,
+                        languageHint: lookupLanguageHint,
                         isVertical: verticalLayout,
                         fontFamily: ReaderFontOption.resolved(selectedFont).cssFontFamily,
                         fontSize: Double(readerFontSize),
@@ -1504,6 +1505,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
 
     let html: String
+    let languageHint: String?
     let isVertical: Bool
     let fontFamily: String
     let fontSize: Double
@@ -1628,6 +1630,10 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
             isScanBoundary(char) {
                 return /^[\s\u3000]$/.test(char) || this.scanDelimiters.includes(char);
+            },
+
+            isLatinLookupChar(char) {
+                return /^[A-Za-z0-9]$/.test(char || '');
             },
 
             isFurigana(node) {
@@ -1821,6 +1827,147 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
             },
 
+            rangesBetween(container, startNode, startOffset, endNode, endOffset) {
+                const ranges = [];
+                let node = startNode;
+                let offset = startOffset;
+                const walker = this.createWalker(container);
+
+                while (node) {
+                    const content = node.textContent || '';
+                    const end = node === endNode ? endOffset : content.length;
+
+                    if (end > offset) {
+                        ranges.push({ node, start: offset, end });
+                    }
+
+                    if (node === endNode) {
+                        break;
+                    }
+
+                    walker.currentNode = node;
+                    node = walker.nextNode();
+                    offset = 0;
+                }
+
+                return ranges;
+            },
+
+            latinSelectionAt(container, hit, maxLength) {
+                const hitText = hit.node.textContent || '';
+                if (!this.isLatinLookupChar(hitText[hit.offset])) {
+                    return null;
+                }
+
+                let startNode = hit.node;
+                let startOffset = hit.offset;
+                let endNode = hit.node;
+                let endOffset = hit.offset + 1;
+                let before = '';
+                let after = hitText[hit.offset];
+                let node = hit.node;
+                let offset = hit.offset - 1;
+                let walker = this.createWalker(container);
+
+                walker.currentNode = hit.node;
+                while (node && before.length + after.length < maxLength) {
+                    const content = node.textContent || '';
+                    let reachedBoundary = false;
+
+                    for (let i = offset; i >= 0 && before.length + after.length < maxLength; i -= 1) {
+                        const character = content[i];
+                        if (!this.isLatinLookupChar(character)) {
+                            reachedBoundary = true;
+                            break;
+                        }
+                        before = character + before;
+                        startNode = node;
+                        startOffset = i;
+                    }
+
+                    if (reachedBoundary) {
+                        break;
+                    }
+
+                    node = walker.previousNode();
+                    offset = node ? (node.textContent || '').length - 1 : -1;
+                }
+
+                node = hit.node;
+                offset = hit.offset + 1;
+                walker = this.createWalker(container);
+                walker.currentNode = hit.node;
+                while (node && before.length + after.length < maxLength) {
+                    const content = node.textContent || '';
+                    let reachedBoundary = false;
+
+                    for (let i = offset; i < content.length && before.length + after.length < maxLength; i += 1) {
+                        const character = content[i];
+                        if (!this.isLatinLookupChar(character)) {
+                            reachedBoundary = true;
+                            break;
+                        }
+                        after += character;
+                        endNode = node;
+                        endOffset = i + 1;
+                    }
+
+                    if (reachedBoundary) {
+                        break;
+                    }
+
+                    node = walker.nextNode();
+                    offset = 0;
+                }
+
+                const text = (before + after).trim();
+                if (!text) {
+                    return null;
+                }
+
+                return {
+                    text,
+                    ranges: this.rangesBetween(container, startNode, startOffset, endNode, endOffset)
+                };
+            },
+
+            forwardSelectionAt(container, hit, maxLength) {
+                const walker = this.createWalker(container);
+                let text = '';
+                let node = hit.node;
+                let offset = hit.offset;
+                const ranges = [];
+
+                walker.currentNode = node;
+                while (text.length < maxLength && node) {
+                    const content = node.textContent || '';
+                    const start = offset;
+
+                    while (offset < content.length && text.length < maxLength) {
+                        const character = content[offset];
+                        if (this.isScanBoundary(character)) {
+                            break;
+                        }
+                        text += character;
+                        offset += 1;
+                    }
+
+                    if (offset > start) {
+                        ranges.push({ node, start, end: offset });
+                    }
+
+                    if (offset < content.length || text.length >= maxLength) {
+                        break;
+                    }
+
+                    node = walker.nextNode();
+                    offset = 0;
+                }
+
+                text = text.trim();
+                return text ? { text, ranges } : null;
+            },
+
             clearSelection() {
                 window.getSelection()?.removeAllRanges();
                 CSS.highlights?.clear();
@@ -1867,52 +2014,26 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 this.clearSelection();
 
                 const container = this.findParagraph(hit.node) || document.body;
-                const walker = this.createWalker(container);
-                let text = '';
-                let node = hit.node;
-                let offset = hit.offset;
-                const ranges = [];
+                const hitText = hit.node.textContent || '';
+                const hitChar = hitText[hit.offset] || '';
+                const selected = this.isLatinLookupChar(hitChar)
+                    ? this.latinSelectionAt(container, hit, maxLength)
+                    : this.forwardSelectionAt(container, hit, maxLength);
 
-                walker.currentNode = node;
-                while (text.length < maxLength && node) {
-                    const content = node.textContent || '';
-                    const start = offset;
-
-                    while (offset < content.length && text.length < maxLength) {
-                        const character = content[offset];
-                        if (this.isScanBoundary(character)) {
-                            break;
-                        }
-                        text += character;
-                        offset += 1;
-                    }
-
-                    if (offset > start) {
-                        ranges.push({ node, start, end: offset });
-                    }
-
-                    if (offset < content.length || text.length >= maxLength) {
-                        break;
-                    }
-
-                    node = walker.nextNode();
-                    offset = 0;
-                }
-
-                if (!text) {
+                if (!selected) {
                     return null;
                 }
 
                 this.selection = {
                     startNode: hit.node,
                     startOffset: hit.offset,
-                    ranges,
-                    text
+                    ranges: selected.ranges,
+                    text: selected.text
                 };
 
                 const sentence = this.getSentence(hit.node, hit.offset);
                 return {
-                    text,
+                    text: selected.text,
                     sentence,
                     rect: this.getSelectionRect(x, y)
                 };
@@ -1937,7 +2058,11 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         let contentBackgroundColor = contentBackgroundHex
         let renderedContent = renderedFragment(for: fragment)
         let writingMode = isVertical ? "vertical-rl" : "horizontal-tb"
+        let useLatinWordLayout = !isVertical && Self.prefersLatinWordLayout(languageHint: languageHint, fallbackText: fragment)
         let bodyWidthRule = isVertical ? "width: max-content; min-width: 100%;" : "max-width: 100%;"
+        let wrappingRule = useLatinWordLayout
+            ? "overflow-wrap: break-word; word-break: normal;"
+            : "overflow-wrap: anywhere;"
         let resolvedHorizontalPadding = max(horizontalPadding, 0)
         let resolvedVerticalPadding = max(verticalPadding, 0)
         let bodyPadding = isVertical
@@ -1951,7 +2076,8 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         let pageBreakRule = avoidPageBreak
             ? "p { break-inside: avoid; -webkit-column-break-inside: avoid; }"
             : ""
-        let textAlign = justifyText ? "justify" : "start"
+        let textAlign = justifyText && !useLatinWordLayout ? "justify" : "start"
+        let hyphenRule = useLatinWordLayout ? "hyphens: auto; -webkit-hyphens: auto;" : ""
 
         return """
         <!doctype html>
@@ -1969,7 +2095,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             padding: 0;
             background: \(backgroundColor);
             color: \(textColor);
-            overflow-wrap: anywhere;
+            \(wrappingRule)
             -webkit-text-size-adjust: 100%;
             text-size-adjust: 100%;
         }
@@ -1980,7 +2106,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             font-size: \(fontSize)px;
             line-height: \(lineHeight);
             letter-spacing: \(letterSpacing)em;
+            word-spacing: normal;
             text-align: \(textAlign);
+            \(hyphenRule)
             \(bodyWidthRule)
             \(bodyPadding)
             box-sizing: border-box;
@@ -2011,6 +2139,29 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         <body>\(renderedContent)</body>
         </html>
         """
+    }
+
+    private static func prefersLatinWordLayout(languageHint: String?, fallbackText: String) -> Bool {
+        if let languageHint {
+            let normalized = languageHint.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if normalized.hasPrefix("en") || normalized == "eng" || normalized == "english" {
+                return true
+            }
+            if normalized.hasPrefix("ja") || normalized == "jpn" || normalized == "japanese" {
+                return false
+            }
+        }
+
+        let plainText = fallbackText
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&[A-Za-z0-9#]+;", with: " ", options: .regularExpression)
+        let latinCount = plainText.unicodeScalars.filter { CharacterSet.letters.contains($0) && $0.value < 128 }.count
+        let japaneseCount = plainText.unicodeScalars.filter {
+            (0x3040...0x30FF).contains(Int($0.value)) ||
+            (0x3400...0x9FFF).contains(Int($0.value))
+        }.count
+
+        return latinCount >= 40 && latinCount > japaneseCount * 2
     }
 
     private func renderedFragment(for fragment: String) -> String {
