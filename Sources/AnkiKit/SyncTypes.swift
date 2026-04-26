@@ -14,22 +14,26 @@ public enum SyncFullSyncRequirementKind: Sendable, Equatable {
 public struct SyncFullSyncRequirement: Sendable, Equatable {
     public var kind: SyncFullSyncRequirementKind
     public var serverUsn: Int32?
+    public var endpoint: String?
     public var serverMessage: String?
 
     public init(
         kind: SyncFullSyncRequirementKind,
         serverUsn: Int32? = nil,
+        endpoint: String? = nil,
         serverMessage: String? = nil
     ) {
         self.kind = kind
         self.serverUsn = serverUsn
+        self.endpoint = endpoint
         self.serverMessage = serverMessage
     }
 }
 
-public struct SyncError: Error, Sendable, Equatable {
+public struct SyncError: LocalizedError, Sendable, Equatable {
     public let message: String
     public let isRetryable: Bool
+    public var errorDescription: String? { message }
 
     public init(message: String, isRetryable: Bool = true) {
         self.message = message

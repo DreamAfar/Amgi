@@ -37,12 +37,14 @@ private enum SyncPreferenceValues {
     }
 }
 
-private func configuredSyncAuth(hostKey: String) -> Anki_Sync_SyncAuth {
+private func configuredSyncAuth(hostKey: String, endpointOverride: String? = nil) -> Anki_Sync_SyncAuth {
     var auth = Anki_Sync_SyncAuth()
     auth.hkey = hostKey
 
-    let syncMode = UserDefaults.standard.string(forKey: SyncPreferenceValues.modeKey) ?? "local"
-    if syncMode == SyncPreferenceValues.customMode, let endpoint = KeychainHelper.loadEndpoint() {
+    if let endpointOverride = endpointOverride?.nilIfBlank {
+        auth.endpoint = endpointOverride
+    } else if UserDefaults.standard.string(forKey: SyncPreferenceValues.modeKey) == SyncPreferenceValues.customMode,
+              let endpoint = KeychainHelper.loadEndpoint() {
         auth.endpoint = endpoint
     }
 
@@ -133,7 +135,7 @@ private func stopProgressPolling(_ task: Task<Void, Never>?) async {
     _ = await task?.result
 }
 
-private func fullSyncRequirement(from response: Anki_Sync_SyncCollectionResponse) -> SyncFullSyncRequirement? {
+private func fullSyncRequirement(from response: Anki_Sync_SyncCollectionResponse, endpoint: String?) -> SyncFullSyncRequirement? {
     let serverUsn: Int32? = response.serverMediaUsn
 
     switch response.required {
@@ -141,18 +143,21 @@ private func fullSyncRequirement(from response: Anki_Sync_SyncCollectionResponse
         return SyncFullSyncRequirement(
             kind: .conflict,
             serverUsn: serverUsn,
+            endpoint: endpoint,
             serverMessage: response.serverMessage.nilIfBlank
         )
     case .fullDownload:
         return SyncFullSyncRequirement(
             kind: .downloadOnly,
             serverUsn: serverUsn,
+            endpoint: endpoint,
             serverMessage: response.serverMessage.nilIfBlank
         )
     case .fullUpload:
         return SyncFullSyncRequirement(
             kind: .uploadOnly,
             serverUsn: serverUsn,
+            endpoint: endpoint,
             serverMessage: response.serverMessage.nilIfBlank
         )
     default:
@@ -216,6 +221,7 @@ extension SyncClient: DependencyKey {
                             method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                             request: dlReq
                         )
+                        try syncBackend.reopenAfterFullSync()
                         logger.info("Full download complete, running CheckDatabase...")
 
                         // Run CheckDatabase to repair any inconsistencies
@@ -243,6 +249,7 @@ extension SyncClient: DependencyKey {
                             method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                             request: ulReq
                         )
+                        try syncBackend.reopenAfterFullSync()
                         logger.info("Full upload complete")
                         return SyncSummary()
 
@@ -296,7 +303,8 @@ extension SyncClient: DependencyKey {
                                 auth.endpoint = response.newEndpoint
                             }
 
-                            if let requirement = fullSyncRequirement(from: response) {
+                            let fullSyncEndpoint = auth.hasEndpoint ? auth.endpoint : nil
+                            if let requirement = fullSyncRequirement(from: response, endpoint: fullSyncEndpoint) {
                                 await emitter.yield(.fullSyncRequired(requirement))
                                 await emitter.finish()
                                 return
@@ -385,11 +393,11 @@ extension SyncClient: DependencyKey {
                     continuation.onTermination = { @Sendable _ in task.cancel() }
                 }
             },
-            fullSync: { direction, serverUsn in
+            fullSync: { direction, serverUsn, endpoint in
                 let hostKey = KeychainHelper.loadHostKey() ?? ""
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }
 
-                let auth = configuredSyncAuth(hostKey: hostKey)
+                let auth = configuredSyncAuth(hostKey: hostKey, endpointOverride: endpoint)
 
                 var req = Anki_Sync_FullUploadOrDownloadRequest()
                 req.auth = auth
@@ -403,6 +411,11 @@ extension SyncClient: DependencyKey {
                         service: AnkiBackend.Service.sync,
                         method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                         request: req
+                    )
+                    try syncBackend.reopenAfterFullSync()
+                    UserDefaults.standard.set(
+                        Date().timeIntervalSince1970,
+                        forKey: SyncPreferenceValues.lastCollectionSyncKey
                     )
                 } catch let error as BackendError {
                     if error.isSyncAuthError { throw SyncError.authFailed }

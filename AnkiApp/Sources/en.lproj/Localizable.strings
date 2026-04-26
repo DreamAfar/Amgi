@@ -511,9 +511,9 @@
 "sync_no_server_desc" = "Set up a sync server to keep your collection in sync across devices.";
 "sync_full_required_title" = "Full Sync Required";
 "sync_full_required_desc" = "Your collection has changed in a way that requires replacing one copy entirely.";
-"sync_full_conflict_desc" = "This device and the server have conflicting decks that cannot be merged automatically. Choose which copy to keep: downloading replaces local data, uploading replaces server data.";
-"sync_full_download_confirm_desc" = "Your local collection is empty. Download from the server and replace local data?";
-"sync_full_upload_confirm_desc" = "The server collection is empty. Upload local data and replace the server copy?";
+"sync_full_conflict_desc" = "This device and the server have conflicting decks that cannot be merged automatically.\nChoose which copy to keep: downloading replaces local data, uploading replaces server data.";
+"sync_full_download_confirm_desc" = "Your local collection is empty.\nDownloading from the server will replace local data.";
+"sync_full_upload_confirm_desc" = "The server collection is empty.\nUploading will replace the server copy.";
 "sync_btn_download" = "Download from Server";
 "sync_btn_upload" = "Upload to Server";
 "sync_full_downloading" = "Downloading full collection...";

@@ -138,6 +138,8 @@ struct ContentView: View {
             refreshID = UUID()
         } content: {
             SyncSheet(isPresented: $showSync)
+                .presentationDetents([.fraction(0.5)])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showUserManager, onDismiss: reloadUsers) {
             UserManagementView()

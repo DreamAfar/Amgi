@@ -32,13 +32,11 @@ struct SyncSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            VStack(spacing: 14) {
                 if syncMode != .local {
                     serverConfigSection
-                        .padding(.top)
                 }
 
-                Spacer()
                 switch syncCoordinator.state {
                 case .idle:
                     ProgressView(L("sync_preparing"))
@@ -55,9 +53,13 @@ struct SyncSheet: View {
                 case .noServer:
                     noServerView
                 }
-                Spacer()
+
+                Spacer(minLength: 0)
             }
-            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
             .background(Color.amgiBackground)
             .navigationTitle(L("sync_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
@@ -103,8 +105,8 @@ struct SyncSheet: View {
 
     @ViewBuilder
     private func syncingView(message: String) -> some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 8) {
+        VStack(spacing: 12) {
+            VStack(spacing: 6) {
                 ProgressView()
                     .progressViewStyle(.circular)
                 Text(L("sync_syncing"))
@@ -115,47 +117,50 @@ struct SyncSheet: View {
                     .foregroundStyle(Color.amgiTextSecondary)
             }
 
-            if !syncCoordinator.logEntries.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L("sync_log_section_title"))
-                        .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextTertiary)
-                        .padding(.horizontal, 4)
+            syncLogView(height: 96)
+        }
+    }
 
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 3) {
-                                ForEach(syncCoordinator.logEntries) { entry in
-                                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                        Text(entry.date, style: .time)
-                                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                            .foregroundStyle(Color.amgiTextTertiary)
-                                            .fixedSize()
-                                        Text(entry.message)
-                                            .amgiFont(.caption)
-                                            .foregroundStyle(Color.amgiTextSecondary)
-                                            .lineLimit(nil)
-                                            .multilineTextAlignment(.leading)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .id(entry.id)
-                                }
+    private func syncLogView(height: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L("sync_log_section_title"))
+                .amgiFont(.micro)
+                .foregroundStyle(Color.amgiTextTertiary)
+                .padding(.horizontal, 4)
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 3) {
+                        ForEach(syncCoordinator.logEntries) { entry in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(entry.date, style: .time)
+                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(Color.amgiTextTertiary)
+                                    .fixedSize()
+                                Text(entry.message)
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .lineLimit(nil)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .padding(.vertical, 6)
+                            .padding(.horizontal, 8)
+                            .id(entry.id)
                         }
-                        .frame(maxHeight: 180)
-                        .background(
-                            Color.amgiSurface,
-                            in: RoundedRectangle(cornerRadius: 10)
-                        )
-                        .onChange(of: syncCoordinator.logEntries.count) { _, _ in
-                            if let last = syncCoordinator.logEntries.last {
-                                withAnimation(.linear(duration: 0.15)) {
-                                    proxy.scrollTo(last.id, anchor: .bottom)
-                                }
-                            }
+                    }
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: height)
+                .background(
+                    Color.amgiSurface,
+                    in: RoundedRectangle(cornerRadius: 10)
+                )
+                .onChange(of: syncCoordinator.logEntries.count) { _, _ in
+                    if let last = syncCoordinator.logEntries.last {
+                        withAnimation(.linear(duration: 0.15)) {
+                            proxy.scrollTo(last.id, anchor: .bottom)
                         }
                     }
                 }
@@ -205,51 +210,7 @@ struct SyncSheet: View {
                 in: RoundedRectangle(cornerRadius: 12)
             )
 
-            if !syncCoordinator.logEntries.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L("sync_log_section_title"))
-                        .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextTertiary)
-                        .padding(.horizontal, 4)
-
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 3) {
-                                ForEach(syncCoordinator.logEntries) { entry in
-                                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                        Text(entry.date, style: .time)
-                                            .font(.system(size: 11, weight: .regular, design: .monospaced))
-                                            .foregroundStyle(Color.amgiTextTertiary)
-                                            .fixedSize()
-                                        Text(entry.message)
-                                            .amgiFont(.caption)
-                                            .foregroundStyle(Color.amgiTextSecondary)
-                                            .lineLimit(nil)
-                                            .multilineTextAlignment(.leading)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .id(entry.id)
-                                }
-                            }
-                            .padding(.vertical, 6)
-                        }
-                        .frame(maxHeight: 120)
-                        .background(
-                            Color.amgiSurface,
-                            in: RoundedRectangle(cornerRadius: 10)
-                        )
-                        .onChange(of: syncCoordinator.logEntries.count) { _, _ in
-                            if let last = syncCoordinator.logEntries.last {
-                                withAnimation(.linear(duration: 0.15)) {
-                                    proxy.scrollTo(last.id, anchor: .bottom)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            syncLogView(height: 96)
         }
     }
 
@@ -267,31 +228,18 @@ struct SyncSheet: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                if let username = KeychainHelper.loadUsername() {
-                    Text(username)
-                        .font(.system(size: 11, weight: .regular, design: .default))
-                        .foregroundStyle(Color.amgiTextTertiary)
-                }
             }
             Spacer()
-            if syncMode == .custom || KeychainHelper.loadHostKey() != nil {
+            if syncMode == .custom {
                 Menu {
-                    if syncMode == .custom {
-                        Button(L("sync_menu_change_server")) {
-                            showServerSetup = true
-                        }
-                    }
-                    if KeychainHelper.loadHostKey() != nil {
-                        Button(L("sync_menu_logout"), role: .destructive) {
-                            logout()
-                        }
+                    Button(L("sync_menu_change_server")) {
+                        showServerSetup = true
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
             }
         }
-        .padding(.horizontal)
     }
 
     // MARK: - Sync Logic
@@ -316,12 +264,6 @@ struct SyncSheet: View {
         }
 
         syncCoordinator.startSync(syncClient: syncClient, syncMediaEnabled: syncMediaEnabled)
-    }
-
-    private func logout() {
-        AppSyncAuthEvents.clearCredentials()
-        syncCoordinator.reset()
-        isPresented = false
     }
 
     // MARK: - No Server (Setup) View
@@ -485,15 +427,29 @@ struct SyncSheet: View {
     // MARK: - Full Sync Choice View
 
     private func fullSyncChoiceView(_ requirement: SyncFullSyncRequirement) -> some View {
-        VStack(spacing: 16) {
-            Label(L("sync_full_required_title"), systemImage: "arrow.triangle.2.circlepath")
-                .amgiStatusText(.warning, font: .sectionHeading)
+        VStack(spacing: 14) {
+            VStack(spacing: 6) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(Color.orange)
+                Text(L("sync_full_required_title"))
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(Color.orange)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+            }
+
             Text(fullSyncDescription(for: requirement))
-                .amgiFont(.caption)
+                .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(Color.amgiTextSecondary)
                 .multilineTextAlignment(.center)
+                .lineSpacing(2)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 340)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 if requirement.kind != .uploadOnly {
                     Button {
                         Task { await fullSync(.download, requirement: requirement) }
@@ -501,8 +457,7 @@ struct SyncSheet: View {
                         Label(L("sync_btn_download"), systemImage: "arrow.down.circle")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(BorderedProminentButtonStyle())
-                    .tint(Color.amgiAccent)
+                    .buttonStyle(FullSyncActionButtonStyle(kind: .primary))
                 }
 
                 if requirement.kind != .downloadOnly {
@@ -513,8 +468,7 @@ struct SyncSheet: View {
                             Label(L("sync_btn_upload"), systemImage: "arrow.up.circle")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(BorderedProminentButtonStyle())
-                        .tint(Color.amgiAccent)
+                        .buttonStyle(FullSyncActionButtonStyle(kind: .primary))
                     } else {
                         Button {
                             Task { await fullSync(.upload, requirement: requirement) }
@@ -522,11 +476,11 @@ struct SyncSheet: View {
                             Label(L("sync_btn_upload"), systemImage: "arrow.up.circle")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(BorderedButtonStyle())
-                        .tint(Color.amgiAccent)
+                        .buttonStyle(FullSyncActionButtonStyle(kind: .secondary))
                     }
                 }
             }
+            .frame(maxWidth: 380)
 
             if let serverMessage = requirement.serverMessage,
                serverMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
@@ -534,8 +488,13 @@ struct SyncSheet: View {
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextTertiary)
                     .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 340)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .top)
     }
 
     private func fullSync(_ direction: SyncDirection, requirement: SyncFullSyncRequirement) async {
@@ -550,6 +509,46 @@ struct SyncSheet: View {
             return L("sync_full_download_confirm_desc")
         case .uploadOnly:
             return L("sync_full_upload_confirm_desc")
+        }
+    }
+}
+
+private struct FullSyncActionButtonStyle: ButtonStyle {
+    enum Kind {
+        case primary
+        case secondary
+    }
+
+    let kind: Kind
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 19, weight: .semibold))
+            .foregroundStyle(foregroundColor)
+            .labelStyle(.titleAndIcon)
+            .padding(.horizontal, 20)
+            .frame(minHeight: 52)
+            .background(backgroundColor, in: Capsule())
+            .contentShape(Capsule())
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+    }
+
+    private var foregroundColor: Color {
+        switch kind {
+        case .primary:
+            return .white
+        case .secondary:
+            return Color.amgiAccent
+        }
+    }
+
+    private var backgroundColor: Color {
+        switch kind {
+        case .primary:
+            return Color.amgiAccent
+        case .secondary:
+            return Color.amgiAccent.opacity(0.16)
         }
     }
 }

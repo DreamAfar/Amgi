@@ -511,9 +511,9 @@
 "sync_no_server_desc" = "设置同步服务器以在设备间同步您的卡牌集。";
 "sync_full_required_title" = "需要全量同步";
 "sync_full_required_desc" = "您的卡牌集发生了较大变更，需要完全替换其中一份。";
-"sync_full_conflict_desc" = "此设备与服务器上的牌组发生冲突，无法自动合并。请选择保留哪一份数据：下载会覆盖本地，上传会覆盖服务器。";
-"sync_full_download_confirm_desc" = "本地卡牌集为空。确认从服务器下载并覆盖本地数据？";
-"sync_full_upload_confirm_desc" = "服务器卡牌集为空。确认上传本地数据并覆盖服务器内容？";
+"sync_full_conflict_desc" = "此设备与服务器上的牌组发生冲突，无法自动合并。\n请选择保留哪一份数据：下载会覆盖本地，上传会覆盖服务器。";
+"sync_full_download_confirm_desc" = "本地卡牌集为空。\n从服务器下载会覆盖本地数据。";
+"sync_full_upload_confirm_desc" = "服务器卡牌集为空。\n上传会覆盖服务器内容。";
 "sync_btn_download" = "从服务器下载";
 "sync_btn_upload" = "上传到服务器";
 "sync_full_downloading" = "正在下载完整卡牌集…";

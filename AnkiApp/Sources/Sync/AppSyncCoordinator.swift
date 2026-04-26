@@ -152,7 +152,7 @@ final class AppSyncCoordinator: ObservableObject {
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             do {
-                try await syncClient.fullSync(direction, requirement.serverUsn)
+                try await syncClient.fullSync(direction, requirement.serverUsn, requirement.endpoint)
                 await MainActor.run {
                     self.appendLog(L("sync_log_complete"))
                     self.state = .success(SyncSummary())
