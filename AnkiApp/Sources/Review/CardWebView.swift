@@ -508,6 +508,67 @@ struct CardWebView: UIViewRepresentable {
 
             return (backward + selected).trim();
         }
+        function amgiLookupRangeRect(node, start, end) {
+            var range = document.createRange();
+            range.setStart(node, start);
+            range.setEnd(node, end);
+            var rects = range.getClientRects ? Array.from(range.getClientRects()).filter(function(rect) {
+                return rect.width > 0 && rect.height > 0;
+            }) : [];
+            return rects[0] || null;
+        }
+        function amgiSameVisualLine(rect, reference) {
+            var rectMidY = rect.top + rect.height / 2;
+            var referenceMidY = reference.top + reference.height / 2;
+            return Math.abs(rectMidY - referenceMidY) <= Math.max(rect.height, reference.height) * 0.65;
+        }
+        function amgiVisualLatinWordPayloadAt(nodeInfo, hit, maxLength) {
+            var chars = [];
+
+            for (var nodeIndex = 0; nodeIndex < nodeInfo.nodes.length; nodeIndex++) {
+                var node = nodeInfo.nodes[nodeIndex];
+                var content = node.textContent || '';
+                for (var index = 0; index < content.length; index++) {
+                    var character = content[index];
+                    if (!amgiIsLatinLookupChar(character)) continue;
+                    var rect = amgiLookupRangeRect(node, index, index + 1);
+                    if (!rect) continue;
+                    chars.push({ node: node, offset: index, character: character, rect: rect });
+                }
+            }
+
+            var hitIndex = -1;
+            for (var i = 0; i < chars.length; i++) {
+                if (chars[i].node === hit.node && chars[i].offset === hit.offset) {
+                    hitIndex = i;
+                    break;
+                }
+            }
+            if (hitIndex < 0) return '';
+
+            var reference = chars[hitIndex].rect;
+            var maxGap = Math.max(6, Math.min(18, reference.width * 1.4));
+            var start = hitIndex;
+            var end = hitIndex;
+
+            for (var beforeIndex = hitIndex - 1; beforeIndex >= 0 && end - beforeIndex + 1 <= maxLength; beforeIndex--) {
+                var currentBefore = chars[beforeIndex];
+                var next = chars[beforeIndex + 1];
+                if (!amgiSameVisualLine(currentBefore.rect, reference)) break;
+                if (next.rect.left - currentBefore.rect.right > maxGap) break;
+                start = beforeIndex;
+            }
+
+            for (var afterIndex = hitIndex + 1; afterIndex < chars.length && afterIndex - start + 1 <= maxLength; afterIndex++) {
+                var currentAfter = chars[afterIndex];
+                var previous = chars[afterIndex - 1];
+                if (!amgiSameVisualLine(currentAfter.rect, reference)) break;
+                if (currentAfter.rect.left - previous.rect.right > maxGap) break;
+                end = afterIndex;
+            }
+
+            return chars.slice(start, end + 1).map(function(item) { return item.character; }).join('');
+        }
         function amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters) {
             var selected = '';
 
@@ -560,6 +621,9 @@ struct CardWebView: UIViewRepresentable {
             var selected = amgiIsLatinLookupChar(hitChar)
                 ? amgiLatinWordPayloadAt(nodeInfo, hit, maxLength)
                 : amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters);
+            if (amgiIsLatinLookupChar(hitChar) && selected.length === 1) {
+                selected = amgiVisualLatinWordPayloadAt(nodeInfo, hit, maxLength) || selected;
+            }
             if (!selected) return null;
             return {
                 text: selected,

@@ -1854,6 +1854,102 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return ranges;
             },
 
+            rangeRect(node, start, end) {
+                const range = document.createRange();
+                range.setStart(node, start);
+                range.setEnd(node, end);
+                const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
+                return rects[0] || null;
+            },
+
+            sameVisualLine(rect, reference) {
+                const rectMidY = rect.top + rect.height / 2;
+                const referenceMidY = reference.top + reference.height / 2;
+                return Math.abs(rectMidY - referenceMidY) <= Math.max(rect.height, reference.height) * 0.65;
+            },
+
+            rangesFromVisualItems(items) {
+                const ranges = [];
+
+                for (const item of items) {
+                    const last = ranges[ranges.length - 1];
+                    if (last && last.node === item.node && last.end === item.offset) {
+                        last.end = item.offset + 1;
+                    } else {
+                        ranges.push({ node: item.node, start: item.offset, end: item.offset + 1 });
+                    }
+                }
+
+                return ranges;
+            },
+
+            visualLatinSelectionAt(container, hit, maxLength) {
+                const walker = this.createWalker(container);
+                const chars = [];
+                let node;
+
+                while ((node = walker.nextNode())) {
+                    const content = node.textContent || '';
+                    for (let index = 0; index < content.length; index += 1) {
+                        const character = content[index];
+                        if (!this.isLatinLookupChar(character)) {
+                            continue;
+                        }
+
+                        const rect = this.rangeRect(node, index, index + 1);
+                        if (!rect) {
+                            continue;
+                        }
+
+                        chars.push({ node, offset: index, character, rect });
+                    }
+                }
+
+                const hitIndex = chars.findIndex((item) => item.node === hit.node && item.offset === hit.offset);
+                if (hitIndex < 0) {
+                    return null;
+                }
+
+                const reference = chars[hitIndex].rect;
+                const maxGap = Math.max(6, Math.min(18, reference.width * 1.4));
+                let start = hitIndex;
+                let end = hitIndex;
+
+                for (let index = hitIndex - 1; index >= 0 && end - index + 1 <= maxLength; index -= 1) {
+                    const current = chars[index];
+                    const next = chars[index + 1];
+                    if (!this.sameVisualLine(current.rect, reference)) {
+                        break;
+                    }
+
+                    const gap = next.rect.left - current.rect.right;
+                    if (gap > maxGap) {
+                        break;
+                    }
+
+                    start = index;
+                }
+
+                for (let index = hitIndex + 1; index < chars.length && index - start + 1 <= maxLength; index += 1) {
+                    const current = chars[index];
+                    const previous = chars[index - 1];
+                    if (!this.sameVisualLine(current.rect, reference)) {
+                        break;
+                    }
+
+                    const gap = current.rect.left - previous.rect.right;
+                    if (gap > maxGap) {
+                        break;
+                    }
+
+                    end = index;
+                }
+
+                const selected = chars.slice(start, end + 1);
+                const text = selected.map((item) => item.character).join('');
+                return text ? { text, ranges: this.rangesFromVisualItems(selected) } : null;
+            },
+
             latinSelectionAt(container, hit, maxLength) {
                 const hitText = hit.node.textContent || '';
                 if (!this.isLatinLookupChar(hitText[hit.offset])) {
@@ -1926,10 +2022,16 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                     return null;
                 }
 
-                return {
+                const selected = {
                     text,
                     ranges: this.rangesBetween(container, startNode, startOffset, endNode, endOffset)
                 };
+
+                if (text.length === 1) {
+                    return this.visualLatinSelectionAt(container, hit, maxLength) || selected;
+                }
+
+                return selected;
             },
 
             forwardSelectionAt(container, hit, maxLength) {
