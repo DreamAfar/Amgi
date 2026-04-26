@@ -569,12 +569,12 @@ struct CardWebView: UIViewRepresentable {
 
             return chars.slice(start, end + 1).map(function(item) { return item.character; }).join('');
         }
-        function amgiNativeLatinWordPayloadAt(hit, maxLength) {
+        function amgiNativeLatinWordPayloadFromOffset(hit, offset, maxLength, moveBackward) {
             var selection = window.getSelection && window.getSelection();
             if (!selection || !selection.modify) return '';
 
             var content = hit.node.textContent || '';
-            var caretOffset = Math.min(hit.offset + 1, content.length);
+            var caretOffset = Math.min(Math.max(offset, 0), content.length);
             var caretRange = document.createRange();
             caretRange.setStart(hit.node, caretOffset);
             caretRange.collapse(true);
@@ -582,7 +582,7 @@ struct CardWebView: UIViewRepresentable {
             try {
                 selection.removeAllRanges();
                 selection.addRange(caretRange);
-                selection.modify('move', 'backward', 'word');
+                if (moveBackward) selection.modify('move', 'backward', 'word');
                 selection.modify('extend', 'forward', 'word');
             } catch (_) {
                 selection.removeAllRanges();
@@ -595,6 +595,11 @@ struct CardWebView: UIViewRepresentable {
 
             var match = rawText.match(/[A-Za-z0-9]+(?:[A-Za-z0-9'-]*[A-Za-z0-9])?/);
             return match ? match[0].slice(0, maxLength) : '';
+        }
+        function amgiNativeLatinWordPayloadAt(hit, maxLength) {
+            var fromStart = amgiNativeLatinWordPayloadFromOffset(hit, hit.offset, maxLength, false);
+            var fromAfter = amgiNativeLatinWordPayloadFromOffset(hit, hit.offset + 1, maxLength, true);
+            return fromStart.length >= fromAfter.length ? fromStart : fromAfter;
         }
         function amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters) {
             var selected = '';
@@ -649,7 +654,10 @@ struct CardWebView: UIViewRepresentable {
                 ? (amgiNativeLatinWordPayloadAt(hit, maxLength) || amgiLatinWordPayloadAt(nodeInfo, hit, maxLength))
                 : amgiForwardLookupTextAt(nodeInfo, hit, maxLength, delimiters);
             if (amgiIsLatinLookupChar(hitChar) && selected.length === 1) {
-                selected = amgiVisualLatinWordPayloadAt(nodeInfo, hit, maxLength) || selected;
+                var bodyNodeInfo = amgiLookupNodesInContainer(document.body, hit.node);
+                selected = amgiVisualLatinWordPayloadAt(nodeInfo, hit, maxLength)
+                    || (bodyNodeInfo.hitIndex >= 0 ? amgiVisualLatinWordPayloadAt(bodyNodeInfo, hit, maxLength) : '')
+                    || selected;
             }
             if (!selected) return null;
             return {

@@ -1950,14 +1950,14 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return text ? { text, ranges: this.rangesFromVisualItems(selected) } : null;
             },
 
-            nativeLatinSelectionAt(container, hit, maxLength) {
+            nativeLatinSelectionFromOffset(container, hit, offset, maxLength, moveBackward) {
                 const selection = window.getSelection();
                 if (!selection?.modify) {
                     return null;
                 }
 
                 const content = hit.node.textContent || '';
-                const caretOffset = Math.min(hit.offset + 1, content.length);
+                const caretOffset = Math.min(Math.max(offset, 0), content.length);
                 const caretRange = document.createRange();
                 caretRange.setStart(hit.node, caretOffset);
                 caretRange.collapse(true);
@@ -1965,7 +1965,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 try {
                     selection.removeAllRanges();
                     selection.addRange(caretRange);
-                    selection.modify('move', 'backward', 'word');
+                    if (moveBackward) {
+                        selection.modify('move', 'backward', 'word');
+                    }
                     selection.modify('extend', 'forward', 'word');
                 } catch (_) {
                     selection.removeAllRanges();
@@ -2000,6 +2002,15 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                         selectedRange.endOffset
                     )
                 } : null;
+            },
+
+            nativeLatinSelectionAt(container, hit, maxLength) {
+                const candidates = [
+                    this.nativeLatinSelectionFromOffset(container, hit, hit.offset, maxLength, false),
+                    this.nativeLatinSelectionFromOffset(container, hit, hit.offset + 1, maxLength, true)
+                ].filter(Boolean);
+
+                return candidates.sort((lhs, rhs) => rhs.text.length - lhs.text.length)[0] || null;
             },
 
             latinSelectionAt(container, hit, maxLength) {
@@ -2085,7 +2096,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 };
 
                 if (text.length === 1) {
-                    return this.visualLatinSelectionAt(container, hit, maxLength) || selected;
+                    return this.visualLatinSelectionAt(container, hit, maxLength)
+                        || this.visualLatinSelectionAt(document.body, hit, maxLength)
+                        || selected;
                 }
 
                 return selected;
