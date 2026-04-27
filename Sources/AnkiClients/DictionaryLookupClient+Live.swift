@@ -239,10 +239,12 @@ private actor DictionaryLookupRuntime {
         let resolvedScanLength = max(1, scanLength)
         var rawResults = performLookup(trimmed, maxResults: resolvedMaxResults, scanLength: resolvedScanLength)
         let lowercaseQuery = trimmed.lowercased()
-        if rawResults.isEmpty,
-           lowercaseQuery != trimmed,
+        if lowercaseQuery != trimmed,
            Self.containsASCIIUppercase(trimmed) {
-            rawResults = performLookup(lowercaseQuery, maxResults: resolvedMaxResults, scanLength: resolvedScanLength)
+            let lowercaseResults = performLookup(lowercaseQuery, maxResults: resolvedMaxResults, scanLength: resolvedScanLength)
+            if Self.lookupQualityScore(lowercaseResults, query: lowercaseQuery) > Self.lookupQualityScore(rawResults, query: trimmed) {
+                rawResults = lowercaseResults
+            }
         }
         let styles = loadStyles()
         return DictionaryLookupResult(
@@ -259,6 +261,29 @@ private actor DictionaryLookupRuntime {
 
     private static func containsASCIIUppercase(_ text: String) -> Bool {
         text.unicodeScalars.contains { (65...90).contains(Int($0.value)) }
+    }
+
+    private static func lookupQualityScore(_ results: [LookupResult], query: String) -> Int {
+        let normalizedQuery = query.lowercased()
+        var bestScore = 0
+
+        for result in results {
+            let matched = String(result.matched).lowercased()
+            let term = String(result.term.expression).lowercased()
+
+            if matched == normalizedQuery || term == normalizedQuery {
+                return 4
+            }
+            if matched.count > 1, normalizedQuery.hasPrefix(matched) {
+                bestScore = max(bestScore, 3)
+            } else if term.count > 1, normalizedQuery.hasPrefix(term) {
+                bestScore = max(bestScore, 2)
+            } else if matched.isEmpty == false || term.isEmpty == false {
+                bestScore = max(bestScore, 1)
+            }
+        }
+
+        return bestScore
     }
 
     func loadStyles() -> [String: String] {

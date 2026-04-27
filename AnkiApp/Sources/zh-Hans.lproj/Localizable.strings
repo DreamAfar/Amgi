@@ -377,6 +377,7 @@
 "settings_reader_dictionary_scan_length" = "扫描长度";
 "settings_reader_dictionary_collapse_dictionaries" = "折叠词典分组";
 "settings_reader_dictionary_compact_glossaries" = "压缩释义列表";
+"settings_reader_dictionary_popup_debug_info" = "显示弹窗调试信息";
 "settings_reader_dictionary_section_audio" = "词典音频";
 "settings_reader_dictionary_local_audio" = "启用本地音频库";
 "settings_reader_dictionary_audio_autoplay" = "查词后自动播放音频";

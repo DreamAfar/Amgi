@@ -77,6 +77,7 @@ enum ReaderPreferences {
         static let popupLocalAudioEnabled = "reader_pref_popup_local_audio_enabled"
         static let popupAudioAutoplay = "reader_pref_popup_audio_autoplay"
         static let popupAudioPlaybackMode = "reader_pref_popup_audio_playback_mode"
+        static let popupDebugInfoEnabled = "reader_pref_popup_debug_info_enabled"
         static let dictionaryMaxResults = "reader_pref_dictionary_max_results"
         static let dictionaryScanLength = "reader_pref_dictionary_scan_length"
         static let lookupNoteTemplate = "reader_pref_lookup_note_template"

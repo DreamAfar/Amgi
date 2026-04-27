@@ -667,6 +667,7 @@ private struct ReaderChapterView: View {
     @AppStorage(ReaderPreferences.Keys.popupLocalAudioEnabled) private var popupLocalAudioEnabled = false
     @AppStorage(ReaderPreferences.Keys.popupAudioAutoplay) private var popupAudioAutoplay = false
     @AppStorage(ReaderPreferences.Keys.popupAudioPlaybackMode) private var popupAudioPlaybackModeRawValue = ReaderLookupAudioPlaybackMode.interrupt.rawValue
+    @AppStorage(ReaderPreferences.Keys.popupDebugInfoEnabled) private var popupDebugInfoEnabled = false
     @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var dictionaryMaxResults = 16
     @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var dictionaryScanLength = 16
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
@@ -988,6 +989,7 @@ private struct ReaderChapterView: View {
                                     localAudioEnabled: popupLocalAudioEnabled,
                                     audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
                                     audioPlaybackMode: popupAudioPlaybackMode,
+                                    showDebugInfo: popupDebugInfoEnabled,
                                     onAddNote: { payload in
                                         pendingDraft = makeLookupDraft(from: payload, sentence: popup.sentence)
                                         lookupStack.removeAll()
@@ -1258,6 +1260,7 @@ struct ReaderLookupPopup: View {
     let localAudioEnabled: Bool
     let audioAutoplay: Bool
     let audioPlaybackMode: ReaderLookupAudioPlaybackMode
+    let showDebugInfo: Bool
     let onAddNote: ((ReaderLookupNotePayload) -> Void)?
     let onLookupRequested: (String, String?) -> Void
     let onClose: () -> Void
@@ -1314,20 +1317,22 @@ struct ReaderLookupPopup: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
-                        Text("\(item.0): \(item.1)")
-                            .font(.system(size: debugFont, design: .monospaced))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
+                if showDebugInfo {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
+                            Text("\(item.0): \(item.1)")
+                                .font(.system(size: debugFont, design: .monospaced))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                 if isLoading {
                     HStack(spacing: 12) {

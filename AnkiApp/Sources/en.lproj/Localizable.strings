@@ -377,6 +377,7 @@
 "settings_reader_dictionary_scan_length" = "Scan Length";
 "settings_reader_dictionary_collapse_dictionaries" = "Collapse dictionaries";
 "settings_reader_dictionary_compact_glossaries" = "Compact glossaries";
+"settings_reader_dictionary_popup_debug_info" = "Show popup debug info";
 "settings_reader_dictionary_section_audio" = "Dictionary Audio";
 "settings_reader_dictionary_local_audio" = "Enable local audio";
 "settings_reader_dictionary_audio_autoplay" = "Autoplay audio after lookup";

@@ -86,6 +86,7 @@ struct ReviewView: View {
     @AppStorage(ReaderPreferences.Keys.popupLocalAudioEnabled) private var popupLocalAudioEnabled = false
     @AppStorage(ReaderPreferences.Keys.popupAudioAutoplay) private var popupAudioAutoplay = false
     @AppStorage(ReaderPreferences.Keys.popupAudioPlaybackMode) private var popupAudioPlaybackModeRawValue = ReaderLookupAudioPlaybackMode.interrupt.rawValue
+    @AppStorage(ReaderPreferences.Keys.popupDebugInfoEnabled) private var popupDebugInfoEnabled = false
     @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var dictionaryMaxResults = 16
     @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var dictionaryScanLength = 16
     @State private var actionBarHeight: CGFloat = 0
@@ -634,6 +635,7 @@ struct ReviewView: View {
                             localAudioEnabled: popupLocalAudioEnabled,
                             audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
                             audioPlaybackMode: popupAudioPlaybackMode,
+                            showDebugInfo: popupDebugInfoEnabled,
                             onAddNote: nil,
                             onLookupRequested: { query, sentence in
                                 startCardLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)

@@ -377,6 +377,7 @@
 "settings_reader_dictionary_scan_length" = "スキャン長";
 "settings_reader_dictionary_collapse_dictionaries" = "辞書グループを折りたたむ";
 "settings_reader_dictionary_compact_glossaries" = "語釈をコンパクト表示";
+"settings_reader_dictionary_popup_debug_info" = "ポップアップのデバッグ情報を表示";
 "settings_reader_dictionary_section_audio" = "辞書音声";
 "settings_reader_dictionary_local_audio" = "ローカル音声を有効化";
 "settings_reader_dictionary_audio_autoplay" = "検索後に音声を自動再生";

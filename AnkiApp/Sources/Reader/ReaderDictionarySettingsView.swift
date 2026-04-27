@@ -13,6 +13,7 @@ struct ReaderDictionarySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.popupLocalAudioEnabled) private var localAudioEnabled = false
     @AppStorage(ReaderPreferences.Keys.popupAudioAutoplay) private var audioAutoplay = false
     @AppStorage(ReaderPreferences.Keys.popupAudioPlaybackMode) private var audioPlaybackModeRawValue = ReaderLookupAudioPlaybackMode.interrupt.rawValue
+    @AppStorage(ReaderPreferences.Keys.popupDebugInfoEnabled) private var popupDebugInfoEnabled = false
 
     @State private var libraryState = AppDictionaryLibraryState.empty
     @State private var isBusy = false
@@ -92,6 +93,9 @@ struct ReaderDictionarySettingsView: View {
                     .foregroundStyle(Color.amgiTextPrimary)
 
                 Toggle(L("settings_reader_dictionary_compact_glossaries"), isOn: $compactGlossaries)
+                    .foregroundStyle(Color.amgiTextPrimary)
+
+                Toggle(L("settings_reader_dictionary_popup_debug_info"), isOn: $popupDebugInfoEnabled)
                     .foregroundStyle(Color.amgiTextPrimary)
             }
             .listRowBackground(Color.amgiSurfaceElevated)
