@@ -632,6 +632,7 @@ struct ReaderAdvancedSettingsView: View {
     @Dependency(\.ankiBackend) var backend
 
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
+    @AppStorage(ReaderPreferences.Keys.popupDebugInfoEnabled) private var popupDebugInfoEnabled = false
     @AppStorage(ReaderPreferences.Keys.lookupNoteTemplate) private var lookupNoteTemplateData = ""
 
     @State private var decks: [DeckInfo] = []
@@ -690,6 +691,9 @@ struct ReaderAdvancedSettingsView: View {
         List {
             Section {
                 Toggle(L("settings_reader_tap_lookup"), isOn: $tapLookupEnabled)
+                    .foregroundStyle(SettingsValueStyle.primary)
+
+                Toggle(L("settings_reader_dictionary_popup_debug_info"), isOn: $popupDebugInfoEnabled)
                     .foregroundStyle(SettingsValueStyle.primary)
             } footer: {
                 Text(L("settings_reader_tap_lookup_description"))
