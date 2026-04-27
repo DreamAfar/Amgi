@@ -482,7 +482,7 @@ struct ContentView: View {
         guard collectionState.isReady, !isImportExportInProgress else { return }
 
         Task {
-            let decks = ((try? deckClient.fetchAll()) ?? []).sorted { $0.name < $1.name }
+            let decks = await loadExportDeckOptions()
             await MainActor.run {
                 exportDecks = decks
                 if !decks.contains(where: { $0.id == exportDraft.selectedDeckID }) {
@@ -496,48 +496,99 @@ struct ContentView: View {
     private func startExport(using draft: ExportPackageDraft) {
         guard collectionState.isReady, !isImportExportInProgress else { return }
 
-        let configuration: ImportHelper.ExportPackageConfiguration
-        switch draft.kind {
-        case .collectionPackage:
-            configuration = .collection(
-                includeMedia: draft.includeMedia,
-                legacy: draft.legacySupport
-            )
-        case .deckPackage:
-            guard let deck = exportDecks.first(where: { $0.id == draft.selectedDeckID }) else {
-                importMessage = L("review_no_decks_available")
-                showExportNotice = true
+        Task {
+            var resolvedDraft = draft
+            let resolvedDecks = exportDecks.isEmpty ? await loadExportDeckOptions() : exportDecks
+            await MainActor.run {
+                if exportDecks != resolvedDecks {
+                    exportDecks = resolvedDecks
+                }
+                if !resolvedDecks.contains(where: { $0.id == exportDraft.selectedDeckID }) {
+                    exportDraft.selectedDeckID = resolvedDecks.first?.id
+                }
+                resolvedDraft.selectedDeckID = exportDraft.selectedDeckID
+            }
+
+            let configuration: ImportHelper.ExportPackageConfiguration
+            switch resolvedDraft.kind {
+            case .collectionPackage:
+                configuration = .collection(
+                    includeMedia: resolvedDraft.includeMedia,
+                    legacy: resolvedDraft.legacySupport
+                )
+            case .deckPackage:
+                guard let deck = resolvedDecks.first(where: { $0.id == resolvedDraft.selectedDeckID }) else {
+                    await MainActor.run {
+                        importMessage = L("review_no_decks_available")
+                        showExportNotice = true
+                    }
+                    return
+                }
+                configuration = .deck(
+                    deckID: deck.id,
+                    deckName: deck.name,
+                    includeScheduling: resolvedDraft.includeScheduling,
+                    includeDeckConfigs: resolvedDraft.includeDeckConfigs,
+                    includeMedia: resolvedDraft.includeMedia,
+                    legacy: resolvedDraft.legacySupport
+                )
+            case .selectedNotesPackage:
+                await MainActor.run {
+                    importMessage = L("common_unknown_error")
+                    showExportNotice = true
+                }
                 return
             }
-            configuration = .deck(
-                deckID: deck.id,
-                deckName: deck.name,
-                includeScheduling: draft.includeScheduling,
-                includeDeckConfigs: draft.includeDeckConfigs,
-                includeMedia: draft.includeMedia,
-                legacy: draft.legacySupport
-            )
-        case .selectedNotesPackage:
-            importMessage = L("common_unknown_error")
-            showExportNotice = true
-            return
-        }
 
-        importExportOperation = .exporting
-        let backend = self.backend
-        Task {
-            defer { importExportOperation = nil }
+            await MainActor.run {
+                importExportOperation = .exporting
+            }
+
             do {
+                let backend = self.backend
                 let url = try await Task.detached(priority: .userInitiated) {
                     try ImportHelper.exportPackage(backend: backend, configuration: configuration)
                 }.value
-                exportedFileURL = url
-                showExportShareSheet = true
+                await MainActor.run {
+                    exportedFileURL = url
+                    showExportShareSheet = true
+                }
             } catch {
-                importMessage = L("debug_export_error", error.localizedDescription)
-                showExportNotice = true
+                await MainActor.run {
+                    importMessage = L("debug_export_error", error.localizedDescription)
+                    showExportNotice = true
+                }
+            }
+
+            await MainActor.run {
+                importExportOperation = nil
             }
         }
+    }
+
+    private func loadExportDeckOptions() async -> [DeckInfo] {
+        let attempts: [() throws -> [DeckInfo]] = [
+            { try deckClient.fetchNamesOnly() },
+            { try deckClient.fetchAll() }
+        ]
+
+        for pass in 0..<2 {
+            for attempt in attempts {
+                if let decks = try? attempt() {
+                    let sortedDecks = decks.sorted { $0.name < $1.name }
+                    if sortedDecks.isEmpty == false {
+                        return sortedDecks
+                    }
+                }
+            }
+
+            if pass == 0 {
+                await Task.yield()
+                try? await Task.sleep(nanoseconds: 150_000_000)
+            }
+        }
+
+        return []
     }
 
     private func handleImport(_ result: Result<URL, Error>) {
