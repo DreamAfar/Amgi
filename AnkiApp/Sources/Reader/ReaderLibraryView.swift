@@ -1287,10 +1287,48 @@ struct ReaderLookupPopup: View {
     private var loadingFont: CGFloat { 13 * contentScale }
     private var emptyFont: CGFloat { 13 * contentScale }
     private var sectionDictionaryFont: CGFloat { 13 * dictionaryNameScale }
+    private var debugFont: CGFloat { 11 * contentScale }
+
+    private var debugItems: [(String, String)] {
+        var items: [(String, String)] = [("query", query)]
+        guard let result else {
+            return items
+        }
+
+        items.append(("result.query", result.query))
+        items.append(("entries", String(result.entries.count)))
+
+        if let first = result.entries.first {
+            items.append(("term", first.term))
+            if let matched = first.matched?.nilIfBlank {
+                items.append(("matched", matched))
+            }
+            if let source = first.source?.nilIfBlank {
+                items.append(("source", source))
+            }
+        }
+
+        return items
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
+                        Text("\(item.0): \(item.1)")
+                            .font(.system(size: debugFont, design: .monospaced))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
                 if isLoading {
                     HStack(spacing: 12) {
                         ProgressView()
