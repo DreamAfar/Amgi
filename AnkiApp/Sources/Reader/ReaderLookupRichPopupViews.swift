@@ -104,7 +104,7 @@ private struct ReaderLookupEntryRichView: View {
             term: entry.term,
             reading: entry.reading?.nilIfBlank,
             sentence: sentence,
-            definitions: entry.structuredGlossaries.flatMap(\.definitions),
+            definitions: ReaderLookupNotePayload.definitionsByDictionary(from: entry.structuredGlossaries),
             dictionaries: dictionaryNamesText.nilIfBlank,
             frequency: frequencyText.nilIfBlank,
             pitch: pitchText.nilIfBlank,

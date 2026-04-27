@@ -19,6 +19,36 @@ struct ReaderLookupNotePayload: Sendable, Hashable {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
+
+    static func definitionsByDictionary(from glossaries: [DictionaryLookupGlossary]) -> [String] {
+        var orderedDictionaries: [String] = []
+        var groupedDefinitions: [String: [String]] = [:]
+
+        for glossary in glossaries {
+            let dictionaryKey = glossary.dictionary.trimmingCharacters(in: .whitespacesAndNewlines)
+            let definitions = glossary.definitions
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+
+            guard definitions.isEmpty == false else {
+                continue
+            }
+
+            if groupedDefinitions[dictionaryKey] == nil {
+                orderedDictionaries.append(dictionaryKey)
+                groupedDefinitions[dictionaryKey] = []
+            }
+            groupedDefinitions[dictionaryKey, default: []].append(contentsOf: definitions)
+        }
+
+        return orderedDictionaries.compactMap { dictionaryKey in
+            let merged = groupedDefinitions[dictionaryKey, default: []]
+            guard merged.isEmpty == false else {
+                return nil
+            }
+            return merged.joined(separator: "\n")
+        }
+    }
 }
 
 struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
