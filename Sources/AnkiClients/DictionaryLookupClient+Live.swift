@@ -913,9 +913,7 @@ private actor DictionaryLookupRuntime {
     private static func flattenGlossary(_ rawGlossary: String) -> [String] {
         guard let data = rawGlossary.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) else {
-            return [rawGlossary]
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
+            return glossaryTextLines(from: rawGlossary)
         }
 
         return flattenGlossary(json)
@@ -926,28 +924,65 @@ private actor DictionaryLookupRuntime {
     private static func flattenGlossary(_ value: Any) -> [String] {
         switch value {
         case let string as String:
-            return [string]
+            return glossaryTextLines(from: string)
         case let number as NSNumber:
             return [number.stringValue]
         case let array as [Any]:
             return array.flatMap(flattenGlossary)
         case let dictionary as [String: Any]:
+            if let type = dictionary["type"] as? String,
+               type == "structured-content",
+               let content = dictionary["content"] {
+                return flattenGlossary(content)
+            }
+
+            if let tag = (dictionary["tag"] as? String)?.lowercased() {
+                if tag == "br" {
+                    return []
+                }
+
+                if let content = dictionary["content"] {
+                    let flattenedContent = flattenGlossary(content)
+                    switch tag {
+                    case "li", "dt", "dd", "p", "div", "tr", "td", "th":
+                        let joined = flattenedContent
+                            .joined(separator: " ")
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        return joined.isEmpty ? [] : [joined]
+                    default:
+                        return flattenedContent
+                    }
+                }
+            }
+
             if let text = dictionary["text"] {
                 return flattenGlossary(text)
-            }
-            if let content = dictionary["content"] {
-                return flattenGlossary(content)
             }
             if let value = dictionary["value"] {
                 return flattenGlossary(value)
             }
-            if let title = dictionary["title"] as? String {
-                return [title]
+            if let data = dictionary["data"] {
+                return flattenGlossary(data)
             }
-            return dictionary.values.flatMap(flattenGlossary)
+            if let title = dictionary["title"] as? String {
+                return glossaryTextLines(from: title)
+            }
+            return dictionary.keys.sorted().flatMap { key in
+                guard let nestedValue = dictionary[key] else {
+                    return []
+                }
+                return flattenGlossary(nestedValue)
+            }
         default:
             return []
         }
+    }
+
+    private static func glossaryTextLines(from text: String) -> [String] {
+        text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 }
 

@@ -272,8 +272,14 @@ struct AddNoteView: View {
         }
     }
 
-    private func buildPreviewNote() -> Anki_Notes_Note {
-        var preview = makeEmptyCardPreviewNote(notetypeId: selectedNotetypeId, fieldCount: fieldNames.count)
+    private func buildPreviewNote() throws -> Anki_Notes_Note {
+        var ntReq = Anki_Notetypes_NotetypeId()
+        ntReq.ntid = selectedNotetypeId
+        var preview: Anki_Notes_Note = try backend.invoke(
+            service: AnkiBackend.Service.notes,
+            method: AnkiBackend.NotesMethod.newNote,
+            request: ntReq
+        )
         preview.fields = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
         preview.tags = tags.split(whereSeparator: { $0.isWhitespace }).map(String.init)
         return preview
