@@ -37,19 +37,21 @@ Amgi wraps the official [ankitects/anki](https://github.com/ankitects/anki) Rust
 ## Screenshots
 
 <p align="center">
-    <img src="assets/decks.png" width="300" alt="Decks Screen" />
-    <img src="assets/stats.png" width="300" alt="stats Screen" />
+    <img src="assets/decks.PNG" width="300" alt="Decks Screen" />
+    <img src="assets/Stats.PNG" width="300" alt="Stats Screen" />
     <img src="assets/Books.PNG" width="300" alt="Books Screen" />
     <img src="assets/Browse.PNG" width="300" alt="Browse Screen" />
     <img src="assets/Reading.PNG" width="300" alt="Reading Screen" />
     <img src="assets/Cards.PNG" width="300" alt="Cards Screen" />
     <img src="assets/decks_2.PNG" width="300" alt="decks_2 Screen" />
-    <img src="assets/stats_2.png" width="300" alt="stats_2 Screen" />
+    <img src="assets/Stats_2.PNG" width="300" alt="Stats_2 Screen" />
     <img src="assets/Books_2.PNG" width="300" alt="Books_2 Screen" />
     <img src="assets/Cards_2.PNG" width="300" alt="Cards_2 Screen" />
     <img src="assets/Reading_2.PNG" width="300" alt="Reading_2 Screen" />
     <img src="assets/Browse_2.PNG" width="300" alt="Browse_2 Screen" />
 </p>
+
+
 
 
 
