@@ -941,6 +941,14 @@ private actor DictionaryLookupRuntime {
                     return []
                 }
 
+                if tag == "ruby" {
+                    return flattenRubyGlossary(dictionary)
+                }
+
+                if tag == "rt" || tag == "rp" {
+                    return []
+                }
+
                 if let content = dictionary["content"] {
                     let flattenedContent = flattenGlossary(content)
                     switch tag {
@@ -983,6 +991,51 @@ private actor DictionaryLookupRuntime {
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    private static func flattenRubyGlossary(_ dictionary: [String: Any]) -> [String] {
+        guard let content = dictionary["content"] else {
+            return []
+        }
+
+        let components: [Any]
+        if let contentArray = content as? [Any] {
+            components = contentArray
+        } else {
+            components = [content]
+        }
+
+        var baseParts: [String] = []
+        var readingParts: [String] = []
+
+        for component in components {
+            if let node = component as? [String: Any],
+               let tag = (node["tag"] as? String)?.lowercased() {
+                switch tag {
+                case "rt":
+                    if let rubyReading = node["content"] {
+                        readingParts.append(contentsOf: flattenGlossary(rubyReading))
+                    }
+                case "rp":
+                    continue
+                default:
+                    baseParts.append(contentsOf: flattenGlossary(component))
+                }
+            } else {
+                baseParts.append(contentsOf: flattenGlossary(component))
+            }
+        }
+
+        let base = baseParts.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+        let reading = readingParts.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !base.isEmpty else {
+            return []
+        }
+        guard !reading.isEmpty else {
+            return [base]
+        }
+        return ["\(base)[\(reading)]"]
     }
 }
 

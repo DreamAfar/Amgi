@@ -24,6 +24,7 @@ struct AddNoteView: View {
     @State private var showPreviewError = false
     @State private var showPreviewSheet = false
     @State private var previewNotetype: Anki_Notetypes_Notetype?
+    @State private var previewNote: Anki_Notes_Note?
     @State private var shouldApplyDraftOnNextFieldLoad = false
 
     let onSave: () -> Void
@@ -148,14 +149,14 @@ struct AddNoteView: View {
                 Text(previewErrorMessage ?? L("common_unknown_error"))
             }
             .sheet(isPresented: $showPreviewSheet) {
-                if let previewNotetype {
+                if let previewNotetype, let previewNote {
                     UncommittedCardPreviewSheet(
                         title: L("note_editor_preview_title"),
                         emptyMessage: L("note_editor_preview_empty_card"),
                         notetype: previewNotetype,
                         allowsTemplateSelection: true,
                         loadPreviewNote: {
-                            try buildPreviewNote()
+                            previewNote
                         }
                     )
                 }
@@ -265,6 +266,7 @@ struct AddNoteView: View {
         guard selectedNotetypeId != 0 else { return }
         do {
             previewNotetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
+            previewNote = try buildPreviewNote()
             showPreviewSheet = true
         } catch {
             previewErrorMessage = error.localizedDescription
