@@ -1,5 +1,5 @@
 import XCTest
-import AnkiKit
+import AnkiReader
 @testable import AnkiApp
 
 final class ReaderLookupNoteTemplateTests: XCTestCase {

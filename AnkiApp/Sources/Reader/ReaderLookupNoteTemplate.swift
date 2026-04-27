@@ -1,5 +1,6 @@
 import Foundation
 import AnkiKit
+import AnkiReader
 
 struct ReaderLookupNotePayload: Sendable, Hashable {
     var term: String
