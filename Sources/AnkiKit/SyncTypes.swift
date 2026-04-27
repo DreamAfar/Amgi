@@ -1,13 +1,39 @@
-import Foundation
+public import Foundation
 
 public enum SyncDirection: Sendable {
     case upload
     case download
 }
 
-public struct SyncError: Error, Sendable, Equatable {
+public enum SyncFullSyncRequirementKind: Sendable, Equatable {
+    case conflict
+    case downloadOnly
+    case uploadOnly
+}
+
+public struct SyncFullSyncRequirement: Sendable, Equatable {
+    public var kind: SyncFullSyncRequirementKind
+    public var serverUsn: Int32?
+    public var endpoint: String?
+    public var serverMessage: String?
+
+    public init(
+        kind: SyncFullSyncRequirementKind,
+        serverUsn: Int32? = nil,
+        endpoint: String? = nil,
+        serverMessage: String? = nil
+    ) {
+        self.kind = kind
+        self.serverUsn = serverUsn
+        self.endpoint = endpoint
+        self.serverMessage = serverMessage
+    }
+}
+
+public struct SyncError: LocalizedError, Sendable, Equatable {
     public let message: String
     public let isRetryable: Bool
+    public var errorDescription: String? { message }
 
     public init(message: String, isRetryable: Bool = true) {
         self.message = message
@@ -48,5 +74,55 @@ public struct MediaSyncSummary: Sendable, Equatable {
         self.filesUploaded = filesUploaded
         self.filesDownloaded = filesDownloaded
         self.filesDeleted = filesDeleted
+    }
+}
+
+/// Events emitted by SyncClient.syncWithProgress() as sync progresses through stages.
+public enum SyncProgressEvent: Sendable {
+    case connecting
+    case normalSync
+    case normalSyncProgress(stage: String, added: String, removed: String)
+    case fullSyncRequired(SyncFullSyncRequirement)
+    case fullDownloading
+    case fullUploading
+    case checkingDatabase
+    case syncingMedia
+    case noteStats(added: Int, removed: Int)
+    case mediaStats(checked: String, added: String, removed: String)
+    /// Media download progress: (total count, downloaded count)
+    case mediaProgress(total: Int, downloaded: Int)
+    /// Media download retry: (failed count, retry attempt, delay in seconds)
+    case mediaRetry(failedCount: Int, attempt: Int, delaySeconds: Int)
+    case completed(SyncSummary)
+}
+
+/// Configuration for adaptive media sync throttling
+public struct AdaptiveThrottleConfig: Sendable {
+    /// Minimum delay between requests (seconds)
+    public var minDelaySecs: Double = 0.1
+    /// Initial batch size for media downloads
+    public var initialBatchSize: Int = 50
+    /// Maximum concurrent operations
+    public var maxConcurrentOps: Int = 3
+    /// Failure rate threshold to trigger backoff
+    public var failureRateThreshold: Double = 0.2
+    /// Maximum retry attempts per file
+    public var maxRetries: Int = 5
+    /// Exponential backoff multiplier
+    public var backoffMultiplier: Double = 2.0
+    
+    public init() {}
+}
+
+/// Metadata about a media file for download
+public struct MediaFileInfo: Sendable, Hashable, Codable {
+    public let filename: String
+    public let checksum: String  // SHA-1 hash
+    public let size: Int?
+    
+    public init(filename: String, checksum: String, size: Int? = nil) {
+        self.filename = filename
+        self.checksum = checksum
+        self.size = size
     }
 }

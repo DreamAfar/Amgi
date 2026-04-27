@@ -51,4 +51,31 @@ void anki_free_response(uint8_t *data, size_t len);
  */
 void anki_close_backend(int64_t backend_ptr);
 
+/**
+ * Fetch multiple notes in a single call (batch optimisation).
+ *
+ * Request format (binary, little-endian):
+ *   [count: uint32_t] [nid_0: int64_t] ... [nid_N: int64_t]
+ *
+ * Response format:
+ *   [count: uint32_t] [len_0: uint32_t] [note_proto_0] ... [len_N: uint32_t] [note_proto_N]
+ *
+ * Each note_proto_i is a serialized anki.notes.Note protobuf message.
+ * Notes that cannot be found are silently omitted.
+ *
+ * @param backend_ptr   Opaque pointer from anki_open_backend.
+ * @param req_data      Pointer to the request bytes (count + note IDs).
+ * @param req_len       Length of req_data.
+ * @param out_data      Receives a pointer to the response bytes (heap-allocated).
+ * @param out_len       Receives the length of out_data.
+ * @return 0 on success, -1 on error.
+ */
+int anki_get_notes_batch(
+    int64_t backend_ptr,
+    const uint8_t *req_data,
+    size_t req_len,
+    uint8_t **out_data,
+    size_t *out_len
+);
+
 #endif /* ANKI_BRIDGE_H */

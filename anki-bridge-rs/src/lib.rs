@@ -7,6 +7,148 @@ use std::os::raw::c_int;
 use std::slice;
 
 use anki::backend::{init_backend, Backend};
+use prost::Message;
+use serde_json::json;
+use serde_json::Value;
+
+// ──────────────────────────────────────────────────────────
+// Batch note fetch
+// ──────────────────────────────────────────────────────────
+
+/// Fetch multiple notes in a single FFI call.
+///
+/// Request encoding (binary, little-endian):
+///   [count: u32_le] [nid_0: i64_le] ... [nid_N: i64_le]
+///
+/// Response encoding:
+///   [count: u32_le] [len_0: u32_le] [note_bytes_0] ... [len_N: u32_le] [note_bytes_N]
+///
+/// Each `note_bytes_i` is a valid serialized `anki_proto::notes::Note` protobuf.
+/// Missing note IDs are silently omitted (count may be < requested count).
+///
+/// # Safety
+/// - `backend_ptr` must be a valid pointer from `anki_open_backend`.
+/// - `req_data` / `req_len` must describe a valid request buffer.
+#[no_mangle]
+pub unsafe extern "C" fn anki_get_notes_batch(
+    backend_ptr: i64,
+    req_data: *const u8,
+    req_len: usize,
+    out_data: *mut *mut u8,
+    out_len: *mut usize,
+) -> c_int {
+    let backend = unsafe { &*(backend_ptr as *const Backend) };
+
+    if req_data.is_null() || req_len < 4 {
+        return -1;
+    }
+    let input = unsafe { slice::from_raw_parts(req_data, req_len) };
+
+    // Decode request header
+    let count = u32::from_le_bytes([input[0], input[1], input[2], input[3]]) as usize;
+    if req_len < 4 + count * 8 {
+        return -1;
+    }
+
+    // Decode note IDs from request
+    let mut note_ids: Vec<i64> = Vec::with_capacity(count);
+    for i in 0..count {
+        let off = 4 + i * 8;
+        let nid = i64::from_le_bytes(input[off..off + 8].try_into().unwrap());
+        note_ids.push(nid);
+    }
+
+    if note_ids.is_empty() {
+        set_output(0u32.to_le_bytes().to_vec(), out_data, out_len);
+        return 0;
+    }
+
+    // One SQL query for all requested IDs.
+    let placeholders = vec!["?"; note_ids.len()].join(",");
+    let sql = format!(
+        "select id, guid, mid, mod, usn, tags, flds from notes where id in ({})",
+        placeholders
+    );
+    let args: Vec<Value> = note_ids.iter().map(|nid| json!(nid)).collect();
+    let db_req = json!({
+        "kind": "query",
+        "sql": sql,
+        "args": args,
+        "first_row_only": false,
+    });
+
+    let db_req_bytes = match serde_json::to_vec(&db_req) {
+        Ok(bytes) => bytes,
+        Err(_) => return -1,
+    };
+
+    let db_resp_bytes = match backend.run_db_command_bytes(&db_req_bytes) {
+        Ok(bytes) => bytes,
+        Err(err_bytes) => {
+            // Keep parity with anki_run_method(): backend errors return 1 with protobuf bytes.
+            set_output(err_bytes, out_data, out_len);
+            return 1;
+        }
+    };
+
+    // DbResult::Rows serializes to JSON array rows: [[col0, col1, ...], ...]
+    let rows: Vec<Vec<Value>> = match serde_json::from_slice(&db_resp_bytes) {
+        Ok(rows) => rows,
+        Err(_) => return -1,
+    };
+
+    // Convert SQL rows into Note protobuf bytes.
+    let mut by_id: std::collections::HashMap<i64, Vec<u8>> = std::collections::HashMap::new();
+    by_id.reserve(rows.len());
+    for row in rows {
+        if row.len() < 7 {
+            continue;
+        }
+
+        let Some(id) = row[0].as_i64() else { continue };
+        let Some(guid) = row[1].as_str() else { continue };
+        let Some(mid) = row[2].as_i64() else { continue };
+        let Some(mod_secs) = row[3].as_i64() else { continue };
+        let Some(usn_raw) = row[4].as_i64() else { continue };
+        let tags_raw = row[5].as_str().unwrap_or_default();
+        let fields_raw = row[6].as_str().unwrap_or_default();
+
+        let note = anki_proto::notes::Note {
+            id,
+            guid: guid.to_string(),
+            notetype_id: mid,
+            mtime_secs: mod_secs as u32,
+            usn: usn_raw as i32,
+            tags: tags_raw
+                .split_whitespace()
+                .map(ToString::to_string)
+                .collect(),
+            fields: fields_raw.split('\x1f').map(ToString::to_string).collect(),
+        };
+        by_id.insert(id, note.encode_to_vec());
+    }
+
+    // Preserve caller order; omit IDs not found.
+    let mut all_notes: Vec<Vec<u8>> = Vec::with_capacity(note_ids.len());
+    for nid in note_ids {
+        if let Some(bytes) = by_id.remove(&nid) {
+            all_notes.push(bytes);
+        }
+    }
+
+    // Encode response
+    let note_count = all_notes.len();
+    let body_len: usize = all_notes.iter().map(|b| 4 + b.len()).sum();
+    let mut response: Vec<u8> = Vec::with_capacity(4 + body_len);
+    response.extend_from_slice(&(note_count as u32).to_le_bytes());
+    for note in &all_notes {
+        response.extend_from_slice(&(note.len() as u32).to_le_bytes());
+        response.extend_from_slice(note);
+    }
+
+    set_output(response, out_data, out_len);
+    0
+}
 
 /// Create a new Anki backend instance.
 ///

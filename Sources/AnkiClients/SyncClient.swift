@@ -6,8 +6,16 @@ public import Foundation
 @DependencyClient
 public struct SyncClient: Sendable {
     public var sync: @Sendable () async throws -> SyncSummary
-    public var fullSync: @Sendable (_ direction: SyncDirection) async throws -> Void
+    /// Streams sync progress events; final event is `.completed(SyncSummary)`.
+    public var syncWithProgress: @Sendable () -> AsyncThrowingStream<SyncProgressEvent, any Error> = {
+        AsyncThrowingStream { $0.finish(throwing: SyncError(message: "SyncClient.syncWithProgress unimplemented")) }
+    }
+    public var fullSync: @Sendable (_ direction: SyncDirection, _ serverUsn: Int32?, _ endpoint: String?) async throws -> Void
     public var syncMedia: @Sendable () async throws -> MediaSyncSummary
+    /// Syncs media in batches with progress events
+    public var syncMediaWithProgress: @Sendable () -> AsyncThrowingStream<SyncProgressEvent, any Error> = {
+        AsyncThrowingStream { $0.finish(throwing: SyncError(message: "SyncClient.syncMediaWithProgress unimplemented")) }
+    }
     public var lastSyncDate: @Sendable () -> Date? = { nil }
 }
 

@@ -11,6 +11,7 @@ crate-type = ["staticlib"]
 anki = { path = "../anki-upstream/rslib", features = ["rustls"] }
 anki_proto = { path = "../anki-upstream/rslib/proto" }
 prost = "0.13"
+serde_json = "1"
 
 [profile.release]
 opt-level = "s"     # Optimize for size (iOS binary)

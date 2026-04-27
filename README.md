@@ -36,8 +36,19 @@ Amgi wraps the official [ankitects/anki](https://github.com/ankitects/anki) Rust
 
 <p align="center">
     <img src="assets/decks.png" width="300" alt="Decks Screen" />
-    <img src="assets/stats.png" width="300" alt="Stats Screen" />
+    <img src="assets/stats.png" width="300" alt="Decks Screen" />
+    <img src="assets/Books.png" width="300" alt="Stats Screen" />
+    <img src="assets/Browse.png" width="300" alt="Stats Screen" />
+    <img src="assets/Reading.png" width="300" alt="Stats Screen" />
+    <img src="assets/Cards.png" width="300" alt="Stats Screen" />
+    <img src="assets/decks_2.png" width="300" alt="Stats Screen" />
+    <img src="assets/stats_2.png" width="300" alt="Stats Screen" />
+    <img src="assets/Books_2.png" width="300" alt="Stats Screen" />
+    <img src="assets/Cards_2.png" width="300" alt="Stats Screen" />
+    <img src="assets/Reading_2.png" width="300" alt="Stats Screen" />
+    <img src="assets/Browse_2.png" width="300" alt="Stats Screen" />
 </p>
+
 
 ## Architecture
 
@@ -73,8 +84,8 @@ For the full architecture walkthrough, see **[ARCHITECTURE.md](ARCHITECTURE.md)*
 ### 1. Clone with submodules
 
 ```bash
-git clone --recursive https://github.com/antigluten/amgi.git
-cd amgi
+git clone --recursive https://github.com/antigluten/anki-ios.git
+cd anki-ios
 ```
 
 ### 2. Install dependencies
@@ -108,8 +119,8 @@ This cross-compiles the Rust bridge for iOS device and simulator, then packages 
 ### 5. Open in Xcode
 
 ```bash
-cd AmgiApp && xcodegen generate && cd ..
-open AmgiApp/AmgiApp.xcodeproj
+cd AnkiApp && xcodegen generate && cd ..
+open AnkiApp/AnkiApp.xcodeproj
 ```
 
 ### 6. Build and Run

@@ -1,38 +1,529 @@
 import AnkiKit
-import AnkiServices
+import AnkiBackend
+import AnkiProto
 import AnkiSync
 public import Dependencies
 import DependenciesMacros
+import Foundation
 import Logging
+import SwiftProtobuf
 
 private let logger = Logger(label: "com.ankiapp.sync.client")
 
+private enum SyncPreferenceValues {
+    static let modeKeyBase = "syncMode"
+    static let syncMediaKeyBase = "sync_pref_sync_media"
+    static let ioTimeoutSecsKeyBase = "sync_pref_io_timeout_secs"
+    static let customMode = "custom"
+    static let lastCollectionSyncBase = "sync_pref_collection_last_synced_at"
+
+    static var modeKey: String { scoped(modeKeyBase) }
+    static var syncMediaKey: String { scoped(syncMediaKeyBase) }
+    static var ioTimeoutSecsKey: String { scoped(ioTimeoutSecsKeyBase) }
+    static var lastCollectionSyncKey: String { scoped(lastCollectionSyncBase) }
+
+    private static func scoped(_ base: String) -> String {
+        "\(base).\(currentProfileID())"
+    }
+
+    private static func currentProfileID() -> String {
+        let selectedUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "default"
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let mapped = selectedUser.unicodeScalars.map { scalar -> Character in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        }
+        let profile = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return profile.isEmpty ? "default" : profile
+    }
+}
+
+private func configuredSyncAuth(hostKey: String, endpointOverride: String? = nil) -> Anki_Sync_SyncAuth {
+    var auth = Anki_Sync_SyncAuth()
+    auth.hkey = hostKey
+
+    if let endpointOverride = endpointOverride?.nilIfBlank {
+        auth.endpoint = endpointOverride
+    } else if UserDefaults.standard.string(forKey: SyncPreferenceValues.modeKey) == SyncPreferenceValues.customMode,
+              let endpoint = KeychainHelper.loadEndpoint() {
+        auth.endpoint = endpoint
+    }
+
+    let timeout = UserDefaults.standard.integer(forKey: SyncPreferenceValues.ioTimeoutSecsKey)
+    if timeout > 0 {
+        auth.ioTimeoutSecs = UInt32(timeout)
+    }
+
+    return auth
+}
+
+private func syncMediaEnabled() -> Bool {
+    if UserDefaults.standard.object(forKey: SyncPreferenceValues.syncMediaKey) == nil {
+        return true
+    }
+    return UserDefaults.standard.bool(forKey: SyncPreferenceValues.syncMediaKey)
+}
+
+private actor SyncProgressEmitter {
+    private var continuation: AsyncThrowingStream<SyncProgressEvent, any Error>.Continuation?
+
+    init(_ continuation: AsyncThrowingStream<SyncProgressEvent, any Error>.Continuation) {
+        self.continuation = continuation
+    }
+
+    func yield(_ event: SyncProgressEvent) {
+        continuation?.yield(event)
+    }
+
+    func finish() {
+        continuation?.finish()
+        continuation = nil
+    }
+
+    func finish(throwing error: any Error) {
+        continuation?.finish(throwing: error)
+        continuation = nil
+    }
+}
+
+private struct NormalSyncProgressSnapshot: Equatable {
+    let stage: String
+    let added: String
+    let removed: String
+}
+
+private func latestCollectionProgress(backend: AnkiBackend) -> Anki_Collection_Progress? {
+    try? backend.invoke(
+        service: AnkiBackend.Service.collection,
+        method: AnkiBackend.CollectionMethod.latestProgress
+    )
+}
+
+private func startNormalSyncProgressPolling(
+    backend: AnkiBackend,
+    emitter: SyncProgressEmitter
+) -> Task<Void, Never> {
+    Task.detached(priority: .utility) {
+        var lastSnapshot: NormalSyncProgressSnapshot?
+
+        while !Task.isCancelled {
+            if let progress = latestCollectionProgress(backend: backend),
+               case .normalSync(let normalSync)? = progress.value {
+                let snapshot = NormalSyncProgressSnapshot(
+                    stage: normalSync.stage,
+                    added: normalSync.added,
+                    removed: normalSync.removed
+                )
+                if snapshot != lastSnapshot {
+                    lastSnapshot = snapshot
+                    await emitter.yield(
+                        .normalSyncProgress(
+                            stage: snapshot.stage,
+                            added: snapshot.added,
+                            removed: snapshot.removed
+                        )
+                    )
+                }
+            }
+
+            try? await Task.sleep(nanoseconds: 150_000_000)
+        }
+    }
+}
+
+private func stopProgressPolling(_ task: Task<Void, Never>?) async {
+    task?.cancel()
+    _ = await task?.result
+}
+
+private func fullSyncRequirement(from response: Anki_Sync_SyncCollectionResponse, endpoint: String?) -> SyncFullSyncRequirement? {
+    let serverUsn: Int32? = response.serverMediaUsn
+
+    switch response.required {
+    case .fullSync:
+        return SyncFullSyncRequirement(
+            kind: .conflict,
+            serverUsn: serverUsn,
+            endpoint: endpoint,
+            serverMessage: response.serverMessage.nilIfBlank
+        )
+    case .fullDownload:
+        return SyncFullSyncRequirement(
+            kind: .downloadOnly,
+            serverUsn: serverUsn,
+            endpoint: endpoint,
+            serverMessage: response.serverMessage.nilIfBlank
+        )
+    case .fullUpload:
+        return SyncFullSyncRequirement(
+            kind: .uploadOnly,
+            serverUsn: serverUsn,
+            endpoint: endpoint,
+            serverMessage: response.serverMessage.nilIfBlank
+        )
+    default:
+        return nil
+    }
+}
+
 extension SyncClient: DependencyKey {
     public static let liveValue: Self = {
-        @Dependency(\.syncService) var syncService
+        @Dependency(\.ankiBackend) var backend
+        let syncBackend = backend
 
         return Self(
             sync: {
                 let hostKey = KeychainHelper.loadHostKey() ?? ""
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }
-                let endpoint = KeychainHelper.loadEndpoint() ?? ""
-                logger.info("Starting sync")
-                return try await syncService.sync(endpoint, hostKey)
+
+                logger.info("Starting sync via Rust backend")
+
+                var auth = configuredSyncAuth(hostKey: hostKey)
+
+                var req = Anki_Sync_SyncCollectionRequest()
+                req.auth = auth
+                req.syncMedia = syncMediaEnabled()
+
+                do {
+                    let responseBytes = try syncBackend.call(
+                        service: AnkiBackend.Service.sync,
+                        method: AnkiBackend.SyncMethod.syncCollection,
+                        request: req
+                    )
+                    let response = try Anki_Sync_SyncCollectionResponse(serializedBytes: responseBytes)
+                    logger.info("SyncCollection response: required=\(response.required), message='\(response.serverMessage)', endpoint=\(response.newEndpoint)")
+
+                    // Update endpoint if server redirected
+                    if response.hasNewEndpoint, !response.newEndpoint.isEmpty {
+                        auth.endpoint = response.newEndpoint
+                    }
+
+                    switch response.required {
+                    case .noChanges:
+                        logger.info("No changes needed")
+                        return SyncSummary()
+
+                    case .normalSync:
+                        logger.info("Normal sync completed by backend")
+                        return SyncSummary()
+
+                    case .fullSync, .fullDownload:
+                        // Need a full download — local collection is empty or incompatible
+                        // The Rust backend internally closes, downloads, and reopens the collection.
+                        // We do NOT close beforehand — the backend expects it open.
+                        logger.info("Full download required, starting...")
+                        var dlReq = Anki_Sync_FullUploadOrDownloadRequest()
+                        dlReq.auth = auth
+                        dlReq.upload = false
+                        dlReq.serverUsn = response.serverMediaUsn
+
+                        try syncBackend.callVoid(
+                            service: AnkiBackend.Service.sync,
+                            method: AnkiBackend.SyncMethod.fullUploadOrDownload,
+                            request: dlReq
+                        )
+                        try syncBackend.reopenAfterFullSync()
+                        logger.info("Full download complete, running CheckDatabase...")
+
+                        // Run CheckDatabase to repair any inconsistencies
+                        do {
+                            let checkResult = try syncBackend.call(
+                                service: AnkiBackend.Service.collection,
+                                method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+                            )
+                            logger.info("CheckDatabase completed (\(checkResult.count) bytes)")
+                        } catch {
+                            logger.warning("CheckDatabase failed: \(error) — continuing anyway")
+                        }
+
+                        return SyncSummary()
+
+                    case .fullUpload:
+                        logger.info("Full upload required, starting...")
+                        var ulReq = Anki_Sync_FullUploadOrDownloadRequest()
+                        ulReq.auth = auth
+                        ulReq.upload = true
+                        ulReq.serverUsn = response.serverMediaUsn
+
+                        try syncBackend.callVoid(
+                            service: AnkiBackend.Service.sync,
+                            method: AnkiBackend.SyncMethod.fullUploadOrDownload,
+                            request: ulReq
+                        )
+                        try syncBackend.reopenAfterFullSync()
+                        logger.info("Full upload complete")
+                        return SyncSummary()
+
+                    case .UNRECOGNIZED(let v):
+                        logger.warning("Unrecognized sync required: \(v)")
+                        return SyncSummary()
+                    }
+                } catch let error as BackendError {
+                    logger.error("Sync error: \(error.message)")
+                    if error.isSyncAuthError { throw SyncError.authFailed }
+                    throw SyncError(message: error.message)
+                }
             },
-            fullSync: { direction in
+            syncWithProgress: {
+                AsyncThrowingStream<SyncProgressEvent, any Error> { continuation in
+                    let emitter = SyncProgressEmitter(continuation)
+                    let task = Task { [syncBackend, emitter] in
+                        do {
+                            let hostKey = KeychainHelper.loadHostKey() ?? ""
+                            guard !hostKey.isEmpty else { throw SyncError.authFailed }
+
+                            await emitter.yield(.connecting)
+
+                            var auth = configuredSyncAuth(hostKey: hostKey)
+                            var req = Anki_Sync_SyncCollectionRequest()
+                            req.auth = auth
+                            req.syncMedia = false
+
+                            let responseBytes: Data
+                            let pollTask = startNormalSyncProgressPolling(
+                                backend: syncBackend,
+                                emitter: emitter
+                            )
+                            do {
+                                responseBytes = try syncBackend.call(
+                                    service: AnkiBackend.Service.sync,
+                                    method: AnkiBackend.SyncMethod.syncCollection,
+                                    request: req
+                                )
+                            } catch let error as BackendError {
+                                await stopProgressPolling(pollTask)
+                                if error.isSyncAuthError { throw SyncError.authFailed }
+                                throw SyncError(message: error.message)
+                            }
+                            await stopProgressPolling(pollTask)
+
+                            let response = try Anki_Sync_SyncCollectionResponse(serializedBytes: responseBytes)
+                            logger.info("syncWithProgress: required=\(response.required), serverMessage='\(response.serverMessage)'")
+
+                            if response.hasNewEndpoint, !response.newEndpoint.isEmpty {
+                                auth.endpoint = response.newEndpoint
+                            }
+
+                            let fullSyncEndpoint = auth.hasEndpoint ? auth.endpoint : nil
+                            if let requirement = fullSyncRequirement(from: response, endpoint: fullSyncEndpoint) {
+                                await emitter.yield(.fullSyncRequired(requirement))
+                                await emitter.finish()
+                                return
+                            }
+
+                            switch response.required {
+                            case .noChanges:
+                                break
+
+                            case .normalSync:
+                                await emitter.yield(.normalSync)
+
+                            case .UNRECOGNIZED(let v):
+                                logger.warning("Unrecognized sync required value: \(v)")
+                            case .fullSync, .fullDownload, .fullUpload:
+                                break
+                            }
+
+                            if syncMediaEnabled() {
+                                await emitter.yield(.syncingMedia)
+
+                                let currentUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "default"
+                                let queue = MediaDownloadQueue(userProfileID: currentUser)
+                                let limiter = AdaptiveRateLimiter()
+                                let session = MediaSyncSession(queue: queue, limiter: limiter)
+                                let downloader = MediaDownloader(backend: syncBackend, session: session)
+                                let incrementalManager = IncrementalSyncManager(userProfileID: currentUser)
+
+                                let incrementalStats = await incrementalManager.getSyncStats()
+                                logger.info("Incremental sync: \(incrementalStats.knownFileCount) known files from previous syncs")
+
+                                await session.start()
+
+                                let mediaAuth = configuredSyncAuth(hostKey: hostKey)
+                                var attemptCount = 0
+
+                                do {
+                                    for try await event in await downloader.syncMediaWithRetry(auth: mediaAuth) {
+                                        switch event {
+                                        case .connecting:
+                                            break
+                                        case .fetchingIndex:
+                                            break
+                                        case .progress(let downloaded, let total):
+                                            await emitter.yield(.mediaProgress(total: total, downloaded: downloaded))
+                                        case .retrying(let attempt, let delayMs):
+                                            attemptCount = attempt
+                                            await emitter.yield(.mediaRetry(failedCount: 0, attempt: attempt, delaySeconds: delayMs / 1000))
+                                        case .completed:
+                                            break
+                                        }
+                                    }
+
+                                    let logMessage = attemptCount == 0
+                                        ? "Media sync completed."
+                                        : "Media sync completed after \(attemptCount) attempts."
+                                    logger.info("\(logMessage)")
+
+                                    let stats = await incrementalManager.getSyncStats()
+                                    logger.info("Incremental sync: recorded \(stats.knownFileCount) synced files, will skip on next run")
+                                    await incrementalManager.cleanupOldRecords(retentionDays: 30)
+                                } catch let error as SyncError {
+                                    if error == .authFailed {
+                                        throw error
+                                    }
+                                    logger.warning("Media sync failed (non-fatal): \(error.message)")
+                                } catch let error as BackendError {
+                                    if error.isSyncAuthError { throw SyncError.authFailed }
+                                    logger.warning("Media sync failed (non-fatal): \(error.message)")
+                                } catch {
+                                    logger.warning("Media sync failed (non-fatal): \(error)")
+                                }
+                            }
+
+                            UserDefaults.standard.set(
+                                Date().timeIntervalSince1970,
+                                forKey: SyncPreferenceValues.lastCollectionSyncKey
+                            )
+
+                            await emitter.yield(.completed(SyncSummary()))
+                            await emitter.finish()
+                        } catch {
+                            await emitter.finish(throwing: error)
+                        }
+                    }
+                    continuation.onTermination = { @Sendable _ in task.cancel() }
+                }
+            },
+            fullSync: { direction, serverUsn, endpoint in
                 let hostKey = KeychainHelper.loadHostKey() ?? ""
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }
-                let endpoint = KeychainHelper.loadEndpoint() ?? ""
-                try await syncService.fullSync(endpoint, hostKey, direction)
+
+                let auth = configuredSyncAuth(hostKey: hostKey, endpointOverride: endpoint)
+
+                var req = Anki_Sync_FullUploadOrDownloadRequest()
+                req.auth = auth
+                req.upload = (direction == .upload)
+                if let serverUsn {
+                    req.serverUsn = serverUsn
+                }
+
+                do {
+                    try syncBackend.callVoid(
+                        service: AnkiBackend.Service.sync,
+                        method: AnkiBackend.SyncMethod.fullUploadOrDownload,
+                        request: req
+                    )
+                    try syncBackend.reopenAfterFullSync()
+                    UserDefaults.standard.set(
+                        Date().timeIntervalSince1970,
+                        forKey: SyncPreferenceValues.lastCollectionSyncKey
+                    )
+                } catch let error as BackendError {
+                    if error.isSyncAuthError { throw SyncError.authFailed }
+                    throw SyncError(message: error.message)
+                }
             },
             syncMedia: {
                 let hostKey = KeychainHelper.loadHostKey() ?? ""
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }
-                let endpoint = KeychainHelper.loadEndpoint() ?? ""
-                try await syncService.syncMedia(endpoint, hostKey)
+
+                let auth = configuredSyncAuth(hostKey: hostKey)
+
+                do {
+                    try syncBackend.callVoid(
+                        service: AnkiBackend.Service.sync,
+                        method: AnkiBackend.SyncMethod.syncMedia,
+                        request: auth
+                    )
+                } catch let error as BackendError {
+                    if error.isSyncAuthError { throw SyncError.authFailed }
+                    throw SyncError(message: error.message)
+                }
+
                 return MediaSyncSummary()
             },
-            lastSyncDate: { nil }
+            syncMediaWithProgress: {
+                AsyncThrowingStream<SyncProgressEvent, any Error> { continuation in
+                    let emitter = SyncProgressEmitter(continuation)
+                    let task = Task { [syncBackend, emitter] in
+                        do {
+                            let hostKey = KeychainHelper.loadHostKey() ?? ""
+                            guard !hostKey.isEmpty else { throw SyncError.authFailed }
+                            
+                            let currentUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "default"
+                            let queue = MediaDownloadQueue(userProfileID: currentUser)
+                            let limiter = AdaptiveRateLimiter()
+                            let session = MediaSyncSession(queue: queue, limiter: limiter)
+                            let downloader = MediaDownloader(backend: syncBackend, session: session)
+                            
+                            // Initialize incremental sync manager
+                            let incrementalManager = IncrementalSyncManager(userProfileID: currentUser)
+                            let incrementalStats = await incrementalManager.getSyncStats()
+                            logger.info("Incremental sync: \(incrementalStats.knownFileCount) known files from previous syncs")
+                            
+                            await session.start()
+                            
+                            let auth = configuredSyncAuth(hostKey: hostKey)
+                            
+                            // Use MediaDownloader with retry logic
+                            logger.info("Starting media sync with adaptive retry and incremental filtering")
+                            await emitter.yield(.syncingMedia)
+                            
+                            // Create downloader retry stream
+                            var attemptCount = 0
+                            for try await event in await downloader.syncMediaWithRetry(auth: auth) {
+                                switch event {
+                                case .connecting:
+                                    await emitter.yield(.connecting)
+                                case .fetchingIndex:
+                                    await emitter.yield(.mediaProgress(total: 0, downloaded: 0))
+                                case .progress(let downloaded, let total):
+                                    await emitter.yield(.mediaProgress(total: total, downloaded: downloaded))
+                                case .retrying(let attempt, let delayMs):
+                                    attemptCount = attempt
+                                    await emitter.yield(.mediaRetry(failedCount: 0, attempt: attempt, delaySeconds: delayMs / 1000))
+                                case .completed:
+                                    await emitter.yield(.completed(SyncSummary()))
+                                }
+                            }
+                            
+                            // Record successful sync
+                            let logMessage = attemptCount == 0 ? "Media sync completed." : "Media sync completed after \(attemptCount) attempts."
+                            logger.info("\(logMessage)")
+                            
+                            // Record incremental sync state for next time
+                            let stats = await incrementalManager.getSyncStats()
+                            logger.info("Incremental sync: recorded \(stats.knownFileCount) synced files, will skip on next run")
+                            
+                            // Cleanup old records (>30 days)
+                            await incrementalManager.cleanupOldRecords(retentionDays: 30)
+                            
+                            logger.info("Media sync completed after \(attemptCount) attempts")
+                            await emitter.finish()
+                        } catch let error as SyncError {
+                            logger.error("Media sync error: \(error.message)")
+                            await emitter.finish(throwing: error)
+                        } catch let error as BackendError {
+                            let syncError: SyncError
+                            if error.isSyncAuthError {
+                                syncError = .authFailed
+                            } else {
+                                syncError = SyncError(message: error.message)
+                            }
+                            logger.error("Backend error during media sync: \(error.message)")
+                            await emitter.finish(throwing: syncError)
+                        } catch {
+                            logger.error("Unexpected error during media sync: \(error)")
+                            await emitter.finish(throwing: error)
+                        }
+                    }
+                    continuation.onTermination = { @Sendable _ in task.cancel() }
+                }
+            },
+            lastSyncDate: {
+                let ts = UserDefaults.standard.double(forKey: SyncPreferenceValues.lastCollectionSyncKey)
+                guard ts > 0 else { return nil }
+                return Date(timeIntervalSince1970: ts)
+            }
         )
     }()
 
@@ -40,13 +531,39 @@ extension SyncClient: DependencyKey {
         username: String,
         password: String
     ) async throws -> String {
-        @Dependency(\.syncService) var syncService
+        @Dependency(\.ankiBackend) var backend
 
         logger.info("Logging in as \(username)")
-        let endpoint = KeychainHelper.loadEndpoint() ?? ""
-        let hostKey = try await syncService.login(endpoint, username, password)
-        try KeychainHelper.saveHostKey(hostKey)
-        try KeychainHelper.saveUsername(username)
-        return hostKey
+
+        var req = Anki_Sync_SyncLoginRequest()
+        req.username = username
+        req.password = password
+        let auth = configuredSyncAuth(hostKey: "")
+        if auth.hasEndpoint {
+            req.endpoint = auth.endpoint
+        }
+
+        do {
+            let auth: Anki_Sync_SyncAuth = try backend.invoke(
+                service: AnkiBackend.Service.sync,
+                method: AnkiBackend.SyncMethod.syncLogin,
+                request: req
+            )
+
+            try KeychainHelper.saveHostKey(auth.hkey)
+            try KeychainHelper.saveUsername(username)
+            logger.info("Login successful")
+            return auth.hkey
+        } catch let error as BackendError {
+            logger.error("Login failed: \(error.message)")
+            throw SyncError.authFailed
+        }
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

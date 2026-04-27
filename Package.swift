@@ -13,20 +13,20 @@ let sharedSwiftSettings: [SwiftSetting] = [
 
 let package = Package(
     name: "AnkiBridge",
-    platforms: [.iOS(.v17), .macOS(.v14)],
+    platforms: [.iOS(.v18), .macOS(.v15)],
     products: [
         .library(name: "AnkiKit", targets: ["AnkiKit"]),
         .library(name: "AnkiProto", targets: ["AnkiProto"]),
         .library(name: "AnkiBackend", targets: ["AnkiBackend"]),
-        .library(name: "AnkiServices", targets: ["AnkiServices"]),
         .library(name: "AnkiClients", targets: ["AnkiClients"]),
+        .library(name: "AnkiReader", targets: ["AnkiReader"]),
         .library(name: "AnkiSync", targets: ["AnkiSync"]),
-        .library(name: "AmgiCardWeb", targets: ["AmgiCardWeb"]),
     ],
     dependencies: [
         .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.0"),
+        .package(url: "https://github.com/Manhhao/hoshidicts.git", revision: "e70589d33b6b346663278383b422e41f1ed05f3c"),
     ],
     targets: [
         // MARK: - Rust Bridge
@@ -54,10 +54,15 @@ let package = Package(
         // MARK: - Libraries
         .target(
             name: "AnkiKit",
+            exclude: [
+                "ReaderTypes.swift",
+                "DictionaryTypes.swift",
+                "AppDictionaryTypes.swift",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .target(
-            name: "AnkiServices",
+            name: "AnkiClients",
             dependencies: [
                 "AnkiKit",
                 "AnkiBackend",
@@ -68,34 +73,57 @@ let package = Package(
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
                 .product(name: "Logging", package: "swift-log"),
             ],
+            exclude: [
+                "ReaderBookClient.swift",
+                "ReaderBookClient+Live.swift",
+                "DictionaryLookupClient.swift",
+                "DictionaryLookupClient+Live.swift",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .target(
-            name: "AnkiClients",
+            name: "AnkiReader",
             dependencies: [
+                "AnkiClients",
                 "AnkiKit",
-                "AnkiServices",
-                "AnkiSync",
+                "AnkiBackend",
+                "AnkiProto",
+                .product(name: "CHoshiDicts", package: "hoshidicts"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
-                .product(name: "Logging", package: "swift-log"),
             ],
-            swiftSettings: sharedSwiftSettings
+            path: "Sources",
+            sources: [
+                "AnkiKit/ReaderTypes.swift",
+                "AnkiKit/DictionaryTypes.swift",
+                "AnkiKit/AppDictionaryTypes.swift",
+                "AnkiClients/ReaderBookClient.swift",
+                "AnkiClients/ReaderBookClient+Live.swift",
+                "AnkiClients/DictionaryLookupClient.swift",
+                "AnkiClients/DictionaryLookupClient+Live.swift",
+            ],
+            swiftSettings: sharedSwiftSettings + [
+                .interoperabilityMode(.Cxx),
+            ]
         ),
         .target(
             name: "AnkiSync",
             dependencies: [
                 "AnkiKit",
+                "AnkiBackend",
+                "AnkiProto",
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+                .product(name: "Logging", package: "swift-log"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
-        .target(
-            name: "AmgiCardWeb",
-            swiftSettings: sharedSwiftSettings
-        ),
         .testTarget(
-            name: "AmgiCardWebTests",
-            dependencies: ["AmgiCardWeb"],
+            name: "AnkiSyncTests",
+            dependencies: [
+                "AnkiSync",
+                "AnkiKit",
+            ],
+            path: "Sources/AnkiSyncTests",
             swiftSettings: sharedSwiftSettings
         ),
     ],

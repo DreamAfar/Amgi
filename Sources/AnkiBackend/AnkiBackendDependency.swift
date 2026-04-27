@@ -2,11 +2,19 @@ public import Dependencies
 
 private enum AnkiBackendKey: DependencyKey {
     static let liveValue: AnkiBackend = {
-        try! AnkiBackend(preferredLangs: ["en"])
+        do {
+            return try AnkiBackend(preferredLangs: ["en"])
+        } catch {
+            fatalError("Failed to initialize AnkiBackend liveValue: \(error)")
+        }
     }()
 
     static let testValue: AnkiBackend = {
-        try! AnkiBackend(preferredLangs: ["en"])
+        do {
+            return try AnkiBackend(preferredLangs: ["en"])
+        } catch {
+            fatalError("Failed to initialize AnkiBackend testValue: \(error)")
+        }
     }()
 }
 
