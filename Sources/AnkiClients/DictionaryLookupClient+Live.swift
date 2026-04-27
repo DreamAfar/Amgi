@@ -967,11 +967,11 @@ private actor DictionaryLookupRuntime {
             if let title = dictionary["title"] as? String {
                 return glossaryTextLines(from: title)
             }
-            return dictionary.keys.sorted().flatMap { key in
+            return dictionary.keys.sorted().reduce(into: [String]()) { result, key in
                 guard let nestedValue = dictionary[key] else {
-                    return []
+                    return
                 }
-                return flattenGlossary(nestedValue)
+                result.append(contentsOf: flattenGlossary(nestedValue))
             }
         default:
             return []
