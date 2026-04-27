@@ -23,12 +23,14 @@ Amgi wraps the official [ankitects/anki](https://github.com/ankitects/anki) Rust
 
 - **Sync Server Support** -- login, sync, full upload/download, bidirectional review sync with any compatible server
 - **FSRS Scheduling** -- powered by the official Rust FSRS engine, not a reimplementation
-- **Card Rendering** -- Rust template engine renders cards exactly like desktop clients
+- **Card Rendering** -- Rust template engine renders cards exactly like desktop clients，Full Anki card support.
 - **Deck Browser** -- hierarchical deck tree with recursive `DisclosureGroup` expand/collapse, new/learn/review count badges on every node
 - **Study Session** -- answer cards with Again/Hard/Good/Easy; next-interval labels shown above each button
 - **Note Browser** -- search notes across all decks, deck filter chips (top-level decks auto-include subdecks), lazy-load results (50 per page)
 - **Note Editor** -- edit note fields with accurate field names from the Rust notetype RPC
 - **Statistics Dashboard** -- full-year review heatmap (auto-scrolls to today), streak counter, retention rate, forecast chart, card count breakdown
+- **Books** -- Inspired by Hoshi Reader, this lightweight reader allows users to read and sync content from Anki Notes, supports a Yomitan dictionary, and is designed for immersive learning.
+- **Yomitan dictionary** -- The answer card page supports Yomitan dictionary lookup.
 - **Offline-First** -- everything works offline; sync when you have a connection
 - **Swift 6.2 Strict Concurrency** -- zero data races, fully actor-isolated, `Sendable` throughout
 
