@@ -155,7 +155,7 @@ struct AddNoteView: View {
                         notetype: previewNotetype,
                         allowsTemplateSelection: true,
                         loadPreviewNote: {
-                            buildPreviewNote()
+                            try buildPreviewNote()
                         }
                     )
                 }
