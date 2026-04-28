@@ -427,48 +427,23 @@ struct DeckConfigView: View {
             set: { value.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }
         )
 
-        return HStack(spacing: AmgiSpacing.sm) {
-            HStack(spacing: 4) {
-                TextField("", value: boundedValue, format: .number)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .font(.monospaced(.body)())
+        return HStack(spacing: 4) {
+            TextField("", value: boundedValue, format: .number)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .font(.monospaced(.body)())
+                .foregroundStyle(Color.amgiAccent)
+                .lineLimit(1)
+                .frame(minWidth: 44, idealWidth: 58, maxWidth: 70)
+
+            if let unitFormatKey {
+                Text(unitLabel(from: unitFormatKey))
+                    .foregroundStyle(Color.amgiTextSecondary)
                     .lineLimit(1)
-                    .frame(minWidth: 44, idealWidth: 58, maxWidth: 70)
-
-                if let unitFormatKey {
-                    Text(unitLabel(from: unitFormatKey))
-                        .foregroundStyle(Color.amgiTextSecondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
+                    .truncationMode(.tail)
             }
-            .frame(width: unitFormatKey == nil ? 72 : 118, alignment: .trailing)
-
-            HStack(spacing: 0) {
-                Button {
-                    boundedValue.wrappedValue -= 1
-                } label: {
-                    Image(systemName: "minus")
-                        .frame(width: 42, height: 34)
-                }
-                .disabled(boundedValue.wrappedValue <= range.lowerBound)
-
-                Divider()
-                    .frame(height: 20)
-
-                Button {
-                    boundedValue.wrappedValue += 1
-                } label: {
-                    Image(systemName: "plus")
-                        .frame(width: 42, height: 34)
-                }
-                .disabled(boundedValue.wrappedValue >= range.upperBound)
-            }
-            .foregroundStyle(Color.amgiAccent)
-            .background(Color.amgiAccent.opacity(0.16), in: Capsule())
         }
-        .frame(width: unitFormatKey == nil ? 164 : 218, alignment: .trailing)
+        .frame(width: unitFormatKey == nil ? 72 : 118, alignment: .trailing)
     }
 
     private func unitLabel(from formatKey: String) -> String {
