@@ -75,8 +75,13 @@ struct SyncSheet: View {
                 }
                 if syncCoordinator.isRunning {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(L("sync_btn_background")) {
+                        Button {
                             isPresented = false
+                        } label: {
+                            Text(L("sync_btn_background"))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                                .allowsTightening(true)
                         }
                         .amgiToolbarTextButton()
                     }

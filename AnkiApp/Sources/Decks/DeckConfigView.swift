@@ -385,11 +385,29 @@ struct DeckConfigView: View {
                 .amgiFont(.body)
                 .foregroundStyle(Color.amgiTextPrimary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .allowsTightening(true)
             Image(systemName: "chevron.up.chevron.down")
                 .font(AmgiFont.micro.font)
                 .foregroundStyle(Color.amgiTextSecondary)
         }
         .amgiCapsuleControl()
+    }
+
+    private func settingRow<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .center, spacing: AmgiSpacing.sm) {
+            Text(title)
+                .lineLimit(1)
+                .minimumScaleFactor(0.68)
+                .allowsTightening(true)
+                .layoutPriority(1)
+            Spacer(minLength: AmgiSpacing.sm)
+            content()
+                .lineLimit(1)
+        }
     }
 
     private func editableNumberStepper(
@@ -408,11 +426,15 @@ struct DeckConfigView: View {
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .font(.monospaced(.body)())
-                    .frame(minWidth: 52, idealWidth: 72, maxWidth: 96)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(minWidth: 40, idealWidth: 56, maxWidth: 80)
 
                 if let unitFormatKey {
                     Text(unitLabel(from: unitFormatKey))
                         .foregroundStyle(Color.amgiTextSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
         }
@@ -554,13 +576,13 @@ struct DeckConfigView: View {
 
     private var dailyLimitsSection: some View {
         Section(L("deck_config_section_daily")) {
-            LabeledContent(L("deck_config_daily_new")) {
+            settingRow(L("deck_config_daily_new")) {
                 editableNumberStepper($newCardsPerDay, in: 0...9999)
             }
-            LabeledContent(L("deck_config_daily_review")) {
+            settingRow(L("deck_config_daily_review")) {
                 editableNumberStepper($reviewsPerDay, in: 0...9999)
             }
-            LabeledContent(L("deck_config_new_per_day_minimum")) {
+            settingRow(L("deck_config_new_per_day_minimum")) {
                 editableNumberStepper($newPerDayMinimum, in: 0...9999)
             }
             Toggle(L("deck_config_new_cards_ignore_review_limit"), isOn: $newCardsIgnoreReviewLimit)
@@ -577,13 +599,13 @@ struct DeckConfigView: View {
                     .font(.monospaced(.body)())
                     .foregroundStyle(Color.amgiAccent)
             }
-            LabeledContent(L("deck_config_good_interval")) {
+            settingRow(L("deck_config_good_interval")) {
                 editableNumberStepper($graduatingGoodDays, in: 0...365, unitFormatKey: "deck_config_days_fmt")
             }
-            LabeledContent(L("deck_config_easy_interval")) {
+            settingRow(L("deck_config_easy_interval")) {
                 editableNumberStepper($graduatingEasyDays, in: 0...365, unitFormatKey: "deck_config_days_fmt")
             }
-            LabeledContent(L("deck_config_insert_order")) {
+            settingRow(L("deck_config_insert_order")) {
                 Menu {
                     Picker(L("deck_config_insert_order"), selection: $newCardInsertOrder) {
                         Text(L("deck_config_order_due")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
@@ -605,10 +627,10 @@ struct DeckConfigView: View {
                     .font(.monospaced(.body)())
                     .foregroundStyle(Color.amgiAccent)
             }
-            LabeledContent(L("deck_config_leech_threshold")) {
+            settingRow(L("deck_config_leech_threshold")) {
                 editableNumberStepper($leechThreshold, in: 1...9999, unitFormatKey: "deck_config_times_fmt")
             }
-            LabeledContent(L("deck_config_leech_action")) {
+            settingRow(L("deck_config_leech_action")) {
                 Menu {
                     Picker(L("deck_config_leech_action"), selection: $leechAction) {
                         Text(L("deck_config_leech_suspend")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
@@ -624,7 +646,7 @@ struct DeckConfigView: View {
 
     private var orderSection: some View {
         Section(L("deck_config_section_order")) {
-            LabeledContent(L("deck_config_new_gather_priority")) {
+            settingRow(L("deck_config_new_gather_priority")) {
                 Menu {
                     Picker(L("deck_config_new_gather_priority"), selection: $newCardGatherPriority) {
                         Text(L("deck_config_new_gather_priority_deck")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deck)
@@ -638,7 +660,7 @@ struct DeckConfigView: View {
                     optionCapsule(newCardGatherPriorityLabel)
                 }
             }
-            LabeledContent(L("deck_config_new_card_sort_order")) {
+            settingRow(L("deck_config_new_card_sort_order")) {
                 Menu {
                     Picker(L("deck_config_new_card_sort_order"), selection: $newCardSortOrder) {
                         Text(L("deck_config_sort_order_template_then_gather")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.template)
@@ -651,7 +673,7 @@ struct DeckConfigView: View {
                     optionCapsule(newCardSortOrderLabel)
                 }
             }
-            LabeledContent(L("deck_config_new_mix")) {
+            settingRow(L("deck_config_new_mix")) {
                 Menu {
                     Picker(L("deck_config_new_mix"), selection: $newMix) {
                         Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
@@ -662,7 +684,7 @@ struct DeckConfigView: View {
                     optionCapsule(newMixLabel)
                 }
             }
-            LabeledContent(L("deck_config_review_order")) {
+            settingRow(L("deck_config_review_order")) {
                 Menu {
                     Picker(L("deck_config_review_order"), selection: $reviewOrder) {
                         Text(L("deck_config_review_order_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
@@ -682,7 +704,7 @@ struct DeckConfigView: View {
                     optionCapsule(reviewOrderLabel)
                 }
             }
-            LabeledContent(L("deck_config_interday_mix")) {
+            settingRow(L("deck_config_interday_mix")) {
                 Menu {
                     Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
                         Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)

@@ -22,9 +22,7 @@ struct AddNoteView: View {
     @State private var errorMessage: String?
     @State private var previewErrorMessage: String?
     @State private var showPreviewError = false
-    @State private var showPreviewSheet = false
-    @State private var previewNotetype: Anki_Notetypes_Notetype?
-    @State private var previewNote: Anki_Notes_Note?
+    @State private var previewContext: AddNotePreviewContext?
     @State private var shouldApplyDraftOnNextFieldLoad = false
 
     let onSave: () -> Void
@@ -148,18 +146,16 @@ struct AddNoteView: View {
             } message: {
                 Text(previewErrorMessage ?? L("common_unknown_error"))
             }
-            .sheet(isPresented: $showPreviewSheet) {
-                if let previewNotetype, let previewNote {
-                    UncommittedCardPreviewSheet(
-                        title: L("note_editor_preview_title"),
-                        emptyMessage: L("note_editor_preview_empty_card"),
-                        notetype: previewNotetype,
-                        allowsTemplateSelection: true,
-                        loadPreviewNote: {
-                            previewNote
-                        }
-                    )
-                }
+            .sheet(item: $previewContext) { context in
+                UncommittedCardPreviewSheet(
+                    title: L("note_editor_preview_title"),
+                    emptyMessage: L("note_editor_preview_empty_card"),
+                    notetype: context.notetype,
+                    allowsTemplateSelection: true,
+                    loadPreviewNote: {
+                        context.note
+                    }
+                )
             }
         }
     }
@@ -265,26 +261,24 @@ struct AddNoteView: View {
     private func showPreview() {
         guard selectedNotetypeId != 0 else { return }
         do {
-            previewNotetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
-            previewNote = try buildPreviewNote()
-            showPreviewSheet = true
+            let notetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
+            previewContext = AddNotePreviewContext(
+                notetype: notetype,
+                note: buildPreviewNote(notetype: notetype)
+            )
         } catch {
             previewErrorMessage = error.localizedDescription
             showPreviewError = true
         }
     }
 
-    private func buildPreviewNote() throws -> Anki_Notes_Note {
-        var ntReq = Anki_Notetypes_NotetypeId()
-        ntReq.ntid = selectedNotetypeId
-        var preview: Anki_Notes_Note = try backend.invoke(
-            service: AnkiBackend.Service.notes,
-            method: AnkiBackend.NotesMethod.newNote,
-            request: ntReq
+    private func buildPreviewNote(notetype: Anki_Notetypes_Notetype) -> Anki_Notes_Note {
+        NoteProtoFactory.makeUncommittedNote(
+            notetypeId: selectedNotetypeId,
+            fieldValues: fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML),
+            tags: tags,
+            fieldCount: notetype.fields.count
         )
-        preview.fields = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
-        preview.tags = tags.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-        return preview
     }
 
     private func save() async {
@@ -295,17 +289,20 @@ struct AddNoteView: View {
             // 1. Create blank note for the notetype
             var ntReq = Anki_Notetypes_NotetypeId()
             ntReq.ntid = selectedNotetypeId
-            var note: Anki_Notes_Note = try backend.invoke(
+            let blankNote: Anki_Notes_Note = try backend.invoke(
                 service: AnkiBackend.Service.notes,
                 method: AnkiBackend.NotesMethod.newNote,
                 request: ntReq
             )
+            let note = NoteProtoFactory.makeUncommittedNote(
+                baseNote: blankNote,
+                notetypeId: selectedNotetypeId,
+                fieldValues: fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML),
+                tags: tags,
+                fieldCount: fieldNames.count
+            )
 
-            // 2. Fill in fields and tags
-            note.fields = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
-            note.tags = tags.split(separator: " ").map(String.init)
-
-            // 3. Add the note to the deck
+            // 2. Add the note to the deck
             var addReq = Anki_Notes_AddNoteRequest()
             addReq.note = note
             addReq.deckID = selectedDeckId
@@ -324,4 +321,10 @@ struct AddNoteView: View {
 
         isSaving = false
     }
+}
+
+private struct AddNotePreviewContext: Identifiable {
+    let id = UUID()
+    let notetype: Anki_Notetypes_Notetype
+    let note: Anki_Notes_Note
 }

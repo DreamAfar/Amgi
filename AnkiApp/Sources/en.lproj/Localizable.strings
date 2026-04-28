@@ -492,7 +492,7 @@
 // MARK: - SyncSheet
 "sync_nav_title" = "Sync";
 "sync_btn_done" = "Done";
-"sync_btn_background" = "Background Download";
+"sync_btn_background" = "Background";
 "sync_label_server" = "Server";
 "sync_menu_change_server" = "Change Server";
 "sync_menu_logout" = "Logout";

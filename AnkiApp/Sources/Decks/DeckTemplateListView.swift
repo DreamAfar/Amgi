@@ -543,12 +543,12 @@ struct TemplateEditorView: View {
                 return try await Task.detached(priority: .userInitiated) {
                     if let previewNoteId,
                        let currentNote = try noteClient.fetch(previewNoteId) {
-                        return buildCardPreviewNote(from: currentNote)
+                        return NoteProtoFactory.makeNote(from: currentNote)
                     }
                     if let sampleNote = try noteClient.search("mid:\(notetypeId)", 1).first {
-                        return buildCardPreviewNote(from: sampleNote)
+                        return NoteProtoFactory.makeNote(from: sampleNote)
                     }
-                    return makeEmptyCardPreviewNote(
+                    return NoteProtoFactory.makeEmptyUncommittedNote(
                         notetypeId: notetypeId,
                         fieldCount: notetype.fields.count
                     )

@@ -569,7 +569,9 @@ struct ContentView: View {
     private func loadExportDeckOptions() async -> [DeckInfo] {
         let attempts: [() throws -> [DeckInfo]] = [
             { try deckClient.fetchNamesOnly() },
-            { try deckClient.fetchAll() }
+            { try deckClient.fetchAll() },
+            { flattenDeckOptions(from: try deckClient.fetchTree()) },
+            { flattenDeckOptions(from: DeckTreeCache.load()) }
         ]
 
         for pass in 0..<2 {
@@ -589,6 +591,16 @@ struct ContentView: View {
         }
 
         return []
+    }
+
+    private func flattenDeckOptions(from nodes: [DeckTreeNode]) -> [DeckInfo] {
+        nodes
+            .flatMap { node -> [DeckInfo] in
+                [
+                    DeckInfo(id: node.id, name: node.fullName, counts: node.counts)
+                ] + flattenDeckOptions(from: node.children)
+            }
+            .sorted { $0.name < $1.name }
     }
 
     private func handleImport(_ result: Result<URL, Error>) {

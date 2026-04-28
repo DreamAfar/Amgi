@@ -185,7 +185,7 @@ struct NoteEditorView: View {
                     notetype: notetype,
                     allowsTemplateSelection: true,
                     loadPreviewNote: {
-                        buildCardPreviewNote(
+                        NoteProtoFactory.makeNote(
                             from: note,
                             fieldValues: fieldValues,
                             tags: tags

@@ -1,7 +1,6 @@
 import SwiftUI
 import AnkiBackend
 import AnkiProto
-import AnkiKit
 import Dependencies
 
 struct UncommittedCardPreviewSheet: View {
@@ -288,33 +287,6 @@ private enum CardPreviewSide: CaseIterable {
             return L("deck_template_preview_back")
         }
     }
-}
-
-func buildCardPreviewNote(
-    from note: NoteRecord,
-    fieldValues: [String]? = nil,
-    tags: String? = nil
-) -> Anki_Notes_Note {
-    var preview = Anki_Notes_Note()
-    preview.id = note.id
-    preview.guid = note.guid
-    preview.notetypeID = note.mid
-    preview.mtimeSecs = UInt32(clamping: note.mod)
-    preview.usn = note.usn
-    preview.tags = (tags ?? note.tags)
-        .split(whereSeparator: { $0.isWhitespace })
-        .map(String.init)
-    preview.fields = fieldValues
-        ?? note.flds.split(separator: "\u{1f}", omittingEmptySubsequences: false).map(String.init)
-    return preview
-}
-
-func makeEmptyCardPreviewNote(notetypeId: Int64, fieldCount: Int) -> Anki_Notes_Note {
-    var preview = Anki_Notes_Note()
-    preview.notetypeID = notetypeId
-    preview.usn = -1
-    preview.fields = Array(repeating: "", count: max(fieldCount, 0))
-    return preview
 }
 
 private func renderCardPreviewNodes(_ nodes: [Anki_CardRendering_RenderedTemplateNode]) -> String {
