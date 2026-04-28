@@ -53,7 +53,7 @@ struct SyncSheet: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .padding(.horizontal, 20)
-            .padding(.top, 8)
+            .padding(.top, 24)
             .padding(.bottom, 12)
             .background(Color.amgiBackground)
             .navigationTitle(L("sync_nav_title"))
