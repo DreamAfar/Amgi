@@ -1,5 +1,5 @@
-import AnkiKit
-import AnkiProto
+public import AnkiKit
+public import AnkiProto
 
 public enum NoteProtoFactory {
     public static func makeNote(

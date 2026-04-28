@@ -5,6 +5,14 @@ import AnkiSync
 import Dependencies
 
 struct SyncSheet: View {
+    private enum StatusHeaderTone {
+        case primary
+        case positive
+        case warning
+    }
+
+    private let syncLogHeight: CGFloat = 220
+
     @Binding var isPresented: Bool
     @Dependency(\.syncClient) var syncClient
     @ObservedObject private var syncCoordinator = AppSyncCoordinator.shared
@@ -17,17 +25,6 @@ struct SyncSheet: View {
 
     private var syncMode: SyncPreferences.Mode {
         SyncPreferences.resolvedMode(syncModeRaw)
-    }
-
-    private var displayedServer: String {
-        switch syncMode {
-        case .official:
-            return SyncPreferences.officialServerLabel
-        case .custom:
-            return KeychainHelper.loadEndpoint() ?? L("common_none")
-        case .local:
-            return L("sync_local_mode_label")
-        }
     }
 
     var body: some View {
@@ -110,10 +107,7 @@ struct SyncSheet: View {
     private func syncingView(message: String) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 6) {
-                HStack(spacing: 8) {
-                    Text(L("sync_syncing"))
-                        .amgiFont(.sectionHeading)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                statusHeader(title: L("sync_syncing")) {
                     ProgressView()
                         .progressViewStyle(.circular)
                         .controlSize(.small)
@@ -123,7 +117,18 @@ struct SyncSheet: View {
                     .foregroundStyle(Color.amgiTextSecondary)
             }
 
-            syncLogView(height: 170)
+            syncLogView(height: syncLogHeight)
+        }
+    }
+
+    private var serverTypeLabel: String {
+        switch syncMode {
+        case .official:
+            return L("sync_settings_server_type_official")
+        case .custom:
+            return L("sync_settings_server_type_custom")
+        case .local:
+            return L("sync_settings_server_type_local")
         }
     }
 
@@ -177,10 +182,7 @@ struct SyncSheet: View {
     @ViewBuilder
     private func mediaProgressView(total: Int, downloaded: Int) -> some View {
         VStack(spacing: 16) {
-            HStack(spacing: 8) {
-                Text(L("sync_syncing"))
-                    .amgiFont(.sectionHeading)
-                    .foregroundStyle(Color.amgiTextPrimary)
+            statusHeader(title: L("sync_syncing")) {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .controlSize(.small)
@@ -221,7 +223,7 @@ struct SyncSheet: View {
                 in: RoundedRectangle(cornerRadius: 12)
             )
 
-            syncLogView(height: 170)
+            syncLogView(height: syncLogHeight)
         }
     }
 
@@ -230,14 +232,14 @@ struct SyncSheet: View {
     @ViewBuilder
     private var serverConfigSection: some View {
         HStack(spacing: 8) {
-            Text(L("sync_label_server"))
+            Text(L("sync_settings_server_type"))
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
-            Text(displayedServer)
+            Text(serverTypeLabel)
                 .font(.system(size: 13, weight: .regular, design: .default))
                 .foregroundStyle(Color.amgiTextSecondary)
                 .lineLimit(1)
-                .truncationMode(.middle)
+                .truncationMode(.tail)
             Spacer(minLength: 8)
             if syncMode == .custom {
                 Menu {
@@ -365,9 +367,7 @@ struct SyncSheet: View {
     @ViewBuilder
     private func successView(_ summary: SyncSummary) -> some View {
         VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Text(L("sync_complete_title"))
-                    .amgiStatusText(.positive, font: .sectionHeading)
+            statusHeader(title: L("sync_complete_title"), tone: .positive) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(AmgiFont.sectionHeading.font)
                     .foregroundStyle(Color.amgiPositive)
@@ -408,7 +408,7 @@ struct SyncSheet: View {
                         }
                         .padding(.vertical, 6)
                     }
-                    .frame(height: 170)
+                    .frame(height: syncLogHeight)
                     .background(
                         Color.amgiSurface,
                         in: RoundedRectangle(cornerRadius: 10)
@@ -424,8 +424,10 @@ struct SyncSheet: View {
     @ViewBuilder
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 12) {
-            Label(L("sync_failed_title"), systemImage: "exclamationmark.triangle.fill")
-                .amgiStatusText(.warning, font: .sectionHeading)
+            statusHeader(title: L("sync_failed_title"), tone: .warning) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.amgiWarning)
+            }
             Text(message)
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
@@ -523,6 +525,34 @@ struct SyncSheet: View {
             return L("sync_full_download_confirm_desc")
         case .uploadOnly:
             return L("sync_full_upload_confirm_desc")
+        }
+    }
+
+    @ViewBuilder
+    private func statusHeader<Accessory: View>(
+        title: String,
+        tone: StatusHeaderTone = .primary,
+        @ViewBuilder accessory: () -> Accessory
+    ) -> some View {
+        HStack(spacing: 8) {
+            statusHeaderTitle(title, tone: tone)
+            accessory()
+        }
+    }
+
+    @ViewBuilder
+    private func statusHeaderTitle(_ title: String, tone: StatusHeaderTone) -> some View {
+        switch tone {
+        case .primary:
+            Text(title)
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
+        case .positive:
+            Text(title)
+                .amgiStatusText(.positive, font: .sectionHeading)
+        case .warning:
+            Text(title)
+                .amgiStatusText(.warning, font: .sectionHeading)
         }
     }
 }

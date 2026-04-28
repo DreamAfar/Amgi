@@ -1049,6 +1049,11 @@ private struct AboutView: View {
                             urlString: "https://github.com/ankidroid/Anki-Android"
                         )
                         aboutLinkBlock(
+                            title: "Hoshi-Reader",
+                            description: L("about_ack_hoshi_reader_text"),
+                            urlString: "https://github.com/Manhhao/Hoshi-Reader"
+                        )
+                        aboutLinkBlock(
                             title: "Point-Free swift-dependencies",
                             description: L("about_ack_dependencies_text"),
                             urlString: "https://github.com/pointfreeco/swift-dependencies"
@@ -1070,6 +1075,7 @@ private struct AboutView: View {
                     VStack(alignment: .leading, spacing: AmgiSpacing.md) {
                         aboutLinkRow(title: L("about_link_project_repo"), urlString: "https://github.com/antigluten/amgi")
                         aboutLinkRow(title: L("about_link_anki_repo"), urlString: "https://github.com/ankitects/anki")
+                        aboutLinkRow(title: L("about_link_hoshi_reader_repo"), urlString: "https://github.com/Manhhao/Hoshi-Reader")
                     }
                 }
 
