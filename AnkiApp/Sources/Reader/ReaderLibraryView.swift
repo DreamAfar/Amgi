@@ -966,6 +966,7 @@ private struct ReaderChapterView: View {
                                     lookupStack.removeAll()
                                     lookupHighlightClearRequestID += 1
                                 }
+                                .allowsHitTesting(tapLookupEnabled == false)
 
                             ForEach(Array(lookupStack.enumerated()), id: \.element.id) { index, popup in
                                 ReaderLookupPopup(
