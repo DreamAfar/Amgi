@@ -33,9 +33,7 @@ struct SyncSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 14) {
-                if syncMode != .local {
-                    serverConfigSection
-                }
+                serverConfigSection
 
                 switch syncCoordinator.state {
                 case .idle:
@@ -112,17 +110,20 @@ struct SyncSheet: View {
     private func syncingView(message: String) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 6) {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                Text(L("sync_syncing"))
-                    .amgiFont(.sectionHeading)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                HStack(spacing: 8) {
+                    Text(L("sync_syncing"))
+                        .amgiFont(.sectionHeading)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                }
                 Text(message)
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
             }
 
-            syncLogView(height: 96)
+            syncLogView(height: 170)
         }
     }
 
@@ -176,9 +177,14 @@ struct SyncSheet: View {
     @ViewBuilder
     private func mediaProgressView(total: Int, downloaded: Int) -> some View {
         VStack(spacing: 16) {
-            Text(L("sync_syncing"))
-                .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+            HStack(spacing: 8) {
+                Text(L("sync_syncing"))
+                    .amgiFont(.sectionHeading)
+                    .foregroundStyle(Color.amgiTextPrimary)
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .controlSize(.small)
+            }
 
             VStack(spacing: 8) {
                 HStack {
@@ -215,7 +221,7 @@ struct SyncSheet: View {
                 in: RoundedRectangle(cornerRadius: 12)
             )
 
-            syncLogView(height: 96)
+            syncLogView(height: 170)
         }
     }
 
@@ -223,18 +229,16 @@ struct SyncSheet: View {
 
     @ViewBuilder
     private var serverConfigSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L("sync_label_server"))
-                    .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
-                Text(displayedServer)
-                    .font(.system(size: 11, weight: .regular, design: .default))
-                    .foregroundStyle(Color.amgiTextSecondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            Spacer()
+        HStack(spacing: 8) {
+            Text(L("sync_label_server"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+            Text(displayedServer)
+                .font(.system(size: 13, weight: .regular, design: .default))
+                .foregroundStyle(Color.amgiTextSecondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 8)
             if syncMode == .custom {
                 Menu {
                     Button(L("sync_menu_change_server")) {
@@ -361,8 +365,13 @@ struct SyncSheet: View {
     @ViewBuilder
     private func successView(_ summary: SyncSummary) -> some View {
         VStack(spacing: 12) {
-            Label(L("sync_complete_title"), systemImage: "checkmark.circle.fill")
-                .amgiStatusText(.positive, font: .sectionHeading)
+            HStack(spacing: 8) {
+                Text(L("sync_complete_title"))
+                    .amgiStatusText(.positive, font: .sectionHeading)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(AmgiFont.sectionHeading.font)
+                    .foregroundStyle(Color.amgiPositive)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 if summary.cardsPulled > 0 { Text(L("sync_cards_received", summary.cardsPulled)) }
                 if summary.cardsPushed > 0 { Text(L("sync_cards_sent", summary.cardsPushed)) }
@@ -399,7 +408,7 @@ struct SyncSheet: View {
                         }
                         .padding(.vertical, 6)
                     }
-                    .frame(maxHeight: 120)
+                    .frame(height: 170)
                     .background(
                         Color.amgiSurface,
                         in: RoundedRectangle(cornerRadius: 10)
