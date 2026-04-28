@@ -782,6 +782,12 @@ private struct ReaderLookupStructuredGlossaryWebView: UIViewRepresentable {
                         contentRoot.appendChild(wrapper);
                     });
                 }
+
+                if (typeof handlePopupLookupTap === 'function') {
+                    contentRoot.addEventListener('touchstart', handlePopupLookupTap, { capture: true });
+                    contentRoot.addEventListener('touchend', handlePopupLookupTap, { capture: true });
+                    contentRoot.addEventListener('click', handlePopupLookupTap, true);
+                }
             })();
             </script>
             </body>
