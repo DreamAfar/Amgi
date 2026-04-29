@@ -1,5 +1,7 @@
 import SwiftUI
 import AnkiKit
+import AnkiClients
+import Dependencies
 
 struct ExportPackageDraft: Sendable {
     enum Kind: String, CaseIterable, Identifiable, Sendable {
@@ -30,12 +32,17 @@ struct ExportPackageDraft: Sendable {
 }
 
 struct ExportOptionsView: View {
+    @Dependency(\.deckClient) private var deckClient
+
     @Binding var draft: ExportPackageDraft
     let availableKinds: [ExportPackageDraft.Kind]
     let decks: [DeckInfo]
     let selectedNotesCount: Int?
     let onCancel: () -> Void
     let onExport: () -> Void
+
+    @State private var loadedDecks: [DeckInfo] = []
+    @State private var isLoadingDecks = false
 
     private var canExport: Bool {
         switch draft.kind {
@@ -44,6 +51,10 @@ struct ExportOptionsView: View {
         case .deckPackage:
             return draft.selectedDeckID != nil
         }
+    }
+
+    private var resolvedDecks: [DeckInfo] {
+        loadedDecks
     }
 
     var body: some View {
@@ -61,7 +72,15 @@ struct ExportOptionsView: View {
                 }
 
                 if draft.kind == .deckPackage {
-                    if decks.isEmpty {
+                    if isLoadingDecks {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text(L("sync_syncing"))
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        }
+                    } else if resolvedDecks.isEmpty {
                         Text(L("review_no_decks_available"))
                             .amgiFont(.caption)
                             .foregroundStyle(Color.amgiTextSecondary)
@@ -69,11 +88,11 @@ struct ExportOptionsView: View {
                         Picker(
                             L("export_config_deck"),
                             selection: Binding(
-                                get: { draft.selectedDeckID ?? decks.first?.id ?? 0 },
+                                get: { draft.selectedDeckID ?? resolvedDecks.first?.id ?? 0 },
                                 set: { draft.selectedDeckID = $0 }
                             )
                         ) {
-                            ForEach(decks) { deck in
+                            ForEach(resolvedDecks) { deck in
                                 Text(deck.name).tag(deck.id)
                             }
                         }
@@ -120,18 +139,84 @@ struct ExportOptionsView: View {
             }
         }
         .onAppear {
+            loadedDecks = decks
             if !availableKinds.contains(draft.kind), let firstKind = availableKinds.first {
                 draft.kind = firstKind
             }
             if draft.kind == .deckPackage, draft.selectedDeckID == nil {
-                draft.selectedDeckID = decks.first?.id
+                draft.selectedDeckID = resolvedDecks.first?.id
+            }
+            if draft.kind == .deckPackage, resolvedDecks.isEmpty {
+                Task { await ensureDeckOptionsLoaded() }
             }
         }
         .onChange(of: draft.kind) { _, newValue in
+            if loadedDecks.isEmpty, !decks.isEmpty {
+                loadedDecks = decks
+            }
             if newValue == .deckPackage, draft.selectedDeckID == nil {
-                draft.selectedDeckID = decks.first?.id
+                draft.selectedDeckID = resolvedDecks.first?.id
+            }
+            if newValue == .deckPackage, resolvedDecks.isEmpty {
+                Task { await ensureDeckOptionsLoaded() }
             }
         }
+        .onChange(of: decks) { _, newValue in
+            loadedDecks = newValue
+            if draft.kind == .deckPackage, draft.selectedDeckID == nil {
+                draft.selectedDeckID = newValue.first?.id
+            }
+        }
+    }
+
+    @MainActor
+    private func ensureDeckOptionsLoaded() async {
+        guard isLoadingDecks == false else { return }
+        guard resolvedDecks.isEmpty else { return }
+
+        isLoadingDecks = true
+        defer { isLoadingDecks = false }
+
+        let fetchedDecks = await loadDeckOptions()
+        loadedDecks = fetchedDecks
+        if draft.selectedDeckID == nil {
+            draft.selectedDeckID = fetchedDecks.first?.id
+        }
+    }
+
+    private func loadDeckOptions() async -> [DeckInfo] {
+        let attempts: [() throws -> [DeckInfo]] = [
+            { try deckClient.fetchNamesOnly() },
+            { try deckClient.fetchAll() },
+            { flattenDeckOptions(from: try deckClient.fetchTree()) }
+        ]
+
+        for pass in 0..<2 {
+            for attempt in attempts {
+                if let deckOptions = try? attempt() {
+                    let sortedDecks = deckOptions.sorted { $0.name < $1.name }
+                    if sortedDecks.isEmpty == false {
+                        return sortedDecks
+                    }
+                }
+            }
+
+            if pass == 0 {
+                await Task.yield()
+                try? await Task.sleep(nanoseconds: 150_000_000)
+            }
+        }
+
+        return []
+    }
+
+    private func flattenDeckOptions(from nodes: [DeckTreeNode]) -> [DeckInfo] {
+        nodes
+            .flatMap { node -> [DeckInfo] in
+                [
+                    DeckInfo(id: node.id, name: node.fullName, counts: node.counts)
+                ] + flattenDeckOptions(from: node.children)
+            }
     }
 }
 

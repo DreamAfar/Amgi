@@ -390,8 +390,11 @@ struct DeckConfigView: View {
                 .font(AmgiFont.micro.font)
                 .foregroundStyle(Color.amgiTextSecondary)
         }
-        .amgiCapsuleControl()
-        .frame(maxWidth: 220, alignment: .trailing)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(Color.amgiSurface.opacity(0.72))
+        .clipShape(Capsule())
+        .frame(width: adaptiveCapsuleWidth(for: title, min: 64, max: 220), alignment: .trailing)
     }
 
     private func settingRow<Content: View>(
@@ -404,6 +407,7 @@ struct DeckConfigView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             content()
+                .fixedSize(horizontal: true, vertical: false)
                 .layoutPriority(1)
         }
     }
@@ -442,7 +446,7 @@ struct DeckConfigView: View {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
                 )
-                .frame(width: 72)
+                .frame(width: adaptiveValueFieldWidth(for: "\(boundedValue.wrappedValue)", min: 56, max: 108))
 
             if let unitFormatKey {
                 Text(unitLabel(from: unitFormatKey))
@@ -450,7 +454,7 @@ struct DeckConfigView: View {
                     .fixedSize(horizontal: true, vertical: false)
             }
         }
-        .frame(minWidth: unitFormatKey == nil ? 72 : 118, alignment: .trailing)
+        .frame(minWidth: unitFormatKey == nil ? 56 : 86, alignment: .trailing)
     }
 
     private func unitLabel(from formatKey: String) -> String {
@@ -466,6 +470,21 @@ struct DeckConfigView: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
             )
+    }
+
+    private func adaptiveCapsuleWidth(for text: String, min: CGFloat, max: CGFloat) -> CGFloat {
+        adaptiveValueFieldWidth(for: text, min: min, max: max, characterWidth: 15)
+    }
+
+    private func adaptiveValueFieldWidth(
+        for text: String,
+        min: CGFloat,
+        max: CGFloat,
+        characterWidth: CGFloat = 12
+    ) -> CGFloat {
+        let effectiveCount = max(text.count, 1)
+        let measuredWidth = CGFloat(effectiveCount) * characterWidth + 28
+        return Swift.min(Swift.max(measuredWidth, min), max)
     }
 
     private func percentWheelPicker(
@@ -589,6 +608,7 @@ struct DeckConfigView: View {
                 TextField(L("deck_config_name_placeholder"), text: $configName)
                     .multilineTextAlignment(.trailing)
                     .lineLimit(1)
+                    .frame(width: adaptiveValueFieldWidth(for: configName, min: 120, max: 240, characterWidth: 11), alignment: .trailing)
             }
             settingRow(L("deck_config_preset_usage")) {
                 Text(L("deck_config_preset_used_by", Int(presetUseCount)))
@@ -628,6 +648,7 @@ struct DeckConfigView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(inputChrome())
+                    .frame(width: adaptiveValueFieldWidth(for: learningStepsText, min: 72, max: 160), alignment: .trailing)
             }
             settingRow(L("deck_config_good_interval")) {
                 editableNumberStepper($graduatingGoodDays, in: 0...365, unitFormatKey: "deck_config_days_fmt")
@@ -660,6 +681,7 @@ struct DeckConfigView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(inputChrome())
+                    .frame(width: adaptiveValueFieldWidth(for: relearningStepsText, min: 72, max: 160), alignment: .trailing)
             }
             settingRow(L("deck_config_leech_threshold")) {
                 editableNumberStepper($leechThreshold, in: 1...9999, unitFormatKey: "deck_config_times_fmt")

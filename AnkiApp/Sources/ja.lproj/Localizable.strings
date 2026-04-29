@@ -524,7 +524,7 @@
 "sync_settings_section_media" = "メディア";
 "sync_settings_server_type" = "サーバー種別";
 "sync_settings_server_type_official" = "Anki公式サーバー";
-"ankiweb_support_notice" = "AnkiWeb is supported by sales of AnkiMobile. Please consider purchasing a copy to support the sync servers.";
+"ankiweb_support_notice" = "AnkiWeb は AnkiMobile の売上によって支えられています。同期サーバーを支援したい場合は、AnkiMobile の購入をご検討ください。";
 "sync_settings_server_type_custom" = "セルフホストサーバー";
 "sync_settings_server_type_local" = "ローカルのみ";
 "sync_settings_current_server" = "現在のサーバー";
@@ -1363,7 +1363,7 @@
 "about_section_tech_stack" = "技術スタック";
 "about_tech_text" = "SwiftUI、Swift 6.2、Rust FFI、Protocol Buffers、SQLite、XcodeGen";
 "about_section_acknowledgements" = "謝辞";
-"about_ack_ankiweb_text" = "AnkiWeb is supported by sales of AnkiMobile. Please consider purchasing a copy to support the sync servers.";
+"about_ack_ankiweb_text" = "AnkiWeb は AnkiMobile の売上によって支えられています。同期サーバーを支援したい場合は、AnkiMobile の購入をご検討ください。";
 "about_ack_anki_text" = "コアとなるスケジューリング、データベース、同期バックエンド機能を提供します。";
 "about_ack_ankidroid_text" = "オープンソースの Anki エコシステムにおける実装経験と互換性の参考を多く提供しています。";
 "about_ack_hoshi_reader_text" = "Reader 関連の体験とインタラクション設計において、実装上の参考と着想を提供しています。";

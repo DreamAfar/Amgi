@@ -524,7 +524,7 @@
 "sync_settings_section_media" = "媒体";
 "sync_settings_server_type" = "服务器类型";
 "sync_settings_server_type_official" = "Anki 官方服务器";
-"ankiweb_support_notice" = "AnkiWeb is supported by sales of AnkiMobile. Please consider purchasing a copy to support the sync servers.";
+"ankiweb_support_notice" = "AnkiWeb 依靠 AnkiMobile 的销售收入维持运行。若你愿意支持同步服务器，请考虑购买一份 AnkiMobile。";
 "sync_settings_server_type_custom" = "自托管服务器";
 "sync_settings_server_type_local" = "仅本地";
 "sync_settings_current_server" = "当前服务器";
@@ -1363,7 +1363,7 @@
 "about_section_tech_stack" = "技术栈";
 "about_tech_text" = "SwiftUI、Swift 6.2、Rust FFI、Protocol Buffers、SQLite、XcodeGen";
 "about_section_acknowledgements" = "鸣谢";
-"about_ack_ankiweb_text" = "AnkiWeb is supported by sales of AnkiMobile. Please consider purchasing a copy to support the sync servers.";
+"about_ack_ankiweb_text" = "AnkiWeb 依靠 AnkiMobile 的销售收入维持运行。若你愿意支持同步服务器，请考虑购买一份 AnkiMobile。";
 "about_ack_anki_text" = "提供核心调度、数据库与同步后端能力。";
 "about_ack_ankidroid_text" = "在开源 Anki 生态中提供了大量实现经验与兼容参考。";
 "about_ack_hoshi_reader_text" = "为 Reader 相关体验与交互设计提供了实现参考和灵感。";

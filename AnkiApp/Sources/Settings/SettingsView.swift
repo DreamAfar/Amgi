@@ -800,7 +800,7 @@ private struct SyncSettingsView: View {
                 }
 
                 if syncMode == .official {
-                    ankiWebSupportNoticeRow(title: L("sync_settings_server_type"))
+                    ankiWebSupportNoticeRow()
                 } else {
                     infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
                 }
@@ -925,11 +925,8 @@ private struct SyncSettingsView: View {
         }
     }
 
-    private func ankiWebSupportNoticeRow(title: String) -> some View {
+    private func ankiWebSupportNoticeRow() -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .amgiFont(.body)
-                .foregroundStyle(SettingsValueStyle.primary)
             Text(L("ankiweb_support_notice"))
                 .amgiFont(.caption)
                 .foregroundStyle(SettingsValueStyle.secondary)
