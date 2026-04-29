@@ -1,0 +1,15 @@
+name: Release Unsigned IPA
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    uses: ./.github/workflows/common-build.yml
+    with:
+      upload_artifact: true
+      upload_release: true
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit

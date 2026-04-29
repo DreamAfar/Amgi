@@ -1,0 +1,15 @@
+name: Build Unsigned IPA
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/common-build.yml
+    with:
+      upload_artifact: true
+      upload_release: false
+    secrets: inherit

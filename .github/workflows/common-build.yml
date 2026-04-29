@@ -1,7 +1,23 @@
-name: Build Unsigned IPA
+name: Common IPA Build
 
 on:
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      upload_artifact:
+        description: Whether to upload the IPA as a workflow artifact.
+        required: false
+        default: true
+        type: boolean
+      upload_release:
+        description: Whether to attach the IPA to a GitHub Release.
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: Tag name used when publishing a GitHub Release.
+        required: false
+        default: ""
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -9,34 +25,31 @@ env:
 jobs:
   build:
     runs-on: macos-26
+    permissions:
+      contents: write
 
     steps:
-      # ── 1. 选定 Xcode 26.3（正式版，非 RC）────────────────────
       - name: Select Xcode 26.3
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.3'
+          xcode-version: "26.3"
 
-      # ── 2. 确认版本 ────────────────────────────────────────────
       - name: Show versions
         run: |
           xcodebuild -version
           swift --version
 
-      # ── 3. 检出代码（含子模块）──────────────────────────────────
       - name: Checkout repository with submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # ── 4. 安装 Rust 工具链 ────────────────────────────────────
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.95"
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
 
-      # ── 5. 缓存 Rust 编译产物 ──────────────────────────────────
       - name: Cache Rust build artifacts
         uses: actions/cache@v4
         with:
@@ -49,31 +62,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-rust-
 
-      # ── 6. 安装 Homebrew 依赖 ──────────────────────────────────
       - name: Install Homebrew dependencies
         run: |
           brew install protobuf swift-protobuf xcodegen
 
-      # ── 7. 构建 Rust XCFramework ───────────────────────────────
       - name: Build Rust XCFramework
         run: |
           chmod +x ./scripts/build-xcframework.sh
           ./scripts/build-xcframework.sh
 
-      # ── 8. 生成 Swift Protobuf 类型 ────────────────────────────
       - name: Generate Swift protobuf types
         run: |
           chmod +x ./scripts/generate-protos.sh
           ./scripts/generate-protos.sh
 
-      # ── 9. 生成 Xcode 项目 ─────────────────────────────────────
       - name: Generate Xcode project
         run: |
           cd AnkiApp && xcodegen generate
           echo "=== Files in AnkiApp/ ==="
           ls -la ../AnkiApp/
 
-      # ── 9.2. 模拟器构建烟测（提前捕获 UI/平台编译问题）────────────
       - name: Build Debug Simulator (Compatibility Smoke Check)
         run: |
           set -o pipefail
@@ -100,7 +108,6 @@ jobs:
               2>&1 | tee simulator-build.log
           fi
 
-      # ── 9.5. 运行集成测试验证（Sprint 3+ 质量检查）──────────────
       - name: Run Integration Tests (Sprint 3 Quality Check)
         continue-on-error: true
         run: |
@@ -117,18 +124,13 @@ jobs:
           else
             echo "No test targets configured in AnkiApp scheme, skipping xcodebuild test." | tee test-results.log
           fi
-          
-          # 统计测试结果
+
           if grep -q "Test Suite.*passed" test-results.log; then
             echo "✅ All tests passed!"
           else
             echo "⚠️ Tests may have issues, but continuing with IPA build..."
           fi
 
-      # ── 10. 构建无签名 xcarchive ───────────────────────────────
-      # -skipPackagePluginValidation：允许 CI 中使用 Swift Macro（如 swift-dependencies
-      #   的 DependenciesMacrosPlugin），跳过 Xcode 的交互式插件信任确认
-      # -skipMacroValidation：同上，针对 Swift macro 本身的验证
       - name: Build unsigned xcarchive
         run: |
           set -o pipefail
@@ -147,14 +149,12 @@ jobs:
             -skipMacroValidation \
             2>&1 | tee build.log
 
-          # 验证构建产物存在
           if [ ! -d "$RUNNER_TEMP/AnkiApp.xcarchive" ]; then
             echo "❌ Archive output not found at $RUNNER_TEMP/AnkiApp.xcarchive"
             exit 1
           fi
           echo "✅ Archive build successful!"
 
-      # ── 11. 打包成 IPA ─────────────────────────────────────────
       - name: Package .app into unsigned .ipa
         run: |
           ARCHIVE_PATH="$RUNNER_TEMP/AnkiApp.xcarchive"
@@ -179,15 +179,23 @@ jobs:
           echo "=== IPA created ==="
           ls -lh /tmp/AnkiApp-unsigned.ipa
 
-      # ── 12. 上传为 Artifact ────────────────────────────────────
       - name: Upload unsigned IPA
+        if: ${{ inputs.upload_artifact }}
         uses: actions/upload-artifact@v4
         with:
           name: AnkiApp-unsigned-ipa
           path: /tmp/AnkiApp-unsigned.ipa
           retention-days: 7
 
-      # ── 13. 生成构建摘要报告 ────────────────────────────────────
+      - name: Upload IPA to GitHub Release
+        if: ${{ inputs.upload_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: /tmp/AnkiApp-unsigned.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Generate Build Summary
         if: always()
         run: |
@@ -207,18 +215,16 @@ jobs:
           echo "- ✅ Rich text formatting menu in Add/Edit Note fields" >> build-summary.md
           echo "- ✅ Integration test and simulator smoke-build checks" >> build-summary.md
           echo "" >> build-summary.md
-          
-          # 添加编译日志摘要
+
           if [ -f build.log ]; then
             echo "## Compile Log Summary" >> build-summary.md
             echo '```' >> build-summary.md
             tail -20 build.log >> build-summary.md
             echo '```' >> build-summary.md
           fi
-          
+
           cat build-summary.md
 
-      # ── 14. 上传构建报告 ───────────────────────────────────────
       - name: Upload Build Summary
         if: always()
         uses: actions/upload-artifact@v4
