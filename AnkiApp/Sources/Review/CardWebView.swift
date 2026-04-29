@@ -1544,7 +1544,7 @@ struct CardWebView: UIViewRepresentable {
         cardPaddingBottom: Int
     ) -> String {
         let htmlLit = jsStringLiteral(processedHTML)
-        let cssLit = jsStringLiteral(rewriteRelativeMediaURLs(in: cardCSS))
+        let cssLit = jsStringLiteral(normalizeCardCSS(cardCSS))
         let autoplay = autoplayEnabled ? "true" : "false"
         let lookupEnabled = lookupPopupEnabled ? "true" : "false"
         let alignTopStr = alignTop ? "true" : "false"
@@ -1752,6 +1752,38 @@ struct CardWebView: UIViewRepresentable {
         }
 
         return rewritten
+    }
+
+    private static func normalizeCardCSS(_ css: String) -> String {
+        rewriteRelativeMediaURLs(in: sanitizeCardCSS(css))
+    }
+
+    private static func sanitizeCardCSS(_ css: String) -> String {
+        var sanitized = css
+
+        if let styleTagRegex = try? NSRegularExpression(
+            pattern: #"</?style\b[^>]*>"#,
+            options: [.caseInsensitive]
+        ) {
+            sanitized = styleTagRegex.stringByReplacingMatches(
+                in: sanitized,
+                range: NSRange(sanitized.startIndex..., in: sanitized),
+                withTemplate: ""
+            )
+        }
+
+        if let htmlCommentRegex = try? NSRegularExpression(
+            pattern: #"<!--([\s\S]*?)-->"#,
+            options: []
+        ) {
+            sanitized = htmlCommentRegex.stringByReplacingMatches(
+                in: sanitized,
+                range: NSRange(sanitized.startIndex..., in: sanitized),
+                withTemplate: "/*$1*/"
+            )
+        }
+
+        return sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func shouldRewriteMediaURL(_ rawURL: String) -> Bool {
