@@ -569,9 +569,20 @@ struct SyncSheet: View {
                 .foregroundStyle(Color.amgiTextSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let url = URL(string: "https://apps.apple.com/us/app/ankimobile-flashcards/id373493387") {
-                Link("AnkiMobile", destination: url)
-                    .amgiFont(.captionBold)
-                    .foregroundStyle(Color.amgiLink)
+                HStack(spacing: 4) {
+                    Text(L("common_view"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                    Link(destination: url) {
+                        HStack(spacing: 4) {
+                            Text("AnkiMobile")
+                                .amgiFont(.captionBold)
+                            Image(systemName: "arrow.up.right")
+                                .font(AmgiFont.caption.font)
+                        }
+                        .foregroundStyle(Color.amgiLink)
+                    }
+                }
             }
         }
     }

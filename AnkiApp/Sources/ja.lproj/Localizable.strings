@@ -614,6 +614,7 @@
 // MARK: - Common (extended)
 "common_cancel" = "キャンセル";
 "common_ok" = "OK";
+"common_view" = "表示";
 "common_save" = "保存";
 "common_done" = "完了";
 "common_add" = "追加";

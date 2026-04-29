@@ -390,11 +390,8 @@ struct DeckConfigView: View {
                 .font(AmgiFont.micro.font)
                 .foregroundStyle(Color.amgiTextSecondary)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(Color.amgiSurface.opacity(0.72))
-        .clipShape(Capsule())
-        .frame(width: adaptiveCapsuleWidth(for: title, min: 64, max: 220), alignment: .trailing)
+        .amgiCapsuleControl(horizontalPadding: 12, verticalPadding: 7)
+        .frame(maxWidth: 220, alignment: .trailing)
     }
 
     private func settingRow<Content: View>(
@@ -470,10 +467,6 @@ struct DeckConfigView: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
             )
-    }
-
-    private func adaptiveCapsuleWidth(for text: String, min: CGFloat, max: CGFloat) -> CGFloat {
-        adaptiveValueFieldWidth(for: text, min: min, maxWidth: max, characterWidth: 15)
     }
 
     private func adaptiveValueFieldWidth(

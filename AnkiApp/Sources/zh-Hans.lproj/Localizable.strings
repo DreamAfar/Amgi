@@ -614,6 +614,7 @@
 // MARK: - Common (extended)
 "common_cancel" = "取消";
 "common_ok" = "确定";
+"common_view" = "查看";
 "common_save" = "保存";
 "common_done" = "完成";
 "common_add" = "添加";

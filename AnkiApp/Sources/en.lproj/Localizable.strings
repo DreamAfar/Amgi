@@ -614,6 +614,7 @@
 // MARK: - Common (extended)
 "common_cancel" = "Cancel";
 "common_ok" = "OK";
+"common_view" = "View";
 "common_save" = "Save";
 "common_done" = "Done";
 "common_add" = "Add";
