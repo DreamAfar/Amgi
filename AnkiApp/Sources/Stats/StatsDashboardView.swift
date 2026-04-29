@@ -145,20 +145,31 @@ struct StatsDashboardView: View {
     private var deckMenu: some View {
         Menu {
             Button { selectedDeck = nil } label: {
-                if selectedDeck == nil { Label(L("stats_whole_collection"), systemImage: "checkmark") }
-                else { Text(L("stats_whole_collection")) }
+                if selectedDeck == nil {
+                    Label(L("stats_whole_collection"), systemImage: "checkmark")
+                        .foregroundStyle(Color.amgiAccent)
+                } else {
+                    Text(L("stats_whole_collection"))
+                        .foregroundStyle(Color.amgiAccent)
+                }
             }
             Divider()
             ForEach(decks.filter({ !$0.name.contains("::") })) { deck in
                 Button { selectedDeck = deck } label: {
-                    if selectedDeck?.id == deck.id { Label(deck.name, systemImage: "checkmark") }
-                    else { Text(deck.name) }
+                    if selectedDeck?.id == deck.id {
+                        Label(deck.name, systemImage: "checkmark")
+                            .foregroundStyle(Color.amgiAccent)
+                    } else {
+                        Text(deck.name)
+                            .foregroundStyle(Color.amgiAccent)
+                    }
                 }
             }
         } label: {
-            filterCapsule(
+            SettingsOptionCapsuleLabel(
+                title: selectedDeck?.name ?? L("stats_whole_collection"),
                 icon: "rectangle.stack",
-                label: selectedDeck?.name ?? L("stats_whole_collection")
+                maxWidth: 160
             )
         }
     }
@@ -178,33 +189,6 @@ struct StatsDashboardView: View {
     // MARK: - (period menu removed — charts manage their own display range)
 
     // MARK: - Shared Capsule
-
-    private func filterCapsule(icon: String, label: String) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(AmgiFont.micro.font)
-                .foregroundStyle(Color.amgiTextSecondary)
-            Text(label)
-                .amgiFont(.captionBold)
-                .foregroundStyle(Color.amgiTextPrimary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .allowsTightening(true)
-                .minimumScaleFactor(0.9)
-            Image(systemName: "chevron.up.chevron.down")
-                .font(AmgiFont.micro.font)
-                .foregroundStyle(Color.amgiTextSecondary)
-        }
-        .frame(maxWidth: 160, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color.amgiSurface)
-        .overlay(
-            Capsule()
-                .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
-        )
-        .clipShape(Capsule())
-    }
 
     // MARK: - Data
 

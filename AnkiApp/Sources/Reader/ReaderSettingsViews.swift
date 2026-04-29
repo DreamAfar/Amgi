@@ -295,7 +295,7 @@ struct ReaderSourceSettingsView: View {
 }
 
 struct ReaderDisplaySettingsView: View {
-    private let menuCapsuleBackground = Color.amgiBackground
+    private let menuCapsuleBackground = Color.amgiMenuSurface
 
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
     @AppStorage(ReaderPreferences.Keys.selectedFont) private var selectedFont = ReaderFontOption.defaultValue
@@ -400,7 +400,6 @@ struct ReaderDisplaySettingsView: View {
                     } label: {
                         SettingsOptionCapsuleLabel(
                             title: selectedFontOption.title,
-                            titleColor: SettingsValueStyle.highlight,
                             backgroundColor: menuCapsuleBackground
                         )
                     }
@@ -514,7 +513,6 @@ struct ReaderDisplaySettingsView: View {
                     } label: {
                         SettingsOptionCapsuleLabel(
                             title: themeModeTitle,
-                            titleColor: SettingsValueStyle.highlight,
                             backgroundColor: menuCapsuleBackground
                         )
                     }

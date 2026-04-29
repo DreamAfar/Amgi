@@ -23,7 +23,7 @@ struct ReaderDictionarySettingsView: View {
     @State private var showError = false
 
     private static let zipArchiveType = UTType(filenameExtension: "zip") ?? .data
-    private let menuCapsuleBackground = Color.amgiBackground
+    private let menuCapsuleBackground = Color.amgiMenuSurface
 
     private var selectedDictionaries: [AppDictionaryInfo] {
         switch selectedDictionaryKind {
@@ -129,7 +129,6 @@ struct ReaderDictionarySettingsView: View {
                     } label: {
                         SettingsOptionCapsuleLabel(
                             title: title(for: selectedAudioPlaybackMode),
-                            titleColor: Color.amgiAccent,
                             backgroundColor: menuCapsuleBackground
                         )
                     }
@@ -192,7 +191,6 @@ struct ReaderDictionarySettingsView: View {
                 } label: {
                     SettingsOptionCapsuleLabel(
                         title: L("common_add"),
-                        titleColor: Color.amgiAccent,
                         backgroundColor: menuCapsuleBackground
                     )
                 }

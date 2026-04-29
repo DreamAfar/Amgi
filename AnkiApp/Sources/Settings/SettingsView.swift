@@ -15,12 +15,19 @@ enum SettingsValueStyle {
 
 struct SettingsOptionCapsuleLabel: View {
     let title: String
-    var titleColor: Color = SettingsValueStyle.primary
+    var icon: String? = nil
+    var titleColor: Color = SettingsValueStyle.highlight
     var indicatorColor: Color = SettingsValueStyle.secondary
-    var backgroundColor: Color = .amgiSurface
+    var backgroundColor: Color = .amgiMenuSurface
+    var maxWidth: CGFloat = 220
 
     var body: some View {
         HStack(spacing: AmgiSpacing.xs) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(AmgiFont.micro.font)
+                    .foregroundStyle(indicatorColor)
+            }
             Text(title)
                 .amgiFont(.body)
                 .foregroundStyle(titleColor)
@@ -31,7 +38,7 @@ struct SettingsOptionCapsuleLabel: View {
                 .foregroundStyle(indicatorColor)
         }
         .amgiCapsuleControl(backgroundColor: backgroundColor)
-        .frame(maxWidth: 220, alignment: .trailing)
+        .frame(maxWidth: maxWidth, alignment: .trailing)
     }
 }
 

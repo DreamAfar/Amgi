@@ -60,10 +60,6 @@ struct UncommittedCardPreviewSheet: View {
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
                     HStack(spacing: 12) {
-                        Text(currentTemplateName)
-                            .amgiFont(.bodyEmphasis)
-                            .foregroundStyle(Color.amgiTextSecondary)
-
                         Spacer()
 
                         if allowsTemplateSelection && notetype.templates.count > 1 {
@@ -74,18 +70,15 @@ struct UncommittedCardPreviewSheet: View {
                                     } label: {
                                         if selectedTemplateIndex == index {
                                             Label(template.name, systemImage: "checkmark")
+                                                .foregroundStyle(Color.amgiAccent)
                                         } else {
                                             Text(template.name)
+                                                .foregroundStyle(Color.amgiAccent)
                                         }
                                     }
                                 }
                             } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "chevron.up.chevron.down")
-                                        .font(AmgiFont.caption.font)
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                }
-                                .amgiCapsuleControl(horizontalPadding: 12, verticalPadding: 8)
+                                SettingsOptionCapsuleLabel(title: currentTemplateName)
                             }
                         }
                     }

@@ -4,6 +4,10 @@ import UIKit
 extension Color {
     static let amgiBackground = Color(light: .systemGroupedBackground, dark: .black)
     static let amgiSurface = Color(light: .secondarySystemGroupedBackground, dark: .secondarySystemBackground)
+    static let amgiMenuSurface = Color(
+        light: UIColor(red: 0.92, green: 0.93, blue: 0.95, alpha: 1.0),
+        dark: .secondarySystemBackground
+    )
     static let amgiSurfaceElevated = Color(light: .systemBackground, dark: UIColor(red: 0.14, green: 0.15, blue: 0.18, alpha: 1.0))
     static let amgiBorder = Color(light: .separator, dark: UIColor(white: 1.0, alpha: 0.12))
 

@@ -380,18 +380,7 @@ struct DeckConfigView: View {
     }
 
     private func optionCapsule(_ title: String) -> some View {
-        HStack(spacing: AmgiSpacing.xs) {
-            Text(title)
-                .amgiFont(.body)
-                .foregroundStyle(Color.amgiTextPrimary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Image(systemName: "chevron.up.chevron.down")
-                .font(AmgiFont.micro.font)
-                .foregroundStyle(Color.amgiTextSecondary)
-        }
-        .amgiCapsuleControl(horizontalPadding: 12, verticalPadding: 7)
-        .frame(maxWidth: 220, alignment: .trailing)
+        SettingsOptionCapsuleLabel(title: title)
     }
 
     private func settingRow<Content: View>(
