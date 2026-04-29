@@ -524,6 +524,7 @@
 "sync_settings_section_media" = "Media";
 "sync_settings_server_type" = "Server Type";
 "sync_settings_server_type_official" = "Official Anki server";
+"ankiweb_support_notice" = "AnkiWeb is supported by sales of AnkiMobile. Please consider purchasing a copy to support the sync servers.";
 "sync_settings_server_type_custom" = "Self-hosted server";
 "sync_settings_server_type_local" = "Local only";
 "sync_settings_current_server" = "Current Server";
@@ -1357,6 +1358,7 @@
 "about_section_tech_stack" = "Tech Stack";
 "about_tech_text" = "SwiftUI, Swift 6.2, Rust FFI, Protocol Buffers, SQLite, XcodeGen";
 "about_section_acknowledgements" = "Acknowledgements";
+"about_ack_ankiweb_text" = "AnkiWeb is supported by sales of AnkiMobile. Please consider purchasing a copy to support the sync servers.";
 "about_ack_anki_text" = "Provides the core scheduling, database, and sync backend capabilities.";
 "about_ack_ankidroid_text" = "Offers substantial implementation experience and compatibility reference within the open-source Anki ecosystem.";
 "about_ack_hoshi_reader_text" = "Provides implementation reference and inspiration for the Reader-related experience and interaction design.";

@@ -231,24 +231,30 @@ struct SyncSheet: View {
 
     @ViewBuilder
     private var serverConfigSection: some View {
-        HStack(spacing: 8) {
-            Text(L("sync_settings_server_type"))
-                .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
-            Text(serverTypeLabel)
-                .font(.system(size: 13, weight: .regular, design: .default))
-                .foregroundStyle(Color.amgiTextSecondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Spacer(minLength: 8)
-            if syncMode == .custom {
-                Menu {
-                    Button(L("sync_menu_change_server")) {
-                        showServerSetup = true
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(L("sync_settings_server_type"))
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
+                Text(serverTypeLabel)
+                    .font(.system(size: 13, weight: .regular, design: .default))
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 8)
+                if syncMode == .custom {
+                    Menu {
+                        Button(L("sync_menu_change_server")) {
+                            showServerSetup = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
+            }
+
+            if syncMode == .official {
+                ankiWebSupportNotice()
             }
         }
     }
@@ -553,6 +559,20 @@ struct SyncSheet: View {
         case .warning:
             Text(title)
                 .amgiStatusText(.warning, font: .sectionHeading)
+        }
+    }
+
+    private func ankiWebSupportNotice() -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L("ankiweb_support_notice"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let url = URL(string: "https://apps.apple.com/us/app/ankimobile-flashcards/id373493387") {
+                Link("AnkiMobile", destination: url)
+                    .amgiFont(.captionBold)
+                    .foregroundStyle(Color.amgiLink)
+            }
         }
     }
 }

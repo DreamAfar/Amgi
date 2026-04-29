@@ -799,7 +799,11 @@ private struct SyncSettingsView: View {
                     }
                 }
 
-                infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
+                if syncMode == .official {
+                    ankiWebSupportNoticeRow(title: L("sync_settings_server_type"))
+                } else {
+                    infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
+                }
                 infoRow(title: L("sync_settings_current_server"), value: currentServerValue)
                 infoRow(title: L("sync_settings_account"), value: currentAccountValue)
 
@@ -918,6 +922,23 @@ private struct SyncSettingsView: View {
                 .amgiFont(.body)
                 .foregroundStyle(SettingsValueStyle.highlight)
                 .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func ankiWebSupportNoticeRow(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .amgiFont(.body)
+                .foregroundStyle(SettingsValueStyle.primary)
+            Text(L("ankiweb_support_notice"))
+                .amgiFont(.caption)
+                .foregroundStyle(SettingsValueStyle.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let url = URL(string: "https://apps.apple.com/us/app/ankimobile-flashcards/id373493387") {
+                Link("AnkiMobile", destination: url)
+                    .amgiFont(.captionBold)
+                    .foregroundStyle(Color.amgiLink)
+            }
         }
     }
 
@@ -1049,6 +1070,12 @@ private struct AboutView: View {
                 aboutSection(title: L("about_section_acknowledgements")) {
                     VStack(alignment: .leading, spacing: AmgiSpacing.lg) {
                         aboutLinkBlock(
+                            title: "AnkiWeb Sync Service",
+                            description: L("about_ack_ankiweb_text"),
+                            urlString: "https://apps.apple.com/us/app/ankimobile-flashcards/id373493387",
+                            linkTitle: "AnkiMobile"
+                        )
+                        aboutLinkBlock(
                             title: "ankitects/anki",
                             description: L("about_ack_anki_text"),
                             urlString: "https://github.com/ankitects/anki"
@@ -1124,7 +1151,12 @@ private struct AboutView: View {
         }
     }
 
-    private func aboutLinkBlock(title: String, description: String, urlString: String) -> some View {
+    private func aboutLinkBlock(
+        title: String,
+        description: String,
+        urlString: String,
+        linkTitle: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
             Text(title)
                 .amgiFont(.bodyEmphasis)
@@ -1132,7 +1164,7 @@ private struct AboutView: View {
             Text(description)
                 .amgiFont(.body)
                 .foregroundStyle(Color.amgiTextSecondary)
-            aboutLinkRow(title: urlString, urlString: urlString)
+            aboutLinkRow(title: linkTitle ?? urlString, urlString: urlString)
         }
     }
 
