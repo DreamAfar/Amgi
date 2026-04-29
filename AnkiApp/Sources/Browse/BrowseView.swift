@@ -139,18 +139,24 @@ struct BrowseView: View {
             if isEditing {
                 // MARK: Multi-select toolbar
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(L("browse_select_all")) {
+                    Button {
                         selectAllFilteredNotes()
+                    } label: {
+                        Image(systemName: "checkmark.circle")
                     }
-                    .amgiToolbarTextButton()
+                    .amgiToolbarIconButton()
+                    .accessibilityLabel(L("browse_select_all"))
                     .disabled(allNoteIDs.isEmpty)
                 }
 
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(L("browse_select_invert")) {
+                    Button {
                         invertSelection()
+                    } label: {
+                        Image(systemName: "arrow.left.arrow.right")
                     }
-                    .amgiToolbarTextButton(tone: .neutral)
+                    .amgiToolbarIconButton()
+                    .accessibilityLabel(L("browse_select_invert"))
                     .disabled(allNoteIDs.isEmpty)
                 }
 
@@ -160,18 +166,22 @@ struct BrowseView: View {
                     } label: {
                         Image(systemName: "trash")
                     }
+                    .amgiToolbarIconButton()
                     .accessibilityLabel(L("browse_batch_delete_notes"))
                     .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(L("common_done")) {
+                    Button {
                         withAnimation {
                             selectedNoteIDs.removeAll()
                             isMultiSelecting = false
                         }
+                    } label: {
+                        Image(systemName: "checkmark")
                     }
-                    .amgiToolbarTextButton()
+                    .amgiToolbarIconButton()
+                    .accessibilityLabel(L("common_done"))
                 }
 
             } else {

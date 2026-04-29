@@ -15,19 +15,22 @@ enum SettingsValueStyle {
 
 struct SettingsOptionCapsuleLabel: View {
     let title: String
+    var titleColor: Color = SettingsValueStyle.primary
+    var indicatorColor: Color = SettingsValueStyle.secondary
+    var backgroundColor: Color = .amgiSurface
 
     var body: some View {
         HStack(spacing: AmgiSpacing.xs) {
             Text(title)
                 .amgiFont(.body)
-                .foregroundStyle(SettingsValueStyle.primary)
+                .foregroundStyle(titleColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
             Image(systemName: "chevron.up.chevron.down")
                 .font(AmgiFont.micro.font)
-                .foregroundStyle(SettingsValueStyle.secondary)
+                .foregroundStyle(indicatorColor)
         }
-        .amgiCapsuleControl()
+        .amgiCapsuleControl(backgroundColor: backgroundColor)
         .frame(maxWidth: 220, alignment: .trailing)
     }
 }

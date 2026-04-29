@@ -1544,7 +1544,7 @@ struct CardWebView: UIViewRepresentable {
         cardPaddingBottom: Int
     ) -> String {
         let htmlLit = jsStringLiteral(processedHTML)
-        let cssLit = jsStringLiteral(cardCSS)
+        let cssLit = jsStringLiteral(rewriteRelativeMediaURLs(in: cardCSS))
         let autoplay = autoplayEnabled ? "true" : "false"
         let lookupEnabled = lookupPopupEnabled ? "true" : "false"
         let alignTopStr = alignTop ? "true" : "false"
@@ -1716,6 +1716,65 @@ struct CardWebView: UIViewRepresentable {
             // Escape </script> so it doesn't prematurely close the enclosing <script> block
             .replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
         return "'\(escaped)'"
+    }
+
+    private static func rewriteRelativeMediaURLs(in css: String) -> String {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"url\(\s*(['"]?)([^'")]+)\1\s*\)"#,
+            options: [.caseInsensitive]
+        ) else {
+            return css
+        }
+
+        let nsRange = NSRange(css.startIndex..., in: css)
+        let matches = regex.matches(in: css, range: nsRange)
+        guard !matches.isEmpty else {
+            return css
+        }
+
+        var rewritten = css
+        for match in matches.reversed() {
+            guard match.numberOfRanges >= 3,
+                  let fullRange = Range(match.range(at: 0), in: rewritten),
+                  let quoteRange = Range(match.range(at: 1), in: rewritten),
+                  let urlRange = Range(match.range(at: 2), in: rewritten) else {
+                continue
+            }
+
+            let quote = String(rewritten[quoteRange])
+            let rawURL = String(rewritten[urlRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard shouldRewriteMediaURL(rawURL),
+                  let absoluteURL = URL(string: rawURL, relativeTo: CardAssetPath.mediaBaseURL)?.absoluteString else {
+                continue
+            }
+
+            rewritten.replaceSubrange(fullRange, with: "url(\(quote)\(absoluteURL)\(quote))")
+        }
+
+        return rewritten
+    }
+
+    private static func shouldRewriteMediaURL(_ rawURL: String) -> Bool {
+        guard !rawURL.isEmpty else {
+            return false
+        }
+
+        let lowercased = rawURL.lowercased()
+        if rawURL.hasPrefix("/") || rawURL.hasPrefix("#") || rawURL.hasPrefix("//") {
+            return false
+        }
+
+        let blockedSchemes = [
+            "data:",
+            "http:",
+            "https:",
+            "file:",
+            "blob:",
+            "about:",
+            "amgi-asset:",
+        ]
+
+        return !blockedSchemes.contains { lowercased.hasPrefix($0) }
     }
 
     private static func bodyClasses(cardOrdinal: UInt32, isDarkMode: Bool) -> String {

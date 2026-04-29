@@ -295,6 +295,8 @@ struct ReaderSourceSettingsView: View {
 }
 
 struct ReaderDisplaySettingsView: View {
+    private let menuCapsuleBackground = Color.amgiBackground
+
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
     @AppStorage(ReaderPreferences.Keys.selectedFont) private var selectedFont = ReaderFontOption.defaultValue
     @AppStorage(ReaderPreferences.Keys.fontSize) private var readerFontSize = 24
@@ -327,6 +329,23 @@ struct ReaderDisplaySettingsView: View {
     private var themeMode: ReaderThemeMode {
         get { ReaderThemeMode(rawValue: themeModeRawValue) ?? .system }
         set { themeModeRawValue = newValue.rawValue }
+    }
+
+    private var selectedFontOption: ReaderFontOption {
+        ReaderFontOption.resolved(selectedFont)
+    }
+
+    private var themeModeTitle: String {
+        switch themeMode {
+        case .system:
+            return L("settings_reader_theme_mode_system")
+        case .eyeCare:
+            return L("settings_reader_theme_mode_eye_care")
+        case .sepia:
+            return L("settings_reader_theme_mode_sepia")
+        case .custom:
+            return L("settings_reader_theme_mode_custom")
+        }
     }
 
     private var customContentColorBinding: Binding<Color> {
@@ -364,18 +383,27 @@ struct ReaderDisplaySettingsView: View {
                     Text(L("settings_reader_font"))
                         .foregroundStyle(SettingsValueStyle.primary)
                     Spacer()
-                    Picker(
-                        L("settings_reader_font"),
-                        selection: Binding(
-                            get: { ReaderFontOption.resolved(selectedFont) },
-                            set: { selectedFont = $0.rawValue }
-                        )
-                    ) {
-                        ForEach(ReaderFontOption.allCases) { font in
-                            Text(font.title).tag(font)
+                    Menu {
+                        Picker(
+                            L("settings_reader_font"),
+                            selection: Binding(
+                                get: { selectedFontOption },
+                                set: { selectedFont = $0.rawValue }
+                            )
+                        ) {
+                            ForEach(ReaderFontOption.allCases) { font in
+                                Text(font.title)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(font)
+                            }
                         }
+                    } label: {
+                        SettingsOptionCapsuleLabel(
+                            title: selectedFontOption.title,
+                            titleColor: SettingsValueStyle.highlight,
+                            backgroundColor: menuCapsuleBackground
+                        )
                     }
-                    .pickerStyle(.menu)
                 }
 
                 HStack {
@@ -462,19 +490,34 @@ struct ReaderDisplaySettingsView: View {
                     Text(L("settings_reader_theme_mode"))
                         .foregroundStyle(SettingsValueStyle.primary)
                     Spacer()
-                    Picker(
-                        "",
-                        selection: Binding(
-                            get: { ReaderThemeMode(rawValue: themeModeRawValue) ?? .system },
-                            set: { themeModeRawValue = $0.rawValue }
+                    Menu {
+                        Picker(
+                            "",
+                            selection: Binding(
+                                get: { themeMode },
+                                set: { themeModeRawValue = $0.rawValue }
+                            )
+                        ) {
+                            Text(L("settings_reader_theme_mode_system"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(ReaderThemeMode.system)
+                            Text(L("settings_reader_theme_mode_eye_care"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(ReaderThemeMode.eyeCare)
+                            Text(L("settings_reader_theme_mode_sepia"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(ReaderThemeMode.sepia)
+                            Text(L("settings_reader_theme_mode_custom"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(ReaderThemeMode.custom)
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(
+                            title: themeModeTitle,
+                            titleColor: SettingsValueStyle.highlight,
+                            backgroundColor: menuCapsuleBackground
                         )
-                    ) {
-                        Text(L("settings_reader_theme_mode_system")).tag(ReaderThemeMode.system)
-                        Text(L("settings_reader_theme_mode_eye_care")).tag(ReaderThemeMode.eyeCare)
-                        Text(L("settings_reader_theme_mode_sepia")).tag(ReaderThemeMode.sepia)
-                        Text(L("settings_reader_theme_mode_custom")).tag(ReaderThemeMode.custom)
                     }
-                    .pickerStyle(.menu)
                 }
 
                 if themeMode == .custom {

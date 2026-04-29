@@ -23,6 +23,7 @@ struct ReaderDictionarySettingsView: View {
     @State private var showError = false
 
     private static let zipArchiveType = UTType(filenameExtension: "zip") ?? .data
+    private let menuCapsuleBackground = Color.amgiBackground
 
     private var selectedDictionaries: [AppDictionaryInfo] {
         switch selectedDictionaryKind {
@@ -38,6 +39,10 @@ struct ReaderDictionarySettingsView: View {
     private var hasUpdatableDictionaries: Bool {
         (libraryState.termDictionaries + libraryState.frequencyDictionaries + libraryState.pitchDictionaries)
             .contains { $0.index.isUpdatable && $0.index.indexURL.isEmpty == false }
+    }
+
+    private var selectedAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
+        ReaderLookupAudioDefaults.resolvedPlaybackMode(audioPlaybackModeRawValue)
     }
 
     var body: some View {
@@ -103,15 +108,30 @@ struct ReaderDictionarySettingsView: View {
                 Toggle(L("settings_reader_dictionary_audio_autoplay"), isOn: $audioAutoplay)
                     .foregroundStyle(Color.amgiTextPrimary)
 
-                Picker(
-                    L("settings_reader_dictionary_audio_playback_mode"),
-                    selection: Binding(
-                        get: { ReaderLookupAudioDefaults.resolvedPlaybackMode(audioPlaybackModeRawValue) },
-                        set: { audioPlaybackModeRawValue = $0.rawValue }
-                    )
-                ) {
-                    ForEach(ReaderLookupAudioPlaybackMode.allCases) { mode in
-                        Text(title(for: mode)).tag(mode)
+                HStack {
+                    Text(L("settings_reader_dictionary_audio_playback_mode"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    Menu {
+                        Picker(
+                            L("settings_reader_dictionary_audio_playback_mode"),
+                            selection: Binding(
+                                get: { selectedAudioPlaybackMode },
+                                set: { audioPlaybackModeRawValue = $0.rawValue }
+                            )
+                        ) {
+                            ForEach(ReaderLookupAudioPlaybackMode.allCases) { mode in
+                                Text(title(for: mode))
+                                    .foregroundStyle(Color.amgiAccent)
+                                    .tag(mode)
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(
+                            title: title(for: selectedAudioPlaybackMode),
+                            titleColor: Color.amgiAccent,
+                            backgroundColor: menuCapsuleBackground
+                        )
                     }
                 }
 
@@ -170,7 +190,11 @@ struct ReaderDictionarySettingsView: View {
                         kind: .pitch
                     )
                 } label: {
-                    Image(systemName: "plus")
+                    SettingsOptionCapsuleLabel(
+                        title: L("common_add"),
+                        titleColor: Color.amgiAccent,
+                        backgroundColor: menuCapsuleBackground
+                    )
                 }
             }
         }
