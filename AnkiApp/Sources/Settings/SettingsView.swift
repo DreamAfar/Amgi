@@ -22,11 +22,13 @@ struct SettingsOptionCapsuleLabel: View {
                 .amgiFont(.body)
                 .foregroundStyle(SettingsValueStyle.primary)
                 .lineLimit(1)
+                .truncationMode(.tail)
             Image(systemName: "chevron.up.chevron.down")
                 .font(AmgiFont.micro.font)
                 .foregroundStyle(SettingsValueStyle.secondary)
         }
         .amgiCapsuleControl()
+        .frame(maxWidth: 220, alignment: .trailing)
     }
 }
 
@@ -162,10 +164,11 @@ struct SettingsView: View {
             }
 
             Section(L("settings_section_display")) {
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_picker_theme"), selection: selectedTheme) {
                             ForEach(AppTheme.allCases) { theme in
@@ -181,10 +184,11 @@ struct SettingsView: View {
                 .amgiSettingsListRowSurface()
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack {
+                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         Label(L("settings_picker_language"), systemImage: "globe")
                             .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
                             Picker(L("settings_picker_language"), selection: selectedLanguage) {
                                 ForEach(AppLanguage.allCases) { lang in
@@ -497,10 +501,11 @@ private struct ReviewOptionsView: View {
                     Toggle(L("settings_review_glass_answer_buttons"), isOn: $glassAnswerButtons)
                 }
 
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_card_alignment"))
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_review_card_alignment"), selection: cardAlignment) {
                             ForEach(CardAlignment.allCases) { alignment in
@@ -565,10 +570,11 @@ private struct DeckListHeatmapSettingsView: View {
                 Toggle(L("settings_display_show_deck_heatmap"), isOn: $showDeckListHeatmap)
 
                 if showDeckListHeatmap {
-                    HStack {
+                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         Text(L("settings_display_heatmap_scope"))
                             .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
                             Picker(L("settings_display_heatmap_scope"), selection: heatmapScope) {
                                 Text(L("settings_display_heatmap_scope_all"))
@@ -584,9 +590,10 @@ private struct DeckListHeatmapSettingsView: View {
                     }
 
                     if heatmapScope.wrappedValue == .selectedDeck {
-                        HStack {
+                        HStack(alignment: .top, spacing: AmgiSpacing.md) {
                             Label(L("settings_display_heatmap_selected_deck"), systemImage: "rectangle.stack")
-                            Spacer()
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             Menu {
                                 Picker(
                                     L("settings_display_heatmap_selected_deck"),
@@ -623,10 +630,11 @@ private struct DeckListHeatmapSettingsView: View {
                         Slider(value: $deckListHeatmapHeight, in: 136...220, step: 4)
                     }
 
-                    HStack {
+                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         Label(L("settings_heatmap_initial_range"), systemImage: "calendar")
                             .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
                             Picker(L("settings_heatmap_initial_range"), selection: $initialDaysRaw) {
                                 ForEach(HeatmapInitialDays.allCases) { option in
@@ -769,10 +777,11 @@ private struct SyncSettingsView: View {
     var body: some View {
         List {
             Section(L("sync_settings_section_server")) {
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("sync_settings_server_type"))
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("sync_settings_server_type"), selection: syncModeBinding) {
                             Text(L("sync_settings_server_type_official"))
@@ -819,10 +828,11 @@ private struct SyncSettingsView: View {
             Section(L("sync_settings_section_options")) {
                 Toggle(L("sync_settings_sync_media"), isOn: $syncMediaEnabled)
 
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("sync_settings_timeout"))
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("sync_settings_timeout"), selection: timeoutBinding) {
                             ForEach(SyncPreferences.Timeout.allCases) { option in

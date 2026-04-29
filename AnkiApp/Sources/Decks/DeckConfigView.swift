@@ -398,13 +398,12 @@ struct DeckConfigView: View {
         _ title: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        HStack(alignment: .center, spacing: AmgiSpacing.sm) {
+        HStack(alignment: .top, spacing: AmgiSpacing.md) {
             Text(title)
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Spacer(minLength: AmgiSpacing.sm)
+                .foregroundStyle(Color.amgiTextPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             content()
-                .lineLimit(1)
                 .layoutPriority(1)
         }
     }
@@ -412,8 +411,7 @@ struct DeckConfigView: View {
     private func singleLineToggle(_ title: String, isOn: Binding<Bool>) -> some View {
         Toggle(isOn: isOn) {
             Text(title)
-                .lineLimit(1)
-                .truncationMode(.tail)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -427,29 +425,47 @@ struct DeckConfigView: View {
             set: { value.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }
         )
 
-        return HStack(spacing: 4) {
+        return HStack(spacing: 6) {
             TextField("", value: boundedValue, format: .number)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .font(.monospaced(.body)())
                 .foregroundStyle(Color.amgiAccent)
                 .lineLimit(1)
-                .frame(minWidth: 44, idealWidth: 58, maxWidth: 70)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.amgiSurfaceElevated)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
+                )
+                .frame(width: 72)
 
             if let unitFormatKey {
                 Text(unitLabel(from: unitFormatKey))
                     .foregroundStyle(Color.amgiTextSecondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .fixedSize(horizontal: true, vertical: false)
             }
         }
-        .frame(width: unitFormatKey == nil ? 72 : 118, alignment: .trailing)
+        .frame(minWidth: unitFormatKey == nil ? 72 : 118, alignment: .trailing)
     }
 
     private func unitLabel(from formatKey: String) -> String {
         L(formatKey, 1)
             .replacingOccurrences(of: "1", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func inputChrome() -> some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(Color.amgiSurfaceElevated)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
+            )
     }
 
     private func percentWheelPicker(
@@ -609,6 +625,9 @@ struct DeckConfigView: View {
                     .font(.monospaced(.body)())
                     .foregroundStyle(Color.amgiAccent)
                     .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(inputChrome())
             }
             settingRow(L("deck_config_good_interval")) {
                 editableNumberStepper($graduatingGoodDays, in: 0...365, unitFormatKey: "deck_config_days_fmt")
@@ -638,6 +657,9 @@ struct DeckConfigView: View {
                     .font(.monospaced(.body)())
                     .foregroundStyle(Color.amgiAccent)
                     .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(inputChrome())
             }
             settingRow(L("deck_config_leech_threshold")) {
                 editableNumberStepper($leechThreshold, in: 1...9999, unitFormatKey: "deck_config_times_fmt")

@@ -137,10 +137,11 @@ struct ReaderSourceSettingsView: View {
     var body: some View {
         List {
             Section(L("settings_reader_section_source")) {
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_deck"), systemImage: "books.vertical")
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_reader_deck"), selection: $selectedDeckID) {
                             Text(L("settings_reader_not_set"))
@@ -158,10 +159,11 @@ struct ReaderSourceSettingsView: View {
                     .disabled(decks.isEmpty)
                 }
 
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_notetype"), systemImage: "square.text.square")
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_reader_notetype"), selection: $selectedNotetypeID) {
                             Text(L("settings_reader_not_set"))
@@ -206,10 +208,11 @@ struct ReaderSourceSettingsView: View {
 
     @ViewBuilder
     private func readerFieldRow(title: String, selection: Binding<String>) -> some View {
-        HStack {
+        HStack(alignment: .top, spacing: AmgiSpacing.md) {
             Text(title)
                 .foregroundStyle(SettingsValueStyle.primary)
-            Spacer()
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Menu {
                 Picker(title, selection: selection) {
                     Text(L("settings_reader_not_set"))
@@ -701,10 +704,11 @@ struct ReaderAdvancedSettingsView: View {
             .amgiSettingsListRowSurface()
 
             Section {
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_note_template_deck"), systemImage: "rectangle.stack")
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_reader_note_template_deck"), selection: templateDeckSelection) {
                             Text(L("settings_reader_not_set"))
@@ -722,10 +726,11 @@ struct ReaderAdvancedSettingsView: View {
                     .disabled(decks.isEmpty)
                 }
 
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_note_template_notetype"), systemImage: "square.text.square")
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_reader_note_template_notetype"), selection: templateNotetypeSelection) {
                             Text(L("settings_reader_not_set"))
@@ -820,10 +825,11 @@ struct ReaderAdvancedSettingsView: View {
 
     @ViewBuilder
     private func noteTemplateFieldRow(title: String, selection: Binding<String>) -> some View {
-        HStack {
+        HStack(alignment: .top, spacing: AmgiSpacing.md) {
             Text(title)
                 .foregroundStyle(SettingsValueStyle.primary)
-            Spacer()
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Menu {
                 Picker(title, selection: selection) {
                     Text(L("settings_reader_not_set"))

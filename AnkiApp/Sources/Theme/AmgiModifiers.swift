@@ -168,10 +168,10 @@ extension View {
     func amgiCapsuleControl(horizontalPadding: CGFloat = 10, verticalPadding: CGFloat = 6) -> some View {
         padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
-            .background(Color.amgiSurfaceElevated)
+            .background(Color.amgiAccentSurface)
             .overlay(
                 Capsule()
-                    .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
+                    .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
             )
             .clipShape(Capsule())
     }

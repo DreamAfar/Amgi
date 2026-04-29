@@ -12,6 +12,10 @@ extension Color {
     static let amgiTextTertiary = Color(light: .tertiaryLabel, dark: UIColor(white: 0.66, alpha: 1.0))
 
     static let amgiAccent = Color(light: UIColor(red: 0.10, green: 0.45, blue: 0.88, alpha: 1.0), dark: UIColor(red: 0.35, green: 0.68, blue: 1.00, alpha: 1.0))
+    static let amgiAccentSurface = Color(
+        light: UIColor(red: 0.90, green: 0.95, blue: 1.00, alpha: 1.0),
+        dark: UIColor(red: 0.17, green: 0.23, blue: 0.32, alpha: 1.0)
+    )
     static let amgiLink = Color(light: UIColor(red: 0.02, green: 0.39, blue: 0.84, alpha: 1.0), dark: UIColor(red: 0.48, green: 0.78, blue: 1.00, alpha: 1.0))
 
     static let amgiPositive = Color(light: .systemGreen, dark: UIColor(red: 0.39, green: 0.86, blue: 0.54, alpha: 1.0))
