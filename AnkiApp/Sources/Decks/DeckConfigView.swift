@@ -479,12 +479,12 @@ struct DeckConfigView: View {
     private func adaptiveValueFieldWidth(
         for text: String,
         min: CGFloat,
-        max: CGFloat,
+        maxWidth: CGFloat,
         characterWidth: CGFloat = 12
     ) -> CGFloat {
-        let effectiveCount = max(text.count, 1)
+        let effectiveCount = Swift.max(text.count, 1)
         let measuredWidth = CGFloat(effectiveCount) * characterWidth + 28
-        return Swift.min(Swift.max(measuredWidth, min), max)
+        return Swift.min(Swift.max(measuredWidth, min), maxWidth)
     }
 
     private func percentWheelPicker(
