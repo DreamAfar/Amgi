@@ -193,8 +193,10 @@ struct DeckListView: View {
         heatmapRefreshID += 1
     }
 
+    @MainActor
     private func exportDeck(_ node: DeckTreeNode) async {
         guard collectionState.isReady, !isExportingDeck else { return }
+        exportedDeckFileURL = nil
         isExportingDeck = true
         defer { isExportingDeck = false }
 
@@ -211,11 +213,15 @@ struct DeckListView: View {
             let url = try await Task.detached(priority: .userInitiated) {
                 try ImportHelper.exportPackage(backend: backend, configuration: configuration)
             }.value
-            exportedDeckFileURL = url
-            showDeckExportShareSheet = true
+            await MainActor.run {
+                exportedDeckFileURL = url
+                showDeckExportShareSheet = true
+            }
         } catch {
-            exportError = L("deck_export_error", error.localizedDescription)
-            showExportError = true
+            await MainActor.run {
+                exportError = L("deck_export_error", error.localizedDescription)
+                showExportError = true
+            }
         }
     }
 }
@@ -303,6 +309,14 @@ private struct DeckRowView: View {
 
     @ViewBuilder
     private var swipeButtons: some View {
+        Button {
+            onExportRequested(node)
+        } label: {
+            Label(L("deck_row_export"), systemImage: "square.and.arrow.up")
+        }
+        .tint(Color.amgiPositive)
+        .disabled(!isCollectionReady)
+
         Button(role: .destructive) {
             onDeleteRequested(node)
         } label: {
@@ -317,14 +331,6 @@ private struct DeckRowView: View {
             Label(L("deck_row_rename"), systemImage: "pencil")
         }
         .tint(Color.amgiAccent)
-        .disabled(!isCollectionReady)
-
-        Button {
-            onExportRequested(node)
-        } label: {
-            Label(L("deck_row_export"), systemImage: "square.and.arrow.up")
-        }
-        .tint(Color.amgiPositive)
         .disabled(!isCollectionReady)
     }
 

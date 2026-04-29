@@ -1153,19 +1153,28 @@ struct BrowseView: View {
             legacy: draft.legacySupport
         )
 
+        exportedFileURL = nil
         isExportingSelection = true
         let backend = self.backend
         Task {
-            defer { isExportingSelection = false }
+            defer {
+                Task { @MainActor in
+                    isExportingSelection = false
+                }
+            }
             do {
                 let url = try await Task.detached(priority: .userInitiated) {
                     try ImportHelper.exportPackage(backend: backend, configuration: configuration)
                 }.value
-                exportedFileURL = url
-                showExportShareSheet = true
+                await MainActor.run {
+                    exportedFileURL = url
+                    showExportShareSheet = true
+                }
             } catch {
-                batchErrorMessage = error.localizedDescription
-                showBatchError = true
+                await MainActor.run {
+                    batchErrorMessage = error.localizedDescription
+                    showBatchError = true
+                }
             }
         }
     }

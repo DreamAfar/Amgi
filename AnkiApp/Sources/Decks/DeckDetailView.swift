@@ -26,6 +26,11 @@ struct DeckDetailView: View {
     @State private var showBrowse = false
     @State private var showAddSubdeck = false
     @State private var newSubdeckName = ""
+    @State private var isExportingDeck = false
+    @State private var exportedDeckFileURL: URL?
+    @State private var showDeckExportShareSheet = false
+    @State private var exportError: String?
+    @State private var showExportError = false
 
     init(deck: DeckInfo) {
         self.deck = deck
@@ -193,6 +198,16 @@ struct DeckDetailView: View {
         } message: {
             Text(actionError ?? L("label_error_unknown"))
         }
+        .alert(L("deck_action_error_title"), isPresented: $showExportError) {
+            Button(L("btn_got_it"), role: .cancel) {}
+        } message: {
+            Text(exportError ?? L("label_error_unknown"))
+        }
+        .sheet(isPresented: $showDeckExportShareSheet) {
+            if let url = exportedDeckFileURL {
+                ShareSheet(items: [url])
+            }
+        }
         .task {
             guard collectionState.isReady else { return }
             await loadCounts()
@@ -276,12 +291,21 @@ struct DeckDetailView: View {
                 }
                 .listRowBackground(Color.amgiSurfaceElevated)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button {
+                        Task { await exportDeck(child) }
+                    } label: {
+                        Label(L("deck_row_export"), systemImage: "square.and.arrow.up")
+                    }
+                    .tint(Color.amgiPositive)
+                    .disabled(!collectionState.isReady)
+
                     Button(role: .destructive) {
                         selectedChildDeck = child
                         showDeleteConfirm = true
                     } label: {
                         Label(L("deck_row_delete"), systemImage: "trash")
                     }
+                    .disabled(!collectionState.isReady)
 
                     Button {
                         selectedChildDeck = child
@@ -291,7 +315,40 @@ struct DeckDetailView: View {
                         Label(L("deck_row_rename"), systemImage: "pencil")
                     }
                     .tint(Color.amgiAccent)
+                    .disabled(!collectionState.isReady)
                 }
+            }
+        }
+    }
+
+    @MainActor
+    private func exportDeck(_ node: DeckTreeNode) async {
+        guard collectionState.isReady, !isExportingDeck else { return }
+        exportedDeckFileURL = nil
+        isExportingDeck = true
+        defer { isExportingDeck = false }
+
+        let configuration = ImportHelper.ExportPackageConfiguration.deck(
+            deckID: node.id,
+            deckName: node.fullName,
+            includeScheduling: true,
+            includeDeckConfigs: true,
+            includeMedia: true,
+            legacy: false
+        )
+        let backend = self.backend
+        do {
+            let url = try await Task.detached(priority: .userInitiated) {
+                try ImportHelper.exportPackage(backend: backend, configuration: configuration)
+            }.value
+            await MainActor.run {
+                exportedDeckFileURL = url
+                showDeckExportShareSheet = true
+            }
+        } catch {
+            await MainActor.run {
+                exportError = L("deck_export_error", error.localizedDescription)
+                showExportError = true
             }
         }
     }
