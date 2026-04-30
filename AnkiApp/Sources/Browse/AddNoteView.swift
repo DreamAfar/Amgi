@@ -123,6 +123,21 @@ struct AddNoteView: View {
                                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                                 .stroke(Color.amgiBorder.opacity(0.24), lineWidth: 1)
                                         }
+                                        .overlay(alignment: .topTrailing) {
+                                            if containsEditableImage(at: index) {
+                                                Button {
+                                                    beginExistingImageEdit(at: index)
+                                                } label: {
+                                                    Image(systemName: "slider.horizontal.3")
+                                                        .font(.system(size: 12, weight: .semibold))
+                                                        .foregroundStyle(.white)
+                                                        .padding(8)
+                                                        .background(Color.black.opacity(0.34), in: Circle())
+                                                }
+                                                .buttonStyle(.plain)
+                                                .padding(10)
+                                            }
+                                        }
                                 }
 
                                 RichNoteFieldEditor(
@@ -515,7 +530,7 @@ struct AddNoteView: View {
         contentType: UTType?
     ) throws {
         if NoteFieldMediaSupport.shouldOptimizeImage(contentType: contentType, filename: filename),
-           let image = UIImage(data: data) {
+           let image = NoteFieldMediaSupport.optimizationPreviewImage(from: data) {
             presentImageOptimization(
                 image: image,
                 originalByteCount: data.count,
@@ -553,7 +568,7 @@ struct AddNoteView: View {
 
         do {
             let data = try Data(contentsOf: imageURL)
-            guard let image = UIImage(data: data) else {
+            guard let image = NoteFieldMediaSupport.optimizationPreviewImage(from: data) else {
                 throw MediaImportError.loadFailed
             }
 

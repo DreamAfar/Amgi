@@ -1,5 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
+import UIKit
+import ImageIO
 
 enum NoteFieldMediaSupport {
     static let importableTypes: [UTType] = [.image, .audio, .movie, .data]
@@ -57,6 +59,27 @@ enum NoteFieldMediaSupport {
     ) -> Bool {
         let resolvedContentType = contentType ?? UTType(filenameExtension: URL(fileURLWithPath: filename).pathExtension)
         return resolvedContentType?.conforms(to: .image) == true
+    }
+
+    static func optimizationPreviewImage(
+        from data: Data,
+        maxPixelSize: CGFloat = 3_000
+    ) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+            return UIImage(data: data)
+        }
+
+        let options: [CFString: Any] = [
+            kCGImageSourceShouldCache: false,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(maxPixelSize),
+        ]
+
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return UIImage(data: data)
+        }
+        return UIImage(cgImage: cgImage)
     }
 
     static func firstImageFilename(in html: String) -> String? {

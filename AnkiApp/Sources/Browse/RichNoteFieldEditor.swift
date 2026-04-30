@@ -84,7 +84,10 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             return
         }
 
-        guard !context.coordinator.isEditing else { return }
+        if context.coordinator.isEditing {
+            context.coordinator.trackExternalHTMLUpdateWhileEditing(htmlText)
+            return
+        }
         guard htmlText != context.coordinator.lastRenderedValue else { return }
         let selected = uiView.selectedRange
         context.coordinator.render(html: htmlText, in: uiView)
@@ -619,6 +622,13 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                     baseFont: baseFont
                 )
             }
+            lastRenderedValue = normalized
+        }
+
+        func trackExternalHTMLUpdateWhileEditing(_ html: String) {
+            let normalized = Self.normalizedStoredHTML(from: html)
+            guard normalized != lastRenderedValue else { return }
+            guard Self.containsEmbeddedMediaMarkup(normalized) else { return }
             lastRenderedValue = normalized
         }
 

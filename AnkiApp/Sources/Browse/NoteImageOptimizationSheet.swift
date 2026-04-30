@@ -46,12 +46,12 @@ struct NoteImageOptimizationSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     previewSection
                     infoSection
                     controlsSection
                 }
-                .padding(16)
+                .padding(12)
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle(L("image_optimizer_title"))
@@ -72,9 +72,7 @@ struct NoteImageOptimizationSheet: View {
                     .disabled(outputPreview == nil)
                 }
             }
-            .onAppear {
-                refreshOutputPreview()
-            }
+            .onAppear { refreshOutputPreview() }
             .onChange(of: cropAspect) {
                 resetCropIfNeeded()
             }
@@ -164,49 +162,60 @@ struct NoteImageOptimizationSheet: View {
                     previewContainerSize = containerSize
                 }
             }
-            .frame(height: 320)
+            .frame(height: 260)
         }
-        .padding(16)
+        .padding(14)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private var infoSection: some View {
-        VStack(spacing: 12) {
-            infoCard(
+        HStack(spacing: 10) {
+            compactInfoChip(
                 title: L("image_optimizer_original_title"),
                 pixelSize: originalPixelSize,
                 byteCount: request.originalByteCount
             )
-            if let outputPreview {
-                infoCard(
-                    title: L("image_optimizer_output_title"),
-                    pixelSize: outputPreview.pixelSize,
-                    byteCount: outputPreview.fileSize
-                )
-            }
+            Image(systemName: "arrow.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            compactInfoChip(
+                title: L("image_optimizer_output_title"),
+                pixelSize: outputPreview?.pixelSize ?? originalPixelSize,
+                byteCount: outputPreview?.fileSize ?? request.originalByteCount,
+                emphasizesValue: true
+            )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 2)
     }
 
-    private func infoCard(title: String, pixelSize: CGSize, byteCount: Int) -> some View {
+    private func compactInfoChip(
+        title: String,
+        pixelSize: CGSize,
+        byteCount: Int,
+        emphasizesValue: Bool = false
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
             Text("\(Int(pixelSize.width)) × \(Int(pixelSize.height))")
-                .font(.title3.weight(.semibold))
+                .font(.subheadline.weight(emphasizesValue ? .bold : .semibold))
             Text(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))
-                .font(.footnote)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var controlsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(L("image_optimizer_aspect_title"))
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         ForEach(CropAspectPreset.allCases) { preset in
@@ -215,8 +224,8 @@ struct NoteImageOptimizationSheet: View {
                             } label: {
                                 Text(preset.localizedTitle)
                                     .font(.subheadline.weight(.semibold))
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
                                     .background(
                                         cropAspect == preset
                                             ? Color.accentColor
@@ -231,9 +240,9 @@ struct NoteImageOptimizationSheet: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(L("image_optimizer_resolution_title"))
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                 Picker(L("image_optimizer_resolution_title"), selection: $maxDimension) {
                     ForEach([0, 2048, 1600, 1280, 1024, 768], id: \.self) { value in
                         Text(maxDimensionLabel(for: value)).tag(value)
@@ -242,10 +251,10 @@ struct NoteImageOptimizationSheet: View {
                 .pickerStyle(.segmented)
             }
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(L("image_optimizer_quality_title"))
-                        .font(.headline)
+                        .font(.subheadline.weight(.semibold))
                     Spacer()
                     Text("\(Int(compressionQuality * 100))%")
                         .font(.subheadline.weight(.semibold))
@@ -254,7 +263,7 @@ struct NoteImageOptimizationSheet: View {
                 Slider(value: $compressionQuality, in: 0.45...0.95, step: 0.05)
             }
         }
-        .padding(16)
+        .padding(14)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
