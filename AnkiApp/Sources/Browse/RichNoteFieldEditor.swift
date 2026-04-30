@@ -807,7 +807,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 wrappers.suffix.forEach { mutable.append($0) }
             }
 
-            return normalizedStoredHTML(mutable as String)
+            return normalizedStoredHTML(from: mutable as String)
         }
 
         static func baseTypingAttributes(font: UIFont) -> [NSAttributedString.Key: Any] {
