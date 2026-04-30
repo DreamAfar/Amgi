@@ -254,7 +254,7 @@ struct DeckListHeatmapCard: View {
         case (.none, .none):
             return true
         case let (.some(a), .some(b)):
-            return abs(a.timeIntervalSince(b)) < 1
+            return Swift.abs(a.timeIntervalSince(b)) < 1
         default:
             return false
         }
