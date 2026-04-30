@@ -98,8 +98,8 @@ struct RichNoteFieldEditor: UIViewRepresentable {
     // MARK: - Toolbar
 
     private func makeInputToolbar(for textView: UITextView, coordinator: Coordinator) -> UIView {
-        let container = ToolbarContainerView(frame: CGRect(x: 0, y: 0, width: 0, height: 94))
-        container.backgroundColor = .secondarySystemBackground
+        let container = ToolbarContainerView(frame: CGRect(x: 0, y: 0, width: 0, height: 68))
+        container.backgroundColor = .clear
         container.clipsToBounds = false
 
         let divider = UIView()
@@ -141,7 +141,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         toolbarStack.axis = .vertical
         toolbarStack.alignment = .fill
         toolbarStack.distribution = .fillEqually
-        toolbarStack.spacing = 6
+        toolbarStack.spacing = 4
         container.addSubview(toolbarStack)
 
         var activeInlineMenu: String?
@@ -179,7 +179,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             row.axis = .horizontal
             row.alignment = .fill
             row.distribution = .fillEqually
-            row.spacing = 6
+            row.spacing = 4
             return row
         }
 
@@ -354,7 +354,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             divider.topAnchor.constraint(equalTo: container.topAnchor),
             divider.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             divider.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            divider.heightAnchor.constraint(equalToConstant: 0.5),
+            divider.heightAnchor.constraint(equalToConstant: 0),
 
             bubble.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
             bubble.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
@@ -372,10 +372,10 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             bubbleStackView.bottomAnchor.constraint(equalTo: bubbleScrollView.contentLayoutGuide.bottomAnchor),
             bubbleStackView.heightAnchor.constraint(equalTo: bubbleScrollView.frameLayoutGuide.heightAnchor),
 
-            toolbarStack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
-            toolbarStack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -10),
-            toolbarStack.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 6),
-            toolbarStack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6)
+            toolbarStack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
+            toolbarStack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+            toolbarStack.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 4),
+            toolbarStack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4)
         ])
 
         return container
@@ -386,16 +386,16 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setImage(UIImage(systemName: systemName), for: .normal)
         button.tintColor = .label
-        button.backgroundColor = .tertiarySystemFill
+        button.backgroundColor = .clear
         button.layer.cornerRadius = 8
         button.accessibilityLabel = title
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
-        configuration.baseBackgroundColor = .tertiarySystemFill
-        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 4, bottom: 6, trailing: 4)
+        configuration.baseBackgroundColor = .clear
+        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 3, leading: 2, bottom: 3, trailing: 2)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 24).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -405,16 +405,16 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setImage(UIImage(systemName: systemName), for: .normal)
         button.tintColor = .systemBlue
-        button.backgroundColor = .tertiarySystemFill
+        button.backgroundColor = .clear
         button.layer.cornerRadius = 8
         button.accessibilityLabel = title
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
-        configuration.baseBackgroundColor = .tertiarySystemFill
-        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 4, bottom: 6, trailing: 4)
+        configuration.baseBackgroundColor = .clear
+        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 3, leading: 2, bottom: 3, trailing: 2)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 24).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -429,17 +429,17 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setImage(UIImage(systemName: systemName), for: .normal)
         button.tintColor = tintColor
-        button.backgroundColor = .tertiarySystemFill
+        button.backgroundColor = .clear
         button.layer.cornerRadius = 8
         button.accessibilityLabel = title
         button.accessibilityLabel = title
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
-        configuration.baseBackgroundColor = .tertiarySystemFill
-        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 4, bottom: 6, trailing: 4)
+        configuration.baseBackgroundColor = .clear
+        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 3, leading: 2, bottom: 3, trailing: 2)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 24).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }

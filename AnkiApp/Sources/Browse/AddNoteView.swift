@@ -28,6 +28,7 @@ struct AddNoteView: View {
     @State private var previewErrorMessage: String?
     @State private var showPreviewError = false
     @State private var previewContext: AddNotePreviewContext?
+    @State private var hasLoadedInitialData = false
     @State private var shouldApplyDraftOnNextFieldLoad = false
     @State private var pendingMediaFieldIndex: Int?
     @State private var showPhotoPicker = false
@@ -202,7 +203,7 @@ struct AddNoteView: View {
                 }
             }
             .task {
-                await loadData()
+                await loadDataIfNeeded()
             }
             .alert(L("common_error"), isPresented: $showPreviewError) {
                 Button(L("common_ok"), role: .cancel) {}
@@ -273,6 +274,13 @@ struct AddNoteView: View {
                 }
             }
         )
+    }
+
+    @MainActor
+    private func loadDataIfNeeded() async {
+        guard hasLoadedInitialData == false else { return }
+        hasLoadedInitialData = true
+        await loadData()
     }
 
     private func loadData() async {
