@@ -20,6 +20,7 @@ struct AddNoteView: View {
     @State private var selectedNotetypeId: Int64 = 0
     @State private var fieldNames: [String] = []
     @State private var fieldValues: [String] = []
+    @State private var fieldSourceModes: [Bool] = []
     @State private var tags: String = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
@@ -81,6 +82,14 @@ struct AddNoteView: View {
                                         .foregroundStyle(Color.amgiTextSecondary)
                                     Spacer()
                                     Button {
+                                        toggleSourceMode(at: index)
+                                    } label: {
+                                        Text("<>")
+                                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(isSourceModeEnabled(at: index) ? Color.amgiAccent : Color.amgiTextSecondary)
+                                    Button {
                                         beginMediaImport(for: index)
                                     } label: {
                                         Image(systemName: "paperclip")
@@ -101,7 +110,7 @@ struct AddNoteView: View {
                                     }
                                 }
 
-                                if shouldShowFieldPreview(at: index) {
+                                if shouldShowFieldPreview(at: index) || isSourceModeEnabled(at: index) {
                                     NoteFieldHTMLPreview(html: fieldValue(at: index))
                                         .frame(height: fieldPreviewHeight(at: index))
                                         .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -113,7 +122,7 @@ struct AddNoteView: View {
 
                                 RichNoteFieldEditor(
                                     htmlText: fieldBinding(for: index),
-                                    preservesSourceHTML: shouldPreserveSourceHTML(at: index)
+                                    preservesSourceHTML: isSourceModeEnabled(at: index)
                                 )
                                     .frame(minHeight: 32)
                             }
@@ -270,6 +279,7 @@ struct AddNoteView: View {
             } else {
                 fieldValues = Array(repeating: "", count: fieldNames.count)
             }
+            fieldSourceModes = Array(repeating: false, count: fieldNames.count)
         } catch {
             print("[AddNote] Error loading fields: \(error)")
         }
@@ -303,11 +313,17 @@ struct AddNoteView: View {
         return fieldValues[index]
     }
 
-    private func shouldShowFieldPreview(at index: Int) -> Bool {
-        containsEmbeddedMedia(fieldValue(at: index))
+    private func isSourceModeEnabled(at index: Int) -> Bool {
+        guard index < fieldSourceModes.count else { return false }
+        return fieldSourceModes[index]
     }
 
-    private func shouldPreserveSourceHTML(at index: Int) -> Bool {
+    private func toggleSourceMode(at index: Int) {
+        guard fieldSourceModes.indices.contains(index) else { return }
+        fieldSourceModes[index].toggle()
+    }
+
+    private func shouldShowFieldPreview(at index: Int) -> Bool {
         containsEmbeddedMedia(fieldValue(at: index))
     }
 

@@ -62,6 +62,7 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.showCorrectnessSymbols) private var prefShowCorrectnessSymbols = false
     @AppStorage(ReviewPreferences.Keys.disperseAnswerButtons) private var prefDisperseAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.showAnswerButtons) private var prefShowAnswerButtons = true
+    @AppStorage(ReviewPreferences.Keys.hideHardAndEasyButtons) private var prefHideHardAndEasyButtons = false
     @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var prefShowRemainingDays = true
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var prefShowNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var prefOpenLinksExternally = true
@@ -756,22 +757,31 @@ struct ReviewView: View {
     private var answerButtons: some View {
         Group {
             if prefDisperseAnswerButtons {
-                VStack(spacing: 8) {
+                if visibleRatings.count <= 2 {
                     HStack(spacing: 8) {
-                        ratingButton(.again, color: .red)
-                        ratingButton(.hard, color: .orange)
+                        ForEach(visibleRatings, id: \.self) { rating in
+                            ratingButton(rating, color: ratingColor(rating))
+                        }
                     }
-                    HStack(spacing: 8) {
-                        ratingButton(.good, color: .green)
-                        ratingButton(.easy, color: .blue)
+                } else {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            ForEach(Array(visibleRatings.prefix(2)), id: \.self) { rating in
+                                ratingButton(rating, color: ratingColor(rating))
+                            }
+                        }
+                        HStack(spacing: 8) {
+                            ForEach(Array(visibleRatings.dropFirst(2)), id: \.self) { rating in
+                                ratingButton(rating, color: ratingColor(rating))
+                            }
+                        }
                     }
                 }
             } else {
                 HStack(spacing: 8) {
-                    ratingButton(.again, color: .red)
-                    ratingButton(.hard, color: .orange)
-                    ratingButton(.good, color: .green)
-                    ratingButton(.easy, color: .blue)
+                    ForEach(visibleRatings, id: \.self) { rating in
+                        ratingButton(rating, color: ratingColor(rating))
+                    }
                 }
             }
         }
@@ -782,10 +792,9 @@ struct ReviewView: View {
 
     private var compactAnswerMenu: some View {
         Menu {
-            Button(ratingLabel(.again)) { session.answer(rating: .again) }
-            Button(ratingLabel(.hard)) { session.answer(rating: .hard) }
-            Button(ratingLabel(.good)) { session.answer(rating: .good) }
-            Button(ratingLabel(.easy)) { session.answer(rating: .easy) }
+            ForEach(visibleRatings, id: \.self) { rating in
+                Button(ratingLabel(rating)) { session.answer(rating: rating) }
+            }
         } label: {
             Text(L("review_answer_button"))
                 .font(.headline)
@@ -794,6 +803,19 @@ struct ReviewView: View {
         }
         .buttonStyle(.borderedProminent)
         .padding()
+    }
+
+    private var visibleRatings: [Rating] {
+        prefHideHardAndEasyButtons ? [.again, .good] : [.again, .hard, .good, .easy]
+    }
+
+    private func ratingColor(_ rating: Rating) -> Color {
+        switch rating {
+        case .again: return .red
+        case .hard: return .orange
+        case .good: return .green
+        case .easy: return .blue
+        }
     }
 
     @ViewBuilder

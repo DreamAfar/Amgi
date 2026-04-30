@@ -469,6 +469,7 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.showCorrectnessSymbols) private var showCorrectnessSymbols = false
     @AppStorage(ReviewPreferences.Keys.disperseAnswerButtons) private var disperseAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.showAnswerButtons) private var showAnswerButtons = true
+    @AppStorage(ReviewPreferences.Keys.hideHardAndEasyButtons) private var hideHardAndEasyButtons = false
     @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var showRemainingDays = true
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var showNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var openLinksExternally = true
@@ -506,6 +507,7 @@ private struct ReviewOptionsView: View {
                 Toggle(L("settings_review_show_correctness_symbols"), isOn: $showCorrectnessSymbols)
                 Toggle(L("settings_review_disperse_answer_buttons"), isOn: $disperseAnswerButtons)
                 Toggle(L("settings_review_show_answer_buttons"), isOn: $showAnswerButtons)
+                Toggle(L("settings_review_hide_hard_and_easy_buttons"), isOn: $hideHardAndEasyButtons)
                 Toggle(L("settings_review_show_remaining_days"), isOn: $showRemainingDays)
                 Toggle(L("settings_review_show_next_review_time"), isOn: $showNextReviewTime)
                 Toggle(L("settings_review_open_links_externally"), isOn: $openLinksExternally)

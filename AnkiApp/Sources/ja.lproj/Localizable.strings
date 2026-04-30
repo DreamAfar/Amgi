@@ -1144,6 +1144,9 @@
 "rich_text_action_mathjax_block" = "ブロック数式";
 "rich_text_action_mathjax_chemistry" = "化学式";
 "rich_text_action_clear_format" = "書式をクリア";
+"rich_text_clear_all_title" = "このフィールドの書式をすべて消去しますか？";
+"rich_text_clear_all_message" = "テキスト未選択時は、現在のフィールド内の書式をすべて消去します。";
+"rich_text_clear_all_confirm" = "すべて消去";
 "rich_text_color_yellow" = "黄色";
 "rich_text_color_red" = "赤";
 "rich_text_color_blue" = "青";
@@ -1326,6 +1329,7 @@
 "settings_review_show_correctness_symbols" = "正誤シンボルを表示";
 "settings_review_disperse_answer_buttons" = "回答ボタンを分散表示";
 "settings_review_show_answer_buttons" = "回答ボタンを表示";
+"settings_review_hide_hard_and_easy_buttons" = "「難しい / 簡単」ボタンを隠す";
 "settings_review_show_remaining_days" = "残り日数を表示";
 "settings_review_show_next_review_time" = "次回回答時刻を表示";
 "settings_review_open_links_externally" = "リンクを外部ブラウザで開く";

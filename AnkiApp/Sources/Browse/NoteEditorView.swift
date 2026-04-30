@@ -19,6 +19,7 @@ struct NoteEditorView: View {
 
     @State private var fieldValues: [String] = []
     @State private var fieldNames: [String] = []
+    @State private var fieldSourceModes: [Bool] = []
     @State private var tags: String = ""
     @State private var tagDraft = ""
     @State private var availableTags: [String] = []
@@ -76,6 +77,14 @@ struct NoteEditorView: View {
                                     .foregroundStyle(Color.amgiTextSecondary)
                                 Spacer()
                                 Button {
+                                    toggleSourceMode(at: index)
+                                } label: {
+                                    Text("<>")
+                                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(isSourceModeEnabled(at: index) ? Color.amgiAccent : Color.amgiTextSecondary)
+                                Button {
                                     beginMediaImport(for: index)
                                 } label: {
                                     Image(systemName: "paperclip")
@@ -96,7 +105,7 @@ struct NoteEditorView: View {
                                 }
                             }
 
-                            if shouldShowFieldPreview(at: index) {
+                            if shouldShowFieldPreview(at: index) || isSourceModeEnabled(at: index) {
                                 NoteFieldHTMLPreview(html: fieldValue(at: index))
                                     .frame(height: fieldPreviewHeight(at: index))
                                     .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -108,7 +117,7 @@ struct NoteEditorView: View {
 
                             RichNoteFieldEditor(
                                 htmlText: fieldBinding(for: index),
-                                preservesSourceHTML: shouldPreserveSourceHTML(at: index)
+                                preservesSourceHTML: isSourceModeEnabled(at: index)
                             )
                                 .frame(minHeight: 32)
                         }
@@ -333,6 +342,16 @@ struct NoteEditorView: View {
         return fieldValues[index]
     }
 
+    private func isSourceModeEnabled(at index: Int) -> Bool {
+        guard index < fieldSourceModes.count else { return false }
+        return fieldSourceModes[index]
+    }
+
+    private func toggleSourceMode(at index: Int) {
+        guard fieldSourceModes.indices.contains(index) else { return }
+        fieldSourceModes[index].toggle()
+    }
+
     private func shouldShowAudioButton(fieldName: String, index: Int) -> Bool {
         MediaAudioPreview.isLikelyAudioFieldName(fieldName)
             || MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) != nil
@@ -344,10 +363,6 @@ struct NoteEditorView: View {
     }
 
     private func shouldShowFieldPreview(at index: Int) -> Bool {
-        containsEmbeddedMedia(fieldValue(at: index))
-    }
-
-    private func shouldPreserveSourceHTML(at index: Int) -> Bool {
         containsEmbeddedMedia(fieldValue(at: index))
     }
 
@@ -479,6 +494,7 @@ struct NoteEditorView: View {
             .map(String.init)
             .map(RichNoteFieldEditor.normalizedStoredHTML)
         while fieldValues.count < fieldNames.count { fieldValues.append("") }
+        fieldSourceModes = Array(repeating: false, count: fieldNames.count)
         tags = noteData.tags.trimmingCharacters(in: .whitespaces)
         originalFieldValues = fieldValues
         originalTags = trimmedTags

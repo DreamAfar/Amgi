@@ -1142,6 +1142,9 @@
 "rich_text_action_mathjax_block" = "块级公式";
 "rich_text_action_mathjax_chemistry" = "化学式";
 "rich_text_action_clear_format" = "清除格式";
+"rich_text_clear_all_title" = "清除所有文本格式？";
+"rich_text_clear_all_message" = "未选中文本时，将清除当前字段中的全部文字格式。";
+"rich_text_clear_all_confirm" = "清除全部格式";
 "rich_text_color_yellow" = "黄色";
 "rich_text_color_red" = "红色";
 "rich_text_color_blue" = "蓝色";
@@ -1324,6 +1327,7 @@
 "settings_review_show_correctness_symbols" = "显示对错符号";
 "settings_review_disperse_answer_buttons" = "分散显示回答按钮";
 "settings_review_show_answer_buttons" = "显示回答按钮";
+"settings_review_hide_hard_and_easy_buttons" = "隐藏“困难 / 简单”按钮";
 "settings_review_show_remaining_days" = "显示剩余天数";
 "settings_review_show_next_review_time" = "显示下次答题时间";
 "settings_review_open_links_externally" = "在外部浏览器中打开链接";
