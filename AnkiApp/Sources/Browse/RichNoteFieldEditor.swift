@@ -257,7 +257,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                         }
                     )
                 )
-            )
+            }
         )
         stackView.addArrangedSubview(
             makeMenuButton(
@@ -294,7 +294,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                         }
                     )
                 )
-            )
+            }
         )
         stackView.addArrangedSubview(
             makeMenuButton(
@@ -309,7 +309,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                         dismissMenu: dismissInlineMenu
                     )
                 )
-            )
+            }
         )
         stackView.addArrangedSubview(
             makeFormatButton(systemName: "textformat", title: clearFormatTitle) {
