@@ -207,13 +207,14 @@ struct AddNoteView: View {
             ) { result in
                 handleImportedFile(result)
             }
-            .sheet(isPresented: $showCameraPicker, onDismiss: { pendingMediaFieldIndex = nil }) {
+            .sheet(isPresented: $showCameraPicker) {
                 CameraImagePicker(
                     onImageData: { data in
                         handleCameraImageData(data)
                     },
                     onCancel: {
                         showCameraPicker = false
+                        pendingMediaFieldIndex = nil
                     }
                 )
                 .ignoresSafeArea()
@@ -386,7 +387,16 @@ struct AddNoteView: View {
         case .file:
             showMediaFileImporter = true
         case .audioRecording:
-            showAudioRecorder = true
+            Task { @MainActor in
+                let allowed = await NoteEditorMediaPermissions.requestMicrophoneAccess()
+                guard allowed else {
+                    previewErrorMessage = L("rich_text_audio_permission_denied")
+                    showPreviewError = true
+                    pendingMediaFieldIndex = nil
+                    return
+                }
+                showAudioRecorder = true
+            }
         }
     }
 
@@ -458,23 +468,23 @@ struct AddNoteView: View {
     }
 
     private func handleCameraImageData(_ data: Data) {
-        defer {
-            showCameraPicker = false
-        }
-
-        do {
-            try handleImportedMediaPayload(
-                data: data,
-                filename: NoteFieldMediaSupport.suggestedFilename(
-                    contentType: .jpeg,
-                    fallbackPrefix: "camera"
-                ),
-                contentType: .jpeg
-            )
-        } catch {
-            pendingMediaFieldIndex = nil
-            previewErrorMessage = error.localizedDescription
-            showPreviewError = true
+        showCameraPicker = false
+        Task { @MainActor in
+            await Task.yield()
+            do {
+                try handleImportedMediaPayload(
+                    data: data,
+                    filename: NoteFieldMediaSupport.suggestedFilename(
+                        contentType: .jpeg,
+                        fallbackPrefix: "camera"
+                    ),
+                    contentType: .jpeg
+                )
+            } catch {
+                pendingMediaFieldIndex = nil
+                previewErrorMessage = error.localizedDescription
+                showPreviewError = true
+            }
         }
     }
 

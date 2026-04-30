@@ -19,7 +19,6 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         Coordinator.normalizedStoredHTML(from: text)
     }
 
-    private let doneButtonTitle = L("common_done")
     private let boldTitle = L("rich_text_action_bold")
     private let italicTitle = L("rich_text_action_italic")
     private let underlineTitle = L("rich_text_action_underline")
@@ -328,6 +327,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             },
             makeFormatButton(systemName: "mic.fill", title: recordAudioTitle) {
                 dismissInlineMenu()
+                textView.resignFirstResponder()
                 onRecordAudio?()
             },
             makeSymbolButton(systemName: "arrow.uturn.backward", title: L("common_undo")) {
@@ -338,7 +338,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 dismissInlineMenu()
                 coordinator.performRedo()
             },
-            makeTextButton(title: doneButtonTitle) {
+            makeSymbolButton(systemName: "keyboard.chevron.compact.down", title: L("common_done")) {
                 dismissInlineMenu()
                 textView.resignFirstResponder()
             }
@@ -385,6 +385,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.tintColor = .label
         button.backgroundColor = .tertiarySystemFill
         button.layer.cornerRadius = 8
+        button.accessibilityLabel = title
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .tertiarySystemFill
@@ -513,18 +514,18 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         [
             makePaletteActionButton(title: choosePhotoTitle, tintColor: .systemBlue) {
                 dismissMenu()
+                textView.resignFirstResponder()
                 onInsertPhoto?()
-                textView.becomeFirstResponder()
             },
             makePaletteActionButton(title: takePhotoTitle, tintColor: .systemBlue) {
                 dismissMenu()
+                textView.resignFirstResponder()
                 onInsertCameraPhoto?()
-                textView.becomeFirstResponder()
             },
             makePaletteActionButton(title: chooseFileTitle, tintColor: .systemBlue) {
                 dismissMenu()
+                textView.resignFirstResponder()
                 onInsertFile?()
-                textView.becomeFirstResponder()
             },
         ]
     }
@@ -571,27 +572,6 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             button.setImage(UIImage(systemName: systemName), for: .normal)
             button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
         }
-        button.heightAnchor.constraint(equalToConstant: 32).isActive = true
-        button.addAction(UIAction { _ in action() }, for: .touchUpInside)
-        return button
-    }
-
-    private func makeTextButton(title: String, action: @escaping () -> Void) -> UIButton {
-        let button = UIButton(type: .system)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.setTitle(title, for: .normal)
-        button.setTitleColor(.label, for: .normal)
-        button.backgroundColor = .tertiarySystemFill
-        button.layer.cornerRadius = 8
-        button.titleLabel?.font = .systemFont(ofSize: 11, weight: .medium)
-        button.titleLabel?.adjustsFontSizeToFitWidth = true
-        button.titleLabel?.minimumScaleFactor = 0.8
-        button.titleLabel?.numberOfLines = 1
-        var configuration = UIButton.Configuration.plain()
-        configuration.buttonSize = .small
-        configuration.baseBackgroundColor = .tertiarySystemFill
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 4, bottom: 6, trailing: 4)
-        button.configuration = configuration
         button.heightAnchor.constraint(equalToConstant: 32).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
@@ -676,10 +656,19 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             if preservesSourceHTML {
                 normalized = Self.normalizedStoredHTML(from: textView.text ?? "")
             } else {
-                normalized = Self.serializedHTML(
-                    from: textView.attributedText,
+                let renderedSnapshot = Self.renderedAttributedString(
+                    from: lastRenderedValue,
                     baseFont: baseFont
-                )
+                ).string
+                if Self.containsEmbeddedMediaMarkup(lastRenderedValue),
+                   textView.attributedText.string == renderedSnapshot {
+                    normalized = lastRenderedValue
+                } else {
+                    normalized = Self.serializedHTML(
+                        from: textView.attributedText,
+                        baseFont: baseFont
+                    )
+                }
             }
             lastRenderedValue = normalized
             htmlText = normalized
@@ -1582,6 +1571,15 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 )
             }
             return output
+        }
+
+        private static func containsEmbeddedMediaMarkup(_ text: String) -> Bool {
+            let lowercasedText = text.lowercased()
+            return lowercasedText.contains("<img")
+                || lowercasedText.contains("<svg")
+                || lowercasedText.contains("<audio")
+                || lowercasedText.contains("<video")
+                || lowercasedText.contains("[sound:")
         }
 
         private static func loadColor(forKey key: String, fallback: UIColor) -> UIColor {

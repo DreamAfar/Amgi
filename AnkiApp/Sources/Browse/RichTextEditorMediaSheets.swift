@@ -9,6 +9,27 @@ enum NoteEditorMediaAction {
     case audioRecording
 }
 
+enum NoteEditorMediaPermissions {
+    @MainActor
+    static func requestMicrophoneAccess() async -> Bool {
+        let session = AVAudioSession.sharedInstance()
+        switch session.recordPermission {
+        case .granted:
+            return true
+        case .denied:
+            return false
+        case .undetermined:
+            return await withCheckedContinuation { continuation in
+                session.requestRecordPermission { allowed in
+                    continuation.resume(returning: allowed)
+                }
+            }
+        @unknown default:
+            return false
+        }
+    }
+}
+
 struct CameraImagePicker: UIViewControllerRepresentable {
     let onImageData: (Data) -> Void
     let onCancel: () -> Void
@@ -37,7 +58,9 @@ struct CameraImagePicker: UIViewControllerRepresentable {
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            onCancel()
+            picker.dismiss(animated: true) {
+                self.onCancel()
+            }
         }
 
         func imagePickerController(
@@ -48,10 +71,14 @@ struct CameraImagePicker: UIViewControllerRepresentable {
                 let image = info[.originalImage] as? UIImage,
                 let data = image.jpegData(compressionQuality: 0.92)
             else {
-                onCancel()
+                picker.dismiss(animated: true) {
+                    self.onCancel()
+                }
                 return
             }
-            onImageData(data)
+            picker.dismiss(animated: true) {
+                self.onImageData(data)
+            }
         }
     }
 }
@@ -115,43 +142,33 @@ private final class AudioRecorderController: NSObject, ObservableObject {
     private var outputURL: URL?
 
     func start() {
-        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] allowed in
-            Task { @MainActor in
-                guard let self else { return }
-                guard allowed else {
-                    self.statusText = L("rich_text_audio_permission_denied")
-                    return
-                }
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+            try session.setActive(true)
 
-                do {
-                    let session = AVAudioSession.sharedInstance()
-                    try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
-                    try session.setActive(true)
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("recording-\(UUID().uuidString).m4a")
+            let settings: [String: Any] = [
+                AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                AVSampleRateKey: 44_100,
+                AVNumberOfChannelsKey: 1,
+                AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+            ]
 
-                    let url = FileManager.default.temporaryDirectory
-                        .appendingPathComponent("recording-\(UUID().uuidString).m4a")
-                    let settings: [String: Any] = [
-                        AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-                        AVSampleRateKey: 44_100,
-                        AVNumberOfChannelsKey: 1,
-                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
-                    ]
+            let recorder = try AVAudioRecorder(url: url, settings: settings)
+            recorder.prepareToRecord()
+            recorder.record()
 
-                    let recorder = try AVAudioRecorder(url: url, settings: settings)
-                    recorder.prepareToRecord()
-                    recorder.record()
-
-                    self.recorder = recorder
-                    self.outputURL = url
-                    self.startedAt = Date()
-                    self.isRecording = true
-                    self.statusText = L("rich_text_audio_recording")
-                    self.elapsedText = "00:00"
-                    self.startTimer()
-                } catch {
-                    self.statusText = error.localizedDescription
-                }
-            }
+            self.recorder = recorder
+            self.outputURL = url
+            self.startedAt = Date()
+            self.isRecording = true
+            self.statusText = L("rich_text_audio_recording")
+            self.elapsedText = "00:00"
+            self.startTimer()
+        } catch {
+            self.statusText = error.localizedDescription
         }
     }
 
