@@ -1,0 +1,491 @@
+import SwiftUI
+import UIKit
+import UniformTypeIdentifiers
+
+struct NoteImageOptimizationRequest: Identifiable {
+    let id = UUID()
+    let image: UIImage
+    let originalByteCount: Int
+    let suggestedFilename: String
+    let confirmTitle: String
+    let onConfirm: (NoteOptimizedImageResult) -> Void
+    let onCancel: () -> Void
+}
+
+struct NoteOptimizedImageResult {
+    let data: Data
+    let filename: String
+    let contentType: UTType
+    let pixelSize: CGSize
+    let fileSize: Int
+}
+
+struct NoteImageOptimizationSheet: View {
+    let request: NoteImageOptimizationRequest
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var cropAspect: CropAspectPreset = .original
+    @State private var maxDimension: Int = 1600
+    @State private var compressionQuality: Double = 0.82
+    @State private var zoom: CGFloat = 1
+    @State private var zoomAnchor: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @State private var dragAnchor: CGSize = .zero
+    @State private var outputPreview: NoteOptimizedImageResult?
+    @State private var previewContainerSize: CGSize = .zero
+
+    private var image: UIImage {
+        request.image.amgiNormalizedOrientation()
+    }
+
+    private var originalPixelSize: CGSize {
+        CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    previewSection
+                    infoSection
+                    controlsSection
+                }
+                .padding(16)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle(L("image_optimizer_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common_cancel")) {
+                        request.onCancel()
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(request.confirmTitle) {
+                        guard let outputPreview else { return }
+                        request.onConfirm(outputPreview)
+                        dismiss()
+                    }
+                    .disabled(outputPreview == nil)
+                }
+            }
+            .onAppear {
+                refreshOutputPreview()
+            }
+            .onChange(of: cropAspect) {
+                resetCropIfNeeded()
+            }
+            .onChange(of: maxDimension) {
+                refreshOutputPreview()
+            }
+            .onChange(of: compressionQuality) {
+                refreshOutputPreview()
+            }
+            .onChange(of: zoom) {
+                refreshOutputPreview()
+            }
+            .onChange(of: offset) {
+                refreshOutputPreview()
+            }
+            .onChange(of: previewContainerSize) {
+                resetCropIfNeeded()
+            }
+        }
+    }
+
+    private var previewSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L("image_optimizer_crop_title"))
+                .font(.headline)
+
+            GeometryReader { geometry in
+                let containerSize = geometry.size
+                let cropRect = cropRect(in: containerSize)
+                let resolvedOffset = boundedOffset(offset, cropRect: cropRect)
+                let displaySize = displayedImageSize(for: cropRect, zoom: zoom)
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(.secondarySystemBackground),
+                                    Color(.systemBackground),
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    Color.black.opacity(0.16)
+
+                    Image(uiImage: image)
+                        .resizable()
+                        .frame(width: displaySize.width, height: displaySize.height)
+                        .position(
+                            x: cropRect.midX + resolvedOffset.width,
+                            y: cropRect.midY + resolvedOffset.height
+                        )
+                        .gesture(dragGesture(for: cropRect))
+                        .simultaneousGesture(magnificationGesture(for: cropRect))
+
+                    CropMaskShape(cropRect: cropRect)
+                        .fill(
+                            Color.black.opacity(0.46),
+                            style: FillStyle(eoFill: true)
+                        )
+                        .allowsHitTesting(false)
+
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.94), lineWidth: 2)
+                        .frame(width: cropRect.width, height: cropRect.height)
+                        .position(x: cropRect.midX, y: cropRect.midY)
+                        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+
+                    VStack {
+                        Spacer()
+                        Text(L("image_optimizer_crop_hint"))
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.92))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.black.opacity(0.28), in: Capsule())
+                            .padding(.bottom, 14)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .onAppear {
+                    previewContainerSize = containerSize
+                }
+                .onChange(of: containerSize) {
+                    previewContainerSize = containerSize
+                }
+            }
+            .frame(height: 320)
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private var infoSection: some View {
+        VStack(spacing: 12) {
+            infoCard(
+                title: L("image_optimizer_original_title"),
+                pixelSize: originalPixelSize,
+                byteCount: request.originalByteCount
+            )
+            if let outputPreview {
+                infoCard(
+                    title: L("image_optimizer_output_title"),
+                    pixelSize: outputPreview.pixelSize,
+                    byteCount: outputPreview.fileSize
+                )
+            }
+        }
+    }
+
+    private func infoCard(title: String, pixelSize: CGSize, byteCount: Int) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            Text("\(Int(pixelSize.width)) × \(Int(pixelSize.height))")
+                .font(.title3.weight(.semibold))
+            Text(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var controlsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(L("image_optimizer_aspect_title"))
+                    .font(.headline)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(CropAspectPreset.allCases) { preset in
+                            Button {
+                                cropAspect = preset
+                            } label: {
+                                Text(preset.localizedTitle)
+                                    .font(.subheadline.weight(.semibold))
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 10)
+                                    .background(
+                                        cropAspect == preset
+                                            ? Color.accentColor
+                                            : Color(.tertiarySystemFill),
+                                        in: Capsule()
+                                    )
+                                    .foregroundStyle(cropAspect == preset ? .white : .primary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(L("image_optimizer_resolution_title"))
+                    .font(.headline)
+                Picker(L("image_optimizer_resolution_title"), selection: $maxDimension) {
+                    ForEach([0, 2048, 1600, 1280, 1024, 768], id: \.self) { value in
+                        Text(maxDimensionLabel(for: value)).tag(value)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(L("image_optimizer_quality_title"))
+                        .font(.headline)
+                    Spacer()
+                    Text("\(Int(compressionQuality * 100))%")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $compressionQuality, in: 0.45...0.95, step: 0.05)
+            }
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func maxDimensionLabel(for value: Int) -> String {
+        if value == 0 {
+            return L("image_optimizer_resolution_original")
+        }
+        return "\(value)px"
+    }
+
+    private func dragGesture(for cropRect: CGRect) -> some Gesture {
+        DragGesture()
+            .onChanged { value in
+                let proposed = CGSize(
+                    width: dragAnchor.width + value.translation.width,
+                    height: dragAnchor.height + value.translation.height
+                )
+                offset = boundedOffset(proposed, cropRect: cropRect)
+            }
+            .onEnded { _ in
+                dragAnchor = offset
+            }
+    }
+
+    private func magnificationGesture(for cropRect: CGRect) -> some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                let proposed = min(max(zoomAnchor * value.magnification, 1), 4)
+                zoom = proposed
+                offset = boundedOffset(offset, cropRect: cropRect, zoom: proposed)
+            }
+            .onEnded { _ in
+                zoomAnchor = zoom
+            }
+    }
+
+    private func cropRect(in containerSize: CGSize) -> CGRect {
+        let availableWidth = max(containerSize.width - 24, 1)
+        let availableHeight = max(containerSize.height - 24, 1)
+        let aspect = cropAspect.resolvedAspect(for: image.size)
+
+        var width = availableWidth
+        var height = width / aspect
+        if height > availableHeight {
+            height = availableHeight
+            width = height * aspect
+        }
+
+        return CGRect(
+            x: (containerSize.width - width) / 2,
+            y: (containerSize.height - height) / 2,
+            width: width,
+            height: height
+        )
+    }
+
+    private func displayedImageSize(for cropRect: CGRect, zoom: CGFloat) -> CGSize {
+        let imageSize = image.size
+        let fillScale = max(cropRect.width / max(imageSize.width, 1), cropRect.height / max(imageSize.height, 1))
+        return CGSize(
+            width: imageSize.width * fillScale * zoom,
+            height: imageSize.height * fillScale * zoom
+        )
+    }
+
+    private func boundedOffset(_ proposed: CGSize, cropRect: CGRect, zoom: CGFloat? = nil) -> CGSize {
+        let effectiveZoom = zoom ?? self.zoom
+        let displaySize = displayedImageSize(for: cropRect, zoom: effectiveZoom)
+        let maxX = max((displaySize.width - cropRect.width) / 2, 0)
+        let maxY = max((displaySize.height - cropRect.height) / 2, 0)
+        return CGSize(
+            width: min(max(proposed.width, -maxX), maxX),
+            height: min(max(proposed.height, -maxY), maxY)
+        )
+    }
+
+    private func resetCropIfNeeded() {
+        zoom = 1
+        zoomAnchor = 1
+        offset = .zero
+        dragAnchor = .zero
+        refreshOutputPreview()
+    }
+
+    private func refreshOutputPreview() {
+        guard previewContainerSize != .zero else { return }
+        outputPreview = generateOutput()
+    }
+
+    private func generateOutput() -> NoteOptimizedImageResult? {
+        let cropRect = cropRect(in: previewContainerSize)
+        let imageRect = imagePixelCropRect(for: cropRect)
+        guard let croppedImage = image.amgiCropped(to: imageRect) else { return nil }
+        let resizedImage = croppedImage.amgiResized(maxDimension: maxDimension)
+        guard let data = resizedImage.jpegData(compressionQuality: compressionQuality) else {
+            return nil
+        }
+
+        return NoteOptimizedImageResult(
+            data: data,
+            filename: request.suggestedFilename.amgiOptimizedJPEGFilename(),
+            contentType: .jpeg,
+            pixelSize: CGSize(
+                width: resizedImage.size.width * resizedImage.scale,
+                height: resizedImage.size.height * resizedImage.scale
+            ),
+            fileSize: data.count
+        )
+    }
+
+    private func imagePixelCropRect(for cropRect: CGRect) -> CGRect {
+        let imageSize = image.size
+        let fillScale = max(cropRect.width / max(imageSize.width, 1), cropRect.height / max(imageSize.height, 1)) * zoom
+        let displaySize = CGSize(width: imageSize.width * fillScale, height: imageSize.height * fillScale)
+        let imageOrigin = CGPoint(
+            x: cropRect.midX - displaySize.width / 2 + offset.width,
+            y: cropRect.midY - displaySize.height / 2 + offset.height
+        )
+
+        let visibleX = max(0, (cropRect.minX - imageOrigin.x) / fillScale)
+        let visibleY = max(0, (cropRect.minY - imageOrigin.y) / fillScale)
+        let visibleWidth = min(imageSize.width - visibleX, cropRect.width / fillScale)
+        let visibleHeight = min(imageSize.height - visibleY, cropRect.height / fillScale)
+
+        return CGRect(
+            x: visibleX * image.scale,
+            y: visibleY * image.scale,
+            width: visibleWidth * image.scale,
+            height: visibleHeight * image.scale
+        ).integral
+    }
+}
+
+private enum CropAspectPreset: String, CaseIterable, Identifiable {
+    case original
+    case square
+    case standard4x3
+    case widescreen16x9
+
+    var id: String { rawValue }
+
+    var localizedTitle: String {
+        switch self {
+        case .original:
+            return L("image_optimizer_aspect_original")
+        case .square:
+            return L("image_optimizer_aspect_square")
+        case .standard4x3:
+            return "4:3"
+        case .widescreen16x9:
+            return "16:9"
+        }
+    }
+
+    func resolvedAspect(for imageSize: CGSize) -> CGFloat {
+        switch self {
+        case .original:
+            return max(imageSize.width / max(imageSize.height, 1), 0.01)
+        case .square:
+            return 1
+        case .standard4x3:
+            return 4.0 / 3.0
+        case .widescreen16x9:
+            return 16.0 / 9.0
+        }
+    }
+}
+
+private struct CropMaskShape: Shape {
+    let cropRect: CGRect
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addRoundedRect(in: rect, cornerSize: CGSize(width: 24, height: 24))
+        path.addRoundedRect(in: cropRect, cornerSize: CGSize(width: 18, height: 18))
+        return path
+    }
+}
+
+private extension UIImage {
+    func amgiNormalizedOrientation() -> UIImage {
+        if imageOrientation == .up { return self }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+
+    func amgiCropped(to rect: CGRect) -> UIImage? {
+        guard let cgImage else { return nil }
+        let bounded = CGRect(
+            x: max(0, rect.origin.x),
+            y: max(0, rect.origin.y),
+            width: min(rect.width, CGFloat(cgImage.width) - max(0, rect.origin.x)),
+            height: min(rect.height, CGFloat(cgImage.height) - max(0, rect.origin.y))
+        )
+        guard bounded.width > 0, bounded.height > 0,
+              let cropped = cgImage.cropping(to: bounded) else { return nil }
+        return UIImage(cgImage: cropped, scale: scale, orientation: .up)
+    }
+
+    func amgiResized(maxDimension: Int) -> UIImage {
+        guard maxDimension > 0 else { return self }
+
+        let pixelWidth = size.width * scale
+        let pixelHeight = size.height * scale
+        let longestSide = max(pixelWidth, pixelHeight)
+        guard longestSide > CGFloat(maxDimension) else { return self }
+
+        let resizeScale = CGFloat(maxDimension) / longestSide
+        let targetSize = CGSize(
+            width: floor(size.width * resizeScale),
+            height: floor(size.height * resizeScale)
+        )
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+
+        return UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
+            UIColor.systemBackground.setFill()
+            UIBezierPath(rect: CGRect(origin: .zero, size: targetSize)).fill()
+            draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
+}
+
+private extension String {
+    func amgiOptimizedJPEGFilename() -> String {
+        let url = URL(fileURLWithPath: self)
+        let base = url.deletingPathExtension().lastPathComponent
+        return base.isEmpty ? "image.jpg" : "\(base)-optimized.jpg"
+    }
+}

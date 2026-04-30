@@ -39,6 +39,7 @@ struct NoteEditorView: View {
     @State private var showMediaFileImporter = false
     @State private var showAudioRecorder = false
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var imageOptimizationRequest: NoteImageOptimizationRequest?
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var notetype: Anki_Notetypes_Notetype?
@@ -96,6 +97,16 @@ struct NoteEditorView: View {
                                     .buttonStyle(.plain)
                                     .foregroundStyle(Color.amgiAccent)
                                     .disabled(MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) == nil)
+                                }
+                                if containsEditableImage(at: index) {
+                                    Button {
+                                        beginExistingImageEdit(at: index)
+                                    } label: {
+                                        Image(systemName: "photo.badge.sparkles")
+                                            .font(AmgiFont.caption.font)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(Color.amgiAccent)
                                 }
                             }
 
@@ -254,6 +265,9 @@ struct NoteEditorView: View {
                 )
             }
         }
+        .sheet(item: $imageOptimizationRequest) { request in
+            NoteImageOptimizationSheet(request: request)
+        }
         .alert(L("common_error"), isPresented: $showError) {
             Button(L("common_ok")) { }
         } message: {
@@ -385,6 +399,10 @@ struct NoteEditorView: View {
         containsEmbeddedMedia(fieldValue(at: index))
     }
 
+    private func containsEditableImage(at index: Int) -> Bool {
+        NoteFieldMediaSupport.firstImageFilename(in: fieldValue(at: index)) != nil
+    }
+
     private func fieldPreviewHeight(at index: Int) -> CGFloat {
         let value = fieldValue(at: index).lowercased()
         if value.contains("<img") || value.contains("<svg") {
@@ -416,7 +434,6 @@ struct NoteEditorView: View {
         guard let selectedPhotoItem else { return }
         defer {
             self.selectedPhotoItem = nil
-            pendingMediaFieldIndex = nil
         }
 
         do {
@@ -428,20 +445,19 @@ struct NoteEditorView: View {
                 contentType: contentType,
                 fallbackPrefix: "image"
             )
-            try insertImportedMedia(
+            try handleImportedMediaPayload(
                 data: data,
                 filename: filename,
                 contentType: contentType
             )
         } catch {
+            pendingMediaFieldIndex = nil
             errorMessage = error.localizedDescription
             showError = true
         }
     }
 
     private func handleImportedFile(_ result: Result<URL, Error>) {
-        defer { pendingMediaFieldIndex = nil }
-
         do {
             let url = try result.get()
             let didAccess = url.startAccessingSecurityScopedResource()
@@ -458,12 +474,13 @@ struct NoteEditorView: View {
                 contentType: contentType,
                 fallbackPrefix: "media"
             )
-            try insertImportedMedia(
+            try handleImportedMediaPayload(
                 data: data,
                 filename: filename,
                 contentType: contentType
             )
         } catch {
+            pendingMediaFieldIndex = nil
             errorMessage = error.localizedDescription
             showError = true
         }
@@ -472,11 +489,10 @@ struct NoteEditorView: View {
     private func handleCameraImageData(_ data: Data) {
         defer {
             showCameraPicker = false
-            pendingMediaFieldIndex = nil
         }
 
         do {
-            try insertImportedMedia(
+            try handleImportedMediaPayload(
                 data: data,
                 filename: NoteFieldMediaSupport.suggestedFilename(
                     contentType: .jpeg,
@@ -485,6 +501,7 @@ struct NoteEditorView: View {
                 contentType: .jpeg
             )
         } catch {
+            pendingMediaFieldIndex = nil
             errorMessage = error.localizedDescription
             showError = true
         }
@@ -509,6 +526,101 @@ struct NoteEditorView: View {
             errorMessage = error.localizedDescription
             showError = true
         }
+    }
+
+    private func handleImportedMediaPayload(
+        data: Data,
+        filename: String,
+        contentType: UTType?
+    ) throws {
+        if NoteFieldMediaSupport.shouldOptimizeImage(contentType: contentType, filename: filename),
+           let image = UIImage(data: data) {
+            presentImageOptimization(
+                image: image,
+                originalByteCount: data.count,
+                suggestedFilename: filename,
+                confirmTitle: L("image_optimizer_confirm_insert")
+            ) { result in
+                do {
+                    try insertImportedMedia(
+                        data: result.data,
+                        filename: result.filename,
+                        contentType: result.contentType
+                    )
+                    pendingMediaFieldIndex = nil
+                } catch {
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+            return
+        }
+
+        try insertImportedMedia(data: data, filename: filename, contentType: contentType)
+        pendingMediaFieldIndex = nil
+    }
+
+    private func beginExistingImageEdit(at index: Int) {
+        guard let imageFilename = NoteFieldMediaSupport.firstImageFilename(in: fieldValue(at: index)) else {
+            return
+        }
+        guard let imageURL = mediaClient.localURL(imageFilename) else {
+            errorMessage = L("image_optimizer_existing_load_failed")
+            showError = true
+            return
+        }
+
+        do {
+            let data = try Data(contentsOf: imageURL)
+            guard let image = UIImage(data: data) else {
+                throw MediaImportError.loadFailed
+            }
+
+            presentImageOptimization(
+                image: image,
+                originalByteCount: data.count,
+                suggestedFilename: imageFilename,
+                confirmTitle: L("image_optimizer_confirm_save")
+            ) { result in
+                do {
+                    let storedFilename = try mediaClient.save(result.data, result.filename)
+                    fieldValues[index] = NoteFieldMediaSupport.replacingFirstImageFilename(
+                        in: fieldValues[index],
+                        oldFilename: imageFilename,
+                        newFilename: storedFilename
+                    )
+                } catch {
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        } catch {
+            errorMessage = L("image_optimizer_existing_load_failed")
+            showError = true
+        }
+    }
+
+    private func presentImageOptimization(
+        image: UIImage,
+        originalByteCount: Int,
+        suggestedFilename: String,
+        confirmTitle: String,
+        onConfirm: @escaping (NoteOptimizedImageResult) -> Void
+    ) {
+        imageOptimizationRequest = NoteImageOptimizationRequest(
+            image: image,
+            originalByteCount: originalByteCount,
+            suggestedFilename: suggestedFilename,
+            confirmTitle: confirmTitle,
+            onConfirm: { result in
+                imageOptimizationRequest = nil
+                onConfirm(result)
+            },
+            onCancel: {
+                imageOptimizationRequest = nil
+                pendingMediaFieldIndex = nil
+            }
+        )
     }
 
     private func insertImportedMedia(

@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 enum NoteFieldMediaSupport {
     static let importableTypes: [UTType] = [.image, .audio, .movie, .data]
+    private static let firstImagePattern = #"<img[^>]*src\s*=\s*"([^"]+)"[^>]*>"#
 
     static func suggestedFilename(
         sourceURL: URL? = nil,
@@ -48,6 +49,51 @@ enum NoteFieldMediaSupport {
             return "<br>"
         }
         return " "
+    }
+
+    static func shouldOptimizeImage(
+        contentType: UTType?,
+        filename: String
+    ) -> Bool {
+        let resolvedContentType = contentType ?? UTType(filenameExtension: URL(fileURLWithPath: filename).pathExtension)
+        return resolvedContentType?.conforms(to: .image) == true
+    }
+
+    static func firstImageFilename(in html: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: firstImagePattern, options: [.caseInsensitive]) else {
+            return nil
+        }
+        let source = html as NSString
+        guard
+            let match = regex.firstMatch(in: html, range: NSRange(location: 0, length: source.length)),
+            match.numberOfRanges > 1
+        else {
+            return nil
+        }
+        let value = source.substring(with: match.range(at: 1))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    static func replacingFirstImageFilename(
+        in html: String,
+        oldFilename: String,
+        newFilename: String
+    ) -> String {
+        guard let regex = try? NSRegularExpression(pattern: firstImagePattern, options: [.caseInsensitive]) else {
+            return html
+        }
+        let source = html as NSString
+        guard
+            let match = regex.firstMatch(in: html, range: NSRange(location: 0, length: source.length)),
+            match.numberOfRanges > 1
+        else {
+            return html
+        }
+
+        let current = source.substring(with: match.range(at: 1))
+        guard current == oldFilename else { return html }
+        return source.replacingCharacters(in: match.range(at: 1), with: newFilename)
     }
 }
 
