@@ -10,6 +10,10 @@ import UIKit
 struct RichNoteFieldEditor: UIViewRepresentable {
     @Binding var htmlText: String
     var preservesSourceHTML = false
+    var onInsertPhoto: (() -> Void)?
+    var onInsertCameraPhoto: (() -> Void)?
+    var onInsertFile: (() -> Void)?
+    var onRecordAudio: (() -> Void)?
 
     static func normalizedStoredHTML(_ text: String) -> String {
         Coordinator.normalizedStoredHTML(from: text)
@@ -25,6 +29,17 @@ struct RichNoteFieldEditor: UIViewRepresentable {
     private let colorTitle = L("rich_text_action_color")
     private let highlightTitle = L("rich_text_action_highlight")
     private let mathJaxTitle = L("rich_text_action_mathjax")
+    private let bulletListTitle = L("rich_text_action_bullet_list")
+    private let numberedListTitle = L("rich_text_action_numbered_list")
+    private let alignmentTitle = L("rich_text_action_alignment")
+    private let insertAttachmentTitle = L("rich_text_action_attachment")
+    private let recordAudioTitle = L("rich_text_action_record_audio")
+    private let choosePhotoTitle = L("note_editor_media_import_photo")
+    private let takePhotoTitle = L("note_editor_media_import_camera")
+    private let chooseFileTitle = L("note_editor_media_import_file")
+    private let alignLeftTitle = L("rich_text_action_align_left")
+    private let alignCenterTitle = L("rich_text_action_align_center")
+    private let alignRightTitle = L("rich_text_action_align_right")
     private let clearFormatTitle = L("rich_text_action_clear_format")
 
     func makeCoordinator() -> Coordinator {
@@ -60,6 +75,16 @@ struct RichNoteFieldEditor: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
+        let modeChanged = context.coordinator.preservesSourceHTML != preservesSourceHTML
+        context.coordinator.preservesSourceHTML = preservesSourceHTML
+        if modeChanged {
+            let selected = uiView.selectedRange
+            context.coordinator.render(html: htmlText, in: uiView)
+            let maxLoc = max(0, min(selected.location, uiView.attributedText.length))
+            uiView.selectedRange = NSRange(location: maxLoc, length: 0)
+            return
+        }
+
         guard !context.coordinator.isEditing else { return }
         guard htmlText != context.coordinator.lastRenderedValue else { return }
         let selected = uiView.selectedRange
@@ -71,7 +96,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
     // MARK: - Toolbar
 
     private func makeInputToolbar(for textView: UITextView, coordinator: Coordinator) -> UIView {
-        let container = ToolbarContainerView(frame: CGRect(x: 0, y: 0, width: 0, height: 44))
+        let container = ToolbarContainerView(frame: CGRect(x: 0, y: 0, width: 0, height: 94))
         container.backgroundColor = .secondarySystemBackground
         container.clipsToBounds = false
 
@@ -109,20 +134,13 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         bubbleStackView.spacing = 10
         bubbleScrollView.addSubview(bubbleStackView)
 
-        let scrollView = UIScrollView()
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.showsVerticalScrollIndicator = false
-        scrollView.alwaysBounceHorizontal = true
-        scrollView.alwaysBounceVertical = false
-        container.addSubview(scrollView)
-
-        let stackView = UIStackView()
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.axis = .horizontal
-        stackView.alignment = .center
-        stackView.spacing = 6
-        scrollView.addSubview(stackView)
+        let toolbarStack = UIStackView()
+        toolbarStack.translatesAutoresizingMaskIntoConstraints = false
+        toolbarStack.axis = .vertical
+        toolbarStack.alignment = .fill
+        toolbarStack.distribution = .fillEqually
+        toolbarStack.spacing = 6
+        container.addSubview(toolbarStack)
 
         var activeInlineMenu: String?
         let dismissInlineMenu: () -> Void = {
@@ -153,20 +171,17 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             }
         }
 
-        stackView.addArrangedSubview(
-            makeSymbolButton(systemName: "arrow.uturn.backward") {
-                dismissInlineMenu()
-                coordinator.performUndo()
-            }
-        )
-        stackView.addArrangedSubview(
-            makeSymbolButton(systemName: "arrow.uturn.forward") {
-                dismissInlineMenu()
-                coordinator.performRedo()
-            }
-        )
+        func makeRow(_ views: [UIView]) -> UIStackView {
+            let row = UIStackView(arrangedSubviews: views)
+            row.translatesAutoresizingMaskIntoConstraints = false
+            row.axis = .horizontal
+            row.alignment = .fill
+            row.distribution = .fillEqually
+            row.spacing = 6
+            return row
+        }
 
-        stackView.addArrangedSubview(
+        let firstRowButtons: [UIView] = [
             makeFormatButton(systemName: "bold", title: boldTitle) {
                 dismissInlineMenu()
                 if coordinator.preservesSourceHTML {
@@ -174,9 +189,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 } else {
                     coordinator.toggleBold()
                 }
-            }
-        )
-        stackView.addArrangedSubview(
+            },
             makeFormatButton(systemName: "italic", title: italicTitle) {
                 dismissInlineMenu()
                 if coordinator.preservesSourceHTML {
@@ -184,9 +197,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 } else {
                     coordinator.toggleItalic()
                 }
-            }
-        )
-        stackView.addArrangedSubview(
+            },
             makeFormatButton(systemName: "underline", title: underlineTitle) {
                 dismissInlineMenu()
                 if coordinator.preservesSourceHTML {
@@ -194,9 +205,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 } else {
                     coordinator.toggleUnderline()
                 }
-            }
-        )
-        stackView.addArrangedSubview(
+            },
             makeFormatButton(systemName: "strikethrough", title: strikeTitle) {
                 dismissInlineMenu()
                 if coordinator.preservesSourceHTML {
@@ -204,9 +213,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 } else {
                     coordinator.toggleStrikethrough()
                 }
-            }
-        )
-        stackView.addArrangedSubview(
+            },
             makeFormatButton(systemName: "textformat.superscript", title: superscriptTitle) {
                 dismissInlineMenu()
                 if coordinator.preservesSourceHTML {
@@ -214,9 +221,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 } else {
                     coordinator.applySuperscript()
                 }
-            }
-        )
-        stackView.addArrangedSubview(
+            },
             makeFormatButton(systemName: "textformat.subscript", title: subscriptTitle) {
                 dismissInlineMenu()
                 if coordinator.preservesSourceHTML {
@@ -224,29 +229,21 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 } else {
                     coordinator.applySubscript()
                 }
-            }
-        )
-        stackView.addArrangedSubview(
-            makeMenuButton(
-                systemName: "paintpalette",
-                title: colorTitle,
-                tintColor: .systemBlue
-            ) {
+            },
+            makeMenuButton(systemName: "paintpalette", title: colorTitle, tintColor: .systemBlue) {
                 showInlineMenu(
                     key: "foreground",
                     views: makeColorPaletteViews(
-                        customActionTitle: colorTitle,
-                        colors: [
-                            .label,
-                            .systemYellow,
-                            .systemPurple,
-                            .systemRed,
-                            .systemOrange,
-                            .systemGreen,
-                            .systemBlue,
-                            .black,
+                        choices: [
+                            (.label, .label),
+                            (.systemYellow, .systemYellow),
+                            (.systemPurple, .systemPurple),
+                            (.systemRed, .systemRed),
+                            (.systemOrange, .systemOrange),
+                            (.systemGreen, .systemGreen),
+                            (.systemBlue, .systemBlue),
                         ],
-                        coordinator: coordinator,
+                        customActionTitle: colorTitle,
                         applyColor: { selectedColor in
                             coordinator.applyForegroundColor(selectedColor)
                             dismissInlineMenu()
@@ -257,29 +254,21 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                         }
                     )
                 )
-            }
-        )
-        stackView.addArrangedSubview(
-            makeMenuButton(
-                systemName: "highlighter",
-                title: highlightTitle,
-                tintColor: .systemYellow
-            ) {
+            },
+            makeMenuButton(systemName: "highlighter", title: highlightTitle, tintColor: .systemYellow) {
                 showInlineMenu(
                     key: "highlight",
                     views: makeColorPaletteViews(
-                        customActionTitle: highlightTitle,
-                        colors: [
-                            UIColor.systemGray3,
-                            UIColor.systemYellow.withAlphaComponent(0.35),
-                            UIColor.systemPurple.withAlphaComponent(0.25),
-                            UIColor.systemRed.withAlphaComponent(0.25),
-                            UIColor.systemOrange.withAlphaComponent(0.25),
-                            UIColor.systemGreen.withAlphaComponent(0.35),
-                            UIColor.systemBlue.withAlphaComponent(0.25),
-                            UIColor.clear,
+                        choices: [
+                            (.systemYellow, UIColor.systemYellow.withAlphaComponent(0.35)),
+                            (.systemPurple, UIColor.systemPurple.withAlphaComponent(0.25)),
+                            (.systemRed, UIColor.systemRed.withAlphaComponent(0.25)),
+                            (.systemOrange, UIColor.systemOrange.withAlphaComponent(0.25)),
+                            (.systemGreen, UIColor.systemGreen.withAlphaComponent(0.35)),
+                            (.systemBlue, UIColor.systemBlue.withAlphaComponent(0.25)),
+                            (.systemGray3, .clear),
                         ],
-                        coordinator: coordinator,
+                        customActionTitle: highlightTitle,
                         applyColor: { selectedColor in
                             if selectedColor == .clear {
                                 coordinator.applyHighlightColorStyle("transparent")
@@ -294,14 +283,32 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                         }
                     )
                 )
+            },
+            makeFormatButton(systemName: "textformat", title: clearFormatTitle) {
+                dismissInlineMenu()
+                coordinator.clearFormattingInSelection()
             }
-        )
-        stackView.addArrangedSubview(
-            makeMenuButton(
-                systemName: "function",
-                title: mathJaxTitle,
-                tintColor: .systemTeal
-            ) {
+        ]
+
+        let secondRowButtons: [UIView] = [
+            makeFormatButton(systemName: "list.bullet", title: bulletListTitle) {
+                dismissInlineMenu()
+                coordinator.toggleBulletList()
+            },
+            makeFormatButton(systemName: "list.number", title: numberedListTitle) {
+                dismissInlineMenu()
+                coordinator.toggleNumberedList()
+            },
+            makeMenuButton(systemName: "text.alignleft", title: alignmentTitle, tintColor: .systemBlue) {
+                showInlineMenu(
+                    key: "alignment",
+                    views: makeAlignmentPaletteViews(
+                        coordinator: coordinator,
+                        dismissMenu: dismissInlineMenu
+                    )
+                )
+            },
+            makeMenuButton(systemName: "function", title: mathJaxTitle, tintColor: .systemTeal) {
                 showInlineMenu(
                     key: "mathjax",
                     views: makeMathPaletteViews(
@@ -309,21 +316,36 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                         dismissMenu: dismissInlineMenu
                     )
                 )
-            }
-        )
-        stackView.addArrangedSubview(
-            makeFormatButton(systemName: "textformat", title: clearFormatTitle) {
+            },
+            makeMenuButton(systemName: "paperclip", title: insertAttachmentTitle, tintColor: .systemBlue) {
+                showInlineMenu(
+                    key: "attachment",
+                    views: makeAttachmentPaletteViews(
+                        dismissMenu: dismissInlineMenu,
+                        textView: textView
+                    )
+                )
+            },
+            makeFormatButton(systemName: "mic.fill", title: recordAudioTitle) {
                 dismissInlineMenu()
-                coordinator.clearFormattingInSelection()
-            }
-        )
-
-        stackView.addArrangedSubview(
+                onRecordAudio?()
+            },
+            makeSymbolButton(systemName: "arrow.uturn.backward", title: L("common_undo")) {
+                dismissInlineMenu()
+                coordinator.performUndo()
+            },
+            makeSymbolButton(systemName: "arrow.uturn.forward", title: L("common_redo")) {
+                dismissInlineMenu()
+                coordinator.performRedo()
+            },
             makeTextButton(title: doneButtonTitle) {
                 dismissInlineMenu()
                 textView.resignFirstResponder()
             }
-        )
+        ]
+
+        toolbarStack.addArrangedSubview(makeRow(firstRowButtons))
+        toolbarStack.addArrangedSubview(makeRow(secondRowButtons))
 
         NSLayoutConstraint.activate([
             divider.topAnchor.constraint(equalTo: container.topAnchor),
@@ -347,22 +369,16 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             bubbleStackView.bottomAnchor.constraint(equalTo: bubbleScrollView.contentLayoutGuide.bottomAnchor),
             bubbleStackView.heightAnchor.constraint(equalTo: bubbleScrollView.frameLayoutGuide.heightAnchor),
 
-            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: divider.bottomAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-
-            stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 10),
-            stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -10),
-            stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 6),
-            stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -6),
-            stackView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -12)
+            toolbarStack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
+            toolbarStack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -10),
+            toolbarStack.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 6),
+            toolbarStack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6)
         ])
 
         return container
     }
 
-    private func makeSymbolButton(systemName: String, action: @escaping () -> Void) -> UIButton {
+    private func makeSymbolButton(systemName: String, title: String, action: @escaping () -> Void) -> UIButton {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setImage(UIImage(systemName: systemName), for: .normal)
@@ -373,10 +389,9 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .tertiarySystemFill
         configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 4, bottom: 6, trailing: 4)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 32).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -393,10 +408,9 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .tertiarySystemFill
         configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 4, bottom: 6, trailing: 4)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 32).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -414,34 +428,32 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         button.backgroundColor = .tertiarySystemFill
         button.layer.cornerRadius = 8
         button.accessibilityLabel = title
+        button.accessibilityLabel = title
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .tertiarySystemFill
         configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 4, bottom: 6, trailing: 4)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 32).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
 
     private func makeColorPaletteViews(
+        choices: [(displayColor: UIColor, appliedColor: UIColor)],
         customActionTitle: String,
-        colors: [UIColor],
-        coordinator: Coordinator,
         applyColor: @escaping (UIColor) -> Void,
         applyCustom: @escaping () -> Void
     ) -> [UIView] {
-        colors.enumerated().map { index, color in
+        choices.enumerated().map { index, choice in
             makePaletteSwatchButton(
-                color: color,
-                accessibilityLabel: index == colors.count - 1 && color == .clear
+                color: choice.displayColor,
+                accessibilityLabel: index == choices.count - 1 && choice.appliedColor == .clear
                     ? L("rich_text_color_default")
                     : customActionTitle
             ) {
-                applyColor(color)
-                coordinator.textView?.becomeFirstResponder()
+                applyColor(choice.appliedColor)
             }
         } + [
             makePaletteActionButton(
@@ -451,6 +463,26 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             ) {
                 applyCustom()
             }
+        ]
+    }
+
+    private func makeAlignmentPaletteViews(
+        coordinator: Coordinator,
+        dismissMenu: @escaping () -> Void
+    ) -> [UIView] {
+        [
+            makePaletteActionButton(title: alignLeftTitle, tintColor: .systemBlue) {
+                coordinator.applyTextAlignment(.left)
+                dismissMenu()
+            },
+            makePaletteActionButton(title: alignCenterTitle, tintColor: .systemBlue) {
+                coordinator.applyTextAlignment(.center)
+                dismissMenu()
+            },
+            makePaletteActionButton(title: alignRightTitle, tintColor: .systemBlue) {
+                coordinator.applyTextAlignment(.right)
+                dismissMenu()
+            },
         ]
     }
 
@@ -470,6 +502,29 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             makePaletteActionButton(title: "ce{}", tintColor: .systemTeal) {
                 coordinator.wrapSelection(prefix: #"\(\ce{"#, suffix: #"}\)"#)
                 dismissMenu()
+            },
+        ]
+    }
+
+    private func makeAttachmentPaletteViews(
+        dismissMenu: @escaping () -> Void,
+        textView: UITextView
+    ) -> [UIView] {
+        [
+            makePaletteActionButton(title: choosePhotoTitle, tintColor: .systemBlue) {
+                dismissMenu()
+                onInsertPhoto?()
+                textView.becomeFirstResponder()
+            },
+            makePaletteActionButton(title: takePhotoTitle, tintColor: .systemBlue) {
+                dismissMenu()
+                onInsertCameraPhoto?()
+                textView.becomeFirstResponder()
+            },
+            makePaletteActionButton(title: chooseFileTitle, tintColor: .systemBlue) {
+                dismissMenu()
+                onInsertFile?()
+                textView.becomeFirstResponder()
             },
         ]
     }
@@ -535,10 +590,9 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .tertiarySystemFill
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 4, bottom: 6, trailing: 4)
         button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 32).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -549,7 +603,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         @Binding var htmlText: String
         private static let lastForegroundColorKey = "amgi.rich_text.last_foreground_color"
         private static let lastHighlightColorKey = "amgi.rich_text.last_highlight_color"
-        let preservesSourceHTML: Bool
+        var preservesSourceHTML: Bool
 
         weak var textView: UITextView?
         var lastRenderedValue: String = ""
@@ -673,7 +727,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         func toggleBold() {
             finalizeMarkedTextIfNeeded()
             applyAttributedTransformation { attributes in
-                Self.updatedFontAttributes(
+                Self.toggledFontAttributes(
                     from: attributes,
                     baseFont: baseFont,
                     trait: .traitBold
@@ -684,7 +738,7 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         func toggleItalic() {
             finalizeMarkedTextIfNeeded()
             applyAttributedTransformation { attributes in
-                Self.updatedFontAttributes(
+                Self.toggledFontAttributes(
                     from: attributes,
                     baseFont: baseFont,
                     trait: .traitItalic
@@ -696,7 +750,11 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             finalizeMarkedTextIfNeeded()
             applyAttributedTransformation { attributes in
                 var updated = attributes
-                updated[.underlineStyle] = NSUnderlineStyle.single.rawValue
+                if (attributes[.underlineStyle] as? Int ?? 0) != 0 {
+                    updated.removeValue(forKey: .underlineStyle)
+                } else {
+                    updated[.underlineStyle] = NSUnderlineStyle.single.rawValue
+                }
                 return updated
             }
         }
@@ -705,7 +763,11 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             finalizeMarkedTextIfNeeded()
             applyAttributedTransformation { attributes in
                 var updated = attributes
-                updated[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+                if (attributes[.strikethroughStyle] as? Int ?? 0) != 0 {
+                    updated.removeValue(forKey: .strikethroughStyle)
+                } else {
+                    updated[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+                }
                 return updated
             }
         }
@@ -713,10 +775,11 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         func applySuperscript() {
             finalizeMarkedTextIfNeeded()
             applyAttributedTransformation { attributes in
-                Self.updatedBaselineAttributes(
+                Self.toggledBaselineAttributes(
                     from: attributes,
                     baseFont: baseFont,
-                    baselineOffset: 6
+                    baselineOffset: 6,
+                    direction: .superscript
                 )
             }
         }
@@ -724,12 +787,121 @@ struct RichNoteFieldEditor: UIViewRepresentable {
         func applySubscript() {
             finalizeMarkedTextIfNeeded()
             applyAttributedTransformation { attributes in
-                Self.updatedBaselineAttributes(
+                Self.toggledBaselineAttributes(
                     from: attributes,
                     baseFont: baseFont,
-                    baselineOffset: -4
+                    baselineOffset: -4,
+                    direction: .subscripted
                 )
             }
+        }
+
+        private func toggleListMarkers(ordered: Bool) {
+            guard let textView else { return }
+            finalizeMarkedTextIfNeeded()
+
+            let targetRange = Self.paragraphRange(for: textView.selectedRange, in: textView.text ?? "")
+            let sourceText = preservesSourceHTML ? (textView.text ?? "") : textView.attributedText.string
+            let source = sourceText as NSString
+            let original = source.substring(with: targetRange)
+            let lines = original.components(separatedBy: "\n")
+            let allMarked = lines.allSatisfy { line in
+                ordered ? Self.isNumberedListLine(line) : Self.isBulletListLine(line)
+            }
+
+            let updatedLines = lines.enumerated().map { index, line in
+                if ordered {
+                    return allMarked
+                        ? Self.removingNumberMarker(from: line)
+                        : Self.appendingNumberMarker(to: line, number: index + 1)
+                }
+                return allMarked
+                    ? Self.removingBulletMarker(from: line)
+                    : Self.appendingBulletMarker(to: line)
+            }
+
+            let updated = updatedLines.joined(separator: "\n")
+            replacePlainText(in: targetRange, with: updated)
+        }
+
+        private func replacePlainText(in range: NSRange, with string: String) {
+            guard let textView else { return }
+            if preservesSourceHTML {
+                let source = (textView.text ?? "") as NSString
+                textView.text = source.replacingCharacters(in: range, with: string)
+                let cursor = range.location + (string as NSString).length
+                textView.selectedRange = NSRange(location: cursor, length: 0)
+                commitCurrentValue()
+                return
+            }
+
+            let typingAttributes = textView.typingAttributes
+            let mutable = NSMutableAttributedString(attributedString: textView.attributedText)
+            let replacement = NSAttributedString(string: string, attributes: typingAttributes)
+            mutable.replaceCharacters(in: range, with: replacement)
+            textView.attributedText = mutable
+            let cursor = range.location + replacement.length
+            textView.selectedRange = NSRange(location: cursor, length: 0)
+            textView.typingAttributes = Self.typingAttributes(
+                from: mutable,
+                at: cursor,
+                baseFont: baseFont
+            )
+            commitCurrentValue()
+        }
+
+        func toggleBulletList() {
+            toggleListMarkers(ordered: false)
+        }
+
+        func toggleNumberedList() {
+            toggleListMarkers(ordered: true)
+        }
+
+        func applyTextAlignment(_ alignment: NSTextAlignment) {
+            finalizeMarkedTextIfNeeded()
+            if preservesSourceHTML {
+                let cssValue = Self.cssTextAlignmentValue(for: alignment)
+                wrapSelection(
+                    prefix: #"<div style="text-align: \#(cssValue);">"#,
+                    suffix: "</div>"
+                )
+                return
+            }
+
+            guard let textView else { return }
+            let selected = textView.selectedRange
+            if selected.length == 0 {
+                let currentStyle = (textView.typingAttributes[.paragraphStyle] as? NSParagraphStyle)?
+                    .mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+                currentStyle.alignment = currentStyle.alignment == alignment ? .natural : alignment
+                var updated = textView.typingAttributes
+                if currentStyle.alignment == .natural {
+                    updated.removeValue(forKey: .paragraphStyle)
+                } else {
+                    updated[.paragraphStyle] = currentStyle
+                }
+                textView.typingAttributes = updated
+                return
+            }
+
+            let targetRange = Self.paragraphRange(for: selected, in: textView.attributedText.string)
+            let mutable = NSMutableAttributedString(attributedString: textView.attributedText)
+            mutable.enumerateAttributes(in: targetRange, options: []) { attributes, range, _ in
+                var updated = attributes
+                let style = (attributes[.paragraphStyle] as? NSParagraphStyle)?
+                    .mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+                style.alignment = style.alignment == alignment ? .natural : alignment
+                if style.alignment == .natural {
+                    updated.removeValue(forKey: .paragraphStyle)
+                } else {
+                    updated[.paragraphStyle] = style
+                }
+                mutable.setAttributes(updated, range: range)
+            }
+            textView.attributedText = mutable
+            textView.selectedRange = selected
+            commitCurrentValue()
         }
 
         private func insertRichText(_ string: String, cursorOffset: Int? = nil) {
@@ -1094,7 +1266,62 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             return attributes
         }
 
-        static func updatedFontAttributes(
+        static func paragraphRange(for range: NSRange, in text: String) -> NSRange {
+            let source = text as NSString
+            guard source.length > 0 else { return NSRange(location: 0, length: 0) }
+            let location = min(range.location, max(source.length - 1, 0))
+            let start = source.paragraphRange(for: NSRange(location: location, length: 0)).location
+            let endLocation = min(range.location + max(range.length - 1, 0), max(source.length - 1, 0))
+            let endRange = source.paragraphRange(for: NSRange(location: endLocation, length: 0))
+            return NSRange(location: start, length: endRange.location + endRange.length - start)
+        }
+
+        static func cssTextAlignmentValue(for alignment: NSTextAlignment) -> String? {
+            switch alignment {
+            case .center:
+                return "center"
+            case .right:
+                return "right"
+            case .justified:
+                return "justify"
+            case .left, .natural:
+                return "left"
+            @unknown default:
+                return nil
+            }
+        }
+
+        static func isBulletListLine(_ line: String) -> Bool {
+            line.trimmingCharacters(in: .whitespaces).hasPrefix("• ")
+        }
+
+        static func isNumberedListLine(_ line: String) -> Bool {
+            guard let regex = try? NSRegularExpression(pattern: #"^\s*\d+\.\s"#) else { return false }
+            let range = NSRange(location: 0, length: (line as NSString).length)
+            return regex.firstMatch(in: line, range: range) != nil
+        }
+
+        static func appendingBulletMarker(to line: String) -> String {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.isEmpty == false else { return line }
+            return "• \(line)"
+        }
+
+        static func removingBulletMarker(from line: String) -> String {
+            line.replacingOccurrences(of: #"^\s*•\s"#, with: "", options: .regularExpression)
+        }
+
+        static func appendingNumberMarker(to line: String, number: Int) -> String {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.isEmpty == false else { return line }
+            return "\(number). \(line)"
+        }
+
+        static func removingNumberMarker(from line: String) -> String {
+            line.replacingOccurrences(of: #"^\s*\d+\.\s"#, with: "", options: .regularExpression)
+        }
+
+        static func toggledFontAttributes(
             from attributes: [NSAttributedString.Key: Any],
             baseFont: UIFont,
             trait: UIFontDescriptor.SymbolicTraits
@@ -1102,22 +1329,50 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             var updated = attributes
             let font = (attributes[.font] as? UIFont) ?? baseFont
             var traits = font.fontDescriptor.symbolicTraits
-            traits.insert(trait)
+            let hasItalicObliqueness = ((attributes[.obliqueness] as? NSNumber)?.doubleValue ?? 0) != 0
+            let isEnabled = traits.contains(trait) || (trait == .traitItalic && hasItalicObliqueness)
+            if isEnabled {
+                traits.remove(trait)
+            } else {
+                traits.insert(trait)
+            }
             let descriptor = font.fontDescriptor.withSymbolicTraits(traits)
                 ?? font.fontDescriptor
             updated[.font] = UIFont(descriptor: descriptor, size: font.pointSize)
+            if trait == .traitItalic {
+                if isEnabled {
+                    updated.removeValue(forKey: .obliqueness)
+                } else {
+                    updated[.obliqueness] = 0
+                }
+            }
             return updated
         }
 
-        static func updatedBaselineAttributes(
+        enum BaselineDirection {
+            case superscript
+            case subscripted
+        }
+
+        static func toggledBaselineAttributes(
             from attributes: [NSAttributedString.Key: Any],
             baseFont: UIFont,
-            baselineOffset: CGFloat
+            baselineOffset: CGFloat,
+            direction: BaselineDirection
         ) -> [NSAttributedString.Key: Any] {
             var updated = attributes
             let font = (attributes[.font] as? UIFont) ?? baseFont
-            updated[.font] = font.withSize(max(font.pointSize * 0.8, 12))
-            updated[.baselineOffset] = baselineOffset
+            let currentBaseline = (attributes[.baselineOffset] as? NSNumber)?.doubleValue
+                ?? Double(attributes[.baselineOffset] as? CGFloat ?? 0)
+            let isSameDirection = direction == .superscript ? currentBaseline > 0 : currentBaseline < 0
+
+            if isSameDirection {
+                updated[.font] = font.withSize(max(font.pointSize / 0.8, baseFont.pointSize))
+                updated.removeValue(forKey: .baselineOffset)
+            } else {
+                updated[.font] = font.withSize(max(font.pointSize * 0.8, 12))
+                updated[.baselineOffset] = baselineOffset
+            }
             return updated
         }
 
@@ -1134,6 +1389,9 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                     ?? baseFont.fontDescriptor
                 let size = importedFont.pointSize < baseFont.pointSize ? importedFont.pointSize : baseFont.pointSize
                 updated[.font] = UIFont(descriptor: descriptor, size: size)
+                if traits.contains(.traitItalic) {
+                    updated[.obliqueness] = 0
+                }
 
                 if let color = attributes[.foregroundColor] as? UIColor,
                    isDefaultForegroundColor(color) {
@@ -1160,7 +1418,8 @@ struct RichNoteFieldEditor: UIViewRepresentable {
                 prefix.append("<b>")
                 suffix.insert("</b>", at: 0)
             }
-            if traits.contains(.traitItalic) {
+            if traits.contains(.traitItalic)
+                || ((attributes[.obliqueness] as? NSNumber)?.doubleValue ?? 0) != 0 {
                 prefix.append("<i>")
                 suffix.insert("</i>", at: 0)
             }
@@ -1191,6 +1450,11 @@ struct RichNoteFieldEditor: UIViewRepresentable {
             }
 
             var styleRules: [String] = []
+            if let paragraphStyle = attributes[.paragraphStyle] as? NSParagraphStyle,
+               let cssAlignment = cssTextAlignmentValue(for: paragraphStyle.alignment),
+               cssAlignment != "left" {
+                styleRules.append("text-align: \(cssAlignment);")
+            }
             if let color = attributes[.foregroundColor] as? UIColor,
                isDefaultForegroundColor(color) == false {
                 styleRules.append("color: \(hexString(from: color));")

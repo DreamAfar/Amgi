@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
+import UIKit
 import AnkiKit
 import AnkiClients
 import AnkiBackend
@@ -29,9 +30,10 @@ struct AddNoteView: View {
     @State private var previewContext: AddNotePreviewContext?
     @State private var shouldApplyDraftOnNextFieldLoad = false
     @State private var pendingMediaFieldIndex: Int?
-    @State private var showMediaImportOptions = false
     @State private var showPhotoPicker = false
+    @State private var showCameraPicker = false
     @State private var showMediaFileImporter = false
+    @State private var showAudioRecorder = false
     @State private var selectedPhotoItem: PhotosPickerItem?
 
     let onSave: () -> Void
@@ -89,14 +91,6 @@ struct AddNoteView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .foregroundStyle(isSourceModeEnabled(at: index) ? Color.amgiAccent : Color.amgiTextSecondary)
-                                    Button {
-                                        beginMediaImport(for: index)
-                                    } label: {
-                                        Image(systemName: "paperclip")
-                                            .font(AmgiFont.caption.font)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(Color.amgiAccent)
                                     if shouldShowAudioButton(fieldName: name, index: index) {
                                         Button {
                                             previewAudio(at: index)
@@ -122,7 +116,11 @@ struct AddNoteView: View {
 
                                 RichNoteFieldEditor(
                                     htmlText: fieldBinding(for: index),
-                                    preservesSourceHTML: isSourceModeEnabled(at: index)
+                                    preservesSourceHTML: isSourceModeEnabled(at: index),
+                                    onInsertPhoto: { beginMediaImport(for: index, action: .photoLibrary) },
+                                    onInsertCameraPhoto: { beginMediaImport(for: index, action: .camera) },
+                                    onInsertFile: { beginMediaImport(for: index, action: .file) },
+                                    onRecordAudio: { beginMediaImport(for: index, action: .audioRecording) }
                                 )
                                     .frame(minHeight: 32)
                             }
@@ -185,21 +183,6 @@ struct AddNoteView: View {
             } message: {
                 Text(previewErrorMessage ?? L("common_unknown_error"))
             }
-            .confirmationDialog(
-                L("note_editor_media_import_title"),
-                isPresented: $showMediaImportOptions,
-                titleVisibility: .visible
-            ) {
-                Button(L("note_editor_media_import_photo")) {
-                    showPhotoPicker = true
-                }
-                Button(L("note_editor_media_import_file")) {
-                    showMediaFileImporter = true
-                }
-                Button(L("common_cancel"), role: .cancel) {
-                    pendingMediaFieldIndex = nil
-                }
-            }
             .photosPicker(
                 isPresented: $showPhotoPicker,
                 selection: $selectedPhotoItem,
@@ -212,6 +195,27 @@ struct AddNoteView: View {
                 allowedContentTypes: NoteFieldMediaSupport.importableTypes
             ) { result in
                 handleImportedFile(result)
+            }
+            .sheet(isPresented: $showCameraPicker, onDismiss: { pendingMediaFieldIndex = nil }) {
+                CameraImagePicker(
+                    onImageData: { data in
+                        handleCameraImageData(data)
+                    },
+                    onCancel: {
+                        showCameraPicker = false
+                    }
+                )
+                .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showAudioRecorder, onDismiss: { pendingMediaFieldIndex = nil }) {
+                AudioRecordingSheet(
+                    onCancel: {
+                        showAudioRecorder = false
+                    },
+                    onFinishRecording: { url in
+                        handleRecordedAudio(url)
+                    }
+                )
             }
             .onChange(of: selectedPhotoItem) {
                 Task { await importSelectedPhoto() }
@@ -348,9 +352,24 @@ struct AddNoteView: View {
             || MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) != nil
     }
 
-    private func beginMediaImport(for index: Int) {
+    private func beginMediaImport(for index: Int, action: NoteEditorMediaAction) {
         pendingMediaFieldIndex = index
-        showMediaImportOptions = true
+        switch action {
+        case .photoLibrary:
+            showPhotoPicker = true
+        case .camera:
+            guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+                previewErrorMessage = L("note_editor_media_import_camera_unavailable")
+                showPreviewError = true
+                pendingMediaFieldIndex = nil
+                return
+            }
+            showCameraPicker = true
+        case .file:
+            showMediaFileImporter = true
+        case .audioRecording:
+            showAudioRecorder = true
+        }
     }
 
     @MainActor
@@ -415,6 +434,48 @@ struct AddNoteView: View {
                 filename: filename,
                 contentType: contentType
             )
+        } catch {
+            previewErrorMessage = error.localizedDescription
+            showPreviewError = true
+        }
+    }
+
+    private func handleCameraImageData(_ data: Data) {
+        defer {
+            showCameraPicker = false
+            pendingMediaFieldIndex = nil
+        }
+
+        do {
+            try insertImportedMedia(
+                data: data,
+                filename: NoteFieldMediaSupport.suggestedFilename(
+                    contentType: .jpeg,
+                    fallbackPrefix: "camera"
+                ),
+                contentType: .jpeg
+            )
+        } catch {
+            previewErrorMessage = error.localizedDescription
+            showPreviewError = true
+        }
+    }
+
+    private func handleRecordedAudio(_ url: URL) {
+        defer {
+            showAudioRecorder = false
+            pendingMediaFieldIndex = nil
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let contentType = UTType(filenameExtension: url.pathExtension) ?? .mpeg4Audio
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                sourceURL: url,
+                contentType: contentType,
+                fallbackPrefix: "recording"
+            )
+            try insertImportedMedia(data: data, filename: filename, contentType: contentType)
         } catch {
             previewErrorMessage = error.localizedDescription
             showPreviewError = true
