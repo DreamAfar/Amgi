@@ -1,5 +1,5 @@
 import AnkiRustLib
-import AnkiProto
+public import AnkiProto
 public import Foundation
 public import SwiftProtobuf
 
