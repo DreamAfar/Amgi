@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 import AnkiKit
 import AnkiClients
 import AnkiBackend
@@ -10,6 +12,7 @@ struct AddNoteView: View {
     @Environment(\.dismiss) private var dismiss
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
+    @Dependency(\.mediaClient) var mediaClient
 
     @State private var decks: [DeckInfo] = []
     @State private var notetypeNames: [(Int64, String)] = []
@@ -24,6 +27,11 @@ struct AddNoteView: View {
     @State private var showPreviewError = false
     @State private var previewContext: AddNotePreviewContext?
     @State private var shouldApplyDraftOnNextFieldLoad = false
+    @State private var pendingMediaFieldIndex: Int?
+    @State private var showMediaImportOptions = false
+    @State private var showPhotoPicker = false
+    @State private var showMediaFileImporter = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
 
     let onSave: () -> Void
     let preselectedDeckId: Int64?
@@ -72,6 +80,14 @@ struct AddNoteView: View {
                                         .amgiFont(.caption)
                                         .foregroundStyle(Color.amgiTextSecondary)
                                     Spacer()
+                                    Button {
+                                        beginMediaImport(for: index)
+                                    } label: {
+                                        Image(systemName: "paperclip")
+                                            .font(AmgiFont.caption.font)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(Color.amgiAccent)
                                     if shouldShowAudioButton(fieldName: name, index: index) {
                                         Button {
                                             previewAudio(at: index)
@@ -84,7 +100,21 @@ struct AddNoteView: View {
                                         .disabled(MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) == nil)
                                     }
                                 }
-                                RichNoteFieldEditor(htmlText: fieldBinding(for: index))
+
+                                if shouldShowFieldPreview(at: index) {
+                                    NoteFieldHTMLPreview(html: fieldValue(at: index))
+                                        .frame(height: fieldPreviewHeight(at: index))
+                                        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                        .overlay {
+                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                                .stroke(Color.amgiBorder.opacity(0.24), lineWidth: 1)
+                                        }
+                                }
+
+                                RichNoteFieldEditor(
+                                    htmlText: fieldBinding(for: index),
+                                    preservesSourceHTML: shouldPreserveSourceHTML(at: index)
+                                )
                                     .frame(minHeight: 32)
                             }
                             .padding(.vertical, AmgiSpacing.sm)
@@ -145,6 +175,37 @@ struct AddNoteView: View {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {
                 Text(previewErrorMessage ?? L("common_unknown_error"))
+            }
+            .confirmationDialog(
+                L("note_editor_media_import_title"),
+                isPresented: $showMediaImportOptions,
+                titleVisibility: .visible
+            ) {
+                Button(L("note_editor_media_import_photo")) {
+                    showPhotoPicker = true
+                }
+                Button(L("note_editor_media_import_file")) {
+                    showMediaFileImporter = true
+                }
+                Button(L("common_cancel"), role: .cancel) {
+                    pendingMediaFieldIndex = nil
+                }
+            }
+            .photosPicker(
+                isPresented: $showPhotoPicker,
+                selection: $selectedPhotoItem,
+                matching: .images,
+                preferredItemEncoding: .automatic,
+                photoLibrary: .shared()
+            )
+            .fileImporter(
+                isPresented: $showMediaFileImporter,
+                allowedContentTypes: NoteFieldMediaSupport.importableTypes
+            ) { result in
+                handleImportedFile(result)
+            }
+            .onChange(of: selectedPhotoItem) {
+                Task { await importSelectedPhoto() }
             }
             .sheet(item: $previewContext) { context in
                 UncommittedCardPreviewSheet(
@@ -242,9 +303,38 @@ struct AddNoteView: View {
         return fieldValues[index]
     }
 
+    private func shouldShowFieldPreview(at index: Int) -> Bool {
+        containsEmbeddedMedia(fieldValue(at: index))
+    }
+
+    private func shouldPreserveSourceHTML(at index: Int) -> Bool {
+        containsEmbeddedMedia(fieldValue(at: index))
+    }
+
+    private func fieldPreviewHeight(at index: Int) -> CGFloat {
+        let value = fieldValue(at: index).lowercased()
+        if value.contains("<img") || value.contains("<svg") {
+            return 220
+        }
+        return 96
+    }
+
+    private func containsEmbeddedMedia(_ value: String) -> Bool {
+        let lowercasedValue = value.lowercased()
+        return lowercasedValue.contains("<img")
+            || lowercasedValue.contains("<svg")
+            || lowercasedValue.contains("<video")
+            || lowercasedValue.contains("<audio")
+    }
+
     private func shouldShowAudioButton(fieldName: String, index: Int) -> Bool {
         MediaAudioPreview.isLikelyAudioFieldName(fieldName)
             || MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) != nil
+    }
+
+    private func beginMediaImport(for index: Int) {
+        pendingMediaFieldIndex = index
+        showMediaImportOptions = true
     }
 
     @MainActor
@@ -255,6 +345,79 @@ struct AddNoteView: View {
             previewErrorMessage = error.localizedDescription
             showPreviewError = true
         }
+    }
+
+    @MainActor
+    private func importSelectedPhoto() async {
+        guard let selectedPhotoItem else { return }
+        defer {
+            self.selectedPhotoItem = nil
+            pendingMediaFieldIndex = nil
+        }
+
+        do {
+            guard let data = try await selectedPhotoItem.loadTransferable(type: Data.self) else {
+                throw MediaImportError.loadFailed
+            }
+            let contentType = selectedPhotoItem.supportedContentTypes.first
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                contentType: contentType,
+                fallbackPrefix: "image"
+            )
+            try insertImportedMedia(
+                data: data,
+                filename: filename,
+                contentType: contentType
+            )
+        } catch {
+            previewErrorMessage = error.localizedDescription
+            showPreviewError = true
+        }
+    }
+
+    private func handleImportedFile(_ result: Result<URL, Error>) {
+        defer { pendingMediaFieldIndex = nil }
+
+        do {
+            let url = try result.get()
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer {
+                if didAccess {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            let data = try Data(contentsOf: url)
+            let contentType = UTType(filenameExtension: url.pathExtension)
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                sourceURL: url,
+                contentType: contentType,
+                fallbackPrefix: "media"
+            )
+            try insertImportedMedia(
+                data: data,
+                filename: filename,
+                contentType: contentType
+            )
+        } catch {
+            previewErrorMessage = error.localizedDescription
+            showPreviewError = true
+        }
+    }
+
+    private func insertImportedMedia(
+        data: Data,
+        filename: String,
+        contentType: UTType?
+    ) throws {
+        guard let index = pendingMediaFieldIndex, fieldValues.indices.contains(index) else {
+            throw MediaImportError.noTargetField
+        }
+
+        let storedFilename = try mediaClient.save(data, filename)
+        let markup = NoteFieldMediaSupport.markup(for: storedFilename, contentType: contentType)
+        let separator = NoteFieldMediaSupport.separator(for: fieldValues[index], markup: markup)
+        fieldValues[index].append(separator + markup)
     }
 
     @MainActor

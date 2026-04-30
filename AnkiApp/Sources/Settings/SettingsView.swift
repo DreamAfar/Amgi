@@ -461,6 +461,8 @@ private struct ReviewOptionsView: View {
         }
     }
 
+    @Dependency(\.ankiBackend) var backend
+
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var playAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var showContextMenuButton = true
     @AppStorage(ReviewPreferences.Keys.showAudioReplayButton) private var showAudioReplayButton = true
@@ -476,6 +478,13 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var cardContentAlignmentRaw = CardAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var glassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var autoMatchCardBackground = true
+    @State private var loadBalancerEnabled = false
+    @State private var fsrsShortTermWithStepsEnabled = false
+    @State private var isLoadingFsrsOptions = true
+    @State private var isSyncingFsrsOptions = false
+    @State private var suppressFsrsOptionSync = false
+    @State private var fsrsOptionsError: String?
+    @State private var showFsrsOptionsError = false
 
     private var cardAlignment: Binding<CardAlignment> {
         Binding(
@@ -530,11 +539,96 @@ private struct ReviewOptionsView: View {
                 }
             }
             .amgiSettingsListRowSurface()
+
+            Section(L("settings_review_section_fsrs")) {
+                if isLoadingFsrsOptions {
+                    HStack {
+                        Text(L("settings_review_loading"))
+                            .foregroundStyle(SettingsValueStyle.secondary)
+                        Spacer()
+                        ProgressView()
+                    }
+                } else {
+                    Toggle(L("settings_review_load_balancer_enabled"), isOn: $loadBalancerEnabled)
+                    Text(L("settings_review_load_balancer_enabled_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+
+                    Toggle(
+                        L("settings_review_fsrs_short_term_with_steps_enabled"),
+                        isOn: $fsrsShortTermWithStepsEnabled
+                    )
+                    Text(L("settings_review_fsrs_short_term_with_steps_enabled_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                }
+            }
+            .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
         .navigationTitle(L("settings_row_review"))
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadFsrsReviewingOptions()
+        }
+        .onChange(of: loadBalancerEnabled) { _, _ in
+            persistFsrsReviewingOptionsIfNeeded()
+        }
+        .onChange(of: fsrsShortTermWithStepsEnabled) { _, _ in
+            persistFsrsReviewingOptionsIfNeeded()
+        }
+        .alert(L("deck_action_error_title"), isPresented: $showFsrsOptionsError) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(fsrsOptionsError ?? L("common_unknown_error"))
+        }
+    }
+
+    @MainActor
+    private func loadFsrsReviewingOptions() async {
+        isLoadingFsrsOptions = true
+        defer { isLoadingFsrsOptions = false }
+
+        do {
+            let loadBalancer = try backend.getConfigBool(for: .loadBalancerEnabled)
+            let shortTermWithSteps = try backend.getConfigBool(for: .fsrsShortTermWithStepsEnabled)
+            suppressFsrsOptionSync = true
+            loadBalancerEnabled = loadBalancer
+            fsrsShortTermWithStepsEnabled = shortTermWithSteps
+            suppressFsrsOptionSync = false
+        } catch {
+            fsrsOptionsError = L("settings_review_fsrs_load_failed", error.localizedDescription)
+            showFsrsOptionsError = true
+        }
+    }
+
+    private func persistFsrsReviewingOptionsIfNeeded() {
+        guard !isLoadingFsrsOptions, !suppressFsrsOptionSync, !isSyncingFsrsOptions else { return }
+
+        let loadBalancer = loadBalancerEnabled
+        let shortTermWithSteps = fsrsShortTermWithStepsEnabled
+        let capturedBackend = backend
+        isSyncingFsrsOptions = true
+
+        Task {
+            do {
+                try capturedBackend.setConfigBool(loadBalancer, for: .loadBalancerEnabled)
+                try capturedBackend.setConfigBool(
+                    shortTermWithSteps,
+                    for: .fsrsShortTermWithStepsEnabled
+                )
+            } catch {
+                await MainActor.run {
+                    fsrsOptionsError = L("settings_review_fsrs_save_failed", error.localizedDescription)
+                    showFsrsOptionsError = true
+                }
+                await loadFsrsReviewingOptions()
+            }
+            await MainActor.run {
+                isSyncingFsrsOptions = false
+            }
+        }
     }
 }
 
