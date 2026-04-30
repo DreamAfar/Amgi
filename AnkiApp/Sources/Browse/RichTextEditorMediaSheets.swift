@@ -103,6 +103,7 @@ struct AudioRecordingSheet: View {
     }
 }
 
+@MainActor
 private final class AudioRecorderController: NSObject, ObservableObject {
     @Published var isRecording = false
     @Published var elapsedText = "00:00"
@@ -115,7 +116,7 @@ private final class AudioRecorderController: NSObject, ObservableObject {
 
     func start() {
         AVAudioSession.sharedInstance().requestRecordPermission { [weak self] allowed in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let self else { return }
                 guard allowed else {
                     self.statusText = L("rich_text_audio_permission_denied")
