@@ -261,6 +261,122 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     }
 }
 
+struct ReaderLookupNoteTemplateStore: Codable, Hashable, Sendable {
+    static let defaultLanguageKey = "default"
+    static let empty = Self()
+
+    var defaultTemplate: ReaderLookupNoteTemplate
+    var templatesByLanguage: [String: ReaderLookupNoteTemplate]
+
+    init(
+        defaultTemplate: ReaderLookupNoteTemplate = .empty,
+        templatesByLanguage: [String: ReaderLookupNoteTemplate] = [:]
+    ) {
+        self.defaultTemplate = defaultTemplate
+        self.templatesByLanguage = templatesByLanguage
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case defaultTemplate
+        case templatesByLanguage
+    }
+
+    init(from decoder: Decoder) throws {
+        if let container = try? decoder.container(keyedBy: CodingKeys.self),
+           container.contains(.defaultTemplate) || container.contains(.templatesByLanguage) {
+            defaultTemplate = try container.decodeIfPresent(ReaderLookupNoteTemplate.self, forKey: .defaultTemplate) ?? .empty
+            templatesByLanguage = try container.decodeIfPresent([String: ReaderLookupNoteTemplate].self, forKey: .templatesByLanguage) ?? [:]
+            templatesByLanguage = Dictionary(
+                uniqueKeysWithValues: templatesByLanguage.map { key, value in
+                    (Self.normalizedLanguageKey(key), value)
+                }
+            )
+            return
+        }
+
+        defaultTemplate = (try? ReaderLookupNoteTemplate(from: decoder)) ?? .empty
+        templatesByLanguage = [:]
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(defaultTemplate, forKey: .defaultTemplate)
+        try container.encode(templatesByLanguage, forKey: .templatesByLanguage)
+    }
+
+    var languageKeys: [String] {
+        [Self.defaultLanguageKey] + templatesByLanguage.keys.sorted()
+    }
+
+    func template(for languageHint: String?) -> ReaderLookupNoteTemplate {
+        guard let languageHint = languageHint?.trimmingCharacters(in: .whitespacesAndNewlines),
+              languageHint.isEmpty == false else {
+            return defaultTemplate
+        }
+
+        let normalizedKey = Self.normalizedLanguageKey(languageHint)
+        if let template = templatesByLanguage[normalizedKey] {
+            return template
+        }
+
+        let primaryKey = normalizedKey
+            .split(separator: "-", maxSplits: 1)
+            .first
+            .map(String.init) ?? normalizedKey
+        if let template = templatesByLanguage[primaryKey] {
+            return template
+        }
+
+        return defaultTemplate
+    }
+
+    func template(forKey key: String) -> ReaderLookupNoteTemplate {
+        let normalizedKey = Self.normalizedLanguageKey(key)
+        if normalizedKey == Self.defaultLanguageKey {
+            return defaultTemplate
+        }
+        return templatesByLanguage[normalizedKey] ?? .empty
+    }
+
+    mutating func setTemplate(_ template: ReaderLookupNoteTemplate, forKey key: String) {
+        let normalizedKey = Self.normalizedLanguageKey(key)
+        if normalizedKey == Self.defaultLanguageKey {
+            defaultTemplate = template
+            return
+        }
+
+        if template == .empty {
+            templatesByLanguage.removeValue(forKey: normalizedKey)
+        } else {
+            templatesByLanguage[normalizedKey] = template
+        }
+    }
+
+    func encodedString() -> String {
+        guard let data = try? JSONEncoder().encode(self),
+              let string = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+        return string
+    }
+
+    static func decode(from string: String) -> Self {
+        guard let data = string.data(using: .utf8),
+              let value = try? JSONDecoder().decode(Self.self, from: data) else {
+            return .empty
+        }
+        return value
+    }
+
+    static func normalizedLanguageKey(_ rawValue: String?) -> String {
+        let normalized = rawValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "-") ?? ""
+        return normalized.isEmpty ? defaultLanguageKey : normalized
+    }
+}
+
 private extension String {
     var nilIfBlank: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)

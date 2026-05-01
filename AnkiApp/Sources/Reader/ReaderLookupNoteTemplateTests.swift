@@ -78,4 +78,33 @@ final class ReaderLookupNoteTemplateTests: XCTestCase {
         XCTAssertEqual(draft.fieldValues["Dictionary"], "<p>词典释义</p>")
         XCTAssertEqual(draft.fieldValues["Cover"], #"<img src="reader-cover.png">"#)
     }
+
+    func testTemplateStoreMigratesLegacySingleTemplateToDefaultProfile() {
+        let legacy = """
+        {"deckID":1,"notetypeID":2,"termField":"Front"}
+        """
+
+        let store = ReaderLookupNoteTemplateStore.decode(from: legacy)
+
+        XCTAssertEqual(store.defaultTemplate.deckID, 1)
+        XCTAssertEqual(store.defaultTemplate.notetypeID, 2)
+        XCTAssertEqual(store.defaultTemplate.fieldMappings["Front"], ReaderLookupHandlebar.expression.rawValue)
+        XCTAssertTrue(store.templatesByLanguage.isEmpty)
+    }
+
+    func testTemplateStoreResolvesLanguageSpecificTemplateWithPrimarySubtagFallback() {
+        let store = ReaderLookupNoteTemplateStore(
+            defaultTemplate: ReaderLookupNoteTemplate(deckID: 1),
+            templatesByLanguage: [
+                "ja": ReaderLookupNoteTemplate(deckID: 2),
+                "en": ReaderLookupNoteTemplate(deckID: 3),
+            ]
+        )
+
+        XCTAssertEqual(store.template(for: "ja").deckID, 2)
+        XCTAssertEqual(store.template(for: "ja-JP").deckID, 2)
+        XCTAssertEqual(store.template(for: "en_US").deckID, 3)
+        XCTAssertEqual(store.template(for: "fr").deckID, 1)
+        XCTAssertEqual(store.template(for: nil).deckID, 1)
+    }
 }

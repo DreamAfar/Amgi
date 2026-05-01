@@ -744,8 +744,12 @@ private struct ReaderChapterView: View {
         ReaderThemeMode(rawValue: themeModeRawValue) ?? .system
     }
 
+    private var lookupNoteTemplateStore: ReaderLookupNoteTemplateStore {
+        ReaderLookupNoteTemplateStore.decode(from: lookupNoteTemplateData)
+    }
+
     private var lookupNoteTemplate: ReaderLookupNoteTemplate {
-        ReaderLookupNoteTemplate.decode(from: lookupNoteTemplateData)
+        lookupNoteTemplateStore.template(for: lookupLanguageHint)
     }
 
     private var popupAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
@@ -1038,7 +1042,7 @@ private struct ReaderChapterView: View {
                                     )
                                 )
                                 .zIndex(Double(index))
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                                .transition(.opacity)
                             }
                         }
                     }
@@ -1084,7 +1088,7 @@ private struct ReaderChapterView: View {
         .navigationDestination(item: $chapterNavigationTarget) { target in
             ReaderChapterView(book: book, chapter: target)
         }
-        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: lookupStack)
+        .animation(.easeOut(duration: 0.16), value: lookupStack)
         .ignoresSafeArea(edges: .top)
         .alert(L("common_error"), isPresented: $showSelectionError) {
             Button(L("common_ok"), role: .cancel) {}
@@ -1510,7 +1514,7 @@ struct ReaderLookupPopup: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(height: max(140, popupHeight - 36), alignment: .top)
-        .padding(18)
+        .padding(8)
         .frame(maxWidth: isFullWidth ? .infinity : popupWidth, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)

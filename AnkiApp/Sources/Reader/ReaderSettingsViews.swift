@@ -629,9 +629,18 @@ struct ReaderAdvancedSettingsView: View {
     @State private var notetypeNames: [(Int64, String)] = []
     @State private var availableFields: [String] = []
     @State private var availableDictionaryNames: [String] = []
+    @State private var selectedTemplateLanguageKey = ReaderLookupNoteTemplateStore.defaultLanguageKey
+
+    private var lookupNoteTemplateStore: ReaderLookupNoteTemplateStore {
+        ReaderLookupNoteTemplateStore.decode(from: lookupNoteTemplateData)
+    }
+
+    private var normalizedSelectedTemplateLanguageKey: String {
+        ReaderLookupNoteTemplateStore.normalizedLanguageKey(selectedTemplateLanguageKey)
+    }
 
     private var lookupNoteTemplate: ReaderLookupNoteTemplate {
-        ReaderLookupNoteTemplate.decode(from: lookupNoteTemplateData)
+        lookupNoteTemplateStore.template(forKey: normalizedSelectedTemplateLanguageKey)
     }
 
     private var availableHandlebars: [String] {
@@ -640,6 +649,17 @@ struct ReaderAdvancedSettingsView: View {
             "\(ReaderLookupHandlebar.singleGlossaryPrefix)\($0)}"
         }
         return standard + glossaryMappings
+    }
+
+    private var templateLanguageOptions: [String] {
+        let normalizedKeys = Set(
+            lookupNoteTemplateStore.languageKeys
+            + ["ja", "en"]
+        )
+        return [ReaderLookupNoteTemplateStore.defaultLanguageKey]
+            + normalizedKeys
+                .filter { $0 != ReaderLookupNoteTemplateStore.defaultLanguageKey }
+                .sorted()
     }
 
     private var selectedTemplateDeckLabel: String {
@@ -700,6 +720,31 @@ struct ReaderAdvancedSettingsView: View {
             .amgiSettingsListRowSurface()
 
             Section {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Language")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    HStack {
+                        TextField("default / ja / en", text: $selectedTemplateLanguageKey)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .submitLabel(.done)
+
+                        Menu {
+                            ForEach(templateLanguageOptions, id: \.self) { option in
+                                Button(option) {
+                                    selectedTemplateLanguageKey = option
+                                    loadTemplateFields(for: lookupNoteTemplate.notetypeID)
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "chevron.up.chevron.down")
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                }
+
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_note_template_deck"), systemImage: "rectangle.stack")
                         .foregroundStyle(SettingsValueStyle.primary)
@@ -780,6 +825,9 @@ struct ReaderAdvancedSettingsView: View {
         .task {
             await loadData()
         }
+        .onChange(of: selectedTemplateLanguageKey) {
+            loadTemplateFields(for: lookupNoteTemplate.notetypeID)
+        }
     }
 
     @ViewBuilder
@@ -852,6 +900,7 @@ struct ReaderAdvancedSettingsView: View {
             notetypeNames = []
         }
 
+        var store = lookupNoteTemplateStore
         var template = lookupNoteTemplate
         if let deckID = template.deckID,
            !decks.contains(where: { $0.id == deckID }) {
@@ -862,7 +911,8 @@ struct ReaderAdvancedSettingsView: View {
             template.notetypeID = nil
             template.clearInvalidFields(validFields: [])
         }
-        storeTemplateIfChanged(template)
+        store.setTemplate(template, forKey: normalizedSelectedTemplateLanguageKey)
+        storeTemplateStoreIfChanged(store)
         loadTemplateFields(for: template.notetypeID)
     }
 
@@ -892,13 +942,15 @@ struct ReaderAdvancedSettingsView: View {
     private func updateTemplate(_ update: (inout ReaderLookupNoteTemplate) -> Void) {
         var template = lookupNoteTemplate
         update(&template)
-        storeTemplateIfChanged(template)
+        var store = lookupNoteTemplateStore
+        store.setTemplate(template, forKey: normalizedSelectedTemplateLanguageKey)
+        storeTemplateStoreIfChanged(store)
     }
 
-    private func storeTemplateIfChanged(_ template: ReaderLookupNoteTemplate) {
-        guard template != lookupNoteTemplate else {
+    private func storeTemplateStoreIfChanged(_ store: ReaderLookupNoteTemplateStore) {
+        guard store != lookupNoteTemplateStore else {
             return
         }
-        lookupNoteTemplateData = template.encodedString()
+        lookupNoteTemplateData = store.encodedString()
     }
 }
