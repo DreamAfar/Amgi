@@ -568,7 +568,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
                 dismissMenu()
             },
             makePaletteActionButton(title: subscriptTitle, tintColor: .systemBlue) {
-                coordinator.clearFormatting(.subscript)
+                coordinator.clearFormatting(.subscriptText)
                 dismissMenu()
             },
             makePaletteActionButton(title: colorTitle, tintColor: .systemBlue) {
@@ -664,7 +664,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
             case italic
             case underline
             case superscript
-            case subscript
+            case subscriptText
             case foregroundColor
             case backgroundColor
             case all
@@ -1812,7 +1812,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
                 patterns = ["(?i)</?u>"]
             case .superscript:
                 patterns = ["(?i)</?sup>"]
-            case .subscript:
+            case .subscriptText:
                 patterns = ["(?i)</?sub>"]
             case .foregroundColor:
                 patterns = [#"(?i)\s*color\s*:\s*[^;"']+;?"#]
@@ -1877,7 +1877,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
                     let font = (updated[.font] as? UIFont) ?? baseFont
                     updated[.font] = font.withSize(max(font.pointSize / 0.8, baseFont.pointSize))
                 }
-            case .subscript:
+            case .subscriptText:
                 if ((updated[.baselineOffset] as? NSNumber)?.doubleValue ?? 0) < 0 {
                     updated.removeValue(forKey: .baselineOffset)
                     let font = (updated[.font] as? UIFont) ?? baseFont
