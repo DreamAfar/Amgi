@@ -317,13 +317,6 @@ private struct DeckRowView: View {
         .tint(Color.amgiPositive)
         .disabled(!isCollectionReady)
 
-        Button(role: .destructive) {
-            onDeleteRequested(node)
-        } label: {
-            Label(L("deck_row_delete"), systemImage: "trash")
-        }
-        .disabled(!isCollectionReady)
-
         Button {
             renameText = node.name
             showRenamePrompt = true
@@ -331,6 +324,13 @@ private struct DeckRowView: View {
             Label(L("deck_row_rename"), systemImage: "pencil")
         }
         .tint(Color.amgiAccent)
+        .disabled(!isCollectionReady)
+
+        Button(role: .destructive) {
+            onDeleteRequested(node)
+        } label: {
+            Label(L("deck_row_delete"), systemImage: "trash")
+        }
         .disabled(!isCollectionReady)
     }
 

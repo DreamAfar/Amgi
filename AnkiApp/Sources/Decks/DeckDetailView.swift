@@ -299,14 +299,6 @@ struct DeckDetailView: View {
                     .tint(Color.amgiPositive)
                     .disabled(!collectionState.isReady)
 
-                    Button(role: .destructive) {
-                        selectedChildDeck = child
-                        showDeleteConfirm = true
-                    } label: {
-                        Label(L("deck_row_delete"), systemImage: "trash")
-                    }
-                    .disabled(!collectionState.isReady)
-
                     Button {
                         selectedChildDeck = child
                         renameText = child.name
@@ -315,6 +307,14 @@ struct DeckDetailView: View {
                         Label(L("deck_row_rename"), systemImage: "pencil")
                     }
                     .tint(Color.amgiAccent)
+                    .disabled(!collectionState.isReady)
+
+                    Button(role: .destructive) {
+                        selectedChildDeck = child
+                        showDeleteConfirm = true
+                    } label: {
+                        Label(L("deck_row_delete"), systemImage: "trash")
+                    }
                     .disabled(!collectionState.isReady)
                 }
             }
