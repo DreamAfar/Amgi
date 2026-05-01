@@ -111,6 +111,14 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         fieldMappings = migratedMappings
     }
 
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(deckID, forKey: .deckID)
+        try container.encodeIfPresent(notetypeID, forKey: .notetypeID)
+        try container.encode(fieldMappings, forKey: .fieldMappings)
+        try container.encode(tags, forKey: .tags)
+    }
+
     func encodedString() -> String {
         guard let data = try? JSONEncoder().encode(self),
               let string = String(data: data, encoding: .utf8) else {
