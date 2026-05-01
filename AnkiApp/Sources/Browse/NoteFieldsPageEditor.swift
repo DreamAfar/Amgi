@@ -2044,11 +2044,11 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             hostScrollView.setContentOffset(CGPoint(x: hostScrollView.contentOffset.x, y: targetOffsetY), animated: false)
         }
 
-        private func enclosingHostScrollView(for view: UIView) -> UIScrollView? {
-            var current = view.superview
+        private func enclosingHostScrollView(for webView: WKWebView) -> UIScrollView? {
+            var current = webView.superview
             while let candidate = current {
                 if let scrollView = candidate as? UIScrollView,
-                   scrollView !== view.scrollView {
+                   scrollView !== webView.scrollView {
                     return scrollView
                 }
                 current = candidate.superview
