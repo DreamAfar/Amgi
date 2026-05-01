@@ -517,7 +517,7 @@ final class ReviewSession {
 
         let inputHTML = """
         <center>
-        <input type=\"text\" id=\"typeans\" autocapitalize=\"none\" autocomplete=\"off\" autocorrect=\"off\" spellcheck=\"false\" onkeypress=\"return amgiHandleTypeAnswerKey(event);\" style=\"font-family: '\(typedAnswerState.fontName)'; font-size: \(typedAnswerState.fontSize)px;\">
+        <input type=\"text\" id=\"typeans\" autocapitalize=\"none\" autocomplete=\"off\" autocorrect=\"off\" spellcheck=\"false\" onkeydown=\"return amgiHandleTypeAnswerKey(event);\" style=\"font-family: '\(typedAnswerState.fontName)'; font-size: \(typedAnswerState.fontSize)px;\">
         </center>
         """
         return renderedFrontHTML.replacingOccurrences(of: typedAnswerState.placeholder, with: inputHTML)

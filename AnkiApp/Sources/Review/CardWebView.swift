@@ -1116,11 +1116,13 @@ struct CardWebView: UIViewRepresentable {
             catch(e) { input.scrollIntoView(); }
         }
         window.amgiEnsureTypedAnswerVisible = amgiEnsureTypedAnswerVisible;
-        window._typeAnsPress = function() {
-            var e = window.event || null;
+        window.amgiHandleTypeAnswerKey = function(e) {
+            e = e || window.event || null;
             if (e && e.key === 'Enter') { e.preventDefault(); amgiSubmitTypedAnswer(); return false; }
             return true;
         };
+        window._typeAnsPress = window.amgiHandleTypeAnswerKey;
+        globalThis.amgiHandleTypeAnswerKey = window.amgiHandleTypeAnswerKey;
         globalThis._typeAnsPress = window._typeAnsPress;
 
         // ── Browser classes ──────────────────────────────────────────────────
@@ -1428,13 +1430,14 @@ struct CardWebView: UIViewRepresentable {
                 });
 
                 var typeInput = document.getElementById('typeans');
-                if (typeInput) {
-                    var ensureVisible = function() { window.setTimeout(amgiEnsureTypedAnswerVisible, 180); };
-                    typeInput.addEventListener('focus', ensureVisible);
-                    typeInput.addEventListener('click', ensureVisible);
-                    typeInput.addEventListener('input', ensureVisible);
-                    typeInput.focus(); ensureVisible();
-                }
+        if (typeInput) {
+            var ensureVisible = function() { window.setTimeout(amgiEnsureTypedAnswerVisible, 180); };
+            typeInput.addEventListener('focus', ensureVisible);
+            typeInput.addEventListener('click', ensureVisible);
+            typeInput.addEventListener('input', ensureVisible);
+            typeInput.addEventListener('keydown', window.amgiHandleTypeAnswerKey);
+            typeInput.focus(); ensureVisible();
+        }
 
                 amgiSetupImageOcclusion();
                 await amgiRunHooks(window.onShownHook);
