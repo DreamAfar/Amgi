@@ -1281,11 +1281,11 @@ private struct ReaderChapterView: View {
 
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
-            let mimeType = response.mimeType?
-                .split(separator: ";")
-                .first
-                .map(String.init)
-            let contentType = mimeType.flatMap(UTType.init(mimeType:))
+            let responseExtension = response.suggestedFilename.flatMap {
+                URL(fileURLWithPath: $0).pathExtension.nilIfBlank
+            }
+            let contentType = responseExtension.flatMap { UTType(filenameExtension: $0) }
+                ?? UTType(filenameExtension: url.pathExtension)
             let filename = NoteFieldMediaSupport.suggestedFilename(
                 sourceURL: url,
                 contentType: contentType,
@@ -1349,7 +1349,7 @@ private struct ReaderChapterView: View {
         }
     }
 
-    private static func escapedSearchTerm(_ text: String) -> String {
+    nonisolated private static func escapedSearchTerm(_ text: String) -> String {
         text
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")

@@ -89,11 +89,12 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         var migratedMappings: [String: String] = [:]
 
         func migrate(_ key: CodingKeys, to handlebar: ReaderLookupHandlebar?) {
-            guard let fieldName = try? container.decodeIfPresent(String.self, forKey: key)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                  let fieldName,
-                  fieldName.isEmpty == false,
+            guard let rawFieldName = try? container.decodeIfPresent(String.self, forKey: key),
                   let handlebar else {
+                return
+            }
+            let fieldName = rawFieldName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard fieldName.isEmpty == false else {
                 return
             }
             migratedMappings[fieldName] = handlebar.rawValue
