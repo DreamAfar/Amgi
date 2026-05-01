@@ -14,42 +14,19 @@ struct RichNoteFieldEditor: View {
     var onInsertCameraPhoto: (() -> Void)? = nil
     var onInsertFile: (() -> Void)? = nil
     var onRecordAudio: (() -> Void)? = nil
-    @State private var renderedHeight: CGFloat = Self.renderedMinimumHeight
-
-    private var clampedRenderedHeight: CGFloat {
-        min(max(renderedHeight, Self.renderedMinimumHeight), Self.renderedMaximumHeight)
-    }
 
     static func normalizedStoredHTML(_ text: String) -> String {
         LegacyRichNoteFieldTextEditor.normalizedStoredHTML(text)
     }
 
     var body: some View {
-        Group {
-            if preservesSourceHTML {
-                LegacyRichNoteFieldTextEditor(
-                    htmlText: $htmlText,
-                    preservesSourceHTML: true,
-                    onInsertPhoto: onInsertPhoto,
-                    onInsertCameraPhoto: onInsertCameraPhoto,
-                    onInsertFile: onInsertFile,
-                    onRecordAudio: onRecordAudio
-                )
-            } else {
-                RenderedHTMLFieldEditor(
-                    htmlText: $htmlText,
-                    measuredHeight: $renderedHeight,
-                    onInsertPhoto: onInsertPhoto,
-                    onInsertCameraPhoto: onInsertCameraPhoto,
-                    onInsertFile: onInsertFile,
-                    onRecordAudio: onRecordAudio
-                )
-            }
-        }
-        .frame(height: preservesSourceHTML ? nil : clampedRenderedHeight)
-        .frame(
-            minHeight: preservesSourceHTML ? Self.sourceMinimumHeight : Self.renderedMinimumHeight,
-            maxHeight: preservesSourceHTML ? Self.sourceMaximumHeight : Self.renderedMaximumHeight
+        LegacyRichNoteFieldTextEditor(
+            htmlText: $htmlText,
+            preservesSourceHTML: preservesSourceHTML,
+            onInsertPhoto: onInsertPhoto,
+            onInsertCameraPhoto: onInsertCameraPhoto,
+            onInsertFile: onInsertFile,
+            onRecordAudio: onRecordAudio
         )
     }
 }

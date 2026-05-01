@@ -11,6 +11,7 @@ import SwiftProtobuf
 
 struct AddNoteView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.mediaClient) var mediaClient
@@ -216,6 +217,10 @@ struct AddNoteView: View {
             .onChange(of: fieldValues) { persistSession() }
             .onChange(of: fieldSourceModes) { persistSession() }
             .onChange(of: tags) { persistSession() }
+            .onChange(of: scenePhase) {
+                guard scenePhase == .inactive || scenePhase == .background else { return }
+                persistSession()
+            }
             .alert(L("common_error"), isPresented: $showPreviewError) {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {

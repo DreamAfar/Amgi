@@ -69,12 +69,15 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         guard let width = proposal.width, width > 0 else { return nil }
         let fit = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        let maximumHeight = preservesSourceHTML
+            ? RichNoteFieldEditor.sourceMaximumHeight
+            : RichNoteFieldEditor.renderedMaximumHeight
         let height = min(
             max(32, fit.height),
-            RichNoteFieldEditor.sourceMaximumHeight
+            maximumHeight
         )
-        uiView.isScrollEnabled = fit.height > RichNoteFieldEditor.sourceMaximumHeight
-        uiView.showsVerticalScrollIndicator = fit.height > RichNoteFieldEditor.sourceMaximumHeight
+        uiView.isScrollEnabled = fit.height > maximumHeight
+        uiView.showsVerticalScrollIndicator = fit.height > maximumHeight
         return CGSize(width: width, height: height)
     }
 
