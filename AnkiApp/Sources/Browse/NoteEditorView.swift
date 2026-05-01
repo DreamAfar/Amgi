@@ -68,89 +68,37 @@ struct NoteEditorView: View {
             && (fieldValues != originalFieldValues || trimmedTags != originalTags)
     }
 
+    private var fieldEditorActionStates: [NoteFieldsPageEditorActionState] {
+        fieldNames.indices.map { index in
+            let fieldName = fieldNames[index]
+            let value = fieldValue(at: index)
+            return NoteFieldsPageEditorActionState(
+                showsAudioButton: MediaAudioPreview.isLikelyAudioFieldName(fieldName)
+                    || MediaAudioPreview.firstAudioFileName(in: value) != nil,
+                hasAudio: MediaAudioPreview.firstAudioFileName(in: value) != nil,
+                hasEditableImage: NoteFieldMediaSupport.firstImageFilename(in: value) != nil,
+                showsSourcePreview: containsEmbeddedMedia(value),
+                sourcePreviewHeight: sourcePreviewHeight(for: value)
+            )
+        }
+    }
+
     var body: some View {
         Form {
             Section(L("add_note_section_fields")) {
                 VStack(spacing: 0) {
-                    ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
-                        VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
-                            HStack(spacing: AmgiSpacing.sm) {
-                                Text(name)
-                                    .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                                Spacer()
-                                Button {
-                                    toggleSourceMode(at: index)
-                                } label: {
-                                    Text("<>")
-                                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(isSourceModeEnabled(at: index) ? Color.amgiAccent : Color.amgiTextSecondary)
-                                if shouldShowAudioButton(fieldName: name, index: index) {
-                                    Button {
-                                        previewAudio(at: index)
-                                    } label: {
-                                        Image(systemName: "speaker.wave.2.fill")
-                                            .font(AmgiFont.caption.font)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(Color.amgiAccent)
-                                    .disabled(MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) == nil)
-                                }
-                                if containsEditableImage(at: index) {
-                                    Button {
-                                        beginExistingImageEdit(at: index)
-                                    } label: {
-                                        Image(systemName: "photo.badge.sparkles")
-                                            .font(AmgiFont.caption.font)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(Color.amgiAccent)
-                                }
-                            }
-
-                            if isSourceModeEnabled(at: index) && shouldShowFieldPreview(at: index) {
-                                NoteFieldHTMLPreview(html: fieldValue(at: index))
-                                    .frame(height: fieldPreviewHeight(at: index))
-                                    .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .stroke(Color.amgiBorder.opacity(0.24), lineWidth: 1)
-                                    }
-                                    .overlay(alignment: .topTrailing) {
-                                        if containsEditableImage(at: index) {
-                                            Button {
-                                                beginExistingImageEdit(at: index)
-                                            } label: {
-                                                Image(systemName: "slider.horizontal.3")
-                                                    .font(.system(size: 12, weight: .semibold))
-                                                    .foregroundStyle(.white)
-                                                    .padding(8)
-                                                    .background(Color.black.opacity(0.34), in: Circle())
-                                            }
-                                            .buttonStyle(.plain)
-                                            .padding(10)
-                                        }
-                                    }
-                            }
-
-                            RichNoteFieldEditor(
-                                htmlText: fieldBinding(for: index),
-                                preservesSourceHTML: isSourceModeEnabled(at: index),
-                                onInsertPhoto: { beginMediaImport(for: index, action: .photoLibrary) },
-                                onInsertCameraPhoto: { beginMediaImport(for: index, action: .camera) },
-                                onInsertFile: { beginMediaImport(for: index, action: .file) },
-                                onRecordAudio: { beginMediaImport(for: index, action: .audioRecording) }
-                            )
-                                .frame(minHeight: 32)
-                        }
-                        .padding(.vertical, AmgiSpacing.sm)
-
-                        if index < fieldNames.count - 1 {
-                            Divider()
-                        }
-                    }
+                    NoteFieldsPageEditor(
+                        fieldNames: fieldNames,
+                        fieldValues: $fieldValues,
+                        fieldSourceModes: $fieldSourceModes,
+                        actionStates: fieldEditorActionStates,
+                        onInsertPhoto: { beginMediaImport(for: $0, action: .photoLibrary) },
+                        onInsertCameraPhoto: { beginMediaImport(for: $0, action: .camera) },
+                        onInsertFile: { beginMediaImport(for: $0, action: .file) },
+                        onRecordAudio: { beginMediaImport(for: $0, action: .audioRecording) },
+                        onPreviewAudio: { previewAudio(at: $0) },
+                        onEditImage: { beginExistingImageEdit(at: $0) }
+                    )
                 }
                 .padding(.horizontal, AmgiSpacing.md)
                 .padding(.vertical, AmgiSpacing.xs)
@@ -360,35 +308,9 @@ struct NoteEditorView: View {
         }
     }
 
-    private func fieldBinding(for index: Int) -> Binding<String> {
-        Binding(
-            get: { index < fieldValues.count ? fieldValues[index] : "" },
-            set: { newValue in
-                if index < fieldValues.count {
-                    fieldValues[index] = RichNoteFieldEditor.normalizedStoredHTML(newValue)
-                }
-            }
-        )
-    }
-
     private func fieldValue(at index: Int) -> String {
         guard index < fieldValues.count else { return "" }
         return fieldValues[index]
-    }
-
-    private func isSourceModeEnabled(at index: Int) -> Bool {
-        guard index < fieldSourceModes.count else { return false }
-        return fieldSourceModes[index]
-    }
-
-    private func toggleSourceMode(at index: Int) {
-        guard fieldSourceModes.indices.contains(index) else { return }
-        fieldSourceModes[index].toggle()
-    }
-
-    private func shouldShowAudioButton(fieldName: String, index: Int) -> Bool {
-        MediaAudioPreview.isLikelyAudioFieldName(fieldName)
-            || MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) != nil
     }
 
     private func beginMediaImport(for index: Int, action: NoteEditorMediaAction) {
@@ -420,16 +342,8 @@ struct NoteEditorView: View {
         }
     }
 
-    private func shouldShowFieldPreview(at index: Int) -> Bool {
-        containsEmbeddedMedia(fieldValue(at: index))
-    }
-
-    private func containsEditableImage(at index: Int) -> Bool {
-        NoteFieldMediaSupport.firstImageFilename(in: fieldValue(at: index)) != nil
-    }
-
-    private func fieldPreviewHeight(at index: Int) -> CGFloat {
-        let value = fieldValue(at: index).lowercased()
+    private func sourcePreviewHeight(for value: String) -> CGFloat {
+        let value = value.lowercased()
         if value.contains("<img") || value.contains("<svg") {
             return 220
         }
