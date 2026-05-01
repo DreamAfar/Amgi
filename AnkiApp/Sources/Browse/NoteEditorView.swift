@@ -110,7 +110,7 @@ struct NoteEditorView: View {
                                 }
                             }
 
-                            if shouldShowFieldPreview(at: index) || isSourceModeEnabled(at: index) {
+                            if isSourceModeEnabled(at: index) && shouldShowFieldPreview(at: index) {
                                 NoteFieldHTMLPreview(html: fieldValue(at: index))
                                     .frame(height: fieldPreviewHeight(at: index))
                                     .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))

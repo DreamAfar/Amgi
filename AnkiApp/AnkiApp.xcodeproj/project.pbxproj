@@ -30,6 +30,7 @@
 		692256E48D7330D96F36DC7A /* NoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C2B9450B8065B8BB0C86780 /* NoteEditorView.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* RichTextEditorMediaSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5061728394A5B6C /* RichTextEditorMediaSheets.swift */; };
 		C1D2E3F40516273849A5B6C7 /* NoteImageOptimizationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F30415263748495A6B7C /* NoteImageOptimizationSheet.swift */; };
+		E2F30415263748495A6B7C8D /* RichNoteFieldWebEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30415263748495A6B7C8D9E /* RichNoteFieldWebEditor.swift */; };
 		729C9BDA5BF3058D52E64AE4 /* ReviewsChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E282F6876B5D6249582FFF8 /* ReviewsChart.swift */; };
 		859CFD06E4D3020F4C84DD49 /* DeckDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0D4C5AE73CB146B878AD82 /* DeckDetailView.swift */; };
 		8881986E57DD7256F03C97D5 /* LoginSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3704B3ECDE0A58442E5D6BA /* LoginSheet.swift */; };
@@ -68,6 +69,7 @@
 		6C2B9450B8065B8BB0C86780 /* NoteEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorView.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5061728394A5B6C /* RichTextEditorMediaSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditorMediaSheets.swift; sourceTree = "<group>"; };
 		D1E2F30415263748495A6B7C /* NoteImageOptimizationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteImageOptimizationSheet.swift; sourceTree = "<group>"; };
+		F30415263748495A6B7C8D9E /* RichNoteFieldWebEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichNoteFieldWebEditor.swift; sourceTree = "<group>"; };
 		7B2B1D1A27A4E6006627BF7B /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
 		7E6B120889D7FD1AC7C994AD /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		84C6ECECC378ADE1569F1BF4 /* CardCountsChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardCountsChart.swift; sourceTree = "<group>"; };
@@ -154,6 +156,7 @@
 				1EED5A3D98F7F2D9B863B9DA /* AddNoteView.swift */,					BB33CC44DD55EE66FF77AA22 /* AddImageOcclusionNoteView.swift */,				DD55EEFF6677AA88BB1122CC /* EditImageOcclusionNoteView.swift */,				7B2B1D1A27A4E6006627BF7B /* BrowseView.swift */,
 				6C2B9450B8065B8BB0C86780 /* NoteEditorView.swift */,
 				D1E2F30415263748495A6B7C /* NoteImageOptimizationSheet.swift */,
+				F30415263748495A6B7C8D9E /* RichNoteFieldWebEditor.swift */,
 				B1C2D3E4F5061728394A5B6C /* RichTextEditorMediaSheets.swift */,
 			);
 			path = Browse;
@@ -299,6 +302,7 @@
 				8881986E57DD7256F03C97D5 /* LoginSheet.swift in Sources */,
 				692256E48D7330D96F36DC7A /* NoteEditorView.swift in Sources */,
 				C1D2E3F40516273849A5B6C7 /* NoteImageOptimizationSheet.swift in Sources */,
+				E2F30415263748495A6B7C8D /* RichNoteFieldWebEditor.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5C /* RichTextEditorMediaSheets.swift in Sources */,
 				4AB30C478F568F0641B6028E /* OnboardingView.swift in Sources */,
 				4460A2301DE97E0780D2E762 /* PeriodPicker.swift in Sources */,

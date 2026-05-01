@@ -14,6 +14,7 @@ struct AddNoteView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.mediaClient) var mediaClient
+    @SceneStorage("amgi.add_note.session") private var persistedSessionData = ""
 
     @State private var decks: [DeckInfo] = []
     @State private var notetypeNames: [(Int64, String)] = []
@@ -29,6 +30,7 @@ struct AddNoteView: View {
     @State private var showPreviewError = false
     @State private var previewContext: AddNotePreviewContext?
     @State private var hasLoadedInitialData = false
+    @State private var restoredSession: PersistedAddNoteSession?
     @State private var shouldApplyDraftOnNextFieldLoad = false
     @State private var pendingMediaFieldIndex: Int?
     @State private var showPhotoPicker = false
@@ -116,7 +118,7 @@ struct AddNoteView: View {
                                     }
                                 }
 
-                                if shouldShowFieldPreview(at: index) || isSourceModeEnabled(at: index) {
+                                if isSourceModeEnabled(at: index) && shouldShowFieldPreview(at: index) {
                                     NoteFieldHTMLPreview(html: fieldValue(at: index))
                                         .frame(height: fieldPreviewHeight(at: index))
                                         .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -184,7 +186,10 @@ struct AddNoteView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L("common_cancel")) { dismiss() }
+                    Button(L("common_cancel")) {
+                        clearPersistedSession()
+                        dismiss()
+                    }
                         .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -205,6 +210,12 @@ struct AddNoteView: View {
             .task {
                 await loadDataIfNeeded()
             }
+            .onChange(of: selectedDeckId) { persistSession() }
+            .onChange(of: selectedNotetypeId) { persistSession() }
+            .onChange(of: fieldNames) { persistSession() }
+            .onChange(of: fieldValues) { persistSession() }
+            .onChange(of: fieldSourceModes) { persistSession() }
+            .onChange(of: tags) { persistSession() }
             .alert(L("common_error"), isPresented: $showPreviewError) {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {
@@ -280,6 +291,7 @@ struct AddNoteView: View {
     private func loadDataIfNeeded() async {
         guard hasLoadedInitialData == false else { return }
         hasLoadedInitialData = true
+        restorePersistedSessionIfNeeded()
         await loadData()
     }
 
@@ -295,6 +307,24 @@ struct AddNoteView: View {
 
         do {
             notetypeNames = try loadStandardNotetypeEntries(backend: backend)
+            if let restoredSession {
+                if let restoredDeckID = restoredSession.selectedDeckId,
+                   decks.contains(where: { $0.id == restoredDeckID }) {
+                    selectedDeckId = restoredDeckID
+                }
+                if let restoredNotetypeID = restoredSession.selectedNotetypeId,
+                   notetypeNames.contains(where: { $0.0 == restoredNotetypeID }) {
+                    selectedNotetypeId = restoredNotetypeID
+                }
+                fieldNames = restoredSession.fieldNames
+                fieldValues = restoredSession.fieldValues
+                fieldSourceModes = normalizedFieldSourceModes(
+                    restoredSession.fieldSourceModes,
+                    fieldCount: fieldNames.count
+                )
+                tags = restoredSession.tags
+                return
+            }
             if let preferredNotetypeID = resolvedPreferredNotetypeID() {
                 scheduleFieldLoad(for: preferredNotetypeID, applyingDraft: draft != nil)
             } else if let first = notetypeNames.first {
@@ -348,6 +378,49 @@ struct AddNoteView: View {
         let shouldApplyDraft = shouldApplyDraftOnNextFieldLoad
         shouldApplyDraftOnNextFieldLoad = false
         return shouldApplyDraft
+    }
+
+    private func restorePersistedSessionIfNeeded() {
+        guard restoredSession == nil else { return }
+        guard draft == nil, persistedSessionData.isEmpty == false else { return }
+        guard let data = persistedSessionData.data(using: .utf8),
+              let session = try? JSONDecoder().decode(PersistedAddNoteSession.self, from: data)
+        else {
+            persistedSessionData = ""
+            return
+        }
+        restoredSession = session
+    }
+
+    private func persistSession() {
+        guard draft == nil else { return }
+        let session = PersistedAddNoteSession(
+            selectedDeckId: selectedDeckId,
+            selectedNotetypeId: selectedNotetypeId == 0 ? nil : selectedNotetypeId,
+            fieldNames: fieldNames,
+            fieldValues: fieldValues,
+            fieldSourceModes: fieldSourceModes,
+            tags: tags
+        )
+        guard let data = try? JSONEncoder().encode(session),
+              let string = String(data: data, encoding: .utf8)
+        else { return }
+        persistedSessionData = string
+    }
+
+    private func clearPersistedSession() {
+        restoredSession = nil
+        persistedSessionData = ""
+    }
+
+    private func normalizedFieldSourceModes(_ modes: [Bool], fieldCount: Int) -> [Bool] {
+        if modes.count == fieldCount {
+            return modes
+        }
+        if modes.count > fieldCount {
+            return Array(modes.prefix(fieldCount))
+        }
+        return modes + Array(repeating: false, count: max(0, fieldCount - modes.count))
     }
 
     private func fieldValue(at index: Int) -> String {
@@ -698,6 +771,7 @@ struct AddNoteView: View {
                 request: addReq
             )
 
+            clearPersistedSession()
             onSave()
             dismiss()
         } catch {
@@ -712,4 +786,13 @@ private struct AddNotePreviewContext: Identifiable {
     let id = UUID()
     let notetype: Anki_Notetypes_Notetype
     let note: Anki_Notes_Note
+}
+
+private struct PersistedAddNoteSession: Codable {
+    let selectedDeckId: Int64?
+    let selectedNotetypeId: Int64?
+    let fieldNames: [String]
+    let fieldValues: [String]
+    let fieldSourceModes: [Bool]
+    let tags: String
 }
