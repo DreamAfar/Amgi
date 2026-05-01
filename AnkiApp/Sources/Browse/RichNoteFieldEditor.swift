@@ -40,6 +40,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
     private let alignCenterTitle = L("rich_text_action_align_center")
     private let alignRightTitle = L("rich_text_action_align_right")
     private let clearFormatTitle = L("rich_text_action_clear_format")
+    private let clozeTitle = "Cloze"
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -225,21 +226,18 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
                     coordinator.toggleStrikethrough()
                 }
             },
-            makeFormatButton(systemName: "textformat.superscript", title: superscriptTitle) {
-                dismissInlineMenu()
-                if coordinator.preservesSourceHTML {
-                    coordinator.wrapSelection(prefix: "<sup>", suffix: "</sup>")
-                } else {
-                    coordinator.applySuperscript()
-                }
+            makeMenuButton(systemName: "textformat.superscript", title: superscriptTitle, tintColor: .systemBlue) {
+                showInlineMenu(
+                    key: "baseline",
+                    views: makeBaselinePaletteViews(
+                        coordinator: coordinator,
+                        dismissMenu: dismissInlineMenu
+                    )
+                )
             },
-            makeFormatButton(systemName: "textformat.subscript", title: subscriptTitle) {
+            makeFormatButton(systemName: "rectangle.on.rectangle", title: clozeTitle) {
                 dismissInlineMenu()
-                if coordinator.preservesSourceHTML {
-                    coordinator.wrapSelection(prefix: "<sub>", suffix: "</sub>")
-                } else {
-                    coordinator.applySubscript()
-                }
+                coordinator.wrapSelectionInCloze()
             },
             makeMenuButton(systemName: "paintpalette", title: colorTitle, tintColor: .systemBlue) {
                 showInlineMenu(
@@ -295,9 +293,14 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
                     )
                 )
             },
-            makeFormatButton(systemName: "textformat", title: clearFormatTitle) {
-                dismissInlineMenu()
-                coordinator.clearFormattingInSelection()
+            makeMenuButton(systemName: "textformat", title: clearFormatTitle, tintColor: .systemBlue) {
+                showInlineMenu(
+                    key: "clear-format",
+                    views: makeClearFormattingPaletteViews(
+                        coordinator: coordinator,
+                        dismissMenu: dismissInlineMenu
+                    )
+                )
             }
         ]
 
@@ -519,6 +522,70 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
         ]
     }
 
+    private func makeBaselinePaletteViews(
+        coordinator: Coordinator,
+        dismissMenu: @escaping () -> Void
+    ) -> [UIView] {
+        [
+            makePaletteActionButton(title: superscriptTitle, tintColor: .systemBlue) {
+                if coordinator.preservesSourceHTML {
+                    coordinator.wrapSelection(prefix: "<sup>", suffix: "</sup>")
+                } else {
+                    coordinator.applySuperscript()
+                }
+                dismissMenu()
+            },
+            makePaletteActionButton(title: subscriptTitle, tintColor: .systemBlue) {
+                if coordinator.preservesSourceHTML {
+                    coordinator.wrapSelection(prefix: "<sub>", suffix: "</sub>")
+                } else {
+                    coordinator.applySubscript()
+                }
+                dismissMenu()
+            },
+        ]
+    }
+
+    private func makeClearFormattingPaletteViews(
+        coordinator: Coordinator,
+        dismissMenu: @escaping () -> Void
+    ) -> [UIView] {
+        [
+            makePaletteActionButton(title: boldTitle, tintColor: .systemBlue) {
+                coordinator.clearFormatting(.bold)
+                dismissMenu()
+            },
+            makePaletteActionButton(title: italicTitle, tintColor: .systemBlue) {
+                coordinator.clearFormatting(.italic)
+                dismissMenu()
+            },
+            makePaletteActionButton(title: underlineTitle, tintColor: .systemBlue) {
+                coordinator.clearFormatting(.underline)
+                dismissMenu()
+            },
+            makePaletteActionButton(title: superscriptTitle, tintColor: .systemBlue) {
+                coordinator.clearFormatting(.superscript)
+                dismissMenu()
+            },
+            makePaletteActionButton(title: subscriptTitle, tintColor: .systemBlue) {
+                coordinator.clearFormatting(.subscript)
+                dismissMenu()
+            },
+            makePaletteActionButton(title: colorTitle, tintColor: .systemBlue) {
+                coordinator.clearFormatting(.foregroundColor)
+                dismissMenu()
+            },
+            makePaletteActionButton(title: highlightTitle, tintColor: .systemBlue) {
+                coordinator.clearFormatting(.backgroundColor)
+                dismissMenu()
+            },
+            makePaletteActionButton(title: L("rich_text_clear_all_confirm"), tintColor: .systemRed) {
+                coordinator.clearFormatting(.all)
+                dismissMenu()
+            },
+        ]
+    }
+
     private func makeAttachmentPaletteViews(
         dismissMenu: @escaping () -> Void,
         textView: UITextView
@@ -592,6 +659,17 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
     // MARK: - Coordinator
 
     final class Coordinator: NSObject, UITextViewDelegate, UIColorPickerViewControllerDelegate {
+        enum ClearFormattingKind: Equatable {
+            case bold
+            case italic
+            case underline
+            case superscript
+            case subscript
+            case foregroundColor
+            case backgroundColor
+            case all
+        }
+
         @Binding var htmlText: String
         private static let lastForegroundColorKey = "amgi.rich_text.last_foreground_color"
         private static let lastHighlightColorKey = "amgi.rich_text.last_highlight_color"
@@ -602,6 +680,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
         var isEditing = false
         private var colorSelectionHandler: ((UIColor) -> Void)?
         private let baseFont = UIFont.preferredFont(forTextStyle: .body)
+        private var lifecycleObservers: [NSObjectProtocol] = []
 
         init(htmlText: Binding<String>, preservesSourceHTML: Bool) {
             self._htmlText = htmlText
@@ -610,6 +689,11 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
 
         func attach(textView: UITextView) {
             self.textView = textView
+            registerLifecycleObservers()
+        }
+
+        deinit {
+            lifecycleObservers.forEach(NotificationCenter.default.removeObserver)
         }
 
         func render(html: String, in textView: UITextView) {
@@ -730,6 +814,27 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
             }
 
             commitCurrentValue()
+        }
+
+        func wrapSelectionInCloze() {
+            guard let textView else { return }
+            finalizeMarkedTextIfNeeded()
+            let ordinal = nextClozeOrdinal()
+            let prefix = "{{c\(ordinal)::"
+            let suffix = "}}"
+            if preservesSourceHTML {
+                wrapSelection(prefix: prefix, suffix: suffix)
+                return
+            }
+
+            let selected = textView.selectedRange
+            guard selected.length > 0 else {
+                insertRichText(prefix + suffix, cursorOffset: prefix.count)
+                return
+            }
+            let selectedText = textView.attributedText.attributedSubstring(from: selected).string
+            let replacement = prefix + selectedText + suffix
+            insertRichText(replacement, cursorOffset: replacement.count)
         }
 
         func toggleBold() {
@@ -1063,15 +1168,20 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
             return controller
         }
 
-        func clearFormattingInSelection() {
+        func clearFormatting(_ kind: ClearFormattingKind) {
             guard let textView else { return }
             finalizeMarkedTextIfNeeded()
-            if textView.selectedRange.length == 0 {
+            if kind == .all, textView.selectedRange.length == 0 {
                 presentClearAllFormattingConfirmation()
                 return
             }
 
-            clearFormatting(in: textView, range: textView.selectedRange)
+            let range = textView.selectedRange.length > 0 ? textView.selectedRange : nil
+            if kind == .all {
+                clearFormatting(in: textView, range: range)
+            } else {
+                clearSpecificFormatting(in: textView, range: range, kind: kind)
+            }
         }
 
         func performUndo() {
@@ -1091,6 +1201,29 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
         private func finalizeMarkedTextIfNeeded() {
             guard let textView, textView.markedTextRange != nil else { return }
             textView.unmarkText()
+            commitCurrentValue()
+        }
+
+        private func registerLifecycleObservers() {
+            guard lifecycleObservers.isEmpty else { return }
+            let notificationCenter = NotificationCenter.default
+            let names: [NSNotification.Name] = [
+                UIApplication.willResignActiveNotification,
+                UIApplication.didEnterBackgroundNotification
+            ]
+            lifecycleObservers = names.map { name in
+                notificationCenter.addObserver(
+                    forName: name,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    self?.flushPendingEditingState()
+                }
+            }
+        }
+
+        private func flushPendingEditingState() {
+            finalizeMarkedTextIfNeeded()
             commitCurrentValue()
         }
 
@@ -1141,6 +1274,62 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
             commitCurrentValue()
         }
 
+        private func clearSpecificFormatting(
+            in textView: UITextView,
+            range: NSRange?,
+            kind: ClearFormattingKind
+        ) {
+            guard preservesSourceHTML == false else {
+                clearSpecificHTMLFormatting(in: textView, range: range, kind: kind)
+                return
+            }
+
+            if let range, range.length > 0 {
+                let mutable = NSMutableAttributedString(attributedString: textView.attributedText)
+                mutable.enumerateAttributes(in: range, options: []) { attributes, currentRange, _ in
+                    let updated = Self.clearedAttributes(
+                        from: attributes,
+                        baseFont: baseFont,
+                        kind: kind
+                    )
+                    mutable.setAttributes(updated, range: currentRange)
+                }
+                textView.attributedText = mutable
+                textView.selectedRange = range
+                textView.typingAttributes = Self.typingAttributes(
+                    from: mutable,
+                    at: range.location + range.length,
+                    baseFont: baseFont
+                )
+                commitCurrentValue()
+                return
+            }
+
+            textView.typingAttributes = Self.clearedAttributes(
+                from: textView.typingAttributes,
+                baseFont: baseFont,
+                kind: kind
+            )
+            commitCurrentValue()
+        }
+
+        private func clearSpecificHTMLFormatting(
+            in textView: UITextView,
+            range: NSRange?,
+            kind: ClearFormattingKind
+        ) {
+            let original = textView.text ?? ""
+            let source = original as NSString
+            let targetRange = range ?? NSRange(location: 0, length: source.length)
+            let target = source.substring(with: targetRange)
+            let cleaned = Self.removeSpecificHTMLFormatting(from: target, kind: kind)
+            let updated = source.replacingCharacters(in: targetRange, with: cleaned)
+            textView.text = updated
+            let cursor = targetRange.location + (cleaned as NSString).length
+            textView.selectedRange = NSRange(location: cursor, length: 0)
+            commitCurrentValue()
+        }
+
         private func clearAttributedFormatting(in textView: UITextView, range: NSRange?) {
             let selected = textView.selectedRange
             let targetRange = range
@@ -1155,6 +1344,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
                 updated.removeValue(forKey: .underlineStyle)
                 updated.removeValue(forKey: .strikethroughStyle)
                 updated.removeValue(forKey: .baselineOffset)
+                updated.removeValue(forKey: .obliqueness)
                 mutable.setAttributes(updated, range: range)
             }
 
@@ -1162,6 +1352,20 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
             textView.selectedRange = selected
             textView.typingAttributes = Self.baseTypingAttributes(font: baseFont)
             commitCurrentValue()
+        }
+
+        private func nextClozeOrdinal() -> Int {
+            let source = htmlText
+            guard let regex = try? NSRegularExpression(pattern: #"\{\{c(\d+)::"#, options: []) else {
+                return 1
+            }
+            let nsSource = source as NSString
+            let matches = regex.matches(in: source, range: NSRange(location: 0, length: nsSource.length))
+            let ordinals = matches.compactMap { match -> Int? in
+                guard match.numberOfRanges > 1 else { return nil }
+                return Int(nsSource.substring(with: match.range(at: 1)))
+            }
+            return (ordinals.max() ?? 0) + 1
         }
 
         // MARK: - HTML strip
@@ -1351,7 +1555,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
                 if isEnabled {
                     updated.removeValue(forKey: .obliqueness)
                 } else {
-                    updated[.obliqueness] = 0
+                    updated[.obliqueness] = 0.18
                 }
             }
             return updated
@@ -1397,8 +1601,9 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
                     ?? baseFont.fontDescriptor
                 let size = importedFont.pointSize < baseFont.pointSize ? importedFont.pointSize : baseFont.pointSize
                 updated[.font] = UIFont(descriptor: descriptor, size: size)
-                if traits.contains(.traitItalic) {
-                    updated[.obliqueness] = 0
+                if traits.contains(.traitItalic)
+                    || ((attributes[.obliqueness] as? NSNumber)?.doubleValue ?? 0) != 0 {
+                    updated[.obliqueness] = 0.18
                 }
 
                 if let color = attributes[.foregroundColor] as? UIColor,
@@ -1590,6 +1795,122 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
                 )
             }
             return output
+        }
+
+        private static func removeSpecificHTMLFormatting(
+            from text: String,
+            kind: ClearFormattingKind
+        ) -> String {
+            var output = text
+            let patterns: [String]
+            switch kind {
+            case .bold:
+                patterns = ["(?i)</?(b|strong)>"]
+            case .italic:
+                patterns = ["(?i)</?(i|em)>"]
+            case .underline:
+                patterns = ["(?i)</?u>"]
+            case .superscript:
+                patterns = ["(?i)</?sup>"]
+            case .subscript:
+                patterns = ["(?i)</?sub>"]
+            case .foregroundColor:
+                patterns = [#"(?i)\s*color\s*:\s*[^;"']+;?"#]
+            case .backgroundColor:
+                patterns = [#"(?i)\s*background-color\s*:\s*[^;"']+;?"#]
+            case .all:
+                return removeInlineHTMLFormatting(from: text)
+            }
+
+            for pattern in patterns {
+                output = output.replacingOccurrences(
+                    of: pattern,
+                    with: "",
+                    options: .regularExpression
+                )
+            }
+            output = output.replacingOccurrences(
+                of: #"(?i)<span\s+style="\s*">"#,
+                with: "",
+                options: .regularExpression
+            )
+            output = output.replacingOccurrences(
+                of: #"(?i)<span\s+style="\s*;"\s*>"#,
+                with: "",
+                options: .regularExpression
+            )
+            output = output.replacingOccurrences(
+                of: #"(?i)<span\s+style="([^"]*?)\s{2,}([^"]*?)">"#,
+                with: #"<span style="$1 $2">"#,
+                options: .regularExpression
+            )
+            return output
+        }
+
+        private static func clearedAttributes(
+            from attributes: [NSAttributedString.Key: Any],
+            baseFont: UIFont,
+            kind: ClearFormattingKind
+        ) -> [NSAttributedString.Key: Any] {
+            var updated = attributes
+            switch kind {
+            case .bold:
+                updated = toggledFontAttributesIfNeeded(
+                    attributes: updated,
+                    baseFont: baseFont,
+                    trait: .traitBold,
+                    shouldEnable: false
+                )
+            case .italic:
+                updated = toggledFontAttributesIfNeeded(
+                    attributes: updated,
+                    baseFont: baseFont,
+                    trait: .traitItalic,
+                    shouldEnable: false
+                )
+                updated.removeValue(forKey: .obliqueness)
+            case .underline:
+                updated.removeValue(forKey: .underlineStyle)
+            case .superscript:
+                if ((updated[.baselineOffset] as? NSNumber)?.doubleValue ?? 0) > 0 {
+                    updated.removeValue(forKey: .baselineOffset)
+                    let font = (updated[.font] as? UIFont) ?? baseFont
+                    updated[.font] = font.withSize(max(font.pointSize / 0.8, baseFont.pointSize))
+                }
+            case .subscript:
+                if ((updated[.baselineOffset] as? NSNumber)?.doubleValue ?? 0) < 0 {
+                    updated.removeValue(forKey: .baselineOffset)
+                    let font = (updated[.font] as? UIFont) ?? baseFont
+                    updated[.font] = font.withSize(max(font.pointSize / 0.8, baseFont.pointSize))
+                }
+            case .foregroundColor:
+                updated.removeValue(forKey: .foregroundColor)
+            case .backgroundColor:
+                updated.removeValue(forKey: .backgroundColor)
+            case .all:
+                updated[.font] = baseFont
+                updated[.foregroundColor] = UIColor.label
+                updated.removeValue(forKey: .backgroundColor)
+                updated.removeValue(forKey: .underlineStyle)
+                updated.removeValue(forKey: .strikethroughStyle)
+                updated.removeValue(forKey: .baselineOffset)
+                updated.removeValue(forKey: .obliqueness)
+            }
+            return updated
+        }
+
+        private static func toggledFontAttributesIfNeeded(
+            attributes: [NSAttributedString.Key: Any],
+            baseFont: UIFont,
+            trait: UIFontDescriptor.SymbolicTraits,
+            shouldEnable: Bool
+        ) -> [NSAttributedString.Key: Any] {
+            let font = (attributes[.font] as? UIFont) ?? baseFont
+            var traits = font.fontDescriptor.symbolicTraits
+            let hasItalicObliqueness = ((attributes[.obliqueness] as? NSNumber)?.doubleValue ?? 0) != 0
+            let isEnabled = traits.contains(trait) || (trait == .traitItalic && hasItalicObliqueness)
+            guard isEnabled != shouldEnable else { return attributes }
+            return toggledFontAttributes(from: attributes, baseFont: baseFont, trait: trait)
         }
 
         private static func containsEmbeddedMediaMarkup(_ text: String) -> Bool {
