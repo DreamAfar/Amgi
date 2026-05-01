@@ -1,132 +1,65 @@
 import Foundation
 import AnkiKit
-import AnkiReader
 
-struct ReaderLookupNotePayload: Sendable, Hashable {
-    var term: String
-    var reading: String?
-    var sentence: String?
-    var definitions: [String]
-    var dictionaries: String?
-    var frequency: String?
-    var pitch: String?
-    var deinflection: String?
-    var matched: String?
-    var source: String?
-    var rules: String?
+enum ReaderLookupHandlebar: String, CaseIterable, Sendable {
+    case expression = "{expression}"
+    case reading = "{reading}"
+    case furiganaPlain = "{furigana-plain}"
+    case audio = "{audio}"
+    case glossary = "{glossary}"
+    case glossaryFirst = "{glossary-first}"
+    case popupSelectionText = "{popup-selection-text}"
+    case sentence = "{sentence}"
+    case frequencies = "{frequencies}"
+    case frequencyHarmonicRank = "{frequency-harmonic-rank}"
+    case pitchPositions = "{pitch-accent-positions}"
+    case pitchCategories = "{pitch-accent-categories}"
+    case documentTitle = "{document-title}"
+    case bookCover = "{book-cover}"
 
-    var normalizedDefinitions: [String] {
-        definitions
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-    }
+    static let singleGlossaryPrefix = "{single-glossary-"
+}
 
-    static func definitionsByDictionary(from glossaries: [DictionaryLookupGlossary]) -> [String] {
-        var orderedDictionaries: [String] = []
-        var groupedDefinitions: [String: [String]] = [:]
-
-        for glossary in glossaries {
-            let dictionaryKey = glossary.dictionary.trimmingCharacters(in: .whitespacesAndNewlines)
-            let definitions = glossary.definitions
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-
-            guard definitions.isEmpty == false else {
-                continue
-            }
-
-            if groupedDefinitions[dictionaryKey] == nil {
-                orderedDictionaries.append(dictionaryKey)
-                groupedDefinitions[dictionaryKey] = []
-            }
-            groupedDefinitions[dictionaryKey, default: []].append(contentsOf: definitions)
-        }
-
-        return orderedDictionaries.compactMap { dictionaryKey in
-            let merged = groupedDefinitions[dictionaryKey, default: []]
-            guard merged.isEmpty == false else {
-                return nil
-            }
-            return merged.joined(separator: "\n")
-        }
-    }
+struct ReaderLookupMiningContext: Sendable, Hashable {
+    var sentence: String
+    var documentTitle: String?
+    var coverURL: URL?
 }
 
 struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     var deckID: Int64?
     var notetypeID: Int64?
-    var termField: String
-    var readingField: String
-    var sentenceField: String
-    var definition1Field: String
-    var definition2Field: String
-    var definition3Field: String
-    var dictionariesField: String
-    var frequencyField: String
-    var pitchField: String
-    var deinflectionField: String
-    var matchedField: String
-    var sourceField: String
-    var rulesField: String
+    var fieldMappings: [String: String]
+    var tags: String
 
     static let empty = Self()
 
     init(
         deckID: Int64? = nil,
         notetypeID: Int64? = nil,
-        termField: String = "",
-        readingField: String = "",
-        sentenceField: String = "",
-        definition1Field: String = "",
-        definition2Field: String = "",
-        definition3Field: String = "",
-        dictionariesField: String = "",
-        frequencyField: String = "",
-        pitchField: String = "",
-        deinflectionField: String = "",
-        matchedField: String = "",
-        sourceField: String = "",
-        rulesField: String = ""
+        fieldMappings: [String: String] = [:],
+        tags: String = ""
     ) {
         self.deckID = deckID
         self.notetypeID = notetypeID
-        self.termField = termField
-        self.readingField = readingField
-        self.sentenceField = sentenceField
-        self.definition1Field = definition1Field
-        self.definition2Field = definition2Field
-        self.definition3Field = definition3Field
-        self.dictionariesField = dictionariesField
-        self.frequencyField = frequencyField
-        self.pitchField = pitchField
-        self.deinflectionField = deinflectionField
-        self.matchedField = matchedField
-        self.sourceField = sourceField
-        self.rulesField = rulesField
+        self.fieldMappings = fieldMappings
+        self.tags = tags
     }
 
     var hasMappedFields: Bool {
-        [
-            termField,
-            readingField,
-            sentenceField,
-            definition1Field,
-            definition2Field,
-            definition3Field,
-            dictionariesField,
-            frequencyField,
-            pitchField,
-            deinflectionField,
-            matchedField,
-            sourceField,
-            rulesField
-        ]
-        .contains { !$0.isEmpty }
+        fieldMappings.isEmpty == false
+    }
+
+    var needsAudio: Bool {
+        fieldMappings.values.contains(ReaderLookupHandlebar.audio.rawValue)
     }
 
     enum CodingKeys: String, CodingKey {
         case deckID
         case notetypeID
+        case fieldMappings
+        case tags
+
         case termField
         case readingField
         case sentenceField
@@ -146,19 +79,36 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         deckID = try container.decodeIfPresent(Int64.self, forKey: .deckID)
         notetypeID = try container.decodeIfPresent(Int64.self, forKey: .notetypeID)
-        termField = try container.decodeIfPresent(String.self, forKey: .termField) ?? ""
-        readingField = try container.decodeIfPresent(String.self, forKey: .readingField) ?? ""
-        sentenceField = try container.decodeIfPresent(String.self, forKey: .sentenceField) ?? ""
-        definition1Field = try container.decodeIfPresent(String.self, forKey: .definition1Field) ?? ""
-        definition2Field = try container.decodeIfPresent(String.self, forKey: .definition2Field) ?? ""
-        definition3Field = try container.decodeIfPresent(String.self, forKey: .definition3Field) ?? ""
-        dictionariesField = try container.decodeIfPresent(String.self, forKey: .dictionariesField) ?? ""
-        frequencyField = try container.decodeIfPresent(String.self, forKey: .frequencyField) ?? ""
-        pitchField = try container.decodeIfPresent(String.self, forKey: .pitchField) ?? ""
-        deinflectionField = try container.decodeIfPresent(String.self, forKey: .deinflectionField) ?? ""
-        matchedField = try container.decodeIfPresent(String.self, forKey: .matchedField) ?? ""
-        sourceField = try container.decodeIfPresent(String.self, forKey: .sourceField) ?? ""
-        rulesField = try container.decodeIfPresent(String.self, forKey: .rulesField) ?? ""
+        tags = try container.decodeIfPresent(String.self, forKey: .tags) ?? ""
+
+        if let savedMappings = try container.decodeIfPresent([String: String].self, forKey: .fieldMappings) {
+            fieldMappings = savedMappings
+            return
+        }
+
+        var migratedMappings: [String: String] = [:]
+
+        func migrate(_ key: CodingKeys, to handlebar: ReaderLookupHandlebar?) {
+            guard let fieldName = try? container.decodeIfPresent(String.self, forKey: key)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                  let fieldName,
+                  fieldName.isEmpty == false,
+                  let handlebar else {
+                return
+            }
+            migratedMappings[fieldName] = handlebar.rawValue
+        }
+
+        migrate(.termField, to: .expression)
+        migrate(.readingField, to: .reading)
+        migrate(.sentenceField, to: .sentence)
+        migrate(.definition1Field, to: .glossary)
+        migrate(.frequencyField, to: .frequencies)
+        migrate(.pitchField, to: .pitchPositions)
+        migrate(.matchedField, to: .popupSelectionText)
+        migrate(.sourceField, to: .documentTitle)
+
+        fieldMappings = migratedMappings
     }
 
     func encodedString() -> String {
@@ -178,58 +128,45 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     }
 
     mutating func clearInvalidFields(validFields: [String]) {
-        if !validFields.contains(termField) { termField = "" }
-        if !validFields.contains(readingField) { readingField = "" }
-        if !validFields.contains(sentenceField) { sentenceField = "" }
-        if !validFields.contains(definition1Field) { definition1Field = "" }
-        if !validFields.contains(definition2Field) { definition2Field = "" }
-        if !validFields.contains(definition3Field) { definition3Field = "" }
-        if !validFields.contains(dictionariesField) { dictionariesField = "" }
-        if !validFields.contains(frequencyField) { frequencyField = "" }
-        if !validFields.contains(pitchField) { pitchField = "" }
-        if !validFields.contains(deinflectionField) { deinflectionField = "" }
-        if !validFields.contains(matchedField) { matchedField = "" }
-        if !validFields.contains(sourceField) { sourceField = "" }
-        if !validFields.contains(rulesField) { rulesField = "" }
+        let validFieldSet = Set(validFields)
+        fieldMappings = fieldMappings.filter { validFieldSet.contains($0.key) }
     }
 
     func makeDraft(
-        payload: ReaderLookupNotePayload,
-        fallbackDeckID: Int64?,
-        sourceDescription: String
+        content: [String: String],
+        context: ReaderLookupMiningContext,
+        fallbackDeckID: Int64?
     ) -> AddNoteDraft {
-        var fieldValues: [String: String] = [:]
-        let definitions = payload.normalizedDefinitions
+        var resolvedFieldValues: [String: String] = [:]
+        let singleGlossaries = Self.decodeSingleGlossaries(from: content["singleGlossaries"])
 
-        func assign(_ fieldName: String, _ value: String?) {
-            guard !fieldName.isEmpty,
-                  let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !trimmed.isEmpty else {
-                return
+        for (fieldName, mappedValue) in fieldMappings {
+            let resolved = Self.handlebarValue(
+                mappedValue,
+                context: context,
+                content: content,
+                singleGlossaries: singleGlossaries
+            )
+            let trimmed = resolved.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty == false {
+                resolvedFieldValues[fieldName] = trimmed
             }
-            fieldValues[fieldName] = trimmed
         }
 
-        assign(termField, payload.term)
-        assign(readingField, payload.reading)
-        assign(sentenceField, payload.sentence)
-        assign(definition1Field, definitions[safe: 0])
-        assign(definition2Field, definitions[safe: 1])
-        assign(definition3Field, definitions[safe: 2])
-        assign(dictionariesField, payload.dictionaries)
-        assign(frequencyField, payload.frequency)
-        assign(pitchField, payload.pitch)
-        assign(deinflectionField, payload.deinflection)
-        assign(matchedField, payload.matched)
-        assign(sourceField, payload.source)
-        assign(rulesField, payload.rules)
+        if resolvedFieldValues.isEmpty {
+            let expression = content["expression"]?.nilIfBlank ?? ""
+            let resolvedSentence = Self.handlebarValue(
+                ReaderLookupHandlebar.sentence.rawValue,
+                context: context,
+                content: content,
+                singleGlossaries: singleGlossaries
+            ).nilIfBlank ?? expression
+            let sourceDescription = context.documentTitle?.nilIfBlank ?? expression
 
-        if fieldValues.isEmpty {
-            let resolvedSentence = payload.sentence?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank ?? payload.term
-            fieldValues = [
-                "Front": payload.term,
-                "Text": payload.term,
-                "Expression": payload.term,
+            resolvedFieldValues = [
+                "Front": expression,
+                "Text": expression,
+                "Expression": expression,
                 "Sentence": resolvedSentence,
                 "Back": sourceDescription,
                 "Source": sourceDescription,
@@ -240,14 +177,78 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         return AddNoteDraft(
             deckID: deckID ?? fallbackDeckID,
             notetypeID: notetypeID,
-            fieldValues: fieldValues
+            fieldValues: resolvedFieldValues,
+            tags: tags
+                .split(whereSeparator: \.isWhitespace)
+                .map(String.init)
         )
     }
-}
 
-private extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
+    private static func decodeSingleGlossaries(from rawValue: String?) -> [String: String] {
+        guard let rawValue,
+              let data = rawValue.data(using: .utf8),
+              let value = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return [:]
+        }
+        return value
+    }
+
+    private static func handlebarValue(
+        _ handlebar: String,
+        context: ReaderLookupMiningContext,
+        content: [String: String],
+        singleGlossaries: [String: String]
+    ) -> String {
+        if handlebar.hasPrefix(ReaderLookupHandlebar.singleGlossaryPrefix),
+           handlebar.hasSuffix("}") {
+            let dictionaryName = String(
+                handlebar
+                    .dropFirst(ReaderLookupHandlebar.singleGlossaryPrefix.count)
+                    .dropLast()
+            )
+            return singleGlossaries[dictionaryName] ?? ""
+        }
+
+        guard let standardHandlebar = ReaderLookupHandlebar(rawValue: handlebar) else {
+            return ""
+        }
+
+        switch standardHandlebar {
+        case .expression:
+            return content["expression"] ?? ""
+        case .reading:
+            return content["reading"] ?? ""
+        case .furiganaPlain:
+            return content["furiganaPlain"] ?? ""
+        case .audio:
+            return content["audio"] ?? ""
+        case .glossary:
+            return content["glossary"] ?? ""
+        case .glossaryFirst:
+            return content["glossaryFirst"] ?? ""
+        case .popupSelectionText:
+            return content["popupSelectionText"] ?? ""
+        case .sentence:
+            guard let sentence = context.sentence.nilIfBlank else {
+                return ""
+            }
+            guard let matched = content["matched"]?.nilIfBlank else {
+                return sentence
+            }
+            return sentence.replacingOccurrences(of: matched, with: "<b>\(matched)</b>")
+        case .frequencies:
+            return content["frequenciesHtml"] ?? ""
+        case .frequencyHarmonicRank:
+            return content["freqHarmonicRank"] ?? ""
+        case .pitchPositions:
+            return content["pitchPositions"] ?? ""
+        case .pitchCategories:
+            return content["pitchCategories"] ?? ""
+        case .documentTitle:
+            return context.documentTitle ?? ""
+        case .bookCover:
+            return content["bookCover"]?.nilIfBlank ?? context.coverURL?.absoluteString ?? ""
+        }
     }
 }
 

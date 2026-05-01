@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import AVFAudio
+import UniformTypeIdentifiers
 import AnkiKit
 import AnkiReader
 import AnkiClients
@@ -476,6 +477,14 @@ private enum ReaderBookCoverLoader {
         return try? Data(contentsOf: url)
     }
 
+    static func resolvedURLForReaderLookup(from rawValue: String?) -> URL? {
+        guard let rawValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+              rawValue.isEmpty == false else {
+            return nil
+        }
+        return resolvedURL(from: rawValue)
+    }
+
     private static func resolvedURL(from rawValue: String) -> URL? {
         let decodedValue = rawValue.removingPercentEncoding ?? rawValue
 
@@ -632,6 +641,9 @@ private struct ReaderChapterView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
+    @Dependency(\.mediaClient) var mediaClient
+    @Dependency(\.noteClient) var noteClient
+    @Dependency(\.ankiBackend) var backend
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
@@ -680,6 +692,7 @@ private struct ReaderChapterView: View {
     @State private var selectionRequestID = 0
     @State private var pendingDraft: AddNoteDraft?
     @State private var showAddNoteSheet = false
+    @State private var lookupPopupRefreshID = 0
     @State private var showSelectionError = false
     @State private var pendingSelectionAction: SelectionAction?
     @State private var lookupErrorMessage: String?
@@ -990,12 +1003,21 @@ private struct ReaderChapterView: View {
                                     localAudioEnabled: popupLocalAudioEnabled,
                                     audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
                                     audioPlaybackMode: popupAudioPlaybackMode,
+                                    needsAudio: lookupNoteTemplate.needsAudio,
+                                    refreshID: lookupPopupRefreshID,
                                     showDebugInfo: popupDebugInfoEnabled,
                                     onAddNote: { payload in
-                                        pendingDraft = makeLookupDraft(from: payload, sentence: popup.sentence)
-                                        lookupStack.removeAll()
                                         lookupHighlightClearRequestID += 1
-                                        showAddNoteSheet = true
+                                        Task {
+                                            let draft = await makeLookupDraft(from: payload, sentence: popup.sentence)
+                                            await MainActor.run {
+                                                pendingDraft = draft
+                                                showAddNoteSheet = true
+                                            }
+                                        }
+                                    },
+                                    duplicateCheck: { word in
+                                        await hasExistingLookupNote(for: word)
                                     },
                                     onLookupRequested: { query, sentence in
                                         startLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)
@@ -1031,6 +1053,10 @@ private struct ReaderChapterView: View {
         }) {
             AddNoteView(
                 onSave: {
+                    Task {
+                        await ReaderLookupDuplicateCache.shared.invalidate(notetypeID: lookupNoteTemplate.notetypeID)
+                    }
+                    lookupPopupRefreshID += 1
                     pendingDraft = nil
                 },
                 draft: pendingDraft
@@ -1213,18 +1239,120 @@ private struct ReaderChapterView: View {
         )
     }
 
-    private func makeLookupDraft(from payload: ReaderLookupNotePayload, sentence: String?) -> AddNoteDraft {
-        let sourceDescription = [book.title, chapter.title]
-            .filter { !$0.isEmpty }
-            .joined(separator: " • ")
-        var resolvedPayload = payload
-        resolvedPayload.sentence = normalizedSentence(payload.sentence) ?? sentence
+    private func makeLookupDraft(from content: [String: String], sentence: String?) async -> AddNoteDraft {
+        let resolvedContent = await enrichLookupContentForDraft(content)
 
         return lookupNoteTemplate.makeDraft(
-            payload: resolvedPayload,
+            content: resolvedContent,
+            context: ReaderLookupMiningContext(
+                sentence: normalizedSentence(sentence) ?? content["expression"] ?? "",
+                documentTitle: [book.title, chapter.title]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " • "),
+                coverURL: ReaderBookCoverLoader.resolvedURLForReaderLookup(from: book.coverImagePath)
+            ),
             fallbackDeckID: selectedDeckID == 0 ? nil : Int64(selectedDeckID),
-            sourceDescription: sourceDescription
         )
+    }
+
+    private func enrichLookupContentForDraft(_ content: [String: String]) async -> [String: String] {
+        var resolvedContent = content
+
+        if lookupNoteTemplate.needsAudio,
+           let audioMarkup = await storedLookupAudioMarkup(from: content["audio"]) {
+            resolvedContent["audio"] = audioMarkup
+        }
+
+        if lookupNoteTemplate.fieldMappings.values.contains(ReaderLookupHandlebar.bookCover.rawValue),
+           let coverURL = ReaderBookCoverLoader.resolvedURLForReaderLookup(from: book.coverImagePath),
+           let coverMarkup = storedLookupCoverMarkup(from: coverURL) {
+            resolvedContent["bookCover"] = coverMarkup
+        }
+
+        return resolvedContent
+    }
+
+    private func storedLookupAudioMarkup(from rawValue: String?) async -> String? {
+        guard let rawValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+              rawValue.isEmpty == false,
+              let url = URL(string: rawValue) else {
+            return nil
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            let mimeType = response.mimeType?
+                .split(separator: ";")
+                .first
+                .map(String.init)
+            let contentType = mimeType.flatMap(UTType.init(mimeType:))
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                sourceURL: url,
+                contentType: contentType,
+                fallbackPrefix: "reader-audio"
+            )
+            let storedFilename = try mediaClient.save(data, filename)
+            return NoteFieldMediaSupport.markup(for: storedFilename, contentType: contentType)
+        } catch {
+            return nil
+        }
+    }
+
+    private func storedLookupCoverMarkup(from url: URL) -> String? {
+        do {
+            let data = try Data(contentsOf: url)
+            let contentType = UTType(filenameExtension: url.pathExtension)
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                sourceURL: url,
+                contentType: contentType,
+                fallbackPrefix: "reader-cover"
+            )
+            let storedFilename = try mediaClient.save(data, filename)
+            return NoteFieldMediaSupport.markup(for: storedFilename, contentType: contentType)
+        } catch {
+            return nil
+        }
+    }
+
+    private func hasExistingLookupNote(for word: String) async -> Bool {
+        let normalizedWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalizedWord.isEmpty == false,
+              let notetypeID = lookupNoteTemplate.notetypeID else {
+            return false
+        }
+
+        return await ReaderLookupDuplicateCache.shared.contains(
+            word: normalizedWord,
+            notetypeID: notetypeID
+        ) { [backend, noteClient] in
+            let notetype = try fetchNotetype(backend: backend, id: notetypeID)
+            let query = "note:\"\(Self.escapedSearchTerm(notetype.name))\""
+            let noteIDs = try noteClient.searchIds(query)
+            guard noteIDs.isEmpty == false else {
+                return []
+            }
+
+            var firstFieldValues: [String] = []
+            firstFieldValues.reserveCapacity(noteIDs.count)
+
+            let batchSize = 250
+            var startIndex = 0
+            while startIndex < noteIDs.count {
+                let endIndex = min(startIndex + batchSize, noteIDs.count)
+                let batch = Array(noteIDs[startIndex..<endIndex])
+                let notes = try noteClient.fetchBatch(batch)
+                firstFieldValues.append(contentsOf: notes.map(\.sfld))
+                startIndex = endIndex
+            }
+
+            return firstFieldValues
+        }
+    }
+
+    private static func escapedSearchTerm(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 }
 
@@ -1261,8 +1389,11 @@ struct ReaderLookupPopup: View {
     let localAudioEnabled: Bool
     let audioAutoplay: Bool
     let audioPlaybackMode: ReaderLookupAudioPlaybackMode
+    let needsAudio: Bool
+    let refreshID: Int
     let showDebugInfo: Bool
-    let onAddNote: ((ReaderLookupNotePayload) -> Void)?
+    let onAddNote: ([String: String]) -> Void
+    let duplicateCheck: @Sendable (String) async -> Bool
     let onLookupRequested: (String, String?) -> Void
     let onClose: () -> Void
 
@@ -1316,25 +1447,25 @@ struct ReaderLookupPopup: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                if showDebugInfo {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
-                            Text("\(item.0): \(item.1)")
-                                .font(.system(size: debugFont, design: .monospaced))
-                                .foregroundStyle(Color.amgiTextSecondary)
-                                .textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+        VStack(alignment: .leading, spacing: 12) {
+            if showDebugInfo {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
+                        Text("\(item.0): \(item.1)")
+                            .font(.system(size: debugFont, design: .monospaced))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
 
+            Group {
                 if isLoading {
                     HStack(spacing: 12) {
                         ProgressView()
@@ -1342,6 +1473,7 @@ struct ReaderLookupPopup: View {
                             .font(.system(size: loadingFont))
                             .foregroundStyle(Color.amgiTextSecondary)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 } else if let result, result.isPlaceholder {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(L("reader_lookup_placeholder"))
@@ -1351,34 +1483,33 @@ struct ReaderLookupPopup: View {
                             .font(.system(size: sectionDictionaryFont))
                             .foregroundStyle(Color.amgiTextSecondary)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 } else if let result, result.entries.isEmpty == false {
-                    ReaderLookupRichEntriesView(
+                    ReaderLookupPopupWebContainer(
                         result: result,
-                        languageHint: languageHint,
-                        popupFontSize: popupFontSize,
-                        popupContentFontSize: popupContentFontSize,
-                        popupDictionaryNameFontSize: popupDictionaryNameFontSize,
-                        popupKanaFontSize: popupKanaFontSize,
-                        popupFrequencyFontSize: popupFrequencyFontSize,
                         collapseDictionaries: collapseDictionaries,
                         compactGlossaries: compactGlossaries,
                         audioSourceTemplate: audioSourceTemplate,
                         localAudioEnabled: localAudioEnabled,
                         audioAutoplay: audioAutoplay,
                         audioPlaybackMode: audioPlaybackMode,
-                        sentence: sentence,
+                        needsAudio: needsAudio,
+                        refreshID: refreshID,
                         onAddNote: onAddNote,
-                        onLookupRequested: onLookupRequested
+                        duplicateCheck: duplicateCheck,
+                        onLookupRequested: onLookupRequested,
+                        onTapOutside: onClose
                     )
                 } else {
                     Text(L("reader_lookup_empty"))
                         .font(.system(size: emptyFont))
                         .foregroundStyle(Color.amgiTextSecondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .scrollIndicators(.hidden)
-        .frame(maxHeight: max(140, popupHeight - 36))
+        .frame(height: max(140, popupHeight - 36), alignment: .top)
         .padding(18)
         .frame(maxWidth: isFullWidth ? .infinity : popupWidth, alignment: .leading)
         .background {

@@ -636,8 +636,11 @@ struct ReviewView: View {
                             localAudioEnabled: popupLocalAudioEnabled,
                             audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
                             audioPlaybackMode: popupAudioPlaybackMode,
+                            needsAudio: false,
+                            refreshID: 0,
                             showDebugInfo: popupDebugInfoEnabled,
-                            onAddNote: nil,
+                            onAddNote: { _ in },
+                            duplicateCheck: { _ in false },
                             onLookupRequested: { query, sentence in
                                 startCardLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)
                             },

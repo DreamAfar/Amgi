@@ -1,49 +1,81 @@
 import XCTest
-import AnkiReader
 @testable import AnkiApp
 
 final class ReaderLookupNoteTemplateTests: XCTestCase {
-    func testDefinitionsByDictionaryPreservesDictionaryOrder() {
-        let glossaries = [
-            DictionaryLookupGlossary(dictionary: "词典A", definitions: ["A1", "A2"]),
-            DictionaryLookupGlossary(dictionary: "词典B", definitions: ["B1"]),
-            DictionaryLookupGlossary(dictionary: "词典A", definitions: ["A3"]),
-        ]
-
-        XCTAssertEqual(
-            ReaderLookupNotePayload.definitionsByDictionary(from: glossaries),
-            ["A1\nA2\nA3", "B1"]
-        )
-    }
-
-    func testMakeDraftMapsDefinitionFieldsByDictionaryGroup() {
-        let payload = ReaderLookupNotePayload(
-            term: "単語",
-            reading: "たんご",
-            sentence: "例句",
-            definitions: ["词典1-释义1\n词典1-释义2", "词典2-释义1", "词典3-释义1"],
-            dictionaries: "词典1, 词典2, 词典3",
-            frequency: nil,
-            pitch: nil,
-            deinflection: nil,
-            matched: nil,
-            source: nil,
-            rules: nil
-        )
+    func testMakeDraftMapsConfiguredHandlebars() {
         let template = ReaderLookupNoteTemplate(
-            definition1Field: "Def1",
-            definition2Field: "Def2",
-            definition3Field: "Def3"
+            deckID: 42,
+            notetypeID: 24,
+            fieldMappings: [
+                "Expression": ReaderLookupHandlebar.expression.rawValue,
+                "Meaning": ReaderLookupHandlebar.glossary.rawValue,
+                "Sentence": ReaderLookupHandlebar.sentence.rawValue,
+                "Pitch": ReaderLookupHandlebar.pitchPositions.rawValue,
+            ],
+            tags: "reader mined"
         )
 
         let draft = template.makeDraft(
-            payload: payload,
-            fallbackDeckID: nil,
-            sourceDescription: "来源"
+            content: [
+                "expression": "単語",
+                "matched": "単語",
+                "glossary": "<ul><li>释义</li></ul>",
+                "pitchPositions": "<span>[1]</span>",
+            ],
+            context: ReaderLookupMiningContext(
+                sentence: "単語を覚える。",
+                documentTitle: "标题",
+                coverURL: nil
+            ),
+            fallbackDeckID: 100
         )
 
-        XCTAssertEqual(draft.fieldValues["Def1"], "词典1-释义1\n词典1-释义2")
-        XCTAssertEqual(draft.fieldValues["Def2"], "词典2-释义1")
-        XCTAssertEqual(draft.fieldValues["Def3"], "词典3-释义1")
+        XCTAssertEqual(draft.deckID, 42)
+        XCTAssertEqual(draft.notetypeID, 24)
+        XCTAssertEqual(draft.fieldValues["Expression"], "単語")
+        XCTAssertEqual(draft.fieldValues["Meaning"], "<ul><li>释义</li></ul>")
+        XCTAssertEqual(draft.fieldValues["Sentence"], "<b>単語</b>を覚える。")
+        XCTAssertEqual(draft.fieldValues["Pitch"], "<span>[1]</span>")
+        XCTAssertEqual(draft.tags, ["reader", "mined"])
+    }
+
+    func testDecodeMigratesLegacyTemplateShape() {
+        let legacy = """
+        {"deckID":1,"notetypeID":2,"termField":"Front","readingField":"Back","definition1Field":"Meaning","sourceField":"Source"}
+        """
+
+        let template = ReaderLookupNoteTemplate.decode(from: legacy)
+
+        XCTAssertEqual(template.deckID, 1)
+        XCTAssertEqual(template.notetypeID, 2)
+        XCTAssertEqual(template.fieldMappings["Front"], ReaderLookupHandlebar.expression.rawValue)
+        XCTAssertEqual(template.fieldMappings["Back"], ReaderLookupHandlebar.reading.rawValue)
+        XCTAssertEqual(template.fieldMappings["Meaning"], ReaderLookupHandlebar.glossary.rawValue)
+        XCTAssertEqual(template.fieldMappings["Source"], ReaderLookupHandlebar.documentTitle.rawValue)
+    }
+
+    func testMakeDraftSupportsSingleGlossaryAndStoredBookCoverMarkup() {
+        let template = ReaderLookupNoteTemplate(
+            fieldMappings: [
+                "Dictionary": "{single-glossary-大辞泉}",
+                "Cover": ReaderLookupHandlebar.bookCover.rawValue,
+            ]
+        )
+
+        let draft = template.makeDraft(
+            content: [
+                "singleGlossaries": #"{"大辞泉":"<p>词典释义</p>"}"#,
+                "bookCover": #"<img src="reader-cover.png">"#,
+            ],
+            context: ReaderLookupMiningContext(
+                sentence: "",
+                documentTitle: nil,
+                coverURL: URL(string: "file:///unused-cover.png")
+            ),
+            fallbackDeckID: nil
+        )
+
+        XCTAssertEqual(draft.fieldValues["Dictionary"], "<p>词典释义</p>")
+        XCTAssertEqual(draft.fieldValues["Cover"], #"<img src="reader-cover.png">"#)
     }
 }

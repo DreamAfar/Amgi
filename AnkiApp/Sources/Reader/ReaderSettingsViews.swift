@@ -318,11 +318,6 @@ struct ReaderDisplaySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.customHintColor) private var customHintColorHex = "#7F7F7F"
     @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
     @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
-    @AppStorage(ReaderPreferences.Keys.popupFontSize) private var popupFontSize = 14
-    @AppStorage(ReaderPreferences.Keys.popupFrequencyFontSize) private var popupFrequencyFontSize = 13
-    @AppStorage(ReaderPreferences.Keys.popupContentFontSize) private var popupContentFontSize = 14
-    @AppStorage(ReaderPreferences.Keys.popupDictionaryNameFontSize) private var popupDictionaryNameFontSize = 13
-    @AppStorage(ReaderPreferences.Keys.popupKanaFontSize) private var popupKanaFontSize = 14
     @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
     @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
 
@@ -543,56 +538,6 @@ struct ReaderDisplaySettingsView: View {
             .amgiSettingsListRowSurface()
 
             Section(L("settings_reader_display_section_popup")) {
-                HStack {
-                    Text(L("settings_reader_popup_font_size"))
-                        .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
-                    Text(L("settings_reader_font_size_value", popupFontSize))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                    Stepper("", value: $popupFontSize, in: 10...30)
-                        .labelsHidden()
-                }
-
-                HStack {
-                    Text(L("settings_reader_popup_frequency_font_size"))
-                        .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
-                    Text(L("settings_reader_font_size_value", popupFrequencyFontSize))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                    Stepper("", value: $popupFrequencyFontSize, in: 10...30)
-                        .labelsHidden()
-                }
-
-                HStack {
-                    Text(L("settings_reader_popup_content_font_size"))
-                        .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
-                    Text(L("settings_reader_font_size_value", popupContentFontSize))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                    Stepper("", value: $popupContentFontSize, in: 10...30)
-                        .labelsHidden()
-                }
-
-                HStack {
-                    Text(L("settings_reader_popup_dictionary_name_font_size"))
-                        .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
-                    Text(L("settings_reader_font_size_value", popupDictionaryNameFontSize))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                    Stepper("", value: $popupDictionaryNameFontSize, in: 10...30)
-                        .labelsHidden()
-                }
-
-                HStack {
-                    Text(L("settings_reader_popup_kana_font_size"))
-                        .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
-                    Text(L("settings_reader_font_size_value", popupKanaFontSize))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                    Stepper("", value: $popupKanaFontSize, in: 10...30)
-                        .labelsHidden()
-                }
-
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(L("settings_reader_popup_width"))
@@ -674,6 +619,7 @@ private extension Color {
 struct ReaderAdvancedSettingsView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
 
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
     @AppStorage(ReaderPreferences.Keys.popupDebugInfoEnabled) private var popupDebugInfoEnabled = false
@@ -682,9 +628,18 @@ struct ReaderAdvancedSettingsView: View {
     @State private var decks: [DeckInfo] = []
     @State private var notetypeNames: [(Int64, String)] = []
     @State private var availableFields: [String] = []
+    @State private var availableDictionaryNames: [String] = []
 
     private var lookupNoteTemplate: ReaderLookupNoteTemplate {
         ReaderLookupNoteTemplate.decode(from: lookupNoteTemplateData)
+    }
+
+    private var availableHandlebars: [String] {
+        let standard = ReaderLookupHandlebar.allCases.map(\.rawValue)
+        let glossaryMappings = availableDictionaryNames.map {
+            "\(ReaderLookupHandlebar.singleGlossaryPrefix)\($0)}"
+        }
+        return standard + glossaryMappings
     }
 
     private var selectedTemplateDeckLabel: String {
@@ -796,58 +751,21 @@ struct ReaderAdvancedSettingsView: View {
             .amgiSettingsListRowSurface()
 
             Section {
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_term_field"),
-                    selection: templateFieldBinding(\.termField)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_reading_field"),
-                    selection: templateFieldBinding(\.readingField)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_sentence_field"),
-                    selection: templateFieldBinding(\.sentenceField)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_definition1_field"),
-                    selection: templateFieldBinding(\.definition1Field)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_definition2_field"),
-                    selection: templateFieldBinding(\.definition2Field)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_definition3_field"),
-                    selection: templateFieldBinding(\.definition3Field)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_dictionaries_field"),
-                    selection: templateFieldBinding(\.dictionariesField)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_frequency_field"),
-                    selection: templateFieldBinding(\.frequencyField)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_pitch_field"),
-                    selection: templateFieldBinding(\.pitchField)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_deinflection_field"),
-                    selection: templateFieldBinding(\.deinflectionField)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_matched_field"),
-                    selection: templateFieldBinding(\.matchedField)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_source_field"),
-                    selection: templateFieldBinding(\.sourceField)
-                )
-                noteTemplateFieldRow(
-                    title: L("settings_reader_note_template_rules_field"),
-                    selection: templateFieldBinding(\.rulesField)
-                )
+                ForEach(availableFields, id: \.self) { fieldName in
+                    noteTemplateFieldRow(
+                        fieldName: fieldName,
+                        selection: templateMappingBinding(for: fieldName)
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Tags")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    TextField("None", text: templateTagsBinding)
+                        .submitLabel(.done)
+                }
             } header: {
                 Text(L("settings_reader_note_template_fields"))
             } footer: {
@@ -865,36 +783,56 @@ struct ReaderAdvancedSettingsView: View {
     }
 
     @ViewBuilder
-    private func noteTemplateFieldRow(title: String, selection: Binding<String>) -> some View {
-        HStack(alignment: .top, spacing: AmgiSpacing.md) {
-            Text(title)
-                .foregroundStyle(SettingsValueStyle.primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Menu {
-                Picker(title, selection: selection) {
-                    Text(L("settings_reader_not_set"))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                        .tag("")
-                    ForEach(availableFields, id: \.self) { fieldName in
-                        Text(fieldName)
-                            .foregroundStyle(SettingsValueStyle.highlight)
-                            .tag(fieldName)
+    private func noteTemplateFieldRow(fieldName: String, selection: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(fieldName)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            HStack {
+                TextField("None", text: selection)
+                    .submitLabel(.done)
+
+                Menu {
+                    Button("-") {
+                        selection.wrappedValue = ""
                     }
+                    Divider()
+                    ForEach(availableHandlebars, id: \.self) { option in
+                        Button(option) {
+                            selection.wrappedValue = option
+                        }
+                    }
+                } label: {
+                    Image(systemName: "chevron.up.chevron.down")
                 }
-            } label: {
-                SettingsOptionCapsuleLabel(title: selection.wrappedValue.isEmpty ? L("settings_reader_not_set") : selection.wrappedValue)
+                .foregroundStyle(.secondary)
             }
-            .disabled(availableFields.isEmpty)
         }
     }
 
-    private func templateFieldBinding(_ keyPath: WritableKeyPath<ReaderLookupNoteTemplate, String>) -> Binding<String> {
+    private func templateMappingBinding(for fieldName: String) -> Binding<String> {
         Binding(
-            get: { lookupNoteTemplate[keyPath: keyPath] },
+            get: { lookupNoteTemplate.fieldMappings[fieldName] ?? "" },
             set: { newValue in
                 updateTemplate { template in
-                    template[keyPath: keyPath] = newValue
+                    let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if trimmed.isEmpty {
+                        template.fieldMappings.removeValue(forKey: fieldName)
+                    } else {
+                        template.fieldMappings[fieldName] = newValue
+                    }
+                }
+            }
+        )
+    }
+
+    private var templateTagsBinding: Binding<String> {
+        Binding(
+            get: { lookupNoteTemplate.tags },
+            set: { newValue in
+                updateTemplate { template in
+                    template.tags = newValue
                 }
             }
         )
@@ -902,6 +840,11 @@ struct ReaderAdvancedSettingsView: View {
 
     private func loadData() async {
         decks = (try? deckClient.fetchNamesOnly()) ?? []
+        if let state = try? await dictionaryLookupClient.loadState() {
+            availableDictionaryNames = state.termDictionaries.map(\.title)
+        } else {
+            availableDictionaryNames = []
+        }
 
         do {
             notetypeNames = try loadStandardNotetypeEntries(backend: backend)
