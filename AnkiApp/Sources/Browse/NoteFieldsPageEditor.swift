@@ -1553,7 +1553,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         weak var webView: WKWebView?
         var lastDocument = ""
         var lastPayloadJSON = ""
-        var pendingPayloadAfterLoad: Payload?
+        private var pendingPayloadAfterLoad: Payload?
         var activeFieldIndex = 0
         private let onInsertPhoto: ((Int) -> Void)?
         private let onInsertCameraPhoto: ((Int) -> Void)?
@@ -1591,7 +1591,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             registerLifecycleObservers()
         }
 
-        func pushPayloadIfNeeded(_ payload: Payload, force: Bool = false) {
+        private func pushPayloadIfNeeded(_ payload: Payload, force: Bool = false) {
             guard let payloadJSON = Self.javaScriptObjectLiteral(from: payload) else { return }
             guard force || payloadJSON != lastPayloadJSON else { return }
             lastPayloadJSON = payloadJSON
