@@ -15,7 +15,7 @@ struct AddNoteView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.mediaClient) var mediaClient
-    @SceneStorage("amgi.add_note.session") private var persistedSessionData = ""
+    @AppStorage("amgi.add_note.session") private var persistedSessionData = ""
 
     @State private var decks: [DeckInfo] = []
     @State private var notetypeNames: [(Int64, String)] = []
@@ -31,6 +31,7 @@ struct AddNoteView: View {
     @State private var showPreviewError = false
     @State private var previewContext: AddNotePreviewContext?
     @State private var hasLoadedInitialData = false
+    @State private var isRestoringPersistedSession = false
     @State private var restoredSession: PersistedAddNoteSession?
     @State private var shouldApplyDraftOnNextFieldLoad = false
     @State private var shouldSkipNextNotetypeFieldReload = false
@@ -243,9 +244,12 @@ struct AddNoteView: View {
     @MainActor
     private func loadDataIfNeeded() async {
         guard hasLoadedInitialData == false else { return }
-        hasLoadedInitialData = true
+        isRestoringPersistedSession = true
         restorePersistedSessionIfNeeded()
         await loadData()
+        isRestoringPersistedSession = false
+        hasLoadedInitialData = true
+        persistSession()
     }
 
     private func loadData() async {
@@ -277,7 +281,6 @@ struct AddNoteView: View {
                     fieldCount: fieldNames.count
                 )
                 tags = restoredSession.tags
-                persistSession()
                 return
             }
             if let preferredNotetypeID = resolvedPreferredNotetypeID() {
@@ -348,7 +351,7 @@ struct AddNoteView: View {
     }
 
     private func persistSession() {
-        guard draft == nil else { return }
+        guard draft == nil, hasLoadedInitialData, isRestoringPersistedSession == false else { return }
         let session = PersistedAddNoteSession(
             selectedDeckId: selectedDeckId,
             selectedNotetypeId: selectedNotetypeId == 0 ? nil : selectedNotetypeId,

@@ -374,6 +374,19 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             window.requestAnimationFrame(sendHeightIfNeeded);
         }
 
+        function rectPayload(element) {
+            if (!element) { return null; }
+            const rect = element.getBoundingClientRect();
+            return {
+                minX: rect.left,
+                minY: rect.top,
+                maxX: rect.right,
+                maxY: rect.bottom,
+                width: rect.width,
+                height: rect.height,
+            };
+        }
+
         function fieldElement(index) {
             return fieldsRoot.querySelector(`.field[data-field-index="${index}"]`);
         }
@@ -1065,6 +1078,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             exportState() {
                 return flushPendingChanges();
             },
+            activeFieldRect() {
+                return rectPayload(fieldElement(state.activeFieldIndex));
+            },
             focus() {
                 focusActiveField();
             },
@@ -1228,7 +1244,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 dismissInlineMenu()
                 coordinator.wrapSelectionInCloze()
             },
-            makeMenuButton(systemName: "paintpalette", title: L("rich_text_action_color"), tintColor: .systemBlue) {
+            makeMenuButton(systemName: "paintbrush", title: L("rich_text_action_color"), tintColor: .systemBlue) {
                 showInlineMenu(
                     key: "foreground",
                     views: makeColorPaletteViews(
@@ -1275,7 +1291,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                     )
                 )
             },
-            makeMenuButton(systemName: "textformat", title: L("rich_text_action_clear_format"), tintColor: .systemBlue) {
+            makeMenuButton(systemName: "eraser.line.dashed", title: L("rich_text_action_clear_format"), tintColor: .systemBlue) {
                 showInlineMenu(
                     key: "clear-format",
                     views: makeClearFormattingPaletteViews(
@@ -1299,22 +1315,34 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 showInlineMenu(
                     key: "alignment",
                     views: [
-                        makePaletteActionButton(title: L("rich_text_action_align_left"), tintColor: .systemBlue) {
+                        makePaletteActionButton(
+                            title: L("rich_text_action_align_left"),
+                            systemName: "align.horizontal.left",
+                            tintColor: .systemBlue
+                        ) {
                             coordinator.exec("justifyLeft")
                             dismissInlineMenu()
                         },
-                        makePaletteActionButton(title: L("rich_text_action_align_center"), tintColor: .systemBlue) {
+                        makePaletteActionButton(
+                            title: L("rich_text_action_align_center"),
+                            systemName: "align.horizontal.center",
+                            tintColor: .systemBlue
+                        ) {
                             coordinator.exec("justifyCenter")
                             dismissInlineMenu()
                         },
-                        makePaletteActionButton(title: L("rich_text_action_align_right"), tintColor: .systemBlue) {
+                        makePaletteActionButton(
+                            title: L("rich_text_action_align_right"),
+                            systemName: "align.horizontal.right",
+                            tintColor: .systemBlue
+                        ) {
                             coordinator.exec("justifyRight")
                             dismissInlineMenu()
                         }
                     ]
                 )
             },
-            makeMenuButton(systemName: "function", title: L("rich_text_action_mathjax"), tintColor: .systemTeal) {
+            makeMenuButton(systemName: "function", title: L("rich_text_action_mathjax"), tintColor: .systemBlue) {
                 showInlineMenu(
                     key: "mathjax",
                     views: [
@@ -1414,39 +1442,39 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         dismissMenu: @escaping () -> Void
     ) -> [UIView] {
         [
-            makePaletteActionButton(title: L("rich_text_action_bold"), tintColor: .systemBlue) {
+            makePaletteActionButton(title: L("rich_text_action_bold"), systemName: "bold", tintColor: .systemBlue) {
                 coordinator.clearFormatting(.bold)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_italic"), tintColor: .systemBlue) {
+            makePaletteActionButton(title: L("rich_text_action_italic"), systemName: "italic", tintColor: .systemBlue) {
                 coordinator.clearFormatting(.italic)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_underline"), tintColor: .systemBlue) {
+            makePaletteActionButton(title: L("rich_text_action_underline"), systemName: "underline", tintColor: .systemBlue) {
                 coordinator.clearFormatting(.underline)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_strikethrough"), tintColor: .systemBlue) {
+            makePaletteActionButton(title: L("rich_text_action_strikethrough"), systemName: "strikethrough", tintColor: .systemBlue) {
                 coordinator.clearFormatting(.strikethrough)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_superscript"), tintColor: .systemBlue) {
+            makePaletteActionButton(title: L("rich_text_action_superscript"), systemName: "textformat.superscript", tintColor: .systemBlue) {
                 coordinator.clearFormatting(.superscript)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_subscript"), tintColor: .systemBlue) {
+            makePaletteActionButton(title: L("rich_text_action_subscript"), systemName: "textformat.subscript", tintColor: .systemBlue) {
                 coordinator.clearFormatting(.subscriptText)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_color"), tintColor: .systemBlue) {
+            makePaletteActionButton(title: L("rich_text_action_color"), systemName: "paintbrush", tintColor: .systemBlue) {
                 coordinator.clearFormatting(.foregroundColor)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_highlight"), tintColor: .systemBlue) {
+            makePaletteActionButton(title: L("rich_text_action_highlight"), systemName: "highlighter", tintColor: .systemBlue) {
                 coordinator.clearFormatting(.backgroundColor)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_clear_all_confirm"), tintColor: .systemRed) {
+            makePaletteActionButton(title: L("rich_text_clear_all_confirm"), systemName: "eraser.line.dashed", tintColor: .systemRed) {
                 coordinator.clearFormatting(.all)
                 dismissMenu()
             }
@@ -1497,6 +1525,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         button.backgroundColor = .clear
         button.layer.cornerRadius = 8
         button.accessibilityLabel = title
+        button.titleLabel?.numberOfLines = 1
+        button.titleLabel?.lineBreakMode = .byClipping
+        button.titleLabel?.adjustsFontSizeToFitWidth = true
+        button.titleLabel?.minimumScaleFactor = 0.6
         var configuration = UIButton.Configuration.plain()
         configuration.buttonSize = .small
         configuration.baseBackgroundColor = .clear
@@ -1504,10 +1536,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         configuration.attributedTitle = AttributedString(
             label,
             attributes: AttributeContainer([
-                .font: UIFont.monospacedSystemFont(ofSize: 12, weight: .semibold)
+                .font: UIFont.monospacedSystemFont(ofSize: 10, weight: .semibold)
             ])
         )
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 3, leading: 2, bottom: 3, trailing: 2)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 3, leading: 0, bottom: 3, trailing: 0)
         button.configuration = configuration
         button.heightAnchor.constraint(equalToConstant: 24).isActive = true
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
@@ -1572,11 +1604,16 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         configuration.baseBackgroundColor = .clear
         configuration.baseForegroundColor = tintColor
         if let title {
-            configuration.title = title
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
-        } else if let systemName {
+            button.accessibilityLabel = title
+        }
+        if let systemName {
             configuration.image = UIImage(systemName: systemName)
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10)
+            configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8)
+        }
+        if let title, systemName == nil {
+            configuration.title = title
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8)
         }
         button.configuration = configuration
         button.heightAnchor.constraint(equalToConstant: 32).isActive = true
@@ -1632,6 +1669,8 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         private let onDraftExport: (() -> Void)?
         private var colorSelectionHandler: ((UIColor) -> Void)?
         private var hasRegisteredLifecycleObservers = false
+        private var keyboardEndFrameInScreen: CGRect = .null
+        private var pendingVisibilityAdjustmentWorkItem: DispatchWorkItem?
 
         init(
             fieldValues: Binding<[String]>,
@@ -1779,14 +1818,17 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                     pushPayloadIfNeeded(pendingPayloadAfterLoad, force: true)
                     self.pendingPayloadAfterLoad = nil
                 }
+                scheduleActiveFieldVisibilityAdjustment()
             case "heightChanged":
                 if let height = body["height"] as? Double {
                     measuredHeight = max(CGFloat(height), 120)
                 }
+                scheduleActiveFieldVisibilityAdjustment()
             case "activeFieldChanged":
                 if let index = body["index"] as? Int {
                     activeFieldIndex = max(0, index)
                 }
+                scheduleActiveFieldVisibilityAdjustment()
             case "fieldChanged":
                 guard let index = body["index"] as? Int,
                       let html = body["html"] as? String,
@@ -1820,6 +1862,18 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
         @objc private func handleLifecycleNotification(_ notification: Notification) {
             flushPendingEditingState()
+        }
+
+        @objc private func handleKeyboardFrameNotification(_ notification: Notification) {
+            guard let userInfo = notification.userInfo,
+                  let frameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
+            else {
+                keyboardEndFrameInScreen = .null
+                scheduleActiveFieldVisibilityAdjustment(delay: 0.01)
+                return
+            }
+            keyboardEndFrameInScreen = frameValue.cgRectValue
+            scheduleActiveFieldVisibilityAdjustment(delay: 0.01)
         }
 
         private func performClearFormatting(_ kind: ClearFormattingKind) {
@@ -1876,12 +1930,18 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             let notificationCenter = NotificationCenter.default
             let names: [NSNotification.Name] = [
                 UIApplication.willResignActiveNotification,
-                UIApplication.didEnterBackgroundNotification
+                UIApplication.didEnterBackgroundNotification,
+                UIApplication.userDidTakeScreenshotNotification,
+                UIResponder.keyboardWillChangeFrameNotification,
+                UIResponder.keyboardWillHideNotification
             ]
             names.forEach { name in
+                let selector: Selector = (name == UIResponder.keyboardWillChangeFrameNotification || name == UIResponder.keyboardWillHideNotification)
+                    ? #selector(handleKeyboardFrameNotification)
+                    : #selector(handleLifecycleNotification)
                 notificationCenter.addObserver(
                     self,
-                    selector: #selector(handleLifecycleNotification),
+                    selector: selector,
                     name: name,
                     object: nil
                 )
@@ -1923,6 +1983,77 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             } else if normalizedSourceModes.isEmpty == false {
                 fieldSourceModes = normalizedSourceModes
             }
+        }
+
+        private func scheduleActiveFieldVisibilityAdjustment(delay: TimeInterval = 0.05) {
+            pendingVisibilityAdjustmentWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.adjustActiveFieldVisibilityIfNeeded()
+            }
+            pendingVisibilityAdjustmentWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+        }
+
+        private func adjustActiveFieldVisibilityIfNeeded() {
+            guard isPageReady, let webView else { return }
+            let script = "window.amgiNoteFieldsEditor && window.amgiNoteFieldsEditor.activeFieldRect();"
+            webView.evaluateJavaScript(script) { [weak self] result, _ in
+                guard let self else { return }
+                guard let payload = result as? [String: Any],
+                      let minY = payload["minY"] as? Double,
+                      let maxY = payload["maxY"] as? Double
+                else { return }
+                self.applyVisibilityAdjustment(fieldRectInWebView: CGRect(
+                    x: (payload["minX"] as? Double) ?? 0,
+                    y: minY,
+                    width: (payload["width"] as? Double) ?? 0,
+                    height: max(0, maxY - minY)
+                ))
+            }
+        }
+
+        private func applyVisibilityAdjustment(fieldRectInWebView: CGRect) {
+            guard let webView,
+                  let hostScrollView = enclosingHostScrollView(for: webView),
+                  let window = webView.window
+            else { return }
+
+            let fieldRectInWindow = webView.convert(fieldRectInWebView, to: window)
+            let keyboardFrameInWindow = keyboardEndFrameInScreen.isNull
+                ? CGRect(x: 0, y: window.bounds.maxY, width: window.bounds.width, height: 0)
+                : window.convert(keyboardEndFrameInScreen, from: nil)
+
+            let topInset = window.safeAreaInsets.top + 12
+            let bottomInset = max(topInset, keyboardFrameInWindow.minY - 12)
+            var deltaY: CGFloat = 0
+
+            if fieldRectInWindow.maxY > bottomInset {
+                deltaY = fieldRectInWindow.maxY - bottomInset
+            } else if fieldRectInWindow.minY < topInset {
+                deltaY = fieldRectInWindow.minY - topInset
+            }
+
+            guard abs(deltaY) > 1 else { return }
+            let minOffsetY = -hostScrollView.adjustedContentInset.top
+            let maxOffsetY = max(
+                minOffsetY,
+                hostScrollView.contentSize.height - hostScrollView.bounds.height + hostScrollView.adjustedContentInset.bottom
+            )
+            let targetOffsetY = min(max(hostScrollView.contentOffset.y + deltaY, minOffsetY), maxOffsetY)
+            guard abs(targetOffsetY - hostScrollView.contentOffset.y) > 1 else { return }
+            hostScrollView.setContentOffset(CGPoint(x: hostScrollView.contentOffset.x, y: targetOffsetY), animated: false)
+        }
+
+        private func enclosingHostScrollView(for view: UIView) -> UIScrollView? {
+            var current = view.superview
+            while let candidate = current {
+                if let scrollView = candidate as? UIScrollView,
+                   scrollView !== view.scrollView {
+                    return scrollView
+                }
+                current = candidate.superview
+            }
+            return nil
         }
 
         private static func javaScriptObjectLiteral<T: Encodable>(from value: T) -> String? {
