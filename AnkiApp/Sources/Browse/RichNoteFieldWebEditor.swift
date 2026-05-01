@@ -3,12 +3,22 @@ import UIKit
 import WebKit
 
 struct RichNoteFieldEditor: View {
+    static let renderedMinimumHeight: CGFloat = 40
+    static let renderedMaximumHeight: CGFloat = 320
+    static let sourceMinimumHeight: CGFloat = 120
+    static let sourceMaximumHeight: CGFloat = 240
+
     @Binding var htmlText: String
     var preservesSourceHTML = false
     var onInsertPhoto: (() -> Void)? = nil
     var onInsertCameraPhoto: (() -> Void)? = nil
     var onInsertFile: (() -> Void)? = nil
     var onRecordAudio: (() -> Void)? = nil
+    @State private var renderedHeight: CGFloat = Self.renderedMinimumHeight
+
+    private var clampedRenderedHeight: CGFloat {
+        min(max(renderedHeight, Self.renderedMinimumHeight), Self.renderedMaximumHeight)
+    }
 
     static func normalizedStoredHTML(_ text: String) -> String {
         LegacyRichNoteFieldTextEditor.normalizedStoredHTML(text)
@@ -28,6 +38,7 @@ struct RichNoteFieldEditor: View {
             } else {
                 RenderedHTMLFieldEditor(
                     htmlText: $htmlText,
+                    measuredHeight: $renderedHeight,
                     onInsertPhoto: onInsertPhoto,
                     onInsertCameraPhoto: onInsertCameraPhoto,
                     onInsertFile: onInsertFile,
@@ -35,20 +46,25 @@ struct RichNoteFieldEditor: View {
                 )
             }
         }
-        .frame(minHeight: preservesSourceHTML ? 120 : 140, maxHeight: preservesSourceHTML ? 180 : 220)
+        .frame(height: preservesSourceHTML ? nil : clampedRenderedHeight)
+        .frame(
+            minHeight: preservesSourceHTML ? Self.sourceMinimumHeight : Self.renderedMinimumHeight,
+            maxHeight: preservesSourceHTML ? Self.sourceMaximumHeight : Self.renderedMaximumHeight
+        )
     }
 }
 
 private struct RenderedHTMLFieldEditor: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
     @Binding var htmlText: String
+    @Binding var measuredHeight: CGFloat
     var onInsertPhoto: (() -> Void)?
     var onInsertCameraPhoto: (() -> Void)?
     var onInsertFile: (() -> Void)?
     var onRecordAudio: (() -> Void)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(htmlText: $htmlText)
+        Coordinator(htmlText: $htmlText, measuredHeight: $measuredHeight)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -62,15 +78,21 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = measuredHeight > RichNoteFieldEditor.renderedMaximumHeight
         webView.scrollView.showsHorizontalScrollIndicator = false
-        webView.scrollView.showsVerticalScrollIndicator = true
-        webView.scrollView.alwaysBounceVertical = true
+        webView.scrollView.showsVerticalScrollIndicator = measuredHeight > RichNoteFieldEditor.renderedMaximumHeight
+        webView.scrollView.alwaysBounceVertical = measuredHeight > RichNoteFieldEditor.renderedMaximumHeight
         context.coordinator.webView = webView
         webView.accessoryView = makeInputToolbar(for: webView, coordinator: context.coordinator)
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        let allowsInternalScroll = measuredHeight > RichNoteFieldEditor.renderedMaximumHeight
+        webView.scrollView.isScrollEnabled = allowsInternalScroll
+        webView.scrollView.showsVerticalScrollIndicator = allowsInternalScroll
+        webView.scrollView.alwaysBounceVertical = allowsInternalScroll
+
         let document = htmlDocument(colorScheme: colorScheme)
         if context.coordinator.lastDocument != document {
             context.coordinator.lastDocument = document
@@ -109,7 +131,7 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
             padding: 8px 0;
         }
         #editor {
-            min-height: 108px;
+            min-height: 24px;
             outline: none;
             caret-color: \(textColor);
             white-space: normal;
@@ -147,9 +169,34 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
         const editor = document.getElementById('editor');
         let isSyncingFromSwift = false;
         let lastSentHTML = '';
+        let lastSentHeight = { value: 0 };
 
         function focusEditor() {
             editor.focus();
+        }
+
+        function contentHeight() {
+            const root = document.documentElement;
+            const body = document.body;
+            return Math.max(
+                editor.scrollHeight,
+                body.scrollHeight,
+                root.scrollHeight
+            );
+        }
+
+        function sendHeightIfNeeded() {
+            const height = Math.ceil(contentHeight());
+            if (Math.abs(height - lastSentHeight.value) < 1) { return; }
+            lastSentHeight.value = height;
+            window.webkit.messageHandlers.\(Coordinator.messageHandlerName).postMessage({
+                type: 'heightChanged',
+                height: height
+            });
+        }
+
+        function scheduleHeightUpdate() {
+            window.requestAnimationFrame(sendHeightIfNeeded);
         }
 
         function unwrapNode(node) {
@@ -197,6 +244,7 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
                 editor.innerHTML = html || '';
                 lastSentHTML = normalizedHTML();
                 isSyncingFromSwift = false;
+                scheduleHeightUpdate();
             },
             focus() {
                 focusEditor();
@@ -242,8 +290,25 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
             }
         };
 
-        editor.addEventListener('input', sendHTMLIfNeeded);
-        editor.addEventListener('blur', sendHTMLIfNeeded);
+        editor.addEventListener('input', function() {
+            sendHTMLIfNeeded();
+            scheduleHeightUpdate();
+        });
+        editor.addEventListener('blur', function() {
+            sendHTMLIfNeeded();
+            scheduleHeightUpdate();
+        });
+        editor.addEventListener('focus', scheduleHeightUpdate);
+        window.addEventListener('load', scheduleHeightUpdate);
+
+        if (window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(scheduleHeightUpdate);
+            resizeObserver.observe(editor);
+            resizeObserver.observe(document.body);
+        }
+
+        document.addEventListener('selectionchange', scheduleHeightUpdate);
+        scheduleHeightUpdate();
         </script>
         </body>
         </html>
@@ -644,19 +709,21 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
         static let messageHandlerName = "amgiNoteFieldChanged"
 
         @Binding var htmlText: String
+        @Binding var measuredHeight: CGFloat
         weak var webView: WKWebView?
         var lastDocument = ""
         var lastKnownHTML = ""
         var pendingHTMLAfterLoad = ""
         private var colorSelectionHandler: ((UIColor) -> Void)?
 
-        init(htmlText: Binding<String>) {
+        init(htmlText: Binding<String>, measuredHeight: Binding<CGFloat>) {
             self._htmlText = htmlText
+            self._measuredHeight = measuredHeight
             self.lastKnownHTML = RichNoteFieldEditor.normalizedStoredHTML(htmlText.wrappedValue)
         }
 
-        func pushHTMLIfNeeded(_ html: String) {
-            guard html != lastKnownHTML else { return }
+        func pushHTMLIfNeeded(_ html: String, force: Bool = false) {
+            guard force || html != lastKnownHTML else { return }
             lastKnownHTML = html
             let script = "window.amgiNoteField && window.amgiNoteField.setHTML(\(html.javaScriptStringLiteral()));"
             webView?.evaluateJavaScript(script, completionHandler: nil)
@@ -718,7 +785,7 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             let html = pendingHTMLAfterLoad.isEmpty ? lastKnownHTML : pendingHTMLAfterLoad
             pendingHTMLAfterLoad = ""
-            pushHTMLIfNeeded(html)
+            pushHTMLIfNeeded(html, force: true)
         }
 
         func webView(
@@ -742,6 +809,10 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
                 let html = RichNoteFieldEditor.normalizedStoredHTML((body["html"] as? String) ?? "")
                 lastKnownHTML = html
                 htmlText = html
+                return
+            }
+            if type == "heightChanged", let height = body["height"] as? Double {
+                measuredHeight = max(CGFloat(height), RichNoteFieldEditor.renderedMinimumHeight)
             }
         }
 
