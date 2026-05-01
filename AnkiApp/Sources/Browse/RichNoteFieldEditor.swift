@@ -680,7 +680,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
         var isEditing = false
         private var colorSelectionHandler: ((UIColor) -> Void)?
         private let baseFont = UIFont.preferredFont(forTextStyle: .body)
-        private var lifecycleObservers: [NSObjectProtocol] = []
+        private var hasRegisteredLifecycleObservers = false
 
         init(htmlText: Binding<String>, preservesSourceHTML: Bool) {
             self._htmlText = htmlText
@@ -690,10 +690,6 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
         func attach(textView: UITextView) {
             self.textView = textView
             registerLifecycleObservers()
-        }
-
-        deinit {
-            lifecycleObservers.forEach(NotificationCenter.default.removeObserver)
         }
 
         func render(html: String, in textView: UITextView) {
@@ -1205,21 +1201,25 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
         }
 
         private func registerLifecycleObservers() {
-            guard lifecycleObservers.isEmpty else { return }
+            guard hasRegisteredLifecycleObservers == false else { return }
+            hasRegisteredLifecycleObservers = true
             let notificationCenter = NotificationCenter.default
             let names: [NSNotification.Name] = [
                 UIApplication.willResignActiveNotification,
                 UIApplication.didEnterBackgroundNotification
             ]
-            lifecycleObservers = names.map { name in
+            names.forEach { name in
                 notificationCenter.addObserver(
-                    forName: name,
-                    object: nil,
-                    queue: .main
-                ) { [weak self] _ in
-                    self?.flushPendingEditingState()
-                }
+                    self,
+                    selector: #selector(handleLifecycleNotification),
+                    name: name,
+                    object: nil
+                )
             }
+        }
+
+        @objc private func handleLifecycleNotification(_ notification: Notification) {
+            flushPendingEditingState()
         }
 
         private func flushPendingEditingState() {
