@@ -33,6 +33,7 @@ struct AddNoteView: View {
     @State private var hasLoadedInitialData = false
     @State private var restoredSession: PersistedAddNoteSession?
     @State private var shouldApplyDraftOnNextFieldLoad = false
+    @State private var shouldSkipNextNotetypeFieldReload = false
     @State private var pendingMediaFieldIndex: Int?
     @State private var showPhotoPicker = false
     @State private var showCameraPicker = false
@@ -90,6 +91,11 @@ struct AddNoteView: View {
                         }
                     }
                     .onChange(of: selectedNotetypeId) {
+                        if shouldSkipNextNotetypeFieldReload {
+                            shouldSkipNextNotetypeFieldReload = false
+                            persistSession()
+                            return
+                        }
                         loadFields(applyingDraft: consumePendingDraftApplication())
                     }
                 }
@@ -101,6 +107,7 @@ struct AddNoteView: View {
                             fieldValues: $fieldValues,
                             fieldSourceModes: $fieldSourceModes,
                             actionStates: fieldEditorActionStates,
+                            onDraftExport: { persistSession() },
                             onInsertPhoto: { beginMediaImport(for: $0, action: .photoLibrary) },
                             onInsertCameraPhoto: { beginMediaImport(for: $0, action: .camera) },
                             onInsertFile: { beginMediaImport(for: $0, action: .file) },
@@ -131,6 +138,10 @@ struct AddNoteView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.amgiBackground)
+            // The embedded fields editor is one tall WKWebView row; letting Form apply
+            // keyboard avoidance makes it overshoot based on the row height instead of
+            // the active caret position.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationTitle(L("add_note_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -256,6 +267,7 @@ struct AddNoteView: View {
                 }
                 if let restoredNotetypeID = restoredSession.selectedNotetypeId,
                    notetypeNames.contains(where: { $0.0 == restoredNotetypeID }) {
+                    shouldSkipNextNotetypeFieldReload = selectedNotetypeId != restoredNotetypeID
                     selectedNotetypeId = restoredNotetypeID
                 }
                 fieldNames = restoredSession.fieldNames
@@ -265,6 +277,7 @@ struct AddNoteView: View {
                     fieldCount: fieldNames.count
                 )
                 tags = restoredSession.tags
+                persistSession()
                 return
             }
             if let preferredNotetypeID = resolvedPreferredNotetypeID() {

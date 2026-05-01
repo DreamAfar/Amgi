@@ -145,6 +145,10 @@ struct NoteEditorView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
+        // The embedded fields editor is one tall WKWebView row; letting Form apply
+        // keyboard avoidance makes it overshoot based on the row height instead of
+        // the active caret position.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .navigationTitle(L("note_editor_title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)

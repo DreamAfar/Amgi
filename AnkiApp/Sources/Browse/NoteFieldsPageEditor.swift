@@ -15,6 +15,7 @@ struct NoteFieldsPageEditor: View {
     @Binding var fieldValues: [String]
     @Binding var fieldSourceModes: [Bool]
     let actionStates: [NoteFieldsPageEditorActionState]
+    var onDraftExport: (() -> Void)? = nil
     var onInsertPhoto: ((Int) -> Void)? = nil
     var onInsertCameraPhoto: ((Int) -> Void)? = nil
     var onInsertFile: ((Int) -> Void)? = nil
@@ -31,6 +32,7 @@ struct NoteFieldsPageEditor: View {
             fieldSourceModes: $fieldSourceModes,
             actionStates: actionStates,
             measuredHeight: $measuredHeight,
+            onDraftExport: onDraftExport,
             onInsertPhoto: onInsertPhoto,
             onInsertCameraPhoto: onInsertCameraPhoto,
             onInsertFile: onInsertFile,
@@ -50,6 +52,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
     @Binding var fieldSourceModes: [Bool]
     let actionStates: [NoteFieldsPageEditorActionState]
     @Binding var measuredHeight: CGFloat
+    var onDraftExport: (() -> Void)?
     var onInsertPhoto: ((Int) -> Void)?
     var onInsertCameraPhoto: ((Int) -> Void)?
     var onInsertFile: ((Int) -> Void)?
@@ -62,6 +65,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             fieldValues: $fieldValues,
             fieldSourceModes: $fieldSourceModes,
             measuredHeight: $measuredHeight,
+            onDraftExport: onDraftExport,
             onInsertPhoto: onInsertPhoto,
             onInsertCameraPhoto: onInsertCameraPhoto,
             onInsertFile: onInsertFile,
@@ -175,11 +179,11 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             -webkit-text-size-adjust: 100%;
         }
         body {
-            padding: 8px 0 12px;
+            padding: 4px 0 8px;
         }
         #fields {
             display: grid;
-            gap: 14px;
+            gap: 10px;
         }
         .field {
             padding: 0;
@@ -187,9 +191,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         .field-header {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-            padding: 0 2px;
+            gap: 8px;
+            margin-bottom: 2px;
+            padding: 0 1px;
         }
         .field-name {
             flex: 1 1 auto;
@@ -201,7 +205,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         .field-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             flex: 0 0 auto;
         }
         .field-action {
@@ -219,6 +223,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             border-radius: 999px;
             cursor: pointer;
             transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+        .field-action[hidden],
+        .field-action.is-hidden {
+            display: none !important;
         }
         .field-action svg {
             width: 15px;
@@ -238,17 +246,17 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             border-color: rgba(44, 107, 237, 0.22);
         }
         .field-editor-shell {
-            padding: 14px 16px;
-            border-radius: 14px;
+            padding: 3px 6px;
+            border-radius: 7px;
             border: 1px solid var(--shell-border-color);
             background: var(--shell-background);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
         }
         .field-preview {
             display: none;
-            margin-bottom: 8px;
-            padding: 12px;
-            border-radius: 12px;
+            margin-bottom: 4px;
+            padding: 6px;
+            border-radius: 6px;
             background: var(--preview-background);
             border: 1px solid var(--border-color);
             overflow: auto;
@@ -270,14 +278,16 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             max-height: 280px;
         }
         .field-rendered {
-            min-height: 26px;
+            min-height: 13px;
             white-space: normal;
             line-height: 1.45;
             caret-color: var(--text-color);
+            padding: 0;
+            margin: 0;
         }
         .field-source {
             display: none;
-            min-height: 26px;
+            min-height: 13px;
             resize: none;
             padding: 0;
             margin: 0;
@@ -824,12 +834,16 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             const imageButton = section.querySelector('.field-action[data-role="image"]');
             const sourceButton = section.querySelector('.field-action[data-role="source"]');
             if (audioButton) {
-                audioButton.hidden = !field.showsAudioButton;
+                const shouldShowAudio = !!field.showsAudioButton;
+                audioButton.hidden = !shouldShowAudio;
+                audioButton.classList.toggle('is-hidden', !shouldShowAudio);
                 audioButton.disabled = !field.hasAudio;
             }
             if (imageButton) {
-                imageButton.hidden = !field.hasEditableImage;
-                imageButton.disabled = !field.hasEditableImage;
+                const shouldShowImage = !!field.hasEditableImage;
+                imageButton.hidden = !shouldShowImage;
+                imageButton.classList.toggle('is-hidden', !shouldShowImage);
+                imageButton.disabled = !shouldShowImage;
             }
             if (sourceButton) {
                 sourceButton.classList.toggle('is-active', !!field.isSourceMode);
@@ -1210,7 +1224,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                     ]
                 )
             },
-            makeFormatButton(systemName: "rectangle.on.rectangle", title: "Cloze") {
+            makeTextFormatButton(label: "[...]", title: "Cloze") {
                 dismissInlineMenu()
                 coordinator.wrapSelectionInCloze()
             },
@@ -1477,6 +1491,29 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         return button
     }
 
+    private func makeTextFormatButton(label: String, title: String, action: @escaping () -> Void) -> UIButton {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.backgroundColor = .clear
+        button.layer.cornerRadius = 8
+        button.accessibilityLabel = title
+        var configuration = UIButton.Configuration.plain()
+        configuration.buttonSize = .small
+        configuration.baseBackgroundColor = .clear
+        configuration.baseForegroundColor = .systemBlue
+        configuration.attributedTitle = AttributedString(
+            label,
+            attributes: AttributeContainer([
+                .font: UIFont.monospacedSystemFont(ofSize: 12, weight: .semibold)
+            ])
+        )
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 3, leading: 2, bottom: 3, trailing: 2)
+        button.configuration = configuration
+        button.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        button.addAction(UIAction { _ in action() }, for: .touchUpInside)
+        return button
+    }
+
     private func makeMenuButton(systemName: String, title: String, tintColor: UIColor, action: @escaping () -> Void) -> UIButton {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
@@ -1592,6 +1629,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         private let onRecordAudio: ((Int) -> Void)?
         private let onPreviewAudio: ((Int) -> Void)?
         private let onEditImage: ((Int) -> Void)?
+        private let onDraftExport: (() -> Void)?
         private var colorSelectionHandler: ((UIColor) -> Void)?
         private var hasRegisteredLifecycleObservers = false
 
@@ -1599,6 +1637,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             fieldValues: Binding<[String]>,
             fieldSourceModes: Binding<[Bool]>,
             measuredHeight: Binding<CGFloat>,
+            onDraftExport: (() -> Void)?,
             onInsertPhoto: ((Int) -> Void)?,
             onInsertCameraPhoto: ((Int) -> Void)?,
             onInsertFile: ((Int) -> Void)?,
@@ -1609,6 +1648,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             self._fieldValues = fieldValues
             self._fieldSourceModes = fieldSourceModes
             self._measuredHeight = measuredHeight
+            self.onDraftExport = onDraftExport
             self.onInsertPhoto = onInsertPhoto
             self.onInsertCameraPhoto = onInsertCameraPhoto
             self.onInsertFile = onInsertFile
@@ -1764,6 +1804,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 if let index = body["activeFieldIndex"] as? Int {
                     activeFieldIndex = max(0, index)
                 }
+                onDraftExport?()
             case "requestPreviewAudio":
                 if let index = body["index"] as? Int {
                     onPreviewAudio?(index)
@@ -1853,6 +1894,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             ) { [weak self] result, _ in
                 guard let self, let fields = result as? [[String: Any]] else { return }
                 self.applyExportedState(fields)
+                self.onDraftExport?()
             }
         }
 
