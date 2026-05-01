@@ -1517,11 +1517,11 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         return button
     }
 
-    private struct Payload: Encodable, Equatable {
+    fileprivate struct Payload: Encodable, Equatable {
         let fields: [FieldPayload]
     }
 
-    private struct FieldPayload: Encodable, Equatable {
+    fileprivate struct FieldPayload: Encodable, Equatable {
         let name: String
         let html: String
         let isSourceMode: Bool
@@ -1553,7 +1553,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         weak var webView: WKWebView?
         var lastDocument = ""
         var lastPayloadJSON = ""
-        private var pendingPayloadAfterLoad: Payload?
+        fileprivate var pendingPayloadAfterLoad: Payload?
         var activeFieldIndex = 0
         private let onInsertPhoto: ((Int) -> Void)?
         private let onInsertCameraPhoto: ((Int) -> Void)?
@@ -1591,7 +1591,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             registerLifecycleObservers()
         }
 
-        private func pushPayloadIfNeeded(_ payload: Payload, force: Bool = false) {
+        fileprivate func pushPayloadIfNeeded(_ payload: Payload, force: Bool = false) {
             guard let payloadJSON = Self.javaScriptObjectLiteral(from: payload) else { return }
             guard force || payloadJSON != lastPayloadJSON else { return }
             lastPayloadJSON = payloadJSON
