@@ -84,6 +84,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         webView.scrollView.isScrollEnabled = false
         webView.scrollView.showsVerticalScrollIndicator = false
         webView.scrollView.showsHorizontalScrollIndicator = false
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = context.coordinator
         webView.accessoryView = makeInputToolbar(for: webView, coordinator: context.coordinator)
         context.coordinator.attach(webView: webView)
@@ -94,9 +95,12 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         let document = htmlDocument(colorScheme: colorScheme)
         let payload = makePayload()
         if context.coordinator.lastDocument != document {
-            context.coordinator.lastDocument = document
-            context.coordinator.pendingPayloadAfterLoad = payload
+            context.coordinator.prepareForDocumentReload(document: document, payload: payload)
             webView.loadHTMLString(document, baseURL: CardAssetPath.mediaBaseURL)
+            return
+        }
+        guard context.coordinator.isPageReady else {
+            context.coordinator.pendingPayloadAfterLoad = payload
             return
         }
         context.coordinator.pushPayloadIfNeeded(payload)
@@ -134,6 +138,8 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         let borderColor = colorScheme == .dark ? "rgba(255,255,255,0.12)" : "rgba(23,33,47,0.10)"
         let rowBackground = colorScheme == .dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.92)"
         let previewBackground = colorScheme == .dark ? "rgba(255,255,255,0.04)" : "rgba(23,33,47,0.03)"
+        let shellBackground = colorScheme == .dark ? "#343434" : "#FFFFFF"
+        let shellBorderColor = colorScheme == .dark ? "rgba(255,255,255,0.14)" : "rgba(23,33,47,0.12)"
         let linkColor = colorScheme == .dark ? "#8FB8FF" : "#1E5BB8"
         let accentColor = colorScheme == .dark ? "#8FB8FF" : "#2C6BED"
         let selectionColor = colorScheme == .dark ? "rgba(143,184,255,0.26)" : "rgba(30,91,184,0.18)"
@@ -153,6 +159,8 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             --border-color: \(borderColor);
             --row-background: \(rowBackground);
             --preview-background: \(previewBackground);
+            --shell-background: \(shellBackground);
+            --shell-border-color: \(shellBorderColor);
             --link-color: \(linkColor);
             --accent-color: \(accentColor);
             --selection-color: \(selectionColor);
@@ -167,27 +175,26 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             -webkit-text-size-adjust: 100%;
         }
         body {
-            padding: 8px 0;
+            padding: 8px 0 12px;
         }
         #fields {
-            display: block;
+            display: grid;
+            gap: 14px;
         }
         .field {
-            padding: 12px 0;
-            border-bottom: 1px solid var(--border-color);
-        }
-        .field:last-child {
-            border-bottom: none;
+            padding: 0;
         }
         .field-header {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            padding: 0 2px;
         }
         .field-name {
             flex: 1 1 auto;
-            font-size: 15px;
+            font-size: 14px;
+            font-weight: 600;
             line-height: 1.2;
             color: var(--secondary-text-color);
         }
@@ -230,6 +237,13 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             background: rgba(44, 107, 237, 0.12);
             border-color: rgba(44, 107, 237, 0.22);
         }
+        .field-editor-shell {
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--shell-border-color);
+            background: var(--shell-background);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
         .field-preview {
             display: none;
             margin-bottom: 8px;
@@ -252,20 +266,18 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             color: var(--text-color);
             border-radius: 0;
             overflow-wrap: anywhere;
+            overflow-y: auto;
+            max-height: 280px;
         }
         .field-rendered {
-            min-height: 24px;
-            max-height: 320px;
-            overflow-y: auto;
+            min-height: 26px;
             white-space: normal;
             line-height: 1.45;
             caret-color: var(--text-color);
         }
         .field-source {
             display: none;
-            min-height: 120px;
-            max-height: 240px;
-            overflow-y: auto;
+            min-height: 26px;
             resize: none;
             padding: 0;
             margin: 0;
@@ -273,6 +285,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             background: transparent;
             color: var(--text-color);
             white-space: pre-wrap;
+        }
+        .field.is-source-mode .field-editor-shell {
+            background: var(--preview-background);
         }
         .field.is-source-mode .field-source {
             display: block;
@@ -353,6 +368,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             return fieldsRoot.querySelector(`.field[data-field-index="${index}"]`);
         }
 
+        function editorShellElement(index) {
+            return fieldElement(index)?.querySelector('.field-editor-shell');
+        }
+
         function renderedElement(index) {
             return fieldElement(index)?.querySelector('.field-rendered');
         }
@@ -371,6 +390,15 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 || lowercased.includes('<svg')
                 || lowercased.includes('<video')
                 || lowercased.includes('<audio');
+        }
+
+        function focusElement(element) {
+            if (!element) { return; }
+            try {
+                element.focus({ preventScroll: true });
+            } catch (error) {
+                element.focus();
+            }
         }
 
         function setActiveField(index) {
@@ -561,13 +589,13 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         function focusRendered(index) {
             const editor = renderedElement(index);
             if (!editor) { return; }
-            editor.focus();
+            focusElement(editor);
         }
 
         function focusActiveField() {
             const index = state.activeFieldIndex;
             if (state.fields[index]?.isSourceMode) {
-                sourceElement(index)?.focus();
+                focusElement(sourceElement(index));
             } else {
                 focusRendered(index);
             }
@@ -821,6 +849,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 source.value = field.html || '';
             }
             section.classList.toggle('is-source-mode', !!field.isSourceMode);
+            editorShellElement(index)?.classList.toggle('is-source-mode', !!field.isSourceMode);
             updatePreview(index);
             updateActionState(index);
         }
@@ -843,7 +872,6 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             rendered.addEventListener('blur', () => {
                 state.fields[index].html = rendered.innerHTML;
                 sendFieldChanged(index);
-                scheduleHeightUpdate();
             });
 
             source.addEventListener('focus', () => setActiveField(index));
@@ -857,7 +885,6 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             source.addEventListener('blur', () => {
                 state.fields[index].html = source.value;
                 sendFieldChanged(index);
-                scheduleHeightUpdate();
             });
 
             sourceButton.addEventListener('click', () => {
@@ -867,9 +894,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 sendSourceModeChanged(index);
                 setActiveField(index);
                 if (next) {
-                    source.focus();
+                    focusElement(source);
                 } else {
-                    rendered.focus();
+                    focusElement(rendered);
                 }
                 scheduleHeightUpdate();
             });
@@ -941,6 +968,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             preview.className = 'field-preview';
             section.appendChild(preview);
 
+            const shell = document.createElement('div');
+            shell.className = 'field-editor-shell';
+
             const rendered = document.createElement('div');
             rendered.className = 'field-rendered';
             rendered.contentEditable = 'true';
@@ -948,7 +978,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             rendered.autocapitalize = 'off';
             rendered.autocomplete = 'off';
             rendered.autocorrect = 'off';
-            section.appendChild(rendered);
+            shell.appendChild(rendered);
 
             const source = document.createElement('textarea');
             source.className = 'field-source';
@@ -956,7 +986,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             source.autocapitalize = 'off';
             source.autocomplete = 'off';
             source.autocorrect = 'off';
-            section.appendChild(source);
+            shell.appendChild(source);
+
+            section.appendChild(shell);
 
             bindFieldSection(section, index);
             return section;
@@ -1027,14 +1059,12 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             }
         };
 
-        document.addEventListener('selectionchange', scheduleHeightUpdate);
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState !== 'visible') {
                 flushPendingChanges();
             }
         });
         window.addEventListener('load', scheduleHeightUpdate);
-        window.addEventListener('resize', scheduleHeightUpdate);
         window.addEventListener('pageshow', scheduleHeightUpdate);
         document.addEventListener('click', event => {
             if (!(event.target instanceof Element)) { return; }
@@ -1553,6 +1583,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         weak var webView: WKWebView?
         var lastDocument = ""
         var lastPayloadJSON = ""
+        var isPageReady = false
         fileprivate var pendingPayloadAfterLoad: Payload?
         var activeFieldIndex = 0
         private let onInsertPhoto: ((Int) -> Void)?
@@ -1591,7 +1622,18 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             registerLifecycleObservers()
         }
 
+        func prepareForDocumentReload(document: String, payload: Payload) {
+            lastDocument = document
+            lastPayloadJSON = ""
+            isPageReady = false
+            pendingPayloadAfterLoad = payload
+        }
+
         fileprivate func pushPayloadIfNeeded(_ payload: Payload, force: Bool = false) {
+            guard isPageReady else {
+                pendingPayloadAfterLoad = payload
+                return
+            }
             guard let payloadJSON = Self.javaScriptObjectLiteral(from: payload) else { return }
             guard force || payloadJSON != lastPayloadJSON else { return }
             lastPayloadJSON = payloadJSON
@@ -1678,7 +1720,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            if let pendingPayloadAfterLoad {
+            if isPageReady, let pendingPayloadAfterLoad {
                 pushPayloadIfNeeded(pendingPayloadAfterLoad, force: true)
                 self.pendingPayloadAfterLoad = nil
             }
@@ -1692,6 +1734,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
             switch type {
             case "ready":
+                isPageReady = true
                 if let pendingPayloadAfterLoad {
                     pushPayloadIfNeeded(pendingPayloadAfterLoad, force: true)
                     self.pendingPayloadAfterLoad = nil
