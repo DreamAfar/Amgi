@@ -7,7 +7,7 @@ import UIKit
 /// Amgi stores field values as HTML fragments. In rendered mode, this editor
 /// maps a conservative subset of HTML to attributed text for inline editing.
 /// In source mode, it preserves the raw stored HTML.
-private struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
+struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
     @Binding var htmlText: String
     var preservesSourceHTML = false
     var onInsertPhoto: (() -> Void)?
