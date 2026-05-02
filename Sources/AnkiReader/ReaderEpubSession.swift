@@ -1,5 +1,5 @@
 public import EPUBKit
-import Foundation
+public import Foundation
 import Observation
 
 public enum ReaderEpubNavigationAction: Sendable {

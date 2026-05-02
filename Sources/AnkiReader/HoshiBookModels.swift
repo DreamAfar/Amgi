@@ -1,4 +1,4 @@
-import Foundation
+public import Foundation
 
 public enum SortOption: String, CaseIterable, Identifiable, Sendable {
     case recent = "Recent"

@@ -1,5 +1,5 @@
 public import EPUBKit
-import Foundation
+public import Foundation
 
 public enum FileNames: Sendable {
     public static let metadata = "metadata.json"
