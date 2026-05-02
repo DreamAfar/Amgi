@@ -148,7 +148,7 @@ private func processImport(url: URL) throws {
     try processImport(sourceURL: url)
 }
 
-private func deleteBooks(_ bookIDs: [UUID]) throws {
+private func deleteEpubBooks(_ bookIDs: [UUID]) throws {
     let state = try loadEpubLibraryState()
     for book in state.books where bookIDs.contains(book.id) {
         if let folder = book.folder {
@@ -176,7 +176,7 @@ extension ReaderEpubLibraryClient: DependencyKey {
             return try loadEpubLibraryState()
         },
         deleteBooks: { bookIDs in
-            try deleteBooks(bookIDs)
+            try deleteEpubBooks(bookIDs)
             return try loadEpubLibraryState()
         }
     )
