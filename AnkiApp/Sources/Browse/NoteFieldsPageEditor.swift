@@ -140,10 +140,11 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         let textColor = colorScheme == .dark ? "#F2F4F8" : "#17212F"
         let secondaryTextColor = colorScheme == .dark ? "#A7B5C8" : "#7E8795"
         let borderColor = colorScheme == .dark ? "rgba(255,255,255,0.12)" : "rgba(23,33,47,0.10)"
-        let rowBackground = colorScheme == .dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.92)"
+        let rowBackground = colorScheme == .dark ? "#303744" : "#EEF2F7"
         let previewBackground = colorScheme == .dark ? "rgba(255,255,255,0.04)" : "rgba(23,33,47,0.03)"
-        let shellBackground = colorScheme == .dark ? "#343434" : "#FFFFFF"
-        let shellBorderColor = colorScheme == .dark ? "rgba(255,255,255,0.14)" : "rgba(23,33,47,0.12)"
+        let shellBackground = colorScheme == .dark ? "#232A34" : "#E2E8F0"
+        let shellBorderColor = colorScheme == .dark ? "rgba(255,255,255,0.10)" : "rgba(23,33,47,0.08)"
+        let actionBackground = colorScheme == .dark ? "rgba(255,255,255,0.07)" : "rgba(23,33,47,0.07)"
         let linkColor = colorScheme == .dark ? "#8FB8FF" : "#1E5BB8"
         let accentColor = colorScheme == .dark ? "#8FB8FF" : "#2C6BED"
         let selectionColor = colorScheme == .dark ? "rgba(143,184,255,0.26)" : "rgba(30,91,184,0.18)"
@@ -165,6 +166,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             --preview-background: \(previewBackground);
             --shell-background: \(shellBackground);
             --shell-border-color: \(shellBorderColor);
+            --action-background: \(actionBackground);
             --link-color: \(linkColor);
             --accent-color: \(accentColor);
             --selection-color: \(selectionColor);
@@ -187,13 +189,17 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         }
         .field {
             padding: 0;
+            display: grid;
+            gap: 6px;
         }
         .field-header {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 2px;
-            padding: 0 1px;
+            padding: 8px 10px;
+            background: var(--row-background);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
         }
         .field-name {
             flex: 1 1 auto;
@@ -211,7 +217,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         .field-action {
             appearance: none;
             border: 1px solid transparent;
-            background: rgba(127, 127, 127, 0.08);
+            background: var(--action-background);
             color: var(--secondary-text-color);
             width: 28px;
             height: 28px;
@@ -246,11 +252,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             border-color: rgba(44, 107, 237, 0.22);
         }
         .field-editor-shell {
-            padding: 3px 6px;
-            border-radius: 7px;
+            padding: 6px 8px;
+            border-radius: 10px;
             border: 1px solid var(--shell-border-color);
             background: var(--shell-background);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
         }
         .field-preview {
             display: none;
@@ -297,7 +302,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             white-space: pre-wrap;
         }
         .field.is-source-mode .field-editor-shell {
-            background: var(--preview-background);
+            background: var(--shell-background);
         }
         .field.is-source-mode .field-source {
             display: block;
@@ -374,9 +379,12 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             window.requestAnimationFrame(sendHeightIfNeeded);
         }
 
-        function rectPayload(element) {
-            if (!element) { return null; }
-            const rect = element.getBoundingClientRect();
+        function rectPayload(rectSource) {
+            if (!rectSource) { return null; }
+            const rect = typeof rectSource.getBoundingClientRect === 'function'
+                ? rectSource.getBoundingClientRect()
+                : rectSource;
+            if (!rect) { return null; }
             return {
                 minX: rect.left,
                 minY: rect.top,
@@ -405,6 +413,32 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
         function previewElement(index) {
             return fieldElement(index)?.querySelector('.field-preview');
+        }
+
+        function activeCaretRect(index) {
+            if (state.fields[index]?.isSourceMode) {
+                return rectPayload(sourceElement(index) || editorShellElement(index) || fieldElement(index));
+            }
+
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0 && selection.anchorNode) {
+                const range = selection.getRangeAt(0).cloneRange();
+                range.collapse(false);
+                const clientRect = Array.from(range.getClientRects()).find(rect => rect.width > 0 || rect.height > 0)
+                    || range.getBoundingClientRect();
+                if (clientRect && (clientRect.width > 0 || clientRect.height > 0)) {
+                    return rectPayload(clientRect);
+                }
+
+                const anchorElement = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+                    ? selection.anchorNode
+                    : selection.anchorNode.parentElement;
+                if (anchorElement) {
+                    return rectPayload(anchorElement);
+                }
+            }
+
+            return rectPayload(renderedElement(index) || editorShellElement(index) || fieldElement(index));
         }
 
         function hasEmbeddedMedia(html) {
@@ -1079,7 +1113,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 return flushPendingChanges();
             },
             activeFieldRect() {
-                return rectPayload(fieldElement(state.activeFieldIndex));
+                return activeCaretRect(state.activeFieldIndex);
             },
             focus() {
                 focusActiveField();
@@ -1442,39 +1476,84 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         dismissMenu: @escaping () -> Void
     ) -> [UIView] {
         [
-            makePaletteActionButton(title: L("rich_text_action_bold"), systemName: "bold", tintColor: .systemBlue) {
+            makePaletteActionButton(
+                title: L("rich_text_action_bold"),
+                systemName: "bold",
+                tintColor: .systemRed,
+                badgeSystemName: "xmark.circle.fill"
+            ) {
                 coordinator.clearFormatting(.bold)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_italic"), systemName: "italic", tintColor: .systemBlue) {
+            makePaletteActionButton(
+                title: L("rich_text_action_italic"),
+                systemName: "italic",
+                tintColor: .systemRed,
+                badgeSystemName: "xmark.circle.fill"
+            ) {
                 coordinator.clearFormatting(.italic)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_underline"), systemName: "underline", tintColor: .systemBlue) {
+            makePaletteActionButton(
+                title: L("rich_text_action_underline"),
+                systemName: "underline",
+                tintColor: .systemRed,
+                badgeSystemName: "xmark.circle.fill"
+            ) {
                 coordinator.clearFormatting(.underline)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_strikethrough"), systemName: "strikethrough", tintColor: .systemBlue) {
+            makePaletteActionButton(
+                title: L("rich_text_action_strikethrough"),
+                systemName: "strikethrough",
+                tintColor: .systemRed,
+                badgeSystemName: "xmark.circle.fill"
+            ) {
                 coordinator.clearFormatting(.strikethrough)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_superscript"), systemName: "textformat.superscript", tintColor: .systemBlue) {
+            makePaletteActionButton(
+                title: L("rich_text_action_superscript"),
+                systemName: "textformat.superscript",
+                tintColor: .systemRed,
+                badgeSystemName: "xmark.circle.fill"
+            ) {
                 coordinator.clearFormatting(.superscript)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_subscript"), systemName: "textformat.subscript", tintColor: .systemBlue) {
+            makePaletteActionButton(
+                title: L("rich_text_action_subscript"),
+                systemName: "textformat.subscript",
+                tintColor: .systemRed,
+                badgeSystemName: "xmark.circle.fill"
+            ) {
                 coordinator.clearFormatting(.subscriptText)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_color"), systemName: "paintbrush", tintColor: .systemBlue) {
+            makePaletteActionButton(
+                title: L("rich_text_action_color"),
+                systemName: "paintbrush",
+                tintColor: .systemRed,
+                badgeSystemName: "xmark.circle.fill"
+            ) {
                 coordinator.clearFormatting(.foregroundColor)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_action_highlight"), systemName: "highlighter", tintColor: .systemBlue) {
+            makePaletteActionButton(
+                title: L("rich_text_action_highlight"),
+                systemName: "highlighter",
+                tintColor: .systemRed,
+                badgeSystemName: "xmark.circle.fill"
+            ) {
                 coordinator.clearFormatting(.backgroundColor)
                 dismissMenu()
             },
-            makePaletteActionButton(title: L("rich_text_clear_all_confirm"), systemName: "eraser.line.dashed", tintColor: .systemRed) {
+            makePaletteActionButton(
+                title: L("rich_text_clear_all_confirm"),
+                systemName: "eraser.line.dashed",
+                tintColor: .systemRed,
+                badgeSystemName: "xmark.circle.fill"
+            ) {
                 coordinator.clearFormatting(.all)
                 dismissMenu()
             }
@@ -1592,6 +1671,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         title: String?,
         systemName: String? = nil,
         tintColor: UIColor,
+        badgeSystemName: String? = nil,
         action: @escaping () -> Void
     ) -> UIButton {
         let button = UIButton(type: .system)
@@ -1617,6 +1697,21 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         }
         button.configuration = configuration
         button.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        if let badgeSystemName {
+            let badge = UIImageView(image: UIImage(systemName: badgeSystemName))
+            badge.translatesAutoresizingMaskIntoConstraints = false
+            badge.tintColor = tintColor
+            badge.backgroundColor = .systemBackground
+            badge.layer.cornerRadius = 6
+            badge.clipsToBounds = true
+            button.addSubview(badge)
+            NSLayoutConstraint.activate([
+                badge.widthAnchor.constraint(equalToConstant: 12),
+                badge.heightAnchor.constraint(equalToConstant: 12),
+                badge.topAnchor.constraint(equalTo: button.topAnchor, constant: 2),
+                badge.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -1)
+            ])
+        }
         button.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return button
     }
@@ -2022,18 +2117,23 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             let keyboardFrameInWindow = keyboardEndFrameInScreen.isNull
                 ? CGRect(x: 0, y: window.bounds.maxY, width: window.bounds.width, height: 0)
                 : window.convert(keyboardEndFrameInScreen, from: nil)
+            let visibleKeyboardFrame = keyboardFrameInWindow.intersection(window.bounds)
 
-            let topInset = window.safeAreaInsets.top + 12
-            let bottomInset = max(topInset, keyboardFrameInWindow.minY - 12)
-            var deltaY: CGFloat = 0
+            guard visibleKeyboardFrame.height > 44 else { return }
 
-            if fieldRectInWindow.maxY > bottomInset {
-                deltaY = fieldRectInWindow.maxY - bottomInset
-            } else if fieldRectInWindow.minY < topInset {
-                deltaY = fieldRectInWindow.minY - topInset
-            }
+            let topInset = window.safeAreaInsets.top + 16
+            let bottomInset = max(topInset + 56, visibleKeyboardFrame.minY - 16)
+            let availableHeight = bottomInset - topInset
+            guard availableHeight > 0 else { return }
 
-            guard abs(deltaY) > 1 else { return }
+            let desiredFocusY = min(
+                bottomInset - 36,
+                topInset + max(72, availableHeight * 0.36)
+            )
+            let focusY = fieldRectInWindow.height > 6 ? fieldRectInWindow.midY : fieldRectInWindow.minY
+            let deltaY = focusY - desiredFocusY
+
+            guard abs(deltaY) > 6 else { return }
             let minOffsetY = -hostScrollView.adjustedContentInset.top
             let maxOffsetY = max(
                 minOffsetY,

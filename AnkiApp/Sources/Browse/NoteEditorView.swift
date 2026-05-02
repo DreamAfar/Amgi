@@ -14,7 +14,6 @@ struct NoteEditorView: View {
     let onSave: () -> Void
 
     @Dependency(\.noteClient) var noteClient
-    @Dependency(\.tagClient) var tagClient
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.mediaClient) var mediaClient
 
@@ -23,17 +22,14 @@ struct NoteEditorView: View {
     @State private var fieldSourceModes: [Bool] = []
     @State private var tags: String = ""
     @State private var tagDraft = ""
-    @State private var availableTags: [String] = []
-    @State private var hasLoadedAvailableTags = false
-    @State private var isLoadingAvailableTags = false
     @State private var hasLoadedOriginalState = false
     @State private var isSaving = false
     @State private var originalFieldValues: [String] = []
     @State private var originalTags: String = ""
     @State private var showDiscardChangesConfirmation = false
-    @State private var showTagPicker = false
     @State private var showPreviewSheet = false
     @State private var pendingMediaFieldIndex: Int?
+    @State private var pendingTagRemoval: String?
     @State private var showPhotoPicker = false
     @State private var showCameraPicker = false
     @State private var showMediaFileImporter = false
@@ -43,6 +39,7 @@ struct NoteEditorView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var notetype: Anki_Notetypes_Notetype?
+    @FocusState private var isTagEditorFocused: Bool
     @Environment(\.dismiss) private var dismiss
 
     private var trimmedTags: String {
@@ -65,7 +62,7 @@ struct NoteEditorView: View {
 
     private var hasUnsavedChanges: Bool {
         hasLoadedOriginalState
-            && (fieldValues != originalFieldValues || trimmedTags != originalTags)
+            && (fieldValues != originalFieldValues || trimmedTags != originalTags || normalizedTagDraft.isEmpty == false)
     }
 
     private var fieldEditorActionStates: [NoteFieldsPageEditorActionState] {
@@ -83,10 +80,21 @@ struct NoteEditorView: View {
         }
     }
 
+    private var tagRemovalAlertPresented: Binding<Bool> {
+        Binding(
+            get: { pendingTagRemoval != nil },
+            set: { isPresented in
+                if !isPresented {
+                    pendingTagRemoval = nil
+                }
+            }
+        )
+    }
+
     var body: some View {
         Form {
             Section(L("add_note_section_fields")) {
-                VStack(spacing: 0) {
+                VStack(spacing: AmgiSpacing.sm) {
                     NoteFieldsPageEditor(
                         fieldNames: fieldNames,
                         fieldValues: $fieldValues,
@@ -99,48 +107,14 @@ struct NoteEditorView: View {
                         onPreviewAudio: { previewAudio(at: $0) },
                         onEditImage: { beginExistingImageEdit(at: $0) }
                     )
+
+                    tagEditorCard
                 }
                 .padding(.horizontal, AmgiSpacing.md)
                 .padding(.vertical, AmgiSpacing.xs)
                 .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 .listRowBackground(Color.clear)
-            }
-
-            Section(L("add_note_section_tags")) {
-                ForEach(tagList, id: \.self) { tag in
-                    Button {
-                        showTagPicker = true
-                    } label: {
-                        HStack {
-                            Text(tag)
-                                .amgiFont(.caption)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color.amgiAccent.opacity(0.14), in: Capsule())
-                                .foregroundStyle(Color.amgiAccent)
-                            Spacer()
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            removeTag(tag)
-                        } label: {
-                            Label(L("tags_remove_swipe"), systemImage: "trash")
-                        }
-                    }
-                }
-
-                Button {
-                    showTagPicker = true
-                } label: {
-                    Label(L("tags_add_tag_title"), systemImage: "plus")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .foregroundStyle(Color.amgiAccent)
-                .disabled(isLoadingAvailableTags)
             }
         }
         .scrollContentBackground(.hidden)
@@ -162,6 +136,7 @@ struct NoteEditorView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("card_template_preview_btn")) {
+                    commitPendingTagDraft()
                     showPreviewSheet = true
                 }
                 .amgiToolbarTextButton(tone: .neutral)
@@ -174,9 +149,6 @@ struct NoteEditorView: View {
                 .amgiToolbarTextButton()
                 .disabled(isSaving)
             }
-        }
-        .sheet(isPresented: $showTagPicker) {
-            tagPickerSheet
         }
         .photosPicker(
             isPresented: $showPhotoPicker,
@@ -241,6 +213,19 @@ struct NoteEditorView: View {
         } message: {
             Text(errorMessage ?? L("common_unknown_error"))
         }
+        .alert(L("common_delete"), isPresented: tagRemovalAlertPresented) {
+            Button(L("common_delete"), role: .destructive) {
+                if let pendingTagRemoval {
+                    removeTag(pendingTagRemoval)
+                }
+                pendingTagRemoval = nil
+            }
+            Button(L("common_cancel"), role: .cancel) {
+                pendingTagRemoval = nil
+            }
+        } message: {
+            Text(pendingTagRemoval ?? "")
+        }
         .confirmationDialog(
             L("common_unsaved_changes_title"),
             isPresented: $showDiscardChangesConfirmation,
@@ -258,58 +243,74 @@ struct NoteEditorView: View {
         }
     }
 
-    private var tagPickerSheet: some View {
-        NavigationStack {
-            List {
-                Section(L("tags_add_name_section")) {
-                    HStack(spacing: AmgiSpacing.sm) {
-                        TextField(L("tags_add_placeholder"), text: $tagDraft)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
+    private var tagEditorCard: some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            Text(L("add_note_section_tags"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
 
-                        Button {
-                            addDraftTag()
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title3)
-                        }
-                        .foregroundStyle(Color.amgiAccent)
-                        .disabled(normalizedTagDraft.isEmpty)
-                    }
-                }
-
-                Section(L("note_editor_available_tags")) {
-                    if isLoadingAvailableTags && availableTags.isEmpty {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    } else {
-                        ForEach(availableTags.sorted(), id: \.self) { tag in
-                            Button(action: { toggleTag(tag) }) {
-                                HStack {
-                                    Text(tag)
-                                    Spacer()
-                                    if tagList.contains(tag) {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(Color.amgiAccent)
-                                    }
-                                }
-                            }
+            VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+                if !tagList.isEmpty {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 88), spacing: 8, alignment: .leading)],
+                        alignment: .leading,
+                        spacing: 8
+                    ) {
+                        ForEach(tagList, id: \.self) { tag in
+                            tagCapsule(tag)
                         }
                     }
                 }
+
+                TextField(L("tags_add_placeholder"), text: $tagDraft, axis: .vertical)
+                    .focused($isTagEditorFocused)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .lineLimit(1...2)
+                    .onSubmit {
+                        commitPendingTagDraft()
+                    }
+                    .onChange(of: tagDraft) {
+                        consumeCompletedTagsFromDraft()
+                    }
             }
-            .navigationTitle(L("note_editor_select_tags"))
-            .navigationBarTitleDisplayMode(.inline)
-            .task {
-                await ensureAvailableTagsLoaded()
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(L("common_done")) { showTagPicker = false }
-                        .amgiToolbarTextButton()
-                }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.amgiAccent.opacity(0.12), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .onTapGesture {
+                isTagEditorFocused = true
             }
         }
+    }
+
+    private func tagCapsule(_ tag: String) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Text(tag)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiAccent)
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.amgiAccent.opacity(0.14), in: Capsule())
+
+            Button {
+                pendingTagRemoval = tag
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white, Color.red)
+            }
+            .buttonStyle(.plain)
+            .offset(x: 4, y: -4)
+        }
+        .padding(.top, 4)
+        .padding(.trailing, 4)
     }
 
     private func fieldValue(at index: Int) -> String {
@@ -612,27 +613,10 @@ struct NoteEditorView: View {
         while fieldValues.count < fieldNames.count { fieldValues.append("") }
         fieldSourceModes = Array(repeating: false, count: fieldNames.count)
         tags = noteData.tags.trimmingCharacters(in: .whitespaces)
+        tagDraft = ""
         originalFieldValues = fieldValues
         originalTags = trimmedTags
         hasLoadedOriginalState = true
-    }
-    
-    private func ensureAvailableTagsLoaded() async {
-        guard !hasLoadedAvailableTags, !isLoadingAvailableTags else { return }
-        isLoadingAvailableTags = true
-        defer { isLoadingAvailableTags = false }
-
-        do {
-            availableTags = try tagClient.getAllTags()
-            hasLoadedAvailableTags = true
-        } catch {
-            print("[NoteEditorView] Failed to load tags: \(error)")
-        }
-    }
-
-    private func addDraftTag() {
-        addTag(normalizedTagDraft)
-        tagDraft = ""
     }
 
     private func addTag(_ tag: String) {
@@ -644,24 +628,36 @@ struct NoteEditorView: View {
 
         updatedTags.append(normalized)
         tags = updatedTags.joined(separator: " ")
-        if !availableTags.contains(normalized) {
-            availableTags.append(normalized)
-        }
     }
 
     private func removeTag(_ tag: String) {
         tags = tagList.filter { $0 != tag }.joined(separator: " ")
     }
 
-    private func toggleTag(_ tag: String) {
-        if tagList.contains(tag) {
-            removeTag(tag)
-        } else {
-            addTag(tag)
-        }
+    private func consumeCompletedTagsFromDraft() {
+        let components = tagDraft
+            .components(separatedBy: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",，;；")))
+            .filter { !$0.isEmpty }
+        let endsWithSeparator = tagDraft.last.map { ",，;； \n\t".contains($0) } ?? false
+
+        guard endsWithSeparator || components.count > 1 else { return }
+
+        let completedTags = endsWithSeparator ? components : Array(components.dropLast())
+        completedTags.forEach(addTag)
+        tagDraft = endsWithSeparator ? "" : (components.last ?? "")
+    }
+
+    private func commitPendingTagDraft() {
+        let pendingTags = tagDraft
+            .components(separatedBy: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",，;；")))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        pendingTags.forEach(addTag)
+        tagDraft = ""
     }
 
     private func attemptDismiss() {
+        commitPendingTagDraft()
         if hasUnsavedChanges {
             showDiscardChangesConfirmation = true
         } else {
@@ -670,6 +666,7 @@ struct NoteEditorView: View {
     }
 
     private func save() async {
+        commitPendingTagDraft()
         isSaving = true
         let storedFieldValues = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
         let newFlds = storedFieldValues.joined(separator: "\u{1f}")

@@ -274,11 +274,6 @@ struct BrowseView: View {
                 }
             }
         }
-        .sheet(isPresented: $showAddNote) {
-            AddNoteView {
-                scheduleSearch()
-            }
-        }
         .sheet(isPresented: $showTagsManager, onDismiss: {
             activeSearchTask?.cancel()
             activeSearchTask = nil
@@ -497,6 +492,13 @@ struct BrowseView: View {
             async let notetypesLoad: Void = loadNotetypeNames()
             _ = await (decksLoad, tagsLoad, notetypesLoad)
             await performSearch()
+        }
+        // Keep Add Note outside the searchable host; otherwise Browse can recreate the
+        // presented tree on app state transitions and wipe the in-progress draft.
+        .sheet(isPresented: $showAddNote) {
+            AddNoteView {
+                scheduleSearch()
+            }
         }
         // Present IO flows outside the searchable wrapper; otherwise the search host can
         // immediately dismiss nested system pickers when Browse launches the IO add/edit pages.
