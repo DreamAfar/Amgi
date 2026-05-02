@@ -437,6 +437,8 @@
 "reader_library_sort_progress" = "阅读进度";
 "reader_library_multi_select" = "多选";
 "reader_library_selected_count" = "已选择 %d 本";
+"reader_library_source_badge_anki" = "Anki";
+"reader_library_source_badge_epub" = "EPUB";
 "reader_library_empty_title" = "暂无可读书籍";
 "reader_library_empty_description" = "当前配置的牌组里还没有可供阅读的书籍内容。";
 "reader_epub_empty_description" = "导入 EPUB 文件后，这里会显示本地书架。";
@@ -467,6 +469,7 @@
 "settings_reader_source_mode" = "书源模式";
 "settings_reader_source_mode_notes" = "Anki 笔记";
 "settings_reader_source_mode_epub" = "EPUB 书库";
+"settings_reader_source_mixed_description" = "Books 会把 Anki 字段书籍和导入的 EPUB 书籍一起显示在同一个书架里。";
 "settings_reader_epub_source_description" = "使用内置 EPUB 书库。在阅读器标签页导入本地 EPUB 后即可直接阅读，不再依赖牌组字段映射。";
 
 // MARK: - Backup

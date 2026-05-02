@@ -437,6 +437,8 @@
 "reader_library_sort_progress" = "進捗順";
 "reader_library_multi_select" = "複数選択";
 "reader_library_selected_count" = "%d 件を選択中";
+"reader_library_source_badge_anki" = "Anki";
+"reader_library_source_badge_epub" = "EPUB";
 "reader_library_empty_title" = "読める書籍がありません";
 "reader_library_empty_description" = "設定されたデッキに読書用の書籍データが見つかりませんでした。";
 "reader_epub_empty_description" = "EPUB を取り込むと、ここにローカル本棚が表示されます。";
@@ -467,6 +469,7 @@
 "settings_reader_source_mode" = "ソースモード";
 "settings_reader_source_mode_notes" = "Anki ノート";
 "settings_reader_source_mode_epub" = "EPUB 本棚";
+"settings_reader_source_mixed_description" = "Books では Anki フィールドの書籍と取り込み EPUB の書籍を同じ本棚にまとめて表示します。";
 "settings_reader_epub_source_description" = "内蔵 EPUB 本棚を使います。リーダータブからローカル EPUB を読み込めば、デッキのフィールド対応なしで読めます。";
 
 // MARK: - Backup

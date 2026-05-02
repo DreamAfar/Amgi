@@ -44,14 +44,38 @@ private enum ReaderChapterSheetRoute: String, Identifiable {
     var id: String { rawValue }
 }
 
+private struct ReaderLibraryBookItem: Identifiable {
+    enum Source {
+        case ankiNotes
+        case epub
+
+        var badgeTitle: String {
+            switch self {
+            case .ankiNotes:
+                return L("reader_library_source_badge_anki")
+            case .epub:
+                return L("reader_library_source_badge_epub")
+            }
+        }
+    }
+
+    let id: String
+    let source: Source
+    let title: String
+    let progress: Double
+    let lastAccess: Date
+    let noteBook: ReaderBook?
+    let epubBook: BookMetadata?
+}
+
 struct ReaderLibraryView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.readerBookClient) var readerBookClient
+    @Dependency(\.readerEpubLibraryClient) var readerEpubLibraryClient
 
     fileprivate static let bookCoverAspectRatio: CGFloat = 100 / 136
     fileprivate static let bookGridSpacing: CGFloat = 12
 
-    @AppStorage(ReaderPreferences.Keys.sourceMode) private var sourceModeRawValue = ReaderLibrarySourceMode.ankiNotes.rawValue
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
     @AppStorage(ReaderPreferences.Keys.bookIDField) private var bookIDField = ""
@@ -67,18 +91,17 @@ struct ReaderLibraryView: View {
 
     @State private var decks: [DeckInfo] = []
     @State private var books: [ReaderBook] = []
+    @State private var epubLibraryState = ReaderEpubLibraryState.empty
     @State private var isLoading = false
     @State private var configurationProblem: String?
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var showImporter = false
+    @State private var showDeleteConfirmation = false
     @State private var sortOption: ReaderBookSortOption = .recent
     @State private var isSelecting = false
     @State private var selectedBookIDs: Set<String> = []
     @State private var settingsRoute: ReaderLibrarySettingsRoute?
-
-    private var sourceMode: ReaderLibrarySourceMode {
-        ReaderLibrarySourceMode(rawValue: sourceModeRawValue) ?? .ankiNotes
-    }
 
     private var resolvedBookshelfColumns: Int {
         bookshelfColumns == 2 ? 2 : 3
@@ -100,18 +123,44 @@ struct ReaderLibraryView: View {
         ].joined(separator: "|")
     }
 
-    private var sortedBooks: [ReaderBook] {
-        books.sorted { lhs, rhs in
+    private var libraryBookItems: [ReaderLibraryBookItem] {
+        let noteItems = books.map { book in
+            ReaderLibraryBookItem(
+                id: "anki:\(book.id)",
+                source: .ankiNotes,
+                title: book.title,
+                progress: progressValue(for: book),
+                lastAccess: ReaderProgressStore.load(bookID: book.id)?.updatedAt ?? .distantPast,
+                noteBook: book,
+                epubBook: nil
+            )
+        }
+        let epubItems = epubLibraryState.books.map { book in
+            ReaderLibraryBookItem(
+                id: "epub:\(book.id.uuidString)",
+                source: .epub,
+                title: book.title ?? "",
+                progress: progressValue(for: book),
+                lastAccess: book.lastAccess,
+                noteBook: nil,
+                epubBook: book
+            )
+        }
+        return noteItems + epubItems
+    }
+
+    private var sortedBooks: [ReaderLibraryBookItem] {
+        libraryBookItems.sorted { lhs, rhs in
             switch sortOption {
             case .recent:
-                let lhsDate = ReaderProgressStore.load(bookID: lhs.id)?.updatedAt ?? .distantPast
-                let rhsDate = ReaderProgressStore.load(bookID: rhs.id)?.updatedAt ?? .distantPast
+                let lhsDate = lhs.lastAccess
+                let rhsDate = rhs.lastAccess
                 if lhsDate != rhsDate {
                     return lhsDate > rhsDate
                 }
             case .progress:
-                let lhsProgress = progressValue(for: lhs)
-                let rhsProgress = progressValue(for: rhs)
+                let lhsProgress = lhs.progress
+                let rhsProgress = rhs.progress
                 if lhsProgress != rhsProgress {
                     return lhsProgress > rhsProgress
                 }
@@ -127,6 +176,15 @@ struct ReaderLibraryView: View {
         }
     }
 
+    private var selectedEpubBookIDs: [UUID] {
+        libraryBookItems.compactMap { item in
+            guard selectedBookIDs.contains(item.id), item.source == .epub, let epubBook = item.epubBook else {
+                return nil
+            }
+            return epubBook.id
+        }
+    }
+
     private var bookGridColumns: [GridItem] {
         Array(
             repeating: GridItem(
@@ -139,25 +197,24 @@ struct ReaderLibraryView: View {
     }
 
     var body: some View {
-        if sourceMode == .epub {
-            ReaderEpubLibraryView()
-        } else {
-            Group {
-            if let configurationProblem {
+        Group {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if sortedBooks.isEmpty {
+                if let configurationProblem, epubLibraryState.books.isEmpty {
                 ContentUnavailableView(
                     L("reader_library_missing_config_title"),
                     systemImage: "books.vertical",
                     description: Text(configurationProblem)
                 )
-            } else if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if books.isEmpty {
+                } else {
                 ContentUnavailableView(
                     L("reader_library_empty_title"),
                     systemImage: "book.closed",
-                    description: Text(L("reader_library_empty_description"))
+                    description: Text("\(L(\"reader_library_empty_description\"))\n\n\(L(\"reader_epub_empty_description\"))")
                 )
+                }
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
@@ -175,7 +232,7 @@ struct ReaderLibraryView: View {
                                         toggleSelection(for: book)
                                     } label: {
                                         ReaderBookCard(
-                                            book: book,
+                                            item: book,
                                             isSelecting: true,
                                             isSelected: selectedBookIDs.contains(book.id)
                                         )
@@ -183,9 +240,9 @@ struct ReaderLibraryView: View {
                                     .buttonStyle(.plain)
                                 } else {
                                     NavigationLink {
-                                        ReaderBookDetailView(book: book)
+                                        readerDestination(for: book)
                                     } label: {
-                                        ReaderBookCard(book: book)
+                                        ReaderBookCard(item: book)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -226,6 +283,15 @@ struct ReaderLibraryView: View {
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
+                if isSelecting {
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .disabled(selectedEpubBookIDs.isEmpty)
+                }
+
                 Menu {
                     Picker(
                         L("reader_library_layout_menu"),
@@ -241,6 +307,13 @@ struct ReaderLibraryView: View {
                     Image(systemName: resolvedBookshelfColumns == 2 ? "square.grid.2x2" : "square.grid.3x2")
                 }
                 .accessibilityLabel(Text(L("reader_library_layout_menu")))
+
+                Button {
+                    showImporter = true
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
+                .accessibilityLabel(Text(L("reader_epub_import_button")))
 
                 Menu {
                     Button {
@@ -274,6 +347,30 @@ struct ReaderLibraryView: View {
         .task(id: configurationSignature) {
             await loadBooks()
         }
+        .onAppear {
+            guard books.isEmpty == false || epubLibraryState.books.isEmpty == false || configurationProblem != nil else {
+                return
+            }
+            Task {
+                await loadBooks()
+            }
+        }
+        .fileImporter(
+            isPresented: $showImporter,
+            allowedContentTypes: [.epub],
+            allowsMultipleSelection: true
+        ) { result in
+            Task {
+                do {
+                    let urls = try result.get()
+                    epubLibraryState = try readerEpubLibraryClient.importBooks(urls)
+                    selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
+                } catch {
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        }
         .sheet(item: $settingsRoute) { route in
             NavigationStack {
                 switch route {
@@ -293,6 +390,21 @@ struct ReaderLibraryView: View {
         } message: {
             Text(errorMessage ?? L("common_unknown_error"))
         }
+        .alert(L("common_delete"), isPresented: $showDeleteConfirmation) {
+            Button(L("common_delete"), role: .destructive) {
+                Task {
+                    do {
+                        epubLibraryState = try readerEpubLibraryClient.deleteBooks(selectedEpubBookIDs)
+                        clearSelection()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                        showError = true
+                    }
+                }
+            }
+            Button(L("common_cancel"), role: .cancel) {}
+        } message: {
+            Text(L("reader_epub_delete_confirmation", selectedEpubBookIDs.count))
         }
     }
 
@@ -301,11 +413,20 @@ struct ReaderLibraryView: View {
         configurationProblem = nil
         books = []
 
+        do {
+            epubLibraryState = try readerEpubLibraryClient.loadState()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+            epubLibraryState = .empty
+        }
+
         decks = (try? deckClient.fetchNamesOnly()) ?? []
 
         guard selectedDeckID != 0,
               let selectedDeck = decks.first(where: { Int($0.id) == selectedDeckID }) else {
             configurationProblem = L("reader_library_missing_config_description")
+            selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
             isLoading = false
             return
         }
@@ -316,6 +437,7 @@ struct ReaderLibraryView: View {
               !chapterOrderField.isEmpty,
               !contentField.isEmpty else {
             configurationProblem = L("reader_library_missing_config_description")
+                        selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
             isLoading = false
             return
         }
@@ -335,11 +457,12 @@ struct ReaderLibraryView: View {
                 )
             )
             books = try readerBookClient.loadBooks(configuration)
-            selectedBookIDs.formIntersection(Set(books.map(\.id)))
         } catch {
             errorMessage = error.localizedDescription
             showError = true
         }
+
+        selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
 
         isLoading = false
     }
@@ -356,7 +479,25 @@ struct ReaderLibraryView: View {
         return min(base + chapterSlice, 1)
     }
 
-    private func toggleSelection(for book: ReaderBook) {
+    private func progressValue(for book: BookMetadata) -> Double {
+        epubLibraryState.progressByBookID[book.id] ?? 0
+    }
+
+    @ViewBuilder
+    private func readerDestination(for book: ReaderLibraryBookItem) -> some View {
+        switch book.source {
+        case .ankiNotes:
+            if let noteBook = book.noteBook {
+                ReaderBookDetailView(book: noteBook)
+            }
+        case .epub:
+            if let epubBook = book.epubBook {
+                ReaderEpubReaderView(book: epubBook)
+            }
+        }
+    }
+
+    private func toggleSelection(for book: ReaderLibraryBookItem) {
         if selectedBookIDs.contains(book.id) {
             selectedBookIDs.remove(book.id)
         } else {
@@ -371,29 +512,13 @@ struct ReaderLibraryView: View {
 }
 
 private struct ReaderBookCard: View {
-    let book: ReaderBook
+    let item: ReaderLibraryBookItem
     var isSelecting = false
     var isSelected = false
 
-    private var savedProgress: ReaderSavedProgress? {
-        ReaderProgressStore.load(bookID: book.id)
-    }
-
-    private var progressValue: Double {
-        guard let savedProgress,
-              let chapterIndex = book.chapters.firstIndex(where: { $0.id == savedProgress.chapterID }),
-              !book.chapters.isEmpty else {
-            return 0
-        }
-
-        let base = Double(chapterIndex) / Double(book.chapters.count)
-        let chapterSlice = savedProgress.progress / Double(book.chapters.count)
-        return min(base + chapterSlice, 1)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ReaderBookCoverView(coverImagePath: book.coverImagePath)
+            ReaderBookCoverView(noteCoverImagePath: item.noteBook?.coverImagePath, epubCoverURL: item.epubBook?.coverURL)
                 .aspectRatio(ReaderLibraryView.bookCoverAspectRatio, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .overlay(alignment: .topTrailing) {
@@ -404,6 +529,10 @@ private struct ReaderBookCard: View {
                             .padding(10)
                     }
                 }
+                .overlay(alignment: .bottomTrailing) {
+                    ReaderBookSourceBadge(source: item.source)
+                        .padding(10)
+                }
                 .overlay {
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
@@ -411,14 +540,14 @@ private struct ReaderBookCard: View {
                 .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(book.title)
+                Text(item.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.amgiTextPrimary)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: 34, alignment: .topLeading)
 
-                ProgressView(value: progressValue)
+                ProgressView(value: item.progress)
                     .tint(Color.amgiAccent)
             }
             .frame(height: 46, alignment: .top)
@@ -428,7 +557,8 @@ private struct ReaderBookCard: View {
 }
 
 private struct ReaderBookCoverView: View {
-    let coverImagePath: String?
+    let noteCoverImagePath: String?
+    let epubCoverURL: URL?
 
     @State private var image: UIImage?
 
@@ -442,7 +572,17 @@ private struct ReaderBookCoverView: View {
                 )
             )
             .overlay {
-                if let image {
+                if let epubCoverURL {
+                    AsyncImage(url: epubCoverURL) { loadedImage in
+                        loadedImage
+                            .resizable()
+                            .scaledToFill()
+                    } placeholder: {
+                        Image(systemName: "book.closed")
+                            .font(.system(size: 36, weight: .semibold))
+                            .foregroundStyle(Color.amgiAccent)
+                    }
+                } else if let image {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
@@ -457,13 +597,30 @@ private struct ReaderBookCoverView: View {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
             }
-            .task(id: coverImagePath) {
-                if let data = await ReaderBookCoverLoader.loadImageData(from: coverImagePath) {
+            .task(id: noteCoverImagePath) {
+                guard epubCoverURL == nil else {
+                    image = nil
+                    return
+                }
+                if let data = await ReaderBookCoverLoader.loadImageData(from: noteCoverImagePath) {
                     image = UIImage(data: data)
                 } else {
                     image = nil
                 }
             }
+    }
+}
+
+private struct ReaderBookSourceBadge: View {
+    let source: ReaderLibraryBookItem.Source
+
+    var body: some View {
+        Text(source.badgeTitle)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(Color.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(source == .epub ? Color.amgiAccent : Color.amgiTextSecondary.opacity(0.88), in: Capsule())
     }
 }
 

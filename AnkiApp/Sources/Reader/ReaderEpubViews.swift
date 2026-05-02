@@ -161,7 +161,7 @@ struct ReaderEpubLibraryView: View {
                 Button {
                     showImporter = true
                 } label: {
-                    Image(systemName: "plus")
+                    Image(systemName: "square.and.arrow.down")
                 }
                 .accessibilityLabel(Text(L("reader_epub_import_button")))
 
@@ -391,6 +391,7 @@ struct ReaderEpubReaderView: View {
     let book: BookMetadata
 
     @State private var session: ReaderEpubSession?
+    @State private var loadingErrorMessage: String?
     @State private var bridge = ReaderEpubWebViewBridge()
     @State private var pendingDraft: AddNoteDraft?
     @State private var showAddNoteSheet = false
@@ -758,24 +759,32 @@ struct ReaderEpubReaderView: View {
                 }
                 .animation(.easeOut(duration: 0.16), value: lookupStack)
                 .ignoresSafeArea(edges: .top)
-                .task {
-                    if self.session == nil {
-                        do {
-                            let loadedSession = try ReaderEpubSession(book: book)
-                            self.session = loadedSession
-                            if let action = loadedSession.initialAction() {
-                                send(action)
-                            }
-                        } catch {
-                            lookupErrorMessage = error.localizedDescription
-                            showSelectionError = true
-                        }
-                    }
-                }
+            } else if let loadingErrorMessage {
+                ContentUnavailableView(
+                    L("common_error"),
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(loadingErrorMessage)
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.amgiBackground)
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.amgiBackground)
+            }
+        }
+        .task {
+            if self.session == nil {
+                do {
+                    loadingErrorMessage = nil
+                    let loadedSession = try ReaderEpubSession(book: book)
+                    self.session = loadedSession
+                    if let action = loadedSession.initialAction() {
+                        send(action)
+                    }
+                } catch {
+                    loadingErrorMessage = error.localizedDescription
+                }
             }
         }
     }
@@ -866,13 +875,13 @@ struct ReaderEpubReaderView: View {
 
     private func removeLookupPopup(id: UUID) {
         lookupStack.removeAll { $0.id == id }
+        if lookupStack.isEmpty {
+            bridge.send(.clearHighlight)
+        }
     }
 
     private func closeLookupPopup(id: UUID) {
         removeLookupPopup(id: id)
-        if lookupStack.isEmpty {
-            bridge.send(.clearHighlight)
-        }
     }
 
     private func lookupPopupPosition(in size: CGSize, bottomInset: CGFloat, anchor: CGPoint?, anchorRect: CGRect?, stackDepth: Int) -> CGPoint {
