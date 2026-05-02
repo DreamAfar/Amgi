@@ -988,7 +988,7 @@ struct ReaderEpubReaderView: View {
 
         return await ReaderLookupDuplicateCache.shared.contains(word: normalizedWord, notetypeID: notetypeID) { [backend, noteClient] in
             let notetype = try fetchNotetype(backend: backend, id: notetypeID)
-            let query = "note:\"\(escapedSearchTerm(notetype.name))\""
+            let query = "note:\"\(Self.escapedSearchTerm(notetype.name))\""
             let noteIDs = try noteClient.searchIds(query)
             guard noteIDs.isEmpty == false else {
                 return []
@@ -1011,10 +1011,28 @@ struct ReaderEpubReaderView: View {
         }
     }
 
-    private func escapedSearchTerm(_ text: String) -> String {
+    nonisolated private static func escapedSearchTerm(_ text: String) -> String {
         text
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+}
+
+private extension Optional where Wrapped == String {
+    var nilIfBlank: String? {
+        switch self?.trimmingCharacters(in: .whitespacesAndNewlines) {
+        case let value? where value.isEmpty == false:
+            return value
+        default:
+            return nil
+        }
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

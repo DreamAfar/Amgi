@@ -161,8 +161,8 @@ struct ReaderSourceSettingsView: View {
                         Picker(
                             L("settings_reader_source_mode"),
                             selection: Binding(
-                                get: { sourceMode },
-                                set: { sourceMode = $0 }
+                                get: { ReaderLibrarySourceMode(rawValue: sourceModeRawValue) ?? .ankiNotes },
+                                set: { sourceModeRawValue = $0.rawValue }
                             )
                         ) {
                             Text(L("settings_reader_source_mode_notes")).tag(ReaderLibrarySourceMode.ankiNotes)
