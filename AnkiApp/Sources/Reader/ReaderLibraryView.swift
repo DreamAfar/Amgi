@@ -212,7 +212,7 @@ struct ReaderLibraryView: View {
                 ContentUnavailableView(
                     L("reader_library_empty_title"),
                     systemImage: "book.closed",
-                    description: Text("\(L(\"reader_library_empty_description\"))\n\n\(L(\"reader_epub_empty_description\"))")
+                    description: Text(L("reader_library_empty_description")) + Text("\n\n") + Text(L("reader_epub_empty_description"))
                 )
                 }
             } else {
