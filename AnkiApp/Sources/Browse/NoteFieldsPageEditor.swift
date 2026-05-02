@@ -142,7 +142,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         let borderColor = colorScheme == .dark ? "rgba(255,255,255,0.12)" : "rgba(23,33,47,0.10)"
         let rowBackground = colorScheme == .dark ? "#303744" : "#EEF2F7"
         let previewBackground = colorScheme == .dark ? "rgba(255,255,255,0.04)" : "rgba(23,33,47,0.03)"
-        let shellBackground = colorScheme == .dark ? "#45464d" : "#f3f3f3"
+        let shellBackground = colorScheme == .dark ? "#2a2a2c" : "#f3f3f3"
         let shellBorderColor = colorScheme == .dark ? "rgba(255,255,255,0.10)" : "rgba(23,33,47,0.08)"
         let actionBackground = colorScheme == .dark ? "rgba(255,255,255,0.07)" : "rgba(23,33,47,0.07)"
         let linkColor = colorScheme == .dark ? "#8FB8FF" : "#1E5BB8"
@@ -190,13 +190,13 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         .field {
             padding: 0;
             display: grid;
-            gap: 6px;
+            gap: 2px;
         }
         .field-header {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 4px 2px;
+            padding: 2px 2px;
         }
         .field-name {
             flex: 1 1 auto;
@@ -2125,22 +2125,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             // range manually.)
             let neededInsetBottom = visibleKeyboardFrame.height > 44 ? visibleKeyboardFrame.height : 0
             if abs(hostScrollView.contentInset.bottom - neededInsetBottom) > 1 {
+                // Expand the scrollable range when the keyboard appears so bottom fields are
+                // reachable. When the keyboard is dismissed, only shrink the inset — do NOT
+                // move contentOffset so the field list stays exactly where the user left it.
                 hostScrollView.contentInset.bottom = neededInsetBottom
-                // When the keyboard is dismissed, clamp contentOffset so the bottom of the
-                // content aligns with the bottom of the visible area (no blank gap).
-                if neededInsetBottom == 0 {
-                    let minOffsetY = -hostScrollView.adjustedContentInset.top
-                    let maxOffsetY = max(
-                        minOffsetY,
-                        hostScrollView.contentSize.height - hostScrollView.bounds.height + hostScrollView.adjustedContentInset.bottom
-                    )
-                    let clampedOffsetY = min(hostScrollView.contentOffset.y, maxOffsetY)
-                    if clampedOffsetY < hostScrollView.contentOffset.y - 1 {
-                        UIView.animate(withDuration: 0.25) {
-                            hostScrollView.contentOffset.y = clampedOffsetY
-                        }
-                    }
-                }
             }
 
             guard visibleKeyboardFrame.height > 44 else { return }
