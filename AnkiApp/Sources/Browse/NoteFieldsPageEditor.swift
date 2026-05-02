@@ -288,6 +288,8 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         .field-source {
             display: none;
             min-height: 13px;
+            max-height: 400px;
+            overflow-y: auto;
             resize: none;
             padding: 0;
             margin: 0;
