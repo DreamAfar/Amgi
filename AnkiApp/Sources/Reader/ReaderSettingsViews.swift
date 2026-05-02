@@ -632,6 +632,8 @@ struct ReaderAdvancedSettingsView: View {
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
     @AppStorage(ReaderPreferences.Keys.popupDebugInfoEnabled) private var popupDebugInfoEnabled = false
     @AppStorage(ReaderPreferences.Keys.lookupNoteTemplate) private var lookupNoteTemplateData = ""
+    @AppStorage(ReaderPreferences.Keys.enableStatistics) private var enableStatistics = false
+    @AppStorage(ReaderPreferences.Keys.statisticsAutostartMode) private var statisticsAutostartModeRawValue = ReaderStatisticsAutostartMode.off.rawValue
 
     @State private var decks: [DeckInfo] = []
     @State private var notetypeNames: [(Int64, String)] = []
@@ -714,6 +716,11 @@ struct ReaderAdvancedSettingsView: View {
         )
     }
 
+    private var statisticsAutostartMode: ReaderStatisticsAutostartMode {
+        get { ReaderStatisticsAutostartMode(rawValue: statisticsAutostartModeRawValue) ?? .off }
+        set { statisticsAutostartModeRawValue = newValue.rawValue }
+    }
+
     var body: some View {
         List {
             Section {
@@ -724,6 +731,38 @@ struct ReaderAdvancedSettingsView: View {
                     .foregroundStyle(SettingsValueStyle.primary)
             } footer: {
                 Text(L("settings_reader_tap_lookup_description"))
+            }
+            .amgiSettingsListRowSurface()
+
+            Section(L("settings_reader_statistics_section")) {
+                Toggle(L("settings_reader_statistics_enable"), isOn: $enableStatistics)
+                    .foregroundStyle(SettingsValueStyle.primary)
+
+                if enableStatistics {
+                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                        Text(L("settings_reader_statistics_autostart"))
+                            .foregroundStyle(SettingsValueStyle.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Menu {
+                            Picker(L("settings_reader_statistics_autostart"), selection: $statisticsAutostartMode) {
+                                Text(L("settings_reader_statistics_autostart_off")).tag(ReaderStatisticsAutostartMode.off)
+                                Text(L("settings_reader_statistics_autostart_page_turn")).tag(ReaderStatisticsAutostartMode.pageTurn)
+                                Text(L("settings_reader_statistics_autostart_on")).tag(ReaderStatisticsAutostartMode.on)
+                            }
+                        } label: {
+                            SettingsOptionCapsuleLabel(
+                                title: switch statisticsAutostartMode {
+                                case .off: L("settings_reader_statistics_autostart_off")
+                                case .pageTurn: L("settings_reader_statistics_autostart_page_turn")
+                                case .on: L("settings_reader_statistics_autostart_on")
+                                }
+                            )
+                        }
+                    }
+                }
+            } footer: {
+                Text(L("settings_reader_statistics_description"))
             }
             .amgiSettingsListRowSurface()
 

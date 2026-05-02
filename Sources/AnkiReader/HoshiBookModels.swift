@@ -96,6 +96,60 @@ public struct BookShelf: Codable, Sendable {
     }
 }
 
+public enum ReaderStatisticsAutostartMode: String, CaseIterable, Codable, Sendable {
+    case off = "Off"
+    case pageTurn = "Page Turn"
+    case on = "On"
+}
+
+public struct ReaderStatistics: Codable, Sendable {
+    public let title: String
+    public let dateKey: String
+    public var charactersRead: Int
+    public var readingTime: Double
+    public var minReadingSpeed: Int
+    public var altMinReadingSpeed: Int
+    public var lastReadingSpeed: Int
+    public var maxReadingSpeed: Int
+    public var lastStatisticModified: Int
+
+    public init(
+        title: String,
+        dateKey: String,
+        charactersRead: Int,
+        readingTime: Double,
+        minReadingSpeed: Int,
+        altMinReadingSpeed: Int,
+        lastReadingSpeed: Int,
+        maxReadingSpeed: Int,
+        lastStatisticModified: Int
+    ) {
+        self.title = title
+        self.dateKey = dateKey
+        self.charactersRead = charactersRead
+        self.readingTime = readingTime
+        self.minReadingSpeed = minReadingSpeed
+        self.altMinReadingSpeed = altMinReadingSpeed
+        self.lastReadingSpeed = lastReadingSpeed
+        self.maxReadingSpeed = maxReadingSpeed
+        self.lastStatisticModified = lastStatisticModified
+    }
+
+    public static func empty(title: String, dateKey: String) -> Self {
+        Self(
+            title: title,
+            dateKey: dateKey,
+            charactersRead: 0,
+            readingTime: 0,
+            minReadingSpeed: 0,
+            altMinReadingSpeed: 0,
+            lastReadingSpeed: 0,
+            maxReadingSpeed: 0,
+            lastStatisticModified: 0
+        )
+    }
+}
+
 public struct ReaderEpubLibraryState: Sendable {
     public var books: [BookMetadata]
     public var shelves: [BookShelf]

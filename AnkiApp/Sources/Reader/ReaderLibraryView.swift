@@ -364,7 +364,7 @@ struct ReaderLibraryView: View {
                 do {
                     let urls = try result.get()
                     epubLibraryState = try readerEpubLibraryClient.importBooks(urls)
-                    selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
+                    clearSelection()
                 } catch {
                     errorMessage = error.localizedDescription
                     showError = true
@@ -426,7 +426,7 @@ struct ReaderLibraryView: View {
         guard selectedDeckID != 0,
               let selectedDeck = decks.first(where: { Int($0.id) == selectedDeckID }) else {
             configurationProblem = L("reader_library_missing_config_description")
-            selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
+                        reconcileSelection()
             isLoading = false
             return
         }
@@ -437,7 +437,7 @@ struct ReaderLibraryView: View {
               !chapterOrderField.isEmpty,
               !contentField.isEmpty else {
             configurationProblem = L("reader_library_missing_config_description")
-                        selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
+                        reconcileSelection()
             isLoading = false
             return
         }
@@ -462,7 +462,7 @@ struct ReaderLibraryView: View {
             showError = true
         }
 
-        selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
+        reconcileSelection()
 
         isLoading = false
     }
@@ -508,6 +508,13 @@ struct ReaderLibraryView: View {
     private func clearSelection() {
         selectedBookIDs.removeAll()
         isSelecting = false
+    }
+
+    private func reconcileSelection() {
+        selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
+        if selectedBookIDs.isEmpty {
+            isSelecting = false
+        }
     }
 }
 

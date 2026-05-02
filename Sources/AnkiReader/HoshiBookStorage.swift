@@ -101,6 +101,10 @@ public struct BookStorage {
         load(BookInfo.self, from: root.appendingPathComponent(FileNames.bookinfo))
     }
 
+    public static func loadStatistics(root: URL) -> [ReaderStatistics]? {
+        load([ReaderStatistics].self, from: root.appendingPathComponent(FileNames.statistics))
+    }
+
     public static func loadMetadata(root: URL) -> BookMetadata? {
         load(BookMetadata.self, from: root.appendingPathComponent(FileNames.metadata))
     }

@@ -90,6 +90,8 @@ enum ReaderPreferences {
         static let dictionaryMaxResults = "reader_pref_dictionary_max_results"
         static let dictionaryScanLength = "reader_pref_dictionary_scan_length"
         static let lookupNoteTemplate = "reader_pref_lookup_note_template"
+        static let enableStatistics = "reader_pref_enable_statistics"
+        static let statisticsAutostartMode = "reader_pref_statistics_autostart_mode"
     }
 }
 

@@ -21,6 +21,7 @@ private enum ReaderEpubSheetRoute: String, Identifiable {
     case chapters
     case display
     case settings
+    case statistics
 
     var id: String { rawValue }
 }
@@ -387,6 +388,8 @@ struct ReaderEpubReaderView: View {
     @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var dictionaryMaxResults = 16
     @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var dictionaryScanLength = 16
     @AppStorage(ReaderPreferences.Keys.lookupNoteTemplate) private var lookupNoteTemplateData = ""
+    @AppStorage(ReaderPreferences.Keys.enableStatistics) private var enableStatistics = false
+    @AppStorage(ReaderPreferences.Keys.statisticsAutostartMode) private var statisticsAutostartModeRawValue = ReaderStatisticsAutostartMode.off.rawValue
 
     let book: BookMetadata
 
@@ -415,6 +418,10 @@ struct ReaderEpubReaderView: View {
 
     private var popupAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
         ReaderLookupAudioDefaults.resolvedPlaybackMode(popupAudioPlaybackModeRawValue)
+    }
+
+    private var statisticsAutostartMode: ReaderStatisticsAutostartMode {
+        ReaderStatisticsAutostartMode(rawValue: statisticsAutostartModeRawValue) ?? .off
     }
 
     private var systemPageBackgroundHex: String {
@@ -530,6 +537,7 @@ struct ReaderEpubReaderView: View {
                                     guard let action = session.actionForPreviousChapter() else {
                                         return false
                                     }
+                                    startStatisticsTrackingForPageTurn(session)
                                     lookupStack.removeAll()
                                     bridge.send(.clearHighlight)
                                     send(action)
@@ -560,6 +568,9 @@ struct ReaderEpubReaderView: View {
                                 onTapOutside: {
                                     lookupStack.removeAll()
                                     bridge.send(.clearHighlight)
+                                },
+                                onPageTurn: {
+                                    startStatisticsTrackingForPageTurn(session)
                                 }
                             )
                             .background(chapterContentBackground)
@@ -608,6 +619,14 @@ struct ReaderEpubReaderView: View {
                                         activeSheet = .settings
                                     } label: {
                                         Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
+                                    }
+
+                                    if enableStatistics {
+                                        Button {
+                                            activeSheet = .statistics
+                                        } label: {
+                                            Label(L("reader_reader_menu_statistics"), systemImage: "chart.xyaxis.line")
+                                        }
                                     }
                                 } label: {
                                     ReaderEpubChromeIconLabel(systemName: "ellipsis")
@@ -747,6 +766,8 @@ struct ReaderEpubReaderView: View {
                             ReaderDisplaySettingsView()
                         case .settings:
                             ReaderSettingsHomeView()
+                        case .statistics:
+                            ReaderEpubStatisticsView(session: session)
                         }
                     }
                     .presentationDetents([.fraction(0.52), .large])
@@ -777,7 +798,11 @@ struct ReaderEpubReaderView: View {
             if self.session == nil {
                 do {
                     loadingErrorMessage = nil
-                    let loadedSession = try ReaderEpubSession(book: book)
+                    let loadedSession = try ReaderEpubSession(
+                        book: book,
+                        enableStatistics: enableStatistics,
+                        autostartStatistics: statisticsAutostartMode == .on
+                    )
                     self.session = loadedSession
                     if let action = loadedSession.initialAction() {
                         send(action)
@@ -787,6 +812,40 @@ struct ReaderEpubReaderView: View {
                 }
             }
         }
+        .task(id: session?.isTracking == true) {
+            guard let session, session.isTracking, session.isPaused == false else {
+                return
+            }
+            while Task.isCancelled == false {
+                try? await Task.sleep(for: .seconds(1))
+                guard session.isTracking, session.isPaused == false else {
+                    return
+                }
+                session.updateStatistics()
+            }
+        }
+        .onChange(of: enableStatistics) {
+            session?.configureStatistics(enabled: enableStatistics, autostart: statisticsAutostartMode == .on)
+        }
+        .onChange(of: statisticsAutostartModeRawValue) {
+            session?.configureStatistics(enabled: enableStatistics, autostart: statisticsAutostartMode == .on)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            session?.resumeTracking()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            session?.pauseTracking()
+        }
+        .onDisappear {
+            session?.stopTracking()
+        }
+    }
+
+    private func startStatisticsTrackingForPageTurn(_ session: ReaderEpubSession) {
+        guard enableStatistics, statisticsAutostartMode == .pageTurn, session.isTracking == false else {
+            return
+        }
+        session.startTracking()
     }
 
     private func normalizedHexColor(_ value: String, fallback: String) -> String {
@@ -1251,6 +1310,7 @@ private struct ReaderEpubWebView: UIViewRepresentable {
     var onInternalJump: (Double) -> Void
     var onTextSelected: (ReaderEpubSelectionData) -> Void
     var onTapOutside: () -> Void
+    var onPageTurn: () -> Void
 
     let maxSelectionLength = 16
 
@@ -1540,6 +1600,7 @@ private struct ReaderEpubWebView: UIViewRepresentable {
                 guard let self else { return }
 
                 if let res = result as? String, res == "scrolled" {
+                    self.parent.onPageTurn()
                     self.saveBookmark()
                 } else {
                     let chapterChanged = direction == .forward ? self.parent.onNextChapter() : self.parent.onPreviousChapter()
@@ -2129,4 +2190,54 @@ window.hoshiReader = {
 private enum NavigationDirection {
     case forward
     case backward
+}
+
+private struct ReaderEpubStatisticsView: View {
+    @Bindable var session: ReaderEpubSession
+
+    var body: some View {
+        List {
+            Section(L("reader_statistics_session")) {
+                statisticsRow(title: L("reader_statistics_characters"), value: session.sessionStatistics.charactersRead.formatted(.number.grouping(.never)))
+                statisticsRow(title: L("reader_statistics_reading_speed"), value: "\(session.sessionStatistics.lastReadingSpeed.formatted(.number.grouping(.never))) / h")
+                statisticsRow(title: L("reader_statistics_reading_time"), value: Duration.seconds(session.sessionStatistics.readingTime).formatted())
+
+                Button(session.isTracking ? L("reader_statistics_tracking_stop") : L("reader_statistics_tracking_start")) {
+                    if session.isTracking {
+                        session.stopTracking()
+                    } else {
+                        session.startTracking()
+                    }
+                }
+            }
+
+            Section(L("reader_statistics_today")) {
+                statisticsRow(title: L("reader_statistics_characters"), value: session.todaysStatistics.charactersRead.formatted(.number.grouping(.never)))
+                statisticsRow(title: L("reader_statistics_reading_speed"), value: "\(session.todaysStatistics.lastReadingSpeed.formatted(.number.grouping(.never))) / h")
+                statisticsRow(title: L("reader_statistics_reading_time"), value: Duration.seconds(session.todaysStatistics.readingTime).formatted())
+            }
+
+            Section(L("reader_statistics_all_time")) {
+                statisticsRow(title: L("reader_statistics_characters"), value: session.allTimeStatistics.charactersRead.formatted(.number.grouping(.never)))
+                statisticsRow(title: L("reader_statistics_reading_speed"), value: "\(session.allTimeStatistics.lastReadingSpeed.formatted(.number.grouping(.never))) / h")
+                statisticsRow(title: L("reader_statistics_reading_time"), value: Duration.seconds(session.allTimeStatistics.readingTime).formatted())
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("reader_statistics_title"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func statisticsRow(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: AmgiSpacing.md) {
+            Text(title)
+                .foregroundStyle(SettingsValueStyle.primary)
+            Spacer(minLength: 12)
+            Text(value)
+                .foregroundStyle(SettingsValueStyle.secondary)
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+        }
+    }
 }
