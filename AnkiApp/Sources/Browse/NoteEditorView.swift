@@ -21,7 +21,6 @@ struct NoteEditorView: View {
     @State private var fieldNames: [String] = []
     @State private var fieldSourceModes: [Bool] = []
     @State private var tags: String = ""
-    @State private var tagDraft = ""
     @State private var hasLoadedOriginalState = false
     @State private var isSaving = false
     @State private var originalFieldValues: [String] = []
@@ -56,13 +55,9 @@ struct NoteEditorView: View {
             .filter { seen.insert($0).inserted }
     }
 
-    private var normalizedTagDraft: String {
-        tagDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     private var hasUnsavedChanges: Bool {
         hasLoadedOriginalState
-            && (fieldValues != originalFieldValues || trimmedTags != originalTags || normalizedTagDraft.isEmpty == false)
+            && (fieldValues != originalFieldValues || trimmedTags != originalTags)
     }
 
     private var fieldEditorActionStates: [NoteFieldsPageEditorActionState] {
@@ -136,7 +131,7 @@ struct NoteEditorView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("card_template_preview_btn")) {
-                    commitPendingTagDraft()
+                    tags = trimmedTags
                     showPreviewSheet = true
                 }
                 .amgiToolbarTextButton(tone: .neutral)
@@ -249,31 +244,40 @@ struct NoteEditorView: View {
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
 
-            VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
-                if !tagList.isEmpty {
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 88), spacing: 8, alignment: .leading)],
-                        alignment: .leading,
-                        spacing: 8
-                    ) {
-                        ForEach(tagList, id: \.self) { tag in
-                            tagCapsule(tag)
+            Group {
+                if isTagEditorFocused {
+                    // Edit mode: plain text, directly edit the space-separated tag string
+                    TextField(L("tags_add_placeholder"), text: $tags, axis: .vertical)
+                        .focused($isTagEditorFocused)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .lineLimit(1...4)
+                        .onChange(of: isTagEditorFocused) {
+                            if !isTagEditorFocused {
+                                // Normalize when leaving edit mode
+                                tags = trimmedTags
+                            }
+                        }
+                } else {
+                    // Display mode: pill capsules
+                    VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+                        if tagList.isEmpty {
+                            Text(L("tags_add_placeholder"))
+                                .amgiFont(.body)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        } else {
+                            LazyVGrid(
+                                columns: [GridItem(.adaptive(minimum: 88), spacing: 8, alignment: .leading)],
+                                alignment: .leading,
+                                spacing: 8
+                            ) {
+                                ForEach(tagList, id: \.self) { tag in
+                                    tagCapsule(tag)
+                                }
+                            }
                         }
                     }
                 }
-
-                TextField(L("tags_add_placeholder"), text: $tagDraft, axis: .vertical)
-                    .focused($isTagEditorFocused)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.done)
-                    .lineLimit(1...2)
-                    .onSubmit {
-                        commitPendingTagDraft()
-                    }
-                    .onChange(of: tagDraft) {
-                        consumeCompletedTagsFromDraft()
-                    }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -284,6 +288,8 @@ struct NoteEditorView: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .onTapGesture {
+                // Normalize before entering edit mode so text matches tagList
+                tags = trimmedTags
                 isTagEditorFocused = true
             }
         }
@@ -613,51 +619,17 @@ struct NoteEditorView: View {
         while fieldValues.count < fieldNames.count { fieldValues.append("") }
         fieldSourceModes = Array(repeating: false, count: fieldNames.count)
         tags = noteData.tags.trimmingCharacters(in: .whitespaces)
-        tagDraft = ""
         originalFieldValues = fieldValues
         originalTags = trimmedTags
         hasLoadedOriginalState = true
-    }
-
-    private func addTag(_ tag: String) {
-        let normalized = tag.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty else { return }
-
-        var updatedTags = tagList
-        guard !updatedTags.contains(normalized) else { return }
-
-        updatedTags.append(normalized)
-        tags = updatedTags.joined(separator: " ")
     }
 
     private func removeTag(_ tag: String) {
         tags = tagList.filter { $0 != tag }.joined(separator: " ")
     }
 
-    private func consumeCompletedTagsFromDraft() {
-        let components = tagDraft
-            .components(separatedBy: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",，;；")))
-            .filter { !$0.isEmpty }
-        let endsWithSeparator = tagDraft.last.map { ",，;； \n\t".contains($0) } ?? false
-
-        guard endsWithSeparator || components.count > 1 else { return }
-
-        let completedTags = endsWithSeparator ? components : Array(components.dropLast())
-        completedTags.forEach(addTag)
-        tagDraft = endsWithSeparator ? "" : (components.last ?? "")
-    }
-
-    private func commitPendingTagDraft() {
-        let pendingTags = tagDraft
-            .components(separatedBy: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",，;；")))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        pendingTags.forEach(addTag)
-        tagDraft = ""
-    }
-
     private func attemptDismiss() {
-        commitPendingTagDraft()
+        tags = trimmedTags
         if hasUnsavedChanges {
             showDiscardChangesConfirmation = true
         } else {
@@ -666,7 +638,7 @@ struct NoteEditorView: View {
     }
 
     private func save() async {
-        commitPendingTagDraft()
+        tags = trimmedTags
         isSaving = true
         let storedFieldValues = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
         let newFlds = storedFieldValues.joined(separator: "\u{1f}")

@@ -142,7 +142,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         let borderColor = colorScheme == .dark ? "rgba(255,255,255,0.12)" : "rgba(23,33,47,0.10)"
         let rowBackground = colorScheme == .dark ? "#303744" : "#EEF2F7"
         let previewBackground = colorScheme == .dark ? "rgba(255,255,255,0.04)" : "rgba(23,33,47,0.03)"
-        let shellBackground = colorScheme == .dark ? "#232A34" : "#E2E8F0"
+        let shellBackground = colorScheme == .dark ? "#45464d" : "#f3f3f3"
         let shellBorderColor = colorScheme == .dark ? "rgba(255,255,255,0.10)" : "rgba(23,33,47,0.08)"
         let actionBackground = colorScheme == .dark ? "rgba(255,255,255,0.07)" : "rgba(23,33,47,0.07)"
         let linkColor = colorScheme == .dark ? "#8FB8FF" : "#1E5BB8"
@@ -196,10 +196,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 10px;
-            background: var(--row-background);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
+            padding: 4px 2px;
         }
         .field-name {
             flex: 1 1 auto;
@@ -296,7 +293,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             resize: none;
             padding: 0;
             margin: 0;
-            font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+            font: -apple-system-body;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            line-height: 1.45;
             background: transparent;
             color: var(--text-color);
             white-space: pre-wrap;
@@ -2118,6 +2117,31 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 ? CGRect(x: 0, y: window.bounds.maxY, width: window.bounds.width, height: 0)
                 : window.convert(keyboardEndFrameInScreen, from: nil)
             let visibleKeyboardFrame = keyboardFrameInWindow.intersection(window.bounds)
+
+            // Keep the host scroll view's bottom inset in sync with the keyboard height so
+            // the content can be scrolled far enough to reveal fields behind the keyboard.
+            // (The Form uses ignoresSafeArea(.keyboard) to suppress automatic avoidance, which
+            // means the scroll view never shrinks on its own — we must widen the scrollable
+            // range manually.)
+            let neededInsetBottom = visibleKeyboardFrame.height > 44 ? visibleKeyboardFrame.height : 0
+            if abs(hostScrollView.contentInset.bottom - neededInsetBottom) > 1 {
+                hostScrollView.contentInset.bottom = neededInsetBottom
+                // When the keyboard is dismissed, clamp contentOffset so the bottom of the
+                // content aligns with the bottom of the visible area (no blank gap).
+                if neededInsetBottom == 0 {
+                    let minOffsetY = -hostScrollView.adjustedContentInset.top
+                    let maxOffsetY = max(
+                        minOffsetY,
+                        hostScrollView.contentSize.height - hostScrollView.bounds.height + hostScrollView.adjustedContentInset.bottom
+                    )
+                    let clampedOffsetY = min(hostScrollView.contentOffset.y, maxOffsetY)
+                    if clampedOffsetY < hostScrollView.contentOffset.y - 1 {
+                        UIView.animate(withDuration: 0.25) {
+                            hostScrollView.contentOffset.y = clampedOffsetY
+                        }
+                    }
+                }
+            }
 
             guard visibleKeyboardFrame.height > 44 else { return }
 
