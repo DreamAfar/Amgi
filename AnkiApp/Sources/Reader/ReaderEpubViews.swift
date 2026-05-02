@@ -510,7 +510,7 @@ struct ReaderEpubReaderView: View {
                             .frame(height: topOverlayHeight)
 
                         ZStack(alignment: .bottom) {
-                            ReaderEpubWebView(
+                            ReaderEpubScrollWebView(
                                 bridge: bridge,
                                 viewSize: CGSize(width: geometry.size.width.rounded(), height: geometry.size.height.rounded()),
                                 isVertical: verticalLayout,
@@ -569,7 +569,9 @@ struct ReaderEpubReaderView: View {
                                     lookupStack.removeAll()
                                     bridge.send(.clearHighlight)
                                 },
-                                onPageTurn: {
+                                onScroll: {
+                                    lookupStack.removeAll()
+                                    bridge.send(.clearHighlight)
                                     startStatisticsTrackingForPageTurn(session)
                                 }
                             )
@@ -639,21 +641,26 @@ struct ReaderEpubReaderView: View {
                     }
                     .background(chapterContentBackground)
                     .overlay(alignment: .top) {
-                        VStack(spacing: 4) {
-                            if showTitle, let title = session.document.title {
+                        VStack(spacing: 2) {
+                            if showTitle, let title = session.document.title, title.isEmpty == false {
                                 Text(title)
-                                    .font(.subheadline)
+                                    .font(.subheadline.weight(.medium))
                                     .foregroundStyle(Color.amgiTextSecondary)
-                                    .padding(.horizontal, 30)
                                     .lineLimit(1)
                             }
-                            if showProgressTop {
+
+                            if showProgressTop, progressLabel.isEmpty == false {
                                 Text(progressLabel)
                                     .font(.caption)
                                     .foregroundStyle(Color.amgiTextSecondary)
                                     .monospacedDigit()
+                                    .tracking(-0.3)
                             }
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 112)
+                        .padding(.vertical, 1)
+                        .background(chapterContentBackground)
                         .padding(.top, topOverlayTopPadding)
                     }
                     .overlay(alignment: .bottom) {
@@ -662,6 +669,9 @@ struct ReaderEpubReaderView: View {
                                 .font(.caption)
                                 .foregroundStyle(Color.amgiTextSecondary)
                                 .monospacedDigit()
+                                .tracking(-0.3)
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 80)
                                 .padding(.bottom, bottomInset + 60)
                         }
                     }
@@ -1286,6 +1296,412 @@ private final class ReaderEpubWebViewBridge {
 
     func updateProgress(_ progress: Double) {
         self.progress = progress
+    }
+}
+
+private struct ReaderEpubScrollWebView: UIViewRepresentable {
+    let bridge: ReaderEpubWebViewBridge
+    let viewSize: CGSize
+    let isVertical: Bool
+    let fontFamily: String
+    let fontSize: Double
+    let hideFurigana: Bool
+    let horizontalPadding: Int
+    let verticalPadding: Int
+    let avoidPageBreak: Bool
+    let justifyText: Bool
+    let lineHeight: Double
+    let characterSpacing: Double
+    let textColorHex: String
+    var onNextChapter: () -> Bool
+    var onPreviousChapter: () -> Bool
+    var onSaveBookmark: (Double) -> Void
+    var onInternalLink: (URL) -> Bool
+    var onInternalJump: (Double) -> Void
+    var onTextSelected: (ReaderEpubSelectionData) -> Void
+    var onTapOutside: () -> Void
+    var onScroll: () -> Void
+
+    let maxSelectionLength = 16
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(context.coordinator, name: "textSelected")
+        configuration.userContentController.add(context.coordinator, name: "restoreCompleted")
+        configuration.defaultWebpagePreferences.preferredContentMode = .mobile
+
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.scrollView.delegate = context.coordinator
+        webView.scrollView.alwaysBounceVertical = !isVertical
+        webView.scrollView.alwaysBounceHorizontal = isVertical
+        webView.scrollView.showsVerticalScrollIndicator = false
+        webView.scrollView.showsHorizontalScrollIndicator = false
+        webView.navigationDelegate = context.coordinator
+
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        tap.delegate = context.coordinator
+        webView.addGestureRecognizer(tap)
+
+        context.coordinator.webView = webView
+        webView.alpha = 0
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.parent = self
+
+        if !bridge.pendingCommands.isEmpty {
+            let commands = bridge.pendingCommands
+            bridge.pendingCommands.removeAll()
+            for command in commands {
+                switch command {
+                case let .loadChapter(url, progress, fragment):
+                    context.coordinator.currentURL = url
+                    context.coordinator.pendingProgress = progress
+                    context.coordinator.pendingFragment = fragment
+                    if let documentsDirectory = try? BookStorage.getDocumentsDirectory() {
+                        bridge.updateState(url: url, progress: progress)
+                        webView.scrollView.delegate = nil
+                        webView.alpha = 0
+                        webView.loadFileURL(url, allowingReadAccessTo: documentsDirectory)
+                    }
+                case let .restoreProgress(progress):
+                    context.coordinator.pendingProgress = progress
+                    context.coordinator.pendingFragment = nil
+                    context.coordinator.shouldSyncProgressAfterRestore = false
+                    bridge.progress = progress
+                    webView.evaluateJavaScript("window.hoshiReader.restoreProgress(\(progress))") { _, _ in }
+                case let .jumpToFragment(fragment):
+                    context.coordinator.jumpToFragment(fragment)
+                case .clearHighlight:
+                    context.coordinator.clearHighlight()
+                case let .highlightSelection(count):
+                    context.coordinator.highlightSelection(count: count)
+                }
+            }
+            return
+        }
+
+        if context.coordinator.currentURL == nil, let url = bridge.chapterURL {
+            context.coordinator.currentURL = url
+            context.coordinator.pendingProgress = bridge.progress
+            context.coordinator.pendingFragment = nil
+            guard let documentsDirectory = try? BookStorage.getDocumentsDirectory() else { return }
+            webView.scrollView.delegate = nil
+            webView.alpha = 0
+            webView.loadFileURL(url, allowingReadAccessTo: documentsDirectory)
+        }
+    }
+
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "textSelected")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "restoreCompleted")
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate, UIGestureRecognizerDelegate, WKScriptMessageHandler, UIScrollViewDelegate {
+        var parent: ReaderEpubScrollWebView
+        weak var webView: WKWebView?
+        var currentURL: URL?
+        var pendingProgress: Double = 0
+        var pendingFragment: String?
+        var shouldSyncProgressAfterRestore = false
+
+        init(parent: ReaderEpubScrollWebView) {
+            self.parent = parent
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "restoreCompleted" {
+                webView?.scrollView.delegate = self
+                if shouldSyncProgressAfterRestore {
+                    shouldSyncProgressAfterRestore = false
+                    syncLinkJumpProgress()
+                }
+                UIView.animate(withDuration: 0.25) {
+                    message.webView?.alpha = 1
+                }
+            } else if message.name == "textSelected" {
+                guard let body = message.body as? [String: Any],
+                      let text = body["text"] as? String,
+                      let sentence = body["sentence"] as? String,
+                      let rectData = body["rect"] as? [String: Any],
+                      let x = rectData["x"] as? CGFloat,
+                      let y = rectData["y"] as? CGFloat,
+                      let w = rectData["width"] as? CGFloat,
+                      let h = rectData["height"] as? CGFloat else {
+                    return
+                }
+                parent.onTextSelected(ReaderEpubSelectionData(text: text, sentence: sentence, rect: CGRect(x: x, y: y, width: w, height: h)))
+            }
+        }
+
+        @MainActor
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+            guard navigationAction.navigationType == .linkActivated,
+                  let url = navigationAction.request.url else {
+                decisionHandler(.allow)
+                return
+            }
+
+            if handleInternalLink(url: url) {
+                decisionHandler(.cancel)
+                return
+            }
+
+            decisionHandler(.allow)
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            let writingMode = parent.isVertical ? "vertical-rl" : "horizontal-tb"
+            let textAlign = parent.justifyText ? "justify" : "start"
+            let imageWidth = parent.isVertical ? "none" : "\(100 - parent.horizontalPadding)vw"
+            let imageHeight = parent.isVertical ? "\(100 - parent.verticalPadding)vh" : "none"
+
+            let css = """
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                writing-mode: \(writingMode) !important;
+                color: \(parent.textColorHex) !important;
+                background: transparent !important;
+            }
+            body {
+                font-family: \(parent.fontFamily), serif !important;
+                font-size: \(parent.fontSize)px !important;
+                line-height: \(parent.lineHeight) !important;
+                letter-spacing: \((parent.characterSpacing / 100.0))em !important;
+                text-align: \(textAlign) !important;
+                box-sizing: border-box !important;
+                padding: \(Double(parent.verticalPadding) / 2)vh \(Double(parent.horizontalPadding) / 2)vw !important;
+            }
+            img.block-img {
+                max-width: \(imageWidth) !important;
+                max-height: \(imageHeight) !important;
+                width: auto !important;
+                height: auto !important;
+                display: block !important;
+                margin: auto !important;
+                object-fit: contain !important;
+                \(parent.avoidPageBreak ? "break-inside: avoid !important; -webkit-column-break-inside: avoid !important;" : "")
+            }
+            svg {
+                max-width: \(imageWidth) !important;
+                max-height: \(imageHeight) !important;
+                width: 100% !important;
+                height: 100% !important;
+                display: block !important;
+                margin: auto !important;
+            }
+            ::highlight(hoshi-selection) {
+                background-color: rgba(160, 160, 160, 0.4) !important;
+                color: inherit;
+            }
+            a {
+                color: rgba(66, 108, 245, 1) !important;
+            }
+            \(parent.avoidPageBreak ? "p { break-inside: avoid !important; -webkit-column-break-inside: avoid !important; }" : "")
+            """
+
+            let initialRestoreScript: String = {
+                if let fragment = pendingFragment {
+                    shouldSyncProgressAfterRestore = true
+                    return "window.hoshiReader.jumpToFragment(\(javaScriptStringLiteral(fragment)));"
+                }
+                shouldSyncProgressAfterRestore = false
+                return "window.hoshiReader.restoreProgress(\(self.pendingProgress));"
+            }()
+            pendingFragment = nil
+
+            let script = """
+            (function() {
+                var viewport = document.querySelector('meta[name="viewport"]');
+                if (viewport) { viewport.remove(); }
+
+                var newViewport = document.createElement('meta');
+                newViewport.name = 'viewport';
+                newViewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+                document.head.appendChild(newViewport);
+
+                var style = document.createElement('style');
+                style.innerHTML = `\(css)`;
+                document.head.appendChild(style);
+
+                \(ReaderEpubScripts.selection)
+                \(ReaderEpubScripts.reader)
+                window.hoshiReader.pageHeight = \(Int(parent.viewSize.height));
+                window.hoshiReader.pageWidth = \(Int(parent.viewSize.width));
+                window.hoshiReader.registerCopyText();
+
+                if (\(parent.hideFurigana)) {
+                    document.querySelectorAll('rt').forEach(rt => rt.remove());
+                }
+
+                document.querySelectorAll('ruby').forEach(ruby => {
+                    ruby.childNodes.forEach(node => {
+                        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                            const span = document.createElement('span');
+                            span.textContent = node.textContent;
+                            node.replaceWith(span);
+                        }
+                    });
+                });
+
+                var images = document.querySelectorAll('img');
+                var imagePromises = Array.from(images).map(img => {
+                    return new Promise(resolve => {
+                        if (img.complete && img.naturalWidth > 0) {
+                            if (img.naturalWidth > 256 || img.naturalHeight > 256) {
+                                img.classList.add('block-img');
+                            }
+                            resolve();
+                        } else {
+                            img.onload = () => {
+                                if (img.naturalWidth > 256 || img.naturalHeight > 256) {
+                                    img.classList.add('block-img');
+                                }
+                                resolve();
+                            };
+                            img.onerror = () => resolve();
+                        }
+                    });
+                });
+
+                Promise.all(imagePromises).then(() => document.fonts.ready).then(() => new Promise(resolve => setTimeout(resolve, 50))).then(() => {
+                    \(initialRestoreScript)
+                });
+            })();
+            """
+
+            webView.evaluateJavaScript(script, completionHandler: nil)
+        }
+
+        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+            guard let webView, webView.scrollView.isDecelerating == false else {
+                return
+            }
+
+            let point = gesture.location(in: webView)
+            let script = "window.hoshiSelection.selectText(\(point.x), \(point.y), \(parent.maxSelectionLength))"
+
+            webView.evaluateJavaScript(script) { result, _ in
+                if result is NSNull || result == nil {
+                    self.parent.onTapOutside()
+                }
+            }
+        }
+
+        func saveBookmark() {
+            fetchCurrentProgress { [weak self] progress in
+                self?.parent.onSaveBookmark(progress)
+            }
+        }
+
+        func jumpToFragment(_ fragment: String) {
+            guard let webView else { return }
+            shouldSyncProgressAfterRestore = true
+            webView.evaluateJavaScript("window.hoshiReader.jumpToFragment(\(javaScriptStringLiteral(fragment)))") { _, _ in }
+        }
+
+        private func syncLinkJumpProgress() {
+            fetchCurrentProgress { [weak self] progress in
+                self?.parent.onInternalJump(progress)
+            }
+        }
+
+        private func fetchCurrentProgress(_ completion: @escaping (Double) -> Void) {
+            guard let webView else { return }
+            webView.evaluateJavaScript("window.hoshiReader.calculateProgress()") { result, _ in
+                guard let progress = result as? Double else { return }
+                completion(progress)
+            }
+        }
+
+        private func javaScriptStringLiteral(_ value: String) -> String {
+            let escaped = value
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+            return "'\(escaped)'"
+        }
+
+        @discardableResult
+        private func handleInternalLink(url: URL) -> Bool {
+            if url.isFileURL {
+                return parent.onInternalLink(url)
+            }
+
+            guard let scheme = url.scheme?.lowercased() else {
+                return false
+            }
+            if scheme == "http" || scheme == "https" {
+                UIApplication.shared.open(url)
+                return true
+            }
+            return false
+        }
+
+        func highlightSelection(count: Int) {
+            guard let webView else { return }
+            webView.evaluateJavaScript("window.hoshiSelection.highlightSelection(\(count))") { _, _ in }
+        }
+
+        func clearHighlight() {
+            guard let webView else { return }
+            webView.evaluateJavaScript("window.hoshiSelection.clearHighlight()") { _, _ in }
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            true
+        }
+
+        func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+            let offset = parent.isVertical ? scrollView.contentOffset.x : scrollView.contentOffset.y
+            let contentSize = parent.isVertical ? scrollView.contentSize.width : scrollView.contentSize.height
+            let viewSize = parent.isVertical ? scrollView.bounds.width : scrollView.bounds.height
+            let maxOffset = max(contentSize - viewSize, 0)
+            let threshold: CGFloat = 20
+
+            let scrolledPastEnd = parent.isVertical ? offset < -threshold : offset > maxOffset + threshold
+            let scrolledPastStart = parent.isVertical ? offset > maxOffset + threshold : offset < -threshold
+
+            if scrolledPastEnd {
+                webView?.scrollView.delegate = nil
+                if parent.onNextChapter() {
+                    webView?.alpha = 0
+                } else {
+                    webView?.scrollView.delegate = self
+                }
+            } else if scrolledPastStart {
+                webView?.scrollView.delegate = nil
+                if parent.onPreviousChapter() {
+                    webView?.alpha = 0
+                } else {
+                    webView?.scrollView.delegate = self
+                }
+            }
+        }
+
+        func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+            saveBookmark()
+            clearHighlight()
+            parent.onScroll()
+        }
+
+        func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+            if decelerate == false {
+                saveBookmark()
+                clearHighlight()
+                parent.onScroll()
+            }
+        }
     }
 }
 

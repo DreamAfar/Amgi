@@ -1813,26 +1813,23 @@ private struct ReaderChromeIconLabel: View {
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.title3.weight(.semibold))
+            .font(.headline.weight(.semibold))
             .foregroundStyle(Color.amgiTextPrimary)
-            .frame(width: 22, height: 22)
+            .frame(width: 40, height: 40)
+            .background(.ultraThinMaterial, in: Circle())
     }
 }
 
 private extension View {
-    @ViewBuilder
     func readerChromeButtonStyle() -> some View {
-        if #available(iOS 26.0, *) {
-            self
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
-        } else {
-            self
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
-        }
+        buttonStyle(ReaderChromeButtonStyle())
+    }
+}
+
+private struct ReaderChromeButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
