@@ -439,6 +439,9 @@
 "reader_library_selected_count" = "%d selected";
 "reader_library_empty_title" = "No Books Yet";
 "reader_library_empty_description" = "No readable books were found in the configured deck.";
+"reader_epub_empty_description" = "Import EPUB files to build your local bookshelf.";
+"reader_epub_import_button" = "Import EPUB";
+"reader_epub_delete_confirmation" = "Delete %d imported EPUB file(s)?";
 "reader_library_missing_config_title" = "Reader Setup Required";
 "reader_library_missing_config_description" = "Select a book deck and complete the required field mapping in Reader settings first.";
 "reader_book_chapters" = "%d chapters";
@@ -461,6 +464,10 @@
 "reader_reader_next_chapter" = "Next";
 "reader_reader_position" = "Chapter %1$d / %2$d   %.1f%%";
 "reader_reader_position_chapter_only" = "Chapter %1$d / %2$d";
+"settings_reader_source_mode" = "Source Mode";
+"settings_reader_source_mode_notes" = "Anki Notes";
+"settings_reader_source_mode_epub" = "EPUB Library";
+"settings_reader_epub_source_description" = "Use the built-in EPUB bookshelf. Import files from the Reader tab to read them locally without deck field mapping.";
 
 // MARK: - Backup
 "backup_nav_title" = "Backups";

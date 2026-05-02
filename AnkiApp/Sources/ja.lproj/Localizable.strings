@@ -439,6 +439,9 @@
 "reader_library_selected_count" = "%d 件を選択中";
 "reader_library_empty_title" = "読める書籍がありません";
 "reader_library_empty_description" = "設定されたデッキに読書用の書籍データが見つかりませんでした。";
+"reader_epub_empty_description" = "EPUB を取り込むと、ここにローカル本棚が表示されます。";
+"reader_epub_import_button" = "EPUB を読み込む";
+"reader_epub_delete_confirmation" = "取り込んだ EPUB を %d 件削除しますか？";
 "reader_library_missing_config_title" = "リーダー設定が必要です";
 "reader_library_missing_config_description" = "先にリーダー設定で書籍デッキと必須フィールド対応を選択してください。";
 "reader_book_chapters" = "%d 章";
@@ -461,6 +464,10 @@
 "reader_reader_next_chapter" = "次の章";
 "reader_reader_position" = "第 %1$d / %2$d 章   %.1f%%";
 "reader_reader_position_chapter_only" = "第 %1$d / %2$d 章";
+"settings_reader_source_mode" = "ソースモード";
+"settings_reader_source_mode_notes" = "Anki ノート";
+"settings_reader_source_mode_epub" = "EPUB 本棚";
+"settings_reader_epub_source_description" = "内蔵 EPUB 本棚を使います。リーダータブからローカル EPUB を読み込めば、デッキのフィールド対応なしで読めます。";
 
 // MARK: - Backup
 "backup_nav_title" = "バックアップ";

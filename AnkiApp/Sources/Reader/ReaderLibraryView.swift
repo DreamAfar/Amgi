@@ -51,6 +51,7 @@ struct ReaderLibraryView: View {
     fileprivate static let bookCoverAspectRatio: CGFloat = 100 / 136
     fileprivate static let bookGridSpacing: CGFloat = 12
 
+    @AppStorage(ReaderPreferences.Keys.sourceMode) private var sourceModeRawValue = ReaderLibrarySourceMode.ankiNotes.rawValue
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
     @AppStorage(ReaderPreferences.Keys.bookIDField) private var bookIDField = ""
@@ -74,6 +75,10 @@ struct ReaderLibraryView: View {
     @State private var isSelecting = false
     @State private var selectedBookIDs: Set<String> = []
     @State private var settingsRoute: ReaderLibrarySettingsRoute?
+
+    private var sourceMode: ReaderLibrarySourceMode {
+        ReaderLibrarySourceMode(rawValue: sourceModeRawValue) ?? .ankiNotes
+    }
 
     private var resolvedBookshelfColumns: Int {
         bookshelfColumns == 2 ? 2 : 3
@@ -134,7 +139,10 @@ struct ReaderLibraryView: View {
     }
 
     var body: some View {
-        Group {
+        if sourceMode == .epub {
+            ReaderEpubLibraryView()
+        } else {
+            Group {
             if let configurationProblem {
                 ContentUnavailableView(
                     L("reader_library_missing_config_title"),
@@ -284,6 +292,7 @@ struct ReaderLibraryView: View {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
             Text(errorMessage ?? L("common_unknown_error"))
+        }
         }
     }
 

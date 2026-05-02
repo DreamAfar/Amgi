@@ -9,6 +9,13 @@ enum ReaderThemeMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum ReaderLibrarySourceMode: String, CaseIterable, Identifiable {
+    case ankiNotes = "anki_notes"
+    case epub = "epub"
+
+    var id: String { rawValue }
+}
+
 enum ReviewPreferences {
     enum Keys {
         static let playAudioInSilentMode = "review_pref_play_audio_in_silent_mode"
@@ -34,6 +41,7 @@ enum ReaderPreferences {
     enum Keys {
         static let showTab = "reader_pref_show_tab"
         static let tapLookup = "reader_pref_tap_lookup"
+        static let sourceMode = "reader_pref_source_mode"
         static let deckID = "reader_pref_deck_id"
         static let notetypeID = "reader_pref_notetype_id"
         static let bookIDField = "reader_pref_book_id_field"

@@ -439,6 +439,9 @@
 "reader_library_selected_count" = "已选择 %d 本";
 "reader_library_empty_title" = "暂无可读书籍";
 "reader_library_empty_description" = "当前配置的牌组里还没有可供阅读的书籍内容。";
+"reader_epub_empty_description" = "导入 EPUB 文件后，这里会显示本地书架。";
+"reader_epub_import_button" = "导入 EPUB";
+"reader_epub_delete_confirmation" = "删除这 %d 本已导入的 EPUB 书籍？";
 "reader_library_missing_config_title" = "需要先完成阅读器设置";
 "reader_library_missing_config_description" = "请先在阅读器设置中选择书籍牌组，并完成必填字段映射。";
 "reader_book_chapters" = "%d 章";
@@ -461,6 +464,10 @@
 "reader_reader_next_chapter" = "下一章";
 "reader_reader_position" = "第 %1$d / %2$d 章   %.1f%%";
 "reader_reader_position_chapter_only" = "第 %1$d / %2$d 章";
+"settings_reader_source_mode" = "书源模式";
+"settings_reader_source_mode_notes" = "Anki 笔记";
+"settings_reader_source_mode_epub" = "EPUB 书库";
+"settings_reader_epub_source_description" = "使用内置 EPUB 书库。在阅读器标签页导入本地 EPUB 后即可直接阅读，不再依赖牌组字段映射。";
 
 // MARK: - Backup
 "backup_nav_title" = "备份";

@@ -100,6 +100,7 @@ struct ReaderSourceSettingsView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.ankiBackend) var backend
 
+    @AppStorage(ReaderPreferences.Keys.sourceMode) private var sourceModeRawValue = ReaderLibrarySourceMode.ankiNotes.rawValue
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
     @AppStorage(ReaderPreferences.Keys.bookIDField) private var bookIDField = ""
@@ -113,6 +114,20 @@ struct ReaderSourceSettingsView: View {
     @State private var decks: [DeckInfo] = []
     @State private var notetypeNames: [(Int64, String)] = []
     @State private var availableFields: [String] = []
+
+    private var sourceMode: ReaderLibrarySourceMode {
+        get { ReaderLibrarySourceMode(rawValue: sourceModeRawValue) ?? .ankiNotes }
+        set { sourceModeRawValue = newValue.rawValue }
+    }
+
+    private var sourceModeTitle: String {
+        switch sourceMode {
+        case .ankiNotes:
+            return L("settings_reader_source_mode_notes")
+        case .epub:
+            return L("settings_reader_source_mode_epub")
+        }
+    }
 
     private var selectedDeckLabel: String {
         guard !decks.isEmpty else {
@@ -137,6 +152,22 @@ struct ReaderSourceSettingsView: View {
     var body: some View {
         List {
             Section(L("settings_reader_section_source")) {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                    Text(L("settings_reader_source_mode"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Menu {
+                        Picker(L("settings_reader_source_mode"), selection: $sourceMode) {
+                            Text(L("settings_reader_source_mode_notes")).tag(ReaderLibrarySourceMode.ankiNotes)
+                            Text(L("settings_reader_source_mode_epub")).tag(ReaderLibrarySourceMode.epub)
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: sourceModeTitle)
+                    }
+                }
+
+                if sourceMode == .ankiNotes {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_deck"), systemImage: "books.vertical")
                         .foregroundStyle(SettingsValueStyle.primary)
@@ -180,9 +211,15 @@ struct ReaderSourceSettingsView: View {
                     }
                     .disabled(notetypeNames.isEmpty)
                 }
+                } else {
+                    Text(L("settings_reader_epub_source_description"))
+                        .font(.footnote)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                }
             }
             .amgiSettingsListRowSurface()
 
+            if sourceMode == .ankiNotes {
             Section(L("settings_reader_section_fields")) {
                 readerFieldRow(title: L("settings_reader_book_id_field"), selection: $bookIDField)
                 readerFieldRow(title: L("settings_reader_book_title_field"), selection: $bookTitleField)
@@ -193,6 +230,7 @@ struct ReaderSourceSettingsView: View {
                 readerFieldRow(title: L("settings_reader_language_field"), selection: $languageField)
             }
             .amgiSettingsListRowSurface()
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
