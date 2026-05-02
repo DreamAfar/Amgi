@@ -5,6 +5,7 @@ import AnkiKit
 import AnkiReader
 import AnkiClients
 import Dependencies
+import EPUBKit
 import UIKit
 
 private enum ReaderEpubSettingsRoute: String, Identifiable {
