@@ -503,7 +503,7 @@ struct ReaderEpubReaderView: View {
                     let topOverlayTopPadding = max(topSafeArea, 25)
                     let topOverlayHeight = topOverlayTopPadding + ((showTitle || showProgressTop) ? 34 : 10)
                     let bottomInset = max(bottomSafeArea - 8, 14)
-                    let bottomChromePadding = max(bottomSafeArea - 18, 6)
+                    let bottomChromeHeight = (bottomSafeArea > 25 ? bottomSafeArea : 44) + 10
 
                     VStack(spacing: 0) {
                         chapterContentBackground
@@ -636,16 +636,17 @@ struct ReaderEpubReaderView: View {
                                 .readerEpubChromeButtonStyle()
                             }
                             .padding(.horizontal, 20)
-                            .padding(.bottom, bottomChromePadding)
+                            .frame(height: bottomChromeHeight, alignment: .top)
                         }
                     }
                     .background(chapterContentBackground)
                     .overlay(alignment: .top) {
-                        VStack(spacing: 2) {
+                        VStack {
                             if showTitle, let title = session.document.title, title.isEmpty == false {
                                 Text(title)
-                                    .font(.subheadline.weight(.medium))
+                                    .font(.subheadline)
                                     .foregroundStyle(Color.amgiTextSecondary)
+                                    .padding(.horizontal, 30)
                                     .lineLimit(1)
                             }
 
@@ -654,13 +655,9 @@ struct ReaderEpubReaderView: View {
                                     .font(.caption)
                                     .foregroundStyle(Color.amgiTextSecondary)
                                     .monospacedDigit()
-                                    .tracking(-0.3)
+                                    .tracking(-0.4)
                             }
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 112)
-                        .padding(.vertical, 1)
-                        .background(chapterContentBackground)
                         .padding(.top, topOverlayTopPadding)
                     }
                     .overlay(alignment: .bottom) {
@@ -669,10 +666,7 @@ struct ReaderEpubReaderView: View {
                                 .font(.caption)
                                 .foregroundStyle(Color.amgiTextSecondary)
                                 .monospacedDigit()
-                                .tracking(-0.3)
-                                .frame(maxWidth: .infinity)
-                                .padding(.horizontal, 80)
-                                .padding(.bottom, bottomInset + 60)
+                                .tracking(-0.4)
                         }
                     }
                     .overlay {

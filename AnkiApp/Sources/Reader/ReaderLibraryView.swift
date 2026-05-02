@@ -1032,7 +1032,7 @@ private struct ReaderChapterView: View {
             let topOverlayTopPadding = max(topSafeArea, 25)
             let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 34 : 10)
             let bottomInset = max(bottomSafeArea - 8, 14)
-            let bottomChromePadding = max(bottomSafeArea - 18, 6)
+            let bottomChromeHeight = (bottomSafeArea > 25 ? bottomSafeArea : 44) + 10
 
             VStack(spacing: 0) {
                 chapterContentBackground
@@ -1115,7 +1115,7 @@ private struct ReaderChapterView: View {
                         .readerChromeButtonStyle()
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, bottomChromePadding)
+                    .frame(height: bottomChromeHeight, alignment: .top)
                 }
             }
             .background(chapterContentBackground)
@@ -1130,7 +1130,6 @@ private struct ReaderChapterView: View {
             .overlay(alignment: .bottom) {
                 if showProgressTop == false {
                     ReaderChapterBottomProgressOverlay(progressLabel: progressLabel)
-                        .padding(.bottom, bottomInset + 60)
                 }
             }
             .overlay(alignment: .topTrailing) {
@@ -1771,11 +1770,12 @@ private struct ReaderChapterInfoOverlay: View {
     let background: Color
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack {
             if let title, !title.isEmpty {
                 Text(title)
-                    .font(.subheadline.weight(.medium))
+                    .font(.subheadline)
                     .foregroundStyle(Color.amgiTextSecondary)
+                    .padding(.horizontal, 30)
                     .lineLimit(1)
             }
 
@@ -1784,13 +1784,9 @@ private struct ReaderChapterInfoOverlay: View {
                     .font(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
                     .monospacedDigit()
-                    .tracking(-0.3)
+                    .tracking(-0.4)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 112)
-        .padding(.vertical, 1)
-        .background(background)
     }
 }
 
@@ -1802,9 +1798,7 @@ private struct ReaderChapterBottomProgressOverlay: View {
             .font(.caption)
             .foregroundStyle(Color.amgiTextSecondary)
             .monospacedDigit()
-            .tracking(-0.3)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 80)
+            .tracking(-0.4)
     }
 }
 
