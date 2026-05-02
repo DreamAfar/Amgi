@@ -2119,40 +2119,44 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                   let window = webView.window
             else { return }
 
-            let fieldRectInWindow = webView.convert(fieldRectInWebView, to: window)
             let keyboardFrameInWindow = keyboardEndFrameInScreen.isNull
                 ? CGRect(x: 0, y: window.bounds.maxY, width: window.bounds.width, height: 0)
                 : window.convert(keyboardEndFrameInScreen, from: nil)
             let visibleKeyboardFrame = keyboardFrameInWindow.intersection(window.bounds)
+            let keyboardHeight = visibleKeyboardFrame.height > 44 ? visibleKeyboardFrame.height : 0
 
-            // Keep the host scroll view's bottom inset in sync with the keyboard height so
-            // the content can be scrolled far enough to reveal fields behind the keyboard.
-            // (The Form uses ignoresSafeArea(.keyboard) to suppress automatic avoidance, which
-            // means the scroll view never shrinks on its own — we must widen the scrollable
-            // range manually.)
-            let neededInsetBottom = visibleKeyboardFrame.height > 44 ? visibleKeyboardFrame.height : 0
-            if abs(hostScrollView.contentInset.bottom - neededInsetBottom) > 1 {
-                // Expand the scrollable range when the keyboard appears so bottom fields are
-                // reachable. When the keyboard is dismissed, only shrink the inset — do NOT
-                // move contentOffset so the field list stays exactly where the user left it.
-                hostScrollView.contentInset.bottom = neededInsetBottom
+            // Sync contentInset.bottom with keyboard height so the scroll view can reach
+            // content that would otherwise be behind the keyboard.
+            // On dismiss (keyboardHeight == 0): only clear the inset, never touch contentOffset —
+            // the field list stays exactly where the user left it.
+            if abs(hostScrollView.contentInset.bottom - keyboardHeight) > 1 {
+                hostScrollView.contentInset.bottom = keyboardHeight
             }
 
-            guard visibleKeyboardFrame.height > 44 else { return }
+            // Keyboard not visible — nothing else to do.
+            guard keyboardHeight > 44 else { return }
 
-            let topInset = window.safeAreaInsets.top + 16
-            let bottomInset = max(topInset + 56, visibleKeyboardFrame.minY - 16)
-            let availableHeight = bottomInset - topInset
+            // Convert the field rect to window coordinates (accounts for current scroll position).
+            let fieldRectInWindow = webView.convert(fieldRectInWebView, to: window)
+
+            // Compute the visible area above the keyboard (with comfortable padding).
+            let navBarBottom = window.safeAreaInsets.top + 56   // approx navigation bar bottom
+            let keyboardTop = visibleKeyboardFrame.minY - 16    // 16pt breathing room above keyboard
+
+            // If the field is already fully visible between nav bar and keyboard, do nothing.
+            if fieldRectInWindow.minY >= navBarBottom && fieldRectInWindow.maxY <= keyboardTop {
+                return
+            }
+
+            // Field is at least partially obscured — scroll to bring its top to ~30% of the
+            // available area so the user can see both the label and start of content.
+            let availableHeight = keyboardTop - navBarBottom
             guard availableHeight > 0 else { return }
+            let targetFieldTopInWindow = navBarBottom + availableHeight * 0.30
 
-            let desiredFocusY = min(
-                bottomInset - 36,
-                topInset + max(72, availableHeight * 0.36)
-            )
-            let focusY = fieldRectInWindow.height > 6 ? fieldRectInWindow.midY : fieldRectInWindow.minY
-            let deltaY = focusY - desiredFocusY
-
+            let deltaY = fieldRectInWindow.minY - targetFieldTopInWindow
             guard abs(deltaY) > 6 else { return }
+
             let minOffsetY = -hostScrollView.adjustedContentInset.top
             let maxOffsetY = max(
                 minOffsetY,
@@ -2160,63 +2164,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             )
             let targetOffsetY = min(max(hostScrollView.contentOffset.y + deltaY, minOffsetY), maxOffsetY)
             guard abs(targetOffsetY - hostScrollView.contentOffset.y) > 1 else { return }
-            hostScrollView.setContentOffset(CGPoint(x: hostScrollView.contentOffset.x, y: targetOffsetY), animated: false)
-        }
-            private func applyVisibilityAdjustment(fieldRectInWebView: CGRect) {
-                guard let webView,
-                      let hostScrollView = enclosingHostScrollView(for: webView),
-                      let window = webView.window
-                else { return }
-
-                let keyboardFrameInWindow = keyboardEndFrameInScreen.isNull
-                    ? CGRect(x: 0, y: window.bounds.maxY, width: window.bounds.width, height: 0)
-                    : window.convert(keyboardEndFrameInScreen, from: nil)
-                let visibleKeyboardFrame = keyboardFrameInWindow.intersection(window.bounds)
-                let keyboardHeight = visibleKeyboardFrame.height > 44 ? visibleKeyboardFrame.height : 0
-
-                // Sync contentInset.bottom with keyboard height so the scroll view can reach
-                // content that would otherwise be behind the keyboard.
-                // On dismiss (keyboardHeight == 0): only clear the inset, never touch contentOffset —
-                // the field list stays exactly where the user left it.
-                if abs(hostScrollView.contentInset.bottom - keyboardHeight) > 1 {
-                    hostScrollView.contentInset.bottom = keyboardHeight
-                }
-
-                // Keyboard not visible — nothing else to do.
-                guard keyboardHeight > 44 else { return }
-
-                // Convert the field rect to window coordinates (accounts for current scroll position).
-                let fieldRectInWindow = webView.convert(fieldRectInWebView, to: window)
-
-                // Compute the visible area above the keyboard (with comfortable padding).
-                let navBarBottom = window.safeAreaInsets.top + 56   // approx navigation bar bottom
-                let keyboardTop = visibleKeyboardFrame.minY - 16    // 16pt breathing room above keyboard
-
-                // If the field is already fully visible between nav bar and keyboard, do nothing.
-                if fieldRectInWindow.minY >= navBarBottom && fieldRectInWindow.maxY <= keyboardTop {
-                    return
-                }
-
-                // Field is at least partially obscured — scroll to bring its top to ~30% of the
-                // available area so the user can see both the label and start of content.
-                let availableHeight = keyboardTop - navBarBottom
-                guard availableHeight > 0 else { return }
-                let targetFieldTopInWindow = navBarBottom + availableHeight * 0.30
-
-                let deltaY = fieldRectInWindow.minY - targetFieldTopInWindow
-                guard abs(deltaY) > 6 else { return }
-
-                let minOffsetY = -hostScrollView.adjustedContentInset.top
-                let maxOffsetY = max(
-                    minOffsetY,
-                    hostScrollView.contentSize.height - hostScrollView.bounds.height + hostScrollView.adjustedContentInset.bottom
-                )
-                let targetOffsetY = min(max(hostScrollView.contentOffset.y + deltaY, minOffsetY), maxOffsetY)
-                guard abs(targetOffsetY - hostScrollView.contentOffset.y) > 1 else { return }
-                UIView.animate(withDuration: 0.22) {
-                    hostScrollView.contentOffset.y = targetOffsetY
-                }
+            UIView.animate(withDuration: 0.22) {
+                hostScrollView.contentOffset.y = targetOffsetY
             }
+        }
 
         private func enclosingHostScrollView(for webView: WKWebView) -> UIScrollView? {
             var current = webView.superview
