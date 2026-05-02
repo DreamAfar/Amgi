@@ -33,12 +33,22 @@ SIM_LIB="$BRIDGE_DIR/target/aarch64-apple-ios-sim/release/libanki_bridge_ios.a"
 echo "==> Device lib: $(du -h "$DEVICE_LIB" | cut -f1)"
 echo "==> Simulator lib: $(du -h "$SIM_LIB" | cut -f1)"
 
+TEMP_LIB_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_LIB_DIR"' EXIT
+
+RENAMED_DEVICE_LIB="$TEMP_LIB_DIR/device/libAnkiRustLib.a"
+RENAMED_SIM_LIB="$TEMP_LIB_DIR/simulator/libAnkiRustLib.a"
+
+mkdir -p "$(dirname "$RENAMED_DEVICE_LIB")" "$(dirname "$RENAMED_SIM_LIB")"
+cp "$DEVICE_LIB" "$RENAMED_DEVICE_LIB"
+cp "$SIM_LIB" "$RENAMED_SIM_LIB"
+
 echo "==> Packaging XCFramework..."
 rm -rf "$OUTPUT_DIR"
 
 xcodebuild -create-xcframework \
-    -library "$DEVICE_LIB" -headers "$HEADER_DIR" \
-    -library "$SIM_LIB" -headers "$HEADER_DIR" \
+    -library "$RENAMED_DEVICE_LIB" -headers "$HEADER_DIR" \
+    -library "$RENAMED_SIM_LIB" -headers "$HEADER_DIR" \
     -output "$OUTPUT_DIR"
 
 echo "==> Adding module maps..."
