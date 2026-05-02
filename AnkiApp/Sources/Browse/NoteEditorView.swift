@@ -244,39 +244,38 @@ struct NoteEditorView: View {
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
 
-            Group {
-                if isTagEditorFocused {
-                    // Edit mode: plain text, directly edit the space-separated tag string
-                    TextField(L("tags_add_placeholder"), text: $tags, axis: .vertical)
-                        .focused($isTagEditorFocused)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .lineLimit(1...4)
-                        .onChange(of: isTagEditorFocused) {
-                            if !isTagEditorFocused {
-                                // Normalize when leaving edit mode
-                                tags = trimmedTags
-                            }
+            ZStack(alignment: .topLeading) {
+                // TextField is always in the hierarchy so @FocusState binding is always active.
+                TextField(L("tags_add_placeholder"), text: $tags, axis: .vertical)
+                    .focused($isTagEditorFocused)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .lineLimit(1...4)
+                    .onChange(of: isTagEditorFocused) {
+                        if !isTagEditorFocused {
+                            tags = trimmedTags
                         }
-                } else {
-                    // Display mode: pill capsules
-                    VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+                    }
+                    // Hide the raw text field visually when showing pills,
+                    // but keep it in the layout so focus works.
+                    .opacity(isTagEditorFocused ? 1 : 0)
+
+                // Display mode: pill capsules — shown only when not editing.
+                if !isTagEditorFocused {
+                    Group {
                         if tagList.isEmpty {
                             Text(L("tags_add_placeholder"))
                                 .amgiFont(.body)
                                 .foregroundStyle(Color.amgiTextSecondary)
                         } else {
-                            LazyVGrid(
-                                columns: [GridItem(.adaptive(minimum: 88), spacing: 8, alignment: .leading)],
-                                alignment: .leading,
-                                spacing: 8
-                            ) {
+                            TagFlowLayout(horizontalSpacing: 8, verticalSpacing: 8) {
                                 ForEach(tagList, id: \.self) { tag in
                                     tagCapsule(tag)
                                 }
                             }
                         }
                     }
+                    .allowsHitTesting(false)
                 }
             }
             .padding(.horizontal, 12)
@@ -288,7 +287,6 @@ struct NoteEditorView: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .onTapGesture {
-                // Normalize before entering edit mode so text matches tagList
                 tags = trimmedTags
                 isTagEditorFocused = true
             }
@@ -300,7 +298,7 @@ struct NoteEditorView: View {
             Text(tag)
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiAccent)
-                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(Color.amgiAccent.opacity(0.14), in: Capsule())
@@ -660,5 +658,48 @@ struct NoteEditorView: View {
             showError = true
         }
         isSaving = false
+    }
+}
+
+/// A simple wrapping flow layout for tag capsules.
+/// Lays out children left-to-right, wrapping to the next row when the
+/// container width is exhausted.
+private struct TagFlowLayout: Layout {
+    var horizontalSpacing: CGFloat = 8
+    var verticalSpacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth, x > 0 {
+                y += rowHeight + verticalSpacing
+                x = 0
+                rowHeight = 0
+            }
+            x += size.width + horizontalSpacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: maxWidth, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX, x > bounds.minX {
+                x = bounds.minX
+                y += rowHeight + verticalSpacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + horizontalSpacing
+            rowHeight = max(rowHeight, size.height)
+        }
     }
 }
