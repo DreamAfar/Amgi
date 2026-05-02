@@ -908,8 +908,15 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             }
             section.classList.toggle('is-source-mode', !!field.isSourceMode);
             editorShellElement(index)?.classList.toggle('is-source-mode', !!field.isSourceMode);
+            if (field.isSourceMode && source) { autosizeTextarea(source); }
             updatePreview(index);
             updateActionState(index);
+        }
+
+        function autosizeTextarea(textarea) {
+            if (!textarea) { return; }
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
         }
 
         function bindFieldSection(section, index) {
@@ -936,6 +943,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             source.addEventListener('click', () => setActiveField(index));
             source.addEventListener('input', () => {
                 state.fields[index].html = source.value;
+                autosizeTextarea(source);
                 updatePreview(index);
                 debounceFieldChanged(index);
                 scheduleHeightUpdate();
@@ -952,6 +960,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 sendSourceModeChanged(index);
                 setActiveField(index);
                 if (next) {
+                    autosizeTextarea(source);
                     focusElement(source);
                 } else {
                     focusElement(rendered);
