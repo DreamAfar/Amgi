@@ -158,7 +158,13 @@ struct ReaderSourceSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
-                        Picker(L("settings_reader_source_mode"), selection: $sourceMode) {
+                        Picker(
+                            L("settings_reader_source_mode"),
+                            selection: Binding(
+                                get: { sourceMode },
+                                set: { sourceMode = $0 }
+                            )
+                        ) {
                             Text(L("settings_reader_source_mode_notes")).tag(ReaderLibrarySourceMode.ankiNotes)
                             Text(L("settings_reader_source_mode_epub")).tag(ReaderLibrarySourceMode.epub)
                         }
