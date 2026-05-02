@@ -267,15 +267,29 @@ struct NoteEditorView: View {
                             Text(L("tags_add_placeholder"))
                                 .amgiFont(.body)
                                 .foregroundStyle(Color.amgiTextSecondary)
+                                // Empty state: tap anywhere → enter edit mode
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    tags = trimmedTags
+                                    isTagEditorFocused = true
+                                }
                         } else {
                             TagFlowLayout(horizontalSpacing: 8, verticalSpacing: 8) {
                                 ForEach(tagList, id: \.self) { tag in
                                     tagCapsule(tag)
                                 }
+                                // Invisible tap target that fills the remaining space to enter edit mode
+                                Color.clear
+                                    .frame(minWidth: 44, minHeight: 32)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        tags = trimmedTags
+                                        isTagEditorFocused = true
+                                    }
                             }
                         }
                     }
-                    .allowsHitTesting(false)
+                    // Do NOT use allowsHitTesting(false) — the × button on each pill needs to be tappable.
                 }
             }
             .padding(.horizontal, 12)
@@ -286,7 +300,9 @@ struct NoteEditorView: View {
                     .stroke(Color.amgiAccent.opacity(0.12), lineWidth: 1)
             )
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            // Background tap (outside any pill) → enter edit mode
             .onTapGesture {
+                guard !isTagEditorFocused else { return }
                 tags = trimmedTags
                 isTagEditorFocused = true
             }
