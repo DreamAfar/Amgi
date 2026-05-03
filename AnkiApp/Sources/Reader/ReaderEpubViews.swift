@@ -2011,16 +2011,16 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
         }
 
         func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+            parent.onScroll()
             saveBookmark()
             clearHighlight()
-            parent.onScroll()
         }
 
         func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
             if decelerate == false {
+                parent.onScroll()
                 saveBookmark()
                 clearHighlight()
-                parent.onScroll()
             }
         }
     }
