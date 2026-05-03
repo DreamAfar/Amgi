@@ -731,9 +731,8 @@ struct ReaderAdvancedSettingsView: View {
         Binding(
             get: { lookupNoteTemplate.duplicateCheckFieldName ?? "" },
             set: { newValue in
-                let normalizedFieldName = newValue
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .nilIfBlank
+                let trimmedFieldName = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                let normalizedFieldName = trimmedFieldName.isEmpty ? nil : trimmedFieldName
                 updateTemplate { template in
                     template.duplicateCheckFieldName = normalizedFieldName
                 }
@@ -749,7 +748,7 @@ struct ReaderAdvancedSettingsView: View {
     private var statisticsAutostartModeSelection: Binding<ReaderStatisticsAutostartMode> {
         Binding(
             get: { statisticsAutostartMode },
-            set: { statisticsAutostartMode = $0 }
+            set: { statisticsAutostartModeRawValue = $0.rawValue }
         )
     }
 
