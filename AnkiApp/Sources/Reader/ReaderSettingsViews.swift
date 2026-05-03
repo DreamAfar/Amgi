@@ -722,6 +722,24 @@ struct ReaderAdvancedSettingsView: View {
         set { statisticsAutostartModeRawValue = newValue.rawValue }
     }
 
+    private var statisticsAutostartModeSelection: Binding<ReaderStatisticsAutostartMode> {
+        Binding(
+            get: { statisticsAutostartMode },
+            set: { statisticsAutostartMode = $0 }
+        )
+    }
+
+    private var statisticsAutostartModeLabel: String {
+        switch statisticsAutostartMode {
+        case .off:
+            L("settings_reader_statistics_autostart_off")
+        case .pageTurn:
+            L("settings_reader_statistics_autostart_page_turn")
+        case .on:
+            L("settings_reader_statistics_autostart_on")
+        }
+    }
+
     var body: some View {
         List {
             Section {
@@ -735,7 +753,7 @@ struct ReaderAdvancedSettingsView: View {
             }
             .amgiSettingsListRowSurface()
 
-            Section(L("settings_reader_statistics_section")) {
+            Section {
                 Toggle(L("settings_reader_statistics_enable"), isOn: $enableStatistics)
                     .foregroundStyle(SettingsValueStyle.primary)
 
@@ -746,22 +764,20 @@ struct ReaderAdvancedSettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
-                            Picker(L("settings_reader_statistics_autostart"), selection: $statisticsAutostartMode) {
+                            Picker(L("settings_reader_statistics_autostart"), selection: statisticsAutostartModeSelection) {
                                 Text(L("settings_reader_statistics_autostart_off")).tag(ReaderStatisticsAutostartMode.off)
                                 Text(L("settings_reader_statistics_autostart_page_turn")).tag(ReaderStatisticsAutostartMode.pageTurn)
                                 Text(L("settings_reader_statistics_autostart_on")).tag(ReaderStatisticsAutostartMode.on)
                             }
                         } label: {
                             SettingsOptionCapsuleLabel(
-                                title: switch statisticsAutostartMode {
-                                case .off: L("settings_reader_statistics_autostart_off")
-                                case .pageTurn: L("settings_reader_statistics_autostart_page_turn")
-                                case .on: L("settings_reader_statistics_autostart_on")
-                                }
+                                title: statisticsAutostartModeLabel
                             )
                         }
                     }
                 }
+            } header: {
+                Text(L("settings_reader_statistics_section"))
             } footer: {
                 Text(L("settings_reader_statistics_description"))
             }
