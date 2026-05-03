@@ -192,11 +192,11 @@ public final class ReaderEpubSession {
         lastStatisticsCharacterCount = currentCharacter
     }
 
-    public func syncProgress(_ progress: Double, persistBookmark: Bool = false) {
+    public func syncProgress(_ progress: Double, persistBookmark shouldPersistBookmark: Bool = false) {
         let clampedProgress = min(max(progress, 0), 1)
         currentProgress = clampedProgress
 
-        if persistBookmark {
+        if shouldPersistBookmark {
             persistBookmark(progress: clampedProgress)
         }
     }
