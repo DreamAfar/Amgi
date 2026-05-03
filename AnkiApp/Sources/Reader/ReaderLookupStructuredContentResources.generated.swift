@@ -1139,6 +1139,11 @@ function getFrequencyHarmonicRank(frequencies) {
 }
 
 async function mineEntry(expression, reading, frequencies, pitches, rules, matched, entryIndex, popupSelectionText) {
+    const payload = await buildMiningPayload(expression, reading, frequencies, pitches, rules, matched, entryIndex, popupSelectionText);
+    return await webkit.messageHandlers.mineEntry.postMessage(payload);
+}
+
+async function buildMiningPayload(expression, reading, frequencies, pitches, rules, matched, entryIndex, popupSelectionText) {
     const idx = entryIndex || 0;
     const furiganaPlain = constructFuriganaPlain(expression, reading);
     const glossary = constructGlossaryHtml(idx);
@@ -1155,7 +1160,7 @@ async function mineEntry(expression, reading, frequencies, pitches, rules, match
 
     const audio = audioUrls[idx] || '';
 
-    return await webkit.messageHandlers.mineEntry.postMessage({
+    return {
         expression,
         reading,
         matched,
@@ -1169,7 +1174,7 @@ async function mineEntry(expression, reading, frequencies, pitches, rules, match
         pitchCategories,
         popupSelectionText,
         audio
-    });
+    };
 }
 
 function renderStructuredContent(parent, node, language = null, dictName = null, exporting = false) {
@@ -1558,7 +1563,8 @@ function createEntryHeader(entry, idx) {
             mineButton.disabled = true;
             const isAnkiConnect = await mineEntry(expression, reading, frequencies, pitches, rules, matched, idx, lastSelection);
             const checkDuplicate = async () => {
-                const wasAdded = await webkit.messageHandlers.duplicateCheck.postMessage(expression);
+                const payload = await buildMiningPayload(expression, reading, frequencies, pitches, rules, matched, idx, lastSelection);
+                const wasAdded = await webkit.messageHandlers.duplicateCheck.postMessage(payload);
                 mineButton.textContent = wasAdded ? '✓' : '+';
                 if (wasAdded) {
                     mineButton.classList.add('duplicate');
@@ -1574,12 +1580,14 @@ function createEntryHeader(entry, idx) {
         }
     });
     buttonsContainer.appendChild(mineButton);
-    webkit.messageHandlers.duplicateCheck.postMessage(expression).then(isDuplicate => {
-        if (isDuplicate) {
-            mineButton.textContent = '✓';
-            mineButton.classList.add('duplicate');
-        }
-        mineButton.disabled = isDuplicate && !window.allowDupes;
+    buildMiningPayload(expression, reading, frequencies, pitches, rules, matched, idx, lastSelection).then(payload => {
+        webkit.messageHandlers.duplicateCheck.postMessage(payload).then(isDuplicate => {
+            if (isDuplicate) {
+                mineButton.textContent = '✓';
+                mineButton.classList.add('duplicate');
+            }
+            mineButton.disabled = isDuplicate && !window.allowDupes;
+        });
     });
 
     header.appendChild(buttonsContainer);

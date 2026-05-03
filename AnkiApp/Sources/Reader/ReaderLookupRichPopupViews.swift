@@ -17,7 +17,7 @@ struct ReaderLookupPopupWebContainer: View {
     let needsAudio: Bool
     let refreshID: Int
     let onAddNote: ([String: String]) -> Void
-    let duplicateCheck: @Sendable (String) async -> Bool
+    let duplicateCheck: @Sendable ([String: String]) async -> Bool
     let onLookupRequested: (String, String?) -> Void
     let onTapOutside: (() -> Void)?
 
@@ -56,7 +56,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
     let needsAudio: Bool
     let refreshID: Int
     let onAddNote: ([String: String]) -> Void
-    let duplicateCheck: @Sendable (String) async -> Bool
+    let duplicateCheck: @Sendable ([String: String]) async -> Bool
     let onLookupRequested: (String, String?) -> Void
     let onTapOutside: (() -> Void)?
 
@@ -149,7 +149,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
         private var audioPlaybackMode: ReaderLookupAudioPlaybackMode
         private var needsAudio: Bool
         private var onAddNote: ([String: String]) -> Void
-        private var duplicateCheck: @Sendable (String) async -> Bool
+        private var duplicateCheck: @Sendable ([String: String]) async -> Bool
         private var onLookupRequested: (String, String?) -> Void
         private var onTapOutside: (() -> Void)?
         private let loadMediaData: @Sendable (String, String) async throws -> Data
@@ -164,7 +164,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             audioPlaybackMode: ReaderLookupAudioPlaybackMode,
             needsAudio: Bool,
             onAddNote: @escaping ([String: String]) -> Void,
-            duplicateCheck: @escaping @Sendable (String) async -> Bool,
+            duplicateCheck: @escaping @Sendable ([String: String]) async -> Bool,
             onLookupRequested: @escaping (String, String?) -> Void,
             onTapOutside: (() -> Void)?,
             loadMediaData: @escaping @Sendable (String, String) async throws -> Data
@@ -205,7 +205,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             audioPlaybackMode: ReaderLookupAudioPlaybackMode,
             needsAudio: Bool,
             onAddNote: @escaping ([String: String]) -> Void,
-            duplicateCheck: @escaping @Sendable (String) async -> Bool,
+            duplicateCheck: @escaping @Sendable ([String: String]) async -> Bool,
             onLookupRequested: @escaping (String, String?) -> Void,
             onTapOutside: (() -> Void)?
         ) {
@@ -313,10 +313,10 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
                 onAddNote(content)
                 return (false, nil)
             case "duplicateCheck":
-                guard let word = message.body as? String else {
+                guard let content = message.body as? [String: String] else {
                     return (false, nil)
                 }
-                return (await duplicateCheck(word), nil)
+                return (await duplicateCheck(content), nil)
             case "getEntry":
                 guard let index = message.body as? Int,
                       lookupEntries.indices.contains(index) else {

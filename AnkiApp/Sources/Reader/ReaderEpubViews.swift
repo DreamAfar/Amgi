@@ -714,8 +714,8 @@ struct ReaderEpubReaderView: View {
                                                     }
                                                 }
                                             },
-                                            duplicateCheck: { word in
-                                                await hasExistingLookupNote(for: word)
+                                            duplicateCheck: { content in
+                                                await hasExistingLookupNote(for: content, session: session, sentence: popup.sentence)
                                             },
                                             onLookupRequested: { query, sentence in
                                                 startLookup(for: query, sentence: sentence, anchor: nil, anchorRect: nil, stacksOnTop: true)
@@ -1051,23 +1051,29 @@ struct ReaderEpubReaderView: View {
         }
     }
 
-    private func hasExistingLookupNote(for word: String) async -> Bool {
-        let normalizedWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalizedWord.isEmpty == false,
-              let notetypeID = lookupNoteTemplate.notetypeID else {
+    private func hasExistingLookupNote(for content: [String: String], session: ReaderEpubSession, sentence: String?) async -> Bool {
+        guard let notetypeID = lookupNoteTemplate.notetypeID else {
             return false
         }
 
         let lookupTemplate = lookupNoteTemplate
+        guard let notetype = try? fetchNotetype(backend: backend, id: notetypeID) else {
+            return false
+        }
+        let validFieldNames = notetype.fields.map(\.name)
+        let targetFieldName = lookupTemplate.duplicateCheckFieldName ?? validFieldNames.first
+        let draft = await makeLookupDraft(from: content, session: session, sentence: sentence)
+        guard let duplicateCheckValue = duplicateCheckValue(from: draft, targetFieldName: targetFieldName) else {
+            return false
+        }
 
         return await ReaderLookupDuplicateCache.shared.contains(
-            word: normalizedWord,
+            word: duplicateCheckValue,
             notetypeID: notetypeID,
             fieldName: lookupTemplate.duplicateCheckFieldName
         ) { [backend, noteClient] in
-            let notetype = try fetchNotetype(backend: backend, id: notetypeID)
             let duplicateCheckFieldIndex = lookupTemplate.duplicateCheckFieldIndex(
-                validFields: notetype.fields.map(\.name)
+                validFields: validFieldNames
             )
             let query = "note:\"\(Self.escapedSearchTerm(notetype.name))\""
             let noteIDs = try noteClient.searchIds(query)
@@ -1092,6 +1098,16 @@ struct ReaderEpubReaderView: View {
 
             return duplicateCheckValues
         }
+    }
+
+        private func duplicateCheckValue(from draft: AddNoteDraft, targetFieldName: String?) -> String? {
+                guard let targetFieldName,
+                            let value = draft.fieldValues[targetFieldName]?
+                                .trimmingCharacters(in: .whitespacesAndNewlines),
+                            value.isEmpty == false else {
+                        return nil
+                }
+                return value
     }
 
     nonisolated private static func escapedSearchTerm(_ text: String) -> String {
