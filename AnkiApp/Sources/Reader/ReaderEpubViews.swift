@@ -61,7 +61,250 @@ struct ReaderEpubLibraryView: View {
     private var sortedBooks: [BookMetadata] {
         switch sortOption {
         case .recent:
-                    readerSessionGeometryContent(session: session, geometry: geometry)
+            return libraryState.books.sorted { $0.lastAccess > $1.lastAccess }
+        case .title:
+            return libraryState.books.sorted {
+                ($0.title ?? "").localizedStandardCompare($1.title ?? "") == .orderedAscending
+            }
+        }
+    }
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if libraryState.books.isEmpty {
+                ContentUnavailableView(
+                    L("reader_library_empty_title"),
+                    systemImage: "book.closed",
+                    description: Text(L("reader_epub_empty_description"))
+                )
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        if isSelecting {
+                            Text(L("reader_library_selected_count", selectedBookIDs.count))
+                                .font(.footnote)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .padding(.horizontal, 2)
+                        }
+
+                        LazyVGrid(columns: gridColumns, alignment: .leading, spacing: ReaderEpubLayout.bookGridSpacing) {
+                            ForEach(sortedBooks, id: \.id) { book in
+                                if isSelecting {
+                                    Button {
+                                        toggleSelection(for: book)
+                                    } label: {
+                                        ReaderEpubBookCard(
+                                            book: book,
+                                            progress: libraryState.progressByBookID[book.id] ?? 0,
+                                            isSelecting: true,
+                                            isSelected: selectedBookIDs.contains(book.id)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    NavigationLink {
+                                        ReaderEpubReaderView(book: book)
+                                    } label: {
+                                        ReaderEpubBookCard(
+                                            book: book,
+                                            progress: libraryState.progressByBookID[book.id] ?? 0
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                    .padding(16)
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+        .background(Color.amgiBackground)
+        .navigationTitle(L("reader_library_title"))
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarLeading) {
+                Menu {
+                    Picker(L("reader_library_sort_menu"), selection: $sortOption) {
+                        Text(L("reader_library_sort_recent")).tag(SortOption.recent)
+                        Text(L("reader_library_sort_title")).tag(SortOption.title)
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down.circle")
+                }
+
+                Button {
+                    if isSelecting {
+                        clearSelection()
+                    } else {
+                        isSelecting = true
+                    }
+                } label: {
+                    Image(systemName: isSelecting ? "checkmark.circle.fill" : "checkmark.circle")
+                }
+                .accessibilityLabel(Text(isSelecting ? L("common_done") : L("reader_library_multi_select")))
+            }
+
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if isSelecting {
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .disabled(selectedBookIDs.isEmpty)
+                }
+
+                Button {
+                    showImporter = true
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
+                .accessibilityLabel(Text(L("reader_epub_import_button")))
+
+                Menu {
+                    Button {
+                        settingsRoute = .source
+                    } label: {
+                        Label(L("settings_reader_section_source"), systemImage: "tray.full")
+                    }
+
+                    Button {
+                        settingsRoute = .dictionaries
+                    } label: {
+                        Label(L("settings_reader_manage_dictionaries"), systemImage: "character.book.closed")
+                    }
+
+                    Button {
+                        settingsRoute = .display
+                    } label: {
+                        Label(L("settings_reader_display_settings"), systemImage: "paintbrush")
+                    }
+
+                    Button {
+                        settingsRoute = .advanced
+                    } label: {
+                        Label(L("settings_reader_advanced_settings"), systemImage: "gearshape.2")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+        .task {
+            await loadState()
+        }
+        .fileImporter(
+            isPresented: $showImporter,
+            allowedContentTypes: [.epub],
+            allowsMultipleSelection: true
+        ) { result in
+            Task {
+                do {
+                    let urls = try result.get()
+                    libraryState = try readerEpubLibraryClient.importBooks(urls)
+                    selectedBookIDs.formIntersection(Set(libraryState.books.map(\.id)))
+                } catch {
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        }
+        .sheet(item: $settingsRoute) { route in
+            NavigationStack {
+                switch route {
+                case .source:
+                    ReaderSourceSettingsView()
+                case .dictionaries:
+                    ReaderDictionarySettingsView()
+                case .display:
+                    ReaderDisplaySettingsView()
+                case .advanced:
+                    ReaderAdvancedSettingsView()
+                }
+            }
+        }
+        .alert(L("common_error"), isPresented: $showError) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? L("common_error"))
+        }
+        .alert(L("common_delete"), isPresented: $showDeleteConfirmation) {
+            Button(L("common_delete"), role: .destructive) {
+                Task {
+                    do {
+                        libraryState = try readerEpubLibraryClient.deleteBooks(Array(selectedBookIDs))
+                        clearSelection()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                        showError = true
+                    }
+                }
+            }
+            Button(L("common_cancel"), role: .cancel) {}
+        } message: {
+            Text(L("reader_epub_delete_confirmation", selectedBookIDs.count))
+        }
+    }
+
+    private func loadState() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            libraryState = try readerEpubLibraryClient.loadState()
+            selectedBookIDs.formIntersection(Set(libraryState.books.map(\.id)))
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    private func toggleSelection(for book: BookMetadata) {
+        if selectedBookIDs.contains(book.id) {
+            selectedBookIDs.remove(book.id)
+        } else {
+            selectedBookIDs.insert(book.id)
+        }
+    }
+
+    private func clearSelection() {
+        selectedBookIDs.removeAll()
+        isSelecting = false
+    }
+}
+
+private struct ReaderEpubBookCard: View {
+    let book: BookMetadata
+    let progress: Double
+    var isSelecting = false
+    var isSelected = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.amgiAccent.opacity(0.18), Color.amgiSurfaceElevated],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .aspectRatio(ReaderEpubLayout.bookCoverAspectRatio, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .overlay {
+                    if let coverURL = book.coverURL {
+                        AsyncImage(url: coverURL) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Image(systemName: "book.closed")
+                                .font(.system(size: 32, weight: .medium))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     } else {
                         Image(systemName: "book.closed")
                             .font(.system(size: 32, weight: .medium))
