@@ -61,250 +61,7 @@ struct ReaderEpubLibraryView: View {
     private var sortedBooks: [BookMetadata] {
         switch sortOption {
         case .recent:
-            return libraryState.books.sorted { $0.lastAccess > $1.lastAccess }
-        case .title:
-            return libraryState.books.sorted {
-                ($0.title ?? "").localizedStandardCompare($1.title ?? "") == .orderedAscending
-            }
-        }
-    }
-
-    var body: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if libraryState.books.isEmpty {
-                ContentUnavailableView(
-                    L("reader_library_empty_title"),
-                    systemImage: "book.closed",
-                    description: Text(L("reader_epub_empty_description"))
-                )
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        if isSelecting {
-                            Text(L("reader_library_selected_count", selectedBookIDs.count))
-                                .font(.footnote)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                                .padding(.horizontal, 2)
-                        }
-
-                        LazyVGrid(columns: gridColumns, alignment: .leading, spacing: ReaderEpubLayout.bookGridSpacing) {
-                            ForEach(sortedBooks, id: \.id) { book in
-                                if isSelecting {
-                                    Button {
-                                        toggleSelection(for: book)
-                                    } label: {
-                                        ReaderEpubBookCard(
-                                            book: book,
-                                            progress: libraryState.progressByBookID[book.id] ?? 0,
-                                            isSelecting: true,
-                                            isSelected: selectedBookIDs.contains(book.id)
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                } else {
-                                    NavigationLink {
-                                        ReaderEpubReaderView(book: book)
-                                    } label: {
-                                        ReaderEpubBookCard(
-                                            book: book,
-                                            progress: libraryState.progressByBookID[book.id] ?? 0
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-                    .padding(16)
-                }
-                .scrollIndicators(.hidden)
-            }
-        }
-        .background(Color.amgiBackground)
-        .navigationTitle(L("reader_library_title"))
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarLeading) {
-                Menu {
-                    Picker(L("reader_library_sort_menu"), selection: $sortOption) {
-                        Text(L("reader_library_sort_recent")).tag(SortOption.recent)
-                        Text(L("reader_library_sort_title")).tag(SortOption.title)
-                    }
-                } label: {
-                    Image(systemName: "arrow.up.arrow.down.circle")
-                }
-
-                Button {
-                    if isSelecting {
-                        clearSelection()
-                    } else {
-                        isSelecting = true
-                    }
-                } label: {
-                    Image(systemName: isSelecting ? "checkmark.circle.fill" : "checkmark.circle")
-                }
-                .accessibilityLabel(Text(isSelecting ? L("common_done") : L("reader_library_multi_select")))
-            }
-
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                if isSelecting {
-                    Button(role: .destructive) {
-                        showDeleteConfirmation = true
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .disabled(selectedBookIDs.isEmpty)
-                }
-
-                Button {
-                    showImporter = true
-                } label: {
-                    Image(systemName: "square.and.arrow.down")
-                }
-                .accessibilityLabel(Text(L("reader_epub_import_button")))
-
-                Menu {
-                    Button {
-                        settingsRoute = .source
-                    } label: {
-                        Label(L("settings_reader_section_source"), systemImage: "tray.full")
-                    }
-
-                    Button {
-                        settingsRoute = .dictionaries
-                    } label: {
-                        Label(L("settings_reader_manage_dictionaries"), systemImage: "character.book.closed")
-                    }
-
-                    Button {
-                        settingsRoute = .display
-                    } label: {
-                        Label(L("settings_reader_display_settings"), systemImage: "paintbrush")
-                    }
-
-                    Button {
-                        settingsRoute = .advanced
-                    } label: {
-                        Label(L("settings_reader_advanced_settings"), systemImage: "gearshape.2")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
-        }
-        .task {
-            await loadState()
-        }
-        .fileImporter(
-            isPresented: $showImporter,
-            allowedContentTypes: [.epub],
-            allowsMultipleSelection: true
-        ) { result in
-            Task {
-                do {
-                    let urls = try result.get()
-                    libraryState = try readerEpubLibraryClient.importBooks(urls)
-                    selectedBookIDs.formIntersection(Set(libraryState.books.map(\.id)))
-                } catch {
-                    errorMessage = error.localizedDescription
-                    showError = true
-                }
-            }
-        }
-        .sheet(item: $settingsRoute) { route in
-            NavigationStack {
-                switch route {
-                case .source:
-                    ReaderSourceSettingsView()
-                case .dictionaries:
-                    ReaderDictionarySettingsView()
-                case .display:
-                    ReaderDisplaySettingsView()
-                case .advanced:
-                    ReaderAdvancedSettingsView()
-                }
-            }
-        }
-        .alert(L("common_error"), isPresented: $showError) {
-            Button(L("common_ok"), role: .cancel) {}
-        } message: {
-            Text(errorMessage ?? L("common_error"))
-        }
-        .alert(L("common_delete"), isPresented: $showDeleteConfirmation) {
-            Button(L("common_delete"), role: .destructive) {
-                Task {
-                    do {
-                        libraryState = try readerEpubLibraryClient.deleteBooks(Array(selectedBookIDs))
-                        clearSelection()
-                    } catch {
-                        errorMessage = error.localizedDescription
-                        showError = true
-                    }
-                }
-            }
-            Button(L("common_cancel"), role: .cancel) {}
-        } message: {
-            Text(L("reader_epub_delete_confirmation", selectedBookIDs.count))
-        }
-    }
-
-    private func loadState() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            libraryState = try readerEpubLibraryClient.loadState()
-            selectedBookIDs.formIntersection(Set(libraryState.books.map(\.id)))
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
-        }
-    }
-
-    private func toggleSelection(for book: BookMetadata) {
-        if selectedBookIDs.contains(book.id) {
-            selectedBookIDs.remove(book.id)
-        } else {
-            selectedBookIDs.insert(book.id)
-        }
-    }
-
-    private func clearSelection() {
-        selectedBookIDs.removeAll()
-        isSelecting = false
-    }
-}
-
-private struct ReaderEpubBookCard: View {
-    let book: BookMetadata
-    let progress: Double
-    var isSelecting = false
-    var isSelected = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.amgiAccent.opacity(0.18), Color.amgiSurfaceElevated],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .aspectRatio(ReaderEpubLayout.bookCoverAspectRatio, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .overlay {
-                    if let coverURL = book.coverURL {
-                        AsyncImage(url: coverURL) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Image(systemName: "book.closed")
-                                .font(.system(size: 32, weight: .medium))
-                                .foregroundStyle(Color.amgiTextSecondary)
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    readerSessionGeometryContent(session: session, geometry: geometry)
                     } else {
                         Image(systemName: "book.closed")
                             .font(.system(size: 32, weight: .medium))
@@ -846,6 +603,254 @@ struct ReaderEpubReaderView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.amgiBackground)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func readerSessionGeometryContent(session: ReaderEpubSession, geometry: GeometryProxy) -> some View {
+        let topSafeArea = max(UIApplication.readerEpubTopSafeArea, geometry.safeAreaInsets.top)
+        let bottomSafeArea = max(UIApplication.readerEpubBottomSafeArea, geometry.safeAreaInsets.bottom)
+        let topOverlayTopPadding = max(topSafeArea, 25)
+        let topOverlayHeight = topOverlayTopPadding + ((showTitle || showProgressTop) ? 34 : 10)
+        let bottomInset = max(bottomSafeArea - 8, 14)
+        let bottomChromeHeight = (bottomSafeArea > 25 ? bottomSafeArea : 44) + 10
+
+        VStack(spacing: 0) {
+            chapterContentBackground
+                .frame(height: topOverlayHeight)
+
+            ZStack(alignment: .bottom) {
+                ReaderEpubScrollWebView(
+                    bridge: bridge,
+                    viewSize: CGSize(width: geometry.size.width.rounded(), height: geometry.size.height.rounded()),
+                    isVertical: verticalLayout,
+                    fontFamily: ReaderFontOption.resolved(selectedFont).cssFontFamily,
+                    fontSize: Double(readerFontSize),
+                    hideFurigana: hideFurigana,
+                    horizontalPadding: horizontalPadding,
+                    verticalPadding: verticalPadding,
+                    avoidPageBreak: avoidPageBreak,
+                    justifyText: justifyText,
+                    lineHeight: lineHeight,
+                    characterSpacing: characterSpacing,
+                    textColorHex: resolvedTextColorHex,
+                    onNextChapter: {
+                        guard let action = session.actionForNextChapter() else {
+                            return false
+                        }
+                        lookupStack.removeAll()
+                        bridge.send(.clearHighlight)
+                        send(action)
+                        return true
+                    },
+                    onPreviousChapter: {
+                        guard let action = session.actionForPreviousChapter() else {
+                            return false
+                        }
+                        startStatisticsTrackingForPageTurn(session)
+                        lookupStack.removeAll()
+                        bridge.send(.clearHighlight)
+                        send(action)
+                        return true
+                    },
+                    onSaveBookmark: { progress in
+                        session.saveBookmark(progress: progress)
+                        bridge.updateProgress(progress)
+                    },
+                    onInternalLink: { url in
+                        guard let action = session.actionForInternalLink(url) else {
+                            return false
+                        }
+                        lookupStack.removeAll()
+                        bridge.send(.clearHighlight)
+                        send(action)
+                        return true
+                    },
+                    onInternalJump: { progress in
+                        session.syncProgressAfterInternalJump(progress)
+                        bridge.updateProgress(progress)
+                    },
+                    onTextSelected: { selection in
+                        let offsetPoint = CGPoint(x: selection.rect.midX, y: selection.rect.midY + topOverlayHeight)
+                        let offsetRect = selection.rect.offsetBy(dx: 0, dy: topOverlayHeight)
+                        handleTapLookup(selection.text, sentence: selection.sentence, at: offsetPoint, rect: offsetRect)
+                    },
+                    onTapOutside: {
+                        lookupStack.removeAll()
+                        bridge.send(.clearHighlight)
+                    },
+                    onScroll: {
+                        lookupStack.removeAll()
+                        bridge.send(.clearHighlight)
+                        startStatisticsTrackingForPageTurn(session)
+                    }
+                )
+                .background(chapterContentBackground)
+                .ignoresSafeArea(edges: .bottom)
+                .id(
+                    ReaderEpubWebViewState(
+                        verticalWriting: verticalLayout,
+                        fontSize: readerFontSize,
+                        selectedFont: selectedFont,
+                        hideFurigana: hideFurigana,
+                        horizontalPadding: horizontalPadding,
+                        verticalPadding: verticalPadding,
+                        avoidPageBreak: avoidPageBreak,
+                        justifyText: justifyText,
+                        lineHeight: lineHeight,
+                        characterSpacing: characterSpacing,
+                        textColorHex: resolvedTextColorHex,
+                        size: geometry.size
+                    )
+                )
+
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        ReaderEpubChromeIconLabel(systemName: "chevron.left")
+                    }
+                    .readerEpubChromeButtonStyle()
+
+                    Spacer()
+
+                    Menu {
+                        Button {
+                            activeSheet = .chapters
+                        } label: {
+                            Label(L("reader_reader_menu_chapters"), systemImage: "list.bullet")
+                        }
+
+                        Button {
+                            activeSheet = .display
+                        } label: {
+                            Label(L("settings_reader_display_settings"), systemImage: "paintbrush.pointed")
+                        }
+
+                        Button {
+                            activeSheet = .settings
+                        } label: {
+                            Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
+                        }
+
+                        if enableStatistics {
+                            Button {
+                                activeSheet = .statistics
+                            } label: {
+                                Label(L("reader_reader_menu_statistics"), systemImage: "chart.xyaxis.line")
+                            }
+                        }
+                    } label: {
+                        ReaderEpubChromeIconLabel(systemName: "ellipsis")
+                    }
+                    .readerEpubChromeButtonStyle()
+                }
+                .padding(.horizontal, 20)
+                .frame(height: bottomChromeHeight, alignment: .top)
+            }
+        }
+        .background(chapterContentBackground)
+        .overlay(alignment: .top) {
+            VStack {
+                if showTitle, let title = session.document.title, title.isEmpty == false {
+                    Text(title)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                        .padding(.horizontal, 30)
+                        .lineLimit(1)
+                }
+
+                if showProgressTop, progressLabel.isEmpty == false {
+                    Text(progressLabel)
+                        .font(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                        .monospacedDigit()
+                        .tracking(-0.4)
+                }
+            }
+            .padding(.top, topOverlayTopPadding)
+        }
+        .overlay(alignment: .bottom) {
+            if showProgressTop == false {
+                Text(progressLabel)
+                    .font(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .monospacedDigit()
+                    .tracking(-0.4)
+            }
+        }
+        .overlay {
+            if lookupStack.isEmpty == false {
+                GeometryReader { popupGeometry in
+                    ZStack {
+                        Color.black.opacity(0.001)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                lookupStack.removeAll()
+                                bridge.send(.clearHighlight)
+                            }
+
+                        ForEach(Array(lookupStack.enumerated()), id: \.element.id) { index, popup in
+                            ReaderLookupPopup(
+                                query: popup.query,
+                                result: popup.result,
+                                isLoading: popup.isLoading,
+                                sentence: popup.sentence,
+                                languageHint: nil,
+                                popupWidth: CGFloat(popupWidth),
+                                popupHeight: CGFloat(popupHeight),
+                                popupFontSize: CGFloat(popupFontSize),
+                                popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
+                                popupContentFontSize: CGFloat(popupContentFontSize),
+                                popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
+                                popupKanaFontSize: CGFloat(popupKanaFontSize),
+                                isFullWidth: popupFullWidth,
+                                swipeToDismiss: popupSwipeToDismiss,
+                                collapseDictionaries: popupCollapseDictionaries,
+                                compactGlossaries: popupCompactGlossaries,
+                                audioSourceTemplate: popupAudioSourceTemplate,
+                                localAudioEnabled: popupLocalAudioEnabled,
+                                audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
+                                audioPlaybackMode: popupAudioPlaybackMode,
+                                needsAudio: lookupNoteTemplate.needsAudio,
+                                refreshID: lookupPopupRefreshID,
+                                showDebugInfo: popupDebugInfoEnabled,
+                                onAddNote: { payload in
+                                    Task {
+                                        let draft = await makeLookupDraft(from: payload, session: session, sentence: popup.sentence)
+                                        await MainActor.run {
+                                            pendingDraft = draft
+                                            showAddNoteSheet = true
+                                        }
+                                    }
+                                },
+                                duplicateCheck: { content in
+                                    await hasExistingLookupNote(for: content, session: session, sentence: popup.sentence)
+                                },
+                                onLookupRequested: { query, sentence in
+                                    startLookup(for: query, sentence: sentence, anchor: nil, anchorRect: nil, stacksOnTop: true)
+                                },
+                                onClose: {
+                                    closeLookupPopup(id: popup.id)
+                                }
+                            )
+                            .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
+                            .padding(.horizontal, 14)
+                            .position(
+                                lookupPopupPosition(
+                                    in: popupGeometry.size,
+                                    bottomInset: bottomInset,
+                                    anchor: popup.anchor,
+                                    anchorRect: popup.anchorRect,
+                                    stackDepth: index
+                                )
+                            )
+                            .zIndex(Double(index))
+                            .transition(.opacity)
+                        }
+                    }
+                }
             }
         }
     }

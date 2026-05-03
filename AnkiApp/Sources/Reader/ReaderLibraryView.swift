@@ -1031,200 +1031,7 @@ private struct ReaderChapterView: View {
     @ViewBuilder
     private var bodyContent: some View {
         GeometryReader { geometry in
-            let topSafeArea = max(UIApplication.readerTopSafeArea, geometry.safeAreaInsets.top)
-            let bottomSafeArea = max(UIApplication.readerBottomSafeArea, geometry.safeAreaInsets.bottom)
-            let showsTopInfo = showTitle || showProgressTop
-            let topOverlayTopPadding = max(topSafeArea, 25)
-            let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 34 : 10)
-            let bottomInset = max(bottomSafeArea - 8, 14)
-            let bottomChromeHeight = (bottomSafeArea > 25 ? bottomSafeArea : 44) + 10
-
-            VStack(spacing: 0) {
-                chapterContentBackground
-                    .frame(height: topOverlayHeight)
-
-                ZStack(alignment: .bottom) {
-                    ReaderChapterWebView(
-                        html: chapter.content,
-                        languageHint: lookupLanguageHint,
-                        isVertical: verticalLayout,
-                        fontFamily: ReaderFontOption.resolved(selectedFont).cssFontFamily,
-                        fontSize: Double(readerFontSize),
-                        pageBackgroundHex: resolvedPageBackgroundHex,
-                        contentBackgroundHex: resolvedContentBackgroundHex,
-                        textColorHex: resolvedTextColorHex,
-                        hintColorHex: resolvedHintColorHex,
-                        linkColorHex: resolvedLinkColorHex,
-                        hideFurigana: hideFurigana,
-                        horizontalPadding: horizontalPadding,
-                        verticalPadding: verticalPadding,
-                        avoidPageBreak: avoidPageBreak,
-                        justifyText: justifyText,
-                        lineHeight: lineHeight,
-                        characterSpacing: characterSpacing,
-                        scanLength: dictionaryScanLength,
-                        savedProgress: savedProgress,
-                        selectionRequestID: selectionRequestID,
-                        clearLookupHighlightRequestID: lookupHighlightClearRequestID,
-                        lookupHighlightLengthRequestID: lookupHighlightLengthRequestID,
-                        lookupHighlightLength: lookupHighlightLength,
-                        tapLookupEnabled: tapLookupEnabled,
-                        onProgressChange: { newProgress in
-                            progress = newProgress
-                            ReaderProgressStore.save(bookID: book.id, chapterID: chapter.id, progress: newProgress)
-                        },
-                        onSelectionResolved: { selection in
-                            handleResolvedSelection(selection)
-                        },
-                        onLookupRequested: { selection, sentence, point, rect in
-                            let offsetPoint = CGPoint(x: point.x, y: point.y + topOverlayHeight)
-                            let offsetRect = rect.map { $0.offsetBy(dx: 0, dy: topOverlayHeight) }
-                            handleTapLookup(selection, sentence: sentence, at: offsetPoint, rect: offsetRect)
-                        }
-                    )
-                    .background(chapterContentBackground)
-                    .ignoresSafeArea(edges: .bottom)
-
-                    HStack {
-                        Button {
-                            dismiss()
-                        } label: {
-                            ReaderChromeIconLabel(systemName: "chevron.left")
-                        }
-                        .readerChromeButtonStyle()
-                        .accessibilityLabel(Text(L("common_back")))
-
-                        Spacer()
-
-                        Menu {
-                            Button {
-                                activeSheet = .chapters
-                            } label: {
-                                Label(L("reader_reader_menu_chapters"), systemImage: "list.bullet")
-                            }
-
-                            Button {
-                                activeSheet = .display
-                            } label: {
-                                Label(L("settings_reader_display_settings"), systemImage: "paintbrush.pointed")
-                            }
-
-                            Button {
-                                activeSheet = .settings
-                            } label: {
-                                Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
-                            }
-                        } label: {
-                            ReaderChromeIconLabel(systemName: "ellipsis")
-                        }
-                        .readerChromeButtonStyle()
-                    }
-                    .padding(.horizontal, 20)
-                    .frame(height: bottomChromeHeight, alignment: .top)
-                }
-            }
-            .background(chapterContentBackground)
-            .overlay(alignment: .top) {
-                ReaderChapterInfoOverlay(
-                    title: showTitle ? book.title : nil,
-                    progressLabel: showProgressTop ? progressLabel : nil,
-                    background: chapterContentBackground
-                )
-                    .padding(.top, topOverlayTopPadding)
-            }
-            .overlay(alignment: .bottom) {
-                if showProgressTop == false {
-                    ReaderChapterBottomProgressOverlay(progressLabel: progressLabel)
-                }
-            }
-            .overlay(alignment: .topTrailing) {
-                HStack(spacing: 10) {
-                    Button {
-                        pendingSelectionAction = .addNote
-                        selectionRequestID += 1
-                    } label: {
-                        ReaderChromeIconLabel(systemName: "plus")
-                    }
-                    .readerChromeButtonStyle()
-                }
-                .padding(.top, topOverlayTopPadding)
-                .padding(.trailing, 20)
-            }
-            .overlay {
-                if lookupStack.isEmpty == false {
-                    GeometryReader { popupGeometry in
-                        ZStack {
-                            Color.black.opacity(0.001)
-                                .ignoresSafeArea()
-                                .onTapGesture {
-                                    lookupStack.removeAll()
-                                    lookupHighlightClearRequestID += 1
-                                }
-                                .allowsHitTesting(tapLookupEnabled == false)
-
-                            ForEach(Array(lookupStack.enumerated()), id: \.element.id) { index, popup in
-                                ReaderLookupPopup(
-                                    query: popup.query,
-                                    result: popup.result,
-                                    isLoading: popup.isLoading,
-                                    sentence: popup.sentence,
-                                    languageHint: lookupLanguageHint,
-                                    popupWidth: CGFloat(popupWidth),
-                                    popupHeight: CGFloat(popupHeight),
-                                    popupFontSize: CGFloat(popupFontSize),
-                                    popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
-                                    popupContentFontSize: CGFloat(popupContentFontSize),
-                                    popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
-                                    popupKanaFontSize: CGFloat(popupKanaFontSize),
-                                    isFullWidth: popupFullWidth,
-                                    swipeToDismiss: popupSwipeToDismiss,
-                                    collapseDictionaries: popupCollapseDictionaries,
-                                    compactGlossaries: popupCompactGlossaries,
-                                    audioSourceTemplate: popupAudioSourceTemplate,
-                                    localAudioEnabled: popupLocalAudioEnabled,
-                                    audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
-                                    audioPlaybackMode: popupAudioPlaybackMode,
-                                    needsAudio: lookupNoteTemplate.needsAudio,
-                                    refreshID: lookupPopupRefreshID,
-                                    showDebugInfo: popupDebugInfoEnabled,
-                                    onAddNote: { payload in
-                                        lookupHighlightClearRequestID += 1
-                                        Task {
-                                            let draft = await makeLookupDraft(from: payload, sentence: popup.sentence)
-                                            await MainActor.run {
-                                                pendingDraft = draft
-                                                showAddNoteSheet = true
-                                            }
-                                        }
-                                    },
-                                    duplicateCheck: { content in
-                                        await hasExistingLookupNote(for: content, sentence: popup.sentence)
-                                    },
-                                    onLookupRequested: { query, sentence in
-                                        startLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)
-                                    },
-                                    onClose: {
-                                        closeLookupPopup(id: popup.id)
-                                    }
-                                )
-                                .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
-                                .padding(.horizontal, 14)
-                                .position(
-                                    lookupPopupPosition(
-                                        in: popupGeometry.size,
-                                        bottomInset: bottomInset,
-                                        anchor: popup.anchor,
-                                        anchorRect: popup.anchorRect,
-                                        stackDepth: index
-                                    )
-                                )
-                                .zIndex(Double(index))
-                                .transition(.opacity)
-                            }
-                        }
-                    }
-                }
-            }
+            chapterGeometryContent(geometry)
         }
         .background(chapterContentBackground)
         .toolbar(.hidden, for: .navigationBar)
@@ -1271,6 +1078,204 @@ private struct ReaderChapterView: View {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
             Text(lookupErrorMessage ?? L("reader_reader_empty_selection"))
+        }
+    }
+
+    @ViewBuilder
+    private func chapterGeometryContent(_ geometry: GeometryProxy) -> some View {
+        let topSafeArea = max(UIApplication.readerTopSafeArea, geometry.safeAreaInsets.top)
+        let bottomSafeArea = max(UIApplication.readerBottomSafeArea, geometry.safeAreaInsets.bottom)
+        let showsTopInfo = showTitle || showProgressTop
+        let topOverlayTopPadding = max(topSafeArea, 25)
+        let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 34 : 10)
+        let bottomInset = max(bottomSafeArea - 8, 14)
+        let bottomChromeHeight = (bottomSafeArea > 25 ? bottomSafeArea : 44) + 10
+
+        VStack(spacing: 0) {
+            chapterContentBackground
+                .frame(height: topOverlayHeight)
+
+            ZStack(alignment: .bottom) {
+                ReaderChapterWebView(
+                    html: chapter.content,
+                    languageHint: lookupLanguageHint,
+                    isVertical: verticalLayout,
+                    fontFamily: ReaderFontOption.resolved(selectedFont).cssFontFamily,
+                    fontSize: Double(readerFontSize),
+                    pageBackgroundHex: resolvedPageBackgroundHex,
+                    contentBackgroundHex: resolvedContentBackgroundHex,
+                    textColorHex: resolvedTextColorHex,
+                    hintColorHex: resolvedHintColorHex,
+                    linkColorHex: resolvedLinkColorHex,
+                    hideFurigana: hideFurigana,
+                    horizontalPadding: horizontalPadding,
+                    verticalPadding: verticalPadding,
+                    avoidPageBreak: avoidPageBreak,
+                    justifyText: justifyText,
+                    lineHeight: lineHeight,
+                    characterSpacing: characterSpacing,
+                    scanLength: dictionaryScanLength,
+                    savedProgress: savedProgress,
+                    selectionRequestID: selectionRequestID,
+                    clearLookupHighlightRequestID: lookupHighlightClearRequestID,
+                    lookupHighlightLengthRequestID: lookupHighlightLengthRequestID,
+                    lookupHighlightLength: lookupHighlightLength,
+                    tapLookupEnabled: tapLookupEnabled,
+                    onProgressChange: { newProgress in
+                        progress = newProgress
+                        ReaderProgressStore.save(bookID: book.id, chapterID: chapter.id, progress: newProgress)
+                    },
+                    onSelectionResolved: { selection in
+                        handleResolvedSelection(selection)
+                    },
+                    onLookupRequested: { selection, sentence, point, rect in
+                        let offsetPoint = CGPoint(x: point.x, y: point.y + topOverlayHeight)
+                        let offsetRect = rect.map { $0.offsetBy(dx: 0, dy: topOverlayHeight) }
+                        handleTapLookup(selection, sentence: sentence, at: offsetPoint, rect: offsetRect)
+                    }
+                )
+                .background(chapterContentBackground)
+                .ignoresSafeArea(edges: .bottom)
+
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        ReaderChromeIconLabel(systemName: "chevron.left")
+                    }
+                    .readerChromeButtonStyle()
+                    .accessibilityLabel(Text(L("common_back")))
+
+                    Spacer()
+
+                    Menu {
+                        Button {
+                            activeSheet = .chapters
+                        } label: {
+                            Label(L("reader_reader_menu_chapters"), systemImage: "list.bullet")
+                        }
+
+                        Button {
+                            activeSheet = .display
+                        } label: {
+                            Label(L("settings_reader_display_settings"), systemImage: "paintbrush.pointed")
+                        }
+
+                        Button {
+                            activeSheet = .settings
+                        } label: {
+                            Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
+                        }
+                    } label: {
+                        ReaderChromeIconLabel(systemName: "ellipsis")
+                    }
+                    .readerChromeButtonStyle()
+                }
+                .padding(.horizontal, 20)
+                .frame(height: bottomChromeHeight, alignment: .top)
+            }
+        }
+        .background(chapterContentBackground)
+        .overlay(alignment: .top) {
+            ReaderChapterInfoOverlay(
+                title: showTitle ? book.title : nil,
+                progressLabel: showProgressTop ? progressLabel : nil,
+                background: chapterContentBackground
+            )
+                .padding(.top, topOverlayTopPadding)
+        }
+        .overlay(alignment: .bottom) {
+            if showProgressTop == false {
+                ReaderChapterBottomProgressOverlay(progressLabel: progressLabel)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            HStack(spacing: 10) {
+                Button {
+                    pendingSelectionAction = .addNote
+                    selectionRequestID += 1
+                } label: {
+                    ReaderChromeIconLabel(systemName: "plus")
+                }
+                .readerChromeButtonStyle()
+            }
+            .padding(.top, topOverlayTopPadding)
+            .padding(.trailing, 20)
+        }
+        .overlay {
+            if lookupStack.isEmpty == false {
+                GeometryReader { popupGeometry in
+                    ZStack {
+                        Color.black.opacity(0.001)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                lookupStack.removeAll()
+                                lookupHighlightClearRequestID += 1
+                            }
+                            .allowsHitTesting(tapLookupEnabled == false)
+
+                        ForEach(Array(lookupStack.enumerated()), id: \.element.id) { index, popup in
+                            ReaderLookupPopup(
+                                query: popup.query,
+                                result: popup.result,
+                                isLoading: popup.isLoading,
+                                sentence: popup.sentence,
+                                languageHint: lookupLanguageHint,
+                                popupWidth: CGFloat(popupWidth),
+                                popupHeight: CGFloat(popupHeight),
+                                popupFontSize: CGFloat(popupFontSize),
+                                popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
+                                popupContentFontSize: CGFloat(popupContentFontSize),
+                                popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
+                                popupKanaFontSize: CGFloat(popupKanaFontSize),
+                                isFullWidth: popupFullWidth,
+                                swipeToDismiss: popupSwipeToDismiss,
+                                collapseDictionaries: popupCollapseDictionaries,
+                                compactGlossaries: popupCompactGlossaries,
+                                audioSourceTemplate: popupAudioSourceTemplate,
+                                localAudioEnabled: popupLocalAudioEnabled,
+                                audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
+                                audioPlaybackMode: popupAudioPlaybackMode,
+                                needsAudio: lookupNoteTemplate.needsAudio,
+                                refreshID: lookupPopupRefreshID,
+                                showDebugInfo: popupDebugInfoEnabled,
+                                onAddNote: { payload in
+                                    lookupHighlightClearRequestID += 1
+                                    Task {
+                                        let draft = await makeLookupDraft(from: payload, sentence: popup.sentence)
+                                        await MainActor.run {
+                                            pendingDraft = draft
+                                            showAddNoteSheet = true
+                                        }
+                                    }
+                                },
+                                duplicateCheck: { content in
+                                    await hasExistingLookupNote(for: content, sentence: popup.sentence)
+                                },
+                                onLookupRequested: { query, sentence in
+                                    startLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)
+                                },
+                                onClose: {
+                                    closeLookupPopup(id: popup.id)
+                                }
+                            )
+                            .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
+                            .padding(.horizontal, 14)
+                            .position(
+                                lookupPopupPosition(
+                                    in: popupGeometry.size,
+                                    bottomInset: bottomInset,
+                                    anchor: popup.anchor,
+                                    anchorRect: popup.anchorRect,
+                                    stackDepth: index
+                                )
+                            )
+                            .zIndex(Double(index))
+                            .transition(.opacity)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1599,7 +1604,7 @@ struct ReaderLookupPopup: View {
     let refreshID: Int
     let showDebugInfo: Bool
     let onAddNote: ([String: String]) -> Void
-    let duplicateCheck: @Sendable (String) async -> Bool
+    let duplicateCheck: @Sendable ([String: String]) async -> Bool
     let onLookupRequested: (String, String?) -> Void
     let onClose: () -> Void
 
