@@ -1025,6 +1025,11 @@ private struct ReaderChapterView: View {
     }
 
     var body: some View {
+        bodyContent
+    }
+
+    @ViewBuilder
+    private var bodyContent: some View {
         GeometryReader { geometry in
             let topSafeArea = max(UIApplication.readerTopSafeArea, geometry.safeAreaInsets.top)
             let bottomSafeArea = max(UIApplication.readerBottomSafeArea, geometry.safeAreaInsets.bottom)
@@ -1648,66 +1653,17 @@ struct ReaderLookupPopup: View {
     }
 
     var body: some View {
+        bodyContent
+    }
+
+    @ViewBuilder
+    private var bodyContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             if showDebugInfo {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
-                        Text("\(item.0): \(item.1)")
-                            .font(.system(size: debugFont, design: .monospaced))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                debugSection
             }
 
-            Group {
-                if isLoading {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                        Text(L("reader_lookup_loading"))
-                            .font(.system(size: loadingFont))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                } else if let result, result.isPlaceholder {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(L("reader_lookup_placeholder"))
-                            .font(.system(size: emptyFont))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                        Text(L("reader_lookup_missing_source"))
-                            .font(.system(size: sectionDictionaryFont))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                } else if let result, result.entries.isEmpty == false {
-                    ReaderLookupPopupWebContainer(
-                        result: result,
-                        collapseDictionaries: collapseDictionaries,
-                        compactGlossaries: compactGlossaries,
-                        audioSourceTemplate: audioSourceTemplate,
-                        localAudioEnabled: localAudioEnabled,
-                        audioAutoplay: audioAutoplay,
-                        audioPlaybackMode: audioPlaybackMode,
-                        needsAudio: needsAudio,
-                        refreshID: refreshID,
-                        onAddNote: onAddNote,
-                        duplicateCheck: duplicateCheck,
-                        onLookupRequested: onLookupRequested,
-                        onTapOutside: onClose
-                    )
-                } else {
-                    Text(L("reader_lookup_empty"))
-                        .font(.system(size: emptyFont))
-                        .foregroundStyle(Color.amgiTextSecondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                }
-            }
+            popupStateContent
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(height: max(140, popupHeight - 36), alignment: .top)
@@ -1737,6 +1693,67 @@ struct ReaderLookupPopup: View {
                 }
             : nil
         )
+    }
+
+    private var debugSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
+                Text("\(item.0): \(item.1)")
+                    .font(.system(size: debugFont, design: .monospaced))
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var popupStateContent: some View {
+        if isLoading {
+            HStack(spacing: 12) {
+                ProgressView()
+                Text(L("reader_lookup_loading"))
+                    .font(.system(size: loadingFont))
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else if let result, result.isPlaceholder {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(L("reader_lookup_placeholder"))
+                    .font(.system(size: emptyFont))
+                    .foregroundStyle(Color.amgiTextSecondary)
+                Text(L("reader_lookup_missing_source"))
+                    .font(.system(size: sectionDictionaryFont))
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else if let result, result.entries.isEmpty == false {
+            ReaderLookupPopupWebContainer(
+                result: result,
+                collapseDictionaries: collapseDictionaries,
+                compactGlossaries: compactGlossaries,
+                audioSourceTemplate: audioSourceTemplate,
+                localAudioEnabled: localAudioEnabled,
+                audioAutoplay: audioAutoplay,
+                audioPlaybackMode: audioPlaybackMode,
+                needsAudio: needsAudio,
+                refreshID: refreshID,
+                onAddNote: onAddNote,
+                duplicateCheck: duplicateCheck,
+                onLookupRequested: onLookupRequested,
+                onTapOutside: onClose
+            )
+        } else {
+            Text(L("reader_lookup_empty"))
+                .font(.system(size: emptyFont))
+                .foregroundStyle(Color.amgiTextSecondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
     }
 }
 

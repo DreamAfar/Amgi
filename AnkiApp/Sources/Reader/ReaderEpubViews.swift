@@ -495,6 +495,56 @@ struct ReaderEpubReaderView: View {
     }
 
     var body: some View {
+        bodyContent
+        .task {
+            if self.session == nil {
+                do {
+                    loadingErrorMessage = nil
+                    let loadedSession = try ReaderEpubSession(
+                        book: book,
+                        enableStatistics: enableStatistics,
+                        autostartStatistics: statisticsAutostartMode == .on
+                    )
+                    self.session = loadedSession
+                    if let action = loadedSession.initialAction() {
+                        send(action)
+                    }
+                } catch {
+                    loadingErrorMessage = error.localizedDescription
+                }
+            }
+        }
+        .task(id: session?.isTracking == true) {
+            guard let session, session.isTracking, session.isPaused == false else {
+                return
+            }
+            while Task.isCancelled == false {
+                try? await Task.sleep(for: .seconds(1))
+                guard session.isTracking, session.isPaused == false else {
+                    return
+                }
+                session.updateStatistics()
+            }
+        }
+        .onChange(of: enableStatistics) {
+            session?.configureStatistics(enabled: enableStatistics, autostart: statisticsAutostartMode == .on)
+        }
+        .onChange(of: statisticsAutostartModeRawValue) {
+            session?.configureStatistics(enabled: enableStatistics, autostart: statisticsAutostartMode == .on)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            session?.resumeTracking()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            session?.pauseTracking()
+        }
+        .onDisappear {
+            session?.stopTracking()
+        }
+    }
+
+    @ViewBuilder
+    private var bodyContent: some View {
         Group {
             if let session {
                 GeometryReader { geometry in
@@ -797,51 +847,6 @@ struct ReaderEpubReaderView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.amgiBackground)
             }
-        }
-        .task {
-            if self.session == nil {
-                do {
-                    loadingErrorMessage = nil
-                    let loadedSession = try ReaderEpubSession(
-                        book: book,
-                        enableStatistics: enableStatistics,
-                        autostartStatistics: statisticsAutostartMode == .on
-                    )
-                    self.session = loadedSession
-                    if let action = loadedSession.initialAction() {
-                        send(action)
-                    }
-                } catch {
-                    loadingErrorMessage = error.localizedDescription
-                }
-            }
-        }
-        .task(id: session?.isTracking == true) {
-            guard let session, session.isTracking, session.isPaused == false else {
-                return
-            }
-            while Task.isCancelled == false {
-                try? await Task.sleep(for: .seconds(1))
-                guard session.isTracking, session.isPaused == false else {
-                    return
-                }
-                session.updateStatistics()
-            }
-        }
-        .onChange(of: enableStatistics) {
-            session?.configureStatistics(enabled: enableStatistics, autostart: statisticsAutostartMode == .on)
-        }
-        .onChange(of: statisticsAutostartModeRawValue) {
-            session?.configureStatistics(enabled: enableStatistics, autostart: statisticsAutostartMode == .on)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            session?.resumeTracking()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-            session?.pauseTracking()
-        }
-        .onDisappear {
-            session?.stopTracking()
         }
     }
 
