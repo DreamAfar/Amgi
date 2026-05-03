@@ -523,6 +523,7 @@ struct ReaderEpubReaderView: View {
                 guard session.isTracking, session.isPaused == false else {
                     return
                 }
+                await syncReadingProgress(session)
                 session.updateStatistics()
             }
         }
@@ -536,10 +537,22 @@ struct ReaderEpubReaderView: View {
             session?.resumeTracking()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-            session?.pauseTracking()
+            guard let session else {
+                return
+            }
+            Task {
+                await syncReadingProgress(session, persistBookmark: true)
+                session.pauseTracking()
+            }
         }
         .onDisappear {
-            session?.stopTracking()
+            guard let session else {
+                return
+            }
+            Task {
+                await syncReadingProgress(session, persistBookmark: true)
+                session.stopTracking()
+            }
         }
     }
 
@@ -578,6 +591,7 @@ struct ReaderEpubReaderView: View {
                                     guard let action = session.actionForNextChapter() else {
                                         return false
                                     }
+                                    startStatisticsTrackingForPageTurn(session)
                                     lookupStack.removeAll()
                                     bridge.send(.clearHighlight)
                                     send(action)
@@ -882,6 +896,7 @@ struct ReaderEpubReaderView: View {
                         guard let action = session.actionForNextChapter() else {
                             return false
                         }
+                        startStatisticsTrackingForPageTurn(session)
                         lookupStack.removeAll()
                         bridge.send(.clearHighlight)
                         send(action)
@@ -1103,6 +1118,17 @@ struct ReaderEpubReaderView: View {
             return
         }
         session.startTracking()
+    }
+
+    private func syncReadingProgress(_ session: ReaderEpubSession, persistBookmark: Bool = false) async {
+        let progress = await withCheckedContinuation { continuation in
+            bridge.requestCurrentProgress { progress in
+                continuation.resume(returning: progress)
+            }
+        }
+
+        session.syncProgress(progress, persistBookmark: persistBookmark)
+        bridge.updateProgress(progress)
     }
 
     private func normalizedHexColor(_ value: String, fallback: String) -> String {
@@ -1558,6 +1584,7 @@ private final class ReaderEpubWebViewBridge {
     fileprivate var chapterURL: URL?
     fileprivate var progress: Double = 0
     fileprivate var pendingCommands: [ReaderEpubWebCommand] = []
+    fileprivate var currentProgressFetcher: (((@escaping (Double) -> Void)) -> Void)?
 
     func send(_ command: ReaderEpubWebCommand) {
         pendingCommands.append(command)
@@ -1570,6 +1597,17 @@ private final class ReaderEpubWebViewBridge {
 
     func updateProgress(_ progress: Double) {
         self.progress = progress
+    }
+
+    func requestCurrentProgress(_ completion: @escaping (Double) -> Void) {
+        if let currentProgressFetcher {
+            currentProgressFetcher { [weak self] progress in
+                self?.progress = progress
+                completion(progress)
+            }
+        } else {
+            completion(progress)
+        }
     }
 }
 
@@ -1630,6 +1668,13 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.parent = self
+        bridge.currentProgressFetcher = { [weak bridge, weak coordinator = context.coordinator] completion in
+            guard let coordinator else {
+                completion(bridge?.progress ?? 0)
+                return
+            }
+            coordinator.fetchCurrentProgress(completion)
+        }
 
         if !bridge.pendingCommands.isEmpty {
             let commands = bridge.pendingCommands
@@ -1675,6 +1720,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.parent.bridge.currentProgressFetcher = nil
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "textSelected")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "restoreCompleted")
     }
@@ -1889,10 +1935,11 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
             }
         }
 
-        private func fetchCurrentProgress(_ completion: @escaping (Double) -> Void) {
+        func fetchCurrentProgress(_ completion: @escaping (Double) -> Void) {
             guard let webView else { return }
             webView.evaluateJavaScript("window.hoshiReader.calculateProgress()") { result, _ in
-                guard let progress = result as? Double else { return }
+                guard let number = result as? NSNumber else { return }
+                let progress = number.doubleValue
                 completion(progress)
             }
         }

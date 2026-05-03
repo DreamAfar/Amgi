@@ -140,6 +140,7 @@ public final class ReaderEpubSession {
         guard isTracking else {
             return
         }
+        flushStatistics()
         isPaused = true
     }
 
@@ -189,6 +190,15 @@ public final class ReaderEpubSession {
 
         lastStatisticsTimestamp = now
         lastStatisticsCharacterCount = currentCharacter
+    }
+
+    public func syncProgress(_ progress: Double, persistBookmark: Bool = false) {
+        let clampedProgress = min(max(progress, 0), 1)
+        currentProgress = clampedProgress
+
+        if persistBookmark {
+            persistBookmark(progress: clampedProgress)
+        }
     }
 
     public func initialAction() -> ReaderEpubNavigationAction? {
