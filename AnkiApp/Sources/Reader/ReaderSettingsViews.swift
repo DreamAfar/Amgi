@@ -693,6 +693,16 @@ struct ReaderAdvancedSettingsView: View {
         return notetypeNames.first(where: { $0.0 == notetypeID })?.1 ?? L("settings_reader_not_set")
     }
 
+    private var selectedTemplateDuplicateCheckFieldLabel: String {
+        if let fieldName = lookupNoteTemplate.duplicateCheckFieldName {
+            return fieldName
+        }
+        guard let firstFieldName = availableFields.first else {
+            return L("settings_reader_not_set")
+        }
+        return L("settings_reader_note_template_duplicate_check_field_default", firstFieldName)
+    }
+
     private var templateDeckSelection: Binding<Int> {
         Binding(
             get: { lookupNoteTemplate.deckID.map { Int($0) } ?? 0 },
@@ -713,6 +723,20 @@ struct ReaderAdvancedSettingsView: View {
                     template.notetypeID = resolvedID
                 }
                 loadTemplateFields(for: resolvedID)
+            }
+        )
+    }
+
+    private var templateDuplicateCheckFieldSelection: Binding<String> {
+        Binding(
+            get: { lookupNoteTemplate.duplicateCheckFieldName ?? "" },
+            set: { newValue in
+                let normalizedFieldName = newValue
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .nilIfBlank
+                updateTemplate { template in
+                    template.duplicateCheckFieldName = normalizedFieldName
+                }
             }
         )
     }
@@ -851,6 +875,33 @@ struct ReaderAdvancedSettingsView: View {
                         SettingsOptionCapsuleLabel(title: selectedTemplateNotetypeLabel)
                     }
                     .disabled(notetypeNames.isEmpty)
+                }
+
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                    Label(L("settings_reader_note_template_duplicate_check_field"), systemImage: "checkmark.circle")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Menu {
+                        Picker(
+                            L("settings_reader_note_template_duplicate_check_field"),
+                            selection: templateDuplicateCheckFieldSelection
+                        ) {
+                            if let firstFieldName = availableFields.first {
+                                Text(L("settings_reader_note_template_duplicate_check_field_default", firstFieldName))
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag("")
+                            }
+                            ForEach(availableFields, id: \.self) { fieldName in
+                                Text(fieldName)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(fieldName)
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: selectedTemplateDuplicateCheckFieldLabel)
+                    }
+                    .disabled(availableFields.isEmpty)
                 }
             } header: {
                 Text(L("settings_reader_note_add_settings"))

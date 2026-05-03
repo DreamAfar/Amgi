@@ -320,6 +320,8 @@
 "settings_reader_note_add_settings_description" = "查词弹窗点击添加笔记时，会按这里的默认模板填充字段，并弹出预览后再添加。";
 "settings_reader_note_template_deck" = "默认牌组";
 "settings_reader_note_template_notetype" = "默认笔记模板";
+"settings_reader_note_template_duplicate_check_field" = "重复检查字段";
+"settings_reader_note_template_duplicate_check_field_default" = "笔记类型首字段（%@）";
 "settings_reader_note_template_fields" = "字段映射";
 "settings_reader_note_template_term_field" = "单词字段";
 "settings_reader_note_template_reading_field" = "拼音/假名/音标字段";

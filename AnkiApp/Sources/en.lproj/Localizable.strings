@@ -320,6 +320,8 @@
 "settings_reader_note_add_settings_description" = "When Add Note is tapped in the lookup popup, these defaults fill the preview before the note is added.";
 "settings_reader_note_template_deck" = "Default Deck";
 "settings_reader_note_template_notetype" = "Default Note Template";
+"settings_reader_note_template_duplicate_check_field" = "Duplicate Check Field";
+"settings_reader_note_template_duplicate_check_field_default" = "Notetype First Field (%@)";
 "settings_reader_note_template_fields" = "Field Mapping";
 "settings_reader_note_template_term_field" = "Word Field";
 "settings_reader_note_template_reading_field" = "Pinyin/Kana/Phonetic Field";

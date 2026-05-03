@@ -1497,19 +1497,25 @@ private struct ReaderChapterView: View {
             return false
         }
 
+        let lookupTemplate = lookupNoteTemplate
+
         return await ReaderLookupDuplicateCache.shared.contains(
             word: normalizedWord,
-            notetypeID: notetypeID
+            notetypeID: notetypeID,
+            fieldName: lookupTemplate.duplicateCheckFieldName
         ) { [backend, noteClient] in
             let notetype = try fetchNotetype(backend: backend, id: notetypeID)
+            let duplicateCheckFieldIndex = lookupTemplate.duplicateCheckFieldIndex(
+                validFields: notetype.fields.map(\.name)
+            )
             let query = "note:\"\(Self.escapedSearchTerm(notetype.name))\""
             let noteIDs = try noteClient.searchIds(query)
             guard noteIDs.isEmpty == false else {
                 return []
             }
 
-            var firstFieldValues: [String] = []
-            firstFieldValues.reserveCapacity(noteIDs.count)
+            var duplicateCheckValues: [String] = []
+            duplicateCheckValues.reserveCapacity(noteIDs.count)
 
             let batchSize = 250
             var startIndex = 0
@@ -1517,11 +1523,13 @@ private struct ReaderChapterView: View {
                 let endIndex = min(startIndex + batchSize, noteIDs.count)
                 let batch = Array(noteIDs[startIndex..<endIndex])
                 let notes = try noteClient.fetchBatch(batch)
-                firstFieldValues.append(contentsOf: notes.map(\.sfld))
+                duplicateCheckValues.append(contentsOf: notes.compactMap {
+                    $0.readerLookupFieldValue(at: duplicateCheckFieldIndex)
+                })
                 startIndex = endIndex
             }
 
-            return firstFieldValues
+            return duplicateCheckValues
         }
     }
 

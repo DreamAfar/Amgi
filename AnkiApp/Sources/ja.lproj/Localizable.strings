@@ -320,6 +320,8 @@
 "settings_reader_note_add_settings_description" = "検索ポップアップでノート追加をタップすると、ここで設定した既定テンプレートで入力済みプレビューを開きます。";
 "settings_reader_note_template_deck" = "既定デッキ";
 "settings_reader_note_template_notetype" = "既定ノートテンプレート";
+"settings_reader_note_template_duplicate_check_field" = "重複チェックフィールド";
+"settings_reader_note_template_duplicate_check_field_default" = "ノートタイプ先頭フィールド（%@）";
 "settings_reader_note_template_fields" = "フィールド対応";
 "settings_reader_note_template_term_field" = "単語フィールド";
 "settings_reader_note_template_reading_field" = "ピンイン/かな/発音フィールド";

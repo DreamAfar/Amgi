@@ -29,6 +29,7 @@ struct ReaderLookupMiningContext: Sendable, Hashable {
 struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     var deckID: Int64?
     var notetypeID: Int64?
+    var duplicateCheckFieldName: String?
     var fieldMappings: [String: String]
     var tags: String
 
@@ -37,11 +38,13 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     init(
         deckID: Int64? = nil,
         notetypeID: Int64? = nil,
+        duplicateCheckFieldName: String? = nil,
         fieldMappings: [String: String] = [:],
         tags: String = ""
     ) {
         self.deckID = deckID
         self.notetypeID = notetypeID
+        self.duplicateCheckFieldName = Self.normalizedFieldName(duplicateCheckFieldName)
         self.fieldMappings = fieldMappings
         self.tags = tags
     }
@@ -57,6 +60,7 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     enum CodingKeys: String, CodingKey {
         case deckID
         case notetypeID
+        case duplicateCheckFieldName
         case fieldMappings
         case tags
 
@@ -79,6 +83,9 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         deckID = try container.decodeIfPresent(Int64.self, forKey: .deckID)
         notetypeID = try container.decodeIfPresent(Int64.self, forKey: .notetypeID)
+        duplicateCheckFieldName = Self.normalizedFieldName(
+            try container.decodeIfPresent(String.self, forKey: .duplicateCheckFieldName)
+        )
         tags = try container.decodeIfPresent(String.self, forKey: .tags) ?? ""
 
         if let savedMappings = try container.decodeIfPresent([String: String].self, forKey: .fieldMappings) {
@@ -116,6 +123,7 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(deckID, forKey: .deckID)
         try container.encodeIfPresent(notetypeID, forKey: .notetypeID)
+        try container.encodeIfPresent(duplicateCheckFieldName, forKey: .duplicateCheckFieldName)
         try container.encode(fieldMappings, forKey: .fieldMappings)
         try container.encode(tags, forKey: .tags)
     }
@@ -139,6 +147,18 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     mutating func clearInvalidFields(validFields: [String]) {
         let validFieldSet = Set(validFields)
         fieldMappings = fieldMappings.filter { validFieldSet.contains($0.key) }
+        if let duplicateCheckFieldName,
+           validFieldSet.contains(duplicateCheckFieldName) == false {
+            self.duplicateCheckFieldName = nil
+        }
+    }
+
+    func duplicateCheckFieldIndex(validFields: [String]) -> Int {
+        guard let duplicateCheckFieldName,
+              let index = validFields.firstIndex(of: duplicateCheckFieldName) else {
+            return 0
+        }
+        return index
     }
 
     func makeDraft(
@@ -258,6 +278,28 @@ struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         case .bookCover:
             return content["bookCover"]?.nilIfBlank ?? context.coverURL?.absoluteString ?? ""
         }
+    }
+
+    private static func normalizedFieldName(_ rawValue: String?) -> String? {
+        let trimmed = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
+    }
+}
+
+extension NoteRecord {
+    func readerLookupFieldValue(at index: Int) -> String? {
+        guard index >= 0 else {
+            return nil
+        }
+        if index == 0 {
+            return sfld
+        }
+
+        let fieldValues = flds.components(separatedBy: "\u{1f}")
+        guard fieldValues.indices.contains(index) else {
+            return nil
+        }
+        return fieldValues[index]
     }
 }
 

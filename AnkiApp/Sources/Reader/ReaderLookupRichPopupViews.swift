@@ -557,17 +557,25 @@ private struct PopupEntryPayload: Codable {
     }
 }
 
+private struct ReaderLookupDuplicateCacheKey: Hashable {
+    let notetypeID: Int64
+    let fieldName: String?
+}
+
 actor ReaderLookupDuplicateCache {
     static let shared = ReaderLookupDuplicateCache()
 
-    private var wordsByNotetypeID: [Int64: Set<String>] = [:]
+    private var wordsByKey: [ReaderLookupDuplicateCacheKey: Set<String>] = [:]
 
     func contains(
         word: String,
         notetypeID: Int64,
+        fieldName: String?,
         loader: @Sendable () async throws -> [String]
     ) async -> Bool {
-        if let cached = wordsByNotetypeID[notetypeID] {
+        let cacheKey = ReaderLookupDuplicateCacheKey(notetypeID: notetypeID, fieldName: fieldName)
+
+        if let cached = wordsByKey[cacheKey] {
             return cached.contains(word)
         }
 
@@ -579,7 +587,7 @@ actor ReaderLookupDuplicateCache {
                 }
                 .filter { $0.isEmpty == false }
             )
-            wordsByNotetypeID[notetypeID] = normalizedWords
+            wordsByKey[cacheKey] = normalizedWords
             return normalizedWords.contains(word)
         } catch {
             return false
@@ -588,9 +596,9 @@ actor ReaderLookupDuplicateCache {
 
     func invalidate(notetypeID: Int64?) {
         if let notetypeID {
-            wordsByNotetypeID.removeValue(forKey: notetypeID)
+            wordsByKey = wordsByKey.filter { $0.key.notetypeID != notetypeID }
         } else {
-            wordsByNotetypeID.removeAll()
+            wordsByKey.removeAll()
         }
     }
 }

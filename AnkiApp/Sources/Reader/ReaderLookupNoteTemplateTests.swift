@@ -107,4 +107,20 @@ final class ReaderLookupNoteTemplateTests: XCTestCase {
         XCTAssertEqual(store.template(for: "fr").deckID, 1)
         XCTAssertEqual(store.template(for: nil).deckID, 1)
     }
+
+    func testClearInvalidFieldsClearsInvalidDuplicateCheckField() {
+        var template = ReaderLookupNoteTemplate(
+            duplicateCheckFieldName: "Reading",
+            fieldMappings: [
+                "Expression": ReaderLookupHandlebar.expression.rawValue,
+                "Reading": ReaderLookupHandlebar.reading.rawValue,
+            ]
+        )
+
+        template.clearInvalidFields(validFields: ["Expression"])
+
+        XCTAssertNil(template.duplicateCheckFieldName)
+        XCTAssertNotNil(template.fieldMappings["Expression"])
+        XCTAssertNil(template.fieldMappings["Reading"])
+    }
 }
