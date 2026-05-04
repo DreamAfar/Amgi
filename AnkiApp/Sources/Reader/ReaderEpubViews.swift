@@ -1845,6 +1845,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
                 color: rgba(66, 108, 245, 1) !important;
             }
             \(parent.avoidPageBreak ? "p { break-inside: avoid !important; -webkit-column-break-inside: avoid !important; }" : "")
+            """
 
             let initialRestoreScript: String = {
                 if let fragment = pendingFragment {
