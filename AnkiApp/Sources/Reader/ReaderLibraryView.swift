@@ -2779,7 +2779,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             let targetOffset: CGPoint
 
             if parent?.isVertical == true {
-                targetOffset = CGPoint(x: maxOffset * clampedProgress, y: 0)
+                targetOffset = CGPoint(x: maxOffset * (1 - clampedProgress), y: 0)
             } else {
                 targetOffset = CGPoint(x: 0, y: maxOffset * clampedProgress)
             }
@@ -2809,20 +2809,27 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             return max(scrollView.contentSize.height - scrollView.bounds.height, 0)
         }
 
+        private func normalizedProgress(for scrollView: UIScrollView) -> Double {
+            let maxOffset = maximumOffset(for: scrollView)
+            guard maxOffset > 0 else {
+                return 0
+            }
+
+            if parent?.isVertical == true {
+                let clampedOffset = min(max(scrollView.contentOffset.x, 0), maxOffset)
+                return min(max(Double((maxOffset - clampedOffset) / maxOffset), 0), 1)
+            }
+
+            let clampedOffset = min(max(scrollView.contentOffset.y, 0), maxOffset)
+            return min(max(Double(clampedOffset / maxOffset), 0), 1)
+        }
+
         private func reportProgress(for scrollView: UIScrollView) {
             guard didRestoreInitialProgress, isRestoringProgress == false else {
                 return
             }
 
-            let progress: Double
-            if parent?.isVertical == true {
-                let maxOffset = max(scrollView.contentSize.width - scrollView.bounds.width, 1)
-                progress = Double(scrollView.contentOffset.x / maxOffset)
-            } else {
-                let maxOffset = max(scrollView.contentSize.height - scrollView.bounds.height, 1)
-                progress = Double(scrollView.contentOffset.y / maxOffset)
-            }
-            onProgressChange(min(max(progress, 0), 1))
+            onProgressChange(normalizedProgress(for: scrollView))
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {

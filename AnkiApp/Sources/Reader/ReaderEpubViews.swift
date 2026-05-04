@@ -611,6 +611,10 @@ struct ReaderEpubReaderView: View {
                                     session.saveBookmark(progress: progress)
                                     bridge.updateProgress(progress)
                                 },
+                                onProgressChange: { progress in
+                                    session.syncProgress(progress)
+                                    bridge.updateProgress(progress)
+                                },
                                 onInternalLink: { url in
                                     guard let action = session.actionForInternalLink(url) else {
                                         return false
@@ -914,6 +918,10 @@ struct ReaderEpubReaderView: View {
                     },
                     onSaveBookmark: { progress in
                         session.saveBookmark(progress: progress)
+                        bridge.updateProgress(progress)
+                    },
+                    onProgressChange: { progress in
+                        session.syncProgress(progress)
                         bridge.updateProgress(progress)
                     },
                     onInternalLink: { url in
@@ -1628,6 +1636,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
     var onNextChapter: () -> Bool
     var onPreviousChapter: () -> Bool
     var onSaveBookmark: (Double) -> Void
+    var onProgressChange: (Double) -> Void
     var onInternalLink: (URL) -> Bool
     var onInternalJump: (Double) -> Void
     var onTextSelected: (ReaderEpubSelectionData) -> Void
@@ -1732,6 +1741,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
         var pendingProgress: Double = 0
         var pendingFragment: String?
         var shouldSyncProgressAfterRestore = false
+        private var lastReportedProgress = -1.0
 
         init(parent: ReaderEpubScrollWebView) {
             self.parent = parent
@@ -1923,6 +1933,31 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
             }
         }
 
+        private func reportVisibleProgressIfNeeded(for scrollView: UIScrollView, force: Bool = false) {
+            let progress = currentProgress(for: scrollView)
+            guard force || abs(progress - lastReportedProgress) >= 0.001 else {
+                return
+            }
+
+            lastReportedProgress = progress
+            parent.onProgressChange(progress)
+        }
+
+        private func currentProgress(for scrollView: UIScrollView) -> Double {
+            let contentExtent = parent.isVertical ? scrollView.contentSize.width : scrollView.contentSize.height
+            let viewportExtent = parent.isVertical ? scrollView.bounds.width : scrollView.bounds.height
+            let maxOffset = max(contentExtent - viewportExtent, 0)
+
+            guard maxOffset > 0 else {
+                return 0
+            }
+
+            let rawOffset = parent.isVertical ? scrollView.contentOffset.x : scrollView.contentOffset.y
+            let clampedOffset = min(max(rawOffset, 0), maxOffset)
+            let normalizedOffset = parent.isVertical ? (maxOffset - clampedOffset) : clampedOffset
+            return min(max(normalizedOffset / maxOffset, 0), 1)
+        }
+
         func jumpToFragment(_ fragment: String) {
             guard let webView else { return }
             shouldSyncProgressAfterRestore = true
@@ -1936,12 +1971,12 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
         }
 
         func fetchCurrentProgress(_ completion: @escaping (Double) -> Void) {
-            guard let webView else { return }
-            webView.evaluateJavaScript("window.hoshiReader.calculateProgress()") { result, _ in
-                guard let number = result as? NSNumber else { return }
-                let progress = number.doubleValue
-                completion(progress)
+            if let scrollView = webView?.scrollView {
+                completion(currentProgress(for: scrollView))
+                return
             }
+
+            completion(0)
         }
 
         private func javaScriptStringLiteral(_ value: String) -> String {
@@ -2011,6 +2046,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
         }
 
         func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+            reportVisibleProgressIfNeeded(for: scrollView, force: true)
             parent.onScroll()
             saveBookmark()
             clearHighlight()
@@ -2018,10 +2054,15 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
 
         func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
             if decelerate == false {
+                reportVisibleProgressIfNeeded(for: scrollView, force: true)
                 parent.onScroll()
                 saveBookmark()
                 clearHighlight()
             }
+        }
+
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            reportVisibleProgressIfNeeded(for: scrollView)
         }
     }
 }
@@ -2756,22 +2797,21 @@ window.hoshiReader = {
         window.snapScrollRegistered = true;
         window.lastPageScroll = initialScroll;
         var vertical = this.isVertical();
-        var pageHeight = this.pageHeight;
-        var pageWidth = this.pageWidth;
+        var pageSize = vertical ? this.pageWidth : this.pageHeight;
         document.body.addEventListener('scroll', function () {
             if (vertical) {
-                var currentScroll = document.body.scrollTop;
-                var snappedScroll = Math.round(currentScroll / pageHeight) * pageHeight;
+                var currentScroll = document.body.scrollLeft;
+                var snappedScroll = Math.round(currentScroll / pageSize) * pageSize;
                 if (Math.abs(currentScroll - snappedScroll) > 1) {
-                    document.body.scrollTop = window.lastPageScroll;
+                    document.body.scrollLeft = window.lastPageScroll;
                 } else {
                     window.lastPageScroll = snappedScroll;
                 }
             } else {
-                var currentScroll = document.body.scrollLeft;
-                var snappedScroll = Math.round(currentScroll / pageWidth) * pageWidth;
+                var currentScroll = document.body.scrollTop;
+                var snappedScroll = Math.round(currentScroll / pageSize) * pageSize;
                 if (Math.abs(currentScroll - snappedScroll) > 1) {
-                    document.body.scrollLeft = window.lastPageScroll;
+                    document.body.scrollTop = window.lastPageScroll;
                 } else {
                     window.lastPageScroll = snappedScroll;
                 }
@@ -2798,17 +2838,17 @@ window.hoshiReader = {
     getScrollContext() {
         var vertical = this.isVertical();
         var scrollEl = document.body;
-        var pageSize = vertical ? this.pageHeight : this.pageWidth;
-        var totalSize = vertical ? scrollEl.scrollHeight : scrollEl.scrollWidth;
+        var pageSize = vertical ? this.pageWidth : this.pageHeight;
+        var totalSize = vertical ? scrollEl.scrollWidth : scrollEl.scrollHeight;
         var maxScroll = Math.max(0, totalSize - pageSize);
         return { vertical, scrollEl, pageSize, maxScroll };
     },
     setScrollOffset(context, scroll) {
         var clampedScroll = Math.min(Math.max(0, scroll), context.maxScroll);
         if (context.vertical) {
-            context.scrollEl.scrollTop = clampedScroll;
-        } else {
             context.scrollEl.scrollLeft = clampedScroll;
+        } else {
+            context.scrollEl.scrollTop = clampedScroll;
         }
         return clampedScroll;
     },
@@ -2819,22 +2859,39 @@ window.hoshiReader = {
     },
     paginate(direction) {
         var vertical = this.isVertical();
-        var pageSize = vertical ? this.pageHeight : this.pageWidth;
+        var pageSize = vertical ? this.pageWidth : this.pageHeight;
         if (pageSize <= 0) return 'limit';
         if (direction === 'forward') {
-            var totalSize = vertical ? document.body.scrollHeight : document.body.scrollWidth;
+            var totalSize = vertical ? document.body.scrollWidth : document.body.scrollHeight;
             var maxScroll = Math.max(0, totalSize - pageSize);
             var maxAlignedScroll = Math.floor(maxScroll / pageSize) * pageSize;
-            var currentScroll = vertical ? document.body.scrollTop : document.body.scrollLeft;
+            var currentScroll = vertical ? document.body.scrollLeft : document.body.scrollTop;
+            if (vertical) {
+                if ((currentScroll - pageSize) >= -1) {
+                    document.body.scrollLeft = Math.max(0, currentScroll - pageSize);
+                    return 'scrolled';
+                }
+                return 'limit';
+            }
             if ((currentScroll + pageSize) <= (maxAlignedScroll + 1)) {
-                if (vertical) { document.body.scrollTop += pageSize; } else { document.body.scrollLeft += pageSize; }
+                document.body.scrollTop += pageSize;
                 return 'scrolled';
             }
             return 'limit';
         }
-        var currentScroll = vertical ? document.body.scrollTop : document.body.scrollLeft;
+        var currentScroll = vertical ? document.body.scrollLeft : document.body.scrollTop;
+        if (vertical) {
+            var totalSize = document.body.scrollWidth;
+            var maxScroll = Math.max(0, totalSize - pageSize);
+            var maxAlignedScroll = Math.floor(maxScroll / pageSize) * pageSize;
+            if ((currentScroll + pageSize) <= (maxAlignedScroll + 1)) {
+                document.body.scrollLeft = Math.min(maxAlignedScroll, currentScroll + pageSize);
+                return 'scrolled';
+            }
+            return 'limit';
+        }
         if (currentScroll > 0) {
-            if (vertical) { document.body.scrollTop -= pageSize; } else { document.body.scrollLeft -= pageSize; }
+            document.body.scrollTop -= pageSize;
             return 'scrolled';
         }
         return 'limit';
@@ -2847,13 +2904,16 @@ window.hoshiReader = {
             return;
         }
         if (progress <= 0) {
-            this.setScrollOffset(context, 0);
-            this.registerSnapScroll(0);
+            var initialScroll = context.vertical ? context.maxScroll : 0;
+            this.setScrollOffset(context, initialScroll);
+            this.registerSnapScroll(initialScroll);
             this.notifyRestoreComplete();
             return;
         }
         if (progress >= 0.99) {
-            var lastPage = Math.floor(context.maxScroll / context.pageSize) * context.pageSize;
+            var lastPage = context.vertical
+                ? 0
+                : Math.floor(context.maxScroll / context.pageSize) * context.pageSize;
             lastPage = Math.max(0, lastPage);
             this.setScrollOffset(context, lastPage);
             this.registerSnapScroll(lastPage);
@@ -2887,7 +2947,7 @@ window.hoshiReader = {
             range.setStart(targetNode, 0);
             range.setEnd(targetNode, 1);
             var rect = range.getBoundingClientRect();
-            var anchor = (context.vertical ? rect.top : rect.left) + (context.vertical ? context.scrollEl.scrollTop : context.scrollEl.scrollLeft);
+            var anchor = (context.vertical ? rect.left : rect.top) + (context.vertical ? context.scrollEl.scrollLeft : context.scrollEl.scrollTop);
             var targetScroll = this.alignToPage(context, anchor);
             this.setScrollOffset(context, targetScroll);
             requestAnimationFrame(() => {
@@ -2909,8 +2969,8 @@ window.hoshiReader = {
             return false;
         }
         var rect = target.getBoundingClientRect();
-        var currentScroll = context.vertical ? context.scrollEl.scrollTop : context.scrollEl.scrollLeft;
-        var anchor = (context.vertical ? rect.top : rect.left) + currentScroll;
+        var currentScroll = context.vertical ? context.scrollEl.scrollLeft : context.scrollEl.scrollTop;
+        var anchor = (context.vertical ? rect.left : rect.top) + currentScroll;
         var targetScroll = this.alignToPage(context, anchor);
         this.setScrollOffset(context, targetScroll);
         requestAnimationFrame(() => {
