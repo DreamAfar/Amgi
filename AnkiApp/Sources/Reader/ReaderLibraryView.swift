@@ -1521,7 +1521,7 @@ private struct ReaderChapterView: View {
             word: duplicateCheckValue,
             notetypeID: notetypeID,
             fieldName: lookupTemplate.duplicateCheckFieldName
-        ) { [backend, noteClient] in
+        ) { [noteClient] in
             let duplicateCheckFieldIndex = lookupTemplate.duplicateCheckFieldIndex(
                 validFields: validFieldNames
             )
