@@ -1465,6 +1465,7 @@ private struct ReaderEpubChapterListSheet: View {
                             Text("\(session.currentCharacter) / \(session.bookInfo.characterCount) (\(String(format: "%.1f%%", percent)))")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
