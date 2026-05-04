@@ -1935,7 +1935,8 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
 
         private func reportVisibleProgressIfNeeded(for scrollView: UIScrollView, force: Bool = false) {
             let progress = currentProgress(for: scrollView)
-            guard force || abs(progress - lastReportedProgress) >= 0.001 else {
+            let progressDelta = Swift.abs(progress - lastReportedProgress)
+            guard force || progressDelta >= 0.001 else {
                 return
             }
 
