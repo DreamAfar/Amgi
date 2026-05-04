@@ -523,6 +523,10 @@ private struct ReaderBookCard: View {
     var isSelecting = false
     var isSelected = false
 
+    private var progressLabel: String {
+        String(format: "%.0f%%", min(max(item.progress, 0), 1) * 100)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ReaderBookCoverView(noteCoverImagePath: item.noteBook?.coverImagePath, epubCoverURL: item.epubBook?.coverURL)
@@ -554,8 +558,15 @@ private struct ReaderBookCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: 34, alignment: .topLeading)
 
-                ProgressView(value: item.progress)
-                    .tint(Color.amgiAccent)
+                HStack(spacing: 8) {
+                    ProgressView(value: item.progress)
+                        .tint(Color.amgiAccent)
+
+                    Text(progressLabel)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(Color.amgiTextSecondary)
+                        .monospacedDigit()
+                }
             }
             .frame(height: 46, alignment: .top)
         }
@@ -1034,6 +1045,12 @@ private struct ReaderChapterView: View {
             chapterGeometryContent(geometry)
         }
         .background(chapterContentBackground)
+        .onAppear {
+            progress = savedProgress
+        }
+        .onChange(of: chapter.id) {
+            progress = savedProgress
+        }
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $showAddNoteSheet, onDismiss: {

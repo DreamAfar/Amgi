@@ -664,7 +664,7 @@ struct ReaderEpubReaderView: View {
 
                             HStack {
                                 Button {
-                                    dismiss()
+                                    persistProgressAndDismiss(session)
                                 } label: {
                                     ReaderEpubChromeIconLabel(systemName: "chevron.left")
                                 }
@@ -973,7 +973,7 @@ struct ReaderEpubReaderView: View {
 
                 HStack {
                     Button {
-                        dismiss()
+                        persistProgressAndDismiss(session)
                     } label: {
                         ReaderEpubChromeIconLabel(systemName: "chevron.left")
                     }
@@ -1137,6 +1137,15 @@ struct ReaderEpubReaderView: View {
 
         session.syncProgress(progress, persistBookmark: persistBookmark)
         bridge.updateProgress(progress)
+    }
+
+    private func persistProgressAndDismiss(_ session: ReaderEpubSession) {
+        Task {
+            await syncReadingProgress(session, persistBookmark: true)
+            await MainActor.run {
+                dismiss()
+            }
+        }
     }
 
     private func normalizedHexColor(_ value: String, fallback: String) -> String {
@@ -1456,7 +1465,6 @@ private struct ReaderEpubChapterListSheet: View {
                             Text("\(session.currentCharacter) / \(session.bookInfo.characterCount) (\(String(format: "%.1f%%", percent)))")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                        }
                     }
                 }
             }
@@ -1837,7 +1845,6 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
                 color: rgba(66, 108, 245, 1) !important;
             }
             \(parent.avoidPageBreak ? "p { break-inside: avoid !important; -webkit-column-break-inside: avoid !important; }" : "")
-            """
 
             let initialRestoreScript: String = {
                 if let fragment = pendingFragment {
