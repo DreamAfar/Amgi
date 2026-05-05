@@ -2780,6 +2780,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         private var didRestoreInitialProgress = false
         private var isRestoringProgress = false
         private var restoreGeneration = 0
+        private weak var activeWebView: WKWebView?
         private let onProgressChange: (Double) -> Void
         let onSelectionResolved: (String?) -> Void
         let onLookupRequested: (String?, String?, CGPoint, CGRect?) -> Void
@@ -2844,6 +2845,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            activeWebView = webView
             restoreGeneration += 1
             restoreProgress(in: webView.scrollView, remainingAttempts: 40, generation: restoreGeneration)
         }
@@ -2912,13 +2914,13 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         }
 
         private func restoreProgressWithJavaScript(_ progress: Double, generation: Int) {
-            guard let webView, generation == restoreGeneration else {
+            guard let webView = activeWebView, generation == restoreGeneration else {
                 return
             }
 
             didRestoreInitialProgress = false
             isRestoringProgress = true
-            webView.evaluateJavaScript("window.amgiReaderProgress?.restore(\(progress)).progress") { [weak self] value, _ in
+            webView.evaluateJavaScript("window.amgiReaderProgress?.restore(\(progress)).progress") { [weak self] (value: Any?, _: Error?) in
                 guard let self, generation == self.restoreGeneration else {
                     return
                 }
@@ -2968,18 +2970,18 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         }
 
         private func fetchCurrentProgress(_ completion: @escaping (Double) -> Void) {
-            guard let webView = webView else {
+            guard let webView = activeWebView else {
                 completion(0)
                 return
             }
 
-            webView.evaluateJavaScript("window.amgiReaderProgress?.metrics().progress") { [weak self] value, _ in
+            webView.evaluateJavaScript("window.amgiReaderProgress?.metrics().progress") { [weak self] (value: Any?, _: Error?) in
                 if let progress = value as? Double {
                     completion(progress)
                     return
                 }
 
-                guard let scrollView = self?.webView?.scrollView else {
+                guard let scrollView = self?.activeWebView?.scrollView else {
                     completion(0)
                     return
                 }
