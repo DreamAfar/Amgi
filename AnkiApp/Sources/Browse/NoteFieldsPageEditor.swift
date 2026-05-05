@@ -1950,7 +1950,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 if let index = body["index"] as? Int {
                     activeFieldIndex = max(0, index)
                 }
-                scheduleActiveFieldVisibilityAdjustment()
+                if isKeyboardVisibleForCurrentEditor() {
+                    scheduleActiveFieldVisibilityAdjustment()
+                }
             case "fieldChanged":
                 guard let index = body["index"] as? Int,
                       let html = body["html"] as? String,
@@ -1991,11 +1993,20 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                   let frameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
             else {
                 keyboardEndFrameInScreen = .null
-                scheduleActiveFieldVisibilityAdjustment(delay: 0.01)
+                pendingVisibilityAdjustmentWorkItem?.cancel()
+                syncHostScrollViewInsetsIfNeeded()
                 return
             }
             keyboardEndFrameInScreen = frameValue.cgRectValue
-            scheduleActiveFieldVisibilityAdjustment(delay: 0.01)
+            syncHostScrollViewInsetsIfNeeded()
+
+            guard isKeyboardVisibleForCurrentEditor() else {
+                pendingVisibilityAdjustmentWorkItem?.cancel()
+                return
+            }
+
+            let animationDuration = (userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0
+            scheduleActiveFieldVisibilityAdjustment(delay: max(animationDuration, 0.05))
         }
 
         private func performClearFormatting(_ kind: ClearFormattingKind) {
@@ -2143,29 +2154,15 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         }
 
         private func applyVisibilityAdjustment(fieldRectInWebView: CGRect) {
-            guard let webView,
-                  let hostScrollView = enclosingHostScrollView(for: webView),
-                  let window = webView.window
-            else { return }
+            guard let context = hostScrollContext() else { return }
+            let hostScrollView = context.scrollView
+            let window = context.window
+            let hostFrameInWindow = context.hostFrameInWindow
+            let visibleKeyboardFrame = context.visibleKeyboardFrame
+            let bottomInset = context.bottomInset
 
-            let keyboardFrameInWindow = keyboardEndFrameInScreen.isNull
-                ? CGRect(x: 0, y: window.bounds.maxY, width: window.bounds.width, height: 0)
-                : window.convert(keyboardEndFrameInScreen, from: nil)
-            let visibleKeyboardFrame = keyboardFrameInWindow.intersection(window.bounds)
-            let hostFrameInWindow = hostScrollView.convert(hostScrollView.bounds, to: window)
-            let keyboardOverlap = hostFrameInWindow.intersection(visibleKeyboardFrame).height
-            let bottomInset = keyboardOverlap > 1 ? keyboardOverlap : 0
+            syncHostScrollViewInsetsIfNeeded(using: context)
 
-            // Sync contentInset.bottom with the portion of the host scroll view actually
-            // covered by the keyboard.
-            // On dismiss (bottomInset == 0): only clear the inset, never touch contentOffset —
-            // the field list stays exactly where the user left it.
-            if abs(hostScrollView.contentInset.bottom - bottomInset) > 1 {
-                hostScrollView.contentInset.bottom = bottomInset
-                hostScrollView.scrollIndicatorInsets.bottom = bottomInset
-            }
-
-            // Keyboard not visible — nothing else to do.
             guard bottomInset > 0 else { return }
 
             // Convert the active field rect to window coordinates.
@@ -2202,8 +2199,58 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             )
             let targetOffsetY = min(max(hostScrollView.contentOffset.y + deltaY, minOffsetY), maxOffsetY)
             guard abs(targetOffsetY - hostScrollView.contentOffset.y) > 1 else { return }
-            UIView.animate(withDuration: 0.22) {
+            UIView.performWithoutAnimation {
                 hostScrollView.contentOffset.y = targetOffsetY
+            }
+        }
+
+        private func isKeyboardVisibleForCurrentEditor() -> Bool {
+            guard let context = hostScrollContext() else { return false }
+            return context.bottomInset > 1
+        }
+
+        private struct HostScrollContext {
+            let scrollView: UIScrollView
+            let window: UIWindow
+            let hostFrameInWindow: CGRect
+            let visibleKeyboardFrame: CGRect
+            let bottomInset: CGFloat
+        }
+
+        private func hostScrollContext() -> HostScrollContext? {
+            guard let webView,
+                  let hostScrollView = enclosingHostScrollView(for: webView),
+                  let window = webView.window
+            else { return nil }
+
+            let keyboardFrameInWindow = keyboardEndFrameInScreen.isNull
+                ? CGRect(x: 0, y: window.bounds.maxY, width: window.bounds.width, height: 0)
+                : window.convert(keyboardEndFrameInScreen, from: nil)
+            let visibleKeyboardFrame = keyboardFrameInWindow.intersection(window.bounds)
+            let hostFrameInWindow = hostScrollView.convert(hostScrollView.bounds, to: window)
+            let keyboardOverlap = hostFrameInWindow.intersection(visibleKeyboardFrame).height
+            let bottomInset = keyboardOverlap > 1 ? keyboardOverlap : 0
+
+            return HostScrollContext(
+                scrollView: hostScrollView,
+                window: window,
+                hostFrameInWindow: hostFrameInWindow,
+                visibleKeyboardFrame: visibleKeyboardFrame,
+                bottomInset: bottomInset
+            )
+        }
+
+        private func syncHostScrollViewInsetsIfNeeded() {
+            guard let context = hostScrollContext() else { return }
+            syncHostScrollViewInsetsIfNeeded(using: context)
+        }
+
+        private func syncHostScrollViewInsetsIfNeeded(using context: HostScrollContext) {
+            let hostScrollView = context.scrollView
+            let bottomInset = context.bottomInset
+            if abs(hostScrollView.contentInset.bottom - bottomInset) > 1 {
+                hostScrollView.contentInset.bottom = bottomInset
+                hostScrollView.scrollIndicatorInsets.bottom = bottomInset
             }
         }
 
