@@ -2865,10 +2865,18 @@ window.hoshiReader = {
     },
     setScrollOffset(context, scroll) {
         var clampedScroll = Math.min(Math.max(0, scroll), context.maxScroll);
-        if (context.vertical) {
-            context.scrollEl.scrollLeft = clampedScroll;
+        if (this.shouldSnapPages()) {
+            if (context.vertical) {
+                context.scrollEl.scrollLeft = clampedScroll;
+            } else {
+                context.scrollEl.scrollTop = clampedScroll;
+            }
         } else {
-            context.scrollEl.scrollTop = clampedScroll;
+            if (context.vertical) {
+                window.scrollTo(clampedScroll, 0);
+            } else {
+                window.scrollTo(0, clampedScroll);
+            }
         }
         return clampedScroll;
     },
@@ -2965,7 +2973,9 @@ window.hoshiReader = {
             return false;
         }
         var rect = target.getBoundingClientRect();
-        var currentScroll = context.vertical ? context.scrollEl.scrollLeft : context.scrollEl.scrollTop;
+        var currentScroll = this.shouldSnapPages()
+            ? (context.vertical ? context.scrollEl.scrollLeft : context.scrollEl.scrollTop)
+            : (context.vertical ? window.scrollX : window.scrollY);
         var anchor = (context.vertical ? rect.left : rect.top) + currentScroll;
         var targetScroll = this.alignToPage(context, anchor);
         this.setScrollOffset(context, targetScroll);
