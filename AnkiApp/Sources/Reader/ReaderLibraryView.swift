@@ -474,14 +474,14 @@ struct ReaderLibraryView: View {
 
     private func progressValue(for book: ReaderBook) -> Double {
         guard let savedProgress = ReaderProgressStore.load(bookID: book.id),
-              let chapterIndex = book.chapters.firstIndex(where: { $0.id == savedProgress.chapterID }),
               !book.chapters.isEmpty else {
             return 0
         }
 
-        let base = Double(chapterIndex) / Double(book.chapters.count)
-        let chapterSlice = savedProgress.progress / Double(book.chapters.count)
-        return min(base + chapterSlice, 1)
+        return book.overallReadingProgress(
+            chapterID: savedProgress.chapterID,
+            chapterProgress: savedProgress.progress
+        )
     }
 
     private func progressValue(for book: BookMetadata) -> Double {
@@ -520,6 +520,40 @@ struct ReaderLibraryView: View {
         if selectedBookIDs.isEmpty {
             isSelecting = false
         }
+    }
+}
+
+private extension ReaderBook {
+    func overallReadingProgress(chapterID: Int64, chapterProgress: Double) -> Double {
+        guard let chapterIndex = chapters.firstIndex(where: { $0.id == chapterID }) else {
+            return 0
+        }
+        return overallReadingProgress(chapterIndex: chapterIndex, chapterProgress: chapterProgress)
+    }
+
+    func overallReadingProgress(chapterIndex: Int, chapterProgress: Double) -> Double {
+        guard chapters.indices.contains(chapterIndex), chapters.isEmpty == false else {
+            return 0
+        }
+
+        let weights = chapters.map { max($0.readerProgressCharacterCount, 1) }
+        let total = weights.reduce(0, +)
+        guard total > 0 else {
+            return 0
+        }
+
+        let completed = weights.prefix(chapterIndex).reduce(0, +)
+        let clampedChapterProgress = min(max(chapterProgress, 0), 1)
+        let inChapter = Double(weights[chapterIndex]) * clampedChapterProgress
+        return min(max((Double(completed) + inChapter) / Double(total), 0), 1)
+    }
+}
+
+private extension ReaderChapter {
+    var readerProgressCharacterCount: Int {
+        let withoutTags = content.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        let withoutEntities = withoutTags.replacingOccurrences(of: "&[A-Za-z0-9#]+;", with: " ", options: .regularExpression)
+        return withoutEntities.trimmingCharacters(in: .whitespacesAndNewlines).count
     }
 }
 
@@ -918,9 +952,8 @@ private struct ReaderChapterView: View {
     }
 
     private var progressLabel: String {
-        let totalChapters = max(book.chapters.count, 1)
         let overallProgress = min(
-            max((Double(currentChapterIndex) + progress) / Double(totalChapters), 0),
+            max(book.overallReadingProgress(chapterIndex: currentChapterIndex, chapterProgress: progress), 0),
             1
         )
         if showPercentage {
