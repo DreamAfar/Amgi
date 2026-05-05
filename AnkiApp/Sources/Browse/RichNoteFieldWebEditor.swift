@@ -916,7 +916,7 @@ private final class AccessoryWKWebView: WKWebView {
         super.init(frame: frame, configuration: configuration)
         scrollView.addObserver(
             self,
-            forKeyPath: #keyPath(UIScrollView.contentOffset),
+            forKeyPath: "contentOffset",
             options: .new,
             context: nil
         )
@@ -928,7 +928,7 @@ private final class AccessoryWKWebView: WKWebView {
     }
 
     deinit {
-        scrollView.removeObserver(self, forKeyPath: #keyPath(UIScrollView.contentOffset))
+        scrollView.removeObserver(self, forKeyPath: "contentOffset")
     }
 
     override func observeValue(
@@ -937,7 +937,7 @@ private final class AccessoryWKWebView: WKWebView {
         change: [NSKeyValueChangeKey: Any]?,
         context: UnsafeMutableRawPointer?
     ) {
-        guard keyPath == #keyPath(UIScrollView.contentOffset),
+        guard keyPath == "contentOffset",
               !scrollView.isScrollEnabled,
               scrollView.contentOffset != .zero else {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
