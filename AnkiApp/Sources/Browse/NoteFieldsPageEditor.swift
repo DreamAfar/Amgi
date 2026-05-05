@@ -384,11 +384,13 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 ? rectSource.getBoundingClientRect()
                 : rectSource;
             if (!rect) { return null; }
+            const viewportOffsetLeft = window.visualViewport ? window.visualViewport.offsetLeft : 0;
+            const viewportOffsetTop = window.visualViewport ? window.visualViewport.offsetTop : 0;
             return {
-                minX: rect.left,
-                minY: rect.top,
-                maxX: rect.right,
-                maxY: rect.bottom,
+                minX: rect.left - viewportOffsetLeft,
+                minY: rect.top - viewportOffsetTop,
+                maxX: rect.right - viewportOffsetLeft,
+                maxY: rect.bottom - viewportOffsetTop,
                 width: rect.width,
                 height: rect.height,
             };
@@ -660,6 +662,22 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         function blurActiveField() {
             sourceElement(state.activeFieldIndex)?.blur();
             renderedElement(state.activeFieldIndex)?.blur();
+        }
+
+        function isEditorFocused() {
+            const activeElement = document.activeElement;
+            if (activeElement?.classList?.contains('field-source')) {
+                return true;
+            }
+            if (activeElement?.classList?.contains('field-rendered')) {
+                return true;
+            }
+            const activeField = fieldElement(state.activeFieldIndex);
+            const selection = window.getSelection();
+            return !!activeField
+                && !!selection
+                && selection.rangeCount > 0
+                && activeField.contains(selection.anchorNode);
         }
 
         function activeSelectionHasRange() {
@@ -1122,6 +1140,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             },
             activeFieldRect() {
                 return activeCaretRect(state.activeFieldIndex);
+            },
+            isEditorFocused() {
+                return isEditorFocused();
             },
             focus() {
                 focusActiveField();
@@ -2097,7 +2118,15 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
         private func adjustActiveFieldVisibilityIfNeeded() {
             guard isPageReady, let webView else { return }
-            let script = "window.amgiNoteFieldsEditor && window.amgiNoteFieldsEditor.activeFieldRect();"
+            let script = """
+            (() => {
+                const editor = window.amgiNoteFieldsEditor;
+                if (!editor || !editor.isEditorFocused()) {
+                    return null;
+                }
+                return editor.activeFieldRect();
+            })();
+            """
             webView.evaluateJavaScript(script) { [weak self] result, _ in
                 guard let self else { return }
                 guard let payload = result as? [String: Any],
@@ -2123,39 +2152,48 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 ? CGRect(x: 0, y: window.bounds.maxY, width: window.bounds.width, height: 0)
                 : window.convert(keyboardEndFrameInScreen, from: nil)
             let visibleKeyboardFrame = keyboardFrameInWindow.intersection(window.bounds)
-            let keyboardHeight = visibleKeyboardFrame.height > 44 ? visibleKeyboardFrame.height : 0
+            let hostFrameInWindow = hostScrollView.convert(hostScrollView.bounds, to: window)
+            let keyboardOverlap = hostFrameInWindow.intersection(visibleKeyboardFrame).height
+            let bottomInset = keyboardOverlap > 1 ? keyboardOverlap : 0
 
-            // Sync contentInset.bottom with keyboard height so the scroll view can reach
-            // content that would otherwise be behind the keyboard.
-            // On dismiss (keyboardHeight == 0): only clear the inset, never touch contentOffset —
+            // Sync contentInset.bottom with the portion of the host scroll view actually
+            // covered by the keyboard.
+            // On dismiss (bottomInset == 0): only clear the inset, never touch contentOffset —
             // the field list stays exactly where the user left it.
-            if abs(hostScrollView.contentInset.bottom - keyboardHeight) > 1 {
-                hostScrollView.contentInset.bottom = keyboardHeight
+            if abs(hostScrollView.contentInset.bottom - bottomInset) > 1 {
+                hostScrollView.contentInset.bottom = bottomInset
+                hostScrollView.scrollIndicatorInsets.bottom = bottomInset
             }
 
             // Keyboard not visible — nothing else to do.
-            guard keyboardHeight > 44 else { return }
+            guard bottomInset > 0 else { return }
 
-            // Convert the field rect to window coordinates (accounts for current scroll position).
+            // Convert the active field rect to window coordinates.
             let fieldRectInWindow = webView.convert(fieldRectInWebView, to: window)
 
-            // Compute the visible area above the keyboard (with comfortable padding).
-            let navBarBottom = window.safeAreaInsets.top + 56   // approx navigation bar bottom
-            let keyboardTop = visibleKeyboardFrame.minY - 16    // 16pt breathing room above keyboard
+            // Work against the actual visible slice of the host scroll view instead of the
+            // whole window. Using a short focus rect avoids over-scrolling tall editors.
+            let focusRectInWindow = CGRect(
+                x: fieldRectInWindow.minX,
+                y: fieldRectInWindow.minY,
+                width: max(fieldRectInWindow.width, 1),
+                height: min(max(fieldRectInWindow.height, 1), 44)
+            )
+            let visibleTop = hostFrameInWindow.minY + 12
+            let visibleBottom = min(hostFrameInWindow.maxY, visibleKeyboardFrame.minY) - 12
+            guard visibleBottom > visibleTop else { return }
 
-            // If the field is already fully visible between nav bar and keyboard, do nothing.
-            if fieldRectInWindow.minY >= navBarBottom && fieldRectInWindow.maxY <= keyboardTop {
+            if focusRectInWindow.minY >= visibleTop && focusRectInWindow.maxY <= visibleBottom {
                 return
             }
 
-            // Field is at least partially obscured — scroll to bring its top to ~30% of the
-            // available area so the user can see both the label and start of content.
-            let availableHeight = keyboardTop - navBarBottom
-            guard availableHeight > 0 else { return }
-            let targetFieldTopInWindow = navBarBottom + availableHeight * 0.30
-
-            let deltaY = fieldRectInWindow.minY - targetFieldTopInWindow
-            guard abs(deltaY) > 6 else { return }
+            let deltaY: CGFloat
+            if focusRectInWindow.minY < visibleTop {
+                deltaY = focusRectInWindow.minY - visibleTop
+            } else {
+                deltaY = focusRectInWindow.maxY - visibleBottom
+            }
+            guard abs(deltaY) > 2 else { return }
 
             let minOffsetY = -hostScrollView.adjustedContentInset.top
             let maxOffsetY = max(
