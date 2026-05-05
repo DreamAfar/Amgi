@@ -1812,9 +1812,11 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
                 margin: 0 !important;
                 padding: 0 !important;
                 writing-mode: \(writingMode) !important;
+                text-orientation: mixed !important;
                 color: \(parent.textColorHex) !important;
                 background: transparent !important;
             }
+            \(parent.isVertical ? "body, body * { writing-mode: vertical-rl !important; text-orientation: mixed !important; }" : "body, body * { writing-mode: horizontal-tb !important; text-orientation: mixed !important; }")
             body {
                 font-family: \(parent.fontFamily), serif !important;
                 font-size: \(parent.fontSize)px !important;
@@ -2262,9 +2264,11 @@ private struct ReaderEpubWebView: UIViewRepresentable {
                 margin: 0 !important;
                 padding: 0 !important;
                 writing-mode: \(writingMode) !important;
+                text-orientation: mixed !important;
                 color: \(parent.textColorHex) !important;
                 background: transparent !important;
             }
+            \(parent.isVertical ? "body, body * { writing-mode: vertical-rl !important; text-orientation: mixed !important; }" : "body, body * { writing-mode: horizontal-tb !important; text-orientation: mixed !important; }")
             body {
                 font-family: \(parent.fontFamily), serif !important;
                 font-size: \(parent.fontSize)px !important;
@@ -2792,7 +2796,10 @@ window.hoshiReader = {
         });
     },
     usesHorizontalScroll(vertical) {
-        return vertical || this.shouldSnapPages();
+        return this.shouldSnapPages() ? !vertical : vertical;
+    },
+    usesReverseProgress(context) {
+        return context.vertical && !this.shouldSnapPages();
     },
     currentScroll(context) {
         if (context.horizontalScroll) {
@@ -2804,7 +2811,7 @@ window.hoshiReader = {
         var context = this.getScrollContext();
         if (context.maxScroll <= 0) return 0;
         var currentScroll = Math.min(Math.max(this.currentScroll(context), 0), context.maxScroll);
-        var progress = context.vertical
+        var progress = this.usesReverseProgress(context)
             ? 1 - (currentScroll / context.maxScroll)
             : currentScroll / context.maxScroll;
         return Math.min(Math.max(progress, 0), 1);
@@ -2899,8 +2906,8 @@ window.hoshiReader = {
             var maxAlignedScroll = Math.floor(maxScroll / pageSize) * pageSize;
             var currentScroll = horizontalScroll ? document.body.scrollLeft : document.body.scrollTop;
             if (vertical) {
-                if ((currentScroll - pageSize) >= -1) {
-                    document.body.scrollLeft = Math.max(0, currentScroll - pageSize);
+                if ((currentScroll + pageSize) <= (maxAlignedScroll + 1)) {
+                    document.body.scrollTop += pageSize;
                     return 'scrolled';
                 }
                 return 'limit';
@@ -2917,11 +2924,8 @@ window.hoshiReader = {
         }
         var currentScroll = horizontalScroll ? document.body.scrollLeft : document.body.scrollTop;
         if (vertical) {
-            var totalSize = document.body.scrollWidth;
-            var maxScroll = Math.max(0, totalSize - pageSize);
-            var maxAlignedScroll = Math.floor(maxScroll / pageSize) * pageSize;
-            if ((currentScroll + pageSize) <= (maxAlignedScroll + 1)) {
-                document.body.scrollLeft = Math.min(maxAlignedScroll, currentScroll + pageSize);
+            if (currentScroll > 0) {
+                document.body.scrollTop -= pageSize;
                 return 'scrolled';
             }
             return 'limit';
@@ -2944,14 +2948,14 @@ window.hoshiReader = {
             return;
         }
         if (progress <= 0) {
-            var initialScroll = context.vertical ? context.maxScroll : 0;
+            var initialScroll = this.usesReverseProgress(context) ? context.maxScroll : 0;
             this.setScrollOffset(context, initialScroll);
             this.registerSnapScroll(initialScroll);
             this.notifyRestoreComplete();
             return;
         }
         if (progress >= 0.99) {
-            var lastPage = context.vertical
+            var lastPage = this.usesReverseProgress(context)
                 ? 0
                 : (this.shouldSnapPages()
                     ? Math.floor(context.maxScroll / context.pageSize) * context.pageSize
@@ -2962,7 +2966,7 @@ window.hoshiReader = {
             this.notifyRestoreComplete();
             return;
         }
-        var targetScroll = context.vertical
+        var targetScroll = this.usesReverseProgress(context)
             ? context.maxScroll * (1 - progress)
             : context.maxScroll * progress;
         this.setScrollOffset(context, targetScroll);

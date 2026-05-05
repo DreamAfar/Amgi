@@ -2009,6 +2009,13 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 forMainFrameOnly: true
             )
         )
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: Self.progressScript,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true
+            )
+        )
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isOpaque = false
@@ -2583,6 +2590,52 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     })();
     """#
 
+    private static let progressScript = #"""
+    (function() {
+        window.amgiReaderProgress = {
+            isVertical() {
+                return window.getComputedStyle(document.body).writingMode === 'vertical-rl';
+            },
+
+            metrics() {
+                const vertical = this.isVertical();
+                const root = document.scrollingElement || document.documentElement;
+                const body = document.body;
+                const scrollWidth = Math.max(root?.scrollWidth || 0, body?.scrollWidth || 0);
+                const scrollHeight = Math.max(root?.scrollHeight || 0, body?.scrollHeight || 0);
+                const viewportWidth = window.innerWidth || root?.clientWidth || 0;
+                const viewportHeight = window.innerHeight || root?.clientHeight || 0;
+                const maxOffset = Math.max((vertical ? scrollWidth - viewportWidth : scrollHeight - viewportHeight), 0);
+
+                if (maxOffset <= 0) {
+                    return { progress: 0, maxOffset: 0, offset: 0 };
+                }
+
+                const rawOffset = vertical ? window.scrollX : window.scrollY;
+                const clampedOffset = Math.min(Math.max(rawOffset, 0), maxOffset);
+                const normalizedOffset = vertical ? (maxOffset - clampedOffset) : clampedOffset;
+                const progress = Math.min(Math.max(normalizedOffset / maxOffset, 0), 1);
+                return { progress, maxOffset, offset: clampedOffset };
+            },
+
+            restore(progress) {
+                const clampedProgress = Math.min(Math.max(progress || 0, 0), 1);
+                const metrics = this.metrics();
+                if (metrics.maxOffset <= 0) {
+                    return metrics;
+                }
+
+                const vertical = this.isVertical();
+                const targetOffset = vertical
+                    ? metrics.maxOffset * (1 - clampedProgress)
+                    : metrics.maxOffset * clampedProgress;
+                window.scrollTo(vertical ? targetOffset : 0, vertical ? 0 : targetOffset);
+                return this.metrics();
+            }
+        };
+    })();
+    """#
+
     private func htmlDocument(for fragment: String) -> String {
         let textColor = textColorHex
         let linkColor = linkColorHex
@@ -2829,9 +2882,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
             if clampedProgress > 0,
                maxOffset <= 0 {
-                // Content size is still not ready; do not overwrite persisted progress to 0.
-                didRestoreInitialProgress = true
-                isRestoringProgress = false
+                restoreProgressWithJavaScript(clampedProgress, generation: generation)
                 return
             }
 
@@ -2856,6 +2907,26 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                     self.onProgressChange(clampedProgress)
                 } else {
                     self.reportProgress(for: scrollView)
+                }
+            }
+        }
+
+        private func restoreProgressWithJavaScript(_ progress: Double, generation: Int) {
+            guard let webView, generation == restoreGeneration else {
+                return
+            }
+
+            didRestoreInitialProgress = false
+            isRestoringProgress = true
+            webView.evaluateJavaScript("window.amgiReaderProgress?.restore(\(progress)).progress") { [weak self] value, _ in
+                guard let self, generation == self.restoreGeneration else {
+                    return
+                }
+
+                self.isRestoringProgress = false
+                self.didRestoreInitialProgress = true
+                if let restoredProgress = value as? Double {
+                    self.onProgressChange(restoredProgress)
                 }
             }
         }
@@ -2888,7 +2959,32 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 return
             }
 
-            onProgressChange(normalizedProgress(for: scrollView))
+            fetchCurrentProgress { [weak self] progress in
+                guard let self else {
+                    return
+                }
+                self.onProgressChange(progress)
+            }
+        }
+
+        private func fetchCurrentProgress(_ completion: @escaping (Double) -> Void) {
+            guard let webView = webView else {
+                completion(0)
+                return
+            }
+
+            webView.evaluateJavaScript("window.amgiReaderProgress?.metrics().progress") { [weak self] value, _ in
+                if let progress = value as? Double {
+                    completion(progress)
+                    return
+                }
+
+                guard let scrollView = self?.webView?.scrollView else {
+                    completion(0)
+                    return
+                }
+                completion(self?.normalizedProgress(for: scrollView) ?? 0)
+            }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
