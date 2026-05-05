@@ -2437,12 +2437,12 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             focusRectInHost: CGRect,
             target: ActiveFieldAlignmentTarget
         ) -> CGRect {
-            let expandedFieldRect = fieldRectInHost.insetBy(dx: 0, dy: -12)
+            let expandedFieldRect = fieldRectInHost.insetBy(dx: 0, dy: -6)
             switch target {
             case .field:
                 return expandedFieldRect
             case .focus:
-                let desiredHeight = max(44, focusRectInHost.height + 24)
+                let desiredHeight = max(44, focusRectInHost.height + 16)
                 let focusTargetRect = CGRect(
                     x: expandedFieldRect.minX,
                     y: focusRectInHost.midY - (desiredHeight / 2),
@@ -2460,7 +2460,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 y: hostScrollView.contentOffset.y + hostScrollView.adjustedContentInset.top,
                 width: hostScrollView.bounds.width - hostScrollView.adjustedContentInset.left - hostScrollView.adjustedContentInset.right,
                 height: hostScrollView.bounds.height - hostScrollView.adjustedContentInset.top - hostScrollView.adjustedContentInset.bottom
-            ).insetBy(dx: 0, dy: 12)
+            ).insetBy(dx: 0, dy: 6)
 
             guard visibleRect.height > 0, visibleRect.contains(targetRect) == false else { return }
 
