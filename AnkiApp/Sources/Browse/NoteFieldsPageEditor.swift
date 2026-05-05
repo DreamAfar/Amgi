@@ -1883,6 +1883,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         private var keyboardEndFrameInScreen: CGRect = .null
         private var pendingVisibilityAdjustmentWorkItem: DispatchWorkItem?
         private var isKeyboardFrameTransitioning = false
+        // Keyboard animation to use when scrolling the host view to reveal the active field.
+        // Set during WillChangeFrame so the scroll runs in sync with the keyboard animation.
+        private var pendingRevealAnimation: KeyboardAnimation?
         private weak var trackedHostScrollView: UIScrollView?
         private var trackedHostContentInset: UIEdgeInsets = .zero
         private var trackedHostVerticalIndicatorInsets: UIEdgeInsets = .zero
@@ -2086,6 +2089,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             pendingVisibilityAdjustmentWorkItem?.cancel()
             isKeyboardFrameTransitioning = false
             keyboardEndFrameInScreen = .null
+            pendingRevealAnimation = nil
             restoreTrackedHostScrollInsetsIfNeeded()
             clampTrackedHostScrollOffsetIfNeeded()
             flushPendingEditingState()
@@ -2098,7 +2102,12 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             isKeyboardFrameTransitioning = true
             keyboardEndFrameInScreen = animation.endFrameInScreen
             syncHostScrollViewInsetsIfNeeded(animation: animation)
-            pendingVisibilityAdjustmentWorkItem?.cancel()
+            // Store the animation so the upcoming scroll reveal runs in sync with the
+            // keyboard slide-up animation instead of jumping after it completes.
+            pendingRevealAnimation = animation
+            // Schedule early (during the keyboard animation window) so the host scroll
+            // view animates together with the keyboard appearance.
+            scheduleActiveFieldVisibilityAdjustment(target: .focus, delay: 0.03)
         }
 
         @objc private func handleKeyboardDidChangeFrameNotification(_ notification: Notification) {
@@ -2107,12 +2116,16 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             keyboardEndFrameInScreen = animation.endFrameInScreen
             syncHostScrollViewInsetsIfNeeded()
             isKeyboardFrameTransitioning = false
+            // Keyboard animation is done; any remaining adjustment should be instant.
+            pendingRevealAnimation = nil
 
             guard isKeyboardVisibleForCurrentEditor() else {
                 pendingVisibilityAdjustmentWorkItem?.cancel()
                 return
             }
 
+            // Safety-net: re-schedule without animation in case WillChangeFrame's early
+            // adjustment missed the field (e.g. JS wasn't ready yet).
             let delay = min(max(animation.duration * 0.1, 0.01), 0.05)
             scheduleActiveFieldVisibilityAdjustment(target: .focus, delay: delay)
         }
@@ -2121,6 +2134,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             keyboardEndFrameInScreen = .null
             pendingVisibilityAdjustmentWorkItem?.cancel()
             isKeyboardFrameTransitioning = false
+            pendingRevealAnimation = nil
             restoreTrackedHostScrollInsetsIfNeeded()
         }
 
@@ -2467,10 +2481,21 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             let targetOffsetY = min(max(hostScrollView.contentOffset.y + deltaY, minOffsetY), maxOffsetY)
             guard abs(targetOffsetY - hostScrollView.contentOffset.y) > 1 else { return }
 
-            hostScrollView.setContentOffset(
-                CGPoint(x: hostScrollView.contentOffset.x, y: targetOffsetY),
-                animated: false
-            )
+            let revealAnim = pendingRevealAnimation
+            pendingRevealAnimation = nil
+            if let anim = revealAnim, anim.duration > 0.05 {
+                UIView.animate(withDuration: anim.duration, delay: 0, options: anim.options) {
+                    hostScrollView.setContentOffset(
+                        CGPoint(x: hostScrollView.contentOffset.x, y: targetOffsetY),
+                        animated: false
+                    )
+                }
+            } else {
+                hostScrollView.setContentOffset(
+                    CGPoint(x: hostScrollView.contentOffset.x, y: targetOffsetY),
+                    animated: false
+                )
+            }
         }
 
         private func enclosingHostScrollView(for webView: WKWebView) -> UIScrollView? {
