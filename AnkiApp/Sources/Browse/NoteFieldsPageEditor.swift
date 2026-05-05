@@ -2184,7 +2184,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         }
 
         private func applyVisibilityAdjustment(fieldRectInWebView: CGRect) {
-            guard let context = hostScrollContext() else { return }
+            guard let context = hostScrollContext(), let webView else { return }
             let hostScrollView = context.scrollView
             let window = context.window
             let hostFrameInWindow = context.hostFrameInWindow
