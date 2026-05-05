@@ -401,10 +401,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             const viewportOffsetLeft = window.visualViewport ? window.visualViewport.offsetLeft : 0;
             const viewportOffsetTop = window.visualViewport ? window.visualViewport.offsetTop : 0;
             return {
-                minX: rect.left - viewportOffsetLeft,
-                minY: rect.top - viewportOffsetTop,
-                maxX: rect.right - viewportOffsetLeft,
-                maxY: rect.bottom - viewportOffsetTop,
+                minX: rect.left + viewportOffsetLeft,
+                minY: rect.top + viewportOffsetTop,
+                maxX: rect.right + viewportOffsetLeft,
+                maxY: rect.bottom + viewportOffsetTop,
                 width: rect.width,
                 height: rect.height,
             };
@@ -2041,7 +2041,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                     activeFieldIndex = max(0, index)
                 }
                 if isKeyboardVisibleForCurrentEditor() {
-                    scheduleActiveFieldVisibilityAdjustment(target: .field, delay: 0.01)
+                    scheduleActiveFieldVisibilityAdjustment(target: .focus, delay: 0.01)
                 }
             case "activeFieldLayoutChanged":
                 if let index = body["index"] as? Int {
@@ -2447,7 +2447,28 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             ).insetBy(dx: 0, dy: 12)
 
             guard visibleRect.height > 0, visibleRect.contains(targetRect) == false else { return }
-            hostScrollView.scrollRectToVisible(targetRect, animated: false)
+
+            let deltaY: CGFloat
+            if targetRect.minY < visibleRect.minY {
+                deltaY = targetRect.minY - visibleRect.minY
+            } else if targetRect.maxY > visibleRect.maxY {
+                deltaY = targetRect.maxY - visibleRect.maxY
+            } else {
+                return
+            }
+
+            let minOffsetY = -hostScrollView.adjustedContentInset.top
+            let maxOffsetY = max(
+                minOffsetY,
+                hostScrollView.contentSize.height - hostScrollView.bounds.height + hostScrollView.adjustedContentInset.bottom
+            )
+            let targetOffsetY = min(max(hostScrollView.contentOffset.y + deltaY, minOffsetY), maxOffsetY)
+            guard abs(targetOffsetY - hostScrollView.contentOffset.y) > 1 else { return }
+
+            hostScrollView.setContentOffset(
+                CGPoint(x: hostScrollView.contentOffset.x, y: targetOffsetY),
+                animated: false
+            )
         }
 
         private func enclosingHostScrollView(for webView: WKWebView) -> UIScrollView? {
