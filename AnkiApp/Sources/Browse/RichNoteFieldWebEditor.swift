@@ -912,13 +912,15 @@ private final class AccessoryWKWebView: WKWebView {
         accessoryView
     }
 
+    private static var contentOffsetKVOContext = 0
+
     override init(frame: CGRect, configuration: WKWebViewConfiguration) {
         super.init(frame: frame, configuration: configuration)
         scrollView.addObserver(
             self,
             forKeyPath: "contentOffset",
             options: .new,
-            context: nil
+            context: &Self.contentOffsetKVOContext
         )
     }
 
@@ -928,7 +930,7 @@ private final class AccessoryWKWebView: WKWebView {
     }
 
     deinit {
-        scrollView.removeObserver(self, forKeyPath: "contentOffset")
+        scrollView.removeObserver(self, forKeyPath: "contentOffset", context: &Self.contentOffsetKVOContext)
     }
 
     override func observeValue(
@@ -937,12 +939,11 @@ private final class AccessoryWKWebView: WKWebView {
         change: [NSKeyValueChangeKey: Any]?,
         context: UnsafeMutableRawPointer?
     ) {
-        guard keyPath == "contentOffset",
-              !scrollView.isScrollEnabled,
-              scrollView.contentOffset != .zero else {
+        guard context == &Self.contentOffsetKVOContext else {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
             return
         }
+        guard !scrollView.isScrollEnabled, scrollView.contentOffset != .zero else { return }
         scrollView.contentOffset = .zero
     }
 }

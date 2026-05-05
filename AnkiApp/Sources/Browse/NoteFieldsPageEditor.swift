@@ -2598,6 +2598,10 @@ private final class NoteFieldsAccessoryWKWebView: WKWebView {
         accessoryView
     }
 
+    // Unique context pointer so we can distinguish our own KVO observation
+    // from WKWebView's internal observations of the same key path.
+    private static var contentOffsetKVOContext = 0
+
     override init(frame: CGRect, configuration: WKWebViewConfiguration) {
         super.init(frame: frame, configuration: configuration)
         // iOS WebKit programmatically sets scrollView.contentOffset when focusing a
@@ -2609,7 +2613,7 @@ private final class NoteFieldsAccessoryWKWebView: WKWebView {
             self,
             forKeyPath: "contentOffset",
             options: .new,
-            context: nil
+            context: &Self.contentOffsetKVOContext
         )
     }
 
@@ -2619,7 +2623,7 @@ private final class NoteFieldsAccessoryWKWebView: WKWebView {
     }
 
     deinit {
-        scrollView.removeObserver(self, forKeyPath: "contentOffset")
+        scrollView.removeObserver(self, forKeyPath: "contentOffset", context: &Self.contentOffsetKVOContext)
     }
 
     override func observeValue(
@@ -2628,12 +2632,11 @@ private final class NoteFieldsAccessoryWKWebView: WKWebView {
         change: [NSKeyValueChangeKey: Any]?,
         context: UnsafeMutableRawPointer?
     ) {
-        guard keyPath == "contentOffset",
-              !scrollView.isScrollEnabled,
-              scrollView.contentOffset != .zero else {
+        guard context == &Self.contentOffsetKVOContext else {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
             return
         }
+        guard !scrollView.isScrollEnabled, scrollView.contentOffset != .zero else { return }
         scrollView.contentOffset = .zero
     }
 }
