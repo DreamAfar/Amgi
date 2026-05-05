@@ -2597,6 +2597,45 @@ private final class NoteFieldsAccessoryWKWebView: WKWebView {
     override var inputAccessoryView: UIView? {
         accessoryView
     }
+
+    override init(frame: CGRect, configuration: WKWebViewConfiguration) {
+        super.init(frame: frame, configuration: configuration)
+        // iOS WebKit programmatically sets scrollView.contentOffset when focusing a
+        // contenteditable element, even when isScrollEnabled = false.  This displaces
+        // rendered content and corrupts the coordinate calculations used for host-scroll
+        // keyboard-avoidance.  KVO-reset the offset to .zero whenever internal scroll
+        // is disabled so that all scrolling is handled exclusively by the host UIScrollView.
+        scrollView.addObserver(
+            self,
+            forKeyPath: #keyPath(UIScrollView.contentOffset),
+            options: .new,
+            context: nil
+        )
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        scrollView.removeObserver(self, forKeyPath: #keyPath(UIScrollView.contentOffset))
+    }
+
+    override func observeValue(
+        forKeyPath keyPath: String?,
+        of object: Any?,
+        change: [NSKeyValueChangeKey: Any]?,
+        context: UnsafeMutableRawPointer?
+    ) {
+        guard keyPath == #keyPath(UIScrollView.contentOffset),
+              !scrollView.isScrollEnabled,
+              scrollView.contentOffset != .zero else {
+            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
+            return
+        }
+        scrollView.contentOffset = .zero
+    }
 }
 
 private func noteFieldsJavaScriptStringLiteral(_ value: String) -> String {
