@@ -378,6 +378,20 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             window.requestAnimationFrame(sendHeightIfNeeded);
         }
 
+        const activeFieldLayoutState = {
+            pending: false,
+        };
+
+        function scheduleActiveFieldLayoutUpdate() {
+            if (activeFieldLayoutState.pending) { return; }
+            activeFieldLayoutState.pending = true;
+            window.requestAnimationFrame(() => {
+                activeFieldLayoutState.pending = false;
+                if (!isEditorFocused()) { return; }
+                notify('activeFieldLayoutChanged', { index: state.activeFieldIndex });
+            });
+        }
+
         function rectPayload(rectSource) {
             if (!rectSource) { return null; }
             const rect = typeof rectSource.getBoundingClientRect === 'function'
@@ -1166,6 +1180,15 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             event.preventDefault();
         });
 
+        document.addEventListener('selectionchange', () => {
+            scheduleActiveFieldLayoutUpdate();
+        });
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', scheduleActiveFieldLayoutUpdate);
+            window.visualViewport.addEventListener('scroll', scheduleActiveFieldLayoutUpdate);
+        }
+
         if (window.ResizeObserver) {
             const resizeObserver = new ResizeObserver(scheduleHeightUpdate);
             resizeObserver.observe(fieldsRoot);
@@ -1952,6 +1975,13 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 }
                 if isKeyboardVisibleForCurrentEditor() {
                     scheduleActiveFieldVisibilityAdjustment()
+                }
+            case "activeFieldLayoutChanged":
+                if let index = body["index"] as? Int {
+                    activeFieldIndex = max(0, index)
+                }
+                if isKeyboardVisibleForCurrentEditor() {
+                    scheduleActiveFieldVisibilityAdjustment(delay: 0.01)
                 }
             case "fieldChanged":
                 guard let index = body["index"] as? Int,
