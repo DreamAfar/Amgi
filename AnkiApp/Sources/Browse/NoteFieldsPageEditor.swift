@@ -456,6 +456,32 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             return rectPayload(renderedElement(index) || editorShellElement(index) || fieldElement(index));
         }
 
+        function activeFieldContainerRect(index) {
+            return rectPayload(editorShellElement(index) || fieldElement(index));
+        }
+
+        function activeFieldSnapshot(index) {
+            const fieldRect = activeFieldContainerRect(index);
+            const focusRect = activeCaretRect(index) || fieldRect;
+            if (!fieldRect || !focusRect) {
+                return null;
+            }
+            return {
+                fieldMinX: fieldRect.minX,
+                fieldMinY: fieldRect.minY,
+                fieldMaxX: fieldRect.maxX,
+                fieldMaxY: fieldRect.maxY,
+                fieldWidth: fieldRect.width,
+                fieldHeight: fieldRect.height,
+                focusMinX: focusRect.minX,
+                focusMinY: focusRect.minY,
+                focusMaxX: focusRect.maxX,
+                focusMaxY: focusRect.maxY,
+                focusWidth: focusRect.width,
+                focusHeight: focusRect.height,
+            };
+        }
+
         function hasEmbeddedMedia(html) {
             const lowercased = (html || '').toLowerCase();
             return lowercased.includes('<img')
@@ -1152,6 +1178,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             exportState() {
                 return flushPendingChanges();
             },
+            activeFieldSnapshot() {
+                return activeFieldSnapshot(state.activeFieldIndex);
+            },
             activeFieldRect() {
                 return activeCaretRect(state.activeFieldIndex);
             },
@@ -1798,6 +1827,41 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
         static let messageHandlerName = "amgiNoteFieldsChanged"
 
+        private enum ActiveFieldAlignmentTarget {
+            case field
+            case focus
+        }
+
+        private struct ActiveFieldSnapshot {
+            let fieldRect: CGRect
+            let focusRect: CGRect
+        }
+
+        private struct KeyboardAnimation {
+            let endFrameInScreen: CGRect
+            let duration: TimeInterval
+            let options: UIView.AnimationOptions
+
+            init?(notification: Notification) {
+                guard let userInfo = notification.userInfo,
+                      let frameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
+                else { return nil }
+
+                if let isLocal = userInfo[UIResponder.keyboardIsLocalUserInfoKey] as? NSNumber,
+                   isLocal.boolValue == false {
+                    return nil
+                }
+
+                let animationCurve = (userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue
+                    ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+
+                endFrameInScreen = frameValue.cgRectValue
+                duration = (userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+                options = UIView.AnimationOptions(rawValue: animationCurve << 16)
+                    .union([.beginFromCurrentState, .allowUserInteraction])
+            }
+        }
+
         @Binding var fieldValues: [String]
         @Binding var fieldSourceModes: [Bool]
         @Binding var measuredHeight: CGFloat
@@ -1818,6 +1882,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         private var hasRegisteredLifecycleObservers = false
         private var keyboardEndFrameInScreen: CGRect = .null
         private var pendingVisibilityAdjustmentWorkItem: DispatchWorkItem?
+        private weak var trackedHostScrollView: UIScrollView?
+        private var trackedHostContentInset: UIEdgeInsets = .zero
+        private var trackedHostVerticalIndicatorInsets: UIEdgeInsets = .zero
 
         init(
             fieldValues: Binding<[String]>,
@@ -1974,14 +2041,14 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                     activeFieldIndex = max(0, index)
                 }
                 if isKeyboardVisibleForCurrentEditor() {
-                    scheduleActiveFieldVisibilityAdjustment()
+                    scheduleActiveFieldVisibilityAdjustment(target: .field, delay: 0.01)
                 }
             case "activeFieldLayoutChanged":
                 if let index = body["index"] as? Int {
                     activeFieldIndex = max(0, index)
                 }
                 if isKeyboardVisibleForCurrentEditor() {
-                    scheduleActiveFieldVisibilityAdjustment(delay: 0.01)
+                    scheduleActiveFieldVisibilityAdjustment(target: .focus, delay: 0.01)
                 }
             case "fieldChanged":
                 guard let index = body["index"] as? Int,
@@ -2015,19 +2082,29 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         }
 
         @objc private func handleLifecycleNotification(_ notification: Notification) {
+            pendingVisibilityAdjustmentWorkItem?.cancel()
+            keyboardEndFrameInScreen = .null
+            restoreTrackedHostScrollInsetsIfNeeded()
+            clampTrackedHostScrollOffsetIfNeeded()
             flushPendingEditingState()
         }
 
-        @objc private func handleKeyboardFrameNotification(_ notification: Notification) {
-            guard let userInfo = notification.userInfo,
-                  let frameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
-            else {
-                keyboardEndFrameInScreen = .null
+        @objc private func handleKeyboardWillChangeFrameNotification(_ notification: Notification) {
+            captureHostScrollBaselineIfNeeded(force: keyboardEndFrameInScreen.isNull)
+            guard let animation = KeyboardAnimation(notification: notification) else { return }
+
+            keyboardEndFrameInScreen = animation.endFrameInScreen
+            syncHostScrollViewInsetsIfNeeded(animation: animation)
+
+            if isKeyboardVisibleForCurrentEditor() == false {
                 pendingVisibilityAdjustmentWorkItem?.cancel()
-                syncHostScrollViewInsetsIfNeeded()
-                return
             }
-            keyboardEndFrameInScreen = frameValue.cgRectValue
+        }
+
+        @objc private func handleKeyboardDidChangeFrameNotification(_ notification: Notification) {
+            guard let animation = KeyboardAnimation(notification: notification) else { return }
+
+            keyboardEndFrameInScreen = animation.endFrameInScreen
             syncHostScrollViewInsetsIfNeeded()
 
             guard isKeyboardVisibleForCurrentEditor() else {
@@ -2035,8 +2112,14 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 return
             }
 
-            let animationDuration = (userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0
-            scheduleActiveFieldVisibilityAdjustment(delay: max(animationDuration, 0.05))
+            let delay = min(max(animation.duration * 0.1, 0.01), 0.05)
+            scheduleActiveFieldVisibilityAdjustment(target: .focus, delay: delay)
+        }
+
+        @objc private func handleKeyboardDidHideNotification(_ notification: Notification) {
+            keyboardEndFrameInScreen = .null
+            pendingVisibilityAdjustmentWorkItem?.cancel()
+            restoreTrackedHostScrollInsetsIfNeeded()
         }
 
         private func performClearFormatting(_ kind: ClearFormattingKind) {
@@ -2091,17 +2174,15 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             guard hasRegisteredLifecycleObservers == false else { return }
             hasRegisteredLifecycleObservers = true
             let notificationCenter = NotificationCenter.default
-            let names: [NSNotification.Name] = [
-                UIApplication.willResignActiveNotification,
-                UIApplication.didEnterBackgroundNotification,
-                UIApplication.userDidTakeScreenshotNotification,
-                UIResponder.keyboardWillChangeFrameNotification,
-                UIResponder.keyboardWillHideNotification
+            let observers: [(NSNotification.Name, Selector)] = [
+                (UIApplication.willResignActiveNotification, #selector(handleLifecycleNotification)),
+                (UIApplication.didEnterBackgroundNotification, #selector(handleLifecycleNotification)),
+                (UIApplication.userDidTakeScreenshotNotification, #selector(handleLifecycleNotification)),
+                (UIResponder.keyboardWillChangeFrameNotification, #selector(handleKeyboardWillChangeFrameNotification)),
+                (UIResponder.keyboardDidChangeFrameNotification, #selector(handleKeyboardDidChangeFrameNotification)),
+                (UIResponder.keyboardDidHideNotification, #selector(handleKeyboardDidHideNotification))
             ]
-            names.forEach { name in
-                let selector: Selector = (name == UIResponder.keyboardWillChangeFrameNotification || name == UIResponder.keyboardWillHideNotification)
-                    ? #selector(handleKeyboardFrameNotification)
-                    : #selector(handleLifecycleNotification)
+            observers.forEach { name, selector in
                 notificationCenter.addObserver(
                     self,
                     selector: selector,
@@ -2148,16 +2229,19 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             }
         }
 
-        private func scheduleActiveFieldVisibilityAdjustment(delay: TimeInterval = 0.05) {
+        private func scheduleActiveFieldVisibilityAdjustment(
+            target: ActiveFieldAlignmentTarget,
+            delay: TimeInterval = 0.05
+        ) {
             pendingVisibilityAdjustmentWorkItem?.cancel()
             let workItem = DispatchWorkItem { [weak self] in
-                self?.adjustActiveFieldVisibilityIfNeeded()
+                self?.adjustActiveFieldVisibilityIfNeeded(target: target)
             }
             pendingVisibilityAdjustmentWorkItem = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
         }
 
-        private func adjustActiveFieldVisibilityIfNeeded() {
+        private func adjustActiveFieldVisibilityIfNeeded(target: ActiveFieldAlignmentTarget) {
             guard isPageReady, let webView else { return }
             let script = """
             (() => {
@@ -2165,86 +2249,57 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 if (!editor || !editor.isEditorFocused()) {
                     return null;
                 }
-                return editor.activeFieldRect();
+                return editor.activeFieldSnapshot();
             })();
             """
             webView.evaluateJavaScript(script) { [weak self] result, _ in
                 guard let self else { return }
                 guard let payload = result as? [String: Any],
-                      let minY = payload["minY"] as? Double,
-                      let maxY = payload["maxY"] as? Double
+                      let fieldRect = Self.rect(from: payload, prefix: "field"),
+                      let focusRect = Self.rect(from: payload, prefix: "focus"),
+                      let normalizedFieldRect = Self.normalizedRect(fieldRect),
+                      let normalizedFocusRect = Self.normalizedRect(focusRect)
                 else { return }
-                self.applyVisibilityAdjustment(fieldRectInWebView: CGRect(
-                    x: (payload["minX"] as? Double) ?? 0,
-                    y: minY,
-                    width: (payload["width"] as? Double) ?? 0,
-                    height: max(0, maxY - minY)
-                ))
+                self.applyVisibilityAdjustment(
+                    snapshot: ActiveFieldSnapshot(
+                        fieldRect: normalizedFieldRect,
+                        focusRect: normalizedFocusRect
+                    ),
+                    target: target
+                )
             }
         }
 
-        private func applyVisibilityAdjustment(fieldRectInWebView: CGRect) {
+        private func applyVisibilityAdjustment(
+            snapshot: ActiveFieldSnapshot,
+            target: ActiveFieldAlignmentTarget
+        ) {
             guard let context = hostScrollContext(), let webView else { return }
             let hostScrollView = context.scrollView
-            let window = context.window
-            let hostFrameInWindow = context.hostFrameInWindow
-            let visibleKeyboardFrame = context.visibleKeyboardFrame
-            let bottomInset = context.bottomInset
 
             syncHostScrollViewInsetsIfNeeded(using: context)
 
-            guard bottomInset > 0 else { return }
+            guard context.keyboardOverlap > 0,
+                  let fieldRectInHost = Self.normalizedRect(webView.convert(snapshot.fieldRect, to: hostScrollView)),
+                  let focusRectInHost = Self.normalizedRect(webView.convert(snapshot.focusRect, to: hostScrollView))
+            else { return }
 
-            // Convert the active field rect to window coordinates.
-            let fieldRectInWindow = webView.convert(fieldRectInWebView, to: window)
-
-            // Work against the actual visible slice of the host scroll view instead of the
-            // whole window. Using a short focus rect avoids over-scrolling tall editors.
-            let focusRectInWindow = CGRect(
-                x: fieldRectInWindow.minX,
-                y: fieldRectInWindow.minY,
-                width: max(fieldRectInWindow.width, 1),
-                height: min(max(fieldRectInWindow.height, 1), 44)
+            let targetRectInHost = alignmentRect(
+                fieldRectInHost: fieldRectInHost,
+                focusRectInHost: focusRectInHost,
+                target: target
             )
-            let visibleTop = hostFrameInWindow.minY + 12
-            let visibleBottom = min(hostFrameInWindow.maxY, visibleKeyboardFrame.minY) - 12
-            guard visibleBottom > visibleTop else { return }
-
-            if focusRectInWindow.minY >= visibleTop && focusRectInWindow.maxY <= visibleBottom {
-                return
-            }
-
-            let deltaY: CGFloat
-            if focusRectInWindow.minY < visibleTop {
-                deltaY = focusRectInWindow.minY - visibleTop
-            } else {
-                deltaY = focusRectInWindow.maxY - visibleBottom
-            }
-            guard abs(deltaY) > 2 else { return }
-
-            let minOffsetY = -hostScrollView.adjustedContentInset.top
-            let maxOffsetY = max(
-                minOffsetY,
-                hostScrollView.contentSize.height - hostScrollView.bounds.height + hostScrollView.adjustedContentInset.bottom
-            )
-            let targetOffsetY = min(max(hostScrollView.contentOffset.y + deltaY, minOffsetY), maxOffsetY)
-            guard abs(targetOffsetY - hostScrollView.contentOffset.y) > 1 else { return }
-            UIView.performWithoutAnimation {
-                hostScrollView.contentOffset.y = targetOffsetY
-            }
+            revealTargetRectIfNeeded(targetRectInHost, in: hostScrollView)
         }
 
         private func isKeyboardVisibleForCurrentEditor() -> Bool {
             guard let context = hostScrollContext() else { return false }
-            return context.bottomInset > 1
+            return context.keyboardOverlap > 1
         }
 
         private struct HostScrollContext {
             let scrollView: UIScrollView
-            let window: UIWindow
-            let hostFrameInWindow: CGRect
-            let visibleKeyboardFrame: CGRect
-            let bottomInset: CGFloat
+            let keyboardOverlap: CGFloat
         }
 
         private func hostScrollContext() -> HostScrollContext? {
@@ -2263,25 +2318,136 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
             return HostScrollContext(
                 scrollView: hostScrollView,
-                window: window,
-                hostFrameInWindow: hostFrameInWindow,
-                visibleKeyboardFrame: visibleKeyboardFrame,
-                bottomInset: bottomInset
+                keyboardOverlap: bottomInset
             )
         }
 
-        private func syncHostScrollViewInsetsIfNeeded() {
+        private func syncHostScrollViewInsetsIfNeeded(animation: KeyboardAnimation? = nil) {
             guard let context = hostScrollContext() else { return }
-            syncHostScrollViewInsetsIfNeeded(using: context)
+            syncHostScrollViewInsetsIfNeeded(using: context, animation: animation)
         }
 
-        private func syncHostScrollViewInsetsIfNeeded(using context: HostScrollContext) {
+        private func syncHostScrollViewInsetsIfNeeded(
+            using context: HostScrollContext,
+            animation: KeyboardAnimation? = nil
+        ) {
             let hostScrollView = context.scrollView
-            let bottomInset = context.bottomInset
-            if abs(hostScrollView.contentInset.bottom - bottomInset) > 1 {
-                hostScrollView.contentInset.bottom = bottomInset
-                hostScrollView.scrollIndicatorInsets.bottom = bottomInset
+            if trackedHostScrollView !== hostScrollView {
+                captureHostScrollBaselineIfNeeded(force: true)
             }
+
+            var contentInset = trackedHostContentInset
+            contentInset.bottom += context.keyboardOverlap
+
+            var verticalIndicatorInsets = trackedHostVerticalIndicatorInsets
+            verticalIndicatorInsets.bottom += context.keyboardOverlap
+
+            applyTrackedHostScrollInsets(
+                to: hostScrollView,
+                contentInset: contentInset,
+                verticalIndicatorInsets: verticalIndicatorInsets,
+                animation: animation
+            )
+        }
+
+        private func captureHostScrollBaselineIfNeeded(force: Bool = false) {
+            guard let webView,
+                  let hostScrollView = enclosingHostScrollView(for: webView)
+            else { return }
+            guard force || trackedHostScrollView !== hostScrollView else { return }
+
+            trackedHostScrollView = hostScrollView
+            trackedHostContentInset = hostScrollView.contentInset
+            if #available(iOS 13.0, *) {
+                trackedHostVerticalIndicatorInsets = hostScrollView.verticalScrollIndicatorInsets
+            } else {
+                trackedHostVerticalIndicatorInsets = hostScrollView.scrollIndicatorInsets
+            }
+        }
+
+        private func restoreTrackedHostScrollInsetsIfNeeded(animation: KeyboardAnimation? = nil) {
+            guard let hostScrollView = trackedHostScrollView else { return }
+            applyTrackedHostScrollInsets(
+                to: hostScrollView,
+                contentInset: trackedHostContentInset,
+                verticalIndicatorInsets: trackedHostVerticalIndicatorInsets,
+                animation: animation
+            )
+        }
+
+        private func applyTrackedHostScrollInsets(
+            to scrollView: UIScrollView,
+            contentInset: UIEdgeInsets,
+            verticalIndicatorInsets: UIEdgeInsets,
+            animation: KeyboardAnimation?
+        ) {
+            let applyInsets = {
+                scrollView.contentInset = contentInset
+                if #available(iOS 13.0, *) {
+                    scrollView.verticalScrollIndicatorInsets = verticalIndicatorInsets
+                } else {
+                    scrollView.scrollIndicatorInsets = verticalIndicatorInsets
+                }
+            }
+
+            if let animation, animation.duration > 0.01 {
+                UIView.animate(withDuration: animation.duration, delay: 0, options: animation.options) {
+                    applyInsets()
+                }
+            } else {
+                applyInsets()
+            }
+        }
+
+        private func clampTrackedHostScrollOffsetIfNeeded() {
+            guard let hostScrollView = trackedHostScrollView else { return }
+
+            let minOffsetY = -hostScrollView.adjustedContentInset.top
+            let maxOffsetY = max(
+                minOffsetY,
+                hostScrollView.contentSize.height - hostScrollView.bounds.height + hostScrollView.adjustedContentInset.bottom
+            )
+            let clampedOffsetY = min(max(hostScrollView.contentOffset.y, minOffsetY), maxOffsetY)
+            guard abs(clampedOffsetY - hostScrollView.contentOffset.y) > 1 else { return }
+
+            hostScrollView.setContentOffset(
+                CGPoint(x: hostScrollView.contentOffset.x, y: clampedOffsetY),
+                animated: false
+            )
+        }
+
+        private func alignmentRect(
+            fieldRectInHost: CGRect,
+            focusRectInHost: CGRect,
+            target: ActiveFieldAlignmentTarget
+        ) -> CGRect {
+            let expandedFieldRect = fieldRectInHost.insetBy(dx: 0, dy: -12)
+            switch target {
+            case .field:
+                return expandedFieldRect
+            case .focus:
+                let desiredHeight = max(44, focusRectInHost.height + 24)
+                let focusTargetRect = CGRect(
+                    x: expandedFieldRect.minX,
+                    y: focusRectInHost.midY - (desiredHeight / 2),
+                    width: max(expandedFieldRect.width, 1),
+                    height: desiredHeight
+                )
+                let clippedFocusTargetRect = focusTargetRect.intersection(expandedFieldRect)
+                return clippedFocusTargetRect.isNull ? expandedFieldRect : clippedFocusTargetRect
+            }
+        }
+
+        private func revealTargetRectIfNeeded(_ targetRect: CGRect, in hostScrollView: UIScrollView) {
+            let visibleRect = CGRect(
+                x: hostScrollView.contentOffset.x + hostScrollView.adjustedContentInset.left,
+                y: hostScrollView.contentOffset.y + hostScrollView.adjustedContentInset.top,
+                width: hostScrollView.bounds.width - hostScrollView.adjustedContentInset.left - hostScrollView.adjustedContentInset.right,
+                height: hostScrollView.bounds.height - hostScrollView.adjustedContentInset.top - hostScrollView.adjustedContentInset.bottom
+            ).insetBy(dx: 0, dy: 12)
+
+            guard visibleRect.height > 0, visibleRect.contains(targetRect) == false else { return }
+            hostScrollView.scrollRectToVisible(targetRect, animated: false)
         }
 
         private func enclosingHostScrollView(for webView: WKWebView) -> UIScrollView? {
@@ -2294,6 +2460,36 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 current = candidate.superview
             }
             return nil
+        }
+
+        private static func rect(from payload: [String: Any], prefix: String) -> CGRect? {
+            guard let minY = payload["\(prefix)MinY"] as? Double,
+                  let maxY = payload["\(prefix)MaxY"] as? Double
+            else { return nil }
+
+            let minX = (payload["\(prefix)MinX"] as? Double) ?? 0
+            let width = (payload["\(prefix)Width"] as? Double) ?? 0
+            return CGRect(
+                x: minX,
+                y: minY,
+                width: max(width, 0),
+                height: max(0, maxY - minY)
+            )
+        }
+
+        private static func normalizedRect(_ rect: CGRect) -> CGRect? {
+            guard rect.minX.isFinite,
+                  rect.minY.isFinite,
+                  rect.width.isFinite,
+                  rect.height.isFinite
+            else { return nil }
+
+            return CGRect(
+                x: rect.minX,
+                y: rect.minY,
+                width: max(rect.width, 1),
+                height: max(rect.height, 1)
+            )
         }
 
         private static func javaScriptObjectLiteral<T: Encodable>(from value: T) -> String? {
