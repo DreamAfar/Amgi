@@ -1882,6 +1882,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         private var hasRegisteredLifecycleObservers = false
         private var keyboardEndFrameInScreen: CGRect = .null
         private var pendingVisibilityAdjustmentWorkItem: DispatchWorkItem?
+        private var isKeyboardFrameTransitioning = false
         private weak var trackedHostScrollView: UIScrollView?
         private var trackedHostContentInset: UIEdgeInsets = .zero
         private var trackedHostVerticalIndicatorInsets: UIEdgeInsets = .zero
@@ -2040,14 +2041,14 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 if let index = body["index"] as? Int {
                     activeFieldIndex = max(0, index)
                 }
-                if isKeyboardVisibleForCurrentEditor() {
+                if isKeyboardVisibleForCurrentEditor(), isKeyboardFrameTransitioning == false {
                     scheduleActiveFieldVisibilityAdjustment(target: .focus, delay: 0.01)
                 }
             case "activeFieldLayoutChanged":
                 if let index = body["index"] as? Int {
                     activeFieldIndex = max(0, index)
                 }
-                if isKeyboardVisibleForCurrentEditor() {
+                if isKeyboardVisibleForCurrentEditor(), isKeyboardFrameTransitioning == false {
                     scheduleActiveFieldVisibilityAdjustment(target: .focus, delay: 0.01)
                 }
             case "fieldChanged":
@@ -2083,6 +2084,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
         @objc private func handleLifecycleNotification(_ notification: Notification) {
             pendingVisibilityAdjustmentWorkItem?.cancel()
+            isKeyboardFrameTransitioning = false
             keyboardEndFrameInScreen = .null
             restoreTrackedHostScrollInsetsIfNeeded()
             clampTrackedHostScrollOffsetIfNeeded()
@@ -2093,12 +2095,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             captureHostScrollBaselineIfNeeded(force: keyboardEndFrameInScreen.isNull)
             guard let animation = KeyboardAnimation(notification: notification) else { return }
 
+            isKeyboardFrameTransitioning = true
             keyboardEndFrameInScreen = animation.endFrameInScreen
             syncHostScrollViewInsetsIfNeeded(animation: animation)
-
-            if isKeyboardVisibleForCurrentEditor() == false {
-                pendingVisibilityAdjustmentWorkItem?.cancel()
-            }
+            pendingVisibilityAdjustmentWorkItem?.cancel()
         }
 
         @objc private func handleKeyboardDidChangeFrameNotification(_ notification: Notification) {
@@ -2106,6 +2106,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
             keyboardEndFrameInScreen = animation.endFrameInScreen
             syncHostScrollViewInsetsIfNeeded()
+            isKeyboardFrameTransitioning = false
 
             guard isKeyboardVisibleForCurrentEditor() else {
                 pendingVisibilityAdjustmentWorkItem?.cancel()
@@ -2119,6 +2120,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         @objc private func handleKeyboardDidHideNotification(_ notification: Notification) {
             keyboardEndFrameInScreen = .null
             pendingVisibilityAdjustmentWorkItem?.cancel()
+            isKeyboardFrameTransitioning = false
             restoreTrackedHostScrollInsetsIfNeeded()
         }
 
