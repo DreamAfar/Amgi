@@ -44,6 +44,11 @@ private enum ReaderChapterSheetRoute: String, Identifiable {
     var id: String { rawValue }
 }
 
+private struct ReaderAddNoteSheetDraft: Identifiable {
+    let id = UUID()
+    let draft: AddNoteDraft
+}
+
 private struct ReaderLibraryBookItem: Identifiable {
     enum Source {
         case ankiNotes
@@ -874,8 +879,7 @@ private struct ReaderChapterView: View {
 
     @State private var progress: Double = 0
     @State private var selectionRequestID = 0
-    @State private var pendingDraft: AddNoteDraft?
-    @State private var showAddNoteSheet = false
+    @State private var pendingAddNoteDraft: ReaderAddNoteSheetDraft?
     @State private var lookupPopupRefreshID = 0
     @State private var showSelectionError = false
     @State private var pendingSelectionAction: SelectionAction?
@@ -914,8 +918,13 @@ private struct ReaderChapterView: View {
     }
 
     private var progressLabel: String {
+        let totalChapters = max(book.chapters.count, 1)
+        let overallProgress = min(
+            max((Double(currentChapterIndex) + progress) / Double(totalChapters), 0),
+            1
+        )
         if showPercentage {
-            return L("reader_reader_position", currentChapterIndex + 1, book.chapters.count, progress * 100)
+            return L("reader_reader_position", currentChapterIndex + 1, book.chapters.count, overallProgress * 100)
         }
         return L("reader_reader_position_chapter_only", currentChapterIndex + 1, book.chapters.count)
     }
@@ -1053,18 +1062,20 @@ private struct ReaderChapterView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .sheet(isPresented: $showAddNoteSheet, onDismiss: {
-            pendingDraft = nil
-        }) {
+        .sheet(item: $pendingAddNoteDraft, onDismiss: {
+            pendingAddNoteDraft = nil
+        }) { sheetDraft in
             AddNoteView(
                 onSave: {
                     Task {
-                        await ReaderLookupDuplicateCache.shared.invalidate(notetypeID: lookupNoteTemplate.notetypeID)
+                        await ReaderLookupDuplicateCache.shared.invalidate(
+                            notetypeID: sheetDraft.draft.notetypeID ?? lookupNoteTemplate.notetypeID
+                        )
                     }
                     lookupPopupRefreshID += 1
-                    pendingDraft = nil
+                    pendingAddNoteDraft = nil
                 },
-                draft: pendingDraft
+                draft: sheetDraft.draft
             )
         }
         .sheet(item: $activeSheet) { route in
@@ -1261,8 +1272,7 @@ private struct ReaderChapterView: View {
                                     Task {
                                         let draft = await makeLookupDraft(from: payload, sentence: popup.sentence)
                                         await MainActor.run {
-                                            pendingDraft = draft
-                                            showAddNoteSheet = true
+                                            pendingAddNoteDraft = ReaderAddNoteSheetDraft(draft: draft)
                                         }
                                     }
                                 },
@@ -1310,8 +1320,7 @@ private struct ReaderChapterView: View {
         case .lookup:
             startLookup(for: trimmedSelection)
         case .addNote, .none:
-            pendingDraft = makeDraft(for: trimmedSelection)
-            showAddNoteSheet = true
+            pendingAddNoteDraft = ReaderAddNoteSheetDraft(draft: makeDraft(for: trimmedSelection))
         }
     }
 

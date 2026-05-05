@@ -26,6 +26,11 @@ private enum ReaderEpubSheetRoute: String, Identifiable {
     var id: String { rawValue }
 }
 
+private struct ReaderEpubAddNoteSheetDraft: Identifiable {
+    let id = UUID()
+    let draft: AddNoteDraft
+}
+
 private enum ReaderEpubLayout {
     static let bookCoverAspectRatio: CGFloat = 100 / 136
     static let bookGridSpacing: CGFloat = 12
@@ -396,8 +401,7 @@ struct ReaderEpubReaderView: View {
     @State private var session: ReaderEpubSession?
     @State private var loadingErrorMessage: String?
     @State private var bridge = ReaderEpubWebViewBridge()
-    @State private var pendingDraft: AddNoteDraft?
-    @State private var showAddNoteSheet = false
+    @State private var pendingAddNoteDraft: ReaderEpubAddNoteSheetDraft?
     @State private var lookupPopupRefreshID = 0
     @State private var showSelectionError = false
     @State private var lookupErrorMessage: String?
@@ -777,8 +781,7 @@ struct ReaderEpubReaderView: View {
                                                 Task {
                                                     let draft = await makeLookupDraft(from: payload, session: session, sentence: popup.sentence)
                                                     await MainActor.run {
-                                                        pendingDraft = draft
-                                                        showAddNoteSheet = true
+                                                        pendingAddNoteDraft = ReaderEpubAddNoteSheetDraft(draft: draft)
                                                     }
                                                 }
                                             },
@@ -814,16 +817,18 @@ struct ReaderEpubReaderView: View {
                 .background(chapterContentBackground)
                 .toolbar(.hidden, for: .navigationBar)
                 .toolbar(.hidden, for: .tabBar)
-                .sheet(isPresented: $showAddNoteSheet, onDismiss: { pendingDraft = nil }) {
+                .sheet(item: $pendingAddNoteDraft, onDismiss: { pendingAddNoteDraft = nil }) { sheetDraft in
                     AddNoteView(
                         onSave: {
                             Task {
-                                await ReaderLookupDuplicateCache.shared.invalidate(notetypeID: lookupNoteTemplate.notetypeID)
+                                await ReaderLookupDuplicateCache.shared.invalidate(
+                                    notetypeID: sheetDraft.draft.notetypeID ?? lookupNoteTemplate.notetypeID
+                                )
                             }
                             lookupPopupRefreshID += 1
-                            pendingDraft = nil
+                            pendingAddNoteDraft = nil
                         },
-                        draft: pendingDraft
+                        draft: sheetDraft.draft
                     )
                 }
                 .sheet(item: $activeSheet) { route in
@@ -1086,8 +1091,7 @@ struct ReaderEpubReaderView: View {
                                     Task {
                                         let draft = await makeLookupDraft(from: payload, session: session, sentence: popup.sentence)
                                         await MainActor.run {
-                                            pendingDraft = draft
-                                            showAddNoteSheet = true
+                                            pendingAddNoteDraft = ReaderEpubAddNoteSheetDraft(draft: draft)
                                         }
                                     }
                                 },
@@ -1876,6 +1880,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
                 \(ReaderEpubScripts.reader)
                 window.hoshiReader.pageHeight = \(Int(parent.viewSize.height));
                 window.hoshiReader.pageWidth = \(Int(parent.viewSize.width));
+                window.hoshiReaderSnapEnabled = false;
                 window.hoshiReader.registerCopyText();
 
                 if (\(parent.hideFurigana)) {
@@ -2333,6 +2338,7 @@ private struct ReaderEpubWebView: UIViewRepresentable {
                 \(ReaderEpubScripts.reader)
                 window.hoshiReader.pageHeight = \(pageHeight);
                 window.hoshiReader.pageWidth = \(pageWidth);
+                window.hoshiReaderSnapEnabled = true;
                 window.hoshiReader.registerCopyText();
 
                 if (\(parent.hideFurigana)) {
@@ -2769,6 +2775,9 @@ window.hoshiReader = {
     isVertical() {
         return window.getComputedStyle(document.body).writingMode === "vertical-rl";
     },
+    shouldSnapPages() {
+        return window.hoshiReaderSnapEnabled !== false;
+    },
     isFurigana(node) {
         const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
         return !!el?.closest('rt, rp');
@@ -2803,6 +2812,7 @@ window.hoshiReader = {
         return totalChars > 0 ? exploredChars / totalChars : 0;
     },
     registerSnapScroll(initialScroll) {
+        if (!this.shouldSnapPages()) return;
         if (window.snapScrollRegistered) return;
         window.snapScrollRegistered = true;
         window.lastPageScroll = initialScroll;
@@ -2863,6 +2873,9 @@ window.hoshiReader = {
         return clampedScroll;
     },
     alignToPage(context, anchor) {
+        if (!this.shouldSnapPages()) {
+            return Math.min(Math.max(0, anchor), context.maxScroll);
+        }
         if (context.pageSize <= 0) return 0;
         var pageIndex = Math.floor(Math.max(0, anchor) / context.pageSize);
         return Math.min(Math.max(0, pageIndex * context.pageSize), context.maxScroll);
@@ -2923,50 +2936,23 @@ window.hoshiReader = {
         if (progress >= 0.99) {
             var lastPage = context.vertical
                 ? 0
-                : Math.floor(context.maxScroll / context.pageSize) * context.pageSize;
+                : (this.shouldSnapPages()
+                    ? Math.floor(context.maxScroll / context.pageSize) * context.pageSize
+                    : context.maxScroll);
             lastPage = Math.max(0, lastPage);
             this.setScrollOffset(context, lastPage);
             this.registerSnapScroll(lastPage);
             this.notifyRestoreComplete();
             return;
         }
-        var walker = this.createWalker();
-        var totalChars = 0;
-        var node;
-        while (node = walker.nextNode()) {
-            totalChars += this.countChars(node.textContent);
-        }
-        if (totalChars <= 0) {
-            this.registerSnapScroll(0);
-            this.notifyRestoreComplete();
-            return;
-        }
-        var targetCharCount = Math.ceil(totalChars * progress);
-        var runningSum = 0;
-        var targetNode = null;
-        walker = this.createWalker();
-        while (node = walker.nextNode()) {
-            runningSum += this.countChars(node.textContent);
-            if (runningSum > targetCharCount) {
-                targetNode = node;
-                break;
-            }
-        }
-        if (targetNode) {
-            var range = document.createRange();
-            range.setStart(targetNode, 0);
-            range.setEnd(targetNode, 1);
-            var rect = range.getBoundingClientRect();
-            var anchor = (context.vertical ? rect.left : rect.top) + (context.vertical ? context.scrollEl.scrollLeft : context.scrollEl.scrollTop);
-            var targetScroll = this.alignToPage(context, anchor);
+        var targetScroll = context.vertical
+            ? context.maxScroll * (1 - progress)
+            : context.maxScroll * progress;
+        this.setScrollOffset(context, targetScroll);
+        requestAnimationFrame(() => {
             this.setScrollOffset(context, targetScroll);
-            requestAnimationFrame(() => {
-                this.setScrollOffset(context, targetScroll);
-                this.registerSnapScroll(targetScroll);
-            });
-        } else {
-            this.registerSnapScroll(0);
-        }
+            this.registerSnapScroll(targetScroll);
+        });
         this.notifyRestoreComplete();
     },
     jumpToFragment(fragment) {
