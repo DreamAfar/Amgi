@@ -2593,44 +2593,108 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     private static let progressScript = #"""
     (function() {
         window.amgiReaderProgress = {
+            ttuRegexNegated: /[^0-9A-Za-z○◯々-〇〻ぁ-ゖゝ-ゞァ-ヺー０-９Ａ-Ｚａ-ｚｦ-ﾝ\p{Radical}\p{Unified_Ideograph}]+/gimu,
+
             isVertical() {
                 return window.getComputedStyle(document.body).writingMode === 'vertical-rl';
             },
 
-            metrics() {
-                const vertical = this.isVertical();
-                const root = document.scrollingElement || document.documentElement;
-                const body = document.body;
-                const scrollWidth = Math.max(root?.scrollWidth || 0, body?.scrollWidth || 0);
-                const scrollHeight = Math.max(root?.scrollHeight || 0, body?.scrollHeight || 0);
-                const viewportWidth = window.innerWidth || root?.clientWidth || 0;
-                const viewportHeight = window.innerHeight || root?.clientHeight || 0;
-                const maxOffset = Math.max((vertical ? scrollWidth - viewportWidth : scrollHeight - viewportHeight), 0);
+            isFurigana(node) {
+                const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+                return !!el?.closest('rt, rp');
+            },
 
-                if (maxOffset <= 0) {
+            normalizeText(text) {
+                return String(text || '').replace(this.ttuRegexNegated, '');
+            },
+
+            countChars(text) {
+                return Array.from(this.normalizeText(text)).length;
+            },
+
+            createWalker(rootNode) {
+                const root = rootNode || document.body;
+                return document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                    acceptNode: (node) => this.isFurigana(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+                });
+            },
+
+            calculateProgress() {
+                const vertical = this.isVertical();
+                const walker = this.createWalker();
+                let totalChars = 0;
+                let exploredChars = 0;
+                let node;
+
+                while ((node = walker.nextNode())) {
+                    const nodeLen = this.countChars(node.textContent);
+                    totalChars += nodeLen;
+
+                    if (nodeLen > 0) {
+                        const range = document.createRange();
+                        range.selectNodeContents(node);
+                        const rect = range.getBoundingClientRect();
+                        if (vertical ? (rect.left > window.innerWidth) : (rect.bottom < 0)) {
+                            exploredChars += nodeLen;
+                        }
+                    }
+                }
+
+                return totalChars > 0 ? exploredChars / totalChars : 0;
+            },
+
+            metrics() {
+                return { progress: this.calculateProgress(), maxOffset: 1, offset: 0 };
+            },
+
+            async restore(progress) {
+                await document.fonts.ready;
+                const clampedProgress = Math.min(Math.max(progress || 0, 0), 1);
+
+                if (clampedProgress <= 0) {
+                    return { progress: 0, maxOffset: 1, offset: 0 };
+                }
+
+                let walker = this.createWalker();
+                let totalChars = 0;
+                let node;
+
+                while ((node = walker.nextNode())) {
+                    totalChars += this.countChars(node.textContent);
+                }
+
+                if (totalChars <= 0) {
                     return { progress: 0, maxOffset: 0, offset: 0 };
                 }
 
-                const rawOffset = vertical ? window.scrollX : window.scrollY;
-                const clampedOffset = Math.min(Math.max(rawOffset, 0), maxOffset);
-                const normalizedOffset = vertical ? (maxOffset - clampedOffset) : clampedOffset;
-                const progress = Math.min(Math.max(normalizedOffset / maxOffset, 0), 1);
-                return { progress, maxOffset, offset: clampedOffset };
-            },
+                const targetCharCount = Math.ceil(totalChars * clampedProgress);
+                let runningSum = 0;
+                let targetNode = null;
 
-            restore(progress) {
-                const clampedProgress = Math.min(Math.max(progress || 0, 0), 1);
-                const metrics = this.metrics();
-                if (metrics.maxOffset <= 0) {
-                    return metrics;
+                walker = this.createWalker();
+                while ((node = walker.nextNode())) {
+                    runningSum += this.countChars(node.textContent);
+                    targetNode = node;
+                    if (runningSum > targetCharCount) {
+                        break;
+                    }
                 }
 
-                const vertical = this.isVertical();
-                const targetOffset = vertical
-                    ? metrics.maxOffset * (1 - clampedProgress)
-                    : metrics.maxOffset * clampedProgress;
-                window.scrollTo(vertical ? targetOffset : 0, vertical ? 0 : targetOffset);
-                return this.metrics();
+                const targetElement = targetNode?.parentElement;
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        block: clampedProgress >= 0.999999 ? 'end' : 'start',
+                        behavior: 'instant'
+                    });
+                }
+
+                return new Promise(resolve => {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            resolve(this.metrics());
+                        });
+                    });
+                });
             }
         };
     })();
@@ -2847,7 +2911,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             activeWebView = webView
             restoreGeneration += 1
-            restoreProgress(in: webView.scrollView, remainingAttempts: 40, generation: restoreGeneration)
+            restoreProgressWithJavaScript(min(max(pendingProgress, 0), 1), generation: restoreGeneration)
         }
 
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -2920,7 +2984,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
             didRestoreInitialProgress = false
             isRestoringProgress = true
-            webView.evaluateJavaScript("window.amgiReaderProgress?.restore(\(progress)).progress") { [weak self] (value: Any?, _: Error?) in
+            webView.evaluateJavaScript("window.amgiReaderProgress?.restore(\(progress)).then(result => result.progress)") { [weak self] (value: Any?, _: Error?) in
                 guard let self, generation == self.restoreGeneration else {
                     return
                 }

@@ -1808,18 +1808,21 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
             let imageHeight = parent.isVertical ? "\(100 - parent.verticalPadding)vh" : "none"
 
             let css = """
+            html {
+                -webkit-line-box-contain: block glyphs replaced;
+            }
             html, body {
                 margin: 0 !important;
                 padding: 0 !important;
                 writing-mode: \(writingMode) !important;
-                text-orientation: mixed !important;
                 color: \(parent.textColorHex) !important;
                 background: transparent !important;
+                \(parent.isVertical ? "overflow-y: hidden" : "overflow-x: hidden") !important;
             }
-            \(parent.isVertical ? "body, body * { writing-mode: vertical-rl !important; text-orientation: mixed !important; }" : "body, body * { writing-mode: horizontal-tb !important; text-orientation: mixed !important; }")
             body {
                 font-family: \(parent.fontFamily), serif !important;
                 font-size: \(parent.fontSize)px !important;
+                -webkit-text-size-adjust: none !important;
                 line-height: \(parent.lineHeight) !important;
                 letter-spacing: \((parent.characterSpacing / 100.0))em !important;
                 text-align: \(textAlign) !important;
@@ -2257,6 +2260,9 @@ private struct ReaderEpubWebView: UIViewRepresentable {
             let textAlign = parent.justifyText ? "justify" : "start"
 
             let css = """
+            html {
+                -webkit-line-box-contain: block glyphs replaced;
+            }
             html, body {
                 overflow: hidden !important;
                 height: var(--page-height, 100vh) !important;
@@ -2264,14 +2270,13 @@ private struct ReaderEpubWebView: UIViewRepresentable {
                 margin: 0 !important;
                 padding: 0 !important;
                 writing-mode: \(writingMode) !important;
-                text-orientation: mixed !important;
                 color: \(parent.textColorHex) !important;
                 background: transparent !important;
             }
-            \(parent.isVertical ? "body, body * { writing-mode: vertical-rl !important; text-orientation: mixed !important; }" : "body, body * { writing-mode: horizontal-tb !important; text-orientation: mixed !important; }")
             body {
                 font-family: \(parent.fontFamily), serif !important;
                 font-size: \(parent.fontSize)px !important;
+                -webkit-text-size-adjust: none !important;
                 line-height: \(parent.lineHeight) !important;
                 letter-spacing: \((parent.characterSpacing / 100.0))em !important;
                 text-align: \(textAlign) !important;
@@ -2795,6 +2800,10 @@ window.hoshiReader = {
             acceptNode: (n) => this.isFurigana(n) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
         });
     },
+    getRect(target) {
+        const rect = target.getClientRects()[0];
+        return rect || target.getBoundingClientRect();
+    },
     usesHorizontalScroll(vertical) {
         return this.shouldSnapPages() ? !vertical : vertical;
     },
@@ -2808,13 +2817,30 @@ window.hoshiReader = {
         return this.shouldSnapPages() ? context.scrollEl.scrollTop : window.scrollY;
     },
     calculateProgress() {
-        var context = this.getScrollContext();
-        if (context.maxScroll <= 0) return 0;
-        var currentScroll = Math.min(Math.max(this.currentScroll(context), 0), context.maxScroll);
-        var progress = this.usesReverseProgress(context)
-            ? 1 - (currentScroll / context.maxScroll)
-            : currentScroll / context.maxScroll;
-        return Math.min(Math.max(progress, 0), 1);
+        var vertical = this.isVertical();
+        var walker = this.createWalker();
+        var totalChars = 0;
+        var exploredChars = 0;
+        var node;
+
+        while (node = walker.nextNode()) {
+            var nodeLen = this.countChars(node.textContent);
+            totalChars += nodeLen;
+
+            if (nodeLen > 0) {
+                var range = document.createRange();
+                range.selectNodeContents(node);
+                var rect = this.shouldSnapPages() ? this.getRect(range) : range.getBoundingClientRect();
+                var isExplored = this.shouldSnapPages()
+                    ? ((vertical ? rect.top : rect.left) < 0)
+                    : (vertical ? (rect.left > window.innerWidth) : (rect.bottom < 0));
+                if (isExplored) {
+                    exploredChars += nodeLen;
+                }
+            }
+        }
+
+        return totalChars > 0 ? exploredChars / totalChars : 0;
     },
     registerSnapScroll(initialScroll) {
         if (!this.shouldSnapPages()) return;
@@ -2940,41 +2966,131 @@ window.hoshiReader = {
         }
         return 'limit';
     },
-    restoreProgress(progress) {
+    async restoreProgress(progress) {
+        await document.fonts.ready;
+
+        if (!this.shouldSnapPages()) {
+            if (progress <= 0) {
+                this.notifyRestoreComplete();
+                return;
+            }
+
+            var walker = this.createWalker();
+            var totalChars = 0;
+            var node;
+
+            while (node = walker.nextNode()) {
+                totalChars += this.countChars(node.textContent);
+            }
+
+            if (totalChars <= 0) {
+                this.notifyRestoreComplete();
+                return;
+            }
+
+            var targetCharCount = Math.ceil(totalChars * progress);
+            var runningSum = 0;
+            var targetNode = null;
+
+            walker = this.createWalker();
+            while (node = walker.nextNode()) {
+                runningSum += this.countChars(node.textContent);
+                targetNode = node;
+                if (runningSum > targetCharCount) {
+                    break;
+                }
+            }
+
+            if (targetNode) {
+                var el = targetNode.parentElement;
+                if (el) {
+                    el.scrollIntoView({
+                        block: progress >= 0.999999 ? 'end' : 'start',
+                        behavior: 'instant'
+                    });
+                }
+            }
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => this.notifyRestoreComplete());
+            });
+            return;
+        }
+
         var context = this.getScrollContext();
+
         if (context.pageSize <= 0) {
             this.registerSnapScroll(0);
             this.notifyRestoreComplete();
             return;
         }
+
         if (progress <= 0) {
-            var initialScroll = this.usesReverseProgress(context) ? context.maxScroll : 0;
-            this.setScrollOffset(context, initialScroll);
-            this.registerSnapScroll(initialScroll);
+            this.setScrollOffset(context, 0);
+            this.registerSnapScroll(0);
             this.notifyRestoreComplete();
             return;
         }
+
         if (progress >= 0.99) {
-            var lastPage = this.usesReverseProgress(context)
-                ? 0
-                : (this.shouldSnapPages()
-                    ? Math.floor(context.maxScroll / context.pageSize) * context.pageSize
-                    : context.maxScroll);
+            var lastPage = Math.floor(context.maxScroll / context.pageSize) * context.pageSize;
             lastPage = Math.max(0, lastPage);
             this.setScrollOffset(context, lastPage);
-            this.registerSnapScroll(lastPage);
+            requestAnimationFrame(() => {
+                this.setScrollOffset(context, lastPage);
+                this.registerSnapScroll(lastPage);
+                requestAnimationFrame(() => this.notifyRestoreComplete());
+            });
+            return;
+        }
+
+        var walker = this.createWalker();
+        var totalChars = 0;
+        var node;
+
+        while (node = walker.nextNode()) {
+            totalChars += this.countChars(node.textContent);
+        }
+
+        if (totalChars <= 0) {
+            this.registerSnapScroll(0);
             this.notifyRestoreComplete();
             return;
         }
-        var targetScroll = this.usesReverseProgress(context)
-            ? context.maxScroll * (1 - progress)
-            : context.maxScroll * progress;
-        this.setScrollOffset(context, targetScroll);
-        requestAnimationFrame(() => {
+
+        var targetCharCount = Math.ceil(totalChars * progress);
+        var runningSum = 0;
+        var targetNode = null;
+
+        walker = this.createWalker();
+        while (node = walker.nextNode()) {
+            runningSum += this.countChars(node.textContent);
+            if (runningSum > targetCharCount) {
+                targetNode = node;
+                break;
+            }
+        }
+
+        if (targetNode) {
+            var range = document.createRange();
+            range.setStart(targetNode, 0);
+            range.setEnd(targetNode, 1);
+            var rect = this.getRect(range);
+            var anchor = (context.vertical ? rect.top : rect.left) + (context.vertical ? context.scrollEl.scrollTop : context.scrollEl.scrollLeft);
+            var targetScroll = this.alignToPage(context, anchor);
+
             this.setScrollOffset(context, targetScroll);
-            this.registerSnapScroll(targetScroll);
+            requestAnimationFrame(() => {
+                this.setScrollOffset(context, targetScroll);
+                this.registerSnapScroll(targetScroll);
+            });
+        } else {
+            this.registerSnapScroll(0);
+        }
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => this.notifyRestoreComplete());
         });
-        this.notifyRestoreComplete();
     },
     jumpToFragment(fragment) {
         var context = this.getScrollContext();
