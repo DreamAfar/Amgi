@@ -1013,7 +1013,19 @@ struct CardWebView: UIViewRepresentable {
         window.amgiStopAllAudio = stopAllSystemAudio;
         function collectAudioQueue(mode) {
             var all = Array.from(document.querySelectorAll('.anki-sound-audio'));
-            if (mode === 'question') return all;
+            if (mode === 'question' || mode === 'answerWithQuestion') return all;
+            // answerOnly: exclude audio already played on the question side.
+            // This correctly handles audio fields placed before <hr id=answer> in
+            // the back template (e.g. {{发音}} between {{FrontSide}} and <hr id=answer>).
+            var questionSrcs = window.__amgiQuestionAudioSrcs;
+            if (questionSrcs && questionSrcs.size > 0) {
+                var newAudio = all.filter(function(a) {
+                    var src = a.getAttribute('src') || '';
+                    return src && !questionSrcs.has(src);
+                });
+                return newAudio.length > 0 ? newAudio : all;
+            }
+            // Fallback: use <hr id=answer> position when question srcs are unavailable.
             var marker = document.getElementById('answer');
             if (!marker) return all;
             var after = all.filter(function(a) {
@@ -1508,12 +1520,21 @@ struct CardWebView: UIViewRepresentable {
                     },
                     function() {
                         window.scrollTo(0, 0);
+                        // Reset question-side audio srcs for the new card.
+                        window.__amgiQuestionAudioSrcs = null;
                     },
                     function() {
                         var typeans = document.getElementById('typeans');
                         if (typeans) typeans.focus();
                         var hasTemplateManagedMedia = amgiHasTemplateManagedMedia();
                         if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
+                        // Record question-side audio srcs so the answer side can
+                        // avoid re-playing them when using answerOnly mode.
+                        window.__amgiQuestionAudioSrcs = new Set(
+                            Array.from(document.querySelectorAll('.anki-sound-audio')).map(function(a) {
+                                return a.getAttribute('src') || '';
+                            }).filter(Boolean)
+                        );
                         var ph = amgiPrefetchHTMLValue();
                         if (amgiContainsMathJaxMarkup(html || '') || amgiContainsMathJaxMarkup(ph || '')) {
                             void amgiEnsureMathJaxReady(1500);
