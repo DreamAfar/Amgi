@@ -2258,6 +2258,8 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         }
 
         private func adjustActiveFieldVisibilityIfNeeded(target: ActiveFieldAlignmentTarget) {
+            // Keep keyboard avoidance from snapping the list back while the user is scrolling it.
+            guard isHostScrollUserInteractionInProgress() == false else { return }
             guard isPageReady, let webView else { return }
             let script = """
             (() => {
@@ -2430,6 +2432,13 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 CGPoint(x: hostScrollView.contentOffset.x, y: clampedOffsetY),
                 animated: false
             )
+        }
+
+        private func isHostScrollUserInteractionInProgress() -> Bool {
+            guard let hostScrollView = trackedHostScrollView ?? webView.flatMap(enclosingHostScrollView(for:)) else {
+                return false
+            }
+            return hostScrollView.isTracking || hostScrollView.isDragging || hostScrollView.isDecelerating
         }
 
         private func alignmentRect(
