@@ -928,6 +928,7 @@
 "tags_apply_hint" = "%d 件のノートにタグを適用";
 "tags_section_select" = "タグを選択";
 "tags_section_all" = "すべてのタグ";
+"tags_browse_hint" = "タグをタップするとノートを絞り込みます。左スワイプで名前変更や削除ができます。";
 "tags_nav_title_note_mode" = "タグの適用 / 削除";
 "tags_nav_title_add_mode" = "タグを追加";
 "tags_nav_title_remove_mode" = "タグを削除";

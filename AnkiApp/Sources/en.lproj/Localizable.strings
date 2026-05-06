@@ -928,6 +928,7 @@
 "tags_apply_hint" = "Apply tag to %d notes";
 "tags_section_select" = "Select Tag";
 "tags_section_all" = "All Tags";
+"tags_browse_hint" = "Tap a tag to filter notes. Swipe left to rename or delete it.";
 "tags_nav_title_note_mode" = "Apply / Remove Tags";
 "tags_nav_title_add_mode" = "Add Tags";
 "tags_nav_title_remove_mode" = "Remove Tags";

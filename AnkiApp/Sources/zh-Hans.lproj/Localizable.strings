@@ -928,6 +928,7 @@
 "tags_apply_hint" = "将标签应用到 %d 条笔记";
 "tags_section_select" = "选择标签";
 "tags_section_all" = "所有标签";
+"tags_browse_hint" = "点击标签即可筛选对应笔记，左滑可重命名或删除。";
 "tags_nav_title_note_mode" = "应用/移除标签";
 "tags_nav_title_add_mode" = "添加标签";
 "tags_nav_title_remove_mode" = "删除标签";

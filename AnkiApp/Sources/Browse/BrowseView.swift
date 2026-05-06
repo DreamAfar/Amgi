@@ -36,6 +36,7 @@ struct BrowseView: View {
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
     @State private var showTagsManager = false
+    @State private var tagsTargetNoteIDs: [Int64] = []
     @State private var tagsNoteMode: TagsView.NoteMode = .manage
     @State private var showTagsActionSheet = false
     @State private var showBatchDeleteConfirm = false
@@ -220,7 +221,7 @@ struct BrowseView: View {
 
                     Menu {
                         Button {
-                            showTagsManager = true
+                            presentCollectionTagsManager()
                         } label: {
                             Label(L("browse_tags_manage"), systemImage: "tag")
                         }
@@ -282,7 +283,13 @@ struct BrowseView: View {
                 await performSearch()
             }
         }) {
-            TagsView(targetNoteIDs: Array(selectedNoteIDs), noteMode: tagsNoteMode)
+            TagsView(
+                targetNoteIDs: tagsTargetNoteIDs,
+                noteMode: tagsNoteMode,
+                onSelectTag: tagsTargetNoteIDs.isEmpty ? { tag in
+                    activeTag = tag
+                } : nil
+            )
         }
         .confirmationDialog(
             L("browse_batch_manage_tags"),
@@ -290,12 +297,10 @@ struct BrowseView: View {
             titleVisibility: .visible
         ) {
             Button(L("browse_batch_tags_add")) {
-                tagsNoteMode = .addToNotes
-                showTagsManager = true
+                presentBatchTagsManager(mode: .addToNotes)
             }
             Button(L("browse_batch_tags_remove"), role: .destructive) {
-                tagsNoteMode = .removeFromNotes
-                showTagsManager = true
+                presentBatchTagsManager(mode: .removeFromNotes)
             }
             Button(L("common_cancel"), role: .cancel) {}
         }
@@ -1179,6 +1184,18 @@ struct BrowseView: View {
                 }
             }
         }
+    }
+
+    private func presentCollectionTagsManager() {
+        tagsTargetNoteIDs = []
+        tagsNoteMode = .manage
+        showTagsManager = true
+    }
+
+    private func presentBatchTagsManager(mode: TagsView.NoteMode) {
+        tagsTargetNoteIDs = Array(selectedNoteIDs)
+        tagsNoteMode = mode
+        showTagsManager = true
     }
 
     private func selectedNotesExportFilenameStem() -> String {

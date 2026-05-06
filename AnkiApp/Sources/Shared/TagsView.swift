@@ -10,6 +10,7 @@ import Dependencies
 struct TagsView: View {
     @Dependency(\.tagClient) var tagClient
     let targetNoteIDs: [Int64]
+    let onSelectTag: ((String) -> Void)?
     /// Controls behaviour when `targetNoteIDs` is non-empty.
     /// `.addToNotes` — tapping a tag immediately adds it to all selected notes.
     /// `.removeFromNotes` — tapping a tag immediately removes it from all selected notes.
@@ -35,13 +36,19 @@ struct TagsView: View {
     @State private var tagToRename: String?
     @State private var renameTagName = ""
 
-    init(targetNoteIDs: [Int64] = [], noteMode: NoteMode = .manage) {
+    init(
+        targetNoteIDs: [Int64] = [],
+        noteMode: NoteMode = .manage,
+        onSelectTag: ((String) -> Void)? = nil
+    ) {
         self.targetNoteIDs = targetNoteIDs
         self.noteMode = noteMode
+        self.onSelectTag = onSelectTag
     }
 
     // Whether this view is in "apply tags to notes" mode
     private var isNoteMode: Bool { !targetNoteIDs.isEmpty }
+    private var canBrowseTagNotes: Bool { !isNoteMode && onSelectTag != nil }
 
     var body: some View {
         NavigationStack {
@@ -154,6 +161,12 @@ struct TagsView: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
+            } else if canBrowseTagNotes {
+                Section {
+                    Label(L("tags_browse_hint"), systemImage: "line.3.horizontal.decrease.circle")
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
             }
 
             Section(isNoteMode ? L("tags_section_select") : L("tags_section_all")) {
@@ -213,9 +226,11 @@ struct TagsView: View {
                 ProgressView()
                     .scaleEffect(0.8)
             } else {
-                Image(systemName: "chevron.right")
-                    .font(AmgiFont.caption.font)
-                    .foregroundStyle(Color.amgiTextTertiary)
+                if isNoteMode || canBrowseTagNotes {
+                    Image(systemName: "chevron.right")
+                        .font(AmgiFont.caption.font)
+                        .foregroundStyle(Color.amgiTextTertiary)
+                }
             }
         }
         .contentShape(Rectangle())
@@ -230,7 +245,10 @@ struct TagsView: View {
                     tagActionTag = tag
                 }
             } else {
-                selectedTag = tag
+                if let onSelectTag {
+                    onSelectTag(tag)
+                    dismiss()
+                }
             }
         }
         .swipeActions(edge: .trailing) {
