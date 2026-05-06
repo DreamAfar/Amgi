@@ -988,6 +988,9 @@ struct CardWebView: UIViewRepresentable {
             document.body.appendChild(player);
             return player;
         }
+        function amgiHasTemplateManagedMedia() {
+            return document.querySelector('audio:not(.anki-sound-audio):not(#amgi-audio-queue-player), video') !== null;
+        }
         function stopAllSystemAudio() {
             amgiStopTts();
             document.querySelectorAll('.anki-sound-audio').forEach(function(a) {
@@ -1062,7 +1065,7 @@ struct CardWebView: UIViewRepresentable {
             playNext();
         }
         function amgiReplayAll(mode) {
-            if (document.querySelector('audio:not(.anki-sound-audio), video')) return;
+            if (amgiHasTemplateManagedMedia()) return;
             replaySequential(collectAudioQueue(mode));
         }
         window.amgiReplayAll = amgiReplayAll;
@@ -1509,7 +1512,7 @@ struct CardWebView: UIViewRepresentable {
                     function() {
                         var typeans = document.getElementById('typeans');
                         if (typeans) typeans.focus();
-                        var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
+                        var hasTemplateManagedMedia = amgiHasTemplateManagedMedia();
                         if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
                         var ph = amgiPrefetchHTMLValue();
                         if (amgiContainsMathJaxMarkup(html || '') || amgiContainsMathJaxMarkup(ph || '')) {
@@ -1545,7 +1548,7 @@ struct CardWebView: UIViewRepresentable {
                         });
                     },
                     function() {
-                        var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
+                        var hasTemplateManagedMedia = amgiHasTemplateManagedMedia();
                         if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
                     }
                 );
