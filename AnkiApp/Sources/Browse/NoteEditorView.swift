@@ -386,7 +386,7 @@ struct NoteEditorView: View {
     @MainActor
     private func previewAudio(at index: Int) {
         do {
-            try MediaAudioPreview.playFirstAudioTag(in: fieldValue(at: index))
+            try MediaAudioPreview.playAudioTags(in: fieldValue(at: index))
         } catch {
             errorMessage = error.localizedDescription
             showError = true

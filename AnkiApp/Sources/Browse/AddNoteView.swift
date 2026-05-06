@@ -434,7 +434,7 @@ struct AddNoteView: View {
     @MainActor
     private func previewAudio(at index: Int) {
         do {
-            try MediaAudioPreview.playFirstAudioTag(in: fieldValue(at: index))
+            try MediaAudioPreview.playAudioTags(in: fieldValue(at: index))
         } catch {
             previewErrorMessage = error.localizedDescription
             showPreviewError = true

@@ -500,14 +500,14 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
         function trimMathPreviewText(text) {
             return (text || '')
-                .replace(/<br[ ]*\/?>/gi, '\n')
-                .replace(/^\n*/, '')
-                .replace(/\n*$/, '');
+                .replace(/<br[ ]*\\/?>/gi, '\\n')
+                .replace(/^\\n*/, '')
+                .replace(/\\n*$/, '');
         }
 
         function normalizeMathPreviewMarkup(html) {
             return (html || '').replace(
-                /<anki-mathjax(?:[^>]*?block="(.*?)")?[^>]*?>([\s\S]*?)<\/anki-mathjax>/gi,
+                /<anki-mathjax(?:[^>]*?block="(.*?)")?[^>]*?>([\\s\\S]*?)<\\/anki-mathjax>/gi,
                 function(_match, block, text) {
                     const trimmed = trimMathPreviewText(text);
                     return (typeof block === 'string' && block !== 'false')
