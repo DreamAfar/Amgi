@@ -383,6 +383,7 @@
 "settings_reader_dictionary_section_frequency" = "Frequency Dictionaries";
 "settings_reader_dictionary_section_pitch" = "Pitch Dictionaries";
 "settings_reader_dictionary_section_settings" = "Settings";
+"settings_reader_dictionary_reorder" = "Reorder Dictionaries";
 "settings_reader_dictionary_max_results" = "Max Results";
 "settings_reader_dictionary_scan_length" = "Scan Length";
 "settings_reader_dictionary_collapse_dictionaries" = "Collapse dictionaries";
