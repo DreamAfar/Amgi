@@ -67,7 +67,7 @@ enum MediaAudioPreview {
 }
 
 @MainActor
-private final class AudioSequencer: NSObject, AVAudioPlayerDelegate {
+private final class AudioSequencer: NSObject, @preconcurrency AVAudioPlayerDelegate {
     private var player: AVAudioPlayer?
     private var queuedFileURLs: [URL] = []
     private var currentIndex = 0
