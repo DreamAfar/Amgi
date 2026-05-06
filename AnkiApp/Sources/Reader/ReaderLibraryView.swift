@@ -2911,7 +2911,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             activeWebView = webView
             restoreGeneration += 1
-            restoreProgressWithJavaScript(min(max(pendingProgress, 0), 1), generation: restoreGeneration)
+            restoreProgress(in: webView.scrollView, remainingAttempts: 40, generation: restoreGeneration)
         }
 
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -3036,6 +3036,11 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         private func fetchCurrentProgress(_ completion: @escaping (Double) -> Void) {
             guard let webView = activeWebView else {
                 completion(0)
+                return
+            }
+
+            if maximumOffset(for: webView.scrollView) > 0 {
+                completion(normalizedProgress(for: webView.scrollView))
                 return
             }
 
