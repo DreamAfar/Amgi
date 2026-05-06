@@ -2025,6 +2025,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         webView.scrollView.showsVerticalScrollIndicator = !isVertical
         webView.scrollView.delegate = context.coordinator
         webView.navigationDelegate = context.coordinator
+        context.coordinator.attach(to: webView)
         let tapRecognizer = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTapLookup(_:)))
         tapRecognizer.cancelsTouchesInView = false
         tapRecognizer.delegate = context.coordinator
@@ -2844,6 +2845,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         private var didRestoreInitialProgress = false
         private var isRestoringProgress = false
         private var restoreGeneration = 0
+        private var lastReportedProgress = -1.0
+        private var contentOffsetObservation: NSKeyValueObservation?
+        private var contentSizeObservation: NSKeyValueObservation?
         private weak var activeWebView: WKWebView?
         private let onProgressChange: (Double) -> Void
         let onSelectionResolved: (String?) -> Void
@@ -2859,6 +2863,24 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             self.onProgressChange = onProgressChange
             self.onSelectionResolved = onSelectionResolved
             self.onLookupRequested = onLookupRequested
+        }
+
+        func attach(to webView: WKWebView) {
+            if let activeWebView, activeWebView === webView {
+                return
+            }
+
+            activeWebView = webView
+            contentOffsetObservation = webView.scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scrollView, _ in
+                DispatchQueue.main.async {
+                    self?.reportProgress(for: scrollView)
+                }
+            }
+            contentSizeObservation = webView.scrollView.observe(\.contentSize, options: [.new]) { [weak self] scrollView, _ in
+                DispatchQueue.main.async {
+                    self?.reportProgress(for: scrollView)
+                }
+            }
         }
 
         @objc func handleTapLookup(_ recognizer: UITapGestureRecognizer) {
@@ -2909,8 +2931,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            activeWebView = webView
+            attach(to: webView)
             restoreGeneration += 1
+            lastReportedProgress = -1
             restoreProgress(in: webView.scrollView, remainingAttempts: 40, generation: restoreGeneration)
         }
 
@@ -3029,6 +3052,10 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 guard let self else {
                     return
                 }
+                guard Swift.abs(progress - self.lastReportedProgress) >= 0.001 else {
+                    return
+                }
+                self.lastReportedProgress = progress
                 self.onProgressChange(progress)
             }
         }
