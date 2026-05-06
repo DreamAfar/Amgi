@@ -145,7 +145,6 @@ struct BrowseView: View {
                     } label: {
                         Image(systemName: "checkmark.circle")
                     }
-                    .amgiToolbarIconButton()
                     .accessibilityLabel(L("browse_select_all"))
                     .disabled(allNoteIDs.isEmpty)
                 }
@@ -156,7 +155,6 @@ struct BrowseView: View {
                     } label: {
                         Image(systemName: "arrow.left.arrow.right")
                     }
-                    .amgiToolbarIconButton()
                     .accessibilityLabel(L("browse_select_invert"))
                     .disabled(allNoteIDs.isEmpty)
                 }
@@ -167,7 +165,6 @@ struct BrowseView: View {
                     } label: {
                         Image(systemName: "trash")
                     }
-                    .amgiToolbarIconButton()
                     .accessibilityLabel(L("browse_batch_delete_notes"))
                     .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
                 }
@@ -181,7 +178,6 @@ struct BrowseView: View {
                     } label: {
                         Image(systemName: "checkmark")
                     }
-                    .amgiToolbarIconButton()
                     .accessibilityLabel(L("common_done"))
                 }
 

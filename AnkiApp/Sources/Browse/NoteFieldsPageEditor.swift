@@ -1889,6 +1889,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         private weak var trackedHostScrollView: UIScrollView?
         private var trackedHostContentInset: UIEdgeInsets = .zero
         private var trackedHostVerticalIndicatorInsets: UIEdgeInsets = .zero
+        private var lastHostScrollInteractionTime: TimeInterval = 0
 
         init(
             fieldValues: Binding<[String]>,
@@ -2051,7 +2052,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 if let index = body["index"] as? Int {
                     activeFieldIndex = max(0, index)
                 }
-                if isKeyboardVisibleForCurrentEditor(), isKeyboardFrameTransitioning == false {
+                if isKeyboardVisibleForCurrentEditor(),
+                   isKeyboardFrameTransitioning == false,
+                   shouldScheduleLayoutDrivenVisibilityAdjustment() {
                     scheduleActiveFieldVisibilityAdjustment(target: .focus, delay: 0.01)
                 }
             case "fieldChanged":
@@ -2257,6 +2260,18 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
         }
 
+        private func shouldScheduleLayoutDrivenVisibilityAdjustment() -> Bool {
+            if isHostScrollUserInteractionInProgress() {
+                pendingVisibilityAdjustmentWorkItem?.cancel()
+                return false
+            }
+
+            // Ignore layout-driven reveal attempts immediately after the user scrolls
+            // the list, otherwise the focused field can snap back into view.
+            let cooldown: TimeInterval = 0.4
+            return Date.timeIntervalSinceReferenceDate - lastHostScrollInteractionTime >= cooldown
+        }
+
         private func adjustActiveFieldVisibilityIfNeeded(target: ActiveFieldAlignmentTarget) {
             // Keep keyboard avoidance from snapping the list back while the user is scrolling it.
             guard isHostScrollUserInteractionInProgress() == false else { return }
@@ -2438,7 +2453,11 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             guard let hostScrollView = trackedHostScrollView ?? webView.flatMap(enclosingHostScrollView(for:)) else {
                 return false
             }
-            return hostScrollView.isTracking || hostScrollView.isDragging || hostScrollView.isDecelerating
+            let isInteracting = hostScrollView.isTracking || hostScrollView.isDragging || hostScrollView.isDecelerating
+            if isInteracting {
+                lastHostScrollInteractionTime = Date.timeIntervalSinceReferenceDate
+            }
+            return isInteracting
         }
 
         private func alignmentRect(
