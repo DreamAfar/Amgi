@@ -188,7 +188,7 @@ struct ReaderDictionarySettingsView: View {
                         isReorderingDictionaries.toggle()
                     }
                 } label: {
-                    Image(systemName: isReorderingDictionaries ? "checkmark" : "arrow.up.arrow.down")
+                    Image(systemName: "arrow.up.arrow.down.circle")
                 }
                 .accessibilityLabel(isReorderingDictionaries ? L("common_done") : L("settings_reader_dictionary_reorder"))
                 .disabled(canReorderSelectedDictionaries == false)
@@ -214,11 +214,9 @@ struct ReaderDictionarySettingsView: View {
                         kind: .pitch
                     )
                 } label: {
-                    SettingsOptionCapsuleLabel(
-                        title: L("common_add"),
-                        backgroundColor: menuCapsuleBackground
-                    )
+                    Image(systemName: "plus")
                 }
+                .accessibilityLabel(L("common_add"))
             }
         }
         .overlay {
