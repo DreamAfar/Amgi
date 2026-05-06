@@ -17,10 +17,4 @@ Tests/
 Hoshi-Reader/*
 !Hoshi-Reader/Libraries/
 Hoshi-Reader/Libraries/*
-!Hoshi-Reader/Libraries/EPUBKit/
-Hoshi-Reader/Libraries/EPUBKit/*
-!Hoshi-Reader/Libraries/EPUBKit/Package.swift
-!Hoshi-Reader/Libraries/EPUBKit/LICENSE
-!Hoshi-Reader/Libraries/EPUBKit/Sources/
-!Hoshi-Reader/Libraries/EPUBKit/Sources/**
 cleanup-workflow-runs.ps1
