@@ -148,6 +148,8 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         let linkColor = colorScheme == .dark ? "#8FB8FF" : "#1E5BB8"
         let accentColor = colorScheme == .dark ? "#8FB8FF" : "#2C6BED"
         let selectionColor = colorScheme == .dark ? "rgba(143,184,255,0.26)" : "rgba(30,91,184,0.18)"
+        let mathJaxConfigScriptURL = noteFieldsJavaScriptStringLiteral(CardAssetPath.mathJaxConfigScriptURLString)
+        let mathJaxCoreScriptURL = noteFieldsJavaScriptStringLiteral(CardAssetPath.mathJaxCoreScriptURLString)
 
         return """
         <!doctype html>
@@ -266,6 +268,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         .field.is-source-mode .field-preview.has-preview {
             display: block;
         }
+        .field.has-math-preview .field-preview.has-preview {
+            display: block;
+        }
         .field-rendered,
         .field-source {
             width: 100%;
@@ -348,12 +353,15 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         <script>
         const fieldsRoot = document.getElementById('fields');
         const messageHandlerName = '\(Coordinator.messageHandlerName)';
+        const MATHJAX_CONFIG_SCRIPT_URL = \(mathJaxConfigScriptURL);
+        const MATHJAX_CORE_SCRIPT_URL = \(mathJaxCoreScriptURL);
         const state = {
             fields: [],
             activeFieldIndex: 0,
             isSyncingFromSwift: false,
             changeTimers: new Map(),
         };
+        window.__amgiNoteFieldsMathJaxPromise = null;
 
         function notify(type, payload) {
             const body = Object.assign({ type }, payload || {});
@@ -488,6 +496,134 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 || lowercased.includes('<svg')
                 || lowercased.includes('<video')
                 || lowercased.includes('<audio');
+        }
+
+        function trimMathPreviewText(text) {
+            return (text || '')
+                .replace(/<br[ ]*\/?>/gi, '\n')
+                .replace(/^\n*/, '')
+                .replace(/\n*$/, '');
+        }
+
+        function normalizeMathPreviewMarkup(html) {
+            return (html || '').replace(
+                /<anki-mathjax(?:[^>]*?block="(.*?)")?[^>]*?>([\s\S]*?)<\/anki-mathjax>/gi,
+                function(_match, block, text) {
+                    const trimmed = trimMathPreviewText(text);
+                    return (typeof block === 'string' && block !== 'false')
+                        ? '\\[' + trimmed + '\\]'
+                        : '\\(' + trimmed + '\\)';
+                }
+            );
+        }
+
+        function containsMathPreviewMarkup(html) {
+            const source = normalizeMathPreviewMarkup(html);
+            return source.includes('\\(') || source.includes('\\[');
+        }
+
+        function hasPreviewContent(html) {
+            return hasEmbeddedMedia(html) || containsMathPreviewMarkup(html);
+        }
+
+        function loadMathJaxScript(kind, src) {
+            return new Promise(function(resolve) {
+                const existing = document.querySelector('script[data-amgi-note-fields-mathjax="' + kind + '"]');
+                if (existing) {
+                    if (existing.dataset.amgiLoaded === '1') {
+                        resolve();
+                        return;
+                    }
+                    existing.addEventListener('load', function() {
+                        existing.dataset.amgiLoaded = '1';
+                        resolve();
+                    }, { once: true });
+                    existing.addEventListener('error', function() {
+                        resolve();
+                    }, { once: true });
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = false;
+                script.setAttribute('data-amgi-note-fields-mathjax', kind);
+                script.addEventListener('load', function() {
+                    script.dataset.amgiLoaded = '1';
+                    resolve();
+                }, { once: true });
+                script.addEventListener('error', function() {
+                    resolve();
+                }, { once: true });
+                document.head.appendChild(script);
+            });
+        }
+
+        async function waitForMathJax(timeout) {
+            const deadline = Date.now() + (timeout || 0);
+            while (Date.now() <= deadline) {
+                const mathJax = window.MathJax;
+                if (mathJax
+                    && mathJax.startup
+                    && mathJax.startup.promise
+                    && typeof mathJax.typesetPromise === 'function') {
+                    try {
+                        await mathJax.startup.promise;
+                    } catch (error) {
+                        console.error('NoteFields MathJax startup failed', error);
+                        return null;
+                    }
+                    return mathJax;
+                }
+                await new Promise(function(resolve) { window.setTimeout(resolve, 25); });
+            }
+            return null;
+        }
+
+        async function ensureMathJaxReady(timeout) {
+            const readyMathJax = await waitForMathJax(0);
+            if (readyMathJax) {
+                return readyMathJax;
+            }
+
+            if (!window.__amgiNoteFieldsMathJaxPromise) {
+                window.__amgiNoteFieldsMathJaxPromise = (async function() {
+                    await loadMathJaxScript('config', MATHJAX_CONFIG_SCRIPT_URL);
+                    await loadMathJaxScript('core', MATHJAX_CORE_SCRIPT_URL);
+                    return await waitForMathJax(timeout || 1500);
+                })().catch(function(error) {
+                    console.error('NoteFields MathJax load failed', error);
+                    window.__amgiNoteFieldsMathJaxPromise = null;
+                    return null;
+                });
+            }
+
+            return await window.__amgiNoteFieldsMathJaxPromise;
+        }
+
+        async function renderPreviewContent(preview, html) {
+            if (!preview) { return; }
+            const normalizedHTML = normalizeMathPreviewMarkup(html || '');
+            const renderToken = String(Date.now()) + ':' + Math.random().toString(36).slice(2);
+            preview.dataset.previewRenderToken = renderToken;
+            preview.innerHTML = normalizedHTML;
+
+            if (!containsMathPreviewMarkup(normalizedHTML)) {
+                scheduleHeightUpdate();
+                return;
+            }
+
+            const mathJax = await ensureMathJaxReady(1500);
+            if (!mathJax || preview.dataset.previewRenderToken !== renderToken) {
+                return;
+            }
+
+            try {
+                await mathJax.typesetPromise([preview]);
+                scheduleHeightUpdate();
+            } catch (error) {
+                console.error('NoteFields MathJax typeset failed', error);
+            }
         }
 
         function focusElement(element) {
@@ -924,10 +1060,19 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             const preview = previewElement(index);
             if (!preview) { return; }
             const field = state.fields[index];
-            const shouldShow = !!field.showsSourcePreview && hasEmbeddedMedia(field.html || '');
+            const html = field.html || '';
+            const section = fieldElement(index);
+            const hasMathPreview = containsMathPreviewMarkup(html);
+            const shouldShow = !!field.showsSourcePreview && hasPreviewContent(html);
             preview.classList.toggle('has-preview', shouldShow);
+            section?.classList.toggle('has-math-preview', hasMathPreview);
             preview.style.minHeight = `${field.sourcePreviewHeight || 96}px`;
-            preview.innerHTML = field.html || '';
+            if (!shouldShow) {
+                preview.dataset.previewRenderToken = '';
+                preview.innerHTML = '';
+                return;
+            }
+            renderPreviewContent(preview, html);
         }
 
         function updateActionState(index) {

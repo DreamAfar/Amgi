@@ -69,7 +69,7 @@ struct NoteEditorView: View {
                     || MediaAudioPreview.firstAudioFileName(in: value) != nil,
                 hasAudio: MediaAudioPreview.firstAudioFileName(in: value) != nil,
                 hasEditableImage: NoteFieldMediaSupport.firstImageFilename(in: value) != nil,
-                showsSourcePreview: containsEmbeddedMedia(value),
+                showsSourcePreview: containsEmbeddedMedia(value) || RichNoteFieldEditor.containsMathMarkup(value),
                 sourcePreviewHeight: sourcePreviewHeight(for: value)
             )
         }

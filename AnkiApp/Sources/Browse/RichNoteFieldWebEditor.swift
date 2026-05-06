@@ -19,6 +19,13 @@ struct RichNoteFieldEditor: View {
         LegacyRichNoteFieldTextEditor.normalizedStoredHTML(text)
     }
 
+    static func containsMathMarkup(_ text: String) -> Bool {
+        let normalized = normalizedStoredHTML(text)
+        return normalized.contains(#"\("#)
+            || normalized.contains(#"\["#)
+            || normalized.localizedCaseInsensitiveContains("anki-mathjax")
+    }
+
     var body: some View {
         LegacyRichNoteFieldTextEditor(
             htmlText: $htmlText,
