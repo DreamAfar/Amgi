@@ -796,17 +796,13 @@ private struct ReaderOptionsView: View {
 }
 
 private struct SyncSettingsView: View {
-    @Dependency(\.syncClient) var syncClient
-
     @AppStorage(SyncPreferences.Keys.modeForCurrentUser()) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
     @AppStorage(SyncPreferences.Keys.syncMediaForCurrentUser()) private var syncMediaEnabled = true
     @AppStorage(SyncPreferences.Keys.ioTimeoutSecsForCurrentUser()) private var ioTimeoutSecs = SyncPreferences.Timeout.defaultValue
-    @AppStorage(SyncPreferences.Keys.mediaLastLogForCurrentUser()) private var mediaLastLog = ""
-    @AppStorage(SyncPreferences.Keys.mediaLastSyncedAtForCurrentUser()) private var mediaLastSyncedAt = 0.0
 
     @State private var showServerSetup = false
     @State private var showLogin = false
-    @State private var isSyncingMedia = false
+    @State private var showSyncSheet = false
     @State private var syncMessage: String?
     @State private var showSyncAlert = false
 
@@ -870,14 +866,6 @@ private struct SyncSettingsView: View {
 
     private var currentAccountValue: String {
         KeychainHelper.loadUsername() ?? L("sync_settings_not_logged_in")
-    }
-
-    private var formattedLastMediaSync: String {
-        guard mediaLastSyncedAt > 0 else { return L("common_none") }
-        return Date(timeIntervalSince1970: mediaLastSyncedAt).formatted(
-            date: .abbreviated,
-            time: .shortened
-        )
     }
 
     var body: some View {
@@ -959,39 +947,23 @@ private struct SyncSettingsView: View {
             .amgiSettingsListRowSurface()
 
             if syncMode != .local {
-                Section(L("sync_settings_section_media")) {
+                Section {
                     Button {
-                        Task { await syncMediaNow() }
+                        showSyncSheet = true
                     } label: {
                         HStack {
-                            Label(L("sync_settings_sync_media_now"), systemImage: "photo.on.rectangle")
+                            Label(L("sync_settings_sync_now"), systemImage: "arrow.triangle.2.circlepath")
                                 .foregroundStyle(SettingsValueStyle.primary)
                             Spacer()
-                            if isSyncingMedia {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            }
                         }
                     }
                     .buttonStyle(.plain)
-                    .disabled(isSyncingMedia)
-
-                    infoRow(title: L("sync_settings_last_media_sync"), value: formattedLastMediaSync)
-
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(L("sync_settings_media_log"))
-                            .amgiFont(.bodyEmphasis)
-                            .foregroundStyle(SettingsValueStyle.primary)
-                        Text(mediaLastLog.isEmpty ? L("common_none") : mediaLastLog)
+                        Text(L("sync_settings_sync_now_hint"))
                             .amgiFont(.caption)
                             .foregroundStyle(SettingsValueStyle.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, AmgiSpacing.xs)
-                            .padding(.horizontal, AmgiSpacing.sm)
-                            .background(
-                                Color.amgiSurface,
-                                in: RoundedRectangle(cornerRadius: 8)
-                            )
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.vertical, 4)
                 }
@@ -1010,6 +982,11 @@ private struct SyncSettingsView: View {
                 syncMessage = L("common_done")
                 showSyncAlert = true
             }
+        }
+        .sheet(isPresented: $showSyncSheet) {
+            SyncSheet(isPresented: $showSyncSheet)
+                .presentationDetents([.fraction(0.75), .large])
+                .presentationDragIndicator(.visible)
         }
         .alert(L("settings_row_sync"), isPresented: $showSyncAlert) {
             Button(L("common_ok"), role: .cancel) {}
@@ -1059,34 +1036,6 @@ private struct SyncSettingsView: View {
     private func logout() {
         AppSyncAuthEvents.clearCredentials()
         syncMessage = L("sync_settings_logged_out")
-        showSyncAlert = true
-    }
-
-    private func syncMediaNow() async {
-        guard syncMode != .local else { return }
-        guard KeychainHelper.loadHostKey() != nil else {
-            showLogin = true
-            return
-        }
-
-        isSyncingMedia = true
-        defer { isSyncingMedia = false }
-
-        do {
-            _ = try await syncClient.syncMedia()
-            let message = L("sync_settings_media_log_success")
-            SyncPreferences.recordMediaSyncLog(message)
-            mediaLastLog = message
-            mediaLastSyncedAt = Date.now.timeIntervalSince1970
-            syncMessage = message
-        } catch {
-            let message = L("sync_settings_media_log_failed", error.localizedDescription)
-            SyncPreferences.recordMediaSyncLog(message)
-            mediaLastLog = message
-            mediaLastSyncedAt = Date.now.timeIntervalSince1970
-            syncMessage = message
-        }
-
         showSyncAlert = true
     }
 }

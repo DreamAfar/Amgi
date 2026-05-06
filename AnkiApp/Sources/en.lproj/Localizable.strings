@@ -563,6 +563,8 @@
 "sync_settings_not_logged_in" = "Not signed in";
 "sync_settings_change_server" = "Change Server";
 "sync_settings_sync_media" = "Sync audio and images";
+"sync_settings_sync_now" = "Sync Now";
+"sync_settings_sync_now_hint" = "After signing in for the first time, media sync may take a while to finish. Keep the app open and wait for sync to complete.";
 "sync_settings_timeout" = "Network Timeout";
 "sync_settings_timeout_seconds" = "%d seconds";
 "sync_settings_sync_media_now" = "Sync Media Now";

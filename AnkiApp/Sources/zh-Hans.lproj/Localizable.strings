@@ -563,6 +563,8 @@
 "sync_settings_not_logged_in" = "未登录";
 "sync_settings_change_server" = "更改服务器";
 "sync_settings_sync_media" = "同步音频和图片";
+"sync_settings_sync_now" = "立即同步";
+"sync_settings_sync_now_hint" = "首次登录后，媒体同步通常不会立即完成。请保持 App 打开，并耐心等待同步完成。";
 "sync_settings_timeout" = "网络超时";
 "sync_settings_timeout_seconds" = "%d 秒";
 "sync_settings_sync_media_now" = "立即同步媒体";

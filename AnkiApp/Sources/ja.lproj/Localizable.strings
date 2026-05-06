@@ -563,6 +563,8 @@
 "sync_settings_not_logged_in" = "未サインイン";
 "sync_settings_change_server" = "サーバーを変更";
 "sync_settings_sync_media" = "音声と画像を同期";
+"sync_settings_sync_now" = "今すぐ同期";
+"sync_settings_sync_now_hint" = "初回ログイン後は、メディア同期の完了まで時間がかかる場合があります。アプリを閉じず、そのまま同期が完了するまでお待ちください。";
 "sync_settings_timeout" = "ネットワークタイムアウト";
 "sync_settings_timeout_seconds" = "%d 秒";
 "sync_settings_sync_media_now" = "今すぐメディア同期";

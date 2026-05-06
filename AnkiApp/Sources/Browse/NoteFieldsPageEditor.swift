@@ -2635,7 +2635,17 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 height: hostScrollView.bounds.height - hostScrollView.adjustedContentInset.top - hostScrollView.adjustedContentInset.bottom
             ).insetBy(dx: 0, dy: 6)
 
-            guard visibleRect.height > 0, visibleRect.contains(targetRect) == false else { return }
+            guard visibleRect.height > 0 else { return }
+
+            if targetRect.height > visibleRect.height {
+                let visibleIntersection = targetRect.intersection(visibleRect)
+                let minimumVisibleHeight = min(max(visibleRect.height * 0.5, 44), 120)
+                if visibleIntersection.isNull == false, visibleIntersection.height >= minimumVisibleHeight {
+                    return
+                }
+            } else if visibleRect.contains(targetRect) {
+                return
+            }
 
             let deltaY: CGFloat
             if targetRect.minY < visibleRect.minY {
