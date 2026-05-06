@@ -861,7 +861,7 @@
 "browse_sort_created_asc" = "按创建时间（旧到新）";
 "browse_sort_alpha_asc" = "首字母（A → Z）";
 "browse_sort_alpha_desc" = "首字母（Z → A）";
-"browse_sort_menu_title" = "排序字段";
+"browse_sort_menu_title" = "排序方式";
 "browse_sort_order_forward" = "顺序排列";
 "browse_sort_order_reverse" = "倒序排列";
 "browse_display_note_type_subtitle" = "显示笔记模板副标题";
@@ -871,6 +871,7 @@
 "browse_sort_field_reviews" = "复习";
 "browse_sort_field_tags" = "标签";
 "browse_sort_field_added_date" = "添加日期";
+"browse_sort_field_sort_field" = "排序字段";
 "browse_sort_field_deck" = "牌组";
 "browse_sort_field_note_modified" = "笔记修改日期";
 "browse_sort_field_notetype" = "笔记模板";

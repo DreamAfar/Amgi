@@ -226,7 +226,7 @@ struct BrowseView: View {
                         Button {
                             showFindDuplicates = true
                         } label: {
-                            Label(L("browse_find_duplicates"), systemImage: "doc.on.doc.magnifyingglass")
+                            Label(L("browse_find_duplicates"), systemImage: "rectangle.and.text.magnifyingglass.rtl")
                         }
 
                         Menu {
@@ -1656,6 +1656,7 @@ enum BrowseSortField: CaseIterable {
     case reviews
     case tags
     case addedDate
+    case sortField
     case deck
     case noteModified
     case notetype
@@ -1671,6 +1672,7 @@ enum BrowseSortField: CaseIterable {
         case .reviews: "cardReps"
         case .tags: "noteTags"
         case .addedDate: "noteCrt"
+        case .sortField: "noteFld"
         case .deck: "deck"
         case .noteModified: "noteMod"
         case .notetype: "note"
@@ -1688,6 +1690,7 @@ enum BrowseSortField: CaseIterable {
         case .reviews: L("browse_sort_field_reviews")
         case .tags: L("browse_sort_field_tags")
         case .addedDate: L("browse_sort_field_added_date")
+        case .sortField: L("browse_sort_field_sort_field")
         case .deck: L("browse_sort_field_deck")
         case .noteModified: L("browse_sort_field_note_modified")
         case .notetype: L("browse_sort_field_notetype")
@@ -1705,6 +1708,7 @@ enum BrowseSortField: CaseIterable {
         case .reviews: "arrow.clockwise.circle"
         case .tags: "tag"
         case .addedDate: "calendar.badge.plus"
+        case .sortField: "textformat.characters"
         case .deck: "square.stack"
         case .noteModified: "note.text.badge.plus"
         case .notetype: "doc.text"
@@ -1993,7 +1997,7 @@ struct BrowseFindDuplicatesSheet: View {
                 } else if fieldNames.isEmpty {
                     ContentUnavailableView(
                         L("browse_find_duplicates"),
-                        systemImage: "doc.on.doc.magnifyingglass",
+                        systemImage: "rectangle.and.text.magnifyingglass.rtl",
                         description: Text(L("browse_find_duplicates_no_fields"))
                     )
                 } else {

@@ -861,7 +861,7 @@
 "browse_sort_created_asc" = "Created (Oldest)";
 "browse_sort_alpha_asc" = "Title (A → Z)";
 "browse_sort_alpha_desc" = "Title (Z → A)";
-"browse_sort_menu_title" = "Sort Field";
+"browse_sort_menu_title" = "Sort Mode";
 "browse_sort_order_forward" = "Forward Order";
 "browse_sort_order_reverse" = "Reverse Order";
 "browse_display_note_type_subtitle" = "Show note type subtitle";
@@ -871,6 +871,7 @@
 "browse_sort_field_reviews" = "Reviews";
 "browse_sort_field_tags" = "Tags";
 "browse_sort_field_added_date" = "Added Date";
+"browse_sort_field_sort_field" = "Sort Field";
 "browse_sort_field_deck" = "Deck";
 "browse_sort_field_note_modified" = "Note Modified";
 "browse_sort_field_notetype" = "Note Type";

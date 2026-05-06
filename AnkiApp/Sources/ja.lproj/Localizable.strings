@@ -861,7 +861,7 @@
 "browse_sort_created_asc" = "作成日時（古い順）";
 "browse_sort_alpha_asc" = "タイトル（A → Z）";
 "browse_sort_alpha_desc" = "タイトル（Z → A）";
-"browse_sort_menu_title" = "並び替え項目";
+"browse_sort_menu_title" = "並び替え方法";
 "browse_sort_order_forward" = "昇順";
 "browse_sort_order_reverse" = "降順";
 "browse_display_note_type_subtitle" = "ノートタイプの副題を表示";
@@ -871,6 +871,7 @@
 "browse_sort_field_reviews" = "復習";
 "browse_sort_field_tags" = "タグ";
 "browse_sort_field_added_date" = "追加日時";
+"browse_sort_field_sort_field" = "並べ替えフィールド";
 "browse_sort_field_deck" = "デッキ";
 "browse_sort_field_note_modified" = "ノート更新日時";
 "browse_sort_field_notetype" = "ノートタイプ";
