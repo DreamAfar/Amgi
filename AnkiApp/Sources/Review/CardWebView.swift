@@ -978,6 +978,16 @@ struct CardWebView: UIViewRepresentable {
             try { window.webkit.messageHandlers.amgiStopTts.postMessage(null); } catch(e) {}
         }
         window.amgiStopTts = amgiStopTts;
+        function amgiQueuePlayer() {
+            var player = document.getElementById('amgi-audio-queue-player');
+            if (player) return player;
+            player = document.createElement('audio');
+            player.id = 'amgi-audio-queue-player';
+            player.preload = 'auto';
+            player.style.display = 'none';
+            document.body.appendChild(player);
+            return player;
+        }
         function stopAllSystemAudio() {
             amgiStopTts();
             document.querySelectorAll('.anki-sound-audio').forEach(function(a) {
@@ -986,6 +996,15 @@ struct CardWebView: UIViewRepresentable {
                 setAudioButtonState(a.nextElementSibling, 'play');
                 a.onended = null;
             });
+            var queuePlayer = document.getElementById('amgi-audio-queue-player');
+            if (queuePlayer) {
+                queuePlayer.pause();
+                queuePlayer.currentTime = 0;
+                queuePlayer.onended = null;
+                queuePlayer.onerror = null;
+                queuePlayer.removeAttribute('src');
+                queuePlayer.load();
+            }
             notifyAudioState(false);
         }
         window.amgiStopAllAudio = stopAllSystemAudio;
@@ -1018,16 +1037,28 @@ struct CardWebView: UIViewRepresentable {
             stopAllSystemAudio();
             if (!queue || !queue.length) return;
             var idx = 0;
+            var currentBtn = null;
+            var player = amgiQueuePlayer();
             notifyAudioState(true);
+            function clearCurrentButton() {
+                if (!currentBtn) return;
+                setAudioButtonState(currentBtn, 'play');
+                currentBtn = null;
+            }
             function playNext() {
+                clearCurrentButton();
                 if (idx >= queue.length) { notifyAudioState(false); return; }
                 var audio = queue[idx];
-                var btn = audio.nextElementSibling;
-                audio.currentTime = 0;
-                audio.play().catch(function() { idx++; playNext(); });
-                setAudioButtonState(btn, 'pause');
-                audio.onended = function() { setAudioButtonState(btn, 'play'); idx++; playNext(); };
+                var src = audio.currentSrc || audio.src;
+                if (!src) { idx++; playNext(); return; }
+                currentBtn = audio.nextElementSibling;
+                setAudioButtonState(currentBtn, 'pause');
+                player.src = src;
+                player.currentTime = 0;
+                player.play().catch(function() { idx++; playNext(); });
             }
+            player.onended = function() { idx++; playNext(); };
+            player.onerror = function() { idx++; playNext(); };
             playNext();
         }
         function amgiReplayAll(mode) {
