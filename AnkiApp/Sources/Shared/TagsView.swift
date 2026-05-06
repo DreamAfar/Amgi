@@ -35,6 +35,9 @@ struct TagsView: View {
     @State private var showRenameTag = false
     @State private var tagToRename: String?
     @State private var renameTagName = ""
+    @State private var showClearUnusedConfirm = false
+    @State private var clearUnusedResultMessage: String?
+    @State private var showClearUnusedResult = false
 
     init(
         targetNoteIDs: [Int64] = [],
@@ -81,9 +84,30 @@ struct TagsView: View {
                         Image(systemName: "plus")
                     }
                 }
+                if !isNoteMode {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button(role: .destructive) {
+                                showClearUnusedConfirm = true
+                            } label: {
+                                Label(L("tags_clear_unused_action"), systemImage: "trash.slash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                    }
+                }
             }
             .sheet(isPresented: $showAddTag) {
                 addTagSheet
+            }
+            .alert(L("tags_clear_unused_title"), isPresented: $showClearUnusedConfirm) {
+                Button(L("common_cancel"), role: .cancel) { }
+                Button(L("tags_clear_unused_action"), role: .destructive) {
+                    Task { await clearUnusedTagsAction() }
+                }
+            } message: {
+                Text(L("tags_clear_unused_confirm"))
             }
             .alert(L("tags_delete_title"), isPresented: $showDeleteConfirm) {
                 Button(L("common_cancel"), role: .cancel) { }
@@ -116,6 +140,11 @@ struct TagsView: View {
                 Button(L("common_ok")) { }
             } message: {
                 Text(errorMessage ?? L("common_unknown_error"))
+            }
+            .alert(L("tags_clear_unused_title"), isPresented: $showClearUnusedResult) {
+                Button(L("common_ok")) { clearUnusedResultMessage = nil }
+            } message: {
+                Text(clearUnusedResultMessage ?? "")
             }
             .confirmationDialog(
                 L("tags_action_dialog_title", tagActionTag ?? ""),
@@ -365,6 +394,18 @@ struct TagsView: View {
             await loadTags()
         } catch {
             errorMessage = L("tags_error_rename", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func clearUnusedTagsAction() async {
+        do {
+            let removedCount = try tagClient.clearUnusedTags()
+            await loadTags()
+            clearUnusedResultMessage = L("tags_clear_unused_result", removedCount)
+            showClearUnusedResult = true
+        } catch {
+            errorMessage = L("tags_error_clear_unused", error.localizedDescription)
             showError = true
         }
     }

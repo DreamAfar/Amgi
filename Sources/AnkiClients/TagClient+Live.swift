@@ -43,6 +43,22 @@ extension TagClient: DependencyKey {
                     throw error
                 }
             },
+            clearUnusedTags: {
+                do {
+                    let response: Anki_Collection_OpChangesWithCount = try backend.invoke(
+                        service: AnkiBackend.Service.tags,
+                        method: AnkiBackend.TagsMethod.clearUnusedTags,
+                        request: Anki_Generic_Empty()
+                    )
+
+                    let removedCount = Int(response.count)
+                    logger.info("Cleared \(removedCount) unused tags")
+                    return removedCount
+                } catch {
+                    logger.error("clearUnusedTags failed: \(error)")
+                    throw error
+                }
+            },
             addTag: { tag in
                 let normalized = tag.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !normalized.isEmpty else {

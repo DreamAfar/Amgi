@@ -65,6 +65,7 @@ struct BrowseView: View {
     @State private var showTopLevelDecksSheet = false
     @State private var showChildDecksSheet = false
     @State private var showAllTagsSheet = false
+    @State private var showFindDuplicates = false
 
     private let preselectedDeck: DeckInfo?
     private let isActive: Bool
@@ -222,6 +223,12 @@ struct BrowseView: View {
                             Label(L("browse_tags_manage"), systemImage: "tag")
                         }
 
+                        Button {
+                            showFindDuplicates = true
+                        } label: {
+                            Label(L("browse_find_duplicates"), systemImage: "doc.on.doc.magnifyingglass")
+                        }
+
                         Menu {
                             ForEach(BrowseSortField.allCases, id: \.self) { field in
                                 Button {
@@ -285,6 +292,14 @@ struct BrowseView: View {
                 onSelectTag: tagsTargetNoteIDs.isEmpty ? { tag in
                     activeTag = tag
                 } : nil
+            )
+        }
+        .sheet(isPresented: $showFindDuplicates) {
+            BrowseFindDuplicatesSheet(
+                initialSearch: buildQuery(),
+                onOpenDuplicateGroup: { noteIDs in
+                    showDuplicateNotes(noteIDs)
+                }
             )
         }
         .confirmationDialog(
@@ -1326,6 +1341,14 @@ struct BrowseView: View {
         scheduleSearch()
     }
 
+    private func showDuplicateNotes(_ noteIDs: [Int64]) {
+        parentDeck = nil
+        activeDeck = nil
+        activeTag = nil
+        quickFilter = .all
+        searchText = BrowseFindDuplicatesSheet.noteIDsQuery(noteIDs)
+    }
+
     private func loadNotetypeNames() async {
         guard showNotetypeSubtitle else {
             notetypeNamesByID = [:]
@@ -1543,7 +1566,10 @@ enum BrowseQuickFilter: CaseIterable {
     case addedToday
     case studiedToday
     case newCards
+    case learning
     case review
+    case suspended
+    case buried
     case due
     case flag1
     case flag2
@@ -1554,7 +1580,7 @@ enum BrowseQuickFilter: CaseIterable {
     case flag7
 
     static var primaryCases: [BrowseQuickFilter] {
-        [.all, .addedToday, .studiedToday, .newCards, .review, .due]
+        [.all, .addedToday, .studiedToday, .newCards, .learning, .review, .suspended, .buried, .due]
     }
 
     static var flagCases: [BrowseQuickFilter] {
@@ -1571,7 +1597,10 @@ enum BrowseQuickFilter: CaseIterable {
         case .addedToday: "added:1"
         case .studiedToday: "rated:1"
         case .newCards: "is:new"
+        case .learning: "is:learn"
         case .review: "is:review"
+        case .suspended: "is:suspended"
+        case .buried: "is:buried"
         case .due: "prop:due<=0"
         case .flag1: "flag:1"
         case .flag2: "flag:2"
@@ -1589,7 +1618,10 @@ enum BrowseQuickFilter: CaseIterable {
         case .addedToday: L("browse_filter_added_today")
         case .studiedToday: L("browse_filter_studied_today")
         case .newCards: L("browse_filter_new_cards")
+        case .learning: L("card_queue_learning")
         case .review: L("browse_filter_review")
+        case .suspended: L("stats_card_suspended")
+        case .buried: L("stats_card_buried")
         case .due: L("browse_filter_due")
         case .flag1: L("browse_filter_flag", 1)
         case .flag2: L("browse_filter_flag", 2)
@@ -1607,7 +1639,10 @@ enum BrowseQuickFilter: CaseIterable {
         case .addedToday: "calendar.badge.plus"
         case .studiedToday: "calendar.badge.clock"
         case .newCards: "sparkles.rectangle.stack"
+        case .learning: "text.badge.clock"
         case .review: "arrow.clockwise.circle"
+        case .suspended: "pause.circle"
+        case .buried: "tray.and.arrow.down"
         case .due: "clock.badge.exclamationmark"
         case .flag1, .flag2, .flag3, .flag4, .flag5, .flag6, .flag7: "flag"
         }
@@ -1911,6 +1946,282 @@ struct ChangeNotetypeSheet: View {
             errorMessage = error.localizedDescription
             showError = true
         }
+    }
+}
+
+private struct BrowseDuplicateGroup: Identifiable {
+    let value: String
+    let noteIDs: [Int64]
+
+    var id: String { value + ":" + noteIDs.map(String.init).joined(separator: ",") }
+}
+
+struct BrowseFindDuplicatesSheet: View {
+    let initialSearch: String
+    let onOpenDuplicateGroup: ([Int64]) -> Void
+
+    @Dependency(\.noteClient) var noteClient
+    @Dependency(\.tagClient) var tagClient
+    @Dependency(\.ankiBackend) var backend
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var searchText: String
+    @State private var fieldNames: [String] = []
+    @State private var selectedField = ""
+    @State private var fieldIndexByNotetypeID: [Int64: [String: Int]] = [:]
+    @State private var duplicateGroups: [BrowseDuplicateGroup] = []
+    @State private var isLoadingFields = true
+    @State private var isSearching = false
+    @State private var hasSearched = false
+    @State private var resultMessage: String?
+    @State private var showResultMessage = false
+    @State private var errorMessage: String?
+    @State private var showError = false
+
+    init(initialSearch: String, onOpenDuplicateGroup: @escaping ([Int64]) -> Void) {
+        self.initialSearch = initialSearch
+        self.onOpenDuplicateGroup = onOpenDuplicateGroup
+        _searchText = State(initialValue: initialSearch)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoadingFields {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if fieldNames.isEmpty {
+                    ContentUnavailableView(
+                        L("browse_find_duplicates"),
+                        systemImage: "doc.on.doc.magnifyingglass",
+                        description: Text(L("browse_find_duplicates_no_fields"))
+                    )
+                } else {
+                    content
+                }
+            }
+            .navigationTitle(L("browse_find_duplicates"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_cancel")) { dismiss() }
+                        .amgiToolbarTextButton(tone: .neutral)
+                }
+            }
+            .alert(L("common_error"), isPresented: $showError) {
+                Button(L("common_ok"), role: .cancel) { }
+            } message: {
+                Text(errorMessage ?? L("common_unknown_error"))
+            }
+            .alert(L("browse_find_duplicates"), isPresented: $showResultMessage) {
+                Button(L("common_ok"), role: .cancel) { resultMessage = nil }
+            } message: {
+                Text(resultMessage ?? "")
+            }
+            .task {
+                await loadFieldMetadata()
+            }
+        }
+    }
+
+    private var content: some View {
+        List {
+            Section(L("browse_find_duplicates_search_section")) {
+                Picker(L("browse_find_duplicates_field"), selection: $selectedField) {
+                    ForEach(fieldNames, id: \.self) { fieldName in
+                        Text(fieldName).tag(fieldName)
+                    }
+                }
+
+                TextField(L("browse_find_duplicates_search_placeholder"), text: $searchText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                Button {
+                    Task { await findDuplicates() }
+                } label: {
+                    HStack {
+                        Label(L("browse_find_duplicates_run"), systemImage: "magnifyingglass")
+                        Spacer()
+                        if isSearching {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(selectedField.isEmpty || isSearching)
+            }
+
+            if hasSearched {
+                Section {
+                    if duplicateGroups.isEmpty {
+                        Text(L("browse_find_duplicates_none"))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    } else {
+                        Text(L("browse_find_duplicates_summary", duplicateGroups.count, totalDuplicateNotes))
+                            .foregroundStyle(Color.amgiTextSecondary)
+
+                        Button {
+                            Task { await tagDuplicates() }
+                        } label: {
+                            Label(L("browse_find_duplicates_tag_duplicates"), systemImage: "tag")
+                        }
+                        .disabled(isSearching)
+                    }
+                }
+
+                if !duplicateGroups.isEmpty {
+                    Section(L("browse_find_duplicates_results_section")) {
+                        ForEach(duplicateGroups) { group in
+                            Button {
+                                onOpenDuplicateGroup(group.noteIDs)
+                                dismiss()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(group.value)
+                                        .foregroundStyle(Color.amgiTextPrimary)
+                                        .lineLimit(2)
+                                    Text(L("browse_note_count", group.noteIDs.count))
+                                        .amgiFont(.caption)
+                                        .foregroundStyle(Color.amgiTextSecondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .listStyle(.insetGrouped)
+    }
+
+    private var totalDuplicateNotes: Int {
+        duplicateGroups.reduce(0) { $0 + $1.noteIDs.count }
+    }
+
+    static func noteIDsQuery(_ noteIDs: [Int64]) -> String {
+        let uniqueIDs = Array(Set(noteIDs)).sorted()
+        guard !uniqueIDs.isEmpty else { return "nid:0" }
+        return "nid:" + uniqueIDs.map(String.init).joined(separator: ",")
+    }
+
+    private func loadFieldMetadata() async {
+        isLoadingFields = true
+        defer { isLoadingFields = false }
+
+        do {
+            let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.getNotetypeNames
+            )
+
+            var allFieldNames: [String] = []
+            var seenFieldNames = Set<String>()
+            var fieldMapByNotetypeID: [Int64: [String: Int]] = [:]
+
+            for entry in response.entries {
+                guard let notetype = try? fetchNotetype(backend: backend, id: entry.id) else {
+                    continue
+                }
+
+                var fieldIndexMap: [String: Int] = [:]
+                for (index, field) in notetype.fields.enumerated() {
+                    let normalized = field.name.lowercased()
+                    fieldIndexMap[normalized] = index
+                    if seenFieldNames.insert(normalized).inserted {
+                        allFieldNames.append(field.name)
+                    }
+                }
+                fieldMapByNotetypeID[entry.id] = fieldIndexMap
+            }
+
+            fieldNames = allFieldNames.sorted {
+                $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+            }
+            fieldIndexByNotetypeID = fieldMapByNotetypeID
+            if selectedField.isEmpty {
+                selectedField = fieldNames.first ?? ""
+            }
+        } catch {
+            fieldNames = []
+            fieldIndexByNotetypeID = [:]
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    private func findDuplicates() async {
+        guard !selectedField.isEmpty else { return }
+        isSearching = true
+        defer { isSearching = false }
+
+        do {
+            let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let noteIDs = try noteClient.searchIds(trimmedSearch)
+
+            var groupedIDs: [String: [Int64]] = [:]
+            let normalizedFieldName = selectedField.lowercased()
+            let batchSize = 250
+            var startIndex = 0
+
+            while startIndex < noteIDs.count {
+                let endIndex = min(startIndex + batchSize, noteIDs.count)
+                let batch = Array(noteIDs[startIndex..<endIndex])
+                let notes = try noteClient.fetchBatch(batch)
+
+                for note in notes {
+                    guard let fieldIndex = fieldIndexByNotetypeID[note.mid]?[normalizedFieldName],
+                          let rawValue = note.readerLookupFieldValue(at: fieldIndex) else {
+                        continue
+                    }
+
+                    let normalizedValue = Self.normalizedFieldValue(rawValue)
+                    guard !normalizedValue.isEmpty else { continue }
+                    groupedIDs[normalizedValue, default: []].append(note.id)
+                }
+
+                startIndex = endIndex
+            }
+
+            duplicateGroups = groupedIDs
+                .filter { $0.value.count > 1 }
+                .map { BrowseDuplicateGroup(value: $0.key, noteIDs: $0.value.sorted()) }
+                .sorted { lhs, rhs in
+                    lhs.value.localizedCaseInsensitiveCompare(rhs.value) == .orderedAscending
+                }
+            hasSearched = true
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    private func tagDuplicates() async {
+        let noteIDs = Array(Set(duplicateGroups.flatMap(\.noteIDs))).sorted()
+        guard !noteIDs.isEmpty else { return }
+
+        do {
+            let duplicateTag = L("browse_find_duplicates_duplicate_tag")
+            try tagClient.addTagToNotes(duplicateTag, noteIDs)
+            resultMessage = L("browse_find_duplicates_tagged", noteIDs.count, duplicateTag)
+            showResultMessage = true
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    static func normalizedFieldValue(_ value: String) -> String {
+        var normalized = value
+            .replacingOccurrences(of: "(?is)\\[sound:[^\\]]+\\]", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "(?is)<style[^>]*>.*?</style>", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "(?is)<script[^>]*>.*?</script>", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "(?is)<[^>]+>", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+
+        normalized = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized
     }
 }
 

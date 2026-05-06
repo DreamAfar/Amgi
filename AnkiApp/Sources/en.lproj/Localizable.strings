@@ -160,6 +160,7 @@
 "browse_batch_tags_remove" = "Remove Tags";
 "browse_total_count" = "%d notes";
 "browse_tags_manage" = "Tag Manager";
+"browse_find_duplicates" = "Find Duplicates";
 "browse_delete_note_title" = "Delete Note?";
 "browse_delete_note_message" = "Are you sure you want to delete '%@'?";
 "browse_edit_btn_add" = "Add Note";
@@ -818,6 +819,17 @@
 // MARK: - BrowseView (extended)
 "browse_title" = "Browse";
 "browse_note_count" = "%d notes";
+"browse_find_duplicates_search_section" = "Duplicate Search";
+"browse_find_duplicates_field" = "Field";
+"browse_find_duplicates_search_placeholder" = "Optional search filter";
+"browse_find_duplicates_run" = "Search";
+"browse_find_duplicates_no_fields" = "No fields are available for duplicate checking.";
+"browse_find_duplicates_none" = "No duplicates found.";
+"browse_find_duplicates_summary" = "Found %d groups across %d notes.";
+"browse_find_duplicates_results_section" = "Results";
+"browse_find_duplicates_tag_duplicates" = "Tag Duplicates";
+"browse_find_duplicates_duplicate_tag" = "duplicate";
+"browse_find_duplicates_tagged" = "Tagged %d notes with '%@'.";
 "browse_selected_count" = "%d selected";
 "browse_select_all" = "Select All";
 "browse_select_invert" = "Invert";
@@ -957,6 +969,11 @@
 "tags_rename_confirm" = "Rename";
 "tags_rename_swipe" = "Rename";
 "tags_error_rename" = "Failed to rename tag: %@";
+"tags_clear_unused_title" = "Clear Unused Tags";
+"tags_clear_unused_action" = "Clear Unused Tags";
+"tags_clear_unused_confirm" = "Remove tags that are no longer used by any notes?";
+"tags_clear_unused_result" = "Removed %d unused tags.";
+"tags_error_clear_unused" = "Failed to clear unused tags: %@";
 
 // MARK: - ReviewView (extended)
 "review_reviewed_count" = "Reviewed: %d";

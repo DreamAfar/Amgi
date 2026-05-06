@@ -160,6 +160,7 @@
 "browse_batch_tags_remove" = "タグを削除";
 "browse_total_count" = "%d 件のノート";
 "browse_tags_manage" = "タグ管理";
+"browse_find_duplicates" = "重複を検索";
 "browse_delete_note_title" = "ノートを削除しますか？";
 "browse_delete_note_message" = "「%@」を削除してもよろしいですか？";
 "browse_edit_btn_add" = "ノートを追加";
@@ -818,6 +819,17 @@
 // MARK: - BrowseView (extended)
 "browse_title" = "ブラウズ";
 "browse_note_count" = "%d 件のノート";
+"browse_find_duplicates_search_section" = "重複検索";
+"browse_find_duplicates_field" = "フィールド";
+"browse_find_duplicates_search_placeholder" = "任意の検索フィルター";
+"browse_find_duplicates_run" = "検索";
+"browse_find_duplicates_no_fields" = "重複チェックに使えるフィールドがありません。";
+"browse_find_duplicates_none" = "重複は見つかりませんでした。";
+"browse_find_duplicates_summary" = "%d グループ、%d 件のノートで重複が見つかりました。";
+"browse_find_duplicates_results_section" = "結果";
+"browse_find_duplicates_tag_duplicates" = "重複にタグ付け";
+"browse_find_duplicates_duplicate_tag" = "重複";
+"browse_find_duplicates_tagged" = "%d 件のノートに「%@」タグを追加しました。";
 "browse_selected_count" = "%d 選択中";
 "browse_select_all" = "すべて選択";
 "browse_select_invert" = "選択を反転";
@@ -957,6 +969,11 @@
 "tags_rename_confirm" = "変更";
 "tags_rename_swipe" = "名前を変更";
 "tags_error_rename" = "タグ名の変更に失敗：%@";
+"tags_clear_unused_title" = "未使用タグを削除";
+"tags_clear_unused_action" = "未使用タグを削除";
+"tags_clear_unused_confirm" = "どのノートにも使われていないタグを削除しますか？";
+"tags_clear_unused_result" = "未使用タグを %d 件削除しました。";
+"tags_error_clear_unused" = "未使用タグの削除に失敗：%@";
 
 // MARK: - ReviewView (extended)
 "review_reviewed_count" = "復習済み：%d";

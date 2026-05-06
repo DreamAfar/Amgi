@@ -160,6 +160,7 @@
 "browse_batch_tags_remove" = "删除标签";
 "browse_total_count" = "%d 条笔记";
 "browse_tags_manage" = "标签管理";
+"browse_find_duplicates" = "查找重复";
 "browse_delete_note_title" = "删除笔记？";
 "browse_delete_note_message" = "确认删除「%@」？";
 "browse_edit_btn_add" = "添加笔记";
@@ -818,6 +819,17 @@
 // MARK: - BrowseView (extended)
 "browse_title" = "浏览";
 "browse_note_count" = "%d 条笔记";
+"browse_find_duplicates_search_section" = "重复查找";
+"browse_find_duplicates_field" = "字段";
+"browse_find_duplicates_search_placeholder" = "可选搜索过滤条件";
+"browse_find_duplicates_run" = "开始查找";
+"browse_find_duplicates_no_fields" = "当前没有可用于重复检查的字段。";
+"browse_find_duplicates_none" = "未找到重复项。";
+"browse_find_duplicates_summary" = "共找到 %d 组重复，涉及 %d 条笔记。";
+"browse_find_duplicates_results_section" = "结果";
+"browse_find_duplicates_tag_duplicates" = "为重复项加标签";
+"browse_find_duplicates_duplicate_tag" = "重复";
+"browse_find_duplicates_tagged" = "已为 %d 条笔记添加“%@”标签。";
 "browse_selected_count" = "已选 %d 条";
 "browse_select_all" = "全选";
 "browse_select_invert" = "反选";
@@ -957,6 +969,11 @@
 "tags_rename_confirm" = "重命名";
 "tags_rename_swipe" = "重命名";
 "tags_error_rename" = "重命名标签失败：%@";
+"tags_clear_unused_title" = "删除未使用的标签";
+"tags_clear_unused_action" = "删除未使用的标签";
+"tags_clear_unused_confirm" = "删除当前未被任何笔记使用的标签？";
+"tags_clear_unused_result" = "已删除 %d 个未使用标签。";
+"tags_error_clear_unused" = "删除未使用标签失败：%@";
 
 // MARK: - ReviewView (extended)
 "review_reviewed_count" = "已复习：%d";

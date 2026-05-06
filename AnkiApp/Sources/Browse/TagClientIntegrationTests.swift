@@ -6,6 +6,14 @@ import Dependencies
 
 // MARK: - TagClient Integration Tests
 final class TagClientIntegrationTests: XCTestCase {
+
+    final class TagStore {
+        var tags: [String]
+
+        init(tags: [String] = []) {
+            self.tags = tags
+        }
+    }
     
     // MARK: - Properties
     var tagClient: TagClient!
@@ -186,6 +194,31 @@ final class TagClientIntegrationTests: XCTestCase {
         
         // Then: Should return empty array
         XCTAssertEqual(noteIds, [], "Should return empty array for nonexistent tag")
+    }
+
+    func testClearUnusedTagsRemovesUnusedTagsFromCollection() {
+        let store = TagStore(tags: ["unused::one", "unused::two"])
+        let client = TagClient(
+            getAllTags: { store.tags },
+            clearUnusedTags: {
+                let removedCount = store.tags.count
+                store.tags.removeAll()
+                return removedCount
+            },
+            addTag: { tag in store.tags.append(tag) },
+            addTagToNotes: { _, _ in },
+            removeTagFromNotes: { _, _ in },
+            removeTag: { tag in store.tags.removeAll { $0 == tag } },
+            renameTag: { oldName, newName in
+                if let index = store.tags.firstIndex(of: oldName) {
+                    store.tags[index] = newName
+                }
+            },
+            findNotesByTag: { _ in [] }
+        )
+
+        XCTAssertEqual(try? client.clearUnusedTags(), 2)
+        XCTAssertEqual(client.getAllTags(), [])
     }
     
     // MARK: - Complex Scenarios
