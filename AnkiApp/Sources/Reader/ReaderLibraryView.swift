@@ -562,15 +562,80 @@ private struct ReaderBookCard: View {
     var isSelecting = false
     var isSelected = false
 
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ReaderBookCoverView(
+                noteCoverImagePath: item.noteBook?.coverImagePath,
+                epubCoverURL: item.epubBook?.coverURL,
+                progress: item.progress,
+                source: item.source,
+                isSelecting: isSelecting,
+                isSelected: isSelected
+            )
+                .aspectRatio(ReaderLibraryView.bookCoverAspectRatio, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+
+            Text(item.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.amgiTextPrimary)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 34, alignment: .topLeading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct ReaderBookCoverView: View {
+    let noteCoverImagePath: String?
+    let epubCoverURL: URL?
+    let progress: Double
+    let source: ReaderLibraryBookItem.Source
+    var isSelecting = false
+    var isSelected = false
+
+    @State private var image: UIImage?
+
+    private let innerCornerRadius: CGFloat = 18
+    private let outerCornerRadius: CGFloat = 20
+
     private var progressLabel: String {
-        String(format: "%.0f%%", min(max(item.progress, 0), 1) * 100)
+        String(format: "%.1f%%", min(max(progress, 0), 1) * 100)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ReaderBookCoverView(noteCoverImagePath: item.noteBook?.coverImagePath, epubCoverURL: item.epubBook?.coverURL)
-                .aspectRatio(ReaderLibraryView.bookCoverAspectRatio, contentMode: .fit)
-                .frame(maxWidth: .infinity)
+        Group {
+            if #available(iOS 26, *) {
+                cover
+                    .padding(3)
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
+            } else {
+                cover
+                    .padding(3)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
+                            .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
+                    }
+                    .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
+            }
+        }
+        .task(id: noteCoverImagePath) {
+            guard epubCoverURL == nil else {
+                image = nil
+                return
+            }
+            if let data = await ReaderBookCoverLoader.loadImageData(from: noteCoverImagePath) {
+                image = UIImage(data: data)
+            } else {
+                image = nil
+            }
+        }
+    }
+
+    private var cover: some View {
+        VStack(spacing: 3) {
+            coverImage
                 .overlay(alignment: .topTrailing) {
                     if isSelecting {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -580,47 +645,27 @@ private struct ReaderBookCard: View {
                     }
                 }
                 .overlay(alignment: .bottomTrailing) {
-                    ReaderBookSourceBadge(source: item.source)
+                    ReaderBookSourceBadge(source: source)
                         .padding(10)
                 }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
-                }
-                .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(item.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.amgiTextPrimary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: 34, alignment: .topLeading)
+            HStack(spacing: 8) {
+                ProgressView(value: progress)
+                    .tint(.secondary.opacity(0.4))
 
-                HStack(spacing: 8) {
-                    ProgressView(value: item.progress)
-                        .tint(Color.amgiAccent)
-
-                    Text(progressLabel)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(Color.amgiTextSecondary)
-                        .monospacedDigit()
-                }
+                Text(progressLabel)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
             }
-            .frame(height: 46, alignment: .top)
+            .padding(.horizontal, 2)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
-}
 
-private struct ReaderBookCoverView: View {
-    let noteCoverImagePath: String?
-    let epubCoverURL: URL?
-
-    @State private var image: UIImage?
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 20, style: .continuous)
+    @ViewBuilder
+    private var coverImage: some View {
+        RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
             .fill(
                 LinearGradient(
                     colors: [Color.amgiAccent.opacity(0.18), Color.amgiSurfaceElevated],
@@ -649,22 +694,7 @@ private struct ReaderBookCoverView: View {
                         .foregroundStyle(Color.amgiAccent)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
-            }
-            .task(id: noteCoverImagePath) {
-                guard epubCoverURL == nil else {
-                    image = nil
-                    return
-                }
-                if let data = await ReaderBookCoverLoader.loadImageData(from: noteCoverImagePath) {
-                    image = UIImage(data: data)
-                } else {
-                    image = nil
-                }
-            }
+            .clipShape(RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous))
     }
 }
 
@@ -956,10 +986,22 @@ private struct ReaderChapterView: View {
             max(book.overallReadingProgress(chapterIndex: currentChapterIndex, chapterProgress: progress), 0),
             1
         )
+        let chapterLabel = L("reader_reader_position_chapter_only", currentChapterIndex + 1, book.chapters.count)
         if showPercentage {
-            return L("reader_reader_position", currentChapterIndex + 1, book.chapters.count, overallProgress * 100)
+            let percentage = overallProgress * 100
+            let precision: Int
+            switch percentage {
+            case ..<0.1:
+                precision = 3
+            case ..<1:
+                precision = 2
+            default:
+                precision = 1
+            }
+            let formattedPercentage = String(format: "%.\(precision)f%%", percentage)
+            return "\(chapterLabel)   \(formattedPercentage)"
         }
-        return L("reader_reader_position_chapter_only", currentChapterIndex + 1, book.chapters.count)
+        return chapterLabel
     }
 
     private var lookupLanguageHint: String? {

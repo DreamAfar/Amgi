@@ -148,6 +148,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         let linkColor = colorScheme == .dark ? "#8FB8FF" : "#1E5BB8"
         let accentColor = colorScheme == .dark ? "#8FB8FF" : "#2C6BED"
         let selectionColor = colorScheme == .dark ? "rgba(143,184,255,0.26)" : "rgba(30,91,184,0.18)"
+        let sourceTagColor = colorScheme == .dark ? "#7AD97A" : "#208A20"
+        let sourceAttrNameColor = colorScheme == .dark ? "#86A8FF" : "#2048C9"
+        let sourceAttrValueColor = colorScheme == .dark ? "#FF9A8A" : "#C43131"
+        let sourceCommentColor = colorScheme == .dark ? "#8FA0B8" : "#7A879B"
         let mathJaxConfigScriptURL = noteFieldsJavaScriptStringLiteral(CardAssetPath.mathJaxConfigScriptURLString)
         let mathJaxCoreScriptURL = noteFieldsJavaScriptStringLiteral(CardAssetPath.mathJaxCoreScriptURLString)
 
@@ -172,6 +176,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             --link-color: \(linkColor);
             --accent-color: \(accentColor);
             --selection-color: \(selectionColor);
+            --source-tag-color: \(sourceTagColor);
+            --source-attr-name-color: \(sourceAttrNameColor);
+            --source-attr-value-color: \(sourceAttrValueColor);
+            --source-comment-color: \(sourceCommentColor);
         }
         html, body {
             margin: 0;
@@ -305,8 +313,57 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             color: var(--text-color);
             white-space: pre-wrap;
         }
+        .field-source-stack {
+            position: relative;
+            display: none;
+        }
+        .field-source-highlight {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            border: none;
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+            font: -apple-system-body;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            line-height: 1.45;
+            white-space: pre-wrap;
+        }
+        .field-source-highlight-content {
+            display: block;
+            min-height: 13px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            transform: translate(0, 0);
+        }
+        .field-source.is-syntax-highlighted {
+            position: relative;
+            z-index: 1;
+            color: transparent;
+            caret-color: var(--text-color);
+            -webkit-text-fill-color: transparent;
+        }
+        .field-source-highlight .source-syntax-tag,
+        .field-source-highlight .source-syntax-tag-punctuation {
+            color: var(--source-tag-color);
+        }
+        .field-source-highlight .source-syntax-attr-name {
+            color: var(--source-attr-name-color);
+        }
+        .field-source-highlight .source-syntax-attr-value {
+            color: var(--source-attr-value-color);
+        }
+        .field-source-highlight .source-syntax-comment {
+            color: var(--source-comment-color);
+        }
         .field.is-source-mode .field-editor-shell {
             background: var(--shell-background);
+        }
+        .field.is-source-mode .field-source-stack {
+            display: block;
         }
         .field.is-source-mode .field-source {
             display: block;
@@ -438,9 +495,233 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             return fieldElement(index)?.querySelector('.field-preview');
         }
 
+        function sourceHighlightElement(index) {
+            return fieldElement(index)?.querySelector('.field-source-highlight-content');
+        }
+
+        function sourceSelectionIndex(textarea) {
+            if (!textarea) { return 0; }
+            const start = textarea.selectionStart || 0;
+            const end = textarea.selectionEnd || 0;
+            if (textarea.selectionDirection === 'backward') {
+                return start;
+            }
+            return end;
+        }
+
+        function sourceCaretRect(index) {
+            const source = sourceElement(index);
+            if (!source) { return null; }
+
+            const computedStyle = window.getComputedStyle(source);
+            const caretIndex = Math.min(sourceSelectionIndex(source), (source.value || '').length);
+            const mirror = document.createElement('div');
+            const marker = document.createElement('span');
+            const beforeCaret = (source.value || '').slice(0, caretIndex);
+            const sourceRect = source.getBoundingClientRect();
+
+            mirror.setAttribute('aria-hidden', 'true');
+            mirror.style.position = 'fixed';
+            mirror.style.left = '0';
+            mirror.style.top = '0';
+            mirror.style.visibility = 'hidden';
+            mirror.style.pointerEvents = 'none';
+            mirror.style.whiteSpace = 'pre-wrap';
+            mirror.style.overflowWrap = 'anywhere';
+            mirror.style.wordBreak = 'break-word';
+            mirror.style.boxSizing = computedStyle.boxSizing;
+            mirror.style.width = source.clientWidth + 'px';
+            mirror.style.padding = computedStyle.padding;
+            mirror.style.border = computedStyle.border;
+            mirror.style.font = computedStyle.font;
+            mirror.style.lineHeight = computedStyle.lineHeight;
+            mirror.style.letterSpacing = computedStyle.letterSpacing;
+            mirror.style.textTransform = computedStyle.textTransform;
+            mirror.style.textIndent = computedStyle.textIndent;
+            mirror.style.tabSize = computedStyle.tabSize;
+
+            mirror.textContent = beforeCaret;
+            marker.textContent = String.fromCharCode(8203);
+            mirror.appendChild(marker);
+            document.body.appendChild(mirror);
+
+            const mirrorRect = mirror.getBoundingClientRect();
+            const markerRect = marker.getBoundingClientRect();
+            const lineHeight = Number.parseFloat(computedStyle.lineHeight || '') || markerRect.height || 24;
+            mirror.remove();
+
+            const caretLeft = sourceRect.left + (markerRect.left - mirrorRect.left) - source.scrollLeft;
+            const caretTop = sourceRect.top + (markerRect.top - mirrorRect.top) - source.scrollTop;
+            return {
+                left: caretLeft,
+                top: caretTop,
+                right: caretLeft + Math.max(markerRect.width, 2),
+                bottom: caretTop + Math.max(lineHeight, markerRect.height, 24),
+                width: Math.max(markerRect.width, 2),
+                height: Math.max(lineHeight, markerRect.height, 24),
+            };
+        }
+
+        function escapeHTML(text) {
+            return (text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function highlightHTMLTagTail(raw) {
+            let index = 0;
+            let result = '';
+            while (index < raw.length) {
+                if (/\\s/.test(raw[index])) {
+                    const start = index;
+                    while (index < raw.length && /\\s/.test(raw[index])) {
+                        index += 1;
+                    }
+                    result += escapeHTML(raw.slice(start, index));
+                    continue;
+                }
+
+                if (raw[index] === '/') {
+                    result += '<span class="source-syntax-tag-punctuation">/</span>';
+                    index += 1;
+                    continue;
+                }
+
+                const nameStart = index;
+                while (index < raw.length && /[^\\s=/>]/.test(raw[index])) {
+                    index += 1;
+                }
+                const attributeName = raw.slice(nameStart, index);
+                if (!attributeName) {
+                    result += escapeHTML(raw[index] || '');
+                    index += 1;
+                    continue;
+                }
+                result += `<span class="source-syntax-attr-name">${escapeHTML(attributeName)}</span>`;
+
+                const whitespaceStart = index;
+                while (index < raw.length && /\\s/.test(raw[index])) {
+                    index += 1;
+                }
+                result += escapeHTML(raw.slice(whitespaceStart, index));
+
+                if (raw[index] !== '=') {
+                    continue;
+                }
+
+                result += '<span class="source-syntax-attr-value">=</span>';
+                index += 1;
+
+                const valueWhitespaceStart = index;
+                while (index < raw.length && /\\s/.test(raw[index])) {
+                    index += 1;
+                }
+                result += escapeHTML(raw.slice(valueWhitespaceStart, index));
+
+                if (index >= raw.length) {
+                    break;
+                }
+
+                const quote = raw[index];
+                if (quote === '"' || quote === "'") {
+                    const valueStart = index;
+                    index += 1;
+                    while (index < raw.length && raw[index] !== quote) {
+                        index += 1;
+                    }
+                    if (index < raw.length) {
+                        index += 1;
+                    }
+                    result += `<span class="source-syntax-attr-value">${escapeHTML(raw.slice(valueStart, index))}</span>`;
+                    continue;
+                }
+
+                const valueStart = index;
+                while (index < raw.length && /[^\\s/>]/.test(raw[index])) {
+                    index += 1;
+                }
+                result += `<span class="source-syntax-attr-value">${escapeHTML(raw.slice(valueStart, index))}</span>`;
+            }
+            return result;
+        }
+
+        function highlightHTMLToken(token) {
+            if (token.startsWith('<!--')) {
+                return `<span class="source-syntax-comment">${escapeHTML(token)}</span>`;
+            }
+
+            const isClosingTag = /^<\\//.test(token);
+            const isSelfClosingTag = /\\/>$/.test(token);
+            const inner = token.slice(
+                isClosingTag ? 2 : 1,
+                isSelfClosingTag ? -2 : -1
+            );
+            const leadingWhitespaceMatch = inner.match(/^\\s*/);
+            const leadingWhitespace = leadingWhitespaceMatch ? leadingWhitespaceMatch[0] : '';
+            const trimmedInner = inner.slice(leadingWhitespace.length);
+            const tagNameMatch = trimmedInner.match(/^([^\\s/>]+)/);
+
+            if (!tagNameMatch) {
+                return `<span class="source-syntax-tag">${escapeHTML(token)}</span>`;
+            }
+
+            const tagName = tagNameMatch[1];
+            const tail = trimmedInner.slice(tagName.length);
+            return [
+                '<span class="source-syntax-tag-punctuation">&lt;</span>',
+                isClosingTag ? '<span class="source-syntax-tag-punctuation">/</span>' : '',
+                escapeHTML(leadingWhitespace),
+                `<span class="source-syntax-tag">${escapeHTML(tagName)}</span>`,
+                highlightHTMLTagTail(tail),
+                isSelfClosingTag ? '<span class="source-syntax-tag-punctuation">/</span>' : '',
+                '<span class="source-syntax-tag-punctuation">&gt;</span>'
+            ].join('');
+        }
+
+        function highlightHTMLSource(source) {
+            const input = source || '';
+            const tagRegex = /<!--[\\s\\S]*?-->|<\\/?[A-Za-z][^>]*?>/g;
+            let result = '';
+            let lastIndex = 0;
+            let match = null;
+
+            while ((match = tagRegex.exec(input)) !== null) {
+                result += escapeHTML(input.slice(lastIndex, match.index));
+                result += highlightHTMLToken(match[0]);
+                lastIndex = match.index + match[0].length;
+            }
+
+            result += escapeHTML(input.slice(lastIndex));
+            return result;
+        }
+
+        function syncSourceHighlightScroll(index) {
+            const source = sourceElement(index);
+            const highlight = sourceHighlightElement(index);
+            if (!source || !highlight) { return; }
+            highlight.style.transform = `translate(${-source.scrollLeft}px, ${-source.scrollTop}px)`;
+        }
+
+        function syncSourceHighlight(index) {
+            const source = sourceElement(index);
+            const highlight = sourceHighlightElement(index);
+            if (!source || !highlight) { return; }
+            const highlightedHTML = highlightHTMLSource(source.value || '');
+            highlight.innerHTML = highlightedHTML || '<br>';
+            syncSourceHighlightScroll(index);
+        }
+
         function activeCaretRect(index) {
             if (state.fields[index]?.isSourceMode) {
-                return rectPayload(sourceElement(index) || editorShellElement(index) || fieldElement(index));
+                return rectPayload(
+                    sourceCaretRect(index)
+                    || sourceElement(index)
+                    || editorShellElement(index)
+                    || fieldElement(index)
+                );
             }
 
             const selection = window.getSelection();
@@ -1113,7 +1394,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             }
             section.classList.toggle('is-source-mode', !!field.isSourceMode);
             editorShellElement(index)?.classList.toggle('is-source-mode', !!field.isSourceMode);
-            if (field.isSourceMode && source) { autosizeTextarea(source); }
+            if (source) {
+                autosizeTextarea(source);
+                syncSourceHighlight(index);
+            }
             updatePreview(index);
             updateActionState(index);
         }
@@ -1149,9 +1433,13 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             source.addEventListener('input', () => {
                 state.fields[index].html = source.value;
                 autosizeTextarea(source);
+                syncSourceHighlight(index);
                 updatePreview(index);
                 debounceFieldChanged(index);
                 scheduleHeightUpdate();
+            });
+            source.addEventListener('scroll', () => {
+                syncSourceHighlightScroll(index);
             });
             source.addEventListener('blur', () => {
                 state.fields[index].html = source.value;
@@ -1252,13 +1540,26 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             rendered.autocorrect = 'off';
             shell.appendChild(rendered);
 
+            const sourceStack = document.createElement('div');
+            sourceStack.className = 'field-source-stack';
+
+            const sourceHighlight = document.createElement('pre');
+            sourceHighlight.className = 'field-source-highlight';
+            sourceHighlight.setAttribute('aria-hidden', 'true');
+
+            const sourceHighlightContent = document.createElement('code');
+            sourceHighlightContent.className = 'field-source-highlight-content';
+            sourceHighlight.appendChild(sourceHighlightContent);
+            sourceStack.appendChild(sourceHighlight);
+
             const source = document.createElement('textarea');
-            source.className = 'field-source';
+            source.className = 'field-source is-syntax-highlighted';
             source.spellcheck = false;
             source.autocapitalize = 'off';
             source.autocomplete = 'off';
             source.autocorrect = 'off';
-            shell.appendChild(source);
+            sourceStack.appendChild(source);
+            shell.appendChild(sourceStack);
 
             section.appendChild(shell);
 
