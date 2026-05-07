@@ -308,6 +308,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             margin: 0;
             font: -apple-system-body;
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 14px;
             line-height: 1.45;
             background: transparent;
             color: var(--text-color);
@@ -328,6 +329,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             color: var(--text-color);
             font: -apple-system-body;
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 14px;
             line-height: 1.45;
             white-space: pre-wrap;
         }
@@ -1440,6 +1442,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             });
             source.addEventListener('scroll', () => {
                 syncSourceHighlightScroll(index);
+                notify('sourceScrollInteraction', { index });
             });
             source.addEventListener('blur', () => {
                 state.fields[index].html = source.value;
@@ -2336,6 +2339,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         private var trackedHostContentInset: UIEdgeInsets = .zero
         private var trackedHostVerticalIndicatorInsets: UIEdgeInsets = .zero
         private var lastHostScrollInteractionTime: TimeInterval = 0
+        private var lastSourceScrollInteractionTime: TimeInterval = 0
 
         init(
             fieldValues: Binding<[String]>,
@@ -2503,6 +2507,12 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                    shouldScheduleLayoutDrivenVisibilityAdjustment() {
                     scheduleActiveFieldVisibilityAdjustment(target: .focus, delay: 0.01)
                 }
+            case "sourceScrollInteraction":
+                if let index = body["index"] as? Int {
+                    activeFieldIndex = max(0, index)
+                }
+                lastSourceScrollInteractionTime = Date.timeIntervalSinceReferenceDate
+                pendingVisibilityAdjustmentWorkItem?.cancel()
             case "fieldChanged":
                 guard let index = body["index"] as? Int,
                       let html = body["html"] as? String,
@@ -2698,6 +2708,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             target: ActiveFieldAlignmentTarget,
             delay: TimeInterval = 0.05
         ) {
+            guard isSourceScrollInteractionInCooldown() == false else { return }
             pendingVisibilityAdjustmentWorkItem?.cancel()
             let workItem = DispatchWorkItem { [weak self] in
                 self?.adjustActiveFieldVisibilityIfNeeded(target: target)
@@ -2711,6 +2722,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 pendingVisibilityAdjustmentWorkItem?.cancel()
                 return false
             }
+            if isSourceScrollInteractionInCooldown() {
+                pendingVisibilityAdjustmentWorkItem?.cancel()
+                return false
+            }
 
             // Ignore layout-driven reveal attempts immediately after the user scrolls
             // the list, otherwise the focused field can snap back into view.
@@ -2721,6 +2736,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         private func adjustActiveFieldVisibilityIfNeeded(target: ActiveFieldAlignmentTarget) {
             // Keep keyboard avoidance from snapping the list back while the user is scrolling it.
             guard isHostScrollUserInteractionInProgress() == false else { return }
+            guard isSourceScrollInteractionInCooldown() == false else { return }
             guard isPageReady, let webView else { return }
             let script = """
             (() => {
@@ -2904,6 +2920,11 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 lastHostScrollInteractionTime = Date.timeIntervalSinceReferenceDate
             }
             return isInteracting
+        }
+
+        private func isSourceScrollInteractionInCooldown() -> Bool {
+            let cooldown: TimeInterval = 0.45
+            return Date.timeIntervalSinceReferenceDate - lastSourceScrollInteractionTime < cooldown
         }
 
         private func alignmentRect(
