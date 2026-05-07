@@ -1,7 +1,6 @@
 import SwiftUI
 import AnkiBackend
 import AnkiProto
-import AnkiKit
 import Dependencies
 
 struct UncommittedCardPreviewSheet: View {
@@ -61,10 +60,6 @@ struct UncommittedCardPreviewSheet: View {
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
                     HStack(spacing: 12) {
-                        Text(currentTemplateName)
-                            .amgiFont(.bodyEmphasis)
-                            .foregroundStyle(Color.amgiTextSecondary)
-
                         Spacer()
 
                         if allowsTemplateSelection && notetype.templates.count > 1 {
@@ -75,18 +70,15 @@ struct UncommittedCardPreviewSheet: View {
                                     } label: {
                                         if selectedTemplateIndex == index {
                                             Label(template.name, systemImage: "checkmark")
+                                                .foregroundStyle(Color.amgiAccent)
                                         } else {
                                             Text(template.name)
+                                                .foregroundStyle(Color.amgiAccent)
                                         }
                                     }
                                 }
                             } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "chevron.up.chevron.down")
-                                        .font(AmgiFont.caption.font)
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                }
-                                .amgiCapsuleControl(horizontalPadding: 12, verticalPadding: 8)
+                                SettingsOptionCapsuleLabel(title: currentTemplateName)
                             }
                         }
                     }
@@ -288,33 +280,6 @@ private enum CardPreviewSide: CaseIterable {
             return L("deck_template_preview_back")
         }
     }
-}
-
-func buildCardPreviewNote(
-    from note: NoteRecord,
-    fieldValues: [String]? = nil,
-    tags: String? = nil
-) -> Anki_Notes_Note {
-    var preview = Anki_Notes_Note()
-    preview.id = note.id
-    preview.guid = note.guid
-    preview.notetypeID = note.mid
-    preview.mtimeSecs = UInt32(clamping: note.mod)
-    preview.usn = note.usn
-    preview.tags = (tags ?? note.tags)
-        .split(whereSeparator: { $0.isWhitespace })
-        .map(String.init)
-    preview.fields = fieldValues
-        ?? note.flds.split(separator: "\u{1f}", omittingEmptySubsequences: false).map(String.init)
-    return preview
-}
-
-func makeEmptyCardPreviewNote(notetypeId: Int64, fieldCount: Int) -> Anki_Notes_Note {
-    var preview = Anki_Notes_Note()
-    preview.notetypeID = notetypeId
-    preview.usn = -1
-    preview.fields = Array(repeating: "", count: max(fieldCount, 0))
-    return preview
 }
 
 private func renderCardPreviewNodes(_ nodes: [Anki_CardRendering_RenderedTemplateNode]) -> String {

@@ -1,4 +1,7 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
+import UIKit
 import AnkiKit
 import AnkiClients
 import AnkiBackend
@@ -8,8 +11,11 @@ import SwiftProtobuf
 
 struct AddNoteView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
+    @Dependency(\.mediaClient) var mediaClient
+    @AppStorage("amgi.add_note.session") private var persistedSessionData = ""
 
     @State private var decks: [DeckInfo] = []
     @State private var notetypeNames: [(Int64, String)] = []
@@ -17,14 +23,25 @@ struct AddNoteView: View {
     @State private var selectedNotetypeId: Int64 = 0
     @State private var fieldNames: [String] = []
     @State private var fieldValues: [String] = []
+    @State private var fieldSourceModes: [Bool] = []
     @State private var tags: String = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var previewErrorMessage: String?
     @State private var showPreviewError = false
-    @State private var showPreviewSheet = false
-    @State private var previewNotetype: Anki_Notetypes_Notetype?
+    @State private var previewContext: AddNotePreviewContext?
+    @State private var hasLoadedInitialData = false
+    @State private var isRestoringPersistedSession = false
+    @State private var restoredSession: PersistedAddNoteSession?
     @State private var shouldApplyDraftOnNextFieldLoad = false
+    @State private var shouldSkipNextNotetypeFieldReload = false
+    @State private var pendingMediaFieldIndex: Int?
+    @State private var showPhotoPicker = false
+    @State private var showCameraPicker = false
+    @State private var showMediaFileImporter = false
+    @State private var showAudioRecorder = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var imageOptimizationRequest: NoteImageOptimizationRequest?
 
     let onSave: () -> Void
     let preselectedDeckId: Int64?
@@ -40,6 +57,21 @@ struct AddNoteView: View {
         self.draft = draft
         _selectedDeckId = State(initialValue: draft?.deckID ?? preselectedDeckId ?? 1)
         _tags = State(initialValue: draft?.tags.joined(separator: " ") ?? "")
+    }
+
+    private var fieldEditorActionStates: [NoteFieldsPageEditorActionState] {
+        fieldNames.indices.map { index in
+            let fieldName = fieldNames[index]
+            let value = fieldValue(at: index)
+            return NoteFieldsPageEditorActionState(
+                showsAudioButton: MediaAudioPreview.isLikelyAudioFieldName(fieldName)
+                    || MediaAudioPreview.firstAudioFileName(in: value) != nil,
+                hasAudio: MediaAudioPreview.firstAudioFileName(in: value) != nil,
+                hasEditableImage: NoteFieldMediaSupport.firstImageFilename(in: value) != nil,
+                showsSourcePreview: containsEmbeddedMedia(value) || RichNoteFieldEditor.containsMathMarkup(value),
+                sourcePreviewHeight: sourcePreviewHeight(for: value)
+            )
+        }
     }
 
     var body: some View {
@@ -60,40 +92,30 @@ struct AddNoteView: View {
                         }
                     }
                     .onChange(of: selectedNotetypeId) {
+                        if shouldSkipNextNotetypeFieldReload {
+                            shouldSkipNextNotetypeFieldReload = false
+                            persistSession()
+                            return
+                        }
                         loadFields(applyingDraft: consumePendingDraftApplication())
                     }
                 }
 
                 Section(L("add_note_section_fields")) {
                     VStack(spacing: 0) {
-                        ForEach(Array(fieldNames.enumerated()), id: \.offset) { index, name in
-                            VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
-                                HStack(spacing: AmgiSpacing.sm) {
-                                    Text(name)
-                                        .amgiFont(.caption)
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                    Spacer()
-                                    if shouldShowAudioButton(fieldName: name, index: index) {
-                                        Button {
-                                            previewAudio(at: index)
-                                        } label: {
-                                            Image(systemName: "speaker.wave.2.fill")
-                                                .font(AmgiFont.caption.font)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .foregroundStyle(Color.amgiAccent)
-                                        .disabled(MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) == nil)
-                                    }
-                                }
-                                RichNoteFieldEditor(htmlText: fieldBinding(for: index))
-                                    .frame(minHeight: 32)
-                            }
-                            .padding(.vertical, AmgiSpacing.sm)
-
-                            if index < fieldNames.count - 1 {
-                                Divider()
-                            }
-                        }
+                        NoteFieldsPageEditor(
+                            fieldNames: fieldNames,
+                            fieldValues: $fieldValues,
+                            fieldSourceModes: $fieldSourceModes,
+                            actionStates: fieldEditorActionStates,
+                            onDraftExport: { persistSession() },
+                            onInsertPhoto: { beginMediaImport(for: $0, action: .photoLibrary) },
+                            onInsertCameraPhoto: { beginMediaImport(for: $0, action: .camera) },
+                            onInsertFile: { beginMediaImport(for: $0, action: .file) },
+                            onRecordAudio: { beginMediaImport(for: $0, action: .audioRecording) },
+                            onPreviewAudio: { previewAudio(at: $0) },
+                            onEditImage: { beginExistingImageEdit(at: $0) }
+                        )
                     }
                     .padding(.horizontal, AmgiSpacing.md)
                     .padding(.vertical, AmgiSpacing.xs)
@@ -117,11 +139,18 @@ struct AddNoteView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.amgiBackground)
+            // The embedded fields editor is one tall WKWebView row; letting Form apply
+            // keyboard avoidance makes it overshoot based on the row height instead of
+            // the active caret position.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationTitle(L("add_note_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L("common_cancel")) { dismiss() }
+                    Button(L("common_cancel")) {
+                        clearPersistedSession()
+                        dismiss()
+                    }
                         .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -140,38 +169,87 @@ struct AddNoteView: View {
                 }
             }
             .task {
-                await loadData()
+                await loadDataIfNeeded()
+            }
+            .onChange(of: selectedDeckId) { persistSession() }
+            .onChange(of: selectedNotetypeId) { persistSession() }
+            .onChange(of: fieldNames) { persistSession() }
+            .onChange(of: fieldValues) { persistSession() }
+            .onChange(of: fieldSourceModes) { persistSession() }
+            .onChange(of: tags) { persistSession() }
+            .onChange(of: scenePhase) {
+                guard scenePhase == .inactive || scenePhase == .background else { return }
+                persistSession()
             }
             .alert(L("common_error"), isPresented: $showPreviewError) {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {
                 Text(previewErrorMessage ?? L("common_unknown_error"))
             }
-            .sheet(isPresented: $showPreviewSheet) {
-                if let previewNotetype {
-                    UncommittedCardPreviewSheet(
-                        title: L("note_editor_preview_title"),
-                        emptyMessage: L("note_editor_preview_empty_card"),
-                        notetype: previewNotetype,
-                        allowsTemplateSelection: true,
-                        loadPreviewNote: {
-                            try buildPreviewNote()
-                        }
-                    )
-                }
+            .photosPicker(
+                isPresented: $showPhotoPicker,
+                selection: $selectedPhotoItem,
+                matching: .images,
+                preferredItemEncoding: .automatic,
+                photoLibrary: .shared()
+            )
+            .fileImporter(
+                isPresented: $showMediaFileImporter,
+                allowedContentTypes: NoteFieldMediaSupport.importableTypes
+            ) { result in
+                handleImportedFile(result)
+            }
+            .sheet(isPresented: $showCameraPicker) {
+                CameraImagePicker(
+                    onImageData: { data in
+                        handleCameraImageData(data)
+                    },
+                    onCancel: {
+                        showCameraPicker = false
+                        pendingMediaFieldIndex = nil
+                    }
+                )
+                .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showAudioRecorder, onDismiss: { pendingMediaFieldIndex = nil }) {
+                AudioRecordingSheet(
+                    onCancel: {
+                        showAudioRecorder = false
+                    },
+                    onFinishRecording: { url in
+                        handleRecordedAudio(url)
+                    }
+                )
+            }
+            .onChange(of: selectedPhotoItem) {
+                Task { await importSelectedPhoto() }
+            }
+            .sheet(item: $previewContext) { context in
+                UncommittedCardPreviewSheet(
+                    title: L("note_editor_preview_title"),
+                    emptyMessage: L("note_editor_preview_empty_card"),
+                    notetype: context.notetype,
+                    allowsTemplateSelection: true,
+                    loadPreviewNote: {
+                        context.note
+                    }
+                )
+            }
+            .sheet(item: $imageOptimizationRequest) { request in
+                NoteImageOptimizationSheet(request: request)
             }
         }
     }
 
-    private func fieldBinding(for index: Int) -> Binding<String> {
-        Binding(
-            get: { index < fieldValues.count ? fieldValues[index] : "" },
-            set: { newValue in
-                if index < fieldValues.count {
-                    fieldValues[index] = RichNoteFieldEditor.normalizedStoredHTML(newValue)
-                }
-            }
-        )
+    @MainActor
+    private func loadDataIfNeeded() async {
+        guard hasLoadedInitialData == false else { return }
+        isRestoringPersistedSession = true
+        restorePersistedSessionIfNeeded()
+        await loadData()
+        isRestoringPersistedSession = false
+        hasLoadedInitialData = true
+        persistSession()
     }
 
     private func loadData() async {
@@ -186,6 +264,25 @@ struct AddNoteView: View {
 
         do {
             notetypeNames = try loadStandardNotetypeEntries(backend: backend)
+            if let restoredSession {
+                if let restoredDeckID = restoredSession.selectedDeckId,
+                   decks.contains(where: { $0.id == restoredDeckID }) {
+                    selectedDeckId = restoredDeckID
+                }
+                if let restoredNotetypeID = restoredSession.selectedNotetypeId,
+                   notetypeNames.contains(where: { $0.0 == restoredNotetypeID }) {
+                    shouldSkipNextNotetypeFieldReload = selectedNotetypeId != restoredNotetypeID
+                    selectedNotetypeId = restoredNotetypeID
+                }
+                fieldNames = restoredSession.fieldNames
+                fieldValues = restoredSession.fieldValues
+                fieldSourceModes = normalizedFieldSourceModes(
+                    restoredSession.fieldSourceModes,
+                    fieldCount: fieldNames.count
+                )
+                tags = restoredSession.tags
+                return
+            }
             if let preferredNotetypeID = resolvedPreferredNotetypeID() {
                 scheduleFieldLoad(for: preferredNotetypeID, applyingDraft: draft != nil)
             } else if let first = notetypeNames.first {
@@ -212,6 +309,7 @@ struct AddNoteView: View {
             } else {
                 fieldValues = Array(repeating: "", count: fieldNames.count)
             }
+            fieldSourceModes = Array(repeating: false, count: fieldNames.count)
         } catch {
             print("[AddNote] Error loading fields: \(error)")
         }
@@ -240,49 +338,340 @@ struct AddNoteView: View {
         return shouldApplyDraft
     }
 
+    private func restorePersistedSessionIfNeeded() {
+        guard restoredSession == nil else { return }
+        guard draft == nil, persistedSessionData.isEmpty == false else { return }
+        guard let data = persistedSessionData.data(using: .utf8),
+              let session = try? JSONDecoder().decode(PersistedAddNoteSession.self, from: data)
+        else {
+            persistedSessionData = ""
+            return
+        }
+        restoredSession = session
+    }
+
+    private func persistSession() {
+        guard draft == nil, hasLoadedInitialData, isRestoringPersistedSession == false else { return }
+        let session = PersistedAddNoteSession(
+            selectedDeckId: selectedDeckId,
+            selectedNotetypeId: selectedNotetypeId == 0 ? nil : selectedNotetypeId,
+            fieldNames: fieldNames,
+            fieldValues: fieldValues,
+            fieldSourceModes: fieldSourceModes,
+            tags: tags
+        )
+        guard let data = try? JSONEncoder().encode(session),
+              let string = String(data: data, encoding: .utf8)
+        else { return }
+        persistedSessionData = string
+    }
+
+    private func clearPersistedSession() {
+        restoredSession = nil
+        persistedSessionData = ""
+    }
+
+    private func normalizedFieldSourceModes(_ modes: [Bool], fieldCount: Int) -> [Bool] {
+        if modes.count == fieldCount {
+            return modes
+        }
+        if modes.count > fieldCount {
+            return Array(modes.prefix(fieldCount))
+        }
+        return modes + Array(repeating: false, count: max(0, fieldCount - modes.count))
+    }
+
     private func fieldValue(at index: Int) -> String {
         guard index < fieldValues.count else { return "" }
         return fieldValues[index]
     }
 
-    private func shouldShowAudioButton(fieldName: String, index: Int) -> Bool {
-        MediaAudioPreview.isLikelyAudioFieldName(fieldName)
-            || MediaAudioPreview.firstAudioFileName(in: fieldValue(at: index)) != nil
+    private func sourcePreviewHeight(for value: String) -> CGFloat {
+        let value = value.lowercased()
+        if value.contains("<img") || value.contains("<svg") {
+            return 220
+        }
+        return 96
+    }
+
+    private func containsEmbeddedMedia(_ value: String) -> Bool {
+        let lowercasedValue = value.lowercased()
+        return lowercasedValue.contains("<img")
+            || lowercasedValue.contains("<svg")
+            || lowercasedValue.contains("<video")
+            || lowercasedValue.contains("<audio")
+    }
+
+    private func beginMediaImport(for index: Int, action: NoteEditorMediaAction) {
+        pendingMediaFieldIndex = index
+        switch action {
+        case .photoLibrary:
+            showPhotoPicker = true
+        case .camera:
+            guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+                previewErrorMessage = L("note_editor_media_import_camera_unavailable")
+                showPreviewError = true
+                pendingMediaFieldIndex = nil
+                return
+            }
+            showCameraPicker = true
+        case .file:
+            showMediaFileImporter = true
+        case .audioRecording:
+            Task { @MainActor in
+                let allowed = await NoteEditorMediaPermissions.requestMicrophoneAccess()
+                guard allowed else {
+                    previewErrorMessage = L("rich_text_audio_permission_denied")
+                    showPreviewError = true
+                    pendingMediaFieldIndex = nil
+                    return
+                }
+                showAudioRecorder = true
+            }
+        }
     }
 
     @MainActor
     private func previewAudio(at index: Int) {
         do {
-            try MediaAudioPreview.playFirstAudioTag(in: fieldValue(at: index))
+            try MediaAudioPreview.playAudioTags(in: fieldValue(at: index))
         } catch {
             previewErrorMessage = error.localizedDescription
             showPreviewError = true
         }
+    }
+
+    @MainActor
+    private func importSelectedPhoto() async {
+        guard let selectedPhotoItem else { return }
+        defer {
+            self.selectedPhotoItem = nil
+        }
+
+        do {
+            guard let data = try await selectedPhotoItem.loadTransferable(type: Data.self) else {
+                throw MediaImportError.loadFailed
+            }
+            let contentType = selectedPhotoItem.supportedContentTypes.first
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                contentType: contentType,
+                fallbackPrefix: "image"
+            )
+            try handleImportedMediaPayload(
+                data: data,
+                filename: filename,
+                contentType: contentType
+            )
+        } catch {
+            pendingMediaFieldIndex = nil
+            previewErrorMessage = error.localizedDescription
+            showPreviewError = true
+        }
+    }
+
+    private func handleImportedFile(_ result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer {
+                if didAccess {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            let data = try Data(contentsOf: url)
+            let contentType = UTType(filenameExtension: url.pathExtension)
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                sourceURL: url,
+                contentType: contentType,
+                fallbackPrefix: "media"
+            )
+            try handleImportedMediaPayload(
+                data: data,
+                filename: filename,
+                contentType: contentType
+            )
+        } catch {
+            pendingMediaFieldIndex = nil
+            previewErrorMessage = error.localizedDescription
+            showPreviewError = true
+        }
+    }
+
+    private func handleCameraImageData(_ data: Data) {
+        showCameraPicker = false
+        Task { @MainActor in
+            await Task.yield()
+            do {
+                try handleImportedMediaPayload(
+                    data: data,
+                    filename: NoteFieldMediaSupport.suggestedFilename(
+                        contentType: .jpeg,
+                        fallbackPrefix: "camera"
+                    ),
+                    contentType: .jpeg
+                )
+            } catch {
+                pendingMediaFieldIndex = nil
+                previewErrorMessage = error.localizedDescription
+                showPreviewError = true
+            }
+        }
+    }
+
+    private func handleRecordedAudio(_ url: URL) {
+        defer {
+            showAudioRecorder = false
+            pendingMediaFieldIndex = nil
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let contentType = UTType(filenameExtension: url.pathExtension) ?? .mpeg4Audio
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                sourceURL: url,
+                contentType: contentType,
+                fallbackPrefix: "recording"
+            )
+            try insertImportedMedia(data: data, filename: filename, contentType: contentType)
+        } catch {
+            previewErrorMessage = error.localizedDescription
+            showPreviewError = true
+        }
+    }
+
+    private func handleImportedMediaPayload(
+        data: Data,
+        filename: String,
+        contentType: UTType?
+    ) throws {
+        if NoteFieldMediaSupport.shouldOptimizeImage(contentType: contentType, filename: filename),
+           let image = NoteFieldMediaSupport.optimizationPreviewImage(from: data) {
+            presentImageOptimization(
+                image: image,
+                originalByteCount: data.count,
+                suggestedFilename: filename,
+                confirmTitle: L("image_optimizer_confirm_insert")
+            ) { result in
+                do {
+                    try insertImportedMedia(
+                        data: result.data,
+                        filename: result.filename,
+                        contentType: result.contentType
+                    )
+                    pendingMediaFieldIndex = nil
+                } catch {
+                    previewErrorMessage = error.localizedDescription
+                    showPreviewError = true
+                }
+            }
+            return
+        }
+
+        try insertImportedMedia(data: data, filename: filename, contentType: contentType)
+        pendingMediaFieldIndex = nil
+    }
+
+    private func beginExistingImageEdit(at index: Int) {
+        guard let imageFilename = NoteFieldMediaSupport.firstImageFilename(in: fieldValue(at: index)) else {
+            return
+        }
+        guard let imageURL = mediaClient.localURL(imageFilename) else {
+            previewErrorMessage = L("image_optimizer_existing_load_failed")
+            showPreviewError = true
+            return
+        }
+
+        do {
+            let data = try Data(contentsOf: imageURL)
+            guard let image = NoteFieldMediaSupport.optimizationPreviewImage(from: data) else {
+                throw MediaImportError.loadFailed
+            }
+
+            presentImageOptimization(
+                image: image,
+                originalByteCount: data.count,
+                suggestedFilename: imageFilename,
+                confirmTitle: L("image_optimizer_confirm_save")
+            ) { result in
+                do {
+                    let storedFilename = try mediaClient.save(result.data, result.filename)
+                    fieldValues[index] = NoteFieldMediaSupport.replacingFirstImageFilename(
+                        in: fieldValues[index],
+                        oldFilename: imageFilename,
+                        newFilename: storedFilename
+                    )
+                } catch {
+                    previewErrorMessage = error.localizedDescription
+                    showPreviewError = true
+                }
+            }
+        } catch {
+            previewErrorMessage = L("image_optimizer_existing_load_failed")
+            showPreviewError = true
+        }
+    }
+
+    private func presentImageOptimization(
+        image: UIImage,
+        originalByteCount: Int,
+        suggestedFilename: String,
+        confirmTitle: String,
+        onConfirm: @escaping (NoteOptimizedImageResult) -> Void
+    ) {
+        imageOptimizationRequest = NoteImageOptimizationRequest(
+            image: image,
+            originalByteCount: originalByteCount,
+            suggestedFilename: suggestedFilename,
+            confirmTitle: confirmTitle,
+            onConfirm: { result in
+                imageOptimizationRequest = nil
+                onConfirm(result)
+            },
+            onCancel: {
+                imageOptimizationRequest = nil
+                pendingMediaFieldIndex = nil
+            }
+        )
+    }
+
+    private func insertImportedMedia(
+        data: Data,
+        filename: String,
+        contentType: UTType?
+    ) throws {
+        guard let index = pendingMediaFieldIndex, fieldValues.indices.contains(index) else {
+            throw MediaImportError.noTargetField
+        }
+
+        let storedFilename = try mediaClient.save(data, filename)
+        let markup = NoteFieldMediaSupport.markup(for: storedFilename, contentType: contentType)
+        let separator = NoteFieldMediaSupport.separator(for: fieldValues[index], markup: markup)
+        fieldValues[index].append(separator + markup)
     }
 
     @MainActor
     private func showPreview() {
         guard selectedNotetypeId != 0 else { return }
         do {
-            previewNotetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
-            showPreviewSheet = true
+            let notetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
+            previewContext = AddNotePreviewContext(
+                notetype: notetype,
+                note: buildPreviewNote(notetype: notetype)
+            )
         } catch {
             previewErrorMessage = error.localizedDescription
             showPreviewError = true
         }
     }
 
-    private func buildPreviewNote() throws -> Anki_Notes_Note {
-        var ntReq = Anki_Notetypes_NotetypeId()
-        ntReq.ntid = selectedNotetypeId
-        var preview: Anki_Notes_Note = try backend.invoke(
-            service: AnkiBackend.Service.notes,
-            method: AnkiBackend.NotesMethod.newNote,
-            request: ntReq
+    private func buildPreviewNote(notetype: Anki_Notetypes_Notetype) -> Anki_Notes_Note {
+        NoteProtoFactory.makeUncommittedNote(
+            notetypeId: selectedNotetypeId,
+            fieldValues: fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML),
+            tags: tags,
+            fieldCount: notetype.fields.count
         )
-        preview.fields = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
-        preview.tags = tags.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-        return preview
     }
 
     private func save() async {
@@ -293,17 +682,20 @@ struct AddNoteView: View {
             // 1. Create blank note for the notetype
             var ntReq = Anki_Notetypes_NotetypeId()
             ntReq.ntid = selectedNotetypeId
-            var note: Anki_Notes_Note = try backend.invoke(
+            let blankNote: Anki_Notes_Note = try backend.invoke(
                 service: AnkiBackend.Service.notes,
                 method: AnkiBackend.NotesMethod.newNote,
                 request: ntReq
             )
+            let note = NoteProtoFactory.makeUncommittedNote(
+                baseNote: blankNote,
+                notetypeId: selectedNotetypeId,
+                fieldValues: fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML),
+                tags: tags,
+                fieldCount: fieldNames.count
+            )
 
-            // 2. Fill in fields and tags
-            note.fields = fieldValues.map(RichNoteFieldEditor.normalizedStoredHTML)
-            note.tags = tags.split(separator: " ").map(String.init)
-
-            // 3. Add the note to the deck
+            // 2. Add the note to the deck
             var addReq = Anki_Notes_AddNoteRequest()
             addReq.note = note
             addReq.deckID = selectedDeckId
@@ -314,6 +706,7 @@ struct AddNoteView: View {
                 request: addReq
             )
 
+            clearPersistedSession()
             onSave()
             dismiss()
         } catch {
@@ -322,4 +715,19 @@ struct AddNoteView: View {
 
         isSaving = false
     }
+}
+
+private struct AddNotePreviewContext: Identifiable {
+    let id = UUID()
+    let notetype: Anki_Notetypes_Notetype
+    let note: Anki_Notes_Note
+}
+
+private struct PersistedAddNoteSession: Codable {
+    let selectedDeckId: Int64?
+    let selectedNotetypeId: Int64?
+    let fieldNames: [String]
+    let fieldValues: [String]
+    let fieldSourceModes: [Bool]
+    let tags: String
 }

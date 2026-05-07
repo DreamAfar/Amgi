@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import AVFAudio
+import UniformTypeIdentifiers
 import AnkiKit
 import AnkiReader
 import AnkiClients
@@ -43,9 +44,39 @@ private enum ReaderChapterSheetRoute: String, Identifiable {
     var id: String { rawValue }
 }
 
+private struct ReaderAddNoteSheetDraft: Identifiable {
+    let id = UUID()
+    let draft: AddNoteDraft
+}
+
+private struct ReaderLibraryBookItem: Identifiable {
+    enum Source {
+        case ankiNotes
+        case epub
+
+        var badgeTitle: String {
+            switch self {
+            case .ankiNotes:
+                return L("reader_library_source_badge_anki")
+            case .epub:
+                return L("reader_library_source_badge_epub")
+            }
+        }
+    }
+
+    let id: String
+    let source: Source
+    let title: String
+    let progress: Double
+    let lastAccess: Date
+    let noteBook: ReaderBook?
+    let epubBook: BookMetadata?
+}
+
 struct ReaderLibraryView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.readerBookClient) var readerBookClient
+    @Dependency(\.readerEpubLibraryClient) var readerEpubLibraryClient
 
     fileprivate static let bookCoverAspectRatio: CGFloat = 100 / 136
     fileprivate static let bookGridSpacing: CGFloat = 12
@@ -65,10 +96,13 @@ struct ReaderLibraryView: View {
 
     @State private var decks: [DeckInfo] = []
     @State private var books: [ReaderBook] = []
+    @State private var epubLibraryState = ReaderEpubLibraryState.empty
     @State private var isLoading = false
     @State private var configurationProblem: String?
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var showImporter = false
+    @State private var showDeleteConfirmation = false
     @State private var sortOption: ReaderBookSortOption = .recent
     @State private var isSelecting = false
     @State private var selectedBookIDs: Set<String> = []
@@ -94,18 +128,44 @@ struct ReaderLibraryView: View {
         ].joined(separator: "|")
     }
 
-    private var sortedBooks: [ReaderBook] {
-        books.sorted { lhs, rhs in
+    private var libraryBookItems: [ReaderLibraryBookItem] {
+        let noteItems = books.map { book in
+            ReaderLibraryBookItem(
+                id: "anki:\(book.id)",
+                source: .ankiNotes,
+                title: book.title,
+                progress: progressValue(for: book),
+                lastAccess: ReaderProgressStore.load(bookID: book.id)?.updatedAt ?? .distantPast,
+                noteBook: book,
+                epubBook: nil
+            )
+        }
+        let epubItems = epubLibraryState.books.map { book in
+            ReaderLibraryBookItem(
+                id: "epub:\(book.id.uuidString)",
+                source: .epub,
+                title: book.title ?? "",
+                progress: progressValue(for: book),
+                lastAccess: book.lastAccess,
+                noteBook: nil,
+                epubBook: book
+            )
+        }
+        return noteItems + epubItems
+    }
+
+    private var sortedBooks: [ReaderLibraryBookItem] {
+        libraryBookItems.sorted { lhs, rhs in
             switch sortOption {
             case .recent:
-                let lhsDate = ReaderProgressStore.load(bookID: lhs.id)?.updatedAt ?? .distantPast
-                let rhsDate = ReaderProgressStore.load(bookID: rhs.id)?.updatedAt ?? .distantPast
+                let lhsDate = lhs.lastAccess
+                let rhsDate = rhs.lastAccess
                 if lhsDate != rhsDate {
                     return lhsDate > rhsDate
                 }
             case .progress:
-                let lhsProgress = progressValue(for: lhs)
-                let rhsProgress = progressValue(for: rhs)
+                let lhsProgress = lhs.progress
+                let rhsProgress = rhs.progress
                 if lhsProgress != rhsProgress {
                     return lhsProgress > rhsProgress
                 }
@@ -118,6 +178,15 @@ struct ReaderLibraryView: View {
                 return titleComparison == .orderedAscending
             }
             return lhs.id < rhs.id
+        }
+    }
+
+    private var selectedEpubBookIDs: [UUID] {
+        libraryBookItems.compactMap { item in
+            guard selectedBookIDs.contains(item.id), item.source == .epub, let epubBook = item.epubBook else {
+                return nil
+            }
+            return epubBook.id
         }
     }
 
@@ -134,21 +203,23 @@ struct ReaderLibraryView: View {
 
     var body: some View {
         Group {
-            if let configurationProblem {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if sortedBooks.isEmpty {
+                if let configurationProblem, epubLibraryState.books.isEmpty {
                 ContentUnavailableView(
                     L("reader_library_missing_config_title"),
                     systemImage: "books.vertical",
                     description: Text(configurationProblem)
                 )
-            } else if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if books.isEmpty {
+                } else {
                 ContentUnavailableView(
                     L("reader_library_empty_title"),
                     systemImage: "book.closed",
-                    description: Text(L("reader_library_empty_description"))
+                    description: Text(L("reader_library_empty_description")) + Text("\n\n") + Text(L("reader_epub_empty_description"))
                 )
+                }
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
@@ -166,7 +237,7 @@ struct ReaderLibraryView: View {
                                         toggleSelection(for: book)
                                     } label: {
                                         ReaderBookCard(
-                                            book: book,
+                                            item: book,
                                             isSelecting: true,
                                             isSelected: selectedBookIDs.contains(book.id)
                                         )
@@ -174,9 +245,9 @@ struct ReaderLibraryView: View {
                                     .buttonStyle(.plain)
                                 } else {
                                     NavigationLink {
-                                        ReaderBookDetailView(book: book)
+                                        readerDestination(for: book)
                                     } label: {
-                                        ReaderBookCard(book: book)
+                                        ReaderBookCard(item: book)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -217,6 +288,15 @@ struct ReaderLibraryView: View {
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
+                if isSelecting {
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .disabled(selectedEpubBookIDs.isEmpty)
+                }
+
                 Menu {
                     Picker(
                         L("reader_library_layout_menu"),
@@ -232,6 +312,13 @@ struct ReaderLibraryView: View {
                     Image(systemName: resolvedBookshelfColumns == 2 ? "square.grid.2x2" : "square.grid.3x2")
                 }
                 .accessibilityLabel(Text(L("reader_library_layout_menu")))
+
+                Button {
+                    showImporter = true
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
+                .accessibilityLabel(Text(L("reader_epub_import_button")))
 
                 Menu {
                     Button {
@@ -265,6 +352,30 @@ struct ReaderLibraryView: View {
         .task(id: configurationSignature) {
             await loadBooks()
         }
+        .onAppear {
+            guard books.isEmpty == false || epubLibraryState.books.isEmpty == false || configurationProblem != nil else {
+                return
+            }
+            Task {
+                await loadBooks()
+            }
+        }
+        .fileImporter(
+            isPresented: $showImporter,
+            allowedContentTypes: [.epub],
+            allowsMultipleSelection: true
+        ) { result in
+            Task {
+                do {
+                    let urls = try result.get()
+                    epubLibraryState = try readerEpubLibraryClient.importBooks(urls)
+                    clearSelection()
+                } catch {
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        }
         .sheet(item: $settingsRoute) { route in
             NavigationStack {
                 switch route {
@@ -284,6 +395,22 @@ struct ReaderLibraryView: View {
         } message: {
             Text(errorMessage ?? L("common_unknown_error"))
         }
+        .alert(L("common_delete"), isPresented: $showDeleteConfirmation) {
+            Button(L("common_delete"), role: .destructive) {
+                Task {
+                    do {
+                        epubLibraryState = try readerEpubLibraryClient.deleteBooks(selectedEpubBookIDs)
+                        clearSelection()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                        showError = true
+                    }
+                }
+            }
+            Button(L("common_cancel"), role: .cancel) {}
+        } message: {
+            Text(L("reader_epub_delete_confirmation", selectedEpubBookIDs.count))
+        }
     }
 
     private func loadBooks() async {
@@ -291,11 +418,20 @@ struct ReaderLibraryView: View {
         configurationProblem = nil
         books = []
 
+        do {
+            epubLibraryState = try readerEpubLibraryClient.loadState()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+            epubLibraryState = .empty
+        }
+
         decks = (try? deckClient.fetchNamesOnly()) ?? []
 
         guard selectedDeckID != 0,
               let selectedDeck = decks.first(where: { Int($0.id) == selectedDeckID }) else {
             configurationProblem = L("reader_library_missing_config_description")
+                        reconcileSelection()
             isLoading = false
             return
         }
@@ -306,6 +442,7 @@ struct ReaderLibraryView: View {
               !chapterOrderField.isEmpty,
               !contentField.isEmpty else {
             configurationProblem = L("reader_library_missing_config_description")
+                        reconcileSelection()
             isLoading = false
             return
         }
@@ -325,28 +462,47 @@ struct ReaderLibraryView: View {
                 )
             )
             books = try readerBookClient.loadBooks(configuration)
-            selectedBookIDs.formIntersection(Set(books.map(\.id)))
         } catch {
             errorMessage = error.localizedDescription
             showError = true
         }
+
+        reconcileSelection()
 
         isLoading = false
     }
 
     private func progressValue(for book: ReaderBook) -> Double {
         guard let savedProgress = ReaderProgressStore.load(bookID: book.id),
-              let chapterIndex = book.chapters.firstIndex(where: { $0.id == savedProgress.chapterID }),
               !book.chapters.isEmpty else {
             return 0
         }
 
-        let base = Double(chapterIndex) / Double(book.chapters.count)
-        let chapterSlice = savedProgress.progress / Double(book.chapters.count)
-        return min(base + chapterSlice, 1)
+        return book.overallReadingProgress(
+            chapterID: savedProgress.chapterID,
+            chapterProgress: savedProgress.progress
+        )
     }
 
-    private func toggleSelection(for book: ReaderBook) {
+    private func progressValue(for book: BookMetadata) -> Double {
+        epubLibraryState.progressByBookID[book.id] ?? 0
+    }
+
+    @ViewBuilder
+    private func readerDestination(for book: ReaderLibraryBookItem) -> some View {
+        switch book.source {
+        case .ankiNotes:
+            if let noteBook = book.noteBook {
+                ReaderBookDetailView(book: noteBook)
+            }
+        case .epub:
+            if let epubBook = book.epubBook {
+                ReaderEpubReaderView(book: epubBook)
+            }
+        }
+    }
+
+    private func toggleSelection(for book: ReaderLibraryBookItem) {
         if selectedBookIDs.contains(book.id) {
             selectedBookIDs.remove(book.id)
         } else {
@@ -358,34 +514,128 @@ struct ReaderLibraryView: View {
         selectedBookIDs.removeAll()
         isSelecting = false
     }
+
+    private func reconcileSelection() {
+        selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
+        if selectedBookIDs.isEmpty {
+            isSelecting = false
+        }
+    }
 }
 
-private struct ReaderBookCard: View {
-    let book: ReaderBook
-    var isSelecting = false
-    var isSelected = false
-
-    private var savedProgress: ReaderSavedProgress? {
-        ReaderProgressStore.load(bookID: book.id)
+private extension ReaderBook {
+    func overallReadingProgress(chapterID: Int64, chapterProgress: Double) -> Double {
+        guard let chapterIndex = chapters.firstIndex(where: { $0.id == chapterID }) else {
+            return 0
+        }
+        return overallReadingProgress(chapterIndex: chapterIndex, chapterProgress: chapterProgress)
     }
 
-    private var progressValue: Double {
-        guard let savedProgress,
-              let chapterIndex = book.chapters.firstIndex(where: { $0.id == savedProgress.chapterID }),
-              !book.chapters.isEmpty else {
+    func overallReadingProgress(chapterIndex: Int, chapterProgress: Double) -> Double {
+        guard chapters.indices.contains(chapterIndex), chapters.isEmpty == false else {
             return 0
         }
 
-        let base = Double(chapterIndex) / Double(book.chapters.count)
-        let chapterSlice = savedProgress.progress / Double(book.chapters.count)
-        return min(base + chapterSlice, 1)
+        let weights = chapters.map { max($0.readerProgressCharacterCount, 1) }
+        let total = weights.reduce(0, +)
+        guard total > 0 else {
+            return 0
+        }
+
+        let completed = weights.prefix(chapterIndex).reduce(0, +)
+        let clampedChapterProgress = min(max(chapterProgress, 0), 1)
+        let inChapter = Double(weights[chapterIndex]) * clampedChapterProgress
+        return min(max((Double(completed) + inChapter) / Double(total), 0), 1)
+    }
+}
+
+private extension ReaderChapter {
+    var readerProgressCharacterCount: Int {
+        let withoutTags = content.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        let withoutEntities = withoutTags.replacingOccurrences(of: "&[A-Za-z0-9#]+;", with: " ", options: .regularExpression)
+        return withoutEntities.trimmingCharacters(in: .whitespacesAndNewlines).count
+    }
+}
+
+private struct ReaderBookCard: View {
+    let item: ReaderLibraryBookItem
+    var isSelecting = false
+    var isSelected = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ReaderBookCoverView(
+                noteCoverImagePath: item.noteBook?.coverImagePath,
+                epubCoverURL: item.epubBook?.coverURL,
+                progress: item.progress,
+                source: item.source,
+                isSelecting: isSelecting,
+                isSelected: isSelected
+            )
+                .aspectRatio(ReaderLibraryView.bookCoverAspectRatio, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+
+            Text(item.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.amgiTextPrimary)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 34, alignment: .topLeading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct ReaderBookCoverView: View {
+    let noteCoverImagePath: String?
+    let epubCoverURL: URL?
+    let progress: Double
+    let source: ReaderLibraryBookItem.Source
+    var isSelecting = false
+    var isSelected = false
+
+    @State private var image: UIImage?
+
+    private let innerCornerRadius: CGFloat = 18
+    private let outerCornerRadius: CGFloat = 20
+
+    private var progressLabel: String {
+        String(format: "%.1f%%", min(max(progress, 0), 1) * 100)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ReaderBookCoverView(coverImagePath: book.coverImagePath)
-                .aspectRatio(ReaderLibraryView.bookCoverAspectRatio, contentMode: .fit)
-                .frame(maxWidth: .infinity)
+        Group {
+            if #available(iOS 26, *) {
+                cover
+                    .padding(3)
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
+            } else {
+                cover
+                    .padding(3)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
+                            .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
+                    }
+                    .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
+            }
+        }
+        .task(id: noteCoverImagePath) {
+            guard epubCoverURL == nil else {
+                image = nil
+                return
+            }
+            if let data = await ReaderBookCoverLoader.loadImageData(from: noteCoverImagePath) {
+                image = UIImage(data: data)
+            } else {
+                image = nil
+            }
+        }
+    }
+
+    private var cover: some View {
+        VStack(spacing: 3) {
+            coverImage
                 .overlay(alignment: .topTrailing) {
                     if isSelecting {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -394,36 +644,28 @@ private struct ReaderBookCard: View {
                             .padding(10)
                     }
                 }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
+                .overlay(alignment: .bottomTrailing) {
+                    ReaderBookSourceBadge(source: source)
+                        .padding(10)
                 }
-                .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(book.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.amgiTextPrimary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: 34, alignment: .topLeading)
+            HStack(spacing: 8) {
+                ProgressView(value: progress)
+                    .tint(.secondary.opacity(0.4))
 
-                ProgressView(value: progressValue)
-                    .tint(Color.amgiAccent)
+                Text(progressLabel)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
             }
-            .frame(height: 46, alignment: .top)
+            .padding(.horizontal, 2)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
-}
 
-private struct ReaderBookCoverView: View {
-    let coverImagePath: String?
-
-    @State private var image: UIImage?
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 20, style: .continuous)
+    @ViewBuilder
+    private var coverImage: some View {
+        RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
             .fill(
                 LinearGradient(
                     colors: [Color.amgiAccent.opacity(0.18), Color.amgiSurfaceElevated],
@@ -432,7 +674,17 @@ private struct ReaderBookCoverView: View {
                 )
             )
             .overlay {
-                if let image {
+                if let epubCoverURL {
+                    AsyncImage(url: epubCoverURL) { loadedImage in
+                        loadedImage
+                            .resizable()
+                            .scaledToFill()
+                    } placeholder: {
+                        Image(systemName: "book.closed")
+                            .font(.system(size: 36, weight: .semibold))
+                            .foregroundStyle(Color.amgiAccent)
+                    }
+                } else if let image {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
@@ -442,18 +694,20 @@ private struct ReaderBookCoverView: View {
                         .foregroundStyle(Color.amgiAccent)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
-            }
-            .task(id: coverImagePath) {
-                if let data = await ReaderBookCoverLoader.loadImageData(from: coverImagePath) {
-                    image = UIImage(data: data)
-                } else {
-                    image = nil
-                }
-            }
+            .clipShape(RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous))
+    }
+}
+
+private struct ReaderBookSourceBadge: View {
+    let source: ReaderLibraryBookItem.Source
+
+    var body: some View {
+        Text(source.badgeTitle)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(Color.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(source == .epub ? Color.amgiAccent : Color.amgiTextSecondary.opacity(0.88), in: Capsule())
     }
 }
 
@@ -474,6 +728,14 @@ private enum ReaderBookCoverLoader {
             return nil
         }
         return try? Data(contentsOf: url)
+    }
+
+    static func resolvedURLForReaderLookup(from rawValue: String?) -> URL? {
+        guard let rawValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+              rawValue.isEmpty == false else {
+            return nil
+        }
+        return resolvedURL(from: rawValue)
     }
 
     private static func resolvedURL(from rawValue: String) -> URL? {
@@ -632,6 +894,9 @@ private struct ReaderChapterView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
+    @Dependency(\.mediaClient) var mediaClient
+    @Dependency(\.noteClient) var noteClient
+    @Dependency(\.ankiBackend) var backend
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
@@ -678,8 +943,8 @@ private struct ReaderChapterView: View {
 
     @State private var progress: Double = 0
     @State private var selectionRequestID = 0
-    @State private var pendingDraft: AddNoteDraft?
-    @State private var showAddNoteSheet = false
+    @State private var pendingAddNoteDraft: ReaderAddNoteSheetDraft?
+    @State private var lookupPopupRefreshID = 0
     @State private var showSelectionError = false
     @State private var pendingSelectionAction: SelectionAction?
     @State private var lookupErrorMessage: String?
@@ -717,10 +982,26 @@ private struct ReaderChapterView: View {
     }
 
     private var progressLabel: String {
+        let overallProgress = min(
+            max(book.overallReadingProgress(chapterIndex: currentChapterIndex, chapterProgress: progress), 0),
+            1
+        )
+        let chapterLabel = L("reader_reader_position_chapter_only", currentChapterIndex + 1, book.chapters.count)
         if showPercentage {
-            return L("reader_reader_position", currentChapterIndex + 1, book.chapters.count, progress * 100)
+            let percentage = overallProgress * 100
+            let precision: Int
+            switch percentage {
+            case ..<0.1:
+                precision = 3
+            case ..<1:
+                precision = 2
+            default:
+                precision = 1
+            }
+            let formattedPercentage = String(format: "%.\(precision)f%%", percentage)
+            return "\(chapterLabel)   \(formattedPercentage)"
         }
-        return L("reader_reader_position_chapter_only", currentChapterIndex + 1, book.chapters.count)
+        return chapterLabel
     }
 
     private var lookupLanguageHint: String? {
@@ -731,8 +1012,12 @@ private struct ReaderChapterView: View {
         ReaderThemeMode(rawValue: themeModeRawValue) ?? .system
     }
 
+    private var lookupNoteTemplateStore: ReaderLookupNoteTemplateStore {
+        ReaderLookupNoteTemplateStore.decode(from: lookupNoteTemplateData)
+    }
+
     private var lookupNoteTemplate: ReaderLookupNoteTemplate {
-        ReaderLookupNoteTemplate.decode(from: lookupNoteTemplateData)
+        lookupNoteTemplateStore.template(for: lookupLanguageHint)
     }
 
     private var popupAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
@@ -835,204 +1120,37 @@ private struct ReaderChapterView: View {
     }
 
     var body: some View {
+        bodyContent
+    }
+
+    @ViewBuilder
+    private var bodyContent: some View {
         GeometryReader { geometry in
-            let topSafeArea = max(UIApplication.readerTopSafeArea, geometry.safeAreaInsets.top)
-            let bottomSafeArea = max(UIApplication.readerBottomSafeArea, geometry.safeAreaInsets.bottom)
-            let showsTopInfo = showTitle || showProgressTop
-            let topOverlayTopPadding = max(topSafeArea, 25)
-            let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 34 : 10)
-            let bottomInset = max(bottomSafeArea - 8, 14)
-            let bottomChromePadding = max(bottomSafeArea - 18, 6)
-
-            VStack(spacing: 0) {
-                chapterContentBackground
-                    .frame(height: topOverlayHeight)
-
-                ZStack(alignment: .bottom) {
-                    ReaderChapterWebView(
-                        html: chapter.content,
-                        languageHint: lookupLanguageHint,
-                        isVertical: verticalLayout,
-                        fontFamily: ReaderFontOption.resolved(selectedFont).cssFontFamily,
-                        fontSize: Double(readerFontSize),
-                        pageBackgroundHex: resolvedPageBackgroundHex,
-                        contentBackgroundHex: resolvedContentBackgroundHex,
-                        textColorHex: resolvedTextColorHex,
-                        hintColorHex: resolvedHintColorHex,
-                        linkColorHex: resolvedLinkColorHex,
-                        hideFurigana: hideFurigana,
-                        horizontalPadding: horizontalPadding,
-                        verticalPadding: verticalPadding,
-                        avoidPageBreak: avoidPageBreak,
-                        justifyText: justifyText,
-                        lineHeight: lineHeight,
-                        characterSpacing: characterSpacing,
-                        scanLength: dictionaryScanLength,
-                        savedProgress: savedProgress,
-                        selectionRequestID: selectionRequestID,
-                        clearLookupHighlightRequestID: lookupHighlightClearRequestID,
-                        lookupHighlightLengthRequestID: lookupHighlightLengthRequestID,
-                        lookupHighlightLength: lookupHighlightLength,
-                        tapLookupEnabled: tapLookupEnabled,
-                        onProgressChange: { newProgress in
-                            progress = newProgress
-                            ReaderProgressStore.save(bookID: book.id, chapterID: chapter.id, progress: newProgress)
-                        },
-                        onSelectionResolved: { selection in
-                            handleResolvedSelection(selection)
-                        },
-                        onLookupRequested: { selection, sentence, point, rect in
-                            let offsetPoint = CGPoint(x: point.x, y: point.y + topOverlayHeight)
-                            let offsetRect = rect.map { $0.offsetBy(dx: 0, dy: topOverlayHeight) }
-                            handleTapLookup(selection, sentence: sentence, at: offsetPoint, rect: offsetRect)
-                        }
-                    )
-                    .background(chapterContentBackground)
-                    .ignoresSafeArea(edges: .bottom)
-
-                    HStack {
-                        Button {
-                            dismiss()
-                        } label: {
-                            ReaderChromeIconLabel(systemName: "chevron.left")
-                        }
-                        .readerChromeButtonStyle()
-                        .accessibilityLabel(Text(L("common_back")))
-
-                        Spacer()
-
-                        Menu {
-                            Button {
-                                activeSheet = .chapters
-                            } label: {
-                                Label(L("reader_reader_menu_chapters"), systemImage: "list.bullet")
-                            }
-
-                            Button {
-                                activeSheet = .display
-                            } label: {
-                                Label(L("settings_reader_display_settings"), systemImage: "paintbrush.pointed")
-                            }
-
-                            Button {
-                                activeSheet = .settings
-                            } label: {
-                                Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
-                            }
-                        } label: {
-                            ReaderChromeIconLabel(systemName: "ellipsis")
-                        }
-                        .readerChromeButtonStyle()
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, bottomChromePadding)
-                }
-            }
-            .background(chapterContentBackground)
-            .overlay(alignment: .top) {
-                ReaderChapterInfoOverlay(
-                    title: showTitle ? book.title : nil,
-                    progressLabel: showProgressTop ? progressLabel : nil,
-                    background: chapterContentBackground
-                )
-                    .padding(.top, topOverlayTopPadding)
-            }
-            .overlay(alignment: .bottom) {
-                if showProgressTop == false {
-                    ReaderChapterBottomProgressOverlay(progressLabel: progressLabel)
-                        .padding(.bottom, bottomInset + 60)
-                }
-            }
-            .overlay(alignment: .topTrailing) {
-                HStack(spacing: 10) {
-                    Button {
-                        pendingSelectionAction = .addNote
-                        selectionRequestID += 1
-                    } label: {
-                        ReaderChromeIconLabel(systemName: "plus")
-                    }
-                    .readerChromeButtonStyle()
-                }
-                .padding(.top, topOverlayTopPadding)
-                .padding(.trailing, 20)
-            }
-            .overlay {
-                if lookupStack.isEmpty == false {
-                    GeometryReader { popupGeometry in
-                        ZStack {
-                            Color.black.opacity(0.001)
-                                .ignoresSafeArea()
-                                .onTapGesture {
-                                    lookupStack.removeAll()
-                                    lookupHighlightClearRequestID += 1
-                                }
-
-                            ForEach(Array(lookupStack.enumerated()), id: \.element.id) { index, popup in
-                                ReaderLookupPopup(
-                                    query: popup.query,
-                                    result: popup.result,
-                                    isLoading: popup.isLoading,
-                                    sentence: popup.sentence,
-                                    languageHint: lookupLanguageHint,
-                                    popupWidth: CGFloat(popupWidth),
-                                    popupHeight: CGFloat(popupHeight),
-                                    popupFontSize: CGFloat(popupFontSize),
-                                    popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
-                                    popupContentFontSize: CGFloat(popupContentFontSize),
-                                    popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
-                                    popupKanaFontSize: CGFloat(popupKanaFontSize),
-                                    isFullWidth: popupFullWidth,
-                                    swipeToDismiss: popupSwipeToDismiss,
-                                    collapseDictionaries: popupCollapseDictionaries,
-                                    compactGlossaries: popupCompactGlossaries,
-                                    audioSourceTemplate: popupAudioSourceTemplate,
-                                    localAudioEnabled: popupLocalAudioEnabled,
-                                    audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
-                                    audioPlaybackMode: popupAudioPlaybackMode,
-                                    showDebugInfo: popupDebugInfoEnabled,
-                                    onAddNote: { payload in
-                                        pendingDraft = makeLookupDraft(from: payload, sentence: popup.sentence)
-                                        lookupStack.removeAll()
-                                        lookupHighlightClearRequestID += 1
-                                        showAddNoteSheet = true
-                                    },
-                                    onLookupRequested: { query, sentence in
-                                        startLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)
-                                    },
-                                    onClose: {
-                                        closeLookupPopup(id: popup.id)
-                                    }
-                                )
-                                .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
-                                .padding(.horizontal, 14)
-                                .position(
-                                    lookupPopupPosition(
-                                        in: popupGeometry.size,
-                                        bottomInset: bottomInset,
-                                        anchor: popup.anchor,
-                                        anchorRect: popup.anchorRect,
-                                        stackDepth: index
-                                    )
-                                )
-                                .zIndex(Double(index))
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
-                            }
-                        }
-                    }
-                }
-            }
+            chapterGeometryContent(geometry)
         }
         .background(chapterContentBackground)
+        .onAppear {
+            progress = savedProgress
+        }
+        .onChange(of: chapter.id) {
+            progress = savedProgress
+        }
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .sheet(isPresented: $showAddNoteSheet, onDismiss: {
-            pendingDraft = nil
-        }) {
+        .sheet(item: $pendingAddNoteDraft, onDismiss: {
+            pendingAddNoteDraft = nil
+        }) { sheetDraft in
             AddNoteView(
                 onSave: {
-                    pendingDraft = nil
+                    Task {
+                        await ReaderLookupDuplicateCache.shared.invalidate(
+                            notetypeID: sheetDraft.draft.notetypeID ?? lookupNoteTemplate.notetypeID
+                        )
+                    }
+                    lookupPopupRefreshID += 1
+                    pendingAddNoteDraft = nil
                 },
-                draft: pendingDraft
+                draft: sheetDraft.draft
             )
         }
         .sheet(item: $activeSheet) { route in
@@ -1057,12 +1175,209 @@ private struct ReaderChapterView: View {
         .navigationDestination(item: $chapterNavigationTarget) { target in
             ReaderChapterView(book: book, chapter: target)
         }
-        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: lookupStack)
+        .animation(.easeOut(duration: 0.16), value: lookupStack)
         .ignoresSafeArea(edges: .top)
         .alert(L("common_error"), isPresented: $showSelectionError) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
             Text(lookupErrorMessage ?? L("reader_reader_empty_selection"))
+        }
+    }
+
+    @ViewBuilder
+    private func chapterGeometryContent(_ geometry: GeometryProxy) -> some View {
+        let topSafeArea = max(UIApplication.readerTopSafeArea, geometry.safeAreaInsets.top)
+        let bottomSafeArea = max(UIApplication.readerBottomSafeArea, geometry.safeAreaInsets.bottom)
+        let showsTopInfo = showTitle || showProgressTop
+        let topOverlayTopPadding = max(topSafeArea, 25)
+        let topOverlayHeight = topOverlayTopPadding + (showsTopInfo ? 34 : 10)
+        let bottomInset = max(bottomSafeArea - 8, 14)
+        let bottomChromeHeight = (bottomSafeArea > 25 ? bottomSafeArea : 44) + 10
+
+        VStack(spacing: 0) {
+            chapterContentBackground
+                .frame(height: topOverlayHeight)
+
+            ZStack(alignment: .bottom) {
+                ReaderChapterWebView(
+                    html: chapter.content,
+                    languageHint: lookupLanguageHint,
+                    isVertical: verticalLayout,
+                    fontFamily: ReaderFontOption.resolved(selectedFont).cssFontFamily,
+                    fontSize: Double(readerFontSize),
+                    pageBackgroundHex: resolvedPageBackgroundHex,
+                    contentBackgroundHex: resolvedContentBackgroundHex,
+                    textColorHex: resolvedTextColorHex,
+                    hintColorHex: resolvedHintColorHex,
+                    linkColorHex: resolvedLinkColorHex,
+                    hideFurigana: hideFurigana,
+                    horizontalPadding: horizontalPadding,
+                    verticalPadding: verticalPadding,
+                    avoidPageBreak: avoidPageBreak,
+                    justifyText: justifyText,
+                    lineHeight: lineHeight,
+                    characterSpacing: characterSpacing,
+                    scanLength: dictionaryScanLength,
+                    savedProgress: savedProgress,
+                    selectionRequestID: selectionRequestID,
+                    clearLookupHighlightRequestID: lookupHighlightClearRequestID,
+                    lookupHighlightLengthRequestID: lookupHighlightLengthRequestID,
+                    lookupHighlightLength: lookupHighlightLength,
+                    tapLookupEnabled: tapLookupEnabled,
+                    onProgressChange: { newProgress in
+                        progress = newProgress
+                        ReaderProgressStore.save(bookID: book.id, chapterID: chapter.id, progress: newProgress)
+                    },
+                    onSelectionResolved: { selection in
+                        handleResolvedSelection(selection)
+                    },
+                    onLookupRequested: { selection, sentence, point, rect in
+                        let offsetPoint = CGPoint(x: point.x, y: point.y + topOverlayHeight)
+                        let offsetRect = rect.map { $0.offsetBy(dx: 0, dy: topOverlayHeight) }
+                        handleTapLookup(selection, sentence: sentence, at: offsetPoint, rect: offsetRect)
+                    }
+                )
+                .background(chapterContentBackground)
+                .ignoresSafeArea(edges: .bottom)
+
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        ReaderChromeIconLabel(systemName: "chevron.left")
+                    }
+                    .readerChromeButtonStyle()
+                    .accessibilityLabel(Text(L("common_back")))
+
+                    Spacer()
+
+                    Menu {
+                        Button {
+                            activeSheet = .chapters
+                        } label: {
+                            Label(L("reader_reader_menu_chapters"), systemImage: "list.bullet")
+                        }
+
+                        Button {
+                            activeSheet = .display
+                        } label: {
+                            Label(L("settings_reader_display_settings"), systemImage: "paintbrush.pointed")
+                        }
+
+                        Button {
+                            activeSheet = .settings
+                        } label: {
+                            Label(L("settings_row_reader"), systemImage: "slider.horizontal.3")
+                        }
+                    } label: {
+                        ReaderChromeIconLabel(systemName: "ellipsis")
+                    }
+                    .readerChromeButtonStyle()
+                }
+                .padding(.horizontal, 20)
+                .frame(height: bottomChromeHeight, alignment: .top)
+            }
+        }
+        .background(chapterContentBackground)
+        .overlay(alignment: .top) {
+            ReaderChapterInfoOverlay(
+                title: showTitle ? book.title : nil,
+                progressLabel: showProgressTop ? progressLabel : nil,
+                background: chapterContentBackground
+            )
+                .padding(.top, topOverlayTopPadding)
+        }
+        .overlay(alignment: .bottom) {
+            if showProgressTop == false {
+                ReaderChapterBottomProgressOverlay(progressLabel: progressLabel)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            HStack(spacing: 10) {
+                Button {
+                    pendingSelectionAction = .addNote
+                    selectionRequestID += 1
+                } label: {
+                    ReaderChromeIconLabel(systemName: "plus")
+                }
+                .readerChromeButtonStyle()
+            }
+            .padding(.top, topOverlayTopPadding)
+            .padding(.trailing, 20)
+        }
+        .overlay {
+            if lookupStack.isEmpty == false {
+                GeometryReader { popupGeometry in
+                    ZStack {
+                        Color.black.opacity(0.001)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                lookupStack.removeAll()
+                                lookupHighlightClearRequestID += 1
+                            }
+                            .allowsHitTesting(tapLookupEnabled == false)
+
+                        ForEach(Array(lookupStack.enumerated()), id: \.element.id) { index, popup in
+                            ReaderLookupPopup(
+                                query: popup.query,
+                                result: popup.result,
+                                isLoading: popup.isLoading,
+                                sentence: popup.sentence,
+                                languageHint: lookupLanguageHint,
+                                popupWidth: CGFloat(popupWidth),
+                                popupHeight: CGFloat(popupHeight),
+                                popupFontSize: CGFloat(popupFontSize),
+                                popupFrequencyFontSize: CGFloat(popupFrequencyFontSize),
+                                popupContentFontSize: CGFloat(popupContentFontSize),
+                                popupDictionaryNameFontSize: CGFloat(popupDictionaryNameFontSize),
+                                popupKanaFontSize: CGFloat(popupKanaFontSize),
+                                isFullWidth: popupFullWidth,
+                                swipeToDismiss: popupSwipeToDismiss,
+                                collapseDictionaries: popupCollapseDictionaries,
+                                compactGlossaries: popupCompactGlossaries,
+                                audioSourceTemplate: popupAudioSourceTemplate,
+                                localAudioEnabled: popupLocalAudioEnabled,
+                                audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
+                                audioPlaybackMode: popupAudioPlaybackMode,
+                                needsAudio: lookupNoteTemplate.needsAudio,
+                                refreshID: lookupPopupRefreshID,
+                                showDebugInfo: popupDebugInfoEnabled,
+                                onAddNote: { payload in
+                                    lookupHighlightClearRequestID += 1
+                                    Task {
+                                        let draft = await makeLookupDraft(from: payload, sentence: popup.sentence)
+                                        await MainActor.run {
+                                            pendingAddNoteDraft = ReaderAddNoteSheetDraft(draft: draft)
+                                        }
+                                    }
+                                },
+                                duplicateCheck: { content in
+                                    await hasExistingLookupNote(for: content, sentence: popup.sentence)
+                                },
+                                onLookupRequested: { query, sentence in
+                                    startLookup(for: query, sentence: sentence, anchor: nil, stacksOnTop: true)
+                                },
+                                onClose: {
+                                    closeLookupPopup(id: popup.id)
+                                }
+                            )
+                            .frame(maxWidth: popupFullWidth ? .infinity : CGFloat(popupWidth))
+                            .padding(.horizontal, 14)
+                            .position(
+                                lookupPopupPosition(
+                                    in: popupGeometry.size,
+                                    bottomInset: bottomInset,
+                                    anchor: popup.anchor,
+                                    anchorRect: popup.anchorRect,
+                                    stackDepth: index
+                                )
+                            )
+                            .zIndex(Double(index))
+                            .transition(.opacity)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1080,8 +1395,7 @@ private struct ReaderChapterView: View {
         case .lookup:
             startLookup(for: trimmedSelection)
         case .addNote, .none:
-            pendingDraft = makeDraft(for: trimmedSelection)
-            showAddNoteSheet = true
+            pendingAddNoteDraft = ReaderAddNoteSheetDraft(draft: makeDraft(for: trimmedSelection))
         }
     }
 
@@ -1212,18 +1526,145 @@ private struct ReaderChapterView: View {
         )
     }
 
-    private func makeLookupDraft(from payload: ReaderLookupNotePayload, sentence: String?) -> AddNoteDraft {
-        let sourceDescription = [book.title, chapter.title]
-            .filter { !$0.isEmpty }
-            .joined(separator: " • ")
-        var resolvedPayload = payload
-        resolvedPayload.sentence = normalizedSentence(payload.sentence) ?? sentence
+    private func makeLookupDraft(from content: [String: String], sentence: String?) async -> AddNoteDraft {
+        let resolvedContent = await enrichLookupContentForDraft(content)
 
         return lookupNoteTemplate.makeDraft(
-            payload: resolvedPayload,
+            content: resolvedContent,
+            context: ReaderLookupMiningContext(
+                sentence: normalizedSentence(sentence) ?? content["expression"] ?? "",
+                documentTitle: [book.title, chapter.title]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " • "),
+                coverURL: ReaderBookCoverLoader.resolvedURLForReaderLookup(from: book.coverImagePath)
+            ),
             fallbackDeckID: selectedDeckID == 0 ? nil : Int64(selectedDeckID),
-            sourceDescription: sourceDescription
         )
+    }
+
+    private func enrichLookupContentForDraft(_ content: [String: String]) async -> [String: String] {
+        var resolvedContent = content
+
+        if lookupNoteTemplate.needsAudio,
+           let audioMarkup = await storedLookupAudioMarkup(from: content["audio"]) {
+            resolvedContent["audio"] = audioMarkup
+        }
+
+        if lookupNoteTemplate.fieldMappings.values.contains(ReaderLookupHandlebar.bookCover.rawValue),
+           let coverURL = ReaderBookCoverLoader.resolvedURLForReaderLookup(from: book.coverImagePath),
+           let coverMarkup = storedLookupCoverMarkup(from: coverURL) {
+            resolvedContent["bookCover"] = coverMarkup
+        }
+
+        return resolvedContent
+    }
+
+    private func storedLookupAudioMarkup(from rawValue: String?) async -> String? {
+        guard let rawValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+              rawValue.isEmpty == false,
+              let url = URL(string: rawValue) else {
+            return nil
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            let responseExtension = response.suggestedFilename.flatMap {
+                URL(fileURLWithPath: $0).pathExtension.nilIfBlank
+            }
+            let contentType = responseExtension.flatMap { UTType(filenameExtension: $0) }
+                ?? UTType(filenameExtension: url.pathExtension)
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                sourceURL: url,
+                contentType: contentType,
+                fallbackPrefix: "reader-audio"
+            )
+            let storedFilename = try mediaClient.save(data, filename)
+            return NoteFieldMediaSupport.markup(for: storedFilename, contentType: contentType)
+        } catch {
+            return nil
+        }
+    }
+
+    private func storedLookupCoverMarkup(from url: URL) -> String? {
+        do {
+            let data = try Data(contentsOf: url)
+            let contentType = UTType(filenameExtension: url.pathExtension)
+            let filename = NoteFieldMediaSupport.suggestedFilename(
+                sourceURL: url,
+                contentType: contentType,
+                fallbackPrefix: "reader-cover"
+            )
+            let storedFilename = try mediaClient.save(data, filename)
+            return NoteFieldMediaSupport.markup(for: storedFilename, contentType: contentType)
+        } catch {
+            return nil
+        }
+    }
+
+    private func hasExistingLookupNote(for content: [String: String], sentence: String?) async -> Bool {
+        guard let notetypeID = lookupNoteTemplate.notetypeID else {
+            return false
+        }
+
+        let lookupTemplate = lookupNoteTemplate
+        guard let notetype = try? fetchNotetype(backend: backend, id: notetypeID) else {
+            return false
+        }
+        let validFieldNames = notetype.fields.map(\.name)
+        let targetFieldName = lookupTemplate.duplicateCheckFieldName ?? validFieldNames.first
+
+        let draft = await makeLookupDraft(from: content, sentence: sentence)
+        guard let duplicateCheckValue = duplicateCheckValue(from: draft, targetFieldName: targetFieldName) else {
+            return false
+        }
+
+        return await ReaderLookupDuplicateCache.shared.contains(
+            word: duplicateCheckValue,
+            notetypeID: notetypeID,
+            fieldName: lookupTemplate.duplicateCheckFieldName
+        ) { [noteClient] in
+            let duplicateCheckFieldIndex = lookupTemplate.duplicateCheckFieldIndex(
+                validFields: validFieldNames
+            )
+            let query = "note:\"\(Self.escapedSearchTerm(notetype.name))\""
+            let noteIDs = try noteClient.searchIds(query)
+            guard noteIDs.isEmpty == false else {
+                return []
+            }
+
+            var duplicateCheckValues: [String] = []
+            duplicateCheckValues.reserveCapacity(noteIDs.count)
+
+            let batchSize = 250
+            var startIndex = 0
+            while startIndex < noteIDs.count {
+                let endIndex = min(startIndex + batchSize, noteIDs.count)
+                let batch = Array(noteIDs[startIndex..<endIndex])
+                let notes = try noteClient.fetchBatch(batch)
+                duplicateCheckValues.append(contentsOf: notes.compactMap {
+                    $0.readerLookupFieldValue(at: duplicateCheckFieldIndex)
+                })
+                startIndex = endIndex
+            }
+
+            return duplicateCheckValues
+        }
+    }
+
+        private func duplicateCheckValue(from draft: AddNoteDraft, targetFieldName: String?) -> String? {
+                guard let targetFieldName,
+                            let value = draft.fieldValues[targetFieldName]?
+                                .trimmingCharacters(in: .whitespacesAndNewlines),
+                            value.isEmpty == false else {
+                        return nil
+                }
+                return value
+    }
+
+    nonisolated private static func escapedSearchTerm(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 }
 
@@ -1260,8 +1701,11 @@ struct ReaderLookupPopup: View {
     let localAudioEnabled: Bool
     let audioAutoplay: Bool
     let audioPlaybackMode: ReaderLookupAudioPlaybackMode
+    let needsAudio: Bool
+    let refreshID: Int
     let showDebugInfo: Bool
-    let onAddNote: ((ReaderLookupNotePayload) -> Void)?
+    let onAddNote: ([String: String]) -> Void
+    let duplicateCheck: @Sendable ([String: String]) async -> Bool
     let onLookupRequested: (String, String?) -> Void
     let onClose: () -> Void
 
@@ -1315,70 +1759,21 @@ struct ReaderLookupPopup: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                if showDebugInfo {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
-                            Text("\(item.0): \(item.1)")
-                                .font(.system(size: debugFont, design: .monospaced))
-                                .foregroundStyle(Color.amgiTextSecondary)
-                                .textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
+        bodyContent
+    }
 
-                if isLoading {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                        Text(L("reader_lookup_loading"))
-                            .font(.system(size: loadingFont))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-                } else if let result, result.isPlaceholder {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(L("reader_lookup_placeholder"))
-                            .font(.system(size: emptyFont))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                        Text(L("reader_lookup_missing_source"))
-                            .font(.system(size: sectionDictionaryFont))
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-                } else if let result, result.entries.isEmpty == false {
-                    ReaderLookupRichEntriesView(
-                        result: result,
-                        languageHint: languageHint,
-                        popupFontSize: popupFontSize,
-                        popupContentFontSize: popupContentFontSize,
-                        popupDictionaryNameFontSize: popupDictionaryNameFontSize,
-                        popupKanaFontSize: popupKanaFontSize,
-                        popupFrequencyFontSize: popupFrequencyFontSize,
-                        collapseDictionaries: collapseDictionaries,
-                        compactGlossaries: compactGlossaries,
-                        audioSourceTemplate: audioSourceTemplate,
-                        localAudioEnabled: localAudioEnabled,
-                        audioAutoplay: audioAutoplay,
-                        audioPlaybackMode: audioPlaybackMode,
-                        sentence: sentence,
-                        onAddNote: onAddNote,
-                        onLookupRequested: onLookupRequested
-                    )
-                } else {
-                    Text(L("reader_lookup_empty"))
-                        .font(.system(size: emptyFont))
-                        .foregroundStyle(Color.amgiTextSecondary)
-                }
+    @ViewBuilder
+    private var bodyContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if showDebugInfo {
+                debugSection
             }
+
+            popupStateContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .scrollIndicators(.hidden)
-        .frame(maxHeight: max(140, popupHeight - 36))
-        .padding(18)
+        .frame(height: max(140, popupHeight - 36), alignment: .top)
+        .padding(8)
         .frame(maxWidth: isFullWidth ? .infinity : popupWidth, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: popupCornerRadius, style: .continuous)
@@ -1404,6 +1799,67 @@ struct ReaderLookupPopup: View {
                 }
             : nil
         )
+    }
+
+    private var debugSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
+                Text("\(item.0): \(item.1)")
+                    .font(.system(size: debugFont, design: .monospaced))
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var popupStateContent: some View {
+        if isLoading {
+            HStack(spacing: 12) {
+                ProgressView()
+                Text(L("reader_lookup_loading"))
+                    .font(.system(size: loadingFont))
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else if let result, result.isPlaceholder {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(L("reader_lookup_placeholder"))
+                    .font(.system(size: emptyFont))
+                    .foregroundStyle(Color.amgiTextSecondary)
+                Text(L("reader_lookup_missing_source"))
+                    .font(.system(size: sectionDictionaryFont))
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else if let result, result.entries.isEmpty == false {
+            ReaderLookupPopupWebContainer(
+                result: result,
+                collapseDictionaries: collapseDictionaries,
+                compactGlossaries: compactGlossaries,
+                audioSourceTemplate: audioSourceTemplate,
+                localAudioEnabled: localAudioEnabled,
+                audioAutoplay: audioAutoplay,
+                audioPlaybackMode: audioPlaybackMode,
+                needsAudio: needsAudio,
+                refreshID: refreshID,
+                onAddNote: onAddNote,
+                duplicateCheck: duplicateCheck,
+                onLookupRequested: onLookupRequested,
+                onTapOutside: onClose
+            )
+        } else {
+            Text(L("reader_lookup_empty"))
+                .font(.system(size: emptyFont))
+                .foregroundStyle(Color.amgiTextSecondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
     }
 }
 
@@ -1462,11 +1918,12 @@ private struct ReaderChapterInfoOverlay: View {
     let background: Color
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack {
             if let title, !title.isEmpty {
                 Text(title)
-                    .font(.subheadline.weight(.medium))
+                    .font(.subheadline)
                     .foregroundStyle(Color.amgiTextSecondary)
+                    .padding(.horizontal, 30)
                     .lineLimit(1)
             }
 
@@ -1475,13 +1932,9 @@ private struct ReaderChapterInfoOverlay: View {
                     .font(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
                     .monospacedDigit()
-                    .tracking(-0.3)
+                    .tracking(-0.4)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 112)
-        .padding(.vertical, 1)
-        .background(background)
     }
 }
 
@@ -1493,9 +1946,7 @@ private struct ReaderChapterBottomProgressOverlay: View {
             .font(.caption)
             .foregroundStyle(Color.amgiTextSecondary)
             .monospacedDigit()
-            .tracking(-0.3)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 80)
+            .tracking(-0.4)
     }
 }
 
@@ -1504,26 +1955,23 @@ private struct ReaderChromeIconLabel: View {
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.title3.weight(.semibold))
+            .font(.headline.weight(.semibold))
             .foregroundStyle(Color.amgiTextPrimary)
-            .frame(width: 22, height: 22)
+            .frame(width: 40, height: 40)
+            .background(.ultraThinMaterial, in: Circle())
     }
 }
 
 private extension View {
-    @ViewBuilder
     func readerChromeButtonStyle() -> some View {
-        if #available(iOS 26.0, *) {
-            self
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
-        } else {
-            self
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
-        }
+        buttonStyle(ReaderChromeButtonStyle())
+    }
+}
+
+private struct ReaderChromeButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
@@ -1603,6 +2051,13 @@ private struct ReaderChapterWebView: UIViewRepresentable {
                 forMainFrameOnly: true
             )
         )
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: Self.progressScript,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true
+            )
+        )
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isOpaque = false
@@ -1612,6 +2067,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         webView.scrollView.showsVerticalScrollIndicator = !isVertical
         webView.scrollView.delegate = context.coordinator
         webView.navigationDelegate = context.coordinator
+        context.coordinator.attach(to: webView)
         let tapRecognizer = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTapLookup(_:)))
         tapRecognizer.cancelsTouchesInView = false
         tapRecognizer.delegate = context.coordinator
@@ -2177,6 +2633,116 @@ private struct ReaderChapterWebView: UIViewRepresentable {
     })();
     """#
 
+    private static let progressScript = #"""
+    (function() {
+        window.amgiReaderProgress = {
+            ttuRegexNegated: /[^0-9A-Za-z○◯々-〇〻ぁ-ゖゝ-ゞァ-ヺー０-９Ａ-Ｚａ-ｚｦ-ﾝ\p{Radical}\p{Unified_Ideograph}]+/gimu,
+
+            isVertical() {
+                return window.getComputedStyle(document.body).writingMode === 'vertical-rl';
+            },
+
+            isFurigana(node) {
+                const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+                return !!el?.closest('rt, rp');
+            },
+
+            normalizeText(text) {
+                return String(text || '').replace(this.ttuRegexNegated, '');
+            },
+
+            countChars(text) {
+                return Array.from(this.normalizeText(text)).length;
+            },
+
+            createWalker(rootNode) {
+                const root = rootNode || document.body;
+                return document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                    acceptNode: (node) => this.isFurigana(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+                });
+            },
+
+            calculateProgress() {
+                const vertical = this.isVertical();
+                const walker = this.createWalker();
+                let totalChars = 0;
+                let exploredChars = 0;
+                let node;
+
+                while ((node = walker.nextNode())) {
+                    const nodeLen = this.countChars(node.textContent);
+                    totalChars += nodeLen;
+
+                    if (nodeLen > 0) {
+                        const range = document.createRange();
+                        range.selectNodeContents(node);
+                        const rect = range.getBoundingClientRect();
+                        if (vertical ? (rect.left > window.innerWidth) : (rect.bottom < 0)) {
+                            exploredChars += nodeLen;
+                        }
+                    }
+                }
+
+                return totalChars > 0 ? exploredChars / totalChars : 0;
+            },
+
+            metrics() {
+                return { progress: this.calculateProgress(), maxOffset: 1, offset: 0 };
+            },
+
+            async restore(progress) {
+                await document.fonts.ready;
+                const clampedProgress = Math.min(Math.max(progress || 0, 0), 1);
+
+                if (clampedProgress <= 0) {
+                    return { progress: 0, maxOffset: 1, offset: 0 };
+                }
+
+                let walker = this.createWalker();
+                let totalChars = 0;
+                let node;
+
+                while ((node = walker.nextNode())) {
+                    totalChars += this.countChars(node.textContent);
+                }
+
+                if (totalChars <= 0) {
+                    return { progress: 0, maxOffset: 0, offset: 0 };
+                }
+
+                const targetCharCount = Math.ceil(totalChars * clampedProgress);
+                let runningSum = 0;
+                let targetNode = null;
+
+                walker = this.createWalker();
+                while ((node = walker.nextNode())) {
+                    runningSum += this.countChars(node.textContent);
+                    targetNode = node;
+                    if (runningSum > targetCharCount) {
+                        break;
+                    }
+                }
+
+                const targetElement = targetNode?.parentElement;
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        block: clampedProgress >= 0.999999 ? 'end' : 'start',
+                        behavior: 'instant'
+                    });
+                }
+
+                return new Promise(resolve => {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            resolve(this.metrics());
+                        });
+                    });
+                });
+            }
+        };
+    })();
+    """#
+
     private func htmlDocument(for fragment: String) -> String {
         let textColor = textColorHex
         let linkColor = linkColorHex
@@ -2321,6 +2887,10 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         private var didRestoreInitialProgress = false
         private var isRestoringProgress = false
         private var restoreGeneration = 0
+        private var lastReportedProgress = -1.0
+        private var contentOffsetObservation: NSKeyValueObservation?
+        private var contentSizeObservation: NSKeyValueObservation?
+        private weak var activeWebView: WKWebView?
         private let onProgressChange: (Double) -> Void
         let onSelectionResolved: (String?) -> Void
         let onLookupRequested: (String?, String?, CGPoint, CGRect?) -> Void
@@ -2335,6 +2905,24 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             self.onProgressChange = onProgressChange
             self.onSelectionResolved = onSelectionResolved
             self.onLookupRequested = onLookupRequested
+        }
+
+        func attach(to webView: WKWebView) {
+            if let activeWebView, activeWebView === webView {
+                return
+            }
+
+            activeWebView = webView
+            contentOffsetObservation = webView.scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scrollView, _ in
+                DispatchQueue.main.async {
+                    self?.reportProgress(for: scrollView)
+                }
+            }
+            contentSizeObservation = webView.scrollView.observe(\.contentSize, options: [.new]) { [weak self] scrollView, _ in
+                DispatchQueue.main.async {
+                    self?.reportProgress(for: scrollView)
+                }
+            }
         }
 
         @objc func handleTapLookup(_ recognizer: UITapGestureRecognizer) {
@@ -2385,7 +2973,9 @@ private struct ReaderChapterWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            attach(to: webView)
             restoreGeneration += 1
+            lastReportedProgress = -1
             restoreProgress(in: webView.scrollView, remainingAttempts: 40, generation: restoreGeneration)
         }
 
@@ -2423,16 +3013,14 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
             if clampedProgress > 0,
                maxOffset <= 0 {
-                // Content size is still not ready; do not overwrite persisted progress to 0.
-                didRestoreInitialProgress = true
-                isRestoringProgress = false
+                restoreProgressWithJavaScript(clampedProgress, generation: generation)
                 return
             }
 
             let targetOffset: CGPoint
 
             if parent?.isVertical == true {
-                targetOffset = CGPoint(x: maxOffset * clampedProgress, y: 0)
+                targetOffset = CGPoint(x: maxOffset * (1 - clampedProgress), y: 0)
             } else {
                 targetOffset = CGPoint(x: 0, y: maxOffset * clampedProgress)
             }
@@ -2454,6 +3042,26 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             }
         }
 
+        private func restoreProgressWithJavaScript(_ progress: Double, generation: Int) {
+            guard let webView = activeWebView, generation == restoreGeneration else {
+                return
+            }
+
+            didRestoreInitialProgress = false
+            isRestoringProgress = true
+            webView.evaluateJavaScript("window.amgiReaderProgress?.restore(\(progress)).then(result => result.progress)") { [weak self] (value: Any?, _: Error?) in
+                guard let self, generation == self.restoreGeneration else {
+                    return
+                }
+
+                self.isRestoringProgress = false
+                self.didRestoreInitialProgress = true
+                if let restoredProgress = value as? Double {
+                    self.onProgressChange(restoredProgress)
+                }
+            }
+        }
+
         private func maximumOffset(for scrollView: UIScrollView) -> CGFloat {
             scrollView.layoutIfNeeded()
             if parent?.isVertical == true {
@@ -2462,20 +3070,61 @@ private struct ReaderChapterWebView: UIViewRepresentable {
             return max(scrollView.contentSize.height - scrollView.bounds.height, 0)
         }
 
+        private func normalizedProgress(for scrollView: UIScrollView) -> Double {
+            let maxOffset = maximumOffset(for: scrollView)
+            guard maxOffset > 0 else {
+                return 0
+            }
+
+            if parent?.isVertical == true {
+                let clampedOffset = min(max(scrollView.contentOffset.x, 0), maxOffset)
+                return min(max(Double((maxOffset - clampedOffset) / maxOffset), 0), 1)
+            }
+
+            let clampedOffset = min(max(scrollView.contentOffset.y, 0), maxOffset)
+            return min(max(Double(clampedOffset / maxOffset), 0), 1)
+        }
+
         private func reportProgress(for scrollView: UIScrollView) {
             guard didRestoreInitialProgress, isRestoringProgress == false else {
                 return
             }
 
-            let progress: Double
-            if parent?.isVertical == true {
-                let maxOffset = max(scrollView.contentSize.width - scrollView.bounds.width, 1)
-                progress = Double(scrollView.contentOffset.x / maxOffset)
-            } else {
-                let maxOffset = max(scrollView.contentSize.height - scrollView.bounds.height, 1)
-                progress = Double(scrollView.contentOffset.y / maxOffset)
+            fetchCurrentProgress { [weak self] progress in
+                guard let self else {
+                    return
+                }
+                guard Swift.abs(progress - self.lastReportedProgress) >= 0.001 else {
+                    return
+                }
+                self.lastReportedProgress = progress
+                self.onProgressChange(progress)
             }
-            onProgressChange(min(max(progress, 0), 1))
+        }
+
+        private func fetchCurrentProgress(_ completion: @escaping (Double) -> Void) {
+            guard let webView = activeWebView else {
+                completion(0)
+                return
+            }
+
+            if maximumOffset(for: webView.scrollView) > 0 {
+                completion(normalizedProgress(for: webView.scrollView))
+                return
+            }
+
+            webView.evaluateJavaScript("window.amgiReaderProgress?.metrics().progress") { [weak self] (value: Any?, _: Error?) in
+                if let progress = value as? Double {
+                    completion(progress)
+                    return
+                }
+
+                guard let scrollView = self?.activeWebView?.scrollView else {
+                    completion(0)
+                    return
+                }
+                completion(self?.normalizedProgress(for: scrollView) ?? 0)
+            }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {

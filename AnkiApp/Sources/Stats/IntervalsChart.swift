@@ -330,7 +330,12 @@ struct IntervalsChart: View {
         geometry: GeometryProxy,
         bins: [IntervalBin]
     ) {
-        let plotFrame = geometry[proxy.plotAreaFrame]
+        guard let plotFrameAnchor = proxy.plotFrame else {
+            selectedBinX = nil
+            return
+        }
+
+        let plotFrame = geometry[plotFrameAnchor]
         let plotX = value.location.x - plotFrame.origin.x
         guard plotX >= 0,
               plotX <= proxy.plotSize.width,

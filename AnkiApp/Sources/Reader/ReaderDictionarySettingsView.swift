@@ -21,8 +21,10 @@ struct ReaderDictionarySettingsView: View {
     @State private var selectedDictionaryKind: AppDictionaryKind = .term
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var isReorderingDictionaries = false
 
     private static let zipArchiveType = UTType(filenameExtension: "zip") ?? .data
+    private let menuCapsuleBackground = Color.amgiMenuSurface
 
     private var selectedDictionaries: [AppDictionaryInfo] {
         switch selectedDictionaryKind {
@@ -38,6 +40,21 @@ struct ReaderDictionarySettingsView: View {
     private var hasUpdatableDictionaries: Bool {
         (libraryState.termDictionaries + libraryState.frequencyDictionaries + libraryState.pitchDictionaries)
             .contains { $0.index.isUpdatable && $0.index.indexURL.isEmpty == false }
+    }
+
+    private var selectedAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
+        ReaderLookupAudioDefaults.resolvedPlaybackMode(audioPlaybackModeRawValue)
+    }
+
+    private var dictionaryEditModeBinding: Binding<EditMode> {
+        Binding(
+            get: { isReorderingDictionaries ? .active : .inactive },
+            set: { newMode in isReorderingDictionaries = (newMode == .active) }
+        )
+    }
+
+    private var canReorderSelectedDictionaries: Bool {
+        selectedDictionaries.count > 1
     }
 
     var body: some View {
@@ -103,15 +120,29 @@ struct ReaderDictionarySettingsView: View {
                 Toggle(L("settings_reader_dictionary_audio_autoplay"), isOn: $audioAutoplay)
                     .foregroundStyle(Color.amgiTextPrimary)
 
-                Picker(
-                    L("settings_reader_dictionary_audio_playback_mode"),
-                    selection: Binding(
-                        get: { ReaderLookupAudioDefaults.resolvedPlaybackMode(audioPlaybackModeRawValue) },
-                        set: { audioPlaybackModeRawValue = $0.rawValue }
-                    )
-                ) {
-                    ForEach(ReaderLookupAudioPlaybackMode.allCases) { mode in
-                        Text(title(for: mode)).tag(mode)
+                HStack {
+                    Text(L("settings_reader_dictionary_audio_playback_mode"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    Menu {
+                        Picker(
+                            L("settings_reader_dictionary_audio_playback_mode"),
+                            selection: Binding(
+                                get: { selectedAudioPlaybackMode },
+                                set: { audioPlaybackModeRawValue = $0.rawValue }
+                            )
+                        ) {
+                            ForEach(ReaderLookupAudioPlaybackMode.allCases) { mode in
+                                Text(title(for: mode))
+                                    .foregroundStyle(Color.amgiAccent)
+                                    .tag(mode)
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(
+                            title: title(for: selectedAudioPlaybackMode),
+                            backgroundColor: menuCapsuleBackground
+                        )
                     }
                 }
 
@@ -149,7 +180,20 @@ struct ReaderDictionarySettingsView: View {
         .navigationTitle(L("settings_reader_dictionary_settings"))
         .navigationBarTitleDisplayMode(.large)
         .disabled(isBusy)
+        .environment(\.editMode, dictionaryEditModeBinding)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    withAnimation {
+                        isReorderingDictionaries.toggle()
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down.circle")
+                }
+                .accessibilityLabel(isReorderingDictionaries ? L("common_done") : L("settings_reader_dictionary_reorder"))
+                .disabled(canReorderSelectedDictionaries == false)
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     importButton(
@@ -172,6 +216,7 @@ struct ReaderDictionarySettingsView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel(L("common_add"))
             }
         }
         .overlay {
@@ -197,6 +242,9 @@ struct ReaderDictionarySettingsView: View {
         }
         .onChange(of: localAudioEnabled) { _, enabled in
             ReaderLookupLocalAudioServer.shared.setEnabled(enabled)
+        }
+        .onChange(of: selectedDictionaryKind) { _, _ in
+            isReorderingDictionaries = false
         }
         .fileImporter(
             isPresented: $showImporter,
@@ -258,6 +306,9 @@ struct ReaderDictionarySettingsView: View {
                         await deleteDictionaries(at: offsets, kind: kind, dictionaries: dictionaries)
                     }
                 }
+                .onMove { offsets, destination in
+                    moveDictionaries(from: offsets, to: destination, kind: kind)
+                }
             }
         }
         .listRowBackground(Color.amgiSurfaceElevated)
@@ -312,6 +363,38 @@ struct ReaderDictionarySettingsView: View {
             libraryState = try await dictionaryLookupClient.setEnabled(kind, dictionaryID, enabled)
         } catch {
             show(error)
+        }
+    }
+
+    private func moveDictionaries(from offsets: IndexSet, to destination: Int, kind: AppDictionaryKind) {
+        switch kind {
+        case .term:
+            libraryState.termDictionaries.move(fromOffsets: offsets, toOffset: destination)
+            let dictionaryIDs = libraryState.termDictionaries.map(\.id)
+            Task {
+                await reorderDictionaries(kind: kind, dictionaryIDs: dictionaryIDs)
+            }
+        case .frequency:
+            libraryState.frequencyDictionaries.move(fromOffsets: offsets, toOffset: destination)
+            let dictionaryIDs = libraryState.frequencyDictionaries.map(\.id)
+            Task {
+                await reorderDictionaries(kind: kind, dictionaryIDs: dictionaryIDs)
+            }
+        case .pitch:
+            libraryState.pitchDictionaries.move(fromOffsets: offsets, toOffset: destination)
+            let dictionaryIDs = libraryState.pitchDictionaries.map(\.id)
+            Task {
+                await reorderDictionaries(kind: kind, dictionaryIDs: dictionaryIDs)
+            }
+        }
+    }
+
+    private func reorderDictionaries(kind: AppDictionaryKind, dictionaryIDs: [String]) async {
+        do {
+            libraryState = try await dictionaryLookupClient.reorder(kind, dictionaryIDs)
+        } catch {
+            show(error)
+            await refreshState()
         }
     }
 

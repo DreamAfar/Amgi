@@ -978,6 +978,19 @@ struct CardWebView: UIViewRepresentable {
             try { window.webkit.messageHandlers.amgiStopTts.postMessage(null); } catch(e) {}
         }
         window.amgiStopTts = amgiStopTts;
+        function amgiQueuePlayer() {
+            var player = document.getElementById('amgi-audio-queue-player');
+            if (player) return player;
+            player = document.createElement('audio');
+            player.id = 'amgi-audio-queue-player';
+            player.preload = 'auto';
+            player.style.display = 'none';
+            document.body.appendChild(player);
+            return player;
+        }
+        function amgiHasTemplateManagedMedia() {
+            return document.querySelector('audio:not(.anki-sound-audio):not(#amgi-audio-queue-player), video') !== null;
+        }
         function stopAllSystemAudio() {
             amgiStopTts();
             document.querySelectorAll('.anki-sound-audio').forEach(function(a) {
@@ -986,12 +999,33 @@ struct CardWebView: UIViewRepresentable {
                 setAudioButtonState(a.nextElementSibling, 'play');
                 a.onended = null;
             });
+            var queuePlayer = document.getElementById('amgi-audio-queue-player');
+            if (queuePlayer) {
+                queuePlayer.pause();
+                queuePlayer.currentTime = 0;
+                queuePlayer.onended = null;
+                queuePlayer.onerror = null;
+                queuePlayer.removeAttribute('src');
+                queuePlayer.load();
+            }
             notifyAudioState(false);
         }
         window.amgiStopAllAudio = stopAllSystemAudio;
         function collectAudioQueue(mode) {
             var all = Array.from(document.querySelectorAll('.anki-sound-audio'));
-            if (mode === 'question') return all;
+            if (mode === 'question' || mode === 'answerWithQuestion') return all;
+            // answerOnly: exclude audio already played on the question side.
+            // This correctly handles audio fields placed before <hr id=answer> in
+            // the back template (e.g. {{发音}} between {{FrontSide}} and <hr id=answer>).
+            var questionSrcs = window.__amgiQuestionAudioSrcs;
+            if (questionSrcs && questionSrcs.size > 0) {
+                var newAudio = all.filter(function(a) {
+                    var src = a.getAttribute('src') || '';
+                    return src && !questionSrcs.has(src);
+                });
+                return newAudio.length > 0 ? newAudio : all;
+            }
+            // Fallback: use <hr id=answer> position when question srcs are unavailable.
             var marker = document.getElementById('answer');
             if (!marker) return all;
             var after = all.filter(function(a) {
@@ -1018,20 +1052,32 @@ struct CardWebView: UIViewRepresentable {
             stopAllSystemAudio();
             if (!queue || !queue.length) return;
             var idx = 0;
+            var currentBtn = null;
+            var player = amgiQueuePlayer();
             notifyAudioState(true);
+            function clearCurrentButton() {
+                if (!currentBtn) return;
+                setAudioButtonState(currentBtn, 'play');
+                currentBtn = null;
+            }
             function playNext() {
+                clearCurrentButton();
                 if (idx >= queue.length) { notifyAudioState(false); return; }
                 var audio = queue[idx];
-                var btn = audio.nextElementSibling;
-                audio.currentTime = 0;
-                audio.play().catch(function() { idx++; playNext(); });
-                setAudioButtonState(btn, 'pause');
-                audio.onended = function() { setAudioButtonState(btn, 'play'); idx++; playNext(); };
+                var src = audio.currentSrc || audio.src;
+                if (!src) { idx++; playNext(); return; }
+                currentBtn = audio.nextElementSibling;
+                setAudioButtonState(currentBtn, 'pause');
+                player.src = src;
+                player.currentTime = 0;
+                player.play().catch(function() { idx++; playNext(); });
             }
+            player.onended = function() { idx++; playNext(); };
+            player.onerror = function() { idx++; playNext(); };
             playNext();
         }
         function amgiReplayAll(mode) {
-            if (document.querySelector('audio:not(.anki-sound-audio), video')) return;
+            if (amgiHasTemplateManagedMedia()) return;
             replaySequential(collectAudioQueue(mode));
         }
         window.amgiReplayAll = amgiReplayAll;
@@ -1116,11 +1162,13 @@ struct CardWebView: UIViewRepresentable {
             catch(e) { input.scrollIntoView(); }
         }
         window.amgiEnsureTypedAnswerVisible = amgiEnsureTypedAnswerVisible;
-        window._typeAnsPress = function() {
-            var e = window.event || null;
+        window.amgiHandleTypeAnswerKey = function(e) {
+            e = e || window.event || null;
             if (e && e.key === 'Enter') { e.preventDefault(); amgiSubmitTypedAnswer(); return false; }
             return true;
         };
+        window._typeAnsPress = window.amgiHandleTypeAnswerKey;
+        globalThis.amgiHandleTypeAnswerKey = window.amgiHandleTypeAnswerKey;
         globalThis._typeAnsPress = window._typeAnsPress;
 
         // ── Browser classes ──────────────────────────────────────────────────
@@ -1428,13 +1476,14 @@ struct CardWebView: UIViewRepresentable {
                 });
 
                 var typeInput = document.getElementById('typeans');
-                if (typeInput) {
-                    var ensureVisible = function() { window.setTimeout(amgiEnsureTypedAnswerVisible, 180); };
-                    typeInput.addEventListener('focus', ensureVisible);
-                    typeInput.addEventListener('click', ensureVisible);
-                    typeInput.addEventListener('input', ensureVisible);
-                    typeInput.focus(); ensureVisible();
-                }
+        if (typeInput) {
+            var ensureVisible = function() { window.setTimeout(amgiEnsureTypedAnswerVisible, 180); };
+            typeInput.addEventListener('focus', ensureVisible);
+            typeInput.addEventListener('click', ensureVisible);
+            typeInput.addEventListener('input', ensureVisible);
+            typeInput.addEventListener('keydown', window.amgiHandleTypeAnswerKey);
+            typeInput.focus(); ensureVisible();
+        }
 
                 amgiSetupImageOcclusion();
                 await amgiRunHooks(window.onShownHook);
@@ -1471,12 +1520,21 @@ struct CardWebView: UIViewRepresentable {
                     },
                     function() {
                         window.scrollTo(0, 0);
+                        // Reset question-side audio srcs for the new card.
+                        window.__amgiQuestionAudioSrcs = null;
                     },
                     function() {
                         var typeans = document.getElementById('typeans');
                         if (typeans) typeans.focus();
-                        var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
+                        var hasTemplateManagedMedia = amgiHasTemplateManagedMedia();
                         if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
+                        // Record question-side audio srcs so the answer side can
+                        // avoid re-playing them when using answerOnly mode.
+                        window.__amgiQuestionAudioSrcs = new Set(
+                            Array.from(document.querySelectorAll('.anki-sound-audio')).map(function(a) {
+                                return a.getAttribute('src') || '';
+                            }).filter(Boolean)
+                        );
                         var ph = amgiPrefetchHTMLValue();
                         if (amgiContainsMathJaxMarkup(html || '') || amgiContainsMathJaxMarkup(ph || '')) {
                             void amgiEnsureMathJaxReady(1500);
@@ -1511,7 +1569,7 @@ struct CardWebView: UIViewRepresentable {
                         });
                     },
                     function() {
-                        var hasTemplateManagedMedia = document.querySelector('audio:not(.anki-sound-audio), video') !== null;
+                        var hasTemplateManagedMedia = amgiHasTemplateManagedMedia();
                         if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
                     }
                 );
@@ -1544,7 +1602,7 @@ struct CardWebView: UIViewRepresentable {
         cardPaddingBottom: Int
     ) -> String {
         let htmlLit = jsStringLiteral(processedHTML)
-        let cssLit = jsStringLiteral(cardCSS)
+        let cssLit = jsStringLiteral(normalizeCardCSS(cardCSS))
         let autoplay = autoplayEnabled ? "true" : "false"
         let lookupEnabled = lookupPopupEnabled ? "true" : "false"
         let alignTopStr = alignTop ? "true" : "false"
@@ -1716,6 +1774,97 @@ struct CardWebView: UIViewRepresentable {
             // Escape </script> so it doesn't prematurely close the enclosing <script> block
             .replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
         return "'\(escaped)'"
+    }
+
+    private static func rewriteRelativeMediaURLs(in css: String) -> String {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"url\(\s*(['"]?)([^'")]+)\1\s*\)"#,
+            options: [.caseInsensitive]
+        ) else {
+            return css
+        }
+
+        let nsRange = NSRange(css.startIndex..., in: css)
+        let matches = regex.matches(in: css, range: nsRange)
+        guard !matches.isEmpty else {
+            return css
+        }
+
+        var rewritten = css
+        for match in matches.reversed() {
+            guard match.numberOfRanges >= 3,
+                  let fullRange = Range(match.range(at: 0), in: rewritten),
+                  let quoteRange = Range(match.range(at: 1), in: rewritten),
+                  let urlRange = Range(match.range(at: 2), in: rewritten) else {
+                continue
+            }
+
+            let quote = String(rewritten[quoteRange])
+            let rawURL = String(rewritten[urlRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard shouldRewriteMediaURL(rawURL),
+                  let absoluteURL = URL(string: rawURL, relativeTo: CardAssetPath.mediaBaseURL)?.absoluteString else {
+                continue
+            }
+
+            rewritten.replaceSubrange(fullRange, with: "url(\(quote)\(absoluteURL)\(quote))")
+        }
+
+        return rewritten
+    }
+
+    private static func normalizeCardCSS(_ css: String) -> String {
+        rewriteRelativeMediaURLs(in: sanitizeCardCSS(css))
+    }
+
+    private static func sanitizeCardCSS(_ css: String) -> String {
+        var sanitized = css
+
+        if let styleTagRegex = try? NSRegularExpression(
+            pattern: #"</?style\b[^>]*>"#,
+            options: [.caseInsensitive]
+        ) {
+            sanitized = styleTagRegex.stringByReplacingMatches(
+                in: sanitized,
+                range: NSRange(sanitized.startIndex..., in: sanitized),
+                withTemplate: ""
+            )
+        }
+
+        if let htmlCommentRegex = try? NSRegularExpression(
+            pattern: #"<!--([\s\S]*?)-->"#,
+            options: []
+        ) {
+            sanitized = htmlCommentRegex.stringByReplacingMatches(
+                in: sanitized,
+                range: NSRange(sanitized.startIndex..., in: sanitized),
+                withTemplate: "/*$1*/"
+            )
+        }
+
+        return sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func shouldRewriteMediaURL(_ rawURL: String) -> Bool {
+        guard !rawURL.isEmpty else {
+            return false
+        }
+
+        let lowercased = rawURL.lowercased()
+        if rawURL.hasPrefix("/") || rawURL.hasPrefix("#") || rawURL.hasPrefix("//") {
+            return false
+        }
+
+        let blockedSchemes = [
+            "data:",
+            "http:",
+            "https:",
+            "file:",
+            "blob:",
+            "about:",
+            "amgi-asset:",
+        ]
+
+        return !blockedSchemes.contains { lowercased.hasPrefix($0) }
     }
 
     private static func bodyClasses(cardOrdinal: UInt32, isDarkMode: Bool) -> String {

@@ -15,24 +15,33 @@
   <img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="AGPL-3.0">
 </p>
 
+<p align="center">
+  English | <a href="./README.zh-CN.md">简体中文</a>
+</p>
+
 ---
 
 Amgi wraps the official [ankitects/anki](https://github.com/ankitects/anki) Rust backend via C FFI, giving you a native SwiftUI experience backed by the same battle-tested engine that powers Anki Desktop and AnkiDroid. Sync your decks with any compatible sync server (including self-hosted), study with FSRS scheduling, and keep your review history in perfect sync across all your devices.
 
 ## Features
 
-- **Sync Server Support** -- login, sync, full upload/download, bidirectional review sync with any compatible server
-- **FSRS Scheduling** -- powered by the official Rust FSRS engine, not a reimplementation
-- **Card Rendering** -- Rust template engine renders cards exactly like desktop clients，Full Anki card support.
-- **Deck Browser** -- hierarchical deck tree with recursive `DisclosureGroup` expand/collapse, new/learn/review count badges on every node
-- **Study Session** -- answer cards with Again/Hard/Good/Easy; next-interval labels shown above each button
-- **Note Browser** -- search notes across all decks, deck filter chips (top-level decks auto-include subdecks), lazy-load results (50 per page)
-- **Note Editor** -- edit note fields with accurate field names from the Rust notetype RPC
-- **Statistics Dashboard** -- full-year review heatmap (auto-scrolls to today), streak counter, retention rate, forecast chart, card count breakdown
-- **Books** -- Inspired by Hoshi Reader, this lightweight reader allows users to read and sync content from Anki Notes, supports a Yomitan dictionary, and is designed for immersive learning.
-- **Yomitan dictionary** -- The answer card page supports Yomitan dictionary lookup.
-- **Offline-First** -- everything works offline; sync when you have a connection
-- **Swift 6.2 Strict Concurrency** -- zero data races, fully actor-isolated, `Sendable` throughout
+- **Anki-Compatible Core** -- Uses the official Anki Rust backend over C FFI for scheduling, database access, imports/exports, card generation, and collection maintenance instead of reimplementing Anki behavior in Swift.
+- **Offline-First Study** -- Your collection stays fully usable offline, with local review, editing, browsing, reading, and maintenance workflows available even without a network connection.
+- **Flexible Sync** -- Sign in to AnkiWeb or connect to a compatible self-hosted sync server, with normal sync, full upload/download, media sync, progress reporting, and conflict-resolution flows built into the app.
+- **Real FSRS, Not a Clone** -- Powered by Anki's official FSRS engine, including deck-level FSRS controls, desired retention tuning, preset management, workload simulation, and parameter optimization.
+- **Desktop-Accurate Card Rendering** -- Cards are rendered by Anki's template engine with media support, matching desktop behavior as closely as possible for templates, styling, and review presentation.
+- **Deck Management** -- Browse hierarchical decks, inspect new/learn/review counts, create and rename decks or subdecks, export deck packages, and manage deck presets and scheduling options.
+- **Focused Review Experience** -- Study with Again/Hard/Good/Easy, interval previews, audio replay, typed-answer support, flagging, bury/suspend actions, undo, due-date changes, and in-session note/card editing tools.
+- **Powerful Browse & Batch Actions** -- Search across the collection, filter by deck and tag, sort results, lazy-load notes, multi-select items, and run batch actions such as tag edits, deletion, deck moves, notetype changes, export, suspend, and reset-to-new.
+- **Rich Note Editing** -- Create and edit notes with real field names from the backend, rich field editing, tag management, media insertion, audio recording, source editing, and live card preview before committing changes.
+- **Image Occlusion Support** -- Create and edit image occlusion notes with mask tools for rectangles, ellipses, polygons, and text, integrated directly into the native workflow.
+- **Template & Notetype Tools** -- Inspect and edit card templates, CSS, and notetype fields from inside the app, with dedicated management screens for templates and field definitions.
+- **Comprehensive Statistics** -- Explore daily stats, review heatmaps, future due forecasts, card counts, stability/difficulty charts, hourly patterns, answer-button breakdowns, retrievability, and retention, with deck filtering and customizable chart order.
+- **Integrated Reader** -- Read long-form content sourced from Anki notes or imported EPUB files, track reading progress, manage a bookshelf, and connect reading directly to your study workflow.
+- **Dictionary-Powered Lookup** -- Includes Yomitan-style dictionary lookup for both the reader and review flow, plus dictionary import, recommended downloads, updates, enable/disable controls, and local audio options.
+- **Import, Export, and Backups** -- Supports collection and deck package import/export, selected-note export, backup creation, file management, database checks, media checks, and empty-card maintenance utilities.
+- **Multi-Profile & App Settings** -- Switch between local user profiles and customize theme, language, review behavior, editor options, reader preferences, and home/dashboard presentation.
+- **Swift 6.2 Strict Concurrency** -- Built with actor isolation and `Sendable`-aware dependencies throughout the app to keep the Swift side modern, explicit, and race-safe.
 
 ## Screenshots
 

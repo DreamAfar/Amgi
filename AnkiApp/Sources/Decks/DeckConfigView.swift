@@ -380,16 +380,29 @@ struct DeckConfigView: View {
     }
 
     private func optionCapsule(_ title: String) -> some View {
-        HStack(spacing: AmgiSpacing.xs) {
+        SettingsOptionCapsuleLabel(title: title)
+    }
+
+    private func settingRow<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .top, spacing: AmgiSpacing.md) {
             Text(title)
-                .amgiFont(.body)
                 .foregroundStyle(Color.amgiTextPrimary)
-                .lineLimit(1)
-            Image(systemName: "chevron.up.chevron.down")
-                .font(AmgiFont.micro.font)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            content()
+                .fixedSize(horizontal: true, vertical: false)
+                .layoutPriority(1)
         }
-        .amgiCapsuleControl()
+    }
+
+    private func singleLineToggle(_ title: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            Text(title)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func editableNumberStepper(
@@ -402,27 +415,58 @@ struct DeckConfigView: View {
             set: { value.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }
         )
 
-        return Stepper(value: boundedValue, in: range) {
-            HStack(spacing: 4) {
-                TextField("", value: boundedValue, format: .number)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .font(.monospaced(.body)())
-                    .frame(minWidth: 52, idealWidth: 72, maxWidth: 96)
+        return HStack(spacing: 6) {
+            TextField("", value: boundedValue, format: .number)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .font(.monospaced(.body)())
+                .foregroundStyle(Color.amgiAccent)
+                .lineLimit(1)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.amgiSurfaceElevated)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
+                )
+                .frame(width: adaptiveValueFieldWidth(for: "\(boundedValue.wrappedValue)", min: 56, maxWidth: 108))
 
-                if let unitFormatKey {
-                    Text(unitLabel(from: unitFormatKey))
-                        .foregroundStyle(Color.amgiTextSecondary)
-                }
+            if let unitFormatKey {
+                Text(unitLabel(from: unitFormatKey))
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .fixedSize(horizontal: true, vertical: false)
             }
         }
-        .foregroundStyle(Color.amgiAccent)
+        .frame(minWidth: unitFormatKey == nil ? 56 : 86, alignment: .trailing)
     }
 
     private func unitLabel(from formatKey: String) -> String {
         L(formatKey, 1)
             .replacingOccurrences(of: "1", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func inputChrome() -> some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(Color.amgiSurfaceElevated)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
+            )
+    }
+
+    private func adaptiveValueFieldWidth(
+        for text: String,
+        min: CGFloat,
+        maxWidth: CGFloat,
+        characterWidth: CGFloat = 12
+    ) -> CGFloat {
+        let effectiveCount = Swift.max(text.count, 1)
+        let measuredWidth = CGFloat(effectiveCount) * characterWidth + 28
+        return Swift.min(Swift.max(measuredWidth, min), maxWidth)
     }
 
     private func percentWheelPicker(
@@ -439,6 +483,8 @@ struct DeckConfigView: View {
         return VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Spacer()
 
                 Button {
@@ -485,7 +531,7 @@ struct DeckConfigView: View {
 
     private var basicSection: some View {
         Section(L("deck_config_section_basic")) {
-            LabeledContent(L("deck_config_preset")) {
+            settingRow(L("deck_config_preset")) {
                 Menu {
                     Picker(L("deck_config_preset"), selection: presetSelectionBinding) {
                         ForEach(presetOptions, id: \.config.id) { option in
@@ -500,7 +546,7 @@ struct DeckConfigView: View {
                 .disabled(isManagingPreset || presetOptions.isEmpty)
             }
 
-            LabeledContent(L("deck_config_preset_manage")) {
+            settingRow(L("deck_config_preset_manage")) {
                 if isManagingPreset {
                     ProgressView()
                         .controlSize(.small)
@@ -540,13 +586,17 @@ struct DeckConfigView: View {
                 }
             }
 
-            LabeledContent(L("deck_config_name")) {
+            settingRow(L("deck_config_name")) {
                 TextField(L("deck_config_name_placeholder"), text: $configName)
                     .multilineTextAlignment(.trailing)
+                    .lineLimit(1)
+                    .frame(width: adaptiveValueFieldWidth(for: configName, min: 120, maxWidth: 240, characterWidth: 11), alignment: .trailing)
             }
-            LabeledContent(L("deck_config_preset_usage")) {
+            settingRow(L("deck_config_preset_usage")) {
                 Text(L("deck_config_preset_used_by", Int(presetUseCount)))
                     .foregroundStyle(Color.amgiAccent)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
         .listRowBackground(Color.amgiSurfaceElevated)
@@ -554,36 +604,41 @@ struct DeckConfigView: View {
 
     private var dailyLimitsSection: some View {
         Section(L("deck_config_section_daily")) {
-            LabeledContent(L("deck_config_daily_new")) {
+            settingRow(L("deck_config_daily_new")) {
                 editableNumberStepper($newCardsPerDay, in: 0...9999)
             }
-            LabeledContent(L("deck_config_daily_review")) {
+            settingRow(L("deck_config_daily_review")) {
                 editableNumberStepper($reviewsPerDay, in: 0...9999)
             }
-            LabeledContent(L("deck_config_new_per_day_minimum")) {
+            settingRow(L("deck_config_new_per_day_minimum")) {
                 editableNumberStepper($newPerDayMinimum, in: 0...9999)
             }
-            Toggle(L("deck_config_new_cards_ignore_review_limit"), isOn: $newCardsIgnoreReviewLimit)
-            Toggle(L("deck_config_apply_all_parent_limits"), isOn: $applyAllParentLimits)
+            singleLineToggle(L("deck_config_new_cards_ignore_review_limit"), isOn: $newCardsIgnoreReviewLimit)
+            singleLineToggle(L("deck_config_apply_all_parent_limits"), isOn: $applyAllParentLimits)
         }
         .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     private var newCardsSection: some View {
         Section(L("deck_config_section_new")) {
-            LabeledContent(L("deck_config_learn_steps")) {
+            settingRow(L("deck_config_learn_steps")) {
                 TextField(L("deck_config_learn_steps_hint"), text: $learningStepsText)
                     .multilineTextAlignment(.trailing)
                     .font(.monospaced(.body)())
                     .foregroundStyle(Color.amgiAccent)
+                    .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(inputChrome())
+                    .frame(width: adaptiveValueFieldWidth(for: learningStepsText, min: 72, maxWidth: 160), alignment: .trailing)
             }
-            LabeledContent(L("deck_config_good_interval")) {
+            settingRow(L("deck_config_good_interval")) {
                 editableNumberStepper($graduatingGoodDays, in: 0...365, unitFormatKey: "deck_config_days_fmt")
             }
-            LabeledContent(L("deck_config_easy_interval")) {
+            settingRow(L("deck_config_easy_interval")) {
                 editableNumberStepper($graduatingEasyDays, in: 0...365, unitFormatKey: "deck_config_days_fmt")
             }
-            LabeledContent(L("deck_config_insert_order")) {
+            settingRow(L("deck_config_insert_order")) {
                 Menu {
                     Picker(L("deck_config_insert_order"), selection: $newCardInsertOrder) {
                         Text(L("deck_config_order_due")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
@@ -599,16 +654,21 @@ struct DeckConfigView: View {
 
     private var lapsesSection: some View {
         Section(L("deck_config_section_lapses")) {
-            LabeledContent(L("deck_config_relearn_steps")) {
+            settingRow(L("deck_config_relearn_steps")) {
                 TextField(L("deck_config_relearn_steps_hint"), text: $relearningStepsText)
                     .multilineTextAlignment(.trailing)
                     .font(.monospaced(.body)())
                     .foregroundStyle(Color.amgiAccent)
+                    .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(inputChrome())
+                    .frame(width: adaptiveValueFieldWidth(for: relearningStepsText, min: 72, maxWidth: 160), alignment: .trailing)
             }
-            LabeledContent(L("deck_config_leech_threshold")) {
+            settingRow(L("deck_config_leech_threshold")) {
                 editableNumberStepper($leechThreshold, in: 1...9999, unitFormatKey: "deck_config_times_fmt")
             }
-            LabeledContent(L("deck_config_leech_action")) {
+            settingRow(L("deck_config_leech_action")) {
                 Menu {
                     Picker(L("deck_config_leech_action"), selection: $leechAction) {
                         Text(L("deck_config_leech_suspend")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
@@ -624,7 +684,7 @@ struct DeckConfigView: View {
 
     private var orderSection: some View {
         Section(L("deck_config_section_order")) {
-            LabeledContent(L("deck_config_new_gather_priority")) {
+            settingRow(L("deck_config_new_gather_priority")) {
                 Menu {
                     Picker(L("deck_config_new_gather_priority"), selection: $newCardGatherPriority) {
                         Text(L("deck_config_new_gather_priority_deck")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deck)
@@ -638,7 +698,7 @@ struct DeckConfigView: View {
                     optionCapsule(newCardGatherPriorityLabel)
                 }
             }
-            LabeledContent(L("deck_config_new_card_sort_order")) {
+            settingRow(L("deck_config_new_card_sort_order")) {
                 Menu {
                     Picker(L("deck_config_new_card_sort_order"), selection: $newCardSortOrder) {
                         Text(L("deck_config_sort_order_template_then_gather")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.template)
@@ -651,7 +711,7 @@ struct DeckConfigView: View {
                     optionCapsule(newCardSortOrderLabel)
                 }
             }
-            LabeledContent(L("deck_config_new_mix")) {
+            settingRow(L("deck_config_new_mix")) {
                 Menu {
                     Picker(L("deck_config_new_mix"), selection: $newMix) {
                         Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
@@ -662,7 +722,7 @@ struct DeckConfigView: View {
                     optionCapsule(newMixLabel)
                 }
             }
-            LabeledContent(L("deck_config_review_order")) {
+            settingRow(L("deck_config_review_order")) {
                 Menu {
                     Picker(L("deck_config_review_order"), selection: $reviewOrder) {
                         Text(L("deck_config_review_order_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
@@ -682,7 +742,7 @@ struct DeckConfigView: View {
                     optionCapsule(reviewOrderLabel)
                 }
             }
-            LabeledContent(L("deck_config_interday_mix")) {
+            settingRow(L("deck_config_interday_mix")) {
                 Menu {
                     Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
                         Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
@@ -699,10 +759,12 @@ struct DeckConfigView: View {
 
     private var fsrsSection: some View {
         Section(L("deck_config_section_fsrs")) {
-            Toggle(L("deck_config_fsrs_enable"), isOn: $fsrsEnabled)
+            singleLineToggle(L("deck_config_fsrs_enable"), isOn: $fsrsEnabled)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(L("deck_config_desired_retention"))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Spacer()
                     Text("\(Int(desiredRetentionPercent))%")
                         .foregroundStyle(Color.amgiAccent)
@@ -713,6 +775,8 @@ struct DeckConfigView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(L("deck_config_historical_retention"))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Spacer()
                     Text("\(Int(historicalRetentionPercent))%")
                         .foregroundStyle(Color.amgiAccent)
@@ -769,7 +833,7 @@ struct DeckConfigView: View {
                 .tint(Color.amgiAccent)
                 .disabled(isOptimizingFsrs)
 
-                Toggle(L("deck_config_fsrs_health_check"), isOn: $fsrsHealthCheck)
+                singleLineToggle(L("deck_config_fsrs_health_check"), isOn: $fsrsHealthCheck)
 
                 Button {
                     Task { await optimizeAllFsrsPresets() }
@@ -800,22 +864,26 @@ struct DeckConfigView: View {
                     }
                     .pickerStyle(.segmented)
 
-                    LabeledContent(L("deck_config_fsrs_simulator_days")) {
+                    settingRow(L("deck_config_fsrs_simulator_days")) {
                         TextField("", value: $fsrsSimulatorDays, format: .number)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
+                            .lineLimit(1)
                     }
 
-                    LabeledContent(L("deck_config_fsrs_simulator_additional_cards")) {
+                    settingRow(L("deck_config_fsrs_simulator_additional_cards")) {
                         TextField("", value: $fsrsSimulatorAdditionalCards, format: .number)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
+                            .lineLimit(1)
                     }
 
                     if fsrsSimulatorMode == .review {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text(L("deck_config_desired_retention"))
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
                                 Spacer()
                                 Text("\(Int(fsrsSimulatorRetentionPercent))%")
                                     .foregroundStyle(Color.amgiAccent)
@@ -825,16 +893,18 @@ struct DeckConfigView: View {
                         }
                     }
 
-                    LabeledContent(L("deck_config_daily_new")) {
+                    settingRow(L("deck_config_daily_new")) {
                         TextField("", value: $fsrsSimulatorNewLimit, format: .number)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
+                            .lineLimit(1)
                     }
 
-                    LabeledContent(L("deck_config_daily_review")) {
+                    settingRow(L("deck_config_daily_review")) {
                         TextField("", value: $fsrsSimulatorReviewLimit, format: .number)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
+                            .lineLimit(1)
                     }
 
                     TextField(L("deck_config_fsrs_simulator_search_hint"), text: $fsrsSimulatorSearch, axis: .vertical)
@@ -844,10 +914,11 @@ struct DeckConfigView: View {
                 }
 
                 Section(L("deck_config_section_advanced")) {
-                    LabeledContent(L("deck_config_max_interval")) {
+                    settingRow(L("deck_config_max_interval")) {
                         TextField("", value: $fsrsSimulatorMaxInterval, format: .number)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
+                            .lineLimit(1)
                     }
 
                     Picker(L("deck_config_review_order"), selection: $fsrsSimulatorReviewOrder) {
@@ -857,8 +928,8 @@ struct DeckConfigView: View {
                         Text(reviewOrderText(.retrievabilityDescending)).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.retrievabilityDescending)
                     }
 
-                    Toggle(L("deck_config_new_cards_ignore_review_limit"), isOn: $fsrsSimulatorIgnoreNewLimit)
-                    Toggle(L("deck_config_fsrs_simulator_suspend_leeches"), isOn: $fsrsSimulatorSuspendLeeches)
+                    singleLineToggle(L("deck_config_new_cards_ignore_review_limit"), isOn: $fsrsSimulatorIgnoreNewLimit)
+                    singleLineToggle(L("deck_config_fsrs_simulator_suspend_leeches"), isOn: $fsrsSimulatorSuspendLeeches)
                 }
 
                 Section {
@@ -928,20 +999,20 @@ struct DeckConfigView: View {
 
     private var burySection: some View {
         Section(L("deck_config_section_bury")) {
-            Toggle(L("deck_config_bury_new"), isOn: $buryNew)
-            Toggle(L("deck_config_bury_reviews"), isOn: $buryReviews)
-            Toggle(L("deck_config_bury_interday"), isOn: $buryInterdayLearning)
+            singleLineToggle(L("deck_config_bury_new"), isOn: $buryNew)
+            singleLineToggle(L("deck_config_bury_reviews"), isOn: $buryReviews)
+            singleLineToggle(L("deck_config_bury_interday"), isOn: $buryInterdayLearning)
         }
         .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     private var timerSection: some View {
         Section(L("deck_config_section_timer")) {
-            Toggle(L("deck_config_show_timer"), isOn: $showTimer)
-            LabeledContent(L("deck_config_timer_cap")) {
+            singleLineToggle(L("deck_config_show_timer"), isOn: $showTimer)
+            settingRow(L("deck_config_timer_cap")) {
                 editableNumberStepper($capAnswerTimeToSecs, in: 5...600, unitFormatKey: "deck_config_seconds_fmt")
             }
-            Toggle(L("deck_config_stop_timer_on_answer"), isOn: $stopTimerOnAnswer)
+            singleLineToggle(L("deck_config_stop_timer_on_answer"), isOn: $stopTimerOnAnswer)
         }
         .listRowBackground(Color.amgiSurfaceElevated)
     }
@@ -951,6 +1022,8 @@ struct DeckConfigView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(L("deck_config_question_secs"))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Spacer()
                     Text(String(format: "%.1f s", secondsToShowQuestion))
                         .foregroundStyle(Color.amgiAccent)
@@ -961,6 +1034,8 @@ struct DeckConfigView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(L("deck_config_answer_secs"))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Spacer()
                     Text(String(format: "%.1f s", secondsToShowAnswer))
                         .foregroundStyle(Color.amgiAccent)
@@ -968,7 +1043,7 @@ struct DeckConfigView: View {
                 Slider(value: $secondsToShowAnswer, in: 0...60, step: 0.5)
                     .tint(Color.amgiAccent)
             }
-            LabeledContent(L("deck_config_after_question")) {
+            settingRow(L("deck_config_after_question")) {
                 Menu {
                     Picker(L("deck_config_after_question"), selection: $questionAction) {
                         Text(L("deck_config_action_show_answer")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
@@ -978,7 +1053,7 @@ struct DeckConfigView: View {
                     optionCapsule(questionActionLabel)
                 }
             }
-            LabeledContent(L("deck_config_after_answer")) {
+            settingRow(L("deck_config_after_answer")) {
                 Menu {
                     Picker(L("deck_config_after_answer"), selection: $answerAction) {
                         Text(L("deck_config_action_bury")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
@@ -997,13 +1072,13 @@ struct DeckConfigView: View {
 
     private var advancedSection: some View {
         Section(L("deck_config_section_advanced")) {
-            Toggle(L("deck_config_disable_autoplay"), isOn: $disableAutoplay)
-            Toggle(L("deck_config_wait_audio"), isOn: $waitForAudio)
-            Toggle(L("deck_config_skip_question_audio"), isOn: $skipQuestionWhenReplayingAnswer)
-            LabeledContent(L("deck_config_max_interval")) {
+            singleLineToggle(L("deck_config_disable_autoplay"), isOn: $disableAutoplay)
+            singleLineToggle(L("deck_config_wait_audio"), isOn: $waitForAudio)
+            singleLineToggle(L("deck_config_skip_question_audio"), isOn: $skipQuestionWhenReplayingAnswer)
+            settingRow(L("deck_config_max_interval")) {
                 editableNumberStepper($maximumReviewIntervalDays, in: 1...36500, unitFormatKey: "deck_config_days_fmt")
             }
-            LabeledContent(L("deck_config_minimum_lapse_interval")) {
+            settingRow(L("deck_config_minimum_lapse_interval")) {
                 editableNumberStepper($minimumLapseIntervalDays, in: 1...36500, unitFormatKey: "deck_config_days_fmt")
             }
             percentWheelPicker(id: "initialEase", L("deck_config_initial_ease"), value: $initialEasePercent, in: 130...400)

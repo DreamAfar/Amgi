@@ -15,4 +15,12 @@ final class RichNoteFieldEditorTests: XCTestCase {
             #"\[a^2 + b^2 = c^2\]"#
         )
     }
+
+    func testDetectsStoredMathMarkup() {
+        XCTAssertTrue(RichNoteFieldEditor.containsMathMarkup(#"\(a^2 + b^2 = c^2\)"#))
+    }
+
+    func testDetectsLegacyAnkiMathJaxMarkup() {
+        XCTAssertTrue(RichNoteFieldEditor.containsMathMarkup(#"<anki-mathjax>x + y</anki-mathjax>"#))
+    }
 }

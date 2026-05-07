@@ -10,6 +10,7 @@ import Dependencies
 struct TagsView: View {
     @Dependency(\.tagClient) var tagClient
     let targetNoteIDs: [Int64]
+    let onSelectTag: ((String) -> Void)?
     /// Controls behaviour when `targetNoteIDs` is non-empty.
     /// `.addToNotes` — tapping a tag immediately adds it to all selected notes.
     /// `.removeFromNotes` — tapping a tag immediately removes it from all selected notes.
@@ -34,14 +35,23 @@ struct TagsView: View {
     @State private var showRenameTag = false
     @State private var tagToRename: String?
     @State private var renameTagName = ""
+    @State private var showClearUnusedConfirm = false
+    @State private var clearUnusedResultMessage: String?
+    @State private var showClearUnusedResult = false
 
-    init(targetNoteIDs: [Int64] = [], noteMode: NoteMode = .manage) {
+    init(
+        targetNoteIDs: [Int64] = [],
+        noteMode: NoteMode = .manage,
+        onSelectTag: ((String) -> Void)? = nil
+    ) {
         self.targetNoteIDs = targetNoteIDs
         self.noteMode = noteMode
+        self.onSelectTag = onSelectTag
     }
 
     // Whether this view is in "apply tags to notes" mode
     private var isNoteMode: Bool { !targetNoteIDs.isEmpty }
+    private var canBrowseTagNotes: Bool { !isNoteMode && onSelectTag != nil }
 
     var body: some View {
         NavigationStack {
@@ -74,9 +84,30 @@ struct TagsView: View {
                         Image(systemName: "plus")
                     }
                 }
+                if !isNoteMode {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button(role: .destructive) {
+                                showClearUnusedConfirm = true
+                            } label: {
+                                Label(L("tags_clear_unused_action"), systemImage: "trash.slash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                    }
+                }
             }
             .sheet(isPresented: $showAddTag) {
                 addTagSheet
+            }
+            .alert(L("tags_clear_unused_title"), isPresented: $showClearUnusedConfirm) {
+                Button(L("common_cancel"), role: .cancel) { }
+                Button(L("tags_clear_unused_action"), role: .destructive) {
+                    Task { await clearUnusedTagsAction() }
+                }
+            } message: {
+                Text(L("tags_clear_unused_confirm"))
             }
             .alert(L("tags_delete_title"), isPresented: $showDeleteConfirm) {
                 Button(L("common_cancel"), role: .cancel) { }
@@ -109,6 +140,11 @@ struct TagsView: View {
                 Button(L("common_ok")) { }
             } message: {
                 Text(errorMessage ?? L("common_unknown_error"))
+            }
+            .alert(L("tags_clear_unused_title"), isPresented: $showClearUnusedResult) {
+                Button(L("common_ok")) { clearUnusedResultMessage = nil }
+            } message: {
+                Text(clearUnusedResultMessage ?? "")
             }
             .confirmationDialog(
                 L("tags_action_dialog_title", tagActionTag ?? ""),
@@ -151,6 +187,12 @@ struct TagsView: View {
             if isNoteMode {
                 Section {
                     Label(L("tags_apply_hint", targetNoteIDs.count), systemImage: "doc.text")
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            } else if canBrowseTagNotes {
+                Section {
+                    Label(L("tags_browse_hint"), systemImage: "line.3.horizontal.decrease.circle")
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
@@ -213,9 +255,11 @@ struct TagsView: View {
                 ProgressView()
                     .scaleEffect(0.8)
             } else {
-                Image(systemName: "chevron.right")
-                    .font(AmgiFont.caption.font)
-                    .foregroundStyle(Color.amgiTextTertiary)
+                if isNoteMode || canBrowseTagNotes {
+                    Image(systemName: "chevron.right")
+                        .font(AmgiFont.caption.font)
+                        .foregroundStyle(Color.amgiTextTertiary)
+                }
             }
         }
         .contentShape(Rectangle())
@@ -230,7 +274,10 @@ struct TagsView: View {
                     tagActionTag = tag
                 }
             } else {
-                selectedTag = tag
+                if let onSelectTag {
+                    onSelectTag(tag)
+                    dismiss()
+                }
             }
         }
         .swipeActions(edge: .trailing) {
@@ -347,6 +394,18 @@ struct TagsView: View {
             await loadTags()
         } catch {
             errorMessage = L("tags_error_rename", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func clearUnusedTagsAction() async {
+        do {
+            let removedCount = try tagClient.clearUnusedTags()
+            await loadTags()
+            clearUnusedResultMessage = L("tags_clear_unused_result", removedCount)
+            showClearUnusedResult = true
+        } catch {
+            errorMessage = L("tags_error_clear_unused", error.localizedDescription)
             showError = true
         }
     }

@@ -14,4 +14,7 @@ Tests/
 .vscode
 .codex
 .github/copilot-instructions.md
-Hoshi-Reader
+Hoshi-Reader/*
+!Hoshi-Reader/Libraries/
+Hoshi-Reader/Libraries/*
+cleanup-workflow-runs.ps1

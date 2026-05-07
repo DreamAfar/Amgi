@@ -422,10 +422,6 @@ struct TemplateEditorView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     if mode.allowsTemplateSelection, notetype.templates.count > 1 {
                         HStack(spacing: 12) {
-                            Text(currentTemplateName)
-                                .amgiFont(.bodyEmphasis)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                            
                             Spacer()
                             
                             Menu {
@@ -435,18 +431,15 @@ struct TemplateEditorView: View {
                                     } label: {
                                         if selectedTemplateIndex == index {
                                             Label(template.name, systemImage: "checkmark")
+                                                .foregroundStyle(Color.amgiAccent)
                                         } else {
                                             Text(template.name)
+                                                .foregroundStyle(Color.amgiAccent)
                                         }
                                     }
                                 }
                             } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "chevron.up.chevron.down")
-                                        .font(AmgiFont.caption.font)
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                }
-                                .amgiCapsuleControl(horizontalPadding: 12, verticalPadding: 8)
+                                SettingsOptionCapsuleLabel(title: currentTemplateName)
                             }
                         }
                     } else {
@@ -543,12 +536,12 @@ struct TemplateEditorView: View {
                 return try await Task.detached(priority: .userInitiated) {
                     if let previewNoteId,
                        let currentNote = try noteClient.fetch(previewNoteId) {
-                        return buildCardPreviewNote(from: currentNote)
+                        return NoteProtoFactory.makeNote(from: currentNote)
                     }
                     if let sampleNote = try noteClient.search("mid:\(notetypeId)", 1).first {
-                        return buildCardPreviewNote(from: sampleNote)
+                        return NoteProtoFactory.makeNote(from: sampleNote)
                     }
-                    return makeEmptyCardPreviewNote(
+                    return NoteProtoFactory.makeEmptyUncommittedNote(
                         notetypeId: notetypeId,
                         fieldCount: notetype.fields.count
                     )

@@ -4,6 +4,7 @@ import DependenciesMacros
 @DependencyClient
 public struct TagClient: Sendable {
     public var getAllTags: @Sendable () throws -> [String]
+    public var clearUnusedTags: @Sendable () throws -> Int
     public var addTag: @Sendable (_ tag: String) throws -> Void
     public var addTagToNotes: @Sendable (_ tag: String, _ noteIDs: [Int64]) throws -> Void
     public var removeTagFromNotes: @Sendable (_ tag: String, _ noteIDs: [Int64]) throws -> Void

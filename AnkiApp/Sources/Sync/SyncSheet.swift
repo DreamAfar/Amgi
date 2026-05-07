@@ -5,6 +5,14 @@ import AnkiSync
 import Dependencies
 
 struct SyncSheet: View {
+    private enum StatusHeaderTone {
+        case primary
+        case positive
+        case warning
+    }
+
+    private let syncLogHeight: CGFloat = 220
+
     @Binding var isPresented: Bool
     @Dependency(\.syncClient) var syncClient
     @ObservedObject private var syncCoordinator = AppSyncCoordinator.shared
@@ -19,23 +27,10 @@ struct SyncSheet: View {
         SyncPreferences.resolvedMode(syncModeRaw)
     }
 
-    private var displayedServer: String {
-        switch syncMode {
-        case .official:
-            return SyncPreferences.officialServerLabel
-        case .custom:
-            return KeychainHelper.loadEndpoint() ?? L("common_none")
-        case .local:
-            return L("sync_local_mode_label")
-        }
-    }
-
     var body: some View {
         NavigationStack {
             VStack(spacing: 14) {
-                if syncMode != .local {
-                    serverConfigSection
-                }
+                serverConfigSection
 
                 switch syncCoordinator.state {
                 case .idle:
@@ -58,7 +53,7 @@ struct SyncSheet: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .padding(.horizontal, 20)
-            .padding(.top, 8)
+            .padding(.top, 24)
             .padding(.bottom, 12)
             .background(Color.amgiBackground)
             .navigationTitle(L("sync_nav_title"))
@@ -75,8 +70,13 @@ struct SyncSheet: View {
                 }
                 if syncCoordinator.isRunning {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(L("sync_btn_background")) {
+                        Button {
                             isPresented = false
+                        } label: {
+                            Text(L("sync_btn_background"))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                                .allowsTightening(true)
                         }
                         .amgiToolbarTextButton()
                     }
@@ -107,17 +107,28 @@ struct SyncSheet: View {
     private func syncingView(message: String) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 6) {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                Text(L("sync_syncing"))
-                    .amgiFont(.sectionHeading)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                statusHeader(title: L("sync_syncing")) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                }
                 Text(message)
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
             }
 
-            syncLogView(height: 96)
+            syncLogView(height: syncLogHeight)
+        }
+    }
+
+    private var serverTypeLabel: String {
+        switch syncMode {
+        case .official:
+            return L("sync_settings_server_type_official")
+        case .custom:
+            return L("sync_settings_server_type_custom")
+        case .local:
+            return L("sync_settings_server_type_local")
         }
     }
 
@@ -171,9 +182,11 @@ struct SyncSheet: View {
     @ViewBuilder
     private func mediaProgressView(total: Int, downloaded: Int) -> some View {
         VStack(spacing: 16) {
-            Text(L("sync_syncing"))
-                .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+            statusHeader(title: L("sync_syncing")) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .controlSize(.small)
+            }
 
             VStack(spacing: 8) {
                 HStack {
@@ -210,7 +223,7 @@ struct SyncSheet: View {
                 in: RoundedRectangle(cornerRadius: 12)
             )
 
-            syncLogView(height: 96)
+            syncLogView(height: syncLogHeight)
         }
     }
 
@@ -218,26 +231,30 @@ struct SyncSheet: View {
 
     @ViewBuilder
     private var serverConfigSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L("sync_label_server"))
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(L("sync_settings_server_type"))
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
-                Text(displayedServer)
-                    .font(.system(size: 11, weight: .regular, design: .default))
+                Text(serverTypeLabel)
+                    .font(.system(size: 13, weight: .regular, design: .default))
                     .foregroundStyle(Color.amgiTextSecondary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            Spacer()
-            if syncMode == .custom {
-                Menu {
-                    Button(L("sync_menu_change_server")) {
-                        showServerSetup = true
+                    .truncationMode(.tail)
+                Spacer(minLength: 8)
+                if syncMode == .custom {
+                    Menu {
+                        Button(L("sync_menu_change_server")) {
+                            showServerSetup = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
+            }
+
+            if syncMode == .official {
+                ankiWebSupportNotice()
             }
         }
     }
@@ -356,8 +373,11 @@ struct SyncSheet: View {
     @ViewBuilder
     private func successView(_ summary: SyncSummary) -> some View {
         VStack(spacing: 12) {
-            Label(L("sync_complete_title"), systemImage: "checkmark.circle.fill")
-                .amgiStatusText(.positive, font: .sectionHeading)
+            statusHeader(title: L("sync_complete_title"), tone: .positive) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(AmgiFont.sectionHeading.font)
+                    .foregroundStyle(Color.amgiPositive)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 if summary.cardsPulled > 0 { Text(L("sync_cards_received", summary.cardsPulled)) }
                 if summary.cardsPushed > 0 { Text(L("sync_cards_sent", summary.cardsPushed)) }
@@ -394,7 +414,7 @@ struct SyncSheet: View {
                         }
                         .padding(.vertical, 6)
                     }
-                    .frame(maxHeight: 120)
+                    .frame(height: syncLogHeight)
                     .background(
                         Color.amgiSurface,
                         in: RoundedRectangle(cornerRadius: 10)
@@ -410,8 +430,10 @@ struct SyncSheet: View {
     @ViewBuilder
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 12) {
-            Label(L("sync_failed_title"), systemImage: "exclamationmark.triangle.fill")
-                .amgiStatusText(.warning, font: .sectionHeading)
+            statusHeader(title: L("sync_failed_title"), tone: .warning) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.amgiWarning)
+            }
             Text(message)
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
@@ -509,6 +531,59 @@ struct SyncSheet: View {
             return L("sync_full_download_confirm_desc")
         case .uploadOnly:
             return L("sync_full_upload_confirm_desc")
+        }
+    }
+
+    @ViewBuilder
+    private func statusHeader<Accessory: View>(
+        title: String,
+        tone: StatusHeaderTone = .primary,
+        @ViewBuilder accessory: () -> Accessory
+    ) -> some View {
+        HStack(spacing: 8) {
+            statusHeaderTitle(title, tone: tone)
+            accessory()
+        }
+    }
+
+    @ViewBuilder
+    private func statusHeaderTitle(_ title: String, tone: StatusHeaderTone) -> some View {
+        switch tone {
+        case .primary:
+            Text(title)
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
+        case .positive:
+            Text(title)
+                .amgiStatusText(.positive, font: .sectionHeading)
+        case .warning:
+            Text(title)
+                .amgiStatusText(.warning, font: .sectionHeading)
+        }
+    }
+
+    private func ankiWebSupportNotice() -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L("ankiweb_support_notice"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let url = URL(string: "https://apps.apple.com/us/app/ankimobile-flashcards/id373493387") {
+                HStack(spacing: 4) {
+                    Text(L("common_view"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                    Link(destination: url) {
+                        HStack(spacing: 4) {
+                            Text("AnkiMobile")
+                                .amgiFont(.captionBold)
+                            Image(systemName: "arrow.up.right")
+                                .font(AmgiFont.caption.font)
+                        }
+                        .foregroundStyle(Color.amgiLink)
+                    }
+                }
+            }
         }
     }
 }

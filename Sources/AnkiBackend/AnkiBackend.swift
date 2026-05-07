@@ -1,5 +1,5 @@
 import AnkiRustLib
-import AnkiProto
+public import AnkiProto
 public import Foundation
 public import SwiftProtobuf
 
@@ -164,6 +164,63 @@ public final class AnkiBackend: Sendable {
         var req = Anki_Generic_String()
         req.val = key
         try callVoid(service: Service.config, method: ConfigMethod.removeConfig, request: req)
+    }
+
+    public func getConfigBool(
+        for key: Anki_Config_ConfigKey.BoolEnum
+    ) throws -> Bool {
+        var req = Anki_Config_GetConfigBoolRequest()
+        req.key = key
+        let response: Anki_Generic_Bool = try invoke(
+            service: Service.config,
+            method: ConfigMethod.getConfigBool,
+            request: req
+        )
+        return response.val
+    }
+
+    public func setConfigBool(
+        _ value: Bool,
+        for key: Anki_Config_ConfigKey.BoolEnum,
+        undoable: Bool = false
+    ) throws {
+        var req = Anki_Config_SetConfigBoolRequest()
+        req.key = key
+        req.value = value
+        req.undoable = undoable
+        try callVoid(
+            service: Service.config,
+            method: ConfigMethod.setConfigBool,
+            request: req
+        )
+    }
+
+    public var currentMediaFolderURL: URL? {
+        guard let mediaFolderPath else { return nil }
+        return URL(fileURLWithPath: mediaFolderPath, isDirectory: true)
+    }
+
+    public func addMediaFile(data: Data, desiredName: String) throws -> String {
+        var req = Anki_Media_AddMediaFileRequest()
+        req.desiredName = desiredName
+        req.data = data
+
+        let response: Anki_Generic_String = try invoke(
+            service: Service.media,
+            method: MediaMethod.addMediaFile,
+            request: req
+        )
+        return response.val
+    }
+
+    public func trashMediaFiles(_ filenames: [String]) throws {
+        var req = Anki_Media_TrashMediaFilesRequest()
+        req.fnames = filenames
+        try callVoid(
+            service: Service.media,
+            method: MediaMethod.trashMediaFiles,
+            request: req
+        )
     }
 
     // MARK: - Raw FFI
@@ -341,6 +398,8 @@ extension AnkiBackend {
         public static let setConfigJson: UInt32 = 1
         public static let setConfigJsonNoUndo: UInt32 = 2
         public static let removeConfig: UInt32 = 3
+        public static let getConfigBool: UInt32 = 5
+        public static let setConfigBool: UInt32 = 6
     }
 
     // Method indices from BackendSchedulerService (service 13) dispatch table.

@@ -418,6 +418,22 @@ private actor DictionaryLookupRuntime {
         return libraryState()
     }
 
+    func reorder(kind: AppDictionaryKind, dictionaryIDs: [String]) throws -> AppDictionaryLibraryState {
+        try ensureLoaded()
+
+        switch kind {
+        case .term:
+            termDictionaries = reordered(termDictionaries, by: dictionaryIDs)
+        case .frequency:
+            frequencyDictionaries = reordered(frequencyDictionaries, by: dictionaryIDs)
+        case .pitch:
+            pitchDictionaries = reordered(pitchDictionaries, by: dictionaryIDs)
+        }
+
+        try persistAndRebuild()
+        return libraryState()
+    }
+
     func delete(kind: AppDictionaryKind, dictionaryID: String) throws -> AppDictionaryLibraryState {
         try ensureLoaded()
 
@@ -569,6 +585,25 @@ private actor DictionaryLookupRuntime {
             dictionary.info.order = index
             return dictionary
         }
+    }
+
+    private func reordered(_ dictionaries: [ManagedDictionary], by dictionaryIDs: [String]) -> [ManagedDictionary] {
+        let dictionariesByID = Dictionary(uniqueKeysWithValues: dictionaries.map { ($0.info.id, $0) })
+        var result: [ManagedDictionary] = []
+
+        for dictionaryID in dictionaryIDs {
+            guard let dictionary = dictionariesByID[dictionaryID] else {
+                continue
+            }
+            result.append(dictionary)
+        }
+
+        let includedIDs = Set(result.map(\.info.id))
+        for dictionary in dictionaries where !includedIDs.contains(dictionary.info.id) {
+            result.append(dictionary)
+        }
+
+        return normalized(result)
     }
 
     private func dictionariesFromStorage(kind: AppDictionaryKind, profileID: String) throws -> [ManagedDictionary] {
@@ -941,6 +976,14 @@ private actor DictionaryLookupRuntime {
                     return []
                 }
 
+                if tag == "ruby" {
+                    return flattenRubyGlossary(dictionary)
+                }
+
+                if tag == "rt" || tag == "rp" {
+                    return []
+                }
+
                 if let content = dictionary["content"] {
                     let flattenedContent = flattenGlossary(content)
                     switch tag {
@@ -983,6 +1026,51 @@ private actor DictionaryLookupRuntime {
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    private static func flattenRubyGlossary(_ dictionary: [String: Any]) -> [String] {
+        guard let content = dictionary["content"] else {
+            return []
+        }
+
+        let components: [Any]
+        if let contentArray = content as? [Any] {
+            components = contentArray
+        } else {
+            components = [content]
+        }
+
+        var baseParts: [String] = []
+        var readingParts: [String] = []
+
+        for component in components {
+            if let node = component as? [String: Any],
+               let tag = (node["tag"] as? String)?.lowercased() {
+                switch tag {
+                case "rt":
+                    if let rubyReading = node["content"] {
+                        readingParts.append(contentsOf: flattenGlossary(rubyReading))
+                    }
+                case "rp":
+                    continue
+                default:
+                    baseParts.append(contentsOf: flattenGlossary(component))
+                }
+            } else {
+                baseParts.append(contentsOf: flattenGlossary(component))
+            }
+        }
+
+        let base = baseParts.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+        let reading = readingParts.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !base.isEmpty else {
+            return []
+        }
+        guard !reading.isEmpty else {
+            return [base]
+        }
+        return ["\(base)[\(reading)]"]
     }
 }
 
@@ -1033,6 +1121,9 @@ extension DictionaryLookupClient: DependencyKey {
             },
             setEnabled: { kind, dictionaryID, enabled in
                 try await runtime.setEnabled(kind: kind, dictionaryID: dictionaryID, enabled: enabled)
+            },
+            reorder: { kind, dictionaryIDs in
+                try await runtime.reorder(kind: kind, dictionaryIDs: dictionaryIDs)
             },
             delete: { kind, dictionaryID in
                 try await runtime.delete(kind: kind, dictionaryID: dictionaryID)

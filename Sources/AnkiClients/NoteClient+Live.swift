@@ -84,15 +84,7 @@ extension NoteClient: DependencyKey {
                 backendFetchBatch(ids)
             },
             save: { note in
-                var protoNote = Anki_Notes_Note()
-                protoNote.id = note.id
-                protoNote.notetypeID = note.mid
-                protoNote.fields = note.flds
-                    .split(separator: "\u{1f}", omittingEmptySubsequences: false)
-                    .map(String.init)
-                protoNote.tags = note.tags
-                    .split(separator: " ")
-                    .map(String.init)
+                let protoNote = NoteProtoFactory.makeNote(from: note)
 
                 var req = Anki_Notes_UpdateNotesRequest()
                 req.notes = [protoNote]

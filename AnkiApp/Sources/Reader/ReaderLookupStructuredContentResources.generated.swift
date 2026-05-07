@@ -25,6 +25,8 @@ const POS_TAGS = new Set(['n', 'adj-i', 'adj-na', 'adj-no', 'v1', 'vk', 'vs', 'v
 const audioUrls = {};
 let currentAudio = null;
 let lastSelection = '';
+let lastLookupTapAt = 0;
+let lookupTouchStart = null;
 
 function el(tag, props = {}, children = []) {
     const element = document.createElement(tag);
@@ -112,6 +114,69 @@ function lookupTextFromHref(href, fallbackText = '') {
         }
     } catch {}
     return decodeURIComponent(rawHref.replace(/^#/, '')).trim() || fallback;
+}
+
+function shouldIgnoreLookupTap(target) {
+    return !!target?.closest?.(
+        '.audio-button, .mine-button, .overlay, .overlay-close, summary, img, canvas, button, input, textarea, select'
+    );
+}
+
+function lookupPayloadAtPoint(target, x, y) {
+    const glossaryRoot = target?.closest?.('.glossary-content');
+    if (!glossaryRoot) {
+        return null;
+    }
+    const selected = window.hoshiSelection?.selectText(x, y, 16);
+    if (selected?.text) {
+        return selected;
+    }
+    return elementTextLookupPayloadAt(glossaryRoot, x, y, 16) ?? textNodeLookupPayloadAt(x, y, 16);
+}
+
+function handlePopupLookupTap(e) {
+    if (e.type === 'touchstart') {
+        const touch = e.touches?.[0];
+        lookupTouchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+        return;
+    }
+
+    if (e.type === 'touchend' && lookupTouchStart) {
+        const touch = e.changedTouches?.[0];
+        if (touch && Math.hypot(touch.clientX - lookupTouchStart.x, touch.clientY - lookupTouchStart.y) > 10) {
+            lookupTouchStart = null;
+            return;
+        }
+        lookupTouchStart = null;
+    }
+
+    const target = e.target?.nodeType === Node.TEXT_NODE ? e.target.parentElement : e.target;
+    if (shouldIgnoreLookupTap(target)) {
+        return;
+    }
+
+    if (!target?.closest?.('.glossary-content')) {
+        webkit.messageHandlers.tapOutside?.postMessage(null);
+        return;
+    }
+
+    const now = Date.now();
+    if (e.type === 'click' && now - lastLookupTapAt < 500) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
+
+    const point = e.changedTouches?.[0] ?? e;
+    const payload = lookupPayloadAtPoint(target, point.clientX, point.clientY);
+    if (payload && postLookupText(payload.text, payload.sentence || '')) {
+        lastLookupTapAt = now;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
+
+    webkit.messageHandlers.tapOutside?.postMessage(null);
 }
 
 window.hoshiSelection = {
@@ -1074,6 +1139,11 @@ function getFrequencyHarmonicRank(frequencies) {
 }
 
 async function mineEntry(expression, reading, frequencies, pitches, rules, matched, entryIndex, popupSelectionText) {
+    const payload = await buildMiningPayload(expression, reading, frequencies, pitches, rules, matched, entryIndex, popupSelectionText);
+    return await webkit.messageHandlers.mineEntry.postMessage(payload);
+}
+
+async function buildMiningPayload(expression, reading, frequencies, pitches, rules, matched, entryIndex, popupSelectionText) {
     const idx = entryIndex || 0;
     const furiganaPlain = constructFuriganaPlain(expression, reading);
     const glossary = constructGlossaryHtml(idx);
@@ -1090,7 +1160,7 @@ async function mineEntry(expression, reading, frequencies, pitches, rules, match
 
     const audio = audioUrls[idx] || '';
 
-    return await webkit.messageHandlers.mineEntry.postMessage({
+    return {
         expression,
         reading,
         matched,
@@ -1104,7 +1174,7 @@ async function mineEntry(expression, reading, frequencies, pitches, rules, match
         pitchCategories,
         popupSelectionText,
         audio
-    });
+    };
 }
 
 function renderStructuredContent(parent, node, language = null, dictName = null, exporting = false) {
@@ -1493,7 +1563,8 @@ function createEntryHeader(entry, idx) {
             mineButton.disabled = true;
             const isAnkiConnect = await mineEntry(expression, reading, frequencies, pitches, rules, matched, idx, lastSelection);
             const checkDuplicate = async () => {
-                const wasAdded = await webkit.messageHandlers.duplicateCheck.postMessage(expression);
+                const payload = await buildMiningPayload(expression, reading, frequencies, pitches, rules, matched, idx, lastSelection);
+                const wasAdded = await webkit.messageHandlers.duplicateCheck.postMessage(payload);
                 mineButton.textContent = wasAdded ? '✓' : '+';
                 if (wasAdded) {
                     mineButton.classList.add('duplicate');
@@ -1509,12 +1580,14 @@ function createEntryHeader(entry, idx) {
         }
     });
     buttonsContainer.appendChild(mineButton);
-    webkit.messageHandlers.duplicateCheck.postMessage(expression).then(isDuplicate => {
-        if (isDuplicate) {
-            mineButton.textContent = '✓';
-            mineButton.classList.add('duplicate');
-        }
-        mineButton.disabled = isDuplicate && !window.allowDupes;
+    buildMiningPayload(expression, reading, frequencies, pitches, rules, matched, idx, lastSelection).then(payload => {
+        webkit.messageHandlers.duplicateCheck.postMessage(payload).then(isDuplicate => {
+            if (isDuplicate) {
+                mineButton.textContent = '✓';
+                mineButton.classList.add('duplicate');
+            }
+            mineButton.disabled = isDuplicate && !window.allowDupes;
+        });
     });
 
     header.appendChild(buttonsContainer);
@@ -1685,33 +1758,9 @@ window.renderPopup = function() {
         document.body.appendChild(customStyle);
     }
 
-    container.addEventListener('click', (e) => {
-        const target = e.target?.nodeType === Node.TEXT_NODE ? e.target.parentElement : e.target;
-        if (!target?.closest('.glossary-content')) {
-            webkit.messageHandlers.tapOutside?.postMessage(null);
-            return;
-        }
-        const glossaryRoot = target.closest('.glossary-content');
-        const selected = window.hoshiSelection?.selectText(e.clientX, e.clientY, 16);
-        if (selected?.text) {
-            postLookupText(selected.text, selected.sentence || '');
-            return;
-        }
-        const elementPayload = elementTextLookupPayloadAt(glossaryRoot, e.clientX, e.clientY, 16);
-        if (elementPayload) {
-            postLookupText(elementPayload.text, elementPayload.sentence || '');
-            return;
-        }
-        const payload = textNodeLookupPayloadAt(e.clientX, e.clientY, 16);
-        if (payload) {
-            postLookupText(payload.text, payload.sentence || '');
-            return;
-        }
-        if (!selected) {
-            webkit.messageHandlers.tapOutside?.postMessage(null);
-            return;
-        }
-    });
+    container.addEventListener('touchstart', handlePopupLookupTap, { capture: true });
+    container.addEventListener('touchend', handlePopupLookupTap, { capture: true });
+    container.addEventListener('click', handlePopupLookupTap, true);
 };
 
 """#

@@ -385,7 +385,10 @@ extension TagClient {
     static var testValue: TagClient {
         TagClient(
             getAllTags: { [] },
+            clearUnusedTags: { 0 },
             addTag: { _ in },
+            addTagToNotes: { _, _ in },
+            removeTagFromNotes: { _, _ in },
             removeTag: { _ in },
             renameTag: { _, _ in },
             findNotesByTag: { _ in [] }

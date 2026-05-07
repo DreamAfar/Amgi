@@ -15,18 +15,30 @@ enum SettingsValueStyle {
 
 struct SettingsOptionCapsuleLabel: View {
     let title: String
+    var icon: String? = nil
+    var titleColor: Color = SettingsValueStyle.highlight
+    var indicatorColor: Color = SettingsValueStyle.secondary
+    var backgroundColor: Color = .amgiMenuSurface
+    var maxWidth: CGFloat = 220
 
     var body: some View {
         HStack(spacing: AmgiSpacing.xs) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(AmgiFont.micro.font)
+                    .foregroundStyle(indicatorColor)
+            }
             Text(title)
                 .amgiFont(.body)
-                .foregroundStyle(SettingsValueStyle.primary)
+                .foregroundStyle(titleColor)
                 .lineLimit(1)
+                .truncationMode(.tail)
             Image(systemName: "chevron.up.chevron.down")
                 .font(AmgiFont.micro.font)
-                .foregroundStyle(SettingsValueStyle.secondary)
+                .foregroundStyle(indicatorColor)
         }
-        .amgiCapsuleControl()
+        .amgiCapsuleControl(backgroundColor: backgroundColor)
+        .frame(maxWidth: maxWidth, alignment: .trailing)
     }
 }
 
@@ -162,10 +174,11 @@ struct SettingsView: View {
             }
 
             Section(L("settings_section_display")) {
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_picker_theme"), selection: selectedTheme) {
                             ForEach(AppTheme.allCases) { theme in
@@ -181,10 +194,11 @@ struct SettingsView: View {
                 .amgiSettingsListRowSurface()
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack {
+                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         Label(L("settings_picker_language"), systemImage: "globe")
                             .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
                             Picker(L("settings_picker_language"), selection: selectedLanguage) {
                                 ForEach(AppLanguage.allCases) { lang in
@@ -447,12 +461,15 @@ private struct ReviewOptionsView: View {
         }
     }
 
+    @Dependency(\.ankiBackend) var backend
+
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var playAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var showContextMenuButton = true
     @AppStorage(ReviewPreferences.Keys.showAudioReplayButton) private var showAudioReplayButton = true
     @AppStorage(ReviewPreferences.Keys.showCorrectnessSymbols) private var showCorrectnessSymbols = false
     @AppStorage(ReviewPreferences.Keys.disperseAnswerButtons) private var disperseAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.showAnswerButtons) private var showAnswerButtons = true
+    @AppStorage(ReviewPreferences.Keys.hideHardAndEasyButtons) private var hideHardAndEasyButtons = false
     @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var showRemainingDays = true
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var showNextReviewTime = false
     @AppStorage(ReviewPreferences.Keys.openLinksExternally) private var openLinksExternally = true
@@ -462,6 +479,13 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var cardContentAlignmentRaw = CardAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var glassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var autoMatchCardBackground = true
+    @State private var loadBalancerEnabled = false
+    @State private var fsrsShortTermWithStepsEnabled = false
+    @State private var isLoadingFsrsOptions = true
+    @State private var isSyncingFsrsOptions = false
+    @State private var suppressFsrsOptionSync = false
+    @State private var fsrsOptionsError: String?
+    @State private var showFsrsOptionsError = false
 
     private var cardAlignment: Binding<CardAlignment> {
         Binding(
@@ -483,6 +507,7 @@ private struct ReviewOptionsView: View {
                 Toggle(L("settings_review_show_correctness_symbols"), isOn: $showCorrectnessSymbols)
                 Toggle(L("settings_review_disperse_answer_buttons"), isOn: $disperseAnswerButtons)
                 Toggle(L("settings_review_show_answer_buttons"), isOn: $showAnswerButtons)
+                Toggle(L("settings_review_hide_hard_and_easy_buttons"), isOn: $hideHardAndEasyButtons)
                 Toggle(L("settings_review_show_remaining_days"), isOn: $showRemainingDays)
                 Toggle(L("settings_review_show_next_review_time"), isOn: $showNextReviewTime)
                 Toggle(L("settings_review_open_links_externally"), isOn: $openLinksExternally)
@@ -497,10 +522,11 @@ private struct ReviewOptionsView: View {
                     Toggle(L("settings_review_glass_answer_buttons"), isOn: $glassAnswerButtons)
                 }
 
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_card_alignment"))
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_review_card_alignment"), selection: cardAlignment) {
                             ForEach(CardAlignment.allCases) { alignment in
@@ -515,11 +541,96 @@ private struct ReviewOptionsView: View {
                 }
             }
             .amgiSettingsListRowSurface()
+
+            Section(L("settings_review_section_fsrs")) {
+                if isLoadingFsrsOptions {
+                    HStack {
+                        Text(L("settings_review_loading"))
+                            .foregroundStyle(SettingsValueStyle.secondary)
+                        Spacer()
+                        ProgressView()
+                    }
+                } else {
+                    Toggle(L("settings_review_load_balancer_enabled"), isOn: $loadBalancerEnabled)
+                    Text(L("settings_review_load_balancer_enabled_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+
+                    Toggle(
+                        L("settings_review_fsrs_short_term_with_steps_enabled"),
+                        isOn: $fsrsShortTermWithStepsEnabled
+                    )
+                    Text(L("settings_review_fsrs_short_term_with_steps_enabled_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                }
+            }
+            .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
         .navigationTitle(L("settings_row_review"))
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadFsrsReviewingOptions()
+        }
+        .onChange(of: loadBalancerEnabled) { _, _ in
+            persistFsrsReviewingOptionsIfNeeded()
+        }
+        .onChange(of: fsrsShortTermWithStepsEnabled) { _, _ in
+            persistFsrsReviewingOptionsIfNeeded()
+        }
+        .alert(L("deck_action_error_title"), isPresented: $showFsrsOptionsError) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(fsrsOptionsError ?? L("common_unknown_error"))
+        }
+    }
+
+    @MainActor
+    private func loadFsrsReviewingOptions() async {
+        isLoadingFsrsOptions = true
+        defer { isLoadingFsrsOptions = false }
+
+        do {
+            let loadBalancer = try backend.getConfigBool(for: .loadBalancerEnabled)
+            let shortTermWithSteps = try backend.getConfigBool(for: .fsrsShortTermWithStepsEnabled)
+            suppressFsrsOptionSync = true
+            loadBalancerEnabled = loadBalancer
+            fsrsShortTermWithStepsEnabled = shortTermWithSteps
+            suppressFsrsOptionSync = false
+        } catch {
+            fsrsOptionsError = L("settings_review_fsrs_load_failed", error.localizedDescription)
+            showFsrsOptionsError = true
+        }
+    }
+
+    private func persistFsrsReviewingOptionsIfNeeded() {
+        guard !isLoadingFsrsOptions, !suppressFsrsOptionSync, !isSyncingFsrsOptions else { return }
+
+        let loadBalancer = loadBalancerEnabled
+        let shortTermWithSteps = fsrsShortTermWithStepsEnabled
+        let capturedBackend = backend
+        isSyncingFsrsOptions = true
+
+        Task {
+            do {
+                try capturedBackend.setConfigBool(loadBalancer, for: .loadBalancerEnabled)
+                try capturedBackend.setConfigBool(
+                    shortTermWithSteps,
+                    for: .fsrsShortTermWithStepsEnabled
+                )
+            } catch {
+                await MainActor.run {
+                    fsrsOptionsError = L("settings_review_fsrs_save_failed", error.localizedDescription)
+                    showFsrsOptionsError = true
+                }
+                await loadFsrsReviewingOptions()
+            }
+            await MainActor.run {
+                isSyncingFsrsOptions = false
+            }
+        }
     }
 }
 
@@ -565,10 +676,11 @@ private struct DeckListHeatmapSettingsView: View {
                 Toggle(L("settings_display_show_deck_heatmap"), isOn: $showDeckListHeatmap)
 
                 if showDeckListHeatmap {
-                    HStack {
+                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         Text(L("settings_display_heatmap_scope"))
                             .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
                             Picker(L("settings_display_heatmap_scope"), selection: heatmapScope) {
                                 Text(L("settings_display_heatmap_scope_all"))
@@ -584,9 +696,10 @@ private struct DeckListHeatmapSettingsView: View {
                     }
 
                     if heatmapScope.wrappedValue == .selectedDeck {
-                        HStack {
+                        HStack(alignment: .top, spacing: AmgiSpacing.md) {
                             Label(L("settings_display_heatmap_selected_deck"), systemImage: "rectangle.stack")
-                            Spacer()
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             Menu {
                                 Picker(
                                     L("settings_display_heatmap_selected_deck"),
@@ -623,10 +736,11 @@ private struct DeckListHeatmapSettingsView: View {
                         Slider(value: $deckListHeatmapHeight, in: 136...220, step: 4)
                     }
 
-                    HStack {
+                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         Label(L("settings_heatmap_initial_range"), systemImage: "calendar")
                             .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
                             Picker(L("settings_heatmap_initial_range"), selection: $initialDaysRaw) {
                                 ForEach(HeatmapInitialDays.allCases) { option in
@@ -682,17 +796,13 @@ private struct ReaderOptionsView: View {
 }
 
 private struct SyncSettingsView: View {
-    @Dependency(\.syncClient) var syncClient
-
     @AppStorage(SyncPreferences.Keys.modeForCurrentUser()) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
     @AppStorage(SyncPreferences.Keys.syncMediaForCurrentUser()) private var syncMediaEnabled = true
     @AppStorage(SyncPreferences.Keys.ioTimeoutSecsForCurrentUser()) private var ioTimeoutSecs = SyncPreferences.Timeout.defaultValue
-    @AppStorage(SyncPreferences.Keys.mediaLastLogForCurrentUser()) private var mediaLastLog = ""
-    @AppStorage(SyncPreferences.Keys.mediaLastSyncedAtForCurrentUser()) private var mediaLastSyncedAt = 0.0
 
     @State private var showServerSetup = false
     @State private var showLogin = false
-    @State private var isSyncingMedia = false
+    @State private var showSyncSheet = false
     @State private var syncMessage: String?
     @State private var showSyncAlert = false
 
@@ -758,21 +868,14 @@ private struct SyncSettingsView: View {
         KeychainHelper.loadUsername() ?? L("sync_settings_not_logged_in")
     }
 
-    private var formattedLastMediaSync: String {
-        guard mediaLastSyncedAt > 0 else { return L("common_none") }
-        return Date(timeIntervalSince1970: mediaLastSyncedAt).formatted(
-            date: .abbreviated,
-            time: .shortened
-        )
-    }
-
     var body: some View {
         List {
             Section(L("sync_settings_section_server")) {
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("sync_settings_server_type"))
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("sync_settings_server_type"), selection: syncModeBinding) {
                             Text(L("sync_settings_server_type_official"))
@@ -790,7 +893,11 @@ private struct SyncSettingsView: View {
                     }
                 }
 
-                infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
+                if syncMode == .official {
+                    ankiWebSupportNoticeRow()
+                } else {
+                    infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
+                }
                 infoRow(title: L("sync_settings_current_server"), value: currentServerValue)
                 infoRow(title: L("sync_settings_account"), value: currentAccountValue)
 
@@ -819,10 +926,11 @@ private struct SyncSettingsView: View {
             Section(L("sync_settings_section_options")) {
                 Toggle(L("sync_settings_sync_media"), isOn: $syncMediaEnabled)
 
-                HStack {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("sync_settings_timeout"))
                         .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("sync_settings_timeout"), selection: timeoutBinding) {
                             ForEach(SyncPreferences.Timeout.allCases) { option in
@@ -839,39 +947,23 @@ private struct SyncSettingsView: View {
             .amgiSettingsListRowSurface()
 
             if syncMode != .local {
-                Section(L("sync_settings_section_media")) {
+                Section {
                     Button {
-                        Task { await syncMediaNow() }
+                        showSyncSheet = true
                     } label: {
                         HStack {
-                            Label(L("sync_settings_sync_media_now"), systemImage: "photo.on.rectangle")
+                            Label(L("sync_settings_sync_now"), systemImage: "arrow.triangle.2.circlepath")
                                 .foregroundStyle(SettingsValueStyle.primary)
                             Spacer()
-                            if isSyncingMedia {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            }
                         }
                     }
                     .buttonStyle(.plain)
-                    .disabled(isSyncingMedia)
-
-                    infoRow(title: L("sync_settings_last_media_sync"), value: formattedLastMediaSync)
-
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(L("sync_settings_media_log"))
-                            .amgiFont(.bodyEmphasis)
-                            .foregroundStyle(SettingsValueStyle.primary)
-                        Text(mediaLastLog.isEmpty ? L("common_none") : mediaLastLog)
+                        Text(L("sync_settings_sync_now_hint"))
                             .amgiFont(.caption)
                             .foregroundStyle(SettingsValueStyle.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, AmgiSpacing.xs)
-                            .padding(.horizontal, AmgiSpacing.sm)
-                            .background(
-                                Color.amgiSurface,
-                                in: RoundedRectangle(cornerRadius: 8)
-                            )
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.vertical, 4)
                 }
@@ -890,6 +982,11 @@ private struct SyncSettingsView: View {
                 syncMessage = L("common_done")
                 showSyncAlert = true
             }
+        }
+        .sheet(isPresented: $showSyncSheet) {
+            SyncSheet(isPresented: $showSyncSheet)
+                .presentationDetents([.fraction(0.75), .large])
+                .presentationDragIndicator(.visible)
         }
         .alert(L("settings_row_sync"), isPresented: $showSyncAlert) {
             Button(L("common_ok"), role: .cancel) {}
@@ -911,37 +1008,34 @@ private struct SyncSettingsView: View {
         }
     }
 
+    private func ankiWebSupportNoticeRow() -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L("ankiweb_support_notice"))
+                .amgiFont(.caption)
+                .foregroundStyle(SettingsValueStyle.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let url = URL(string: "https://apps.apple.com/us/app/ankimobile-flashcards/id373493387") {
+                HStack(spacing: 4) {
+                    Text(L("common_view"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                    Link(destination: url) {
+                        HStack(spacing: 4) {
+                            Text("AnkiMobile")
+                                .amgiFont(.captionBold)
+                            Image(systemName: "arrow.up.right")
+                                .font(AmgiFont.caption.font)
+                        }
+                        .foregroundStyle(Color.amgiLink)
+                    }
+                }
+            }
+        }
+    }
+
     private func logout() {
         AppSyncAuthEvents.clearCredentials()
         syncMessage = L("sync_settings_logged_out")
-        showSyncAlert = true
-    }
-
-    private func syncMediaNow() async {
-        guard syncMode != .local else { return }
-        guard KeychainHelper.loadHostKey() != nil else {
-            showLogin = true
-            return
-        }
-
-        isSyncingMedia = true
-        defer { isSyncingMedia = false }
-
-        do {
-            _ = try await syncClient.syncMedia()
-            let message = L("sync_settings_media_log_success")
-            SyncPreferences.recordMediaSyncLog(message)
-            mediaLastLog = message
-            mediaLastSyncedAt = Date.now.timeIntervalSince1970
-            syncMessage = message
-        } catch {
-            let message = L("sync_settings_media_log_failed", error.localizedDescription)
-            SyncPreferences.recordMediaSyncLog(message)
-            mediaLastLog = message
-            mediaLastSyncedAt = Date.now.timeIntervalSince1970
-            syncMessage = message
-        }
-
         showSyncAlert = true
     }
 }
@@ -1039,6 +1133,12 @@ private struct AboutView: View {
                 aboutSection(title: L("about_section_acknowledgements")) {
                     VStack(alignment: .leading, spacing: AmgiSpacing.lg) {
                         aboutLinkBlock(
+                            title: "AnkiWeb Sync Service",
+                            description: L("about_ack_ankiweb_text"),
+                            urlString: "https://apps.apple.com/us/app/ankimobile-flashcards/id373493387",
+                            linkTitle: "AnkiMobile"
+                        )
+                        aboutLinkBlock(
                             title: "ankitects/anki",
                             description: L("about_ack_anki_text"),
                             urlString: "https://github.com/ankitects/anki"
@@ -1047,6 +1147,11 @@ private struct AboutView: View {
                             title: "AnkiDroid",
                             description: L("about_ack_ankidroid_text"),
                             urlString: "https://github.com/ankidroid/Anki-Android"
+                        )
+                        aboutLinkBlock(
+                            title: "Hoshi-Reader",
+                            description: L("about_ack_hoshi_reader_text"),
+                            urlString: "https://github.com/Manhhao/Hoshi-Reader"
                         )
                         aboutLinkBlock(
                             title: "Point-Free swift-dependencies",
@@ -1070,6 +1175,7 @@ private struct AboutView: View {
                     VStack(alignment: .leading, spacing: AmgiSpacing.md) {
                         aboutLinkRow(title: L("about_link_project_repo"), urlString: "https://github.com/antigluten/amgi")
                         aboutLinkRow(title: L("about_link_anki_repo"), urlString: "https://github.com/ankitects/anki")
+                        aboutLinkRow(title: L("about_link_hoshi_reader_repo"), urlString: "https://github.com/Manhhao/Hoshi-Reader")
                     }
                 }
 
@@ -1108,7 +1214,12 @@ private struct AboutView: View {
         }
     }
 
-    private func aboutLinkBlock(title: String, description: String, urlString: String) -> some View {
+    private func aboutLinkBlock(
+        title: String,
+        description: String,
+        urlString: String,
+        linkTitle: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
             Text(title)
                 .amgiFont(.bodyEmphasis)
@@ -1116,7 +1227,7 @@ private struct AboutView: View {
             Text(description)
                 .amgiFont(.body)
                 .foregroundStyle(Color.amgiTextSecondary)
-            aboutLinkRow(title: urlString, urlString: urlString)
+            aboutLinkRow(title: linkTitle ?? urlString, urlString: urlString)
         }
     }
 

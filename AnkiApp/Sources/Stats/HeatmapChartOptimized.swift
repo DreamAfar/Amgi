@@ -139,16 +139,20 @@ struct HeatmapChartOptimized: View {
                 if !isCompact {
                     Menu {
                         ForEach([30, 90, 180, 365, 730], id: \.self) { days in
-                            Button(dateRangeLabel(days)) {
+                            Button {
                                 Task {
                                     await updateDateRange(days)
                                 }
+                            } label: {
+                                Text(dateRangeLabel(days))
+                                    .foregroundStyle(Color.amgiAccent)
                             }
                         }
                     } label: {
-                        Label(L("stats_range_\(selectedDateRange)"), systemImage: "line.horizontal.3.decrease.circle")
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiAccent)
+                        SettingsOptionCapsuleLabel(
+                            title: L("stats_range_\(selectedDateRange)"),
+                            icon: "line.horizontal.3.decrease.circle"
+                        )
                     }
                 }
                 

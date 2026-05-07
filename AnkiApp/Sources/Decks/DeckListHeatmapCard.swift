@@ -7,6 +7,7 @@ import SwiftProtobuf
 struct DeckListHeatmapCard: View {
     @Dependency(\.statsClient) var statsClient
     @Dependency(\.deckClient) var deckClient
+    @Dependency(\.syncClient) var syncClient
     @ObservedObject private var collectionState = AppCollectionState.shared
     @AppStorage(DeckListHeatmapSettings.heightKey) private var deckListHeatmapHeight = DeckListHeatmapSettings.defaultHeight
     @AppStorage(DeckListHeatmapSettings.scopeKey) private var heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
@@ -27,7 +28,7 @@ struct DeckListHeatmapCard: View {
     init(refreshID: Int, showsExternalLoading: Bool = false) {
         self.refreshID = refreshID
         self.showsExternalLoading = showsExternalLoading
-        _graphs = State(initialValue: DeckListHeatmapCache.load())
+        _graphs = State(initialValue: DeckListHeatmapCache.loadCurrent())
         _isLoading = State(initialValue: true)
         _hasLoadedFullHistory = State(
             initialValue: UserDefaults.standard.integer(forKey: DeckListHeatmapSettings.initialDaysKey)
@@ -124,9 +125,15 @@ struct DeckListHeatmapCard: View {
         do {
             let query = try resolvedSearchQuery()
             let days = initialDaysRaw  // 0 = all history
-            let response = try await fetchGraphsResponse(query: query, days: UInt32(days), priority: .userInitiated)
+            let lastSyncAt = syncClient.lastSyncDate()
+            let response = try await loadBestResponse(query: query, days: days, lastSyncAt: lastSyncAt)
             graphs = response
-            DeckListHeatmapCache.save(response)
+            DeckListHeatmapCache.save(
+                response,
+                searchQuery: query,
+                requestedDays: days,
+                lastSyncAt: lastSyncAt
+            )
             // If user already chose "all history" in settings, mark as loaded
             if days == HeatmapInitialDays.allHistory.rawValue {
                 hasLoadedFullHistory = true
@@ -143,14 +150,47 @@ struct DeckListHeatmapCard: View {
         isLoadingMoreHistory = true
         do {
             let query = try resolvedSearchQuery()
+            let lastSyncAt = syncClient.lastSyncDate()
             let response = try await fetchGraphsResponse(query: query, days: 0, priority: .background)
             graphs = response
-            DeckListHeatmapCache.save(response)
+            DeckListHeatmapCache.save(
+                response,
+                searchQuery: query,
+                requestedDays: 0,
+                lastSyncAt: lastSyncAt
+            )
             hasLoadedFullHistory = true
         } catch {
             // keep existing 180-day data on failure
         }
         isLoadingMoreHistory = false
+    }
+
+    private func loadBestResponse(
+        query: String,
+        days: Int,
+        lastSyncAt: Date?
+    ) async throws -> Anki_Stats_GraphsResponse {
+        guard let cached = DeckListHeatmapCache.loadEntry(),
+              cached.searchQuery == query,
+              cached.requestedDays == days,
+              sameSyncState(cached.lastSyncAt, lastSyncAt),
+              let cachedResponse = cached.response
+        else {
+            return try await fetchGraphsResponse(query: query, days: UInt32(days), priority: .userInitiated)
+        }
+
+        let recentDays = incrementalRefreshDays(for: days)
+        guard recentDays > 0 else {
+            return try await fetchGraphsResponse(query: query, days: UInt32(days), priority: .userInitiated)
+        }
+
+        let recentResponse = try await fetchGraphsResponse(
+            query: query,
+            days: UInt32(recentDays),
+            priority: .userInitiated
+        )
+        return merge(cached: cachedResponse, cachedAt: cached.cachedAt, fresh: recentResponse)
     }
 
     private func fetchGraphsResponse(
@@ -191,7 +231,7 @@ struct DeckListHeatmapCard: View {
             return DeckListHeatmapSettings.allDecksSearch
         }
 
-        let availableDeckIDs = Set(try deckClient.fetchAll().map(\.id))
+        let availableDeckIDs = Set(try deckClient.fetchNamesOnly().map(\.id))
         guard availableDeckIDs.contains(selectedID) else {
             heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
             selectedDeckID = DeckListHeatmapSettings.defaultSelectedDeckID
@@ -199,5 +239,67 @@ struct DeckListHeatmapCard: View {
         }
 
         return "did:\(selectedID)"
+    }
+
+    private func incrementalRefreshDays(for requestedDays: Int) -> Int {
+        let refreshWindow = 7
+        if requestedDays == 0 {
+            return refreshWindow
+        }
+        return min(requestedDays, refreshWindow)
+    }
+
+    private func sameSyncState(_ lhs: Date?, _ rhs: Date?) -> Bool {
+        switch (lhs, rhs) {
+        case (.none, .none):
+            return true
+        case let (.some(a), .some(b)):
+            return Swift.abs(a.timeIntervalSince(b)) < 1
+        default:
+            return false
+        }
+    }
+
+    private func merge(
+        cached: Anki_Stats_GraphsResponse,
+        cachedAt: Date,
+        fresh: Anki_Stats_GraphsResponse
+    ) -> Anki_Stats_GraphsResponse {
+        var merged = cached
+        let shiftDays = dayShift(from: cachedAt, to: Date())
+        merged.reviews.count = shiftReviewMap(cached.reviews.count, by: shiftDays)
+        merged.reviews.time = shiftReviewMap(cached.reviews.time, by: shiftDays)
+
+        for (day, reviews) in fresh.reviews.count {
+            merged.reviews.count[day] = reviews
+        }
+        for (day, reviews) in fresh.reviews.time {
+            merged.reviews.time[day] = reviews
+        }
+        return merged
+    }
+
+    private func dayShift(from cachedAt: Date, to now: Date) -> Int32 {
+        guard cachedAt > .distantPast else { return 0 }
+        let calendar = Calendar.current
+        let cachedDay = calendar.startOfDay(for: cachedAt)
+        let currentDay = calendar.startOfDay(for: now)
+        let delta = calendar.dateComponents([.day], from: cachedDay, to: currentDay).day ?? 0
+        return Int32(delta)
+    }
+
+    private func shiftReviewMap(
+        _ map: [Int32: Anki_Stats_GraphsResponse.ReviewCountsAndTimes.Reviews],
+        by shiftDays: Int32
+    ) -> [Int32: Anki_Stats_GraphsResponse.ReviewCountsAndTimes.Reviews] {
+        guard shiftDays != 0 else { return map }
+
+        var shifted: [Int32: Anki_Stats_GraphsResponse.ReviewCountsAndTimes.Reviews] = [:]
+        for (offset, value) in map {
+            let newOffset = offset - shiftDays
+            guard newOffset <= 0 else { continue }
+            shifted[newOffset] = value
+        }
+        return shifted
     }
 }

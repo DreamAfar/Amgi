@@ -5,7 +5,7 @@ import DependenciesMacros
 @DependencyClient
 public struct MediaClient: Sendable {
     public var localURL: @Sendable (_ filename: String) -> URL? = { _ in nil }
-    public var save: @Sendable (_ data: Data, _ filename: String) throws -> Void
+    public var save: @Sendable (_ data: Data, _ filename: String) throws -> String
     public var delete: @Sendable (_ filename: String) throws -> Void
 }
 

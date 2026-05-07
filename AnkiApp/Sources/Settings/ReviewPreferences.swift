@@ -9,6 +9,13 @@ enum ReaderThemeMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum ReaderLibrarySourceMode: String, CaseIterable, Identifiable {
+    case ankiNotes = "anki_notes"
+    case epub = "epub"
+
+    var id: String { rawValue }
+}
+
 enum ReviewPreferences {
     enum Keys {
         static let playAudioInSilentMode = "review_pref_play_audio_in_silent_mode"
@@ -17,6 +24,7 @@ enum ReviewPreferences {
         static let showCorrectnessSymbols = "review_pref_show_correctness_symbols"
         static let disperseAnswerButtons = "review_pref_disperse_answer_buttons"
         static let showAnswerButtons = "review_pref_show_answer_buttons"
+        static let hideHardAndEasyButtons = "review_pref_hide_hard_and_easy_buttons"
         static let showRemainingDays = "review_pref_show_remaining_days"
         static let showNextReviewTime = "review_pref_show_next_review_time"
         static let openLinksExternally = "review_pref_open_links_externally"
@@ -33,6 +41,7 @@ enum ReaderPreferences {
     enum Keys {
         static let showTab = "reader_pref_show_tab"
         static let tapLookup = "reader_pref_tap_lookup"
+        static let sourceMode = "reader_pref_source_mode"
         static let deckID = "reader_pref_deck_id"
         static let notetypeID = "reader_pref_notetype_id"
         static let bookIDField = "reader_pref_book_id_field"
@@ -81,6 +90,8 @@ enum ReaderPreferences {
         static let dictionaryMaxResults = "reader_pref_dictionary_max_results"
         static let dictionaryScanLength = "reader_pref_dictionary_scan_length"
         static let lookupNoteTemplate = "reader_pref_lookup_note_template"
+        static let enableStatistics = "reader_pref_enable_statistics"
+        static let statisticsAutostartMode = "reader_pref_statistics_autostart_mode"
     }
 }
 

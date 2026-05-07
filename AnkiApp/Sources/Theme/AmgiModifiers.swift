@@ -165,10 +165,14 @@ extension View {
             .foregroundStyle(tone.foregroundColor)
     }
 
-    func amgiCapsuleControl(horizontalPadding: CGFloat = 10, verticalPadding: CGFloat = 6) -> some View {
+    func amgiCapsuleControl(
+        backgroundColor: Color = .amgiSurface,
+        horizontalPadding: CGFloat = 10,
+        verticalPadding: CGFloat = 6
+    ) -> some View {
         padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
-            .background(Color.amgiSurfaceElevated)
+            .background(backgroundColor)
             .overlay(
                 Capsule()
                     .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)

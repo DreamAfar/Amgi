@@ -8,7 +8,10 @@ final class BrowseViewLogicTests: XCTestCase {
         XCTAssertEqual(BrowseQuickFilter.addedToday.query, "added:1")
         XCTAssertEqual(BrowseQuickFilter.studiedToday.query, "rated:1")
         XCTAssertEqual(BrowseQuickFilter.newCards.query, "is:new")
+        XCTAssertEqual(BrowseQuickFilter.learning.query, "is:learn")
         XCTAssertEqual(BrowseQuickFilter.review.query, "is:review")
+        XCTAssertEqual(BrowseQuickFilter.suspended.query, "is:suspended")
+        XCTAssertEqual(BrowseQuickFilter.buried.query, "is:buried")
         XCTAssertEqual(BrowseQuickFilter.due.query, "prop:due<=0")
         XCTAssertEqual(BrowseQuickFilter.flag1.query, "flag:1")
         XCTAssertEqual(BrowseQuickFilter.flag7.query, "flag:7")
@@ -31,5 +34,19 @@ final class BrowseViewLogicTests: XCTestCase {
     func testBrowseViewInit() {
         let view = BrowseView()
         XCTAssertNotNil(view)
+    }
+
+    func testFindDuplicatesBuildsStableNoteIDsQuery() {
+        XCTAssertEqual(
+            BrowseFindDuplicatesSheet.noteIDsQuery([5, 2, 5, 9]),
+            "nid:2,5,9"
+        )
+    }
+
+    func testFindDuplicatesNormalizesHTMLAndMedia() {
+        let value = BrowseFindDuplicatesSheet.normalizedFieldValue(
+            "  <b>Hello</b>&nbsp;world [sound:test.mp3] <script>ignore()</script>  "
+        )
+        XCTAssertEqual(value, "Hello world")
     }
 }
