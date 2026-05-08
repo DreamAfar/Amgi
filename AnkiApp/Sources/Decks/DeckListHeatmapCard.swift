@@ -40,51 +40,74 @@ struct DeckListHeatmapCard: View {
         Group {
             if let graphs {
                 // Always show heatmap; overlay spinner during refresh or full-history load
-                HeatmapChart(reviews: graphs.reviews, compactHeight: deckListHeatmapHeight)
-                    .frame(maxWidth: .infinity)
-                    .overlay(alignment: .center) {
-                        if isLoading || showsExternalLoading {
-                            ProgressView()
-                                .padding(10)
-                                .background(.ultraThinMaterial, in: Circle())
-                                .allowsHitTesting(false)
-                        }
+                VStack(alignment: .leading, spacing: 14) {
+                    HeatmapChart(
+                        reviews: graphs.reviews,
+                        compactHeight: deckListHeatmapHeight,
+                        embedded: true
+                    )
+                    Divider()
+                    TodayStatsCard(
+                        today: graphs.today,
+                        embedded: true,
+                        compactText: true
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.amgiSurfaceElevated)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.amgiBorder.opacity(0.32), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.08), radius: 12, y: 4)
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .center) {
+                    if isLoading || showsExternalLoading {
+                        ProgressView()
+                            .padding(10)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .allowsHitTesting(false)
                     }
-                    .overlay(alignment: .bottomLeading) {
-                        if isLoadingMoreHistory {
-                            HStack(spacing: 4) {
-                                ProgressView()
-                                    .scaleEffect(0.65)
-                                    .frame(width: 14, height: 14)
-                                Text(L("heatmap_loading_full_history"))
-                                    .amgiFont(.micro)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                }
+                .overlay(alignment: .bottomLeading) {
+                    if isLoadingMoreHistory {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .scaleEffect(0.65)
+                                .frame(width: 14, height: 14)
+                            Text(L("heatmap_loading_full_history"))
+                                .amgiFont(.micro)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                        .padding(8)
+                    } else if !hasLoadedFullHistory {
+                        Button {
+                            Task { await loadFullHistory() }
+                        } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: "arrow.left.to.line")
+                                Text(L("heatmap_load_all_history"))
                             }
+                            .amgiFont(.micro)
+                            .foregroundStyle(Color.amgiTextSecondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
-                            .padding(8)
-                        } else if !hasLoadedFullHistory {
-                            Button {
-                                Task { await loadFullHistory() }
-                            } label: {
-                                HStack(spacing: 3) {
-                                    Image(systemName: "arrow.left.to.line")
-                                    Text(L("heatmap_load_all_history"))
-                                }
-                                .amgiFont(.micro)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
-                            }
-                            .buttonStyle(.plain)
-                            .padding(8)
                         }
+                        .buttonStyle(.plain)
+                        .padding(8)
                     }
-                    .animation(.easeInOut(duration: 0.2), value: isLoading)
-                    .animation(.easeInOut(duration: 0.2), value: isLoadingMoreHistory)
-                    .animation(.easeInOut(duration: 0.2), value: hasLoadedFullHistory)
+                }
+                .animation(.easeInOut(duration: 0.2), value: isLoading)
+                .animation(.easeInOut(duration: 0.2), value: isLoadingMoreHistory)
+                .animation(.easeInOut(duration: 0.2), value: hasLoadedFullHistory)
             } else if isLoading || showsExternalLoading {
                 // First load only — no cached data yet
                 ProgressView()

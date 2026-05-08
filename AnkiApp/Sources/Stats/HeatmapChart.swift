@@ -4,6 +4,7 @@ import AnkiProto
 struct HeatmapChart: View {
     let reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes
     var compactHeight: CGFloat? = nil
+    var embedded: Bool = false
 
     private var isCompact: Bool {
         compactHeight != nil
@@ -131,7 +132,7 @@ struct HeatmapChart: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let chartContent = VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(L("stats_heatmap_title"))
                     .amgiFont(.sectionHeading)
@@ -219,17 +220,26 @@ struct HeatmapChart: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(isCompact ? 10 : 16)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.amgiSurfaceElevated)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.amgiBorder.opacity(0.32), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.08), radius: 12, y: 4)
+
+        Group {
+            if embedded {
+                chartContent
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                chartContent
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(isCompact ? 10 : 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.amgiSurfaceElevated)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.amgiBorder.opacity(0.32), lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.08), radius: 12, y: 4)
+            }
+        }
     }
 
     // MARK: - Helpers

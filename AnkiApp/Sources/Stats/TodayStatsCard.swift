@@ -3,6 +3,20 @@ import AnkiProto
 
 struct TodayStatsCard: View {
     let today: Anki_Stats_GraphsResponse.Today
+    var embedded: Bool = false
+    var compactText: Bool = false
+
+    private var primaryValueFont: Font {
+        compactText
+            ? .system(size: 17, weight: .semibold, design: .default)
+            : .title3.weight(.semibold)
+    }
+
+    private var badgeValueFont: Font {
+        compactText
+            ? .system(size: 13, weight: .medium, design: .default)
+            : .subheadline.weight(.medium)
+    }
 
     private var accuracy: String {
         guard today.answerCount > 0 else { return "---" }
@@ -17,7 +31,7 @@ struct TodayStatsCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
+        let content = VStack(spacing: compactText ? 10 : 12) {
             HStack {
                 statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
                 Spacer()
@@ -38,20 +52,41 @@ struct TodayStatsCard: View {
                 statBadge(L("stats_card_again"), count: today.answerCount - today.correctCount, color: .red)
             }
         }
-        .amgiCard(elevated: true)
+
+        Group {
+            if embedded {
+                content
+            } else {
+                content
+                    .amgiCard(elevated: true)
+            }
+        }
     }
 
     private func statItem(title: String, value: String, color: Color) -> some View {
         VStack(spacing: 2) {
-            Text(value).font(.title3.weight(.semibold)).foregroundStyle(color)
-            Text(title).amgiFont(.caption).foregroundStyle(Color.amgiTextSecondary)
+            Text(value)
+                .font(primaryValueFont)
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(title)
+                .amgiFont(compactText ? .micro : .caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+                .lineLimit(1)
         }
     }
 
     private func statBadge(_ title: String, count: UInt32, color: Color) -> some View {
         VStack(spacing: 2) {
-            Text("\(count)").font(.subheadline.weight(.medium)).foregroundStyle(color)
-            Text(title).amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
+            Text("\(count)")
+                .font(badgeValueFont)
+                .foregroundStyle(color)
+                .lineLimit(1)
+            Text(title)
+                .amgiFont(.micro)
+                .foregroundStyle(Color.amgiTextSecondary)
+                .lineLimit(1)
         }
     }
 
