@@ -479,6 +479,8 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var cardContentAlignmentRaw = CardAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var glassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var autoMatchCardBackground = true
+    @AppStorage(ReviewPreferences.Keys.dayStartHour) private var persistedDayStartHour = 4
+    @State private var rolloverHour = 4
     @State private var loadBalancerEnabled = false
     @State private var fsrsShortTermWithStepsEnabled = false
     @State private var isLoadingFsrsOptions = true
@@ -492,6 +494,17 @@ private struct ReviewOptionsView: View {
             get: { CardAlignment(rawValue: cardContentAlignmentRaw) ?? .top },
             set: { cardContentAlignmentRaw = $0.rawValue }
         )
+    }
+
+    private var rolloverHourBinding: Binding<Int> {
+        Binding(
+            get: { rolloverHour },
+            set: { rolloverHour = $0 }
+        )
+    }
+
+    private var rolloverHourLabel: String {
+        String(format: L("settings_review_day_start_hour_value"), rolloverHour)
     }
 
     var body: some View {
@@ -542,6 +555,41 @@ private struct ReviewOptionsView: View {
             }
             .amgiSettingsListRowSurface()
 
+            Section(L("settings_review_section_schedule")) {
+                if isLoadingFsrsOptions {
+                    HStack {
+                        Text(L("settings_review_loading"))
+                            .foregroundStyle(SettingsValueStyle.secondary)
+                        Spacer()
+                        ProgressView()
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("settings_review_day_start"))
+                                .foregroundStyle(SettingsValueStyle.primary)
+                            Text(L("settings_review_day_start_hint"))
+                                .amgiFont(.caption)
+                                .foregroundStyle(SettingsValueStyle.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Menu {
+                            Picker(L("settings_review_day_start"), selection: rolloverHourBinding) {
+                                ForEach(0..<24, id: \.self) { hour in
+                                    Text(String(format: L("settings_review_day_start_hour_value"), hour))
+                                        .foregroundStyle(SettingsValueStyle.highlight)
+                                        .tag(hour)
+                                }
+                            }
+                        } label: {
+                            SettingsOptionCapsuleLabel(title: rolloverHourLabel)
+                        }
+                    }
+                }
+            }
+            .amgiSettingsListRowSurface()
+
             Section(L("settings_review_section_fsrs")) {
                 if isLoadingFsrsOptions {
                     HStack {
@@ -572,13 +620,17 @@ private struct ReviewOptionsView: View {
         .navigationTitle(L("settings_row_review"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await loadFsrsReviewingOptions()
+            await loadReviewSchedulingOptions()
         }
         .onChange(of: loadBalancerEnabled) { _, _ in
             persistFsrsReviewingOptionsIfNeeded()
         }
         .onChange(of: fsrsShortTermWithStepsEnabled) { _, _ in
             persistFsrsReviewingOptionsIfNeeded()
+        }
+        .onChange(of: rolloverHour) { oldValue, newValue in
+            guard oldValue != newValue, newValue != persistedDayStartHour else { return }
+            persistSchedulingOptionsIfNeeded()
         }
         .alert(L("deck_action_error_title"), isPresented: $showFsrsOptionsError) {
             Button(L("common_ok"), role: .cancel) {}
@@ -588,19 +640,20 @@ private struct ReviewOptionsView: View {
     }
 
     @MainActor
-    private func loadFsrsReviewingOptions() async {
+    private func loadReviewSchedulingOptions() async {
         isLoadingFsrsOptions = true
         defer { isLoadingFsrsOptions = false }
 
         do {
-            let loadBalancer = try backend.getConfigBool(for: .loadBalancerEnabled)
-            let shortTermWithSteps = try backend.getConfigBool(for: .fsrsShortTermWithStepsEnabled)
+            let preferences = try backend.getPreferences()
             suppressFsrsOptionSync = true
-            loadBalancerEnabled = loadBalancer
-            fsrsShortTermWithStepsEnabled = shortTermWithSteps
+            rolloverHour = Int(preferences.scheduling.rollover)
+            persistedDayStartHour = rolloverHour
+            loadBalancerEnabled = preferences.reviewing.loadBalancerEnabled
+            fsrsShortTermWithStepsEnabled = preferences.reviewing.fsrsShortTermWithStepsEnabled
             suppressFsrsOptionSync = false
         } catch {
-            fsrsOptionsError = L("settings_review_fsrs_load_failed", error.localizedDescription)
+            fsrsOptionsError = L("settings_review_schedule_load_failed", error.localizedDescription)
             showFsrsOptionsError = true
         }
     }
@@ -615,17 +668,44 @@ private struct ReviewOptionsView: View {
 
         Task {
             do {
-                try capturedBackend.setConfigBool(loadBalancer, for: .loadBalancerEnabled)
-                try capturedBackend.setConfigBool(
-                    shortTermWithSteps,
-                    for: .fsrsShortTermWithStepsEnabled
-                )
+                var preferences = try capturedBackend.getPreferences()
+                preferences.reviewing.loadBalancerEnabled = loadBalancer
+                preferences.reviewing.fsrsShortTermWithStepsEnabled = shortTermWithSteps
+                try capturedBackend.setPreferences(preferences)
             } catch {
                 await MainActor.run {
                     fsrsOptionsError = L("settings_review_fsrs_save_failed", error.localizedDescription)
                     showFsrsOptionsError = true
                 }
-                await loadFsrsReviewingOptions()
+                await loadReviewSchedulingOptions()
+            }
+            await MainActor.run {
+                isSyncingFsrsOptions = false
+            }
+        }
+    }
+
+    private func persistSchedulingOptionsIfNeeded() {
+        guard !isLoadingFsrsOptions, !suppressFsrsOptionSync, !isSyncingFsrsOptions else { return }
+
+        let selectedRolloverHour = UInt32(rolloverHour)
+        let capturedBackend = backend
+        isSyncingFsrsOptions = true
+
+        Task {
+            do {
+                var preferences = try capturedBackend.getPreferences()
+                preferences.scheduling.rollover = selectedRolloverHour
+                try capturedBackend.setPreferences(preferences)
+                await MainActor.run {
+                    persistedDayStartHour = Int(selectedRolloverHour)
+                }
+            } catch {
+                await MainActor.run {
+                    fsrsOptionsError = L("settings_review_schedule_save_failed", error.localizedDescription)
+                    showFsrsOptionsError = true
+                }
+                await loadReviewSchedulingOptions()
             }
             await MainActor.run {
                 isSyncingFsrsOptions = false

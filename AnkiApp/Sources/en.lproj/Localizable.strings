@@ -1416,8 +1416,14 @@
 "settings_review_card_alignment" = "Card content alignment";
 "settings_review_alignment_top" = "Top";
 "settings_review_alignment_center" = "Center";
+"settings_review_section_schedule" = "Schedule";
+"settings_review_day_start" = "New day starts at";
+"settings_review_day_start_hint" = "After this time, today’s study stats reset and a new study day begins.";
+"settings_review_day_start_hour_value" = "%d:00";
 "settings_review_section_fsrs" = "FSRS";
 "settings_review_loading" = "Loading...";
+"settings_review_schedule_load_failed" = "Could not load the review day-start time: %@";
+"settings_review_schedule_save_failed" = "Could not save the review day-start time: %@";
 "settings_review_load_balancer_enabled" = "Balance future review workload";
 "settings_review_load_balancer_enabled_hint" = "Spread future due cards more evenly across days. This is a collection-wide setting, matching upstream Anki.";
 "settings_review_fsrs_short_term_with_steps_enabled" = "FSRS short-term cards use steps";

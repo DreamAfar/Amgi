@@ -1423,8 +1423,14 @@
 "settings_review_card_alignment" = "カード内容の配置";
 "settings_review_alignment_top" = "上寄せ";
 "settings_review_alignment_center" = "中央";
+"settings_review_section_schedule" = "学習日の切替";
+"settings_review_day_start" = "新しい一日の開始時刻";
+"settings_review_day_start_hint" = "この時刻を過ぎると今日の学習統計はリセットされ、新しい学習日として集計されます。";
+"settings_review_day_start_hour_value" = "%d:00";
 "settings_review_section_fsrs" = "FSRS";
 "settings_review_loading" = "読み込み中...";
+"settings_review_schedule_load_failed" = "学習日の開始時刻の読み込みに失敗しました: %@";
+"settings_review_schedule_save_failed" = "学習日の開始時刻の保存に失敗しました: %@";
 "settings_review_load_balancer_enabled" = "今後の復習負荷を均等化";
 "settings_review_load_balancer_enabled_hint" = "将来の期限カードが各日により均等に分散されます。上流 Anki と同じコレクション全体設定です。";
 "settings_review_fsrs_short_term_with_steps_enabled" = "FSRS の短期カードで steps を使う";

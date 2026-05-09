@@ -1421,8 +1421,14 @@
 "settings_review_card_alignment" = "模板内容对齐";
 "settings_review_alignment_top" = "顶部对齐";
 "settings_review_alignment_center" = "居中对齐";
+"settings_review_section_schedule" = "计划时间";
+"settings_review_day_start" = "新一天开始时间";
+"settings_review_day_start_hint" = "超过这个时间后，今日学习数据会归零，并按新的一天重新统计。";
+"settings_review_day_start_hour_value" = "%d:00";
 "settings_review_section_fsrs" = "FSRS";
 "settings_review_loading" = "加载中...";
+"settings_review_schedule_load_failed" = "加载复习计划时间失败：%@";
+"settings_review_schedule_save_failed" = "保存复习计划时间失败：%@";
 "settings_review_load_balancer_enabled" = "均衡未来复习负载";
 "settings_review_load_balancer_enabled_hint" = "让未来到期卡片更均匀地分布到各天。这是库级设置，与上游 Anki 一致。";
 "settings_review_fsrs_short_term_with_steps_enabled" = "FSRS 短期间隔继续使用 steps";

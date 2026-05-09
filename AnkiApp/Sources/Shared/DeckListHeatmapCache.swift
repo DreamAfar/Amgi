@@ -19,7 +19,9 @@ enum DeckListHeatmapCache {
         guard
             let entry = loadEntry(),
             entry.searchQuery == currentSearchQuery(),
-            entry.requestedDays == currentRequestedDays()
+            entry.requestedDays == currentRequestedDays(),
+            entry.matchesCurrentRolloverHour,
+            !entry.isExpiredForCurrentStudyDay
         else {
             return nil
         }
@@ -107,5 +109,36 @@ enum DeckListHeatmapCache {
 extension DeckListHeatmapCache.Entry {
     var response: Anki_Stats_GraphsResponse? {
         try? Anki_Stats_GraphsResponse(serializedBytes: responseData)
+    }
+
+    var isExpiredForCurrentStudyDay: Bool {
+        guard let response else { return true }
+        let rolloverHour = Int(response.rolloverHour)
+        guard (0..<24).contains(rolloverHour) else { return false }
+        return Self.studyDayIdentifier(for: cachedAt, rolloverHour: rolloverHour)
+            != Self.studyDayIdentifier(for: Date(), rolloverHour: rolloverHour)
+    }
+
+    var matchesCurrentRolloverHour: Bool {
+        guard let response else { return false }
+        guard UserDefaults.standard.object(forKey: ReviewPreferences.Keys.dayStartHour) != nil else {
+            return true
+        }
+        let localRolloverHour = UserDefaults.standard.integer(forKey: ReviewPreferences.Keys.dayStartHour)
+        return Int(response.rolloverHour) == localRolloverHour
+    }
+
+    private static func studyDayIdentifier(for date: Date, rolloverHour: Int) -> String {
+        let calendar = Calendar.current
+        let adjustedDate = if calendar.component(.hour, from: date) < rolloverHour {
+            calendar.date(byAdding: .day, value: -1, to: date) ?? date
+        } else {
+            date
+        }
+        let components = calendar.dateComponents([.year, .month, .day], from: adjustedDate)
+        let year = components.year ?? 0
+        let month = components.month ?? 0
+        let day = components.day ?? 0
+        return "\(year)-\(month)-\(day)"
     }
 }

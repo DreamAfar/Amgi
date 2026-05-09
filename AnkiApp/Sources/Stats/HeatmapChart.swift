@@ -5,10 +5,20 @@ struct HeatmapChart: View {
     let reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes
     var compactHeight: CGFloat? = nil
     var embedded: Bool = false
+    var canLoadMoreHistory: Bool = false
+    var isLoadingMoreHistory: Bool = false
+    var onLoadMoreHistory: (() -> Void)? = nil
+    var onTapHeatmap: (() -> Void)? = nil
+
+    @State private var isNearLoadMoreThreshold = false
+    @State private var hasTriggeredLoadMore = false
 
     private var isCompact: Bool {
         compactHeight != nil
     }
+
+    private let loadIndicatorThreshold: CGFloat = 72
+    private let loadTriggerThreshold: CGFloat = 24
 
     private var cellSpacing: CGFloat {
         isCompact ? 1.25 : 2
@@ -137,6 +147,7 @@ struct HeatmapChart: View {
                 Text(L("stats_heatmap_title"))
                     .amgiFont(.sectionHeading)
                     .foregroundStyle(Color.amgiTextPrimary)
+                headerLegend
                 Spacer()
                 if currentStreak > 0 {
                     Label(L("stats_heatmap_streak", currentStreak), systemImage: "flame.fill")
@@ -159,65 +170,7 @@ struct HeatmapChart: View {
                     }
                 }
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack(spacing: 0) {
-                            Spacer().frame(width: weekdayLabelWidth)
-                            ForEach(0..<weeks.count, id: \.self) { weekIdx in
-                                if let label = monthLabels.first(where: { $0.1 == weekIdx }) {
-                                    Text(label.0)
-                                        .font(.system(size: 9, weight: .medium, design: .default))
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                        .fixedSize()
-                                        .frame(width: cellSize + cellSpacing, alignment: .leading)
-                                } else {
-                                    Spacer().frame(width: cellSize + cellSpacing)
-                                }
-                            }
-                        }
-                        .frame(height: 14)
-
-                        HStack(alignment: .top, spacing: 0) {
-                            VStack(spacing: cellSpacing) {
-                                ForEach(0..<7, id: \.self) { day in
-                                    Text(weekdayLabel(day))
-                                        .font(.system(size: 8))
-                                        .foregroundStyle(Color.amgiTextSecondary)
-                                        .frame(width: weekdayLabelWidth, height: cellSize)
-                                }
-                            }
-
-                            HStack(spacing: cellSpacing) {
-                                ForEach(0..<weeks.count, id: \.self) { weekIdx in
-                                    VStack(spacing: cellSpacing) {
-                                        ForEach(0..<7, id: \.self) { dayIdx in
-                                            let date = weeks[weekIdx][dayIdx]
-                                            let offset = dayOffset(for: date)
-                                            let count = dayCountMap[offset] ?? 0
-                                            let isFuture = date > Date()
-
-                                            RoundedRectangle(cornerRadius: 2)
-                                                .fill(isFuture ? Color.clear : heatColor(count: count))
-                                                .frame(width: cellSize, height: cellSize)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                .defaultScrollAnchor(.trailing)
-
-                HStack(spacing: isCompact ? 3 : 4) {
-                    Spacer()
-                    Text(L("stats_heatmap_less")).amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
-                    ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.green.opacity(max(0.1, intensity)))
-                            .frame(width: cellSize, height: cellSize)
-                    }
-                    Text(L("stats_heatmap_more")).amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
-                }
+                heatmapScrollView
             }
         }
 
@@ -240,9 +193,102 @@ struct HeatmapChart: View {
                     .shadow(color: Color.black.opacity(0.08), radius: 12, y: 4)
             }
         }
+        .onChange(of: canLoadMoreHistory) { _, canLoad in
+            if !canLoad {
+                isNearLoadMoreThreshold = false
+                hasTriggeredLoadMore = false
+            }
+        }
     }
 
     // MARK: - Helpers
+
+    private var headerLegend: some View {
+        HStack(spacing: isCompact ? 3 : 4) {
+            Text(L("stats_heatmap_less"))
+                .amgiFont(.micro)
+                .foregroundStyle(Color.amgiTextSecondary)
+            ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.green.opacity(max(0.1, intensity)))
+                    .frame(width: cellSize, height: cellSize)
+            }
+            Text(L("stats_heatmap_more"))
+                .amgiFont(.micro)
+                .foregroundStyle(Color.amgiTextSecondary)
+        }
+    }
+
+    private var heatmapScrollView: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    Spacer().frame(width: weekdayLabelWidth)
+                    ForEach(0..<weeks.count, id: \.self) { weekIdx in
+                        if let label = monthLabels.first(where: { $0.1 == weekIdx }) {
+                            Text(label.0)
+                                .font(.system(size: 9, weight: .medium, design: .default))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .fixedSize()
+                                .frame(width: cellSize + cellSpacing, alignment: .leading)
+                        } else {
+                            Spacer().frame(width: cellSize + cellSpacing)
+                        }
+                    }
+                }
+                .frame(height: 14)
+
+                HStack(alignment: .top, spacing: 0) {
+                    VStack(spacing: cellSpacing) {
+                        ForEach(0..<7, id: \.self) { day in
+                            Text(weekdayLabel(day))
+                                .font(.system(size: 8))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .frame(width: weekdayLabelWidth, height: cellSize)
+                        }
+                    }
+
+                    HStack(spacing: cellSpacing) {
+                        ForEach(0..<weeks.count, id: \.self) { weekIdx in
+                            VStack(spacing: cellSpacing) {
+                                ForEach(0..<7, id: \.self) { dayIdx in
+                                    let date = weeks[weekIdx][dayIdx]
+                                    let offset = dayOffset(for: date)
+                                    let count = dayCountMap[offset] ?? 0
+                                    let isFuture = date > Date()
+
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(isFuture ? Color.clear : heatColor(count: count))
+                                        .frame(width: cellSize, height: cellSize)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .defaultScrollAnchor(.trailing)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTapHeatmap?()
+        }
+        .onScrollGeometryChange(
+            for: CGFloat.self,
+            of: { geometry in geometry.contentOffset.x }
+        ) { _, newValue in
+            handleHorizontalScroll(offset: newValue)
+        }
+        .overlay(alignment: .leading) {
+            if canLoadMoreHistory && (isLoadingMoreHistory || isNearLoadMoreThreshold) {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(8)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .padding(.leading, 2)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
 
     private func summaryItem(value: String, label: String) -> some View {
         VStack(spacing: 2) {
@@ -268,5 +314,20 @@ struct HeatmapChart: View {
         if count == 0 { return Color(.systemGray6) }
         let intensity = min(1.0, Double(count) / Double(max(maxCount, 1)))
         return .green.opacity(max(0.2, intensity))
+    }
+
+    private func handleHorizontalScroll(offset: CGFloat) {
+        guard canLoadMoreHistory else { return }
+
+        let isNearLeadingEdge = offset <= loadIndicatorThreshold
+        isNearLoadMoreThreshold = isNearLeadingEdge
+
+        if offset <= loadTriggerThreshold {
+            guard !hasTriggeredLoadMore else { return }
+            hasTriggeredLoadMore = true
+            onLoadMoreHistory?()
+        } else if offset > loadIndicatorThreshold {
+            hasTriggeredLoadMore = false
+        }
     }
 }

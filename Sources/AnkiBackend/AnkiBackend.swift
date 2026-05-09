@@ -195,6 +195,23 @@ public final class AnkiBackend: Sendable {
         )
     }
 
+    public func getPreferences() throws -> Anki_Config_Preferences {
+        try invoke(
+            service: Service.config,
+            method: ConfigMethod.getPreferences
+        )
+    }
+
+    public func setPreferences(
+        _ preferences: Anki_Config_Preferences
+    ) throws {
+        try callVoid(
+            service: Service.config,
+            method: ConfigMethod.setPreferences,
+            request: preferences
+        )
+    }
+
     public var currentMediaFolderURL: URL? {
         guard let mediaFolderPath else { return nil }
         return URL(fileURLWithPath: mediaFolderPath, isDirectory: true)
@@ -400,6 +417,8 @@ extension AnkiBackend {
         public static let removeConfig: UInt32 = 3
         public static let getConfigBool: UInt32 = 5
         public static let setConfigBool: UInt32 = 6
+        public static let getPreferences: UInt32 = 9
+        public static let setPreferences: UInt32 = 10
     }
 
     // Method indices from BackendSchedulerService (service 13) dispatch table.

@@ -22,6 +22,7 @@ struct DeckListHeatmapCard: View {
     @State private var isLoadingMoreHistory = false
     @State private var hasLoadedFullHistory = false
     @State private var loadError = false
+    @State private var isTodayStatsCollapsed = false
 
     let showsExternalLoading: Bool
 
@@ -39,19 +40,36 @@ struct DeckListHeatmapCard: View {
     var body: some View {
         Group {
             if let graphs {
-                // Always show heatmap; overlay spinner during refresh or full-history load
                 VStack(alignment: .leading, spacing: 14) {
                     HeatmapChart(
                         reviews: graphs.reviews,
                         compactHeight: deckListHeatmapHeight,
-                        embedded: true
-                    )
-                    Divider()
-                    TodayStatsCard(
-                        today: graphs.today,
                         embedded: true,
-                        compactText: true
+                        canLoadMoreHistory: !hasLoadedFullHistory,
+                        isLoadingMoreHistory: isLoadingMoreHistory,
+                        onLoadMoreHistory: {
+                            Task { await loadFullHistory() }
+                        },
+                        onTapHeatmap: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isTodayStatsCollapsed.toggle()
+                            }
+                        }
                     )
+                    if !isTodayStatsCollapsed {
+                        Divider()
+                        TodayStatsCard(
+                            today: graphs.today,
+                            embedded: true,
+                            compactText: true
+                        )
+                        .transition(
+                            .asymmetric(
+                                insertion: .move(edge: .top).combined(with: .opacity),
+                                removal: .move(edge: .top).combined(with: .opacity)
+                            )
+                        )
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
@@ -73,41 +91,10 @@ struct DeckListHeatmapCard: View {
                             .allowsHitTesting(false)
                     }
                 }
-                .overlay(alignment: .bottomLeading) {
-                    if isLoadingMoreHistory {
-                        HStack(spacing: 4) {
-                            ProgressView()
-                                .scaleEffect(0.65)
-                                .frame(width: 14, height: 14)
-                            Text(L("heatmap_loading_full_history"))
-                                .amgiFont(.micro)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
-                        .padding(8)
-                    } else if !hasLoadedFullHistory {
-                        Button {
-                            Task { await loadFullHistory() }
-                        } label: {
-                            HStack(spacing: 3) {
-                                Image(systemName: "arrow.left.to.line")
-                                Text(L("heatmap_load_all_history"))
-                            }
-                            .amgiFont(.micro)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
-                        }
-                        .buttonStyle(.plain)
-                        .padding(8)
-                    }
-                }
                 .animation(.easeInOut(duration: 0.2), value: isLoading)
                 .animation(.easeInOut(duration: 0.2), value: isLoadingMoreHistory)
                 .animation(.easeInOut(duration: 0.2), value: hasLoadedFullHistory)
+                .animation(.easeInOut(duration: 0.2), value: isTodayStatsCollapsed)
             } else if isLoading || showsExternalLoading {
                 // First load only — no cached data yet
                 ProgressView()
@@ -292,6 +279,8 @@ struct DeckListHeatmapCard: View {
         let shiftDays = dayShift(from: cachedAt, to: Date())
         merged.reviews.count = shiftReviewMap(cached.reviews.count, by: shiftDays)
         merged.reviews.time = shiftReviewMap(cached.reviews.time, by: shiftDays)
+        merged.today = fresh.today
+        merged.rolloverHour = fresh.rolloverHour
 
         for (day, reviews) in fresh.reviews.count {
             merged.reviews.count[day] = reviews
