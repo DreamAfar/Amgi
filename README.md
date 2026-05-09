@@ -122,7 +122,7 @@ brew install xcodegen
 ./scripts/build-xcframework.sh
 ```
 
-This cross-compiles the Rust bridge for iOS device and simulator, then packages both into `AnkiRust.xcframework`. The first build takes several minutes; incremental builds are fast.
+This cross-compiles the Rust bridge for iOS device and simulator, then packages both into `AnkiRustLib.xcframework`. The first build takes several minutes; incremental builds are fast.
 
 ### 4. Generate Swift protobuf types
 

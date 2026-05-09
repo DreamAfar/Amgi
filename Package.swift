@@ -33,7 +33,7 @@ let package = Package(
         // MARK: - Rust Bridge
         .binaryTarget(
             name: "AnkiRustLib",
-            path: "AnkiRust.xcframework"
+            path: "AnkiRustLib.xcframework"
         ),
         .target(
             name: "AnkiProto",

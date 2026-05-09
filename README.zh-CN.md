@@ -118,7 +118,7 @@ brew install xcodegen
 ./scripts/build-xcframework.sh
 ```
 
-该脚本会为 iOS 真机与模拟器交叉编译 Rust bridge，并将其打包为 `AnkiRust.xcframework`。首次构建可能需要数分钟，后续增量构建会更快。
+该脚本会为 iOS 真机与模拟器交叉编译 Rust bridge，并将其打包为 `AnkiRustLib.xcframework`。首次构建可能需要数分钟，后续增量构建会更快。
 
 ### 4. 生成 Swift Protobuf 类型
 

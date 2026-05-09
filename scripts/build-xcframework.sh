@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 BRIDGE_DIR="$ROOT_DIR/anki-bridge-rs"
-OUTPUT_DIR="$ROOT_DIR/AnkiRust.xcframework"
+OUTPUT_DIR="$ROOT_DIR/AnkiRustLib.xcframework"
 HEADER_DIR="$BRIDGE_DIR/include"
 
 export PROTOC="${PROTOC:-$(which protoc 2>/dev/null || echo /opt/homebrew/bin/protoc)}"
