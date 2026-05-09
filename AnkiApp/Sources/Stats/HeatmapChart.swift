@@ -11,14 +11,16 @@ struct HeatmapChart: View {
     var onTapHeatmap: (() -> Void)? = nil
 
     @State private var isNearLoadMoreThreshold = false
+    @State private var isLoadMoreArmed = false
     @State private var hasTriggeredLoadMore = false
 
     private var isCompact: Bool {
         compactHeight != nil
     }
 
-    private let loadIndicatorThreshold: CGFloat = 72
-    private let loadTriggerThreshold: CGFloat = 24
+    private let leadingEdgeThreshold: CGFloat = 6
+    private let loadResetThreshold: CGFloat = 24
+    private let loadTriggerOverscrollThreshold: CGFloat = 40
 
     private var cellSpacing: CGFloat {
         isCompact ? 1.25 : 2
@@ -196,6 +198,7 @@ struct HeatmapChart: View {
         .onChange(of: canLoadMoreHistory) { _, canLoad in
             if !canLoad {
                 isNearLoadMoreThreshold = false
+                isLoadMoreArmed = false
                 hasTriggeredLoadMore = false
             }
         }
@@ -272,6 +275,15 @@ struct HeatmapChart: View {
         .onTapGesture {
             onTapHeatmap?()
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onEnded { _ in
+                    guard canLoadMoreHistory, !isLoadingMoreHistory, !hasTriggeredLoadMore else { return }
+                    if isNearLoadMoreThreshold {
+                        isLoadMoreArmed = true
+                    }
+                }
+        )
         .onScrollGeometryChange(
             for: CGFloat.self,
             of: { geometry in geometry.contentOffset.x }
@@ -279,7 +291,7 @@ struct HeatmapChart: View {
             handleHorizontalScroll(offset: newValue)
         }
         .overlay(alignment: .leading) {
-            if canLoadMoreHistory && (isLoadingMoreHistory || isNearLoadMoreThreshold) {
+            if canLoadMoreHistory && (isLoadingMoreHistory || isNearLoadMoreThreshold || isLoadMoreArmed) {
                 ProgressView()
                     .controlSize(.small)
                     .padding(8)
@@ -319,15 +331,22 @@ struct HeatmapChart: View {
     private func handleHorizontalScroll(offset: CGFloat) {
         guard canLoadMoreHistory else { return }
 
-        let isNearLeadingEdge = offset <= loadIndicatorThreshold
+        let isNearLeadingEdge = offset <= leadingEdgeThreshold
         isNearLoadMoreThreshold = isNearLeadingEdge
 
-        if offset <= loadTriggerThreshold {
+        if offset > loadResetThreshold {
+            isLoadMoreArmed = false
+            hasTriggeredLoadMore = false
+            return
+        }
+
+        guard isLoadMoreArmed else { return }
+
+        if offset <= -loadTriggerOverscrollThreshold {
             guard !hasTriggeredLoadMore else { return }
             hasTriggeredLoadMore = true
+            isLoadMoreArmed = false
             onLoadMoreHistory?()
-        } else if offset > loadIndicatorThreshold {
-            hasTriggeredLoadMore = false
         }
     }
 }

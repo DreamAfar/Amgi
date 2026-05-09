@@ -24,6 +24,9 @@ struct DeckListHeatmapCard: View {
     @State private var loadError = false
     @State private var isTodayStatsCollapsed = false
 
+    private let todayStatsExpandedMaxHeight: CGFloat = 160
+    private let todayStatsAnimation = Animation.easeInOut(duration: 0.24)
+
     let showsExternalLoading: Bool
 
     init(refreshID: Int, showsExternalLoading: Bool = false) {
@@ -40,7 +43,7 @@ struct DeckListHeatmapCard: View {
     var body: some View {
         Group {
             if let graphs {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 0) {
                     HeatmapChart(
                         reviews: graphs.reviews,
                         compactHeight: deckListHeatmapHeight,
@@ -56,20 +59,25 @@ struct DeckListHeatmapCard: View {
                             }
                         }
                     )
-                    if !isTodayStatsCollapsed {
+                    VStack(alignment: .leading, spacing: 14) {
                         Divider()
                         TodayStatsCard(
                             today: graphs.today,
                             embedded: true,
                             compactText: true
                         )
-                        .transition(
-                            .asymmetric(
-                                insertion: .move(edge: .top).combined(with: .opacity),
-                                removal: .move(edge: .top).combined(with: .opacity)
-                            )
-                        )
                     }
+                    .padding(.top, 14)
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: isTodayStatsCollapsed ? 0 : todayStatsExpandedMaxHeight,
+                        alignment: .top
+                    )
+                    .opacity(isTodayStatsCollapsed ? 0 : 1)
+                    .clipped()
+                    .allowsHitTesting(!isTodayStatsCollapsed)
+                    .accessibilityHidden(isTodayStatsCollapsed)
+                    .animation(todayStatsAnimation, value: isTodayStatsCollapsed)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
@@ -94,7 +102,6 @@ struct DeckListHeatmapCard: View {
                 .animation(.easeInOut(duration: 0.2), value: isLoading)
                 .animation(.easeInOut(duration: 0.2), value: isLoadingMoreHistory)
                 .animation(.easeInOut(duration: 0.2), value: hasLoadedFullHistory)
-                .animation(.easeInOut(duration: 0.2), value: isTodayStatsCollapsed)
             } else if isLoading || showsExternalLoading {
                 // First load only — no cached data yet
                 ProgressView()
@@ -276,7 +283,11 @@ struct DeckListHeatmapCard: View {
         fresh: Anki_Stats_GraphsResponse
     ) -> Anki_Stats_GraphsResponse {
         var merged = cached
-        let shiftDays = dayShift(from: cachedAt, to: Date())
+        let shiftDays = dayShift(
+            from: cachedAt,
+            to: Date(),
+            rolloverHour: Int(fresh.rolloverHour)
+        )
         merged.reviews.count = shiftReviewMap(cached.reviews.count, by: shiftDays)
         merged.reviews.time = shiftReviewMap(cached.reviews.time, by: shiftDays)
         merged.today = fresh.today
@@ -291,13 +302,22 @@ struct DeckListHeatmapCard: View {
         return merged
     }
 
-    private func dayShift(from cachedAt: Date, to now: Date) -> Int32 {
+    private func dayShift(from cachedAt: Date, to now: Date, rolloverHour: Int) -> Int32 {
         guard cachedAt > .distantPast else { return 0 }
         let calendar = Calendar.current
-        let cachedDay = calendar.startOfDay(for: cachedAt)
-        let currentDay = calendar.startOfDay(for: now)
+        let cachedDay = calendar.startOfDay(for: adjustedStudyDayDate(cachedAt, rolloverHour: rolloverHour))
+        let currentDay = calendar.startOfDay(for: adjustedStudyDayDate(now, rolloverHour: rolloverHour))
         let delta = calendar.dateComponents([.day], from: cachedDay, to: currentDay).day ?? 0
         return Int32(delta)
+    }
+
+    private func adjustedStudyDayDate(_ date: Date, rolloverHour: Int) -> Date {
+        let calendar = Calendar.current
+        guard (0..<24).contains(rolloverHour) else { return date }
+        if calendar.component(.hour, from: date) < rolloverHour {
+            return calendar.date(byAdding: .day, value: -1, to: date) ?? date
+        }
+        return date
     }
 
     private func shiftReviewMap(
