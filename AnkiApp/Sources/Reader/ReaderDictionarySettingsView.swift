@@ -9,6 +9,7 @@ struct ReaderDictionarySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var scanLength = 16
     @AppStorage(ReaderPreferences.Keys.popupCollapseDictionaries) private var collapseDictionaries = false
     @AppStorage(ReaderPreferences.Keys.popupCompactGlossaries) private var compactGlossaries = true
+    @AppStorage(ReaderPreferences.Keys.popupAudioSourcePreset) private var audioSourcePresetRawValue = ReaderLookupAudioDefaults.defaultRemoteAudioPreset.rawValue
     @AppStorage(ReaderPreferences.Keys.popupAudioSourceTemplate) private var audioSourceTemplate = ReaderLookupAudioDefaults.defaultTemplate
     @AppStorage(ReaderPreferences.Keys.popupLocalAudioEnabled) private var localAudioEnabled = false
     @AppStorage(ReaderPreferences.Keys.popupAudioAutoplay) private var audioAutoplay = false
@@ -44,6 +45,10 @@ struct ReaderDictionarySettingsView: View {
 
     private var selectedAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
         ReaderLookupAudioDefaults.resolvedPlaybackMode(audioPlaybackModeRawValue)
+    }
+
+    private var selectedAudioSourcePreset: ReaderLookupRemoteAudioPreset {
+        ReaderLookupAudioDefaults.resolvedPreset(audioSourcePresetRawValue)
     }
 
     private var dictionaryEditModeBinding: Binding<EditMode> {
@@ -147,13 +152,45 @@ struct ReaderDictionarySettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(L("settings_reader_dictionary_audio_source_preset"))
+                            .foregroundStyle(Color.amgiTextPrimary)
+                        Spacer()
+                        Menu {
+                            Picker(
+                                L("settings_reader_dictionary_audio_source_preset"),
+                                selection: Binding(
+                                    get: { selectedAudioSourcePreset },
+                                    set: { audioSourcePresetRawValue = $0.rawValue }
+                                )
+                            ) {
+                                ForEach(ReaderLookupRemoteAudioPreset.allCases) { preset in
+                                    Text(title(for: preset))
+                                        .foregroundStyle(Color.amgiAccent)
+                                        .tag(preset)
+                                }
+                            }
+                        } label: {
+                            SettingsOptionCapsuleLabel(
+                                title: title(for: selectedAudioSourcePreset),
+                                backgroundColor: menuCapsuleBackground
+                            )
+                        }
+                    }
+
                     Text(L("settings_reader_dictionary_audio_source_template"))
                         .foregroundStyle(Color.amgiTextPrimary)
 
-                    TextField("", text: $audioSourceTemplate, prompt: Text(ReaderLookupAudioDefaults.defaultTemplate))
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .textFieldStyle(.roundedBorder)
+                    if selectedAudioSourcePreset == .custom {
+                        TextField("", text: $audioSourceTemplate, prompt: Text(ReaderLookupAudioDefaults.defaultTemplate))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .textFieldStyle(.roundedBorder)
+                    } else {
+                        Text(audioSourceSummary(for: selectedAudioSourcePreset))
+                            .font(.footnote)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
                 }
             }
             .listRowBackground(Color.amgiSurfaceElevated)
@@ -432,6 +469,28 @@ struct ReaderDictionarySettingsView: View {
             return L("settings_reader_dictionary_audio_mode_duck")
         case .mix:
             return L("settings_reader_dictionary_audio_mode_mix")
+        }
+    }
+
+    private func title(for preset: ReaderLookupRemoteAudioPreset) -> String {
+        switch preset {
+        case .custom:
+            return L("settings_reader_dictionary_audio_source_custom")
+        case .yomitanJapanese:
+            return L("settings_reader_dictionary_audio_source_yomitan_japanese")
+        case .yomitanEnglish:
+            return L("settings_reader_dictionary_audio_source_yomitan_english")
+        }
+    }
+
+    private func audioSourceSummary(for preset: ReaderLookupRemoteAudioPreset) -> String {
+        switch preset {
+        case .custom:
+            return ReaderLookupAudioDefaults.defaultTemplate
+        case .yomitanJapanese:
+            return "JapanesePod101 · LanguagePod101 · Jisho.org"
+        case .yomitanEnglish:
+            return "LanguagePod101 · Lingua Libre · Wiktionary"
         }
     }
 

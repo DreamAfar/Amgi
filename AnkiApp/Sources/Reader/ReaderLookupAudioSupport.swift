@@ -12,33 +12,86 @@ enum ReaderLookupAudioPlaybackMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum ReaderLookupRemoteAudioPreset: String, CaseIterable, Identifiable, Sendable {
+    case custom
+    case yomitanJapanese
+    case yomitanEnglish
+
+    var id: String { rawValue }
+}
+
+struct ReaderLookupAudioSourceDefinition: Codable, Hashable, Sendable {
+    enum Kind: String, Codable, Hashable, Sendable {
+        case template
+        case jpod101
+        case languagePod101Japanese = "language-pod-101-japanese"
+        case languagePod101English = "language-pod-101-english"
+        case jisho
+        case linguaLibre = "lingua-libre"
+        case wiktionary
+    }
+
+    var kind: Kind
+    var template: String?
+
+    init(kind: Kind, template: String? = nil) {
+        self.kind = kind
+        self.template = template
+    }
+}
+
 enum ReaderLookupAudioDefaults {
     static let defaultTemplate = "https://hoshi-reader.manhhaoo-do.workers.dev/?term={term}&reading={reading}"
     static let localAudioURL = "http://localhost:8765/localaudio/get/?term={term}&reading={reading}"
+    static let defaultRemoteAudioPreset: ReaderLookupRemoteAudioPreset = .custom
+    static let yomitanJapaneseSources: [ReaderLookupAudioSourceDefinition] = [
+        .init(kind: .jpod101),
+        .init(kind: .languagePod101Japanese),
+        .init(kind: .jisho),
+    ]
+    static let yomitanEnglishSources: [ReaderLookupAudioSourceDefinition] = [
+        .init(kind: .languagePod101English),
+        .init(kind: .linguaLibre),
+        .init(kind: .wiktionary),
+    ]
 
     static func resolvedTemplate(_ rawValue: String) -> String {
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? defaultTemplate : trimmed
     }
 
+    static func resolvedPreset(_ rawValue: String) -> ReaderLookupRemoteAudioPreset {
+        ReaderLookupRemoteAudioPreset(rawValue: rawValue) ?? defaultRemoteAudioPreset
+    }
+
     static func resolvedPlaybackMode(_ rawValue: String) -> ReaderLookupAudioPlaybackMode {
         ReaderLookupAudioPlaybackMode(rawValue: rawValue) ?? .interrupt
     }
 
-    static func sourceTemplates(
+    static func sourceDefinitions(
+        remotePresetRawValue: String,
         remoteTemplate: String,
         localAudioEnabled: Bool
-    ) -> [String] {
-        var templates: [String] = []
+    ) -> [ReaderLookupAudioSourceDefinition] {
+        var sources: [ReaderLookupAudioSourceDefinition] = []
         if localAudioEnabled {
-            templates.append(localAudioURL)
+            sources.append(.init(kind: .template, template: localAudioURL))
         }
 
-        let resolvedRemote = resolvedTemplate(remoteTemplate)
-        if templates.contains(resolvedRemote) == false {
-            templates.append(resolvedRemote)
+        let remoteSources: [ReaderLookupAudioSourceDefinition]
+        switch resolvedPreset(remotePresetRawValue) {
+        case .custom:
+            remoteSources = [.init(kind: .template, template: resolvedTemplate(remoteTemplate))]
+        case .yomitanJapanese:
+            remoteSources = yomitanJapaneseSources
+        case .yomitanEnglish:
+            remoteSources = yomitanEnglishSources
         }
-        return templates
+
+        for source in remoteSources where sources.contains(source) == false {
+            sources.append(source)
+        }
+        return sources
     }
 }
 
@@ -131,40 +184,367 @@ enum ReaderLookupAudioResolver {
         var audioSources: [Item]
     }
 
+    private struct WikimediaSearchResponse: Decodable {
+        struct Query: Decodable {
+            struct SearchItem: Decodable {
+                var title: String
+            }
+
+            var search: [SearchItem]
+        }
+
+        var query: Query
+    }
+
+    private struct WikimediaFileResponse: Decodable {
+        struct Query: Decodable {
+            struct Page: Decodable {
+                struct ImageInfo: Decodable {
+                    var user: String
+                    var url: String
+                }
+
+                var imageinfo: [ImageInfo]?
+            }
+
+            var pages: [String: Page]
+        }
+
+        var query: Query
+    }
+
     static func resolveAudioURL(
         term: String,
         reading: String?,
-        remoteTemplate: String,
-        localAudioEnabled: Bool
+        sources: [ReaderLookupAudioSourceDefinition]
     ) async -> URL? {
-        let templates = ReaderLookupAudioDefaults.sourceTemplates(
-            remoteTemplate: remoteTemplate,
-            localAudioEnabled: localAudioEnabled
-        )
-
-        for template in templates {
-            let target = template
-                .replacingOccurrences(of: "{term}", with: term.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? term)
-                .replacingOccurrences(of: "{reading}", with: (reading ?? term).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? (reading ?? term))
-
-            guard let requestURL = URL(string: target) else {
-                continue
-            }
-
-            do {
-                let (data, _) = try await URLSession.shared.data(from: requestURL)
-                let response = try JSONDecoder().decode(AudioSourceResponse.self, from: data)
-                if response.type == "audioSourceList",
-                   let first = response.audioSources.first,
-                   let url = URL(string: first.url) {
-                    return url
-                }
-            } catch {
-                continue
+        for source in sources {
+            if let url = await resolveAudioURL(term: term, reading: reading, source: source) {
+                return url
             }
         }
-
         return nil
+    }
+
+    static func resolveAudioURL(
+        term: String,
+        reading: String?,
+        source: ReaderLookupAudioSourceDefinition
+    ) async -> URL? {
+        let resolvedReading = normalizedReading(reading, fallback: term)
+        do {
+            switch source.kind {
+            case .template:
+                return try await resolveTemplateAudioURL(term: term, reading: resolvedReading, template: source.template)
+            case .jpod101:
+                return resolveJpod101AudioURL(term: term, reading: resolvedReading)
+            case .languagePod101Japanese:
+                return try await resolveLanguagePod101AudioURL(term: term, reading: resolvedReading, preset: .yomitanJapanese)
+            case .languagePod101English:
+                return try await resolveLanguagePod101AudioURL(term: term, reading: resolvedReading, preset: .yomitanEnglish)
+            case .jisho:
+                return try await resolveJishoAudioURL(term: term, reading: resolvedReading)
+            case .linguaLibre:
+                return try await resolveLinguaLibreAudioURL(term: term, iso6393: "eng")
+            case .wiktionary:
+                return try await resolveWiktionaryAudioURL(term: term, iso: "en")
+            }
+        } catch {
+            return nil
+        }
+    }
+
+    private static func resolveTemplateAudioURL(
+        term: String,
+        reading: String,
+        template: String?
+    ) async throws -> URL? {
+        guard let template, template.isEmpty == false else {
+            return nil
+        }
+
+        let target = template
+            .replacingOccurrences(of: "{term}", with: term.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? term)
+            .replacingOccurrences(of: "{reading}", with: reading.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? reading)
+
+        guard let requestURL = URL(string: target) else {
+            return nil
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: requestURL)
+        let response = try JSONDecoder().decode(AudioSourceResponse.self, from: data)
+        guard response.type == "audioSourceList",
+              let first = response.audioSources.first else {
+            return nil
+        }
+        return URL(string: first.url)
+    }
+
+    private static func resolveJpod101AudioURL(term: String, reading: String) -> URL? {
+        var resolvedTerm = term
+        var resolvedReading = reading
+        if reading == term, isStringEntirelyKana(term) {
+            resolvedTerm = ""
+            resolvedReading = term
+        }
+
+        var components = URLComponents(string: "https://assets.languagepod101.com/dictionary/japanese/audiomp3.php")
+        var queryItems: [URLQueryItem] = []
+        if resolvedTerm.isEmpty == false {
+            queryItems.append(URLQueryItem(name: "kanji", value: resolvedTerm))
+        }
+        if resolvedReading.isEmpty == false {
+            queryItems.append(URLQueryItem(name: "kana", value: resolvedReading))
+        }
+        components?.queryItems = queryItems
+        return components?.url
+    }
+
+    private static func resolveLanguagePod101AudioURL(
+        term: String,
+        reading: String,
+        preset: ReaderLookupRemoteAudioPreset
+    ) async throws -> URL? {
+        let language: String
+        let podOrClass: String
+        switch preset {
+        case .yomitanJapanese:
+            language = "Japanese"
+            podOrClass = "pod"
+        case .yomitanEnglish:
+            language = "English"
+            podOrClass = "class"
+        case .custom:
+            return nil
+        }
+
+        guard let fetchURL = URL(string: "https://www.\(language.lowercased())\(podOrClass)101.com/learningcenter/reference/dictionary_post") else {
+            return nil
+        }
+
+        var request = URLRequest(url: fetchURL)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let body = [
+            "post": "dictionary_reference",
+            "match_type": "exact",
+            "search_query": term,
+            "vulgar": "true",
+        ]
+        request.httpBody = body
+            .map { key, value in
+                let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+                return "\(key)=\(encodedValue)"
+            }
+            .sorted()
+            .joined(separator: "&")
+            .data(using: .utf8)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let responseURL = (response as? HTTPURLResponse)?.url ?? response.url else {
+            return nil
+        }
+        guard let html = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+
+        let snippets = matchedAudioSnippets(in: html)
+        for snippet in snippets {
+            let normalizedURL = URL(string: snippet.url, relativeTo: responseURL)?.absoluteURL
+            switch preset {
+            case .yomitanJapanese:
+                if snippet.context.contains("dc-vocab_kana"),
+                   snippet.context.contains(reading) {
+                    return normalizedURL
+                }
+            case .yomitanEnglish:
+                if snippet.context.contains("dc-vocab"),
+                   snippet.context.contains(term) {
+                    return normalizedURL
+                }
+            case .custom:
+                break
+            }
+        }
+        return snippets.first.flatMap { URL(string: $0.url, relativeTo: responseURL)?.absoluteURL }
+    }
+
+    private static func resolveJishoAudioURL(term: String, reading: String) async throws -> URL? {
+        let encodedTerm = term.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? term
+        guard let fetchURL = URL(string: "https://jisho.org/search/\(encodedTerm)") else {
+            return nil
+        }
+
+        let (data, response) = try await URLSession.shared.data(from: fetchURL)
+        guard let responseURL = (response as? HTTPURLResponse)?.url ?? response.url,
+              let html = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+
+        let marker = "audio_\(term):\(reading)"
+        guard let markerRange = html.range(of: marker) else {
+            return nil
+        }
+
+        let snippetStart = html.distance(from: html.startIndex, to: markerRange.lowerBound)
+        let startOffset = max(0, snippetStart - 200)
+        let endOffset = min(html.count, snippetStart + 600)
+        let snippetRange = html.index(html.startIndex, offsetBy: startOffset)..<html.index(html.startIndex, offsetBy: endOffset)
+        let snippet = String(html[snippetRange])
+        guard let sourceURL = firstCapturedGroup(in: snippet, pattern: #"<source[^>]+src=["']([^"']+)["']"#, options: [.caseInsensitive]) else {
+            return nil
+        }
+        return URL(string: sourceURL, relativeTo: responseURL)?.absoluteURL
+    }
+
+    private static func resolveLinguaLibreAudioURL(term: String, iso6393: String) async throws -> URL? {
+        let searchCategory = #"incategory:"Lingua_Libre_pronunciation-\#(iso6393)""#
+        let searchString = "-\(term).wav"
+        let searchQuery = "intitle:/\(searchString)/i+\(searchCategory)"
+        guard let fetchURL = commonsSearchURL(searchQuery: searchQuery) else {
+            return nil
+        }
+
+        return try await resolveWikimediaCommonsAudioURL(
+            fetchURL: fetchURL,
+            validate: { title, user in
+                title.range(
+                    of: #"^File:LL-Q\d+\s+\(\#(iso6393)\)-\#(NSRegularExpression.escapedPattern(for: user))-\#(NSRegularExpression.escapedPattern(for: term))\.wav$"#,
+                    options: .regularExpression
+                ) != nil
+            }
+        )
+    }
+
+    private static func resolveWiktionaryAudioURL(term: String, iso: String) async throws -> URL? {
+        let searchString = "\(iso)(-[a-zA-Z]{2})?-\(term)[0123456789]*.ogg"
+        guard let fetchURL = commonsSearchURL(searchQuery: "intitle:/\(searchString)/i") else {
+            return nil
+        }
+
+        return try await resolveWikimediaCommonsAudioURL(
+            fetchURL: fetchURL,
+            validate: { title, _ in
+                title.range(
+                    of: #"^File:\#(iso)(-\w\w)?-\#(NSRegularExpression.escapedPattern(for: term))\d*\.ogg$"#,
+                    options: .regularExpression
+                ) != nil
+            }
+        )
+    }
+
+    private static func resolveWikimediaCommonsAudioURL(
+        fetchURL: URL,
+        validate: (String, String) -> Bool
+    ) async throws -> URL? {
+        let (data, _) = try await URLSession.shared.data(from: fetchURL)
+        let response = try JSONDecoder().decode(WikimediaSearchResponse.self, from: data)
+
+        for item in response.query.search {
+            guard let fileInfoURL = commonsFileInfoURL(title: item.title) else {
+                continue
+            }
+            let (fileData, _) = try await URLSession.shared.data(from: fileInfoURL)
+            let fileResponse = try JSONDecoder().decode(WikimediaFileResponse.self, from: fileData)
+            for page in fileResponse.query.pages.values {
+                guard let imageInfo = page.imageinfo?.first,
+                      validate(item.title, imageInfo.user) else {
+                    continue
+                }
+                if let url = URL(string: imageInfo.url) {
+                    return url
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func commonsSearchURL(searchQuery: String) -> URL? {
+        var components = URLComponents(string: "https://commons.wikimedia.org/w/api.php")
+        components?.queryItems = [
+            URLQueryItem(name: "action", value: "query"),
+            URLQueryItem(name: "format", value: "json"),
+            URLQueryItem(name: "list", value: "search"),
+            URLQueryItem(name: "srsearch", value: searchQuery),
+            URLQueryItem(name: "srnamespace", value: "6"),
+            URLQueryItem(name: "origin", value: "*"),
+        ]
+        return components?.url
+    }
+
+    private static func commonsFileInfoURL(title: String) -> URL? {
+        var components = URLComponents(string: "https://commons.wikimedia.org/w/api.php")
+        components?.queryItems = [
+            URLQueryItem(name: "action", value: "query"),
+            URLQueryItem(name: "format", value: "json"),
+            URLQueryItem(name: "titles", value: title),
+            URLQueryItem(name: "prop", value: "imageinfo"),
+            URLQueryItem(name: "iiprop", value: "user|url"),
+            URLQueryItem(name: "origin", value: "*"),
+        ]
+        return components?.url
+    }
+
+    private static func normalizedReading(_ reading: String?, fallback term: String) -> String {
+        let trimmed = reading?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? term : trimmed
+    }
+
+    private static func firstCapturedGroup(
+        in text: String,
+        pattern: String,
+        options: NSRegularExpression.Options = []
+    ) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: options),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              match.numberOfRanges > 1,
+              let range = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+        return String(text[range])
+    }
+
+    private static func matchedAudioSnippets(in html: String) -> [(url: String, context: String)] {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"<audio\b[\s\S]*?<source[^>]+src=["']([^"']+)["']"#,
+            options: [.caseInsensitive]
+        ) else {
+            return []
+        }
+
+        let nsRange = NSRange(html.startIndex..., in: html)
+        return regex.matches(in: html, range: nsRange).compactMap { match in
+            guard match.numberOfRanges > 1,
+                  let urlRange = Range(match.range(at: 1), in: html),
+                  let contextRange = Range(match.range(at: 0), in: html) else {
+                return nil
+            }
+
+            let lowerDistance = html.distance(from: html.startIndex, to: contextRange.lowerBound)
+            let upperDistance = html.distance(from: html.startIndex, to: contextRange.upperBound)
+            let snippetStart = max(0, lowerDistance - 500)
+            let snippetEnd = min(html.count, upperDistance + 250)
+            let snippetRange = html.index(html.startIndex, offsetBy: snippetStart)..<html.index(html.startIndex, offsetBy: snippetEnd)
+            return (String(html[urlRange]), String(html[snippetRange]))
+        }
+    }
+
+    private static func isStringEntirelyKana(_ text: String) -> Bool {
+        guard text.isEmpty == false else {
+            return false
+        }
+
+        for scalar in text.unicodeScalars {
+            switch scalar.value {
+            case 0x3040...0x309F, 0x30A0...0x30FF, 0x31F0...0x31FF, 0xFF66...0xFF9D:
+                continue
+            case 0x30FC:
+                continue
+            default:
+                return false
+            }
+        }
+        return true
     }
 }
 

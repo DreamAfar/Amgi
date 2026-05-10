@@ -10,6 +10,7 @@ struct ReaderLookupPopupWebContainer: View {
     let result: DictionaryLookupResult
     let collapseDictionaries: Bool
     let compactGlossaries: Bool
+    let audioSourcePresetRawValue: String
     let audioSourceTemplate: String
     let localAudioEnabled: Bool
     let audioAutoplay: Bool
@@ -26,6 +27,7 @@ struct ReaderLookupPopupWebContainer: View {
             result: result,
             collapseDictionaries: collapseDictionaries,
             compactGlossaries: compactGlossaries,
+            audioSourcePresetRawValue: audioSourcePresetRawValue,
             audioSourceTemplate: audioSourceTemplate,
             localAudioEnabled: localAudioEnabled,
             audioAutoplay: audioAutoplay,
@@ -49,6 +51,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
     let result: DictionaryLookupResult
     let collapseDictionaries: Bool
     let compactGlossaries: Bool
+    let audioSourcePresetRawValue: String
     let audioSourceTemplate: String
     let localAudioEnabled: Bool
     let audioAutoplay: Bool
@@ -65,6 +68,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             result: result,
             collapseDictionaries: collapseDictionaries,
             compactGlossaries: compactGlossaries,
+            audioSourcePresetRawValue: audioSourcePresetRawValue,
             audioSourceTemplate: audioSourceTemplate,
             localAudioEnabled: localAudioEnabled,
             audioAutoplay: audioAutoplay,
@@ -110,6 +114,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             result: result,
             collapseDictionaries: collapseDictionaries,
             compactGlossaries: compactGlossaries,
+            audioSourcePresetRawValue: audioSourcePresetRawValue,
             audioSourceTemplate: audioSourceTemplate,
             localAudioEnabled: localAudioEnabled,
             audioAutoplay: audioAutoplay,
@@ -143,6 +148,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
         private var lookupEntries: [[String: Any]]
         private var collapseDictionaries: Bool
         private var compactGlossaries: Bool
+        private var audioSourcePresetRawValue: String
         private var audioSourceTemplate: String
         private var localAudioEnabled: Bool
         private var audioAutoplay: Bool
@@ -158,6 +164,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             result: DictionaryLookupResult,
             collapseDictionaries: Bool,
             compactGlossaries: Bool,
+            audioSourcePresetRawValue: String,
             audioSourceTemplate: String,
             localAudioEnabled: Bool,
             audioAutoplay: Bool,
@@ -173,6 +180,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             self.lookupEntries = Self.makeLookupEntries(from: result.entries)
             self.collapseDictionaries = collapseDictionaries
             self.compactGlossaries = compactGlossaries
+            self.audioSourcePresetRawValue = audioSourcePresetRawValue
             self.audioSourceTemplate = audioSourceTemplate
             self.localAudioEnabled = localAudioEnabled
             self.audioAutoplay = audioAutoplay
@@ -186,6 +194,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             self.html = Self.makeHTML(
                 collapseDictionaries: collapseDictionaries,
                 compactGlossaries: compactGlossaries,
+                audioSourcePresetRawValue: audioSourcePresetRawValue,
                 audioSourceTemplate: audioSourceTemplate,
                 localAudioEnabled: localAudioEnabled,
                 audioAutoplay: audioAutoplay,
@@ -199,6 +208,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             result: DictionaryLookupResult,
             collapseDictionaries: Bool,
             compactGlossaries: Bool,
+            audioSourcePresetRawValue: String,
             audioSourceTemplate: String,
             localAudioEnabled: Bool,
             audioAutoplay: Bool,
@@ -213,6 +223,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             self.lookupEntries = Self.makeLookupEntries(from: result.entries)
             self.collapseDictionaries = collapseDictionaries
             self.compactGlossaries = compactGlossaries
+            self.audioSourcePresetRawValue = audioSourcePresetRawValue
             self.audioSourceTemplate = audioSourceTemplate
             self.localAudioEnabled = localAudioEnabled
             self.audioAutoplay = audioAutoplay
@@ -226,6 +237,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             let nextHTML = Self.makeHTML(
                 collapseDictionaries: collapseDictionaries,
                 compactGlossaries: compactGlossaries,
+                audioSourcePresetRawValue: audioSourcePresetRawValue,
                 audioSourceTemplate: audioSourceTemplate,
                 localAudioEnabled: localAudioEnabled,
                 audioAutoplay: audioAutoplay,
@@ -365,13 +377,15 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
         private static func makeHTML(
             collapseDictionaries: Bool,
             compactGlossaries: Bool,
+            audioSourcePresetRawValue: String,
             audioSourceTemplate: String,
             localAudioEnabled: Bool,
             audioAutoplay: Bool,
             audioPlaybackMode: ReaderLookupAudioPlaybackMode,
             needsAudio: Bool
         ) -> String {
-            let audioSources = ReaderLookupAudioDefaults.sourceTemplates(
+            let audioSources = ReaderLookupAudioDefaults.sourceDefinitions(
+                remotePresetRawValue: audioSourcePresetRawValue,
                 remoteTemplate: audioSourceTemplate,
                 localAudioEnabled: localAudioEnabled
             )
@@ -434,19 +448,60 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
 }
 
 private final class AudioHandler: NSObject, WKURLSchemeHandler {
+    private static let emptyAudioResponse = Data(#"{"type":"audioSourceList","audioSources":[]}"#.utf8)
     private var tasks = Set<ObjectIdentifier>()
 
     func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         guard let requestURL = task.request.url,
-              let components = URLComponents(url: requestURL, resolvingAgainstBaseURL: false),
-              let targetURLString = components.queryItems?.first(where: { $0.name == "url" })?.value,
-              let targetURL = URL(string: targetURLString) else {
+              let components = URLComponents(url: requestURL, resolvingAgainstBaseURL: false) else {
             task.didFailWithError(URLError(.badURL))
             return
         }
 
         let taskID = ObjectIdentifier(task)
         tasks.insert(taskID)
+
+        if let sourceJSON = components.queryItems?.first(where: { $0.name == "source" })?.value,
+           let sourceData = sourceJSON.data(using: .utf8),
+           let source = try? JSONDecoder().decode(ReaderLookupAudioSourceDefinition.self, from: sourceData) {
+            let term = components.queryItems?.first(where: { $0.name == "term" })?.value ?? ""
+            let reading = components.queryItems?.first(where: { $0.name == "reading" })?.value
+
+            Task {
+                let resolvedURL = await ReaderLookupAudioResolver.resolveAudioURL(
+                    term: term,
+                    reading: reading,
+                    source: source
+                )
+                let responseData = Self.makeAudioResponseData(url: resolvedURL)
+
+                await MainActor.run {
+                    guard self.tasks.contains(taskID) else {
+                        return
+                    }
+
+                    let response = HTTPURLResponse(
+                        url: requestURL,
+                        statusCode: 200,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: [
+                            "Access-Control-Allow-Origin": "*",
+                            "Content-Type": "application/json",
+                        ]
+                    )!
+                    task.didReceive(response)
+                    task.didReceive(responseData)
+                    task.didFinish()
+                }
+            }
+            return
+        }
+
+        guard let targetURLString = components.queryItems?.first(where: { $0.name == "url" })?.value,
+              let targetURL = URL(string: targetURLString) else {
+            task.didFailWithError(URLError(.badURL))
+            return
+        }
 
         Task {
             do {
@@ -484,6 +539,14 @@ private final class AudioHandler: NSObject, WKURLSchemeHandler {
 
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {
         tasks.remove(ObjectIdentifier(task))
+    }
+
+    private static func makeAudioResponseData(url: URL?) -> Data {
+        guard let url else {
+            return emptyAudioResponse
+        }
+        let response = #"{"type":"audioSourceList","audioSources":[{"name":"remote","url":"\#(url.absoluteString)"}]}"#
+        return Data(response.utf8)
     }
 }
 

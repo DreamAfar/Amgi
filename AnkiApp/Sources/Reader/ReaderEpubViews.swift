@@ -385,6 +385,7 @@ struct ReaderEpubReaderView: View {
     @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
     @AppStorage(ReaderPreferences.Keys.popupCollapseDictionaries) private var popupCollapseDictionaries = false
     @AppStorage(ReaderPreferences.Keys.popupCompactGlossaries) private var popupCompactGlossaries = true
+    @AppStorage(ReaderPreferences.Keys.popupAudioSourcePreset) private var popupAudioSourcePresetRawValue = ReaderLookupAudioDefaults.defaultRemoteAudioPreset.rawValue
     @AppStorage(ReaderPreferences.Keys.popupAudioSourceTemplate) private var popupAudioSourceTemplate = ReaderLookupAudioDefaults.defaultTemplate
     @AppStorage(ReaderPreferences.Keys.popupLocalAudioEnabled) private var popupLocalAudioEnabled = false
     @AppStorage(ReaderPreferences.Keys.popupAudioAutoplay) private var popupAudioAutoplay = false
@@ -770,6 +771,7 @@ struct ReaderEpubReaderView: View {
                                             swipeToDismiss: popupSwipeToDismiss,
                                             collapseDictionaries: popupCollapseDictionaries,
                                             compactGlossaries: popupCompactGlossaries,
+                                            audioSourcePresetRawValue: popupAudioSourcePresetRawValue,
                                             audioSourceTemplate: popupAudioSourceTemplate,
                                             localAudioEnabled: popupLocalAudioEnabled,
                                             audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,
@@ -1080,6 +1082,7 @@ struct ReaderEpubReaderView: View {
                                 swipeToDismiss: popupSwipeToDismiss,
                                 collapseDictionaries: popupCollapseDictionaries,
                                 compactGlossaries: popupCompactGlossaries,
+                                audioSourcePresetRawValue: popupAudioSourcePresetRawValue,
                                 audioSourceTemplate: popupAudioSourceTemplate,
                                 localAudioEnabled: popupLocalAudioEnabled,
                                 audioAutoplay: popupAudioAutoplay && index == lookupStack.count - 1,

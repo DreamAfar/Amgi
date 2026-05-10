@@ -1465,15 +1465,14 @@ function createTags(entry) {
 }
 
 async function fetchAudioUrl(expression, reading) {
-    const templates = window.audioSources;
-    if (!templates?.length) return null;
+    const sources = window.audioSources;
+    if (!sources?.length) return null;
 
-    for (const template of templates) {
-        const url = template
-        .replace('{term}', encodeURIComponent(expression))
-        .replace('{reading}', encodeURIComponent(reading));
+    for (const source of sources) {
         try {
-            const response = await fetch(`audio://?url=${encodeURIComponent(url)}`);
+            const response = await fetch(
+                `audio://resolve?term=${encodeURIComponent(expression)}&reading=${encodeURIComponent(reading)}&source=${encodeURIComponent(JSON.stringify(source))}`
+            );
             const data = await response.json();
             if (data.type === 'audioSourceList' && data.audioSources?.[0]?.url) {
                 return data.audioSources[0].url;

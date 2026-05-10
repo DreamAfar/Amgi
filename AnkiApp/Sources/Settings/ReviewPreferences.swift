@@ -83,6 +83,7 @@ enum ReaderPreferences {
         static let popupSwipeToDismiss = "reader_pref_popup_swipe_to_dismiss"
         static let popupCollapseDictionaries = "reader_pref_popup_collapse_dictionaries"
         static let popupCompactGlossaries = "reader_pref_popup_compact_glossaries"
+        static let popupAudioSourcePreset = "reader_pref_popup_audio_source_preset"
         static let popupAudioSourceTemplate = "reader_pref_popup_audio_source_template"
         static let popupLocalAudioEnabled = "reader_pref_popup_local_audio_enabled"
         static let popupAudioAutoplay = "reader_pref_popup_audio_autoplay"

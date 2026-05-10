@@ -396,6 +396,10 @@
 "settings_reader_dictionary_audio_mode_interrupt" = "Interrupt others";
 "settings_reader_dictionary_audio_mode_duck" = "Duck others";
 "settings_reader_dictionary_audio_mode_mix" = "Mix with others";
+"settings_reader_dictionary_audio_source_preset" = "Remote audio source";
+"settings_reader_dictionary_audio_source_custom" = "Custom URL";
+"settings_reader_dictionary_audio_source_yomitan_japanese" = "Yomitan Japanese";
+"settings_reader_dictionary_audio_source_yomitan_english" = "Yomitan English";
 "settings_reader_dictionary_audio_source_template" = "Remote audio source template";
 "settings_reader_dictionary_empty" = "No dictionaries imported yet.";
 "settings_reader_dictionary_revision" = "Revision: %@";

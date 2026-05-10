@@ -124,3 +124,47 @@ final class ReaderLookupNoteTemplateTests: XCTestCase {
         XCTAssertNil(template.fieldMappings["Reading"])
     }
 }
+
+final class ReaderLookupAudioDefaultsTests: XCTestCase {
+    func testCustomAudioPresetKeepsLocalAndTemplateSources() {
+        let sources = ReaderLookupAudioDefaults.sourceDefinitions(
+            remotePresetRawValue: ReaderLookupRemoteAudioPreset.custom.rawValue,
+            remoteTemplate: "https://example.com/audio?term={term}&reading={reading}",
+            localAudioEnabled: true
+        )
+
+        XCTAssertEqual(
+            sources,
+            [
+                ReaderLookupAudioSourceDefinition(kind: .template, template: ReaderLookupAudioDefaults.localAudioURL),
+                ReaderLookupAudioSourceDefinition(kind: .template, template: "https://example.com/audio?term={term}&reading={reading}"),
+            ]
+        )
+    }
+
+    func testJapaneseYomitanPresetUsesExpectedSourceOrder() {
+        let sources = ReaderLookupAudioDefaults.sourceDefinitions(
+            remotePresetRawValue: ReaderLookupRemoteAudioPreset.yomitanJapanese.rawValue,
+            remoteTemplate: "",
+            localAudioEnabled: false
+        )
+
+        XCTAssertEqual(
+            sources.map(\.kind),
+            [.jpod101, .languagePod101Japanese, .jisho]
+        )
+    }
+
+    func testEnglishYomitanPresetUsesExpectedSourceOrder() {
+        let sources = ReaderLookupAudioDefaults.sourceDefinitions(
+            remotePresetRawValue: ReaderLookupRemoteAudioPreset.yomitanEnglish.rawValue,
+            remoteTemplate: "",
+            localAudioEnabled: false
+        )
+
+        XCTAssertEqual(
+            sources.map(\.kind),
+            [.languagePod101English, .linguaLibre, .wiktionary]
+        )
+    }
+}

@@ -396,6 +396,10 @@
 "settings_reader_dictionary_audio_mode_interrupt" = "打断其他音频";
 "settings_reader_dictionary_audio_mode_duck" = "压低其他音频";
 "settings_reader_dictionary_audio_mode_mix" = "与其他音频混播";
+"settings_reader_dictionary_audio_source_preset" = "远程音频源";
+"settings_reader_dictionary_audio_source_custom" = "自定义 URL";
+"settings_reader_dictionary_audio_source_yomitan_japanese" = "Yomitan 日语";
+"settings_reader_dictionary_audio_source_yomitan_english" = "Yomitan 英语";
 "settings_reader_dictionary_audio_source_template" = "远程音频源模板";
 "settings_reader_dictionary_empty" = "还没有导入任何词典。";
 "settings_reader_dictionary_revision" = "版本：%@";
