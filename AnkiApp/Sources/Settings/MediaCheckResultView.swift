@@ -231,10 +231,10 @@ struct MediaCheckResultView: View {
     }
 
     private func trashUnused() {
-        guard let currentResult else { return }
+        guard let currentResultValue = currentResult else { return }
         isTrashingUnused = true
         let capturedBackend = backend
-        let unusedFiles = currentResult.unused
+        let unusedFiles = currentResultValue.unused
         Task.detached {
             do {
                 var req = Anki_Media_TrashMediaFilesRequest()
