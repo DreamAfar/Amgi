@@ -24,8 +24,6 @@ struct HeatmapChart: View {
     private let armableReleaseOverscrollTolerance: CGFloat = 8
     private let loadResetThreshold: CGFloat = 36
     private let loadTriggerOverscrollThreshold: CGFloat = 72
-    private let loadIndicatorSlotWidth: CGFloat = 30
-
     private var cellSpacing: CGFloat {
         isCompact ? 1.25 : 2
     }
@@ -235,99 +233,92 @@ struct HeatmapChart: View {
     }
 
     private var heatmapScrollView: some View {
-        HStack(spacing: 6) {
-            if canLoadMoreHistory {
-                Group {
-                    if isLoadingMoreHistory || isNearLoadMoreThreshold || isLoadMoreArmed {
-                        ProgressView()
-                            .controlSize(.small)
-                            .padding(8)
-                            .background(.ultraThinMaterial, in: Circle())
-                    } else {
-                        Color.clear
+        ScrollView(.horizontal, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    Spacer().frame(width: weekdayLabelWidth)
+                    ForEach(0..<weeks.count, id: \.self) { weekIdx in
+                        if let label = monthLabels.first(where: { $0.1 == weekIdx }) {
+                            Text(label.0)
+                                .font(.system(size: 9, weight: .medium, design: .default))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .fixedSize()
+                                .frame(width: cellSize + cellSpacing, alignment: .leading)
+                        } else {
+                            Spacer().frame(width: cellSize + cellSpacing)
+                        }
                     }
                 }
-                .frame(width: loadIndicatorSlotWidth, height: loadIndicatorSlotWidth)
-                .allowsHitTesting(false)
-            }
+                .frame(height: 14)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 0) {
-                        Spacer().frame(width: weekdayLabelWidth)
-                        ForEach(0..<weeks.count, id: \.self) { weekIdx in
-                            if let label = monthLabels.first(where: { $0.1 == weekIdx }) {
-                                Text(label.0)
-                                    .font(.system(size: 9, weight: .medium, design: .default))
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                                    .fixedSize()
-                                    .frame(width: cellSize + cellSpacing, alignment: .leading)
-                            } else {
-                                Spacer().frame(width: cellSize + cellSpacing)
-                            }
+                HStack(alignment: .top, spacing: 0) {
+                    VStack(spacing: cellSpacing) {
+                        ForEach(0..<7, id: \.self) { day in
+                            Text(weekdayLabel(day))
+                                .font(.system(size: 8))
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .frame(width: weekdayLabelWidth, height: cellSize)
                         }
                     }
-                    .frame(height: 14)
 
-                    HStack(alignment: .top, spacing: 0) {
-                        VStack(spacing: cellSpacing) {
-                            ForEach(0..<7, id: \.self) { day in
-                                Text(weekdayLabel(day))
-                                    .font(.system(size: 8))
-                                    .foregroundStyle(Color.amgiTextSecondary)
-                                    .frame(width: weekdayLabelWidth, height: cellSize)
-                            }
-                        }
+                    HStack(spacing: cellSpacing) {
+                        ForEach(0..<weeks.count, id: \.self) { weekIdx in
+                            VStack(spacing: cellSpacing) {
+                                ForEach(0..<7, id: \.self) { dayIdx in
+                                    let date = weeks[weekIdx][dayIdx]
+                                    let offset = dayOffset(for: date)
+                                    let count = dayCountMap[offset] ?? 0
+                                    let isFuture = date > Date()
 
-                        HStack(spacing: cellSpacing) {
-                            ForEach(0..<weeks.count, id: \.self) { weekIdx in
-                                VStack(spacing: cellSpacing) {
-                                    ForEach(0..<7, id: \.self) { dayIdx in
-                                        let date = weeks[weekIdx][dayIdx]
-                                        let offset = dayOffset(for: date)
-                                        let count = dayCountMap[offset] ?? 0
-                                        let isFuture = date > Date()
-
-                                        RoundedRectangle(cornerRadius: 2)
-                                            .fill(isFuture ? Color.clear : heatColor(count: count))
-                                            .frame(width: cellSize, height: cellSize)
-                                    }
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(isFuture ? Color.clear : heatColor(count: count))
+                                        .frame(width: cellSize, height: cellSize)
                                 }
                             }
                         }
                     }
                 }
             }
-            .defaultScrollAnchor(.trailing)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                onTapHeatmap?()
+        }
+        .defaultScrollAnchor(.trailing)
+        .contentShape(Rectangle())
+        .overlay(alignment: .topLeading) {
+            if canLoadMoreHistory && (isLoadingMoreHistory || isNearLoadMoreThreshold || isLoadMoreArmed) {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(7)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .padding(.top, 14 + cellSize + cellSpacing)
+                    .allowsHitTesting(false)
             }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        guard isLoadMoreArmed, !isLoadingMoreHistory, !hasTriggeredLoadMore else { return }
-                        isSecondPullInProgress = true
-                    }
-                    .onEnded { _ in
-                        guard canLoadMoreHistory, !isLoadingMoreHistory, !hasTriggeredLoadMore else { return }
+        }
+        .onTapGesture {
+            onTapHeatmap?()
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard isLoadMoreArmed, !isLoadingMoreHistory, !hasTriggeredLoadMore else { return }
+                    isSecondPullInProgress = true
+                }
+                .onEnded { _ in
+                    guard canLoadMoreHistory, !isLoadingMoreHistory, !hasTriggeredLoadMore else { return }
 
-                        if isLoadMoreArmed {
-                            isSecondPullInProgress = false
-                            return
-                        }
-
-                        if isNearLoadMoreThreshold && currentHorizontalOffset >= -armableReleaseOverscrollTolerance {
-                            isLoadMoreArmed = true
-                        }
+                    if isLoadMoreArmed {
+                        isSecondPullInProgress = false
+                        return
                     }
-            )
-            .onScrollGeometryChange(
-                for: CGFloat.self,
-                of: { geometry in geometry.contentOffset.x }
-            ) { _, newValue in
-                handleHorizontalScroll(offset: newValue)
-            }
+
+                    if isNearLoadMoreThreshold && currentHorizontalOffset >= -armableReleaseOverscrollTolerance {
+                        isLoadMoreArmed = true
+                    }
+                }
+        )
+        .onScrollGeometryChange(
+            for: CGFloat.self,
+            of: { geometry in geometry.contentOffset.x }
+        ) { _, newValue in
+            handleHorizontalScroll(offset: newValue)
         }
     }
 

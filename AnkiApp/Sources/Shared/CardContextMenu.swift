@@ -117,7 +117,7 @@ struct CardContextMenu: View {
             .disabled(!canUndo || isUndoing)
         } label: {
             Image(systemName: "ellipsis.circle")
-                .font(AmgiFont.bodyEmphasis.font)
+                .font(.title2)
         }
         .alert(L("card_action_error_title"), isPresented: $showError) {
             Button(L("common_ok")) { }
