@@ -18,13 +18,12 @@ struct DeckListHeatmapCard: View {
 
     @State private var graphs: Anki_Stats_GraphsResponse?
     @State private var isLoading = true
-    /// True while the user-triggered full-history fetch is running
-    @State private var isLoadingMoreHistory = false
-    @State private var hasLoadedFullHistory = false
     @State private var loadError = false
     @State private var isTodayStatsCollapsed = false
+    @State private var todayStatsSectionHeight: CGFloat = 0
 
     private let todayStatsAnimation = Animation.easeInOut(duration: 0.24)
+    private let todayStatsTopSpacing: CGFloat = 14
 
     let showsExternalLoading: Bool
 
@@ -33,14 +32,10 @@ struct DeckListHeatmapCard: View {
         self.showsExternalLoading = showsExternalLoading
         _graphs = State(initialValue: DeckListHeatmapCache.loadCurrent())
         _isLoading = State(initialValue: true)
-        _hasLoadedFullHistory = State(
-            initialValue: UserDefaults.standard.integer(forKey: DeckListHeatmapSettings.initialDaysKey)
-                == HeatmapInitialDays.allHistory.rawValue
-        )
     }
 
     var body: some View {
-        let collapsedStatsHeight: CGFloat? = isTodayStatsCollapsed ? 0 : nil
+        let todayStatsClipHeight: CGFloat? = isTodayStatsCollapsed ? 0 : resolvedTodayStatsExpandedHeight
 
         Group {
             if let graphs {
@@ -49,28 +44,25 @@ struct DeckListHeatmapCard: View {
                         reviews: graphs.reviews,
                         compactHeight: deckListHeatmapHeight,
                         embedded: true,
-                        canLoadMoreHistory: !hasLoadedFullHistory,
-                        isLoadingMoreHistory: isLoadingMoreHistory,
-                        onLoadMoreHistory: {
-                            Task { await loadFullHistory() }
-                        },
                         onTapHeatmap: {
                             isTodayStatsCollapsed.toggle()
                         }
                     )
-                    VStack(alignment: .leading, spacing: 14) {
-                        Divider()
-                        TodayStatsCard(
-                            today: graphs.today,
-                            embedded: true,
-                            compactText: true
-                        )
+                    ZStack(alignment: .topLeading) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Divider()
+                            TodayStatsCard(
+                                today: graphs.today,
+                                embedded: true,
+                                compactText: true
+                            )
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, todayStatsTopSpacing)
+                        .background(heightReader($todayStatsSectionHeight))
                     }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, isTodayStatsCollapsed ? 0 : 14)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .frame(height: collapsedStatsHeight, alignment: .top)
-                    .opacity(isTodayStatsCollapsed ? 0 : 1)
+                    .frame(height: todayStatsClipHeight, alignment: .top)
                     .clipped()
                     .allowsHitTesting(!isTodayStatsCollapsed)
                     .accessibilityHidden(isTodayStatsCollapsed)
@@ -97,8 +89,6 @@ struct DeckListHeatmapCard: View {
                     }
                 }
                 .animation(.easeInOut(duration: 0.2), value: isLoading)
-                .animation(.easeInOut(duration: 0.2), value: isLoadingMoreHistory)
-                .animation(.easeInOut(duration: 0.2), value: hasLoadedFullHistory)
             } else if isLoading || showsExternalLoading {
                 // First load only — no cached data yet
                 ProgressView()
@@ -132,8 +122,6 @@ struct DeckListHeatmapCard: View {
     private func loadStats() async {
         guard collectionState.isReady else { return }
         isLoading = true
-        isLoadingMoreHistory = false
-        hasLoadedFullHistory = false
         loadError = false
 
         do {
@@ -148,36 +136,10 @@ struct DeckListHeatmapCard: View {
                 requestedDays: days,
                 lastSyncAt: lastSyncAt
             )
-            // If user already chose "all history" in settings, mark as loaded
-            if days == HeatmapInitialDays.allHistory.rawValue {
-                hasLoadedFullHistory = true
-            }
         } catch {
             loadError = (graphs == nil)
         }
         isLoading = false
-    }
-
-    @MainActor
-    private func loadFullHistory() async {
-        guard collectionState.isReady, !isLoadingMoreHistory else { return }
-        isLoadingMoreHistory = true
-        do {
-            let query = try resolvedSearchQuery()
-            let lastSyncAt = syncClient.lastSyncDate()
-            let response = try await fetchGraphsResponse(query: query, days: 0, priority: .background)
-            graphs = response
-            DeckListHeatmapCache.save(
-                response,
-                searchQuery: query,
-                requestedDays: 0,
-                lastSyncAt: lastSyncAt
-            )
-            hasLoadedFullHistory = true
-        } catch {
-            // keep existing 180-day data on failure
-        }
-        isLoadingMoreHistory = false
     }
 
     private func loadBestResponse(
@@ -330,5 +292,27 @@ struct DeckListHeatmapCard: View {
             shifted[newOffset] = value
         }
         return shifted
+    }
+
+    private var resolvedTodayStatsExpandedHeight: CGFloat? {
+        guard todayStatsSectionHeight > 0 else { return nil }
+        return todayStatsSectionHeight + todayStatsTopSpacing
+    }
+
+    private func heightReader(_ height: Binding<CGFloat>) -> some View {
+        GeometryReader { proxy in
+            Color.clear
+                .onAppear {
+                    let newHeight = proxy.size.height
+                    if newHeight > 0, abs(height.wrappedValue - newHeight) > 0.5 {
+                        height.wrappedValue = newHeight
+                    }
+                }
+                .onChange(of: proxy.size.height) { _, newHeight in
+                    if newHeight > 0, abs(height.wrappedValue - newHeight) > 0.5 {
+                        height.wrappedValue = newHeight
+                    }
+                }
+        }
     }
 }

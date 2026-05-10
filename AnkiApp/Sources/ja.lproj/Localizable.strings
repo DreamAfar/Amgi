@@ -424,6 +424,8 @@
 "heatmap_range_3_months" = "3ヶ月";
 "heatmap_range_6_months" = "6ヶ月";
 "heatmap_range_1_year" = "1年";
+"heatmap_range_2_years" = "2年";
+"heatmap_range_3_years" = "3年";
 "heatmap_range_all" = "全履歴";
 "settings_display_heatmap_scope" = "ヒートマップの対象範囲";
 "settings_display_heatmap_scope_all" = "現在の全デッキ";

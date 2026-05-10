@@ -5,25 +5,12 @@ struct HeatmapChart: View {
     let reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes
     var compactHeight: CGFloat? = nil
     var embedded: Bool = false
-    var canLoadMoreHistory: Bool = false
-    var isLoadingMoreHistory: Bool = false
-    var onLoadMoreHistory: (() -> Void)? = nil
     var onTapHeatmap: (() -> Void)? = nil
-
-    @State private var isNearLoadMoreThreshold = false
-    @State private var isLoadMoreArmed = false
-    @State private var isSecondPullInProgress = false
-    @State private var hasTriggeredLoadMore = false
-    @State private var currentHorizontalOffset: CGFloat = .zero
 
     private var isCompact: Bool {
         compactHeight != nil
     }
 
-    private let leadingEdgeThreshold: CGFloat = 2
-    private let armableReleaseOverscrollTolerance: CGFloat = 8
-    private let loadResetThreshold: CGFloat = 36
-    private let loadTriggerOverscrollThreshold: CGFloat = 72
     private var cellSpacing: CGFloat {
         isCompact ? 1.25 : 2
     }
@@ -203,15 +190,6 @@ struct HeatmapChart: View {
                     .shadow(color: Color.black.opacity(0.08), radius: 12, y: 4)
             }
         }
-        .onChange(of: canLoadMoreHistory) { _, canLoad in
-            if !canLoad {
-                isNearLoadMoreThreshold = false
-                isLoadMoreArmed = false
-                isSecondPullInProgress = false
-                hasTriggeredLoadMore = false
-                currentHorizontalOffset = .zero
-            }
-        }
     }
 
     // MARK: - Helpers
@@ -282,43 +260,8 @@ struct HeatmapChart: View {
         }
         .defaultScrollAnchor(.trailing)
         .contentShape(Rectangle())
-        .overlay(alignment: .topLeading) {
-            if canLoadMoreHistory && (isLoadingMoreHistory || isNearLoadMoreThreshold || isLoadMoreArmed) {
-                ProgressView()
-                    .controlSize(.small)
-                    .padding(7)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .padding(.top, 14 + cellSize + cellSpacing)
-                    .allowsHitTesting(false)
-            }
-        }
         .onTapGesture {
             onTapHeatmap?()
-        }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    guard isLoadMoreArmed, !isLoadingMoreHistory, !hasTriggeredLoadMore else { return }
-                    isSecondPullInProgress = true
-                }
-                .onEnded { _ in
-                    guard canLoadMoreHistory, !isLoadingMoreHistory, !hasTriggeredLoadMore else { return }
-
-                    if isLoadMoreArmed {
-                        isSecondPullInProgress = false
-                        return
-                    }
-
-                    if isNearLoadMoreThreshold && currentHorizontalOffset >= -armableReleaseOverscrollTolerance {
-                        isLoadMoreArmed = true
-                    }
-                }
-        )
-        .onScrollGeometryChange(
-            for: CGFloat.self,
-            of: { geometry in geometry.contentOffset.x }
-        ) { _, newValue in
-            handleHorizontalScroll(offset: newValue)
         }
     }
 
@@ -346,30 +289,5 @@ struct HeatmapChart: View {
         if count == 0 { return Color(.systemGray6) }
         let intensity = min(1.0, Double(count) / Double(max(maxCount, 1)))
         return .green.opacity(max(0.2, intensity))
-    }
-
-    private func handleHorizontalScroll(offset: CGFloat) {
-        guard canLoadMoreHistory else { return }
-
-        currentHorizontalOffset = offset
-        let isNearLeadingEdge = offset <= leadingEdgeThreshold
-        isNearLoadMoreThreshold = isNearLeadingEdge
-
-        if offset > loadResetThreshold {
-            isLoadMoreArmed = false
-            isSecondPullInProgress = false
-            hasTriggeredLoadMore = false
-            return
-        }
-
-        guard isLoadMoreArmed, isSecondPullInProgress else { return }
-
-        if offset <= -loadTriggerOverscrollThreshold {
-            guard !hasTriggeredLoadMore else { return }
-            hasTriggeredLoadMore = true
-            isLoadMoreArmed = false
-            isSecondPullInProgress = false
-            onLoadMoreHistory?()
-        }
     }
 }

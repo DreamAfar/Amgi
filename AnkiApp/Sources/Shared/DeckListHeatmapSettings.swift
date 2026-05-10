@@ -12,6 +12,8 @@ enum HeatmapInitialDays: Int, CaseIterable, Identifiable {
     case threeMonths = 90
     case sixMonths   = 180
     case oneYear     = 365
+    case twoYears    = 730
+    case threeYears  = 1095
     case allHistory  = 0
 
     var id: Int { rawValue }
@@ -21,6 +23,8 @@ enum HeatmapInitialDays: Int, CaseIterable, Identifiable {
         case .threeMonths: return L("heatmap_range_3_months")
         case .sixMonths:   return L("heatmap_range_6_months")
         case .oneYear:     return L("heatmap_range_1_year")
+        case .twoYears:    return L("heatmap_range_2_years")
+        case .threeYears:  return L("heatmap_range_3_years")
         case .allHistory:  return L("heatmap_range_all")
         }
     }

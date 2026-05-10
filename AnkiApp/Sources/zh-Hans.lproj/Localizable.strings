@@ -424,6 +424,8 @@
 "heatmap_range_3_months" = "近3个月";
 "heatmap_range_6_months" = "近半年";
 "heatmap_range_1_year" = "近1年";
+"heatmap_range_2_years" = "近2年";
+"heatmap_range_3_years" = "近3年";
 "heatmap_range_all" = "全部历史";
 "settings_display_heatmap_scope" = "热力图数据范围";
 "settings_display_heatmap_scope_all" = "全部当前牌组";
