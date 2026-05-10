@@ -23,6 +23,8 @@ struct DeckListHeatmapCard: View {
     @State private var hasLoadedFullHistory = false
     @State private var loadError = false
     @State private var isTodayStatsCollapsed = false
+    @State private var heatmapSectionHeight: CGFloat = 0
+    @State private var todayStatsSectionHeight: CGFloat = 0
 
     private let todayStatsExpandedMaxHeight: CGFloat = 160
     private let todayStatsAnimation = Animation.easeInOut(duration: 0.24)
@@ -59,6 +61,7 @@ struct DeckListHeatmapCard: View {
                             }
                         }
                     )
+                    .background(heightReader($heatmapSectionHeight))
                     VStack(alignment: .leading, spacing: 14) {
                         Divider()
                         TodayStatsCard(
@@ -67,10 +70,11 @@ struct DeckListHeatmapCard: View {
                             compactText: true
                         )
                     }
+                    .background(heightReader($todayStatsSectionHeight))
                     .padding(.top, 14)
                     .frame(
                         maxWidth: .infinity,
-                        maxHeight: isTodayStatsCollapsed ? 0 : todayStatsExpandedMaxHeight,
+                        maxHeight: isTodayStatsCollapsed ? 0 : resolvedTodayStatsExpandedHeight,
                         alignment: .top
                     )
                     .opacity(isTodayStatsCollapsed ? 0 : 1)
@@ -80,6 +84,7 @@ struct DeckListHeatmapCard: View {
                     .animation(todayStatsAnimation, value: isTodayStatsCollapsed)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: resolvedCardHeight, alignment: .top)
                 .padding(16)
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -333,5 +338,32 @@ struct DeckListHeatmapCard: View {
             shifted[newOffset] = value
         }
         return shifted
+    }
+
+    private var resolvedTodayStatsExpandedHeight: CGFloat {
+        let measuredHeight = todayStatsSectionHeight > 0 ? todayStatsSectionHeight : todayStatsExpandedMaxHeight
+        return min(measuredHeight, todayStatsExpandedMaxHeight)
+    }
+
+    private var resolvedCardHeight: CGFloat? {
+        guard heatmapSectionHeight > 0 else { return nil }
+        return heatmapSectionHeight + (isTodayStatsCollapsed ? 0 : resolvedTodayStatsExpandedHeight)
+    }
+
+    private func heightReader(_ height: Binding<CGFloat>) -> some View {
+        GeometryReader { proxy in
+            Color.clear
+                .onAppear {
+                    let newHeight = proxy.size.height
+                    if newHeight > 0, abs(height.wrappedValue - newHeight) > 0.5 {
+                        height.wrappedValue = newHeight
+                    }
+                }
+                .onChange(of: proxy.size.height) { _, newHeight in
+                    if newHeight > 0, abs(height.wrappedValue - newHeight) > 0.5 {
+                        height.wrappedValue = newHeight
+                    }
+                }
+        }
     }
 }

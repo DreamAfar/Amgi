@@ -68,7 +68,6 @@ struct AddNoteView: View {
                     || MediaAudioPreview.firstAudioFileName(in: value) != nil,
                 hasAudio: MediaAudioPreview.firstAudioFileName(in: value) != nil,
                 hasEditableImage: NoteFieldMediaSupport.firstImageFilename(in: value) != nil,
-                showsSourcePreview: containsEmbeddedMedia(value) || RichNoteFieldEditor.containsMathMarkup(value),
                 sourcePreviewHeight: sourcePreviewHeight(for: value)
             )
         }
@@ -392,14 +391,6 @@ struct AddNoteView: View {
             return 220
         }
         return 96
-    }
-
-    private func containsEmbeddedMedia(_ value: String) -> Bool {
-        let lowercasedValue = value.lowercased()
-        return lowercasedValue.contains("<img")
-            || lowercasedValue.contains("<svg")
-            || lowercasedValue.contains("<video")
-            || lowercasedValue.contains("<audio")
     }
 
     private func beginMediaImport(for index: Int, action: NoteEditorMediaAction) {

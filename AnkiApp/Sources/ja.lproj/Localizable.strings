@@ -631,6 +631,7 @@
 "stats_today_time" = "時間";
 "stats_today_correct" = "正解率";
 "stats_today_mature" = "成熟";
+"stats_today_title" = "今日の学習データ";
 "stats_card_new" = "新規";
 "stats_card_learn" = "学習中";
 "stats_card_review" = "復習";
@@ -1114,6 +1115,15 @@
 "card_interval_days" = "%d 日";
 "card_interval_months" = "%.1f ヶ月";
 "card_interval_years" = "%.1f 年";
+"card_interval_less_than_1d_short" = "<1日";
+"card_interval_seconds_short" = "%d秒";
+"card_interval_seconds_short_decimal" = "%.1f秒";
+"card_interval_minutes_short" = "%d分";
+"card_interval_hours_short" = "%d時";
+"card_interval_hours_short_decimal" = "%.1f時";
+"card_interval_days_short" = "%d日";
+"card_interval_months_short" = "%dヶ月";
+"card_interval_years_short" = "%.1f年";
 "card_due_position" = "位置 %d";
 
 // MARK: - Flags
@@ -1526,3 +1536,4 @@
 "media_check_empty_trash_done" = "ゴミ箱を空にしました。";
 "media_check_restore_done" = "ゴミ箱を復元しました。";
 "media_check_error" = "エラー: %@";
+"media_check_running" = "メディアを確認中…";

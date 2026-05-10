@@ -116,9 +116,6 @@ struct SettingsView: View {
     @State private var isCheckingDatabase = false
     @State private var databaseCheckResult = ""
     @State private var showDatabaseCheckResult = false
-    @State private var isCheckingMedia = false
-    @State private var mediaCheckResult: MediaCheckResult?
-    @State private var showMediaCheckResult = false
 
     private var selectedTheme: Binding<AppTheme> {
         Binding(
@@ -282,28 +279,11 @@ struct SettingsView: View {
                 .disabled(isCheckingDatabase)
                 .amgiSettingsListRowSurface()
 
-                Button {
-                    checkMedia()
+                NavigationLink {
+                    MediaCheckResultView()
                 } label: {
-                    if isCheckingMedia {
-                        HStack {
-                            settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
-                                .foregroundStyle(SettingsValueStyle.primary)
-                            Spacer()
-                            ProgressView()
-                        }
-                        .contentShape(Rectangle())
-                    } else {
-                        HStack {
-                            settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
-                                .foregroundStyle(SettingsValueStyle.primary)
-                            Spacer()
-                        }
-                        .contentShape(Rectangle())
-                    }
+                    settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
                 }
-                .buttonStyle(.plain)
-                .disabled(isCheckingMedia)
                 .amgiSettingsListRowSurface()
 
                 NavigationLink {
@@ -337,11 +317,6 @@ struct SettingsView: View {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
             Text(maintenanceMessage ?? L("common_unknown_error"))
-        }
-        .sheet(isPresented: $showMediaCheckResult) {
-            if let result = mediaCheckResult {
-                MediaCheckResultView(result: result)
-            }
         }
         .sheet(isPresented: $showDatabaseCheckResult) {
             NavigationStack {
@@ -389,36 +364,6 @@ struct SettingsView: View {
         }
     }
 
-    private func checkMedia() {
-        isCheckingMedia = true
-        let capturedBackend = backend
-        Task.detached {
-            do {
-                let response: Anki_Media_CheckMediaResponse = try capturedBackend.invoke(
-                    service: AnkiBackend.Service.media,
-                    method: AnkiBackend.MediaMethod.checkMedia
-                )
-                let result = MediaCheckResult(
-                    missing: response.missing,
-                    unused: response.unused,
-                    missingNoteIds: response.missingMediaNotes,
-                    report: response.report,
-                    haveTrash: response.haveTrash
-                )
-                await MainActor.run {
-                    isCheckingMedia = false
-                    mediaCheckResult = result
-                    showMediaCheckResult = true
-                }
-            } catch {
-                await MainActor.run {
-                    isCheckingMedia = false
-                    maintenanceMessage = L("media_check_error", error.localizedDescription)
-                    showMaintenanceAlert = true
-                }
-            }
-        }
-    }
 }
 
 private struct SettingsInfoView: View {

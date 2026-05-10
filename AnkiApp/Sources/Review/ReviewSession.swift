@@ -418,17 +418,17 @@ final class ReviewSession {
     }
 
     private func formatInterval(_ secs: UInt32) -> String {
-        if secs < 60 { return "\(secs)s" }
+        if secs < 60 { return L("card_interval_seconds_short", Int(secs)) }
         let mins = secs / 60
-        if mins < 60 { return "\(mins)m" }
+        if mins < 60 { return L("card_interval_minutes_short", Int(mins)) }
         let hours = mins / 60
-        if hours < 24 { return "\(hours)h" }
+        if hours < 24 { return L("card_interval_hours_short", Int(hours)) }
         let days = hours / 24
-        if days < 30 { return "\(days)d" }
+        if days < 30 { return L("card_interval_days_short", Int(days)) }
         let months = days / 30
-        if months < 12 { return "\(months)mo" }
+        if months < 12 { return L("card_interval_months_short", Int(months)) }
         let years = Double(days) / 365.0
-        return String(format: "%.1fy", years)
+        return L("card_interval_years_short", years)
     }
 
     private func renderNodes(_ nodes: [Anki_CardRendering_RenderedTemplateNode]) -> String {

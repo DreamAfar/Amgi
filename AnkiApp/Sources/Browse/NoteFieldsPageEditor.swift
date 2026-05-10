@@ -6,7 +6,6 @@ struct NoteFieldsPageEditorActionState: Equatable {
     var showsAudioButton = false
     var hasAudio = false
     var hasEditableImage = false
-    var showsSourcePreview = false
     var sourcePreviewHeight: CGFloat = 96
 }
 
@@ -129,7 +128,6 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 showsAudioButton: normalizedActionStates[index].showsAudioButton,
                 hasAudio: normalizedActionStates[index].hasAudio,
                 hasEditableImage: normalizedActionStates[index].hasEditableImage,
-                showsSourcePreview: normalizedActionStates[index].showsSourcePreview,
                 sourcePreviewHeight: Double(normalizedActionStates[index].sourcePreviewHeight)
             )
         }
@@ -805,10 +803,6 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             return source.includes('\\(') || source.includes('\\[');
         }
 
-        function hasPreviewContent(html) {
-            return hasEmbeddedMedia(html) || containsMathPreviewMarkup(html);
-        }
-
         function loadMathJaxScript(kind, src) {
             return new Promise(function(resolve) {
                 const existing = document.querySelector('script[data-amgi-note-fields-mathjax="' + kind + '"]');
@@ -1345,8 +1339,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             const field = state.fields[index];
             const html = field.html || '';
             const section = fieldElement(index);
+            const hasEmbeddedPreview = hasEmbeddedMedia(html);
             const hasMathPreview = containsMathPreviewMarkup(html);
-            const shouldShow = !!field.showsSourcePreview && hasPreviewContent(html);
+            const shouldShow = hasMathPreview || (!!field.isSourceMode && hasEmbeddedPreview);
             preview.classList.toggle('has-preview', shouldShow);
             section?.classList.toggle('has-math-preview', hasMathPreview);
             preview.style.minHeight = `${field.sourcePreviewHeight || 96}px`;
@@ -2257,7 +2252,6 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         let showsAudioButton: Bool
         let hasAudio: Bool
         let hasEditableImage: Bool
-        let showsSourcePreview: Bool
         let sourcePreviewHeight: Double
     }
 

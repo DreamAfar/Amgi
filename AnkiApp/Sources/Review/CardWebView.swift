@@ -177,6 +177,8 @@ struct CardWebView: UIViewRepresentable {
             let htmlClass = Self.htmlClasses(isDarkMode: isDarkMode)
             let playIconHTML = Self.audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
             let pauseIconHTML = Self.audioButtonIconHTML(systemName: "pause.circle", alt: "Pause", isDarkMode: isDarkMode)
+            let missingImageIconHTML = Self.missingMediaIconHTML(systemName: "photo.badge.exclamationmark", alt: "Missing image", isDarkMode: isDarkMode)
+            let missingAudioIconHTML = Self.missingMediaIconHTML(systemName: "speaker.badge.exclamationmark", alt: "Missing audio", isDarkMode: isDarkMode)
             let baseTag = CardAssetPath.mediaBaseTag()
             // Stash the show-card call so we can run it once the page finishes loading.
             context.coordinator.pendingUpdateScript = showCardScript
@@ -186,6 +188,8 @@ struct CardWebView: UIViewRepresentable {
                 isDarkMode: isDarkMode,
                 playIconHTML: playIconHTML,
                 pauseIconHTML: pauseIconHTML,
+                missingImageIconHTML: missingImageIconHTML,
+                missingAudioIconHTML: missingAudioIconHTML,
                 baseTag: baseTag
             )
 
@@ -244,6 +248,8 @@ struct CardWebView: UIViewRepresentable {
         isDarkMode: Bool,
         playIconHTML: String,
         pauseIconHTML: String,
+        missingImageIconHTML: String,
+        missingAudioIconHTML: String,
         baseTag: String
     ) -> String {
         let colorScheme = isDarkMode ? "dark" : "light"
@@ -262,6 +268,8 @@ struct CardWebView: UIViewRepresentable {
         let missingMediaColor = isDarkMode ? "rgba(255,100,100,0.9)" : "rgba(200,40,40,0.8)"
         let playIconLiteral = jsStringLiteral(playIconHTML)
         let pauseIconLiteral = jsStringLiteral(pauseIconHTML)
+        let missingImageIconLiteral = jsStringLiteral(missingImageIconHTML)
+        let missingAudioIconLiteral = jsStringLiteral(missingAudioIconHTML)
         let mathJaxConfigScriptURL = jsStringLiteral(CardAssetPath.mathJaxConfigScriptURLString)
         let mathJaxCoreScriptURL = jsStringLiteral(CardAssetPath.mathJaxCoreScriptURLString)
 
@@ -368,10 +376,17 @@ struct CardWebView: UIViewRepresentable {
                 pointer-events: auto; cursor: pointer; border-radius: 8px;
             }
             .missing-media {
-                display: inline-block; background: rgba(255,60,60,0.15);
-                border: 1px dashed rgba(255,60,60,0.5); border-radius: 6px;
-                padding: 6px 10px; margin: 4px; font-size: 13px;
-                color: \(missingMediaColor);
+                display: inline-flex; align-items: center; justify-content: center;
+                width: 28px; height: 28px; margin: 4px;
+                color: \(missingMediaColor); vertical-align: middle;
+            }
+            .missing-media .amgi-inline-icon {
+                width: 20px; height: 20px; display: block;
+                max-width: none; max-height: none;
+                margin: 0; padding: 0;
+                border: 0 !important; border-radius: 0 !important;
+                background: transparent !important; box-shadow: none !important;
+                object-fit: contain;
             }
             body.nightMode,
             body.night_mode,
@@ -394,6 +409,8 @@ struct CardWebView: UIViewRepresentable {
         // ── Globals ──────────────────────────────────────────────────────────
         var PLAY_ICON_HTML = \(playIconLiteral);
         var PAUSE_ICON_HTML = \(pauseIconLiteral);
+        var MISSING_IMAGE_ICON_HTML = \(missingImageIconLiteral);
+        var MISSING_AUDIO_ICON_HTML = \(missingAudioIconLiteral);
         var MATHJAX_CONFIG_SCRIPT_URL = \(mathJaxConfigScriptURL);
         var MATHJAX_CORE_SCRIPT_URL = \(mathJaxCoreScriptURL);
         window.__amgiAudioPlaying = false;
@@ -1459,7 +1476,7 @@ struct CardWebView: UIViewRepresentable {
                     img.onerror = function() {
                         var hint = document.createElement('span');
                         hint.className = 'missing-media';
-                        hint.textContent = '\\u26a0 ' + (img.getAttribute('src') || 'image');
+                        hint.innerHTML = MISSING_IMAGE_ICON_HTML;
                         img.replaceWith(hint);
                     };
                     if (img.complete && img.naturalWidth === 0 && img.src) img.onerror();
@@ -1470,7 +1487,7 @@ struct CardWebView: UIViewRepresentable {
                     audio.onerror = function() {
                         var hint = document.createElement('span');
                         hint.className = 'missing-media';
-                        hint.textContent = '\\u26a0 ' + (audio.getAttribute('src') || 'audio');
+                        hint.innerHTML = MISSING_AUDIO_ICON_HTML;
                         span.replaceWith(hint);
                     };
                 });
@@ -1746,7 +1763,30 @@ struct CardWebView: UIViewRepresentable {
     }
 
     private static func audioButtonIconHTML(systemName: String, alt: String, isDarkMode: Bool) -> String {
-        let configuration = UIImage.SymbolConfiguration(pointSize: 24, weight: .regular, scale: .medium)
+        symbolIconHTML(
+            systemName: systemName,
+            alt: alt,
+            isDarkMode: isDarkMode,
+            pointSize: 24
+        )
+    }
+
+    private static func missingMediaIconHTML(systemName: String, alt: String, isDarkMode: Bool) -> String {
+        symbolIconHTML(
+            systemName: systemName,
+            alt: alt,
+            isDarkMode: isDarkMode,
+            pointSize: 20
+        )
+    }
+
+    private static func symbolIconHTML(
+        systemName: String,
+        alt: String,
+        isDarkMode: Bool,
+        pointSize: CGFloat
+    ) -> String {
+        let configuration = UIImage.SymbolConfiguration(pointSize: pointSize, weight: .regular, scale: .medium)
         let tint = isDarkMode ? UIColor.white : UIColor(red: 26 / 255, green: 26 / 255, blue: 26 / 255, alpha: 1)
         guard let baseImage = UIImage(systemName: systemName, withConfiguration: configuration) else {
             return alt

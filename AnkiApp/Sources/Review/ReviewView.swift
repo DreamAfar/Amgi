@@ -900,10 +900,10 @@ struct ReviewView: View {
     }
 
     private func formatInterval(_ days: Int) -> String {
-        if days == 0 { return "<1d" }
-        if days < 30 { return "\(days)d" }
-        if days < 365 { return "\(days / 30)mo" }
-        return String(format: "%.1fy", Double(days) / 365.0)
+        if days == 0 { return L("card_interval_less_than_1d_short") }
+        if days < 30 { return L("card_interval_days_short", days) }
+        if days < 365 { return L("card_interval_months_short", days / 30) }
+        return L("card_interval_years_short", Double(days) / 365.0)
     }
 
     private var finishedView: some View {
@@ -918,9 +918,30 @@ struct ReviewView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button(L("common_done")) { onDismiss() }
-                .buttonStyle(.borderedProminent)
-                .padding()
+            GeometryReader { geometry in
+                let availableWidth = max(geometry.size.width - 32, 0)
+                let buttonWidth = availableWidth / 3
+
+                HStack {
+                    Spacer()
+                    Button {
+                        onDismiss()
+                    } label: {
+                        Text(L("common_done"))
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 16)
+                    }
+                    .frame(width: buttonWidth)
+                    .buttonStyle(.borderedProminent)
+                    .clipShape(Capsule())
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+            }
+            .frame(height: 56)
+            .padding(.bottom, 16)
         }
     }
 
@@ -1268,9 +1289,9 @@ private struct ReviewAutoAdvanceTimerView: View {
 
     private func formattedSeconds(_ seconds: Double) -> String {
         if seconds >= 10 {
-            return "\(Int(seconds.rounded()))s"
+            return L("card_interval_seconds_short", Int(seconds.rounded()))
         }
-        return String(format: "%.1fs", seconds)
+        return L("card_interval_seconds_short_decimal", seconds)
     }
 }
 
@@ -1544,7 +1565,7 @@ private struct ReviewCardStatsSheet: View {
     private func formatIntervalSeconds(_ seconds: Int) -> String {
         if seconds < 60 { return L("card_info_seconds_fmt", seconds) }
         if seconds < 3600 { return L("card_info_minutes_fmt", Double(seconds) / 60.0) }
-        if seconds < 86_400 { return String(format: "%.1fh", Double(seconds) / 3600.0) }
+        if seconds < 86_400 { return L("card_interval_hours_short_decimal", Double(seconds) / 3600.0) }
         return L("card_interval_days", Int(Double(seconds) / 86_400.0))
     }
 
@@ -1921,7 +1942,7 @@ private struct ReviewCardInfoSheet: View {
     private func formatIntervalSeconds(_ seconds: Int) -> String {
         if seconds < 60 { return L("card_info_seconds_fmt", seconds) }
         if seconds < 3600 { return L("card_info_minutes_fmt", Double(seconds) / 60.0) }
-        if seconds < 86_400 { return String(format: "%.1fh", Double(seconds) / 3600.0) }
+        if seconds < 86_400 { return L("card_interval_hours_short_decimal", Double(seconds) / 3600.0) }
         return L("card_interval_days", Int(Double(seconds) / 86_400.0))
     }
 

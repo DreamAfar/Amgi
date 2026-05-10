@@ -31,25 +31,33 @@ struct TodayStatsCard: View {
     }
 
     var body: some View {
-        let content = VStack(spacing: compactText ? 10 : 12) {
-            HStack {
-                statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
-                Spacer()
-                statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: Color.amgiTextPrimary)
-                Spacer()
-                statItem(title: L("stats_today_correct"), value: accuracy, color: .green)
-                Spacer()
-                statItem(title: L("stats_today_mature"), value: matureAccuracy, color: .purple)
+        let content = VStack(alignment: .leading, spacing: compactText ? 10 : 12) {
+            if !embedded {
+                Text(L("stats_today_title"))
+                    .amgiFont(.sectionHeading)
+                    .foregroundStyle(Color.amgiTextPrimary)
             }
-            Divider()
-            HStack {
-                statBadge(L("stats_card_new"), count: today.learnCount, color: .cyan)
-                Spacer()
-                statBadge(L("stats_card_learn"), count: today.relearnCount, color: .orange)
-                Spacer()
-                statBadge(L("stats_card_review"), count: today.reviewCount, color: .green)
-                Spacer()
-                statBadge(L("stats_card_again"), count: today.answerCount - today.correctCount, color: .red)
+
+            VStack(spacing: compactText ? 10 : 12) {
+                HStack {
+                    statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
+                    Spacer()
+                    statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: Color.amgiTextPrimary)
+                    Spacer()
+                    statItem(title: L("stats_today_correct"), value: accuracy, color: .green)
+                    Spacer()
+                    statItem(title: L("stats_today_mature"), value: matureAccuracy, color: .purple)
+                }
+                Divider()
+                HStack {
+                    statBadge(L("stats_card_new"), count: today.learnCount, color: .cyan)
+                    Spacer()
+                    statBadge(L("stats_card_learn"), count: today.relearnCount, color: .orange)
+                    Spacer()
+                    statBadge(L("stats_card_review"), count: today.reviewCount, color: .green)
+                    Spacer()
+                    statBadge(L("stats_card_again"), count: today.answerCount - today.correctCount, color: .red)
+                }
             }
         }
 

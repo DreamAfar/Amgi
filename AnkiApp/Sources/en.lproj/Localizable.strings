@@ -631,6 +631,7 @@
 "stats_today_time" = "Time";
 "stats_today_correct" = "Correct";
 "stats_today_mature" = "Mature";
+"stats_today_title" = "Today's Study";
 "stats_card_new" = "New";
 "stats_card_learn" = "Learn";
 "stats_card_review" = "Review";
@@ -1112,6 +1113,15 @@
 "card_interval_days" = "%d days";
 "card_interval_months" = "%.1f months";
 "card_interval_years" = "%.1f years";
+"card_interval_less_than_1d_short" = "<1d";
+"card_interval_seconds_short" = "%ds";
+"card_interval_seconds_short_decimal" = "%.1fs";
+"card_interval_minutes_short" = "%dm";
+"card_interval_hours_short" = "%dh";
+"card_interval_hours_short_decimal" = "%.1fh";
+"card_interval_days_short" = "%dd";
+"card_interval_months_short" = "%dmo";
+"card_interval_years_short" = "%.1fy";
 "card_due_position" = "Position %d";
 
 // MARK: - Flags
@@ -1526,3 +1536,4 @@
 "media_check_empty_trash_done" = "Trash emptied.";
 "media_check_restore_done" = "Trash restored.";
 "media_check_error" = "Error: %@";
+"media_check_running" = "Checking media...";

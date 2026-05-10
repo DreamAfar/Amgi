@@ -27,30 +27,50 @@ private func fetchLatestMediaCheckResult(using backend: AnkiBackend) throws -> M
 }
 
 struct MediaCheckResultView: View {
-    @State private var currentResult: MediaCheckResult
+    @State private var currentResult: MediaCheckResult?
     @Environment(\.dismiss) private var dismiss
 
     @Dependency(\.ankiBackend) var backend
+    @State private var isLoading = true
     @State private var isTrashingUnused = false
     @State private var isDeletingTrash = false
     @State private var isRestoringTrash = false
     @State private var actionMessage: String?
     @State private var showActionAlert = false
+    @State private var errorMessage: String?
+    @State private var showError = false
 
-    init(result: MediaCheckResult) {
+    init(result: MediaCheckResult? = nil) {
         _currentResult = State(initialValue: result)
+        _isLoading = State(initialValue: result == nil)
     }
 
     var body: some View {
         NavigationStack {
-            List {
-                summarySection
-                if !currentResult.missing.isEmpty { missingSection }
-                if !currentResult.unused.isEmpty { unusedSection }
-                if currentResult.haveTrash || !currentResult.unused.isEmpty { trashSection }
+            Group {
+                if isLoading {
+                    VStack(spacing: AmgiSpacing.md) {
+                        ProgressView()
+                        Text(L("media_check_running"))
+                            .amgiFont(.body)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.amgiBackground)
+                } else if let currentResult {
+                    List {
+                        summarySection(currentResult)
+                        if !currentResult.missing.isEmpty { missingSection(currentResult) }
+                        if !currentResult.unused.isEmpty { unusedSection(currentResult) }
+                        if currentResult.haveTrash || !currentResult.unused.isEmpty { trashSection(currentResult) }
+                    }
+                    .scrollContentBackground(.hidden)
+                    .background(Color.amgiBackground)
+                } else {
+                    Color.amgiBackground
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
             .navigationTitle(L("media_check_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -64,10 +84,20 @@ struct MediaCheckResultView: View {
             } message: {
                 Text(actionMessage ?? "")
             }
+            .alert(L("common_error"), isPresented: $showError) {
+                Button(L("common_ok"), role: .cancel) {
+                    dismiss()
+                }
+            } message: {
+                Text(errorMessage ?? L("common_unknown_error"))
+            }
+            .task {
+                await loadIfNeeded()
+            }
         }
     }
 
-    private var summarySection: some View {
+    private func summarySection(_ currentResult: MediaCheckResult) -> some View {
         Section(L("media_check_section_summary")) {
             Label(
                 L("media_check_missing_count", currentResult.missing.count),
@@ -94,7 +124,7 @@ struct MediaCheckResultView: View {
         }
     }
 
-    private var missingSection: some View {
+    private func missingSection(_ currentResult: MediaCheckResult) -> some View {
         Section(L("media_check_section_missing")) {
             ForEach(currentResult.missing.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "questionmark.circle")
@@ -110,7 +140,7 @@ struct MediaCheckResultView: View {
         }
     }
 
-    private var unusedSection: some View {
+    private func unusedSection(_ currentResult: MediaCheckResult) -> some View {
         Section(L("media_check_section_unused")) {
             ForEach(currentResult.unused.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "tray")
@@ -126,7 +156,7 @@ struct MediaCheckResultView: View {
         }
     }
 
-    private var trashSection: some View {
+    private func trashSection(_ currentResult: MediaCheckResult) -> some View {
         Section(L("media_check_section_actions")) {
             if !currentResult.unused.isEmpty {
                 Button {
@@ -183,7 +213,25 @@ struct MediaCheckResultView: View {
         }
     }
 
+    @MainActor
+    private func loadIfNeeded() async {
+        guard isLoading else { return }
+        let capturedBackend = backend
+        do {
+            let result = try await Task.detached {
+                try fetchLatestMediaCheckResult(using: capturedBackend)
+            }.value
+            currentResult = result
+            isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = L("media_check_error", error.localizedDescription)
+            showError = true
+        }
+    }
+
     private func trashUnused() {
+        guard let currentResult else { return }
         isTrashingUnused = true
         let capturedBackend = backend
         let unusedFiles = currentResult.unused

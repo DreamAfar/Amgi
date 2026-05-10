@@ -631,6 +631,7 @@
 "stats_today_time" = "用时";
 "stats_today_correct" = "正确率";
 "stats_today_mature" = "熟练卡";
+"stats_today_title" = "今日学习数据";
 "stats_card_new" = "未学习";
 "stats_card_learn" = "学习中";
 "stats_card_review" = "复习";
@@ -1112,6 +1113,15 @@
 "card_interval_days" = "%d 天";
 "card_interval_months" = "%.1f 个月";
 "card_interval_years" = "%.1f 年";
+"card_interval_less_than_1d_short" = "<1天";
+"card_interval_seconds_short" = "%d秒";
+"card_interval_seconds_short_decimal" = "%.1f秒";
+"card_interval_minutes_short" = "%d分";
+"card_interval_hours_short" = "%d小时";
+"card_interval_hours_short_decimal" = "%.1f小时";
+"card_interval_days_short" = "%d天";
+"card_interval_months_short" = "%d个月";
+"card_interval_years_short" = "%.1f年";
 "card_due_position" = "位置 %d";
 
 // MARK: - Flags
@@ -1526,3 +1536,4 @@
 "media_check_empty_trash_done" = "废纸篓已清空。";
 "media_check_restore_done" = "废纸篓已恢复。";
 "media_check_error" = "错误：%@";
+"media_check_running" = "检查媒体中…";
