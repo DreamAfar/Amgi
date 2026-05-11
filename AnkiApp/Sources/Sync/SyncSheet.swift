@@ -12,6 +12,12 @@ struct SyncSheet: View {
     }
 
     private let syncLogHeight: CGFloat = 220
+    private static let logTimestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH: mm: ss"
+        return formatter
+    }()
 
     @Binding var isPresented: Bool
     @Dependency(\.syncClient) var syncClient
@@ -144,7 +150,7 @@ struct SyncSheet: View {
                     LazyVStack(alignment: .leading, spacing: 3) {
                         ForEach(syncCoordinator.logEntries) { entry in
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(entry.date, style: .time)
+                                Text(Self.logTimestampFormatter.string(from: entry.date))
                                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                                     .foregroundStyle(Color.amgiTextTertiary)
                                     .fixedSize()
@@ -400,7 +406,7 @@ struct SyncSheet: View {
                         LazyVStack(alignment: .leading, spacing: 3) {
                             ForEach(syncCoordinator.logEntries) { entry in
                                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Text(entry.date, style: .time)
+                                    Text(Self.logTimestampFormatter.string(from: entry.date))
                                         .font(.system(size: 11, weight: .regular, design: .monospaced))
                                         .foregroundStyle(Color.amgiTextTertiary)
                                         .fixedSize()

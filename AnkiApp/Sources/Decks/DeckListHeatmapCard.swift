@@ -20,6 +20,7 @@ struct DeckListHeatmapCard: View {
     @State private var isLoading = true
     @State private var loadError = false
     @State private var isTodayStatsCollapsed = false
+    @State private var heatmapSectionHeight: CGFloat = 0
     @State private var todayStatsSectionHeight: CGFloat = 0
 
     private let todayStatsAnimation = Animation.easeInOut(duration: 0.24)
@@ -35,11 +36,14 @@ struct DeckListHeatmapCard: View {
     }
 
     var body: some View {
-        let todayStatsClipHeight: CGFloat? = isTodayStatsCollapsed ? 0 : resolvedTodayStatsExpandedHeight
+        let todayStatsExpandedHeight = resolvedTodayStatsExpandedHeight ?? 0
+        let cardContentHeight: CGFloat? = resolvedHeatmapSectionHeight.map { heatmapHeight in
+            heatmapHeight + (isTodayStatsCollapsed ? 0 : todayStatsExpandedHeight)
+        }
 
         Group {
             if let graphs {
-                VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .topLeading) {
                     HeatmapChart(
                         reviews: graphs.reviews,
                         compactHeight: deckListHeatmapHeight,
@@ -48,27 +52,27 @@ struct DeckListHeatmapCard: View {
                             isTodayStatsCollapsed.toggle()
                         }
                     )
-                    ZStack(alignment: .topLeading) {
-                        VStack(alignment: .leading, spacing: 14) {
-                            Divider()
-                            TodayStatsCard(
-                                today: graphs.today,
-                                embedded: true,
-                                compactText: true
-                            )
-                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, todayStatsTopSpacing)
-                        .background(heightReader($todayStatsSectionHeight))
+                    .background(heightReader($heatmapSectionHeight))
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        Divider()
+                        TodayStatsCard(
+                            today: graphs.today,
+                            embedded: true,
+                            compactText: true
+                        )
                     }
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .frame(height: todayStatsClipHeight, alignment: .top)
-                    .clipped()
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, todayStatsTopSpacing)
+                    .background(heightReader($todayStatsSectionHeight))
+                    .offset(y: resolvedHeatmapSectionHeight ?? 0)
                     .allowsHitTesting(!isTodayStatsCollapsed)
                     .accessibilityHidden(isTodayStatsCollapsed)
-                    .animation(todayStatsAnimation, value: isTodayStatsCollapsed)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: cardContentHeight, alignment: .top)
+                .clipped()
+                .animation(todayStatsAnimation, value: isTodayStatsCollapsed)
                 .padding(16)
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -297,6 +301,10 @@ struct DeckListHeatmapCard: View {
     private var resolvedTodayStatsExpandedHeight: CGFloat? {
         guard todayStatsSectionHeight > 0 else { return nil }
         return todayStatsSectionHeight + todayStatsTopSpacing
+    }
+
+    private var resolvedHeatmapSectionHeight: CGFloat? {
+        heatmapSectionHeight > 0 ? heatmapSectionHeight : nil
     }
 
     private func heightReader(_ height: Binding<CGFloat>) -> some View {

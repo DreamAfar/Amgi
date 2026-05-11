@@ -612,6 +612,8 @@
 "login_nav_title" = "ログイン";
 "login_field_username" = "ユーザー名";
 "login_field_password" = "パスワード";
+"login_show_password" = "パスワードを表示";
+"login_hide_password" = "パスワードを非表示";
 "login_btn_sign_in" = "サインイン";
 "login_failed" = "ログインに失敗しました。ユーザー名とパスワードを確認してください。";
 

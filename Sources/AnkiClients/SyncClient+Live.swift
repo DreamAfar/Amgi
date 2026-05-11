@@ -91,11 +91,30 @@ private struct NormalSyncProgressSnapshot: Equatable {
     let removed: String
 }
 
+private struct MediaSyncProgressSnapshot: Equatable {
+    let checked: String
+    let added: String
+    let removed: String
+
+    var hasContent: Bool {
+        checked.nilIfBlank != nil || added.nilIfBlank != nil || removed.nilIfBlank != nil
+    }
+}
+
 private func latestCollectionProgress(backend: AnkiBackend) -> Anki_Collection_Progress? {
     try? backend.invoke(
         service: AnkiBackend.Service.collection,
         method: AnkiBackend.CollectionMethod.latestProgress
     )
+}
+
+private func latestMediaSyncProgress(backend: AnkiBackend) -> Anki_Sync_MediaSyncProgress? {
+    guard let progress = latestCollectionProgress(backend: backend),
+          case .mediaSync(let mediaSync)? = progress.value else {
+        return nil
+    }
+
+    return mediaSync
 }
 
 private func startNormalSyncProgressPolling(
@@ -118,6 +137,37 @@ private func startNormalSyncProgressPolling(
                     await emitter.yield(
                         .normalSyncProgress(
                             stage: snapshot.stage,
+                            added: snapshot.added,
+                            removed: snapshot.removed
+                        )
+                    )
+                }
+            }
+
+            try? await Task.sleep(nanoseconds: 150_000_000)
+        }
+    }
+}
+
+private func startMediaSyncProgressPolling(
+    backend: AnkiBackend,
+    emitter: SyncProgressEmitter
+) -> Task<Void, Never> {
+    Task.detached(priority: .utility) {
+        var lastSnapshot: MediaSyncProgressSnapshot?
+
+        while !Task.isCancelled {
+            if let progress = latestMediaSyncProgress(backend: backend) {
+                let snapshot = MediaSyncProgressSnapshot(
+                    checked: progress.checked,
+                    added: progress.added,
+                    removed: progress.removed
+                )
+                if snapshot.hasContent, snapshot != lastSnapshot {
+                    lastSnapshot = snapshot
+                    await emitter.yield(
+                        .mediaStats(
+                            checked: snapshot.checked,
                             added: snapshot.added,
                             removed: snapshot.removed
                         )
@@ -340,6 +390,10 @@ extension SyncClient: DependencyKey {
 
                                 let mediaAuth = configuredSyncAuth(hostKey: hostKey)
                                 var attemptCount = 0
+                                let mediaPollTask = startMediaSyncProgressPolling(
+                                    backend: syncBackend,
+                                    emitter: emitter
+                                )
 
                                 do {
                                     for try await event in await downloader.syncMediaWithRetry(auth: mediaAuth) {
@@ -358,6 +412,8 @@ extension SyncClient: DependencyKey {
                                         }
                                     }
 
+                                    await stopProgressPolling(mediaPollTask)
+
                                     let logMessage = attemptCount == 0
                                         ? "Media sync completed."
                                         : "Media sync completed after \(attemptCount) attempts."
@@ -367,14 +423,17 @@ extension SyncClient: DependencyKey {
                                     logger.info("Incremental sync: recorded \(stats.knownFileCount) synced files, will skip on next run")
                                     await incrementalManager.cleanupOldRecords(retentionDays: 30)
                                 } catch let error as SyncError {
+                                    await stopProgressPolling(mediaPollTask)
                                     if error == .authFailed {
                                         throw error
                                     }
                                     logger.warning("Media sync failed (non-fatal): \(error.message)")
                                 } catch let error as BackendError {
+                                    await stopProgressPolling(mediaPollTask)
                                     if error.isSyncAuthError { throw SyncError.authFailed }
                                     logger.warning("Media sync failed (non-fatal): \(error.message)")
                                 } catch {
+                                    await stopProgressPolling(mediaPollTask)
                                     logger.warning("Media sync failed (non-fatal): \(error)")
                                 }
                             }
@@ -467,38 +526,49 @@ extension SyncClient: DependencyKey {
                             // Use MediaDownloader with retry logic
                             logger.info("Starting media sync with adaptive retry and incremental filtering")
                             await emitter.yield(.syncingMedia)
-                            
-                            // Create downloader retry stream
-                            var attemptCount = 0
-                            for try await event in await downloader.syncMediaWithRetry(auth: auth) {
-                                switch event {
-                                case .connecting:
-                                    await emitter.yield(.connecting)
-                                case .fetchingIndex:
-                                    await emitter.yield(.mediaProgress(total: 0, downloaded: 0))
-                                case .progress(let downloaded, let total):
-                                    await emitter.yield(.mediaProgress(total: total, downloaded: downloaded))
-                                case .retrying(let attempt, let delayMs):
-                                    attemptCount = attempt
-                                    await emitter.yield(.mediaRetry(failedCount: 0, attempt: attempt, delaySeconds: delayMs / 1000))
-                                case .completed:
-                                    await emitter.yield(.completed(SyncSummary()))
+                            let mediaPollTask = startMediaSyncProgressPolling(
+                                backend: syncBackend,
+                                emitter: emitter
+                            )
+
+                            do {
+                                // Create downloader retry stream
+                                var attemptCount = 0
+                                for try await event in await downloader.syncMediaWithRetry(auth: auth) {
+                                    switch event {
+                                    case .connecting:
+                                        await emitter.yield(.connecting)
+                                    case .fetchingIndex:
+                                        await emitter.yield(.mediaProgress(total: 0, downloaded: 0))
+                                    case .progress(let downloaded, let total):
+                                        await emitter.yield(.mediaProgress(total: total, downloaded: downloaded))
+                                    case .retrying(let attempt, let delayMs):
+                                        attemptCount = attempt
+                                        await emitter.yield(.mediaRetry(failedCount: 0, attempt: attempt, delaySeconds: delayMs / 1000))
+                                    case .completed:
+                                        await emitter.yield(.completed(SyncSummary()))
+                                    }
                                 }
+
+                                await stopProgressPolling(mediaPollTask)
+
+                                // Record successful sync
+                                let logMessage = attemptCount == 0 ? "Media sync completed." : "Media sync completed after \(attemptCount) attempts."
+                                logger.info("\(logMessage)")
+
+                                // Record incremental sync state for next time
+                                let stats = await incrementalManager.getSyncStats()
+                                logger.info("Incremental sync: recorded \(stats.knownFileCount) synced files, will skip on next run")
+
+                                // Cleanup old records (>30 days)
+                                await incrementalManager.cleanupOldRecords(retentionDays: 30)
+
+                                logger.info("Media sync completed after \(attemptCount) attempts")
+                                await emitter.finish()
+                            } catch {
+                                await stopProgressPolling(mediaPollTask)
+                                throw error
                             }
-                            
-                            // Record successful sync
-                            let logMessage = attemptCount == 0 ? "Media sync completed." : "Media sync completed after \(attemptCount) attempts."
-                            logger.info("\(logMessage)")
-                            
-                            // Record incremental sync state for next time
-                            let stats = await incrementalManager.getSyncStats()
-                            logger.info("Incremental sync: recorded \(stats.knownFileCount) synced files, will skip on next run")
-                            
-                            // Cleanup old records (>30 days)
-                            await incrementalManager.cleanupOldRecords(retentionDays: 30)
-                            
-                            logger.info("Media sync completed after \(attemptCount) attempts")
-                            await emitter.finish()
                         } catch let error as SyncError {
                             logger.error("Media sync error: \(error.message)")
                             await emitter.finish(throwing: error)

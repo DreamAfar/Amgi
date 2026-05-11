@@ -8,6 +8,7 @@ struct LoginSheet: View {
 
     @State private var username = ""
     @State private var password = ""
+    @State private var isPasswordVisible = false
     @State private var isLoading = false
     @State private var errorMessage: String?
 
@@ -18,7 +19,26 @@ struct LoginSheet: View {
                     TextField(L("login_field_username"), text: $username)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
-                    SecureField(L("login_field_password"), text: $password)
+                    HStack(spacing: 8) {
+                        Group {
+                            if isPasswordVisible {
+                                TextField(L("login_field_password"), text: $password)
+                            } else {
+                                SecureField(L("login_field_password"), text: $password)
+                            }
+                        }
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+
+                        Button {
+                            isPasswordVisible.toggle()
+                        } label: {
+                            Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L(isPasswordVisible ? "login_hide_password" : "login_show_password"))
+                    }
                 }
                 if let errorMessage {
                     Section {

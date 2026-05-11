@@ -612,6 +612,8 @@
 "login_nav_title" = "Login";
 "login_field_username" = "Username";
 "login_field_password" = "Password";
+"login_show_password" = "Show password";
+"login_hide_password" = "Hide password";
 "login_btn_sign_in" = "Sign In";
 "login_failed" = "Login failed. Check your username and password.";
 
