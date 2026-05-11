@@ -55,11 +55,13 @@ struct DebugView: View {
                 }
             }
 
-            Section(L("debug_section_danger")) {
+            Section {
                 Button(L("debug_reset_all_button"), role: .destructive) {
                     showResetAllConfirm = true
                 }
                 .listRowBackground(Color.amgiSurfaceElevated)
+            } header: {
+                Text(L("debug_section_danger"))
             } footer: {
                 Text(L("debug_reset_all_confirm_msg"))
             }
