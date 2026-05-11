@@ -322,7 +322,8 @@ struct SettingsView: View {
             NavigationStack {
                 SettingsInfoView(
                     title: L("settings_row_check_database"),
-                    message: databaseCheckResult
+                    message: databaseCheckResult,
+                    showsResetCurrentUserButton: true
                 )
             }
         }
@@ -369,16 +370,37 @@ struct SettingsView: View {
 private struct SettingsInfoView: View {
     let title: String
     let message: String
+    let showsResetCurrentUserButton: Bool
+    @Dependency(\.ankiBackend) private var backend
     @Environment(\.dismiss) private var dismiss
+    @State private var showResetConfirm = false
+    @State private var showResetComplete = false
+    @State private var showResetError = false
+    @State private var resetErrorMessage = ""
 
     var body: some View {
-        ScrollView {
-            Text(message)
-                .amgiFont(.body)
-                .foregroundStyle(Color.amgiTextPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
+        List {
+            Section {
+                Text(message)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                    .listRowBackground(Color.amgiSurfaceElevated)
+            }
+
+            if showsResetCurrentUserButton {
+                Section {
+                    Button(L("debug_reset_button"), role: .destructive) {
+                        showResetConfirm = true
+                    }
+                    .listRowBackground(Color.amgiSurfaceElevated)
+                } footer: {
+                    Text(L("debug_reset_confirm_msg"))
+                }
+            }
         }
+        .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
@@ -387,6 +409,37 @@ private struct SettingsInfoView: View {
                 Button(L("common_done")) { dismiss() }
                     .amgiToolbarTextButton(tone: .neutral)
             }
+        }
+        .confirmationDialog(L("debug_reset_confirm_msg"), isPresented: $showResetConfirm, titleVisibility: .visible) {
+            Button(L("debug_reset_confirm_button"), role: .destructive) {
+                resetCurrentUserData()
+            }
+        }
+        .alert(L("common_done"), isPresented: $showResetComplete) {
+            Button(L("common_ok"), role: .cancel) {
+                dismiss()
+            }
+        } message: {
+            Text(L("debug_reset_complete"))
+        }
+        .alert(L("common_error"), isPresented: $showResetError) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(resetErrorMessage)
+        }
+    }
+
+    private func resetCurrentUserData() {
+        let currentUser = AppUserStore.loadSelectedUser()
+        try? backend.closeCollection()
+
+        do {
+            try AppUserStore.deleteUserData(for: currentUser)
+            NotificationCenter.default.post(name: AppCollectionEvents.didResetNotification, object: nil)
+            showResetComplete = true
+        } catch {
+            resetErrorMessage = error.localizedDescription
+            showResetError = true
         }
     }
 }

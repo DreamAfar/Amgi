@@ -1397,6 +1397,7 @@
 "debug_section_database" = "Database";
 "debug_section_status" = "Status";
 "debug_section_collection_info" = "Collection Info";
+"debug_section_danger" = "Danger Zone";
 "debug_username" = "Username";
 "debug_host_key" = "Host Key";
 "debug_not_logged_in" = "Not logged in";
@@ -1410,8 +1411,8 @@
 "debug_check_db_ok" = "CheckDatabase OK (%d bytes)";
 "debug_check_db_error" = "CheckDatabase error: %@";
 "settings_check_database_no_issues" = "Database check completed. No issues found.";
-"debug_reset_button" = "Reset Everything";
-"debug_reset_confirm_msg" = "This will delete your local collection and credentials. You'll need to sync again.";
+"debug_reset_button" = "Reset Current User Data";
+"debug_reset_confirm_msg" = "This will delete the current user's local collection and credentials. You'll need to sync again.";
 "debug_section_card_render" = "Card Render Diagnostics";
 "debug_card_render_enable" = "Enable card render diagnostics";
 "debug_card_render_force_reload" = "Force frame reload every update";
@@ -1532,6 +1533,9 @@
 "browse_batch_deselect" = "Clear Selection";
 "debug_reset_confirm_button" = "Reset";
 "debug_reset_complete" = "Reset complete. Please restart the app.";
+"debug_reset_all_button" = "Reset All Amgi Data and Settings";
+"debug_reset_all_confirm_msg" = "This will delete every user's local collection, dictionaries, EPUB library, backups, credentials, and all settings. This cannot be undone.";
+"debug_reset_all_complete" = "All Amgi data and settings have been reset. Please restart the app.";
 "debug_dump_deck_tree" = "Dump Deck Tree";
 "debug_deck_tree_error" = "DeckTree error: %@";
 "deck_config_section_auto_advance" = "Auto-Advance";

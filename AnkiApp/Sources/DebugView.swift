@@ -1,9 +1,7 @@
 import SwiftUI
 import AnkiBackend
 import AnkiProto
-import AnkiSync
 import Dependencies
-import Foundation
 import SwiftProtobuf
 
 struct DebugView: View {
@@ -14,73 +12,10 @@ struct DebugView: View {
     @AppStorage(DebugPreferences.Keys.cardRenderRedFrameBackground) private var cardRenderRedFrameBackground = true
     @AppStorage(DebugPreferences.Keys.cardRenderShowJSErrorOverlay) private var cardRenderShowJSErrorOverlay = true
     @State private var statusMessage = ""
-    @State private var showResetConfirm = false
-    @State private var exportedFileURL: URL?
-    @State private var showShareSheet = false
+    @State private var showResetAllConfirm = false
 
     var body: some View {
         List {
-            Section(L("debug_section_account")) {
-                HStack {
-                    Text(L("debug_username"))
-                    Spacer()
-                    Text(KeychainHelper.loadUsername() ?? L("debug_not_logged_in"))
-                        .foregroundStyle(Color.amgiTextSecondary)
-                }
-                .listRowBackground(Color.amgiSurfaceElevated)
-                HStack {
-                    Text(L("debug_host_key"))
-                    Spacer()
-                    Text(KeychainHelper.loadHostKey() != nil ? L("debug_stored") : L("common_none"))
-                        .foregroundStyle(Color.amgiTextSecondary)
-                }
-                .listRowBackground(Color.amgiSurfaceElevated)
-                Button(L("debug_logout"), role: .destructive) {
-                    AppSyncAuthEvents.clearCredentials()
-                    statusMessage = L("debug_logged_out_msg")
-                }
-                .listRowBackground(Color.amgiSurfaceElevated)
-            }
-
-            Section(L("debug_section_import_export")) {
-                Button(L("debug_export_button")) {
-                    do {
-                        let url = try ImportHelper.exportCollection(backend: backend)
-                        exportedFileURL = url
-                        showShareSheet = true
-                        statusMessage = L("debug_export_ready", url.lastPathComponent)
-                    } catch {
-                        statusMessage = L("debug_export_error", error.localizedDescription)
-                    }
-                }
-                .listRowBackground(Color.amgiSurfaceElevated)
-            }
-
-            Section(L("debug_section_database")) {
-                Button(L("debug_check_db")) {
-                    do {
-                        let responseBytes = try backend.call(
-                            service: AnkiBackend.Service.collection,
-                            method: AnkiBackend.CheckDatabaseMethod.checkDatabase
-                        )
-                        statusMessage = L("debug_check_db_ok", responseBytes.count)
-                    } catch {
-                        statusMessage = L("debug_check_db_error", "\(error)")
-                    }
-                }
-                .listRowBackground(Color.amgiSurfaceElevated)
-
-                Button(L("debug_reset_button"), role: .destructive) {
-                    showResetConfirm = true
-                }
-                .listRowBackground(Color.amgiSurfaceElevated)
-                .confirmationDialog(L("debug_reset_confirm_msg"), isPresented: $showResetConfirm, titleVisibility: .visible) {
-                    Button(L("debug_reset_confirm_button"), role: .destructive) {
-                        resetEverything()
-                    }
-                }
-            }
-
             if !statusMessage.isEmpty {
                 Section(L("debug_section_status")) {
                     Text(statusMessage)
@@ -119,13 +54,22 @@ struct DebugView: View {
                         .listRowBackground(Color.amgiSurfaceElevated)
                 }
             }
+
+            Section(L("debug_section_danger")) {
+                Button(L("debug_reset_all_button"), role: .destructive) {
+                    showResetAllConfirm = true
+                }
+                .listRowBackground(Color.amgiSurfaceElevated)
+            } footer: {
+                Text(L("debug_reset_all_confirm_msg"))
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
         .navigationTitle(L("debug_nav_title"))
-        .sheet(isPresented: $showShareSheet) {
-            if let url = exportedFileURL {
-                ShareSheet(items: [url])
+        .confirmationDialog(L("debug_reset_all_confirm_msg"), isPresented: $showResetAllConfirm, titleVisibility: .visible) {
+            Button(L("debug_reset_confirm_button"), role: .destructive) {
+                resetAllAppData()
             }
         }
     }
@@ -157,22 +101,17 @@ struct DebugView: View {
         }
     }
 
-    private func resetEverything() {
-        // Clear keychain
-        AppSyncAuthEvents.clearCredentials()
-
-        // Close collection
+    private func resetAllAppData() {
         try? backend.closeCollection()
 
-        // Delete database files
-        let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first!
-        let ankiDir = appSupport.appendingPathComponent("AnkiCollection", isDirectory: true)
-        try? FileManager.default.removeItem(at: ankiDir)
-
-        // Remove migration marker so it recreates fresh
-        statusMessage = L("debug_reset_complete")
-        NotificationCenter.default.post(name: AppCollectionEvents.didResetNotification, object: nil)
+        do {
+            try AppUserStore.deleteAllAppData()
+            NotificationCenter.default.post(name: AppUserStore.didChangeNotification, object: nil)
+            NotificationCenter.default.post(name: AppSyncAuthEvents.didChangeNotification, object: nil)
+            NotificationCenter.default.post(name: AppCollectionEvents.didResetNotification, object: nil)
+            statusMessage = L("debug_reset_all_complete")
+        } catch {
+            statusMessage = L("debug_deck_tree_error", "\(error)")
+        }
     }
 }

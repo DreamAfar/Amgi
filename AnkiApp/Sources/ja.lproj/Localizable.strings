@@ -1399,6 +1399,7 @@
 "debug_section_database" = "データベース";
 "debug_section_status" = "ステータス";
 "debug_section_collection_info" = "コレクション情報";
+"debug_section_danger" = "危険な操作";
 "debug_username" = "ユーザー名";
 "debug_host_key" = "ホストキー";
 "debug_not_logged_in" = "未ログイン";
@@ -1412,10 +1413,13 @@
 "debug_check_db_ok" = "DBチェック正常（%d バイト）";
 "debug_check_db_error" = "DBチェックエラー：%@";
 "settings_check_database_no_issues" = "データベースチェックが完了しました。問題は見つかりませんでした。";
-"debug_reset_button" = "すべてリセット";
-"debug_reset_confirm_msg" = "ローカルコレクションと資格情報を削除します。再同期が必要になります。";
+"debug_reset_button" = "現在のユーザーデータをリセット";
+"debug_reset_confirm_msg" = "現在のユーザーのローカルコレクションと資格情報を削除します。再同期が必要になります。";
 "debug_reset_confirm_button" = "リセット";
 "debug_reset_complete" = "リセット完了。アプリを再起動してください。";
+"debug_reset_all_button" = "Amgi の全データと設定をリセット";
+"debug_reset_all_confirm_msg" = "すべてのユーザーのローカルコレクション、辞書、EPUB 本棚、バックアップ、資格情報、および全設定を削除します。この操作は元に戻せません。";
+"debug_reset_all_complete" = "Amgi の全データと設定をリセットしました。アプリを再起動してください。";
 "debug_dump_deck_tree" = "デッキツリーをダンプ";
 "debug_deck_tree_error" = "デッキツリーエラー：%@";
 "debug_section_card_render" = "カード描画診断";

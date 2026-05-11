@@ -82,6 +82,59 @@ enum AppUserStore {
         }
     }
 
+    static func deleteAllAppData() throws {
+        let defaults = UserDefaults.standard
+        let users = loadUsers()
+        let fileManager = FileManager.default
+
+        let appSupport = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first!
+        let documents = fileManager.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first
+
+        for user in users {
+            try? deleteUserData(for: user)
+        }
+
+        let appSupportDirectories = [
+            appSupport.appendingPathComponent("AnkiCollection", isDirectory: true),
+            appSupport.appendingPathComponent("ReaderDictionaries", isDirectory: true),
+        ]
+        for directory in appSupportDirectories where fileManager.fileExists(atPath: directory.path) {
+            try fileManager.removeItem(at: directory)
+        }
+
+        if let documents {
+            let booksDirectory = documents.appendingPathComponent("Books", isDirectory: true)
+            if fileManager.fileExists(atPath: booksDirectory.path) {
+                try fileManager.removeItem(at: booksDirectory)
+            }
+
+            let backupDirectories = (try? fileManager.contentsOfDirectory(
+                at: documents,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            for url in backupDirectories where url.lastPathComponent.hasPrefix("Backups for ") {
+                try? fileManager.removeItem(at: url)
+            }
+        }
+
+        KeychainHelper.deleteAllSyncCredentials()
+
+        if let bundleIdentifier = Bundle.main.bundleIdentifier {
+            defaults.removePersistentDomain(forName: bundleIdentifier)
+        } else {
+            for key in defaults.dictionaryRepresentation().keys {
+                defaults.removeObject(forKey: key)
+            }
+        }
+    }
+
     static func renameUserData(from oldUser: String, to newUser: String) throws {
         let oldProfileID = profileID(for: oldUser)
         let newProfileID = profileID(for: newUser)

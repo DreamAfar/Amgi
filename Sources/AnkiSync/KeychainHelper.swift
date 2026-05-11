@@ -112,6 +112,14 @@ public enum KeychainHelper: Sendable {
         delete(account: scopedAccount(currentEndpointAccountBase, user: user))
     }
 
+    public static func deleteAllSyncCredentials() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+
     private static func scopedAccount(_ base: String) -> String {
         "\(base).\(currentProfileID())"
     }

@@ -1397,6 +1397,7 @@
 "debug_section_database" = "数据库";
 "debug_section_status" = "状态";
 "debug_section_collection_info" = "卡牌库信息";
+"debug_section_danger" = "危险操作";
 "debug_username" = "用户名";
 "debug_host_key" = "Host Key";
 "debug_not_logged_in" = "未登录";
@@ -1410,10 +1411,13 @@
 "debug_check_db_ok" = "数据库检查正常（%d 字节）";
 "debug_check_db_error" = "数据库检查错误：%@";
 "settings_check_database_no_issues" = "数据库检查完成，未发现问题。";
-"debug_reset_button" = "重置所有数据";
-"debug_reset_confirm_msg" = "此操作将删除您的本地卡牌库和凭据，您需要重新同步。";
+"debug_reset_button" = "重置当前用户数据";
+"debug_reset_confirm_msg" = "此操作将删除当前用户的本地卡牌库和凭据，您需要重新同步。";
 "debug_reset_confirm_button" = "重置";
 "debug_reset_complete" = "重置完成，请重新启动应用。";
+"debug_reset_all_button" = "重置整个 Amgi 所有数据和设置";
+"debug_reset_all_confirm_msg" = "此操作将删除所有用户的本地卡牌库、词典、EPUB 书库、备份、凭据以及全部设置，且无法撤销。";
+"debug_reset_all_complete" = "已重置整个 Amgi 的所有数据和设置，请重新启动应用。";
 "debug_dump_deck_tree" = "输出牌组树";
 "debug_deck_tree_error" = "牌组树错误：%@";
 "debug_section_card_render" = "卡片渲染诊断";
