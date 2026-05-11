@@ -306,7 +306,6 @@ extension SyncClient: DependencyKey {
                             method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                             request: dlReq
                         )
-                        try syncBackend.reopenAfterFullSync()
                         if requestedServerUsn != nil {
                             try await waitForMediaSyncToComplete(backend: syncBackend)
                         }
@@ -340,7 +339,6 @@ extension SyncClient: DependencyKey {
                             method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                             request: ulReq
                         )
-                        try syncBackend.reopenAfterFullSync()
                         if requestedServerUsn != nil {
                             try await waitForMediaSyncToComplete(backend: syncBackend)
                         }
@@ -459,7 +457,6 @@ extension SyncClient: DependencyKey {
                         method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                         request: req
                     )
-                    try syncBackend.reopenAfterFullSync()
                     if requestedServerUsn != nil {
                         try await waitForMediaSyncToComplete(backend: syncBackend)
                     }
@@ -504,7 +501,6 @@ extension SyncClient: DependencyKey {
                             }
 
                             try Task.checkCancellation()
-                            try syncBackend.reopenAfterFullSync()
 
                             if requestedServerUsn != nil {
                                 await emitter.yield(.syncingMedia)

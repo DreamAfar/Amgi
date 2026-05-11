@@ -112,13 +112,14 @@ struct SyncSheet: View {
     @ViewBuilder
     private func syncingView(message: String) -> some View {
         VStack(spacing: 12) {
-            VStack(spacing: 6) {
-                statusHeader(title: L("sync_syncing")) {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .controlSize(.small)
-                }
-                Text(message)
+            statusHeader(title: syncStageTitle(for: message)) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .controlSize(.small)
+            }
+
+            if let detail = syncStageDetail(for: message) {
+                Text(detail)
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
             }
@@ -188,28 +189,23 @@ struct SyncSheet: View {
     @ViewBuilder
     private func mediaProgressView(total: Int, downloaded: Int) -> some View {
         VStack(spacing: 16) {
-            statusHeader(title: L("sync_syncing")) {
+            statusHeader(title: L("sync_syncing_media")) {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .controlSize(.small)
             }
 
-            VStack(spacing: 8) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L("sync_syncing_media"))
-                            .amgiFont(.bodyEmphasis)
-                            .foregroundStyle(Color.amgiTextPrimary)
-                        if total > 0 {
+            if total > 0 {
+                VStack(spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(L("sync_media_size_info", downloaded, total))
                                 .amgiFont(.caption)
                                 .foregroundStyle(Color.amgiTextSecondary)
                         }
+                        Spacer()
                     }
-                    Spacer()
-                }
 
-                if total > 0 {
                     ProgressView(value: Double(downloaded), total: Double(total))
                         .tint(Color.amgiAccent)
 
@@ -224,12 +220,12 @@ struct SyncSheet: View {
                             .foregroundStyle(Color.amgiAccent)
                     }
                 }
+                .padding()
+                .background(
+                    Color.amgiSurfaceElevated,
+                    in: RoundedRectangle(cornerRadius: 12)
+                )
             }
-            .padding()
-            .background(
-                Color.amgiSurfaceElevated,
-                in: RoundedRectangle(cornerRadius: 12)
-            )
 
             syncLogView(height: syncLogHeight)
         }
@@ -545,6 +541,20 @@ struct SyncSheet: View {
         case .uploadOnly:
             return L("sync_full_upload_confirm_desc")
         }
+    }
+
+    private func syncStageTitle(for message: String) -> String {
+        if message == L("sync_full_downloading") || message == L("sync_full_uploading") {
+            return message
+        }
+        return L("sync_stage_syncing_collection")
+    }
+
+    private func syncStageDetail(for message: String) -> String? {
+        if message == L("sync_preparing") || message == L("sync_log_connecting") {
+            return message
+        }
+        return nil
     }
 
     @ViewBuilder

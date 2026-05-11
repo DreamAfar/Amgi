@@ -4,9 +4,16 @@ import AnkiClients
 import UIKit
 
 struct AppSyncLogEntry: Identifiable {
+    enum Kind {
+        case general
+        case mediaStage
+        case mediaStats
+    }
+
     let id = UUID()
-    let date: Date
-    let message: String
+    var date: Date
+    var message: String
+    var kind: Kind = .general
 }
 
 enum AppSyncState {
@@ -190,13 +197,23 @@ final class AppSyncCoordinator: ObservableObject {
         requiresLogin = false
     }
 
-    private func appendLog(_ message: String) {
+    private func appendLog(_ message: String, kind: AppSyncLogEntry.Kind = .general) {
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false else { return }
         if logEntries.last?.message == trimmed {
             return
         }
-        logEntries.append(AppSyncLogEntry(date: .now, message: trimmed))
+
+        if kind != .general,
+           let lastIndex = logEntries.lastIndex(where: { $0.kind == kind }) {
+            var entries = logEntries
+            entries[lastIndex].date = .now
+            entries[lastIndex].message = trimmed
+            logEntries = entries
+            return
+        }
+
+        logEntries.append(AppSyncLogEntry(date: .now, message: trimmed, kind: kind))
     }
 
     private func beginBackgroundExecutionIfNeeded() {
@@ -230,14 +247,14 @@ final class AppSyncCoordinator: ObservableObject {
             }
             state = .syncing(stageMessage)
         case .syncingMedia:
-            appendLog(Self.logMessage(for: event))
+            appendLog(Self.logMessage(for: event), kind: .mediaStage)
             state = .syncingMedia(total: mediaProgress.total, downloaded: mediaProgress.downloaded)
         case .mediaProgress(let total, let downloaded):
             mediaProgress = (total, downloaded)
             state = .syncingMedia(total: total, downloaded: downloaded)
-            appendLog(Self.logMessage(for: event))
+            appendLog(Self.logMessage(for: event), kind: .mediaStats)
         case .mediaStats:
-            appendLog(Self.logMessage(for: event))
+            appendLog(Self.logMessage(for: event), kind: .mediaStats)
             state = .syncingMedia(total: mediaProgress.total, downloaded: mediaProgress.downloaded)
         case .mediaRetry:
             appendLog(Self.logMessage(for: event))
@@ -295,7 +312,12 @@ final class AppSyncCoordinator: ObservableObject {
                 return L("sync_log_no_note_changes")
             }
         case .mediaStats(let checked, let added, let removed):
-            return L("sync_log_media_stats", checked, added, removed)
+            return L(
+                "sync_log_media_stats",
+                mediaStatsPayload(from: checked),
+                mediaStatsPayload(from: added),
+                mediaStatsPayload(from: removed)
+            )
         case .completed:
             return L("sync_log_complete")
         }
@@ -311,6 +333,11 @@ final class AppSyncCoordinator: ObservableObject {
         }
 
         return trimmed
+    }
+
+    private static func mediaStatsPayload(from raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return syncProgressPayload(from: trimmed) ?? trimmed
     }
 
     private static func syncProgressPayload(from text: String) -> String? {

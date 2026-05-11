@@ -593,6 +593,7 @@
 "sync_log_section_title" = "同步日志";
 "sync_log_connecting" = "正在连接服务器…";
 "sync_log_syncing_changes" = "正在同步笔记…";
+"sync_stage_syncing_collection" = "同步牌组数据…";
 "sync_log_checking_db" = "正在验证数据库完整性…";
 "sync_log_media_stats" = "媒体：已检查 %@，已新增 %@，已删除 %@";
 "sync_log_complete" = "全部完成";

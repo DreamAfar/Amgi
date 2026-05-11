@@ -846,14 +846,14 @@ private actor DictionaryLookupRuntime {
         dictionarySourceLanguages: [String: String]
     ) -> DictionaryLookupEntry {
         let glossaries = Array(result.term.glossaries).flatMap { glossary in
-            glossaryLines(dictName: String(glossary.dict_name), rawGlossary: String(glossary.glossary))
+            Self.glossaryLines(dictName: String(glossary.dict_name), rawGlossary: String(glossary.glossary))
         }
 
         let structuredGlossaries = Array(result.term.glossaries).map { glossary in
             DictionaryLookupGlossary(
                 dictionary: String(glossary.dict_name),
                 content: String(glossary.glossary),
-                definitions: flattenGlossary(String(glossary.glossary)),
+                definitions: Self.flattenGlossary(String(glossary.glossary)),
                 definitionTags: String(glossary.definition_tags).nilIfEmpty,
                 termTags: String(glossary.term_tags).nilIfEmpty
             )
