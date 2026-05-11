@@ -351,18 +351,39 @@ struct CardWebView: UIViewRepresentable {
                 background: transparent; border: none; color: inherit; padding: 0;
                 line-height: 0; cursor: pointer; display: inline-flex;
                 align-items: center; justify-content: center;
-                flex: 0 0 auto; min-width: 40px; min-height: 40px;
+                flex: 0 0 auto; min-width: 48px; min-height: 48px;
                 box-shadow: none; outline: none;
                 -webkit-tap-highlight-color: transparent; appearance: none;
             }
             .replay-btn:active { opacity: 0.7; }
             .replay-btn .amgi-inline-icon {
-                width: 28px; height: 28px; display: block;
+                width: 34px; height: 34px; display: block;
                 max-width: none; max-height: none;
                 margin: 0; padding: 0;
                 border: 0 !important; border-radius: 0 !important;
                 background: transparent !important; box-shadow: none !important;
                 object-fit: contain;
+            }
+            #toggle,
+            .toggle {
+                min-width: 48px;
+                min-height: 48px;
+                padding: 10px 16px;
+                margin-top: 12px;
+                border: 1px solid \(typeBorderColor);
+                border-radius: 12px;
+                background: \(typeBgColor);
+                color: inherit;
+                font: inherit;
+                font-size: 17px;
+                line-height: 1.2;
+                cursor: pointer;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            #toggle:active,
+            .toggle:active {
+                opacity: 0.78;
             }
             video { max-width: 100%; height: auto; border-radius: 8px; margin: 8px 0; }
             .drawing { zoom: 50%; }
