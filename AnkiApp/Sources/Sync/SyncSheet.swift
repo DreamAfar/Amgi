@@ -200,9 +200,11 @@ struct SyncSheet: View {
                         Text(L("sync_syncing_media"))
                             .amgiFont(.bodyEmphasis)
                             .foregroundStyle(Color.amgiTextPrimary)
-                        Text(L("sync_media_size_info", downloaded, total))
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                        if total > 0 {
+                            Text(L("sync_media_size_info", downloaded, total))
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        }
                     }
                     Spacer()
                 }
@@ -526,7 +528,12 @@ struct SyncSheet: View {
     }
 
     private func fullSync(_ direction: SyncDirection, requirement: SyncFullSyncRequirement) async {
-        syncCoordinator.startFullSync(direction, requirement: requirement, syncClient: syncClient)
+        syncCoordinator.startFullSync(
+            direction,
+            requirement: requirement,
+            syncClient: syncClient,
+            syncMediaEnabled: syncMediaEnabled
+        )
     }
 
     private func fullSyncDescription(for requirement: SyncFullSyncRequirement) -> String {

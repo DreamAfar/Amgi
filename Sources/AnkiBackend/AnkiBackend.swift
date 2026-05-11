@@ -404,6 +404,7 @@ extension AnkiBackend {
 
     public enum SyncMethod {
         public static let syncMedia: UInt32 = 0
+        public static let mediaSyncStatus: UInt32 = 2
         public static let syncLogin: UInt32 = 3
         public static let syncStatus: UInt32 = 4
         public static let syncCollection: UInt32 = 5

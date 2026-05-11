@@ -138,7 +138,8 @@ final class AppSyncCoordinator: ObservableObject {
     func startFullSync(
         _ direction: SyncDirection,
         requirement: SyncFullSyncRequirement,
-        syncClient: SyncClient
+        syncClient: SyncClient,
+        syncMediaEnabled: Bool
     ) {
         guard activeTask == nil else { return }
 
@@ -152,12 +153,15 @@ final class AppSyncCoordinator: ObservableObject {
         activeTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             do {
-                try await syncClient.fullSync(direction, requirement.serverUsn, requirement.endpoint)
-                await MainActor.run {
-                    self.appendLog(L("sync_log_complete"))
-                    self.state = .success(SyncSummary())
-                    self.activeTask = nil
-                    self.endBackgroundExecutionIfNeeded()
+                for try await event in syncClient.fullSyncWithProgress(
+                    direction,
+                    requirement.serverUsn,
+                    requirement.endpoint
+                ) {
+                    try Task.checkCancellation()
+                    await MainActor.run {
+                        self.apply(event, syncMediaEnabled: syncMediaEnabled)
+                    }
                 }
             } catch is CancellationError {
                 await MainActor.run {

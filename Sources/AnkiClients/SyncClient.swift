@@ -11,6 +11,10 @@ public struct SyncClient: Sendable {
         AsyncThrowingStream { $0.finish(throwing: SyncError(message: "SyncClient.syncWithProgress unimplemented")) }
     }
     public var fullSync: @Sendable (_ direction: SyncDirection, _ serverUsn: Int32?, _ endpoint: String?) async throws -> Void
+    /// Streams progress for a full upload/download, including follow-up media sync.
+    public var fullSyncWithProgress: @Sendable (_ direction: SyncDirection, _ serverUsn: Int32?, _ endpoint: String?) -> AsyncThrowingStream<SyncProgressEvent, any Error> = { _, _, _ in
+        AsyncThrowingStream { $0.finish(throwing: SyncError(message: "SyncClient.fullSyncWithProgress unimplemented")) }
+    }
     public var syncMedia: @Sendable () async throws -> MediaSyncSummary
     /// Syncs media in batches with progress events
     public var syncMediaWithProgress: @Sendable () -> AsyncThrowingStream<SyncProgressEvent, any Error> = {

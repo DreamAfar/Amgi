@@ -70,6 +70,10 @@ enum DeckListHeatmapCache {
         UserDefaults.standard.set(data, forKey: cacheKey())
     }
 
+    static func clearCurrent() {
+        UserDefaults.standard.removeObject(forKey: cacheKey())
+    }
+
     private static func cacheKey() -> String {
         let selectedUser = AppUserStore.loadSelectedUser()
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))

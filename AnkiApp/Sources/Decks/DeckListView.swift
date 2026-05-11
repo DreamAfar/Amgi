@@ -171,6 +171,7 @@ struct DeckListView: View {
         do {
             try deckClient.delete(node.id)
             DeckDeletionMaintenance.resetHeatmapSelectionIfNeeded(deletedDeckID: node.id)
+            DeckListHeatmapCache.clearCurrent()
 
             do {
                 try DeckDeletionMaintenance.cleanupUnusedMedia(using: backend)
