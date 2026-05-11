@@ -12,6 +12,7 @@ enum AppSyncAuthEvents {
     static func clearCredentials() {
         KeychainHelper.deleteHostKey()
         KeychainHelper.deleteUsername()
+        KeychainHelper.deleteCurrentEndpoint()
         NotificationCenter.default.post(name: didChangeNotification, object: nil)
     }
 }

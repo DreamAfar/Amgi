@@ -6,6 +6,7 @@ public enum KeychainHelper: Sendable {
     private static let hostKeyAccountBase = "sync-host-key"
     private static let usernameAccountBase = "sync-username"
     private static let endpointAccountBase = "sync-endpoint"
+    private static let currentEndpointAccountBase = "sync-current-endpoint"
 
     // MARK: - Host Key
 
@@ -13,12 +14,24 @@ public enum KeychainHelper: Sendable {
         try save(account: scopedAccount(hostKeyAccountBase), value: key)
     }
 
+    public static func saveHostKey(_ key: String, for user: String) throws {
+        try save(account: scopedAccount(hostKeyAccountBase, user: user), value: key)
+    }
+
     public static func loadHostKey() -> String? {
         load(account: scopedAccount(hostKeyAccountBase))
     }
 
+    public static func loadHostKey(for user: String) -> String? {
+        load(account: scopedAccount(hostKeyAccountBase, user: user))
+    }
+
     public static func deleteHostKey() {
         delete(account: scopedAccount(hostKeyAccountBase))
+    }
+
+    public static func deleteHostKey(for user: String) {
+        delete(account: scopedAccount(hostKeyAccountBase, user: user))
     }
 
     // MARK: - Username
@@ -27,12 +40,24 @@ public enum KeychainHelper: Sendable {
         try save(account: scopedAccount(usernameAccountBase), value: username)
     }
 
+    public static func saveUsername(_ username: String, for user: String) throws {
+        try save(account: scopedAccount(usernameAccountBase, user: user), value: username)
+    }
+
     public static func loadUsername() -> String? {
         load(account: scopedAccount(usernameAccountBase))
     }
 
+    public static func loadUsername(for user: String) -> String? {
+        load(account: scopedAccount(usernameAccountBase, user: user))
+    }
+
     public static func deleteUsername() {
         delete(account: scopedAccount(usernameAccountBase))
+    }
+
+    public static func deleteUsername(for user: String) {
+        delete(account: scopedAccount(usernameAccountBase, user: user))
     }
 
     // MARK: - Endpoint
@@ -41,20 +66,67 @@ public enum KeychainHelper: Sendable {
         try save(account: scopedAccount(endpointAccountBase), value: url)
     }
 
+    public static func saveEndpoint(_ url: String, for user: String) throws {
+        try save(account: scopedAccount(endpointAccountBase, user: user), value: url)
+    }
+
     public static func loadEndpoint() -> String? {
         load(account: scopedAccount(endpointAccountBase))
+    }
+
+    public static func loadEndpoint(for user: String) -> String? {
+        load(account: scopedAccount(endpointAccountBase, user: user))
     }
 
     public static func deleteEndpoint() {
         delete(account: scopedAccount(endpointAccountBase))
     }
 
+    public static func deleteEndpoint(for user: String) {
+        delete(account: scopedAccount(endpointAccountBase, user: user))
+    }
+
+    // MARK: - Current Endpoint
+
+    public static func saveCurrentEndpoint(_ url: String) throws {
+        try save(account: scopedAccount(currentEndpointAccountBase), value: url)
+    }
+
+    public static func saveCurrentEndpoint(_ url: String, for user: String) throws {
+        try save(account: scopedAccount(currentEndpointAccountBase, user: user), value: url)
+    }
+
+    public static func loadCurrentEndpoint() -> String? {
+        load(account: scopedAccount(currentEndpointAccountBase))
+    }
+
+    public static func loadCurrentEndpoint(for user: String) -> String? {
+        load(account: scopedAccount(currentEndpointAccountBase, user: user))
+    }
+
+    public static func deleteCurrentEndpoint() {
+        delete(account: scopedAccount(currentEndpointAccountBase))
+    }
+
+    public static func deleteCurrentEndpoint(for user: String) {
+        delete(account: scopedAccount(currentEndpointAccountBase, user: user))
+    }
+
     private static func scopedAccount(_ base: String) -> String {
         "\(base).\(currentProfileID())"
     }
 
+    private static func scopedAccount(_ base: String, user: String) -> String {
+        "\(base).\(profileID(for: user))"
+    }
+
     private static func currentProfileID() -> String {
         let selectedUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "default"
+        return profileID(for: selectedUser)
+    }
+
+    private static func profileID(for user: String) -> String {
+        let selectedUser = user
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
         let mapped = selectedUser.unicodeScalars.map { scalar -> Character in
             allowed.contains(scalar) ? Character(scalar) : "_"

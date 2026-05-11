@@ -92,6 +92,7 @@ struct OnboardingView: View {
             SyncPreferences.Mode.custom.rawValue,
             forKey: SyncPreferences.Keys.modeForCurrentUser()
         )
+        AppSyncAuthEvents.clearCredentials()
         UserDefaults.standard.set(true, forKey: "onboardingCompleted")
         isCompleted = true
     }

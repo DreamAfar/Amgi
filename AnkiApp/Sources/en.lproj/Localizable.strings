@@ -535,6 +535,9 @@
 "sync_label_server" = "Server";
 "sync_menu_change_server" = "Change Server";
 "sync_menu_logout" = "Logout";
+"sync_logout_confirm_title" = "Log out?";
+"sync_logout_confirm_message" = "This will clear the current user's sync login information. You'll need to sign in again before syncing.";
+"sync_logout_confirm_button" = "Log Out";
 "sync_local_mode_label" = "Syncing is disabled";
 "sync_btn_setup_server" = "Set Up Server";
 "sync_preparing" = "Preparing sync...";
@@ -1383,6 +1386,9 @@
 "user_mgmt_delete_confirm_button" = "Delete Permanently";
 "user_mgmt_delete_confirm2_msg" = "This action cannot be undone.";
 "user_mgmt_default_user" = "User 1";
+"user_mgmt_name_exists" = "That username already exists.";
+"user_mgmt_scope_conflict" = "That username would share the same local data as an existing user. Please choose a different name.";
+"user_mgmt_rename_target_exists" = "Data already exists for the target username, so the rename could not be completed.";
 
 // MARK: - DebugView
 "debug_nav_title" = "Debug";

@@ -44,7 +44,7 @@ private func configuredSyncAuth(hostKey: String, endpointOverride: String? = nil
     if let endpointOverride = endpointOverride?.nilIfBlank {
         auth.endpoint = endpointOverride
     } else if UserDefaults.standard.string(forKey: SyncPreferenceValues.modeKey) == SyncPreferenceValues.customMode,
-              let endpoint = KeychainHelper.loadEndpoint() {
+              let endpoint = KeychainHelper.loadCurrentEndpoint() ?? KeychainHelper.loadEndpoint() {
         auth.endpoint = endpoint
     }
 
@@ -271,6 +271,7 @@ extension SyncClient: DependencyKey {
                     // Update endpoint if server redirected
                     if response.hasNewEndpoint, !response.newEndpoint.isEmpty {
                         auth.endpoint = response.newEndpoint
+                        try? KeychainHelper.saveCurrentEndpoint(response.newEndpoint)
                     }
 
                     switch response.required {
@@ -393,6 +394,7 @@ extension SyncClient: DependencyKey {
 
                             if response.hasNewEndpoint, !response.newEndpoint.isEmpty {
                                 auth.endpoint = response.newEndpoint
+                                try? KeychainHelper.saveCurrentEndpoint(response.newEndpoint)
                             }
 
                             let fullSyncEndpoint = auth.hasEndpoint ? auth.endpoint : nil
@@ -615,6 +617,9 @@ extension SyncClient: DependencyKey {
 
             try KeychainHelper.saveHostKey(auth.hkey)
             try KeychainHelper.saveUsername(username)
+            if auth.hasEndpoint, !auth.endpoint.isEmpty {
+                try? KeychainHelper.saveCurrentEndpoint(auth.endpoint)
+            }
             logger.info("Login successful")
             return auth.hkey
         } catch let error as BackendError {

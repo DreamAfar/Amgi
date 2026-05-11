@@ -535,6 +535,9 @@
 "sync_label_server" = "サーバー";
 "sync_menu_change_server" = "サーバーを変更";
 "sync_menu_logout" = "ログアウト";
+"sync_logout_confirm_title" = "ログアウトしますか？";
+"sync_logout_confirm_message" = "現在のユーザーの同期ログイン情報が削除されます。再度同期するにはログインし直す必要があります。";
+"sync_logout_confirm_button" = "ログアウト";
 "sync_local_mode_label" = "同期は無効です";
 "sync_btn_setup_server" = "サーバーを設定";
 "sync_preparing" = "同期の準備中…";
@@ -1385,6 +1388,9 @@
 "user_mgmt_delete_confirm_button" = "完全に削除";
 "user_mgmt_delete_confirm2_msg" = "この操作は元に戻せません。";
 "user_mgmt_default_user" = "ユーザー1";
+"user_mgmt_name_exists" = "そのユーザー名は既に存在します。";
+"user_mgmt_scope_conflict" = "そのユーザー名は既存ユーザーと同じローカルデータを共有してしまいます。別の名前を使用してください。";
+"user_mgmt_rename_target_exists" = "変更先ユーザー名のデータが既に存在するため、名前を変更できません。";
 
 // MARK: - DebugView
 "debug_nav_title" = "デバッグ";

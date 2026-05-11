@@ -535,6 +535,9 @@
 "sync_label_server" = "服务器";
 "sync_menu_change_server" = "更换服务器";
 "sync_menu_logout" = "退出登录";
+"sync_logout_confirm_title" = "退出登录？";
+"sync_logout_confirm_message" = "这将清除当前用户的同步登录信息，需要重新登录后才能继续同步。";
+"sync_logout_confirm_button" = "确认退出";
 "sync_local_mode_label" = "同步已禁用";
 "sync_btn_setup_server" = "设置服务器";
 "sync_preparing" = "正在准备同步…";
@@ -1383,6 +1386,9 @@
 "user_mgmt_delete_confirm_button" = "永久删除";
 "user_mgmt_delete_confirm2_msg" = "此操作不可撤销。";
 "user_mgmt_default_user" = "用户1";
+"user_mgmt_name_exists" = "该用户名已存在。";
+"user_mgmt_scope_conflict" = "该用户名会与现有用户共用同一份本地数据，请换一个名称。";
+"user_mgmt_rename_target_exists" = "目标用户名的数据已存在，无法完成重命名。";
 
 // MARK: - DebugView
 "debug_nav_title" = "调试";

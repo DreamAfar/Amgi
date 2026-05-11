@@ -1,6 +1,9 @@
 import SwiftUI
+import AnkiBackend
+import Dependencies
 
 struct UserManagementView: View {
+    @Dependency(\.ankiBackend) var backend
     @State private var users: [String] = AppUserStore.loadUsers()
     @State private var selectedUser: String = AppUserStore.loadSelectedUser()
     @State private var showAddPrompt = false
@@ -13,6 +16,7 @@ struct UserManagementView: View {
     @State private var deleteTarget: String?
     @State private var showDeleteConfirmStep1 = false
     @State private var showDeleteConfirmStep2 = false
+    @State private var operationError: String?
 
     var body: some View {
         NavigationStack {
@@ -74,30 +78,21 @@ struct UserManagementView: View {
             TextField(L("user_mgmt_username_placeholder"), text: $newUserName)
             Button(L("common_cancel"), role: .cancel) {}
             Button(L("user_mgmt_add_button")) {
-                let trimmed = newUserName.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return }
-                if !users.contains(trimmed) {
-                    users.append(trimmed)
-                    AppUserStore.saveUsers(users)
+                do {
+                    try addUser()
+                } catch {
+                    operationError = error.localizedDescription
                 }
-                selectedUser = trimmed
-                AppUserStore.setSelectedUser(trimmed)
             }
         }
         .alert(L("user_mgmt_rename_title"), isPresented: $showRenamePrompt) {
             TextField(L("user_mgmt_new_username_placeholder"), text: $renameText)
             Button(L("common_cancel"), role: .cancel) {}
             Button(L("common_save")) {
-                guard let old = renameTarget else { return }
-                let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return }
-                if let idx = users.firstIndex(of: old) {
-                    users[idx] = trimmed
-                    AppUserStore.saveUsers(users)
-                }
-                if selectedUser == old {
-                    selectedUser = trimmed
-                    AppUserStore.setSelectedUser(trimmed)
+                do {
+                    try renameSelectedUser()
+                } catch {
+                    operationError = error.localizedDescription
                 }
             }
         }
@@ -112,19 +107,116 @@ struct UserManagementView: View {
         .alert(L("user_mgmt_delete_confirm2_title"), isPresented: $showDeleteConfirmStep2) {
             Button(L("common_cancel"), role: .cancel) {}
             Button(L("user_mgmt_delete_confirm_button"), role: .destructive) {
-                guard let target = deleteTarget else { return }
-                users.removeAll { $0 == target }
-                if users.isEmpty {
-                    users = [L("user_mgmt_default_user")]
-                }
-                AppUserStore.saveUsers(users)
-                if selectedUser == target {
-                    selectedUser = users[0]
-                    AppUserStore.setSelectedUser(users[0])
+                do {
+                    try deleteSelectedUser()
+                } catch {
+                    operationError = error.localizedDescription
                 }
             }
         } message: {
             Text(L("user_mgmt_delete_confirm2_msg"))
+        }
+        .alert(L("common_error"), isPresented: Binding(
+            get: { operationError != nil },
+            set: { if !$0 { operationError = nil } }
+        )) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(operationError ?? L("common_none"))
+        }
+    }
+
+    private func deleteSelectedUser() throws {
+        guard let target = deleteTarget else { return }
+
+        let deletingCurrentUser = selectedUser == target
+        var updatedUsers = users.filter { $0 != target }
+        if updatedUsers.isEmpty {
+            updatedUsers = [L("user_mgmt_default_user")]
+        }
+        let replacementUser = updatedUsers[0]
+
+        if deletingCurrentUser {
+            try? backend.closeCollection()
+        }
+
+        try AppUserStore.deleteUserData(for: target)
+
+        users = updatedUsers
+        AppUserStore.saveUsers(updatedUsers)
+
+        if deletingCurrentUser {
+            selectedUser = replacementUser
+            AppUserStore.setSelectedUser(replacementUser)
+            NotificationCenter.default.post(name: AppCollectionEvents.didResetNotification, object: nil)
+        }
+
+        deleteTarget = nil
+    }
+
+    private func addUser() throws {
+        let trimmed = newUserName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard !users.contains(trimmed) else {
+            throw UserManagementError.nameExists
+        }
+        guard !AppUserStore.hasScopeConflict(for: trimmed, existingUsers: users) else {
+            throw UserManagementError.scopeConflict
+        }
+
+        users.append(trimmed)
+        AppUserStore.saveUsers(users)
+        selectedUser = trimmed
+        AppUserStore.setSelectedUser(trimmed)
+    }
+
+    private func renameSelectedUser() throws {
+        guard let old = renameTarget else { return }
+        let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard trimmed != old else { return }
+        guard !users.contains(trimmed) else {
+            throw UserManagementError.nameExists
+        }
+        guard !AppUserStore.hasScopeConflict(for: trimmed, existingUsers: users, excluding: old) else {
+            throw UserManagementError.scopeConflict
+        }
+
+        let renamingCurrentUser = selectedUser == old
+        let profileChanged = AppUserStore.profileID(for: old) != AppUserStore.profileID(for: trimmed)
+
+        if renamingCurrentUser && profileChanged {
+            try? backend.closeCollection()
+        }
+
+        try AppUserStore.renameUserData(from: old, to: trimmed)
+
+        if let idx = users.firstIndex(of: old) {
+            users[idx] = trimmed
+            AppUserStore.saveUsers(users)
+        }
+        if renamingCurrentUser {
+            selectedUser = trimmed
+            AppUserStore.setSelectedUser(trimmed)
+            if profileChanged {
+                NotificationCenter.default.post(name: AppCollectionEvents.didResetNotification, object: nil)
+            }
+        }
+
+        renameTarget = nil
+    }
+}
+
+private enum UserManagementError: LocalizedError {
+    case nameExists
+    case scopeConflict
+
+    var errorDescription: String? {
+        switch self {
+        case .nameExists:
+            return L("user_mgmt_name_exists")
+        case .scopeConflict:
+            return L("user_mgmt_scope_conflict")
         }
     }
 }

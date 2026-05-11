@@ -830,6 +830,7 @@ private struct SyncSettingsView: View {
     @State private var showSyncSheet = false
     @State private var syncMessage: String?
     @State private var showSyncAlert = false
+    @State private var showLogoutConfirm = false
 
     private var syncMode: SyncPreferences.Mode {
         SyncPreferences.resolvedMode(syncModeRaw)
@@ -941,7 +942,7 @@ private struct SyncSettingsView: View {
                         .foregroundStyle(SettingsValueStyle.highlight)
                     } else {
                         Button(L("sync_menu_logout"), role: .destructive) {
-                            logout()
+                            showLogoutConfirm = true
                         }
                     }
                 }
@@ -1017,6 +1018,14 @@ private struct SyncSettingsView: View {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
             Text(syncMessage ?? L("common_none"))
+        }
+        .alert(L("sync_logout_confirm_title"), isPresented: $showLogoutConfirm) {
+            Button(L("common_cancel"), role: .cancel) {}
+            Button(L("sync_logout_confirm_button"), role: .destructive) {
+                logout()
+            }
+        } message: {
+            Text(L("sync_logout_confirm_message"))
         }
     }
 

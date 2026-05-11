@@ -74,15 +74,16 @@ enum DeckListHeatmapCache {
         UserDefaults.standard.removeObject(forKey: cacheKey())
     }
 
+    static func clear(for user: String) {
+        UserDefaults.standard.removeObject(forKey: cacheKey(for: user))
+    }
+
     private static func cacheKey() -> String {
-        let selectedUser = AppUserStore.loadSelectedUser()
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
-        let mapped = selectedUser.unicodeScalars.map { scalar -> Character in
-            allowed.contains(scalar) ? Character(scalar) : "_"
-        }
-        let profile = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
-        let suffix = profile.isEmpty ? "default" : profile
-        return "deck_list_heatmap_cache.\(suffix)"
+        cacheKey(for: AppUserStore.loadSelectedUser())
+    }
+
+    private static func cacheKey(for user: String) -> String {
+        "deck_list_heatmap_cache.\(AppUserStore.profileID(for: user))"
     }
 
     private static func currentSearchQuery() -> String {
