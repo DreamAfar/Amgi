@@ -274,9 +274,6 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         .field.is-source-mode .field-preview.has-preview {
             display: block;
         }
-        .field.has-math-preview .field-preview.has-preview {
-            display: block;
-        }
         .field-rendered,
         .field-source {
             width: 100%;
@@ -776,7 +773,8 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             return lowercased.includes('<img')
                 || lowercased.includes('<svg')
                 || lowercased.includes('<video')
-                || lowercased.includes('<audio');
+                || lowercased.includes('<audio')
+                || lowercased.includes('[sound:');
         }
 
         function trimMathPreviewText(text) {
@@ -1338,12 +1336,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             if (!preview) { return; }
             const field = state.fields[index];
             const html = field.html || '';
-            const section = fieldElement(index);
             const hasEmbeddedPreview = hasEmbeddedMedia(html);
             const hasMathPreview = containsMathPreviewMarkup(html);
-            const shouldShow = hasMathPreview || (!!field.isSourceMode && hasEmbeddedPreview);
+            const shouldShow = !!field.isSourceMode && (hasMathPreview || hasEmbeddedPreview);
             preview.classList.toggle('has-preview', shouldShow);
-            section?.classList.toggle('has-math-preview', hasMathPreview);
             preview.style.minHeight = `${field.sourcePreviewHeight || 96}px`;
             if (!shouldShow) {
                 preview.dataset.previewRenderToken = '';
