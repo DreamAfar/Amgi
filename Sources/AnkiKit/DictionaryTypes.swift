@@ -63,6 +63,7 @@ public struct DictionaryLookupPitch: Sendable, Hashable, Codable {
 public struct DictionaryLookupEntry: Sendable, Hashable, Identifiable, Codable {
     public var term: String
     public var reading: String?
+    public var sourceLanguage: String?
     public var matched: String?
     public var rules: [String]
     public var deinflectionTrace: [DictionaryLookupDeinflectionStep]
@@ -81,6 +82,7 @@ public struct DictionaryLookupEntry: Sendable, Hashable, Identifiable, Codable {
     public init(
         term: String,
         reading: String? = nil,
+        sourceLanguage: String? = nil,
         matched: String? = nil,
         rules: [String] = [],
         deinflectionTrace: [DictionaryLookupDeinflectionStep] = [],
@@ -94,6 +96,7 @@ public struct DictionaryLookupEntry: Sendable, Hashable, Identifiable, Codable {
     ) {
         self.term = term
         self.reading = reading
+        self.sourceLanguage = sourceLanguage
         self.matched = matched
         self.rules = rules
         self.deinflectionTrace = deinflectionTrace

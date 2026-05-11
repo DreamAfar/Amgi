@@ -474,6 +474,8 @@ struct ReaderDictionarySettingsView: View {
 
     private func title(for preset: ReaderLookupRemoteAudioPreset) -> String {
         switch preset {
+        case .auto:
+            return L("settings_reader_dictionary_audio_source_auto")
         case .custom:
             return L("settings_reader_dictionary_audio_source_custom")
         case .yomitanJapanese:
@@ -485,6 +487,8 @@ struct ReaderDictionarySettingsView: View {
 
     private func audioSourceSummary(for preset: ReaderLookupRemoteAudioPreset) -> String {
         switch preset {
+        case .auto:
+            return L("settings_reader_dictionary_audio_source_auto_summary")
         case .custom:
             return ReaderLookupAudioDefaults.defaultTemplate
         case .yomitanJapanese:

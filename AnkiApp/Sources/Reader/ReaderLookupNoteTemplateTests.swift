@@ -1,5 +1,6 @@
 import XCTest
 @testable import AnkiApp
+import AnkiKit
 
 final class ReaderLookupNoteTemplateTests: XCTestCase {
     func testMakeDraftMapsConfiguredHandlebars() {
@@ -126,6 +127,35 @@ final class ReaderLookupNoteTemplateTests: XCTestCase {
 }
 
 final class ReaderLookupAudioDefaultsTests: XCTestCase {
+    func testAppDictionaryIndexDecodesSourceAndTargetLanguages() throws {
+        let data = Data(
+            """
+            {
+              "title": "English",
+              "format": 3,
+              "revision": "1",
+              "isUpdatable": true,
+              "indexUrl": "https://example.com/index.json",
+              "downloadUrl": "https://example.com/dict.zip",
+              "sourceLanguage": "en",
+              "targetLanguage": "zh-CN"
+            }
+            """.utf8
+        )
+
+        let index = try JSONDecoder().decode(AppDictionaryIndex.self, from: data)
+
+        XCTAssertEqual(index.sourceLanguage, "en")
+        XCTAssertEqual(index.targetLanguage, "zh-CN")
+    }
+
+    func testNormalizedLanguageCodeUsesPrimarySubtag() {
+        XCTAssertEqual(ReaderLookupAudioDefaults.normalizedLanguageCode("ja-JP"), "ja")
+        XCTAssertEqual(ReaderLookupAudioDefaults.normalizedLanguageCode("en_US"), "en")
+        XCTAssertEqual(ReaderLookupAudioDefaults.normalizedLanguageCode("  FR  "), "fr")
+        XCTAssertNil(ReaderLookupAudioDefaults.normalizedLanguageCode(nil))
+    }
+
     func testCustomAudioPresetKeepsLocalAndTemplateSources() {
         let sources = ReaderLookupAudioDefaults.sourceDefinitions(
             remotePresetRawValue: ReaderLookupRemoteAudioPreset.custom.rawValue,
@@ -138,6 +168,53 @@ final class ReaderLookupAudioDefaultsTests: XCTestCase {
             [
                 ReaderLookupAudioSourceDefinition(kind: .template, template: ReaderLookupAudioDefaults.localAudioURL),
                 ReaderLookupAudioSourceDefinition(kind: .template, template: "https://example.com/audio?term={term}&reading={reading}"),
+            ]
+        )
+    }
+
+    func testAutoAudioPresetUsesJapaneseSourcesForJapaneseLanguageHint() {
+        let sources = ReaderLookupAudioDefaults.sourceDefinitions(
+            remotePresetRawValue: ReaderLookupRemoteAudioPreset.auto.rawValue,
+            remoteTemplate: "https://example.com/audio?term={term}&reading={reading}",
+            localAudioEnabled: false,
+            languageHint: "ja-JP"
+        )
+
+        XCTAssertEqual(
+            sources.map(\.kind),
+            [.jpod101, .languagePod101Japanese, .jisho]
+        )
+    }
+
+    func testAutoAudioPresetUsesEnglishSourcesForEnglishLanguageHint() {
+        let sources = ReaderLookupAudioDefaults.sourceDefinitions(
+            remotePresetRawValue: ReaderLookupRemoteAudioPreset.auto.rawValue,
+            remoteTemplate: "https://example.com/audio?term={term}&reading={reading}",
+            localAudioEnabled: false,
+            languageHint: "en_US"
+        )
+
+        XCTAssertEqual(
+            sources.map(\.kind),
+            [.languagePod101English, .linguaLibre, .wiktionary]
+        )
+    }
+
+    func testAutoAudioPresetFallsBackToCustomTemplateForOtherLanguages() {
+        let sources = ReaderLookupAudioDefaults.sourceDefinitions(
+            remotePresetRawValue: ReaderLookupRemoteAudioPreset.auto.rawValue,
+            remoteTemplate: "https://example.com/audio?term={term}&reading={reading}",
+            localAudioEnabled: false,
+            languageHint: "fr"
+        )
+
+        XCTAssertEqual(
+            sources,
+            [
+                ReaderLookupAudioSourceDefinition(
+                    kind: .template,
+                    template: "https://example.com/audio?term={term}&reading={reading}"
+                )
             ]
         )
     }

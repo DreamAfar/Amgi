@@ -425,6 +425,10 @@ struct ReaderEpubReaderView: View {
         ReaderLookupAudioDefaults.resolvedPlaybackMode(popupAudioPlaybackModeRawValue)
     }
 
+    private var lookupLanguageHint: String? {
+        book.language?.nilIfBlank
+    }
+
     private var statisticsAutostartMode: ReaderStatisticsAutostartMode {
         ReaderStatisticsAutostartMode(rawValue: statisticsAutostartModeRawValue) ?? .off
     }
@@ -759,7 +763,7 @@ struct ReaderEpubReaderView: View {
                                             result: popup.result,
                                             isLoading: popup.isLoading,
                                             sentence: popup.sentence,
-                                            languageHint: nil,
+                                            languageHint: lookupLanguageHint,
                                             popupWidth: CGFloat(popupWidth),
                                             popupHeight: CGFloat(popupHeight),
                                             popupFontSize: CGFloat(popupFontSize),
@@ -1070,7 +1074,7 @@ struct ReaderEpubReaderView: View {
                                 result: popup.result,
                                 isLoading: popup.isLoading,
                                 sentence: popup.sentence,
-                                languageHint: nil,
+                                languageHint: lookupLanguageHint,
                                 popupWidth: CGFloat(popupWidth),
                                 popupHeight: CGFloat(popupHeight),
                                 popupFontSize: CGFloat(popupFontSize),

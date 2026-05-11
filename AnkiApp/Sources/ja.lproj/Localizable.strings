@@ -396,6 +396,8 @@
 "settings_reader_dictionary_audio_mode_interrupt" = "他の音声を中断";
 "settings_reader_dictionary_audio_mode_duck" = "他の音声を小さくする";
 "settings_reader_dictionary_audio_mode_mix" = "他の音声と同時再生";
+"settings_reader_dictionary_audio_source_auto" = "自動";
+"settings_reader_dictionary_audio_source_auto_summary" = "ja は日本語ソース、en は英語ソースを使い、それ以外はカスタム URL テンプレートにフォールバックします。";
 "settings_reader_dictionary_audio_source_preset" = "リモート音声ソース";
 "settings_reader_dictionary_audio_source_custom" = "カスタム URL";
 "settings_reader_dictionary_audio_source_yomitan_japanese" = "Yomitan 日本語";

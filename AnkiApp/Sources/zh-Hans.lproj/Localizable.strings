@@ -396,6 +396,8 @@
 "settings_reader_dictionary_audio_mode_interrupt" = "打断其他音频";
 "settings_reader_dictionary_audio_mode_duck" = "压低其他音频";
 "settings_reader_dictionary_audio_mode_mix" = "与其他音频混播";
+"settings_reader_dictionary_audio_source_auto" = "自动";
+"settings_reader_dictionary_audio_source_auto_summary" = "当语言为 ja 时使用日语源，为 en 时使用英语源，其余语言回退到自定义 URL 模板。";
 "settings_reader_dictionary_audio_source_preset" = "远程音频源";
 "settings_reader_dictionary_audio_source_custom" = "自定义 URL";
 "settings_reader_dictionary_audio_source_yomitan_japanese" = "Yomitan 日语";

@@ -396,6 +396,8 @@
 "settings_reader_dictionary_audio_mode_interrupt" = "Interrupt others";
 "settings_reader_dictionary_audio_mode_duck" = "Duck others";
 "settings_reader_dictionary_audio_mode_mix" = "Mix with others";
+"settings_reader_dictionary_audio_source_auto" = "Auto";
+"settings_reader_dictionary_audio_source_auto_summary" = "Use Japanese sources for ja and English sources for en; otherwise fall back to the custom URL template.";
 "settings_reader_dictionary_audio_source_preset" = "Remote audio source";
 "settings_reader_dictionary_audio_source_custom" = "Custom URL";
 "settings_reader_dictionary_audio_source_yomitan_japanese" = "Yomitan Japanese";

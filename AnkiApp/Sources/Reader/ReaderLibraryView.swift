@@ -1846,6 +1846,7 @@ struct ReaderLookupPopup: View {
                 result: result,
                 collapseDictionaries: collapseDictionaries,
                 compactGlossaries: compactGlossaries,
+                languageHint: languageHint,
                 audioSourcePresetRawValue: audioSourcePresetRawValue,
                 audioSourceTemplate: audioSourceTemplate,
                 localAudioEnabled: localAudioEnabled,

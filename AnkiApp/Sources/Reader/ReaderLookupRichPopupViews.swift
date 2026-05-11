@@ -10,6 +10,7 @@ struct ReaderLookupPopupWebContainer: View {
     let result: DictionaryLookupResult
     let collapseDictionaries: Bool
     let compactGlossaries: Bool
+    let languageHint: String?
     let audioSourcePresetRawValue: String
     let audioSourceTemplate: String
     let localAudioEnabled: Bool
@@ -27,6 +28,7 @@ struct ReaderLookupPopupWebContainer: View {
             result: result,
             collapseDictionaries: collapseDictionaries,
             compactGlossaries: compactGlossaries,
+            languageHint: languageHint,
             audioSourcePresetRawValue: audioSourcePresetRawValue,
             audioSourceTemplate: audioSourceTemplate,
             localAudioEnabled: localAudioEnabled,
@@ -51,6 +53,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
     let result: DictionaryLookupResult
     let collapseDictionaries: Bool
     let compactGlossaries: Bool
+    let languageHint: String?
     let audioSourcePresetRawValue: String
     let audioSourceTemplate: String
     let localAudioEnabled: Bool
@@ -68,6 +71,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             result: result,
             collapseDictionaries: collapseDictionaries,
             compactGlossaries: compactGlossaries,
+            languageHint: languageHint,
             audioSourcePresetRawValue: audioSourcePresetRawValue,
             audioSourceTemplate: audioSourceTemplate,
             localAudioEnabled: localAudioEnabled,
@@ -114,6 +118,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             result: result,
             collapseDictionaries: collapseDictionaries,
             compactGlossaries: compactGlossaries,
+            languageHint: languageHint,
             audioSourcePresetRawValue: audioSourcePresetRawValue,
             audioSourceTemplate: audioSourceTemplate,
             localAudioEnabled: localAudioEnabled,
@@ -148,6 +153,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
         private var lookupEntries: [[String: Any]]
         private var collapseDictionaries: Bool
         private var compactGlossaries: Bool
+        private var languageHint: String?
         private var audioSourcePresetRawValue: String
         private var audioSourceTemplate: String
         private var localAudioEnabled: Bool
@@ -164,6 +170,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             result: DictionaryLookupResult,
             collapseDictionaries: Bool,
             compactGlossaries: Bool,
+            languageHint: String?,
             audioSourcePresetRawValue: String,
             audioSourceTemplate: String,
             localAudioEnabled: Bool,
@@ -177,9 +184,16 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             loadMediaData: @escaping @Sendable (String, String) async throws -> Data
         ) {
             self.result = result
-            self.lookupEntries = Self.makeLookupEntries(from: result.entries)
+            self.lookupEntries = Self.makeLookupEntries(
+                from: result.entries,
+                audioSourcePresetRawValue: audioSourcePresetRawValue,
+                audioSourceTemplate: audioSourceTemplate,
+                localAudioEnabled: localAudioEnabled,
+                languageHint: languageHint
+            )
             self.collapseDictionaries = collapseDictionaries
             self.compactGlossaries = compactGlossaries
+            self.languageHint = languageHint
             self.audioSourcePresetRawValue = audioSourcePresetRawValue
             self.audioSourceTemplate = audioSourceTemplate
             self.localAudioEnabled = localAudioEnabled
@@ -194,6 +208,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             self.html = Self.makeHTML(
                 collapseDictionaries: collapseDictionaries,
                 compactGlossaries: compactGlossaries,
+                languageHint: languageHint,
                 audioSourcePresetRawValue: audioSourcePresetRawValue,
                 audioSourceTemplate: audioSourceTemplate,
                 localAudioEnabled: localAudioEnabled,
@@ -208,6 +223,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             result: DictionaryLookupResult,
             collapseDictionaries: Bool,
             compactGlossaries: Bool,
+            languageHint: String?,
             audioSourcePresetRawValue: String,
             audioSourceTemplate: String,
             localAudioEnabled: Bool,
@@ -220,9 +236,16 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             onTapOutside: (() -> Void)?
         ) {
             self.result = result
-            self.lookupEntries = Self.makeLookupEntries(from: result.entries)
+            self.lookupEntries = Self.makeLookupEntries(
+                from: result.entries,
+                audioSourcePresetRawValue: audioSourcePresetRawValue,
+                audioSourceTemplate: audioSourceTemplate,
+                localAudioEnabled: localAudioEnabled,
+                languageHint: languageHint
+            )
             self.collapseDictionaries = collapseDictionaries
             self.compactGlossaries = compactGlossaries
+            self.languageHint = languageHint
             self.audioSourcePresetRawValue = audioSourcePresetRawValue
             self.audioSourceTemplate = audioSourceTemplate
             self.localAudioEnabled = localAudioEnabled
@@ -237,6 +260,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             let nextHTML = Self.makeHTML(
                 collapseDictionaries: collapseDictionaries,
                 compactGlossaries: compactGlossaries,
+                languageHint: languageHint,
                 audioSourcePresetRawValue: audioSourcePresetRawValue,
                 audioSourceTemplate: audioSourceTemplate,
                 localAudioEnabled: localAudioEnabled,
@@ -377,6 +401,7 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
         private static func makeHTML(
             collapseDictionaries: Bool,
             compactGlossaries: Bool,
+            languageHint: String?,
             audioSourcePresetRawValue: String,
             audioSourceTemplate: String,
             localAudioEnabled: Bool,
@@ -387,7 +412,8 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             let audioSources = ReaderLookupAudioDefaults.sourceDefinitions(
                 remotePresetRawValue: audioSourcePresetRawValue,
                 remoteTemplate: audioSourceTemplate,
-                localAudioEnabled: localAudioEnabled
+                localAudioEnabled: localAudioEnabled,
+                languageHint: languageHint
             )
             let audioSourcesJSON = (try? JSONEncoder().encode(audioSources))
                 .flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
@@ -423,8 +449,23 @@ private struct ReaderLookupPopupWebView: UIViewRepresentable {
             """
         }
 
-        private static func makeLookupEntries(from entries: [DictionaryLookupEntry]) -> [[String: Any]] {
-            let payload = entries.map(PopupEntryPayload.init)
+        private static func makeLookupEntries(
+            from entries: [DictionaryLookupEntry],
+            audioSourcePresetRawValue: String,
+            audioSourceTemplate: String,
+            localAudioEnabled: Bool,
+            languageHint: String?
+        ) -> [[String: Any]] {
+            let payload = entries.map { entry in
+                let entryLanguageHint = entry.sourceLanguage ?? languageHint
+                let audioSources = ReaderLookupAudioDefaults.sourceDefinitions(
+                    remotePresetRawValue: audioSourcePresetRawValue,
+                    remoteTemplate: audioSourceTemplate,
+                    localAudioEnabled: localAudioEnabled,
+                    languageHint: entryLanguageHint
+                )
+                return PopupEntryPayload(entry: entry, audioSources: audioSources)
+            }
             guard let data = try? JSONEncoder().encode(payload),
                   let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
                 return []
@@ -580,16 +621,19 @@ private struct PopupEntryPayload: Codable {
 
     var expression: String
     var reading: String
+    var sourceLanguage: String
     var matched: String
     var deinflectionTrace: [DeinflectionTrace]
     var glossaries: [GlossaryPayload]
     var frequencies: [FrequencyPayload]
     var pitches: [PitchPayload]
     var rules: [String]
+    var audioSources: [ReaderLookupAudioSourceDefinition]
 
-    init(entry: DictionaryLookupEntry) {
+    init(entry: DictionaryLookupEntry, audioSources: [ReaderLookupAudioSourceDefinition]) {
         expression = entry.term
         reading = entry.reading ?? ""
+        sourceLanguage = entry.sourceLanguage ?? ""
         matched = entry.matched ?? ""
         deinflectionTrace = entry.deinflectionTrace.map {
             DeinflectionTrace(name: $0.name, description: $0.description ?? "")
@@ -617,6 +661,7 @@ private struct PopupEntryPayload: Codable {
             PitchPayload(dictionary: $0.dictionary, pitchPositions: $0.positions)
         }
         rules = entry.rules
+        self.audioSources = audioSources
     }
 }
 

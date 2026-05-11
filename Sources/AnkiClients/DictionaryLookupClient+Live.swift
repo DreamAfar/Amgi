@@ -247,9 +247,10 @@ private actor DictionaryLookupRuntime {
             }
         }
         let styles = loadStyles()
+        let dictionarySourceLanguages = dictionarySourceLanguageMap()
         return DictionaryLookupResult(
             query: trimmed,
-            entries: rawResults.map(Self.makeEntry),
+            entries: rawResults.map { makeEntry(from: $0, dictionarySourceLanguages: dictionarySourceLanguages) },
             isPlaceholder: false,
             dictionaryStyles: styles
         )
@@ -257,6 +258,17 @@ private actor DictionaryLookupRuntime {
 
     private func performLookup(_ query: String, maxResults: Int, scanLength: Int) -> [LookupResult] {
         Array(lookupEngine?.lookup(std.string(query), Int32(maxResults), scanLength) ?? [])
+    }
+
+    private func dictionarySourceLanguageMap() -> [String: String] {
+        termDictionaries.reduce(into: [String: String]()) { result, dictionary in
+            guard let sourceLanguage = dictionary.info.index.sourceLanguage?.nilIfEmpty else {
+                return
+            }
+
+            result[dictionary.info.title] = sourceLanguage
+            result[dictionary.info.fileName] = sourceLanguage
+        }
     }
 
     private static func containsASCIIUppercase(_ text: String) -> Bool {
@@ -829,7 +841,10 @@ private actor DictionaryLookupRuntime {
         return folder.isEmpty ? "default" : folder
     }
 
-    private static func makeEntry(from result: LookupResult) -> DictionaryLookupEntry {
+    private func makeEntry(
+        from result: LookupResult,
+        dictionarySourceLanguages: [String: String]
+    ) -> DictionaryLookupEntry {
         let glossaries = Array(result.term.glossaries).flatMap { glossary in
             glossaryLines(dictName: String(glossary.dict_name), rawGlossary: String(glossary.glossary))
         }
@@ -912,10 +927,16 @@ private actor DictionaryLookupRuntime {
             .split(separator: " ")
             .map(String.init)
             .filter { $0.isEmpty == false }
+        let sourceLanguage = Array(result.term.glossaries)
+            .compactMap { glossary in
+                dictionarySourceLanguages[String(glossary.dict_name)]?.nilIfEmpty
+            }
+            .first
 
         return DictionaryLookupEntry(
             term: String(result.term.expression),
             reading: String(result.term.reading).nilIfEmpty,
+            sourceLanguage: sourceLanguage,
             matched: matched.nilIfEmpty,
             rules: rules,
             deinflectionTrace: trace,

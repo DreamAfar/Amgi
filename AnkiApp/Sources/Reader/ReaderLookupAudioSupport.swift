@@ -13,6 +13,7 @@ enum ReaderLookupAudioPlaybackMode: String, CaseIterable, Identifiable {
 }
 
 enum ReaderLookupRemoteAudioPreset: String, CaseIterable, Identifiable, Sendable {
+    case auto
     case custom
     case yomitanJapanese
     case yomitanEnglish
@@ -71,7 +72,8 @@ enum ReaderLookupAudioDefaults {
     static func sourceDefinitions(
         remotePresetRawValue: String,
         remoteTemplate: String,
-        localAudioEnabled: Bool
+        localAudioEnabled: Bool,
+        languageHint: String? = nil
     ) -> [ReaderLookupAudioSourceDefinition] {
         var sources: [ReaderLookupAudioSourceDefinition] = []
         if localAudioEnabled {
@@ -80,6 +82,15 @@ enum ReaderLookupAudioDefaults {
 
         let remoteSources: [ReaderLookupAudioSourceDefinition]
         switch resolvedPreset(remotePresetRawValue) {
+        case .auto:
+            switch normalizedLanguageCode(languageHint) {
+            case "ja":
+                remoteSources = yomitanJapaneseSources
+            case "en":
+                remoteSources = yomitanEnglishSources
+            default:
+                remoteSources = [.init(kind: .template, template: resolvedTemplate(remoteTemplate))]
+            }
         case .custom:
             remoteSources = [.init(kind: .template, template: resolvedTemplate(remoteTemplate))]
         case .yomitanJapanese:
@@ -92,6 +103,16 @@ enum ReaderLookupAudioDefaults {
             sources.append(source)
         }
         return sources
+    }
+
+    static func normalizedLanguageCode(_ languageHint: String?) -> String? {
+        guard let languageHint else { return nil }
+        let trimmed = languageHint.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return nil }
+        let normalized = trimmed
+            .replacingOccurrences(of: "_", with: "-")
+            .lowercased()
+        return normalized.split(separator: "-").first.map(String.init)
     }
 }
 
@@ -358,15 +379,20 @@ enum ReaderLookupAudioResolver {
                     return normalizedURL
                 }
             case .yomitanEnglish:
-                if snippet.context.contains("dc-vocab"),
-                   snippet.context.contains(term) {
+                if let vocab = extractLanguagePod101Vocab(from: snippet.context),
+                   normalizedLookupText(vocab) == normalizedLookupText(term) {
                     return normalizedURL
                 }
             case .custom:
                 break
             }
         }
-        return snippets.first.flatMap { URL(string: $0.url, relativeTo: responseURL)?.absoluteURL }
+        switch preset {
+        case .yomitanJapanese:
+            return snippets.first.flatMap { URL(string: $0.url, relativeTo: responseURL)?.absoluteURL }
+        case .yomitanEnglish, .custom:
+            return nil
+        }
     }
 
     private static func resolveJishoAudioURL(term: String, reading: String) async throws -> URL? {
@@ -502,6 +528,38 @@ enum ReaderLookupAudioResolver {
             return nil
         }
         return String(text[range])
+    }
+
+    private static func extractLanguagePod101Vocab(from snippet: String) -> String? {
+        guard let rawValue = firstCapturedGroup(
+            in: snippet,
+            pattern: #"<[^>]*class=["'][^"']*\bdc-vocab\b[^"']*["'][^>]*>([\s\S]*?)</[^>]+>"#,
+            options: [.caseInsensitive]
+        ) else {
+            return nil
+        }
+        return normalizedHTMLText(rawValue)
+    }
+
+    private static func normalizedHTMLText(_ text: String) -> String {
+        let withoutTags = text.replacingOccurrences(
+            of: #"<[^>]+>"#,
+            with: " ",
+            options: .regularExpression
+        )
+        let decoded = withoutTags
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&apos;", with: "'")
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+        return decoded
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func normalizedLookupText(_ text: String) -> String {
+        normalizedHTMLText(text).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
     }
 
     private static func matchedAudioSnippets(in html: String) -> [(url: String, context: String)] {

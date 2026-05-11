@@ -1154,8 +1154,9 @@ async function buildMiningPayload(expression, reading, frequencies, pitches, rul
     const pitchPositions = constructPitchPositionHtml(pitches);
     const pitchCategories = constructPitchCategories(pitches, reading, rules);
 
-    if (!audioUrls[idx] && window.audioSources?.length && window.needsAudio) {
-        audioUrls[idx] = await fetchAudioUrl(expression, reading || expression);
+    const entryAudioSources = window.lookupEntries?.[idx]?.audioSources;
+    if (!audioUrls[idx] && entryAudioSources?.length && window.needsAudio) {
+        audioUrls[idx] = await fetchAudioUrl(expression, reading || expression, entryAudioSources);
     }
 
     const audio = audioUrls[idx] || '';
@@ -1464,8 +1465,7 @@ function createTags(entry) {
     return container;
 }
 
-async function fetchAudioUrl(expression, reading) {
-    const sources = window.audioSources;
+async function fetchAudioUrl(expression, reading, sources) {
     if (!sources?.length) return null;
 
     for (const source of sources) {
@@ -1506,13 +1506,13 @@ function showAudioError(button) {
     }, 1500);
 }
 
-function createAudioButton(expression, reading, entryIndex) {
+function createAudioButton(expression, reading, entryIndex, audioSources) {
     const button = el('button', {
         className: 'audio-button',
         textContent: '♪',
         onclick: async () => {
             if (!audioUrls[entryIndex]) {
-                audioUrls[entryIndex] = await fetchAudioUrl(expression, reading);
+                audioUrls[entryIndex] = await fetchAudioUrl(expression, reading, audioSources);
             }
             if (!audioUrls[entryIndex]) {
                 showAudioError(button);
@@ -1527,7 +1527,7 @@ function createAudioButton(expression, reading, entryIndex) {
 }
 
 function createEntryHeader(entry, idx) {
-    const { expression, reading, matched, frequencies, pitches, rules } = entry;
+    const { expression, reading, matched, frequencies, pitches, rules, audioSources } = entry;
     const header = el('div', { className: 'entry-header' });
 
     const expressionSpan = el('span', { className: 'expression' });
@@ -1547,8 +1547,8 @@ function createEntryHeader(entry, idx) {
 
     const buttonsContainer = el('div', { className: 'header-buttons' });
 
-    if (window.audioSources?.length) {
-        buttonsContainer.appendChild(createAudioButton(expression, reading, idx));
+    if (audioSources?.length) {
+        buttonsContainer.appendChild(createAudioButton(expression, reading, idx, audioSources));
     }
 
     const mineButton = el('button', {
@@ -1717,7 +1717,7 @@ window.renderPopup = function() {
             const entryDiv = el('div', { className: 'entry' });
             entryDiv.appendChild(createEntryHeader(entry, idx));
 
-            if (window.audioEnableAutoplay && window.audioSources?.length && idx == 0) {
+            if (window.audioEnableAutoplay && entry.audioSources?.length && idx == 0) {
                 setTimeout(() => {
                     const audioButton = entryDiv.querySelector('.audio-button');
                     if (audioButton) {

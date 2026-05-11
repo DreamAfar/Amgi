@@ -15,6 +15,8 @@ public struct AppDictionaryIndex: Codable, Hashable, Sendable {
     public var isUpdatable: Bool
     public var indexURL: String
     public var downloadURL: String
+    public var sourceLanguage: String?
+    public var targetLanguage: String?
 
     public init(
         title: String,
@@ -22,7 +24,9 @@ public struct AppDictionaryIndex: Codable, Hashable, Sendable {
         revision: String = "",
         isUpdatable: Bool = false,
         indexURL: String = "",
-        downloadURL: String = ""
+        downloadURL: String = "",
+        sourceLanguage: String? = nil,
+        targetLanguage: String? = nil
     ) {
         self.title = title
         self.format = format
@@ -30,6 +34,8 @@ public struct AppDictionaryIndex: Codable, Hashable, Sendable {
         self.isUpdatable = isUpdatable
         self.indexURL = indexURL
         self.downloadURL = downloadURL
+        self.sourceLanguage = sourceLanguage
+        self.targetLanguage = targetLanguage
     }
 
     enum CodingKeys: String, CodingKey {
@@ -39,6 +45,8 @@ public struct AppDictionaryIndex: Codable, Hashable, Sendable {
         case isUpdatable
         case indexURL = "indexUrl"
         case downloadURL = "downloadUrl"
+        case sourceLanguage
+        case targetLanguage
     }
 }
 
