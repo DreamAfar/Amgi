@@ -426,7 +426,7 @@ struct ReaderEpubReaderView: View {
     }
 
     private var lookupLanguageHint: String? {
-        book.language?.nilIfBlank
+        nil
     }
 
     private var statisticsAutostartMode: ReaderStatisticsAutostartMode {

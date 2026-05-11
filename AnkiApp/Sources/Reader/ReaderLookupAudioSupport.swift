@@ -335,7 +335,7 @@ enum ReaderLookupAudioResolver {
         case .yomitanEnglish:
             language = "English"
             podOrClass = "class"
-        case .custom:
+        case .auto, .custom:
             return nil
         }
 
@@ -383,14 +383,14 @@ enum ReaderLookupAudioResolver {
                    normalizedLookupText(vocab) == normalizedLookupText(term) {
                     return normalizedURL
                 }
-            case .custom:
+            case .auto, .custom:
                 break
             }
         }
         switch preset {
         case .yomitanJapanese:
             return snippets.first.flatMap { URL(string: $0.url, relativeTo: responseURL)?.absoluteURL }
-        case .yomitanEnglish, .custom:
+        case .yomitanEnglish, .auto, .custom:
             return nil
         }
     }
