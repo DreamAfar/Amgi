@@ -143,6 +143,8 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showUserManager, onDismiss: reloadUsers) {
             UserManagementView()
+                .presentationDetents([.fraction(0.5)])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showExportOptions) {
             NavigationStack {
