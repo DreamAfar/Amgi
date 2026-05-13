@@ -368,10 +368,10 @@ struct CardWebView: UIViewRepresentable {
             .toggle {
                 min-width: 48px;
                 min-height: 34px;
-                padding: 6px 12px;
+                padding: 4px 10px;
                 margin-top: 12px;
                 border: 1px solid \(typeBorderColor);
-                border-radius: 15px;
+                border-radius: 18px;
                 background: \(typeBgColor);
                 color: inherit;
                 font: inherit;

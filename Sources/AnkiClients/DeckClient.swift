@@ -8,8 +8,12 @@ public struct DeckClient: Sendable {
     public var fetchAll: @Sendable () throws -> [DeckInfo]
     /// Lightweight fetch: returns deck id+name only, no review counts. Use for filter menus.
     public var fetchNamesOnly: @Sendable () throws -> [DeckInfo]
+    public var fetchDeck: @Sendable (_ deckId: Int64) throws -> Anki_Decks_Deck
+    public var fetchCurrentDeck: @Sendable () throws -> Anki_Decks_Deck
     public var fetchTree: @Sendable () throws -> [DeckTreeNode]
     public var countsForDeck: @Sendable (_ deckId: Int64) throws -> DeckCounts
+    public var fetchCustomStudyDefaults: @Sendable (_ deckId: Int64) throws -> Anki_Scheduler_CustomStudyDefaultsResponse
+    public var customStudy: @Sendable (_ request: Anki_Scheduler_CustomStudyRequest) throws -> Anki_Decks_Deck
     public var create: @Sendable (_ name: String) throws -> Int64
     public var rename: @Sendable (_ deckId: Int64, _ name: String) throws -> Void
     public var delete: @Sendable (_ deckId: Int64) throws -> Void

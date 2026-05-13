@@ -11,8 +11,11 @@ struct DeckDetailView: View {
     @ObservedObject private var collectionState = AppCollectionState.shared
     @State private var counts: DeckCounts = .zero
     @State private var childDecks: [DeckTreeNode] = []
+    @State private var isFilteredDeck = false
     @State private var showReview = false
+    @State private var reviewTargetDeck: DeckInfo?
     @State private var showConfig = false
+    @State private var showCustomStudy = false
     @State private var showTemplateManager = false
     @State private var showAddNote = false
     @State private var showAddImageOcclusion = false
@@ -136,6 +139,25 @@ struct DeckDetailView: View {
                 showConfig = false
             }
         }
+        .sheet(isPresented: $showCustomStudy) {
+            NavigationStack {
+                DeckCustomStudySheet(deck: deck) { targetDeck, startReview in
+                    NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
+                    Task {
+                        await loadDeckState()
+                        await loadCounts()
+                        await loadChildren()
+                    }
+                    guard startReview else { return }
+                    let target = DeckInfo(id: targetDeck.id, name: targetDeck.name)
+                    if target.id == deck.id {
+                        showReview = true
+                    } else {
+                        reviewTargetDeck = target
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showTemplateManager) {
             NavigationStack {
                 DeckTemplateListView()
@@ -145,6 +167,16 @@ struct DeckDetailView: View {
             ReviewView(deckId: deck.id) {
                 showReview = false
                 Task { await loadCounts() }
+            }
+        }
+        .fullScreenCover(item: $reviewTargetDeck) { target in
+            ReviewView(deckId: target.id) {
+                reviewTargetDeck = nil
+                Task {
+                    await loadDeckState()
+                    await loadCounts()
+                    await loadChildren()
+                }
             }
         }
         .sheet(isPresented: $showStats) {
@@ -210,11 +242,13 @@ struct DeckDetailView: View {
         }
         .task {
             guard collectionState.isReady else { return }
+            await loadDeckState()
             await loadCounts()
             await loadChildren()
         }
         .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
             Task {
+                await loadDeckState()
                 await loadCounts()
                 await loadChildren()
             }
@@ -222,6 +256,7 @@ struct DeckDetailView: View {
         .onChange(of: collectionState.isReady) { _, isReady in
             guard isReady else { return }
             Task {
+                await loadDeckState()
                 await loadCounts()
                 await loadChildren()
             }
@@ -274,6 +309,19 @@ struct DeckDetailView: View {
             .foregroundStyle(Color.amgiAccent)
             .disabled(!collectionState.isReady || counts.total == 0)
             .listRowBackground(Color.amgiSurfaceElevated)
+
+            if !isFilteredDeck {
+                Button {
+                    showCustomStudy = true
+                } label: {
+                    Label(L("deck_custom_study_title"), systemImage: "wand.and.stars")
+                        .frame(maxWidth: .infinity)
+                        .amgiFont(.bodyEmphasis)
+                }
+                .foregroundStyle(Color.amgiTextPrimary)
+                .disabled(!collectionState.isReady)
+                .listRowBackground(Color.amgiSurfaceElevated)
+            }
         }
     }
 
@@ -361,6 +409,20 @@ struct DeckDetailView: View {
         } catch {
             print("[DeckDetail] Error loading counts for '\(deck.name)': \(error)")
             counts = .zero
+        }
+    }
+
+    private func loadDeckState() async {
+        guard collectionState.isReady else { return }
+        do {
+            let resolvedDeck = try deckClient.fetchDeck(deck.id)
+            if case .some(.filtered) = resolvedDeck.kind {
+                isFilteredDeck = true
+            } else {
+                isFilteredDeck = false
+            }
+        } catch {
+            isFilteredDeck = false
         }
     }
 

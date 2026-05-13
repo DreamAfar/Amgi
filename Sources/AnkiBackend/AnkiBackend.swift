@@ -438,6 +438,10 @@ extension AnkiBackend {
         public static let scheduleCardsAsNew: UInt32 = 17
         // SetDueDate = proto index 16 + offset 3 = 19
         public static let setDueDate: UInt32 = 19
+        // CustomStudy = proto index 24 + offset 3 = 27
+        public static let customStudy: UInt32 = 27
+        // CustomStudyDefaults = proto index 25 + offset 3 = 28
+        public static let customStudyDefaults: UInt32 = 28
         // ComputeFsrsParams = proto index 27 + offset 3 = 30
         public static let computeFsrsParams: UInt32 = 30
         // SimulateFsrsReview = proto index 30 + offset 3 = 33

@@ -25,6 +25,7 @@
 		5B64EE19A9D2CAF0DD8E592F /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ABAF4CA3BA61D9717114258 /* ShareSheet.swift */; };
 		5CB5330671793E2400099624 /* SyncSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53DFE087CC52A44712DF397 /* SyncSheet.swift */; };
 		60F1B6AE6228122F4A1E3330 /* DeckCountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66E7A34445EB73ECD4264D02 /* DeckCountsView.swift */; };
+		6E3A2B3C4D5E6F708192A3B4 /* DeckCustomStudySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F4A3B2C1D0E9F8A7B6C5D4E /* DeckCustomStudySheet.swift */; };
 		65B3892A178EBF117B88C6BB /* AnkiProto in Frameworks */ = {isa = PBXBuildFile; productRef = 9813BDC860FD726F5F3741AE /* AnkiProto */; };
 		67D6F22BD75B670AF77205CB /* RetentionChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BA4253570515B2919185E72 /* RetentionChart.swift */; };
 		692256E48D7330D96F36DC7A /* NoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C2B9450B8065B8BB0C86780 /* NoteEditorView.swift */; };
@@ -67,6 +68,7 @@
 		519F202DE9743805C2ACE70A /* HeatmapChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapChart.swift; sourceTree = "<group>"; };
 		63D547D60BC8AFC48E08414F /* FutureDueChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FutureDueChart.swift; sourceTree = "<group>"; };
 		66E7A34445EB73ECD4264D02 /* DeckCountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckCountsView.swift; sourceTree = "<group>"; };
+		7F4A3B2C1D0E9F8A7B6C5D4E /* DeckCustomStudySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckCustomStudySheet.swift; sourceTree = "<group>"; };
 		6C2B9450B8065B8BB0C86780 /* NoteEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorView.swift; sourceTree = "<group>"; };
 		B8D4E0F1234567890ABCDEFA /* NoteFieldsPageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteFieldsPageEditor.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5061728394A5B6C /* RichTextEditorMediaSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditorMediaSheets.swift; sourceTree = "<group>"; };
@@ -214,6 +216,7 @@
 		FB6E3697C132E4FD6BF11BED /* Decks */ = {
 			isa = PBXGroup;
 			children = (
+				7F4A3B2C1D0E9F8A7B6C5D4E /* DeckCustomStudySheet.swift */,
 				AF0D4C5AE73CB146B878AD82 /* DeckDetailView.swift */,
 				A8BCE5F7A1620D00F69AFDC1 /* DeckListView.swift */,
 			);
@@ -294,6 +297,7 @@
 				9A324D1962FC23F10A12BDCC /* ContentView.swift in Sources */,
 				C606A44C4BFF3695EF243BCA /* DebugView.swift in Sources */,
 				60F1B6AE6228122F4A1E3330 /* DeckCountsView.swift in Sources */,
+				6E3A2B3C4D5E6F708192A3B4 /* DeckCustomStudySheet.swift in Sources */,
 				859CFD06E4D3020F4C84DD49 /* DeckDetailView.swift in Sources */,
 				225158C73F92195729D274D0 /* DeckListView.swift in Sources */,
 				05C64267BD892E09E170D579 /* EaseChart.swift in Sources */,

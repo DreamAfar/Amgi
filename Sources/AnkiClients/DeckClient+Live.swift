@@ -57,6 +57,22 @@ extension DeckClient: DependencyKey {
                 return resp.entries.map { DeckInfo(id: $0.id, name: $0.name, counts: .zero) }
                     .sorted(by: { $0.name < $1.name })
             },
+            fetchDeck: { deckId in
+                var req = Anki_Decks_DeckId()
+                req.did = deckId
+                return try backend.invoke(
+                    service: AnkiBackend.Service.decks,
+                    method: AnkiBackend.DecksMethod.getDeck,
+                    request: req
+                )
+            },
+            fetchCurrentDeck: {
+                try backend.invoke(
+                    service: AnkiBackend.Service.decks,
+                    method: AnkiBackend.DecksMethod.getCurrentDeck,
+                    request: Anki_Generic_Empty()
+                )
+            },
             fetchTree: {
                 var req = Anki_Decks_DeckTreeRequest()
                 req.now = Int64(Date().timeIntervalSince1970)
@@ -92,6 +108,27 @@ extension DeckClient: DependencyKey {
                     logger.error("getDeckTree for counts failed: \(error)")
                 }
                 return .zero
+            },
+            fetchCustomStudyDefaults: { deckId in
+                var req = Anki_Scheduler_CustomStudyDefaultsRequest()
+                req.deckID = deckId
+                return try backend.invoke(
+                    service: AnkiBackend.Service.scheduler,
+                    method: AnkiBackend.SchedulerMethod.customStudyDefaults,
+                    request: req
+                )
+            },
+            customStudy: { request in
+                try backend.callVoid(
+                    service: AnkiBackend.Service.scheduler,
+                    method: AnkiBackend.SchedulerMethod.customStudy,
+                    request: request
+                )
+                return try backend.invoke(
+                    service: AnkiBackend.Service.decks,
+                    method: AnkiBackend.DecksMethod.getCurrentDeck,
+                    request: Anki_Generic_Empty()
+                )
             },
             create: { name in
                 // Create a new deck using AddDeck

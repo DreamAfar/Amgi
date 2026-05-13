@@ -25,6 +25,46 @@ final class DeckUIInteractionTests: XCTestCase {
         XCTAssertNotNil(view)
     }
 
+    func testCustomStudyRequestForNewLimitDelta() {
+        let request = makeDeckCustomStudyRequest(
+            deckID: 42,
+            mode: .newLimit,
+            amount: 12,
+            cramKind: .new,
+            includeTags: [],
+            excludeTags: []
+        )
+
+        XCTAssertEqual(request.deckID, 42)
+        XCTAssertEqual(request.value, .newLimitDelta(12))
+    }
+
+    func testCustomStudyRequestForCramSortsTags() {
+        let request = makeDeckCustomStudyRequest(
+            deckID: 9,
+            mode: .cram,
+            amount: 100,
+            cramKind: .review,
+            includeTags: ["b", "a"],
+            excludeTags: ["z", "m"]
+        )
+
+        XCTAssertEqual(request.deckID, 9)
+        XCTAssertEqual(request.cram.kind, .review)
+        XCTAssertEqual(request.cram.cardLimit, 100)
+        XCTAssertEqual(request.cram.tagsToInclude, ["a", "b"])
+        XCTAssertEqual(request.cram.tagsToExclude, ["m", "z"])
+    }
+
+    func testCustomStudyAutoStartReviewModes() {
+        XCTAssertFalse(shouldAutoStartReview(for: .newLimit))
+        XCTAssertFalse(shouldAutoStartReview(for: .reviewLimit))
+        XCTAssertTrue(shouldAutoStartReview(for: .forgot))
+        XCTAssertTrue(shouldAutoStartReview(for: .ahead))
+        XCTAssertTrue(shouldAutoStartReview(for: .preview))
+        XCTAssertTrue(shouldAutoStartReview(for: .cram))
+    }
+
     func testSortDeckTemplateEntriesByName() {
         var a = Anki_Notetypes_NotetypeNameId()
         a.id = 2

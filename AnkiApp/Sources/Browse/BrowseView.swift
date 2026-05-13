@@ -23,7 +23,7 @@ struct BrowseView: View {
     @State private var allTags: [String] = []
     @State private var activeTag: String?
     @State private var quickFilter: BrowseQuickFilter = .all
-    @State private var sortField: BrowseSortField = .noteModified
+    @State private var sortField: BrowseSortField = .sortField
     @State private var sortReverse = true
     @State private var notetypeNamesByID: [Int64: String] = [:]
     @AppStorage("browse_show_notetype_subtitle") private var showNotetypeSubtitle = true
@@ -1708,12 +1708,12 @@ enum BrowseSortField: CaseIterable {
         case .reviews: "arrow.clockwise.circle"
         case .tags: "tag"
         case .addedDate: "calendar.badge.plus"
-        case .sortField: "textformat.characters"
+        case .sortField: "list.bullet.rectangle.portrait"
         case .deck: "square.stack"
         case .noteModified: "note.text.badge.plus"
         case .notetype: "doc.text"
         case .ease: "gauge.with.dots.needle.50percent"
-        case .lapses: "exclamationmark.arrow.trianglehead.counterclockwise"
+        case .lapses: "clock.badge.questionmark"
         case .interval: "timer"
         }
     }
