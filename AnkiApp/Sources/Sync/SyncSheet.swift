@@ -471,7 +471,6 @@ struct SyncSheet: View {
                 .foregroundStyle(Color.amgiTextSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
-                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 340)
 

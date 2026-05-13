@@ -593,7 +593,6 @@ struct ReviewView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, usesCompactShowAnswerButton ? 8 : 16)
                 .background(.clear)
                 .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
             }
@@ -791,8 +790,6 @@ struct ReviewView: View {
             }
         }
         .padding(.horizontal)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
     }
 
     private var compactAnswerMenu: some View {
@@ -807,7 +804,7 @@ struct ReviewView: View {
                 .padding()
         }
         .buttonStyle(.borderedProminent)
-        .padding()
+        .padding(.horizontal)
     }
 
     private var visibleRatings: [Rating] {
