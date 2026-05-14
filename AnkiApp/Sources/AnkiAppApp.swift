@@ -28,6 +28,10 @@ struct AnkiAppApp: App {
         (AppLanguage(rawValue: appLanguageRaw) ?? .system).locale
     }
 
+    private var preferredBackendLangs: [String] {
+        (AppLanguage(rawValue: appLanguageRaw) ?? .system).preferredBackendLangs
+    }
+
     private var preferredColorScheme: ColorScheme? {
         (AppTheme(rawValue: appThemeRaw) ?? .system).colorScheme
     }
@@ -110,9 +114,10 @@ struct AnkiAppApp: App {
         do {
             let selectedUser = AppUserStore.loadSelectedUser()
             let urls = AppUserStore.collectionURLs(for: selectedUser)
+            let preferredBackendLangs = self.preferredBackendLangs
 
             let backend = try await Task.detached(priority: .userInitiated) {
-                try AnkiBackend(preferredLangs: ["en"])
+                try AnkiBackend(preferredLangs: preferredBackendLangs)
             }.value
 
             prepareDependencies {

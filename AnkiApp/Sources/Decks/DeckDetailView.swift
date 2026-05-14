@@ -49,6 +49,9 @@ struct DeckDetailView: View {
         List {
             countsSection
             studySection
+            if !isFilteredDeck {
+                customStudySection
+            }
 
             if !childDecks.isEmpty {
                 subdecksSection
@@ -309,19 +312,21 @@ struct DeckDetailView: View {
             .foregroundStyle(Color.amgiAccent)
             .disabled(!collectionState.isReady || counts.total == 0)
             .listRowBackground(Color.amgiSurfaceElevated)
+        }
+    }
 
-            if !isFilteredDeck {
-                Button {
-                    showCustomStudy = true
-                } label: {
-                    Label(L("deck_custom_study_title"), systemImage: "wand.and.stars")
-                        .frame(maxWidth: .infinity)
-                        .amgiFont(.bodyEmphasis)
-                }
-                .foregroundStyle(Color.amgiTextPrimary)
-                .disabled(!collectionState.isReady)
-                .listRowBackground(Color.amgiSurfaceElevated)
+    private var customStudySection: some View {
+        Section {
+            Button {
+                showCustomStudy = true
+            } label: {
+                Label(L("deck_custom_study_title"), systemImage: "wand.and.stars")
+                    .frame(maxWidth: .infinity)
+                    .amgiFont(.bodyEmphasis)
             }
+            .foregroundStyle(Color.amgiTextPrimary)
+            .disabled(!collectionState.isReady)
+            .listRowBackground(Color.amgiSurfaceElevated)
         }
     }
 

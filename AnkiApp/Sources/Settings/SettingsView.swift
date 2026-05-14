@@ -101,6 +101,19 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         case .japanese:          return Locale(identifier: "ja")
         }
     }
+
+    var preferredBackendLangs: [String] {
+        switch self {
+        case .system:
+            return Locale.preferredLanguages
+        case .chineseSimplified:
+            return ["zh-Hans"]
+        case .english:
+            return ["en"]
+        case .japanese:
+            return ["ja"]
+        }
+    }
 }
 
 // MARK: - SettingsView

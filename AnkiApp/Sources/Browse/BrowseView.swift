@@ -23,8 +23,8 @@ struct BrowseView: View {
     @State private var allTags: [String] = []
     @State private var activeTag: String?
     @State private var quickFilter: BrowseQuickFilter = .all
-    @State private var sortField: BrowseSortField = .sortField
-    @State private var sortReverse = true
+    @AppStorage("browse_sort_field") private var sortFieldRaw = BrowseSortField.sortField.rawValue
+    @AppStorage("browse_sort_reverse") private var sortReverse = true
     @State private var notetypeNamesByID: [Int64: String] = [:]
     @AppStorage("browse_show_notetype_subtitle") private var showNotetypeSubtitle = true
     @State private var isLoading = true
@@ -70,6 +70,11 @@ struct BrowseView: View {
     private let preselectedDeck: DeckInfo?
     private let isActive: Bool
     private let pageSize = 50
+
+    private var sortField: BrowseSortField {
+        get { BrowseSortField(rawValue: sortFieldRaw) ?? .sortField }
+        set { sortFieldRaw = newValue.rawValue }
+    }
 
     init(preselectedDeck: DeckInfo? = nil, isActive: Bool = true) {
         self.preselectedDeck = preselectedDeck
@@ -1649,7 +1654,7 @@ enum BrowseQuickFilter: CaseIterable {
     }
 }
 
-enum BrowseSortField: CaseIterable {
+enum BrowseSortField: String, CaseIterable {
     case due
     case cardModified
     case cardTemplate
