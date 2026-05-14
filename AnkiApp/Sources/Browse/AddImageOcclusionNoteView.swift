@@ -1293,7 +1293,7 @@ final class OcclusionCanvasUIView: UIView {
 
     private func handleRect(center: CGPoint) -> CGRect {
         let diameter = scaledMetric(handleHitDiameter)
-        CGRect(
+        return CGRect(
             x: center.x - diameter / 2,
             y: center.y - diameter / 2,
             width: diameter,
@@ -1303,7 +1303,7 @@ final class OcclusionCanvasUIView: UIView {
 
     private func visualHandleRect(center: CGPoint) -> CGRect {
         let diameter = scaledMetric(handleVisualDiameter)
-        CGRect(
+        return CGRect(
             x: center.x - diameter / 2,
             y: center.y - diameter / 2,
             width: diameter,
