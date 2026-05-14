@@ -59,13 +59,13 @@ extension ImageOcclusionClient: DependencyKey {
                     throw ImageOcclusionError.noteNotFound
                 }
                 // Reconstruct occlusions string from structured shapes
-                let occlusions = note.occlusions.enumerated().map { (i, occ) -> String in
-                    let n = occ.ordinal > 0 ? Int(occ.ordinal) : (i + 1)
-                    guard let shape = occ.shapes.first else { return "" }
-                    let propertyTokens = shape.properties.map { "\($0.name)=\($0.value)" }.joined(separator: ":")
-                    let suffix = propertyTokens.isEmpty ? "" : ":\(propertyTokens)"
-                    return "{{c\(n)::image-occlusion:\(shape.shape)\(suffix)}}"
-                }.filter { !$0.isEmpty }.joined(separator: "\n")
+                let occlusions = note.occlusions.flatMap { occ in
+                    occ.shapes.map { shape -> String in
+                        let propertyTokens = shape.properties.map { "\($0.name)=\($0.value)" }.joined(separator: ":")
+                        let suffix = propertyTokens.isEmpty ? "" : ":\(propertyTokens)"
+                        return "{{c\(occ.ordinal)::image-occlusion:\(shape.shape)\(suffix)}}"
+                    }
+                }.joined(separator: "\n")
 
                 return ImageOcclusionNoteData(
                     imageData: note.imageData,

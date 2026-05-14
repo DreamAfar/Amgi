@@ -1240,6 +1240,7 @@ struct CardWebView: UIViewRepresentable {
                 }
                 return {
                     type: el.dataset.shape,
+                    ordinal: parseInt(el.dataset.ordinal||'0'),
                     left: parseFloat(el.dataset.left||'0'), top: parseFloat(el.dataset.top||'0'),
                     width: parseFloat(el.dataset.width||'0'), height: parseFloat(el.dataset.height||'0'),
                     rx: parseFloat(el.dataset.rx||'0'), ry: parseFloat(el.dataset.ry||'0'),
@@ -1359,11 +1360,14 @@ struct CardWebView: UIViewRepresentable {
                         });
                         container._amgiIOShapes = shapes;
                     }
+                    function isAlwaysVisibleAnnotation(shape) {
+                        return shape.type === 'text' && shape.ordinal === 0;
+                    }
                     function visibleShapes() {
                         return (container._amgiIOShapes || []).filter(function(s) {
-                            if (s._revealed) return false;
-                            if (container._amgiMasksHidden) return false;
-                            if (s._cls === 'cloze-inactive') return !!s.occludeInactive;
+                            if (!isAlwaysVisibleAnnotation(s) && s._revealed) return false;
+                            if (container._amgiMasksHidden && !isAlwaysVisibleAnnotation(s)) return false;
+                            if (s._cls === 'cloze-inactive' && !isAlwaysVisibleAnnotation(s)) return !!s.occludeInactive;
                             return true;
                         });
                     }

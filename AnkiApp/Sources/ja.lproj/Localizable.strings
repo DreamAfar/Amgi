@@ -943,6 +943,9 @@
 "io_discard_changes_action" = "変更を破棄";
 "io_text_edit_title" = "テキスト編集";
 "io_text_color" = "文字色";
+"io_text_only_warning_title" = "穴埋めが未設定です";
+"io_text_only_warning_message" = "穴埋めノートタイプを選択していますが、穴埋めがまだ設定されていません。このまま続けますか？";
+"io_text_only_warning_continue" = "続ける";
 "io_section_content" = "内容";
 "io_header_placeholder" = "ヘッダー（質問プロンプト）";
 "io_back_extra_placeholder" = "裏面追加（任意）";

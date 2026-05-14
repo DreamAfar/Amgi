@@ -943,6 +943,9 @@
 "io_discard_changes_action" = "Discard Changes";
 "io_text_edit_title" = "Edit Text";
 "io_text_color" = "Text Colour";
+"io_text_only_warning_title" = "No cloze set";
+"io_text_only_warning_message" = "You selected a cloze note type, but no cloze has been set. Do you want to continue?";
+"io_text_only_warning_continue" = "Continue";
 "io_section_content" = "Content";
 "io_header_placeholder" = "Header (question prompt)";
 "io_back_extra_placeholder" = "Back Extra (optional)";

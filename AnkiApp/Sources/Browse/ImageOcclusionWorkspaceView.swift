@@ -523,21 +523,20 @@ struct ImageOcclusionWorkspaceView: View {
                 selectedMaskIndices = []
                 return
             }
-            let group = groupedSelectionIndices(for: index)
             selectedMaskIndex = index
-            selectedMaskIndices = group
+            selectedMaskIndices = [index]
         case .toggle(let index):
             guard masks.indices.contains(index) else { return }
-            let group = groupedSelectionIndices(for: index)
-            if group.isSubset(of: selectedMaskIndices) {
-                selectedMaskIndices.subtract(group)
-                if selectedMaskIndices.isEmpty {
-                    selectedMaskIndex = nil
-                } else if let selectedMaskIndex, !selectedMaskIndices.contains(selectedMaskIndex) {
-                    self.selectedMaskIndex = selectedMaskIndices.sorted().first
+            if selectedMaskIndices.contains(index) {
+                if selectedMaskIndices.count > 1 {
+                    selectedMaskIndex = index
+                    selectedMaskIndices = [index]
+                } else {
+                    selectedMaskIndex = index
+                    selectedMaskIndices = [index]
                 }
             } else {
-                selectedMaskIndices.formUnion(group)
+                selectedMaskIndices.insert(index)
                 selectedMaskIndex = index
             }
         }
@@ -582,7 +581,7 @@ struct ImageOcclusionWorkspaceView: View {
                 IOMaskSnapshot(
                     masks: updatedMasks,
                     selectedMaskIndex: pendingTextMaskIndex,
-                    selectedMaskIndices: groupedSelectionIndices(for: pendingTextMaskIndex, in: updatedMasks)
+                    selectedMaskIndices: [pendingTextMaskIndex]
                 )
             )
         } else if let pendingTextPoint {
@@ -817,15 +816,6 @@ struct ImageOcclusionWorkspaceView: View {
         zoomCommandID += 1
     }
 
-    private func groupedSelectionIndices(for index: Int, in masks: [IOMask]? = nil) -> Set<Int> {
-        let resolvedMasks = masks ?? self.masks
-        guard resolvedMasks.indices.contains(index) else { return [] }
-        guard let ordinal = resolvedMasks[index].serializationOrdinal else {
-            return [index]
-        }
-        return Set(resolvedMasks.indices.filter { resolvedMasks[$0].serializationOrdinal == ordinal })
-    }
-
     private func nextAvailableOrdinal(in masks: [IOMask], reserved: Set<Int> = []) -> Int {
         let currentMax = masks.compactMap(\.serializationOrdinal).max() ?? 0
         var candidate = currentMax + 1
@@ -1058,6 +1048,7 @@ struct ZoomableOcclusionCanvasView: UIViewRepresentable {
 final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate {
     let canvasView: OcclusionCanvasUIView
     private let canvasSelectionPadding: CGFloat = 56
+    private let canvasViewportInset: CGFloat = 8
     private var lastBoundsSize: CGSize = .zero
     private var imageSize: CGSize
 
@@ -1075,7 +1066,7 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
         backgroundColor = UIColor(Color.amgiSurfaceElevated)
         layer.cornerRadius = 24
         canvasView.imageInset = canvasSelectionPadding
-        canvasView.contentZoomScale = zoomScale
+        updateCanvasRenderingScale()
         addSubview(canvasView)
     }
 
@@ -1117,7 +1108,7 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
     }
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        canvasView.contentZoomScale = zoomScale
+        updateCanvasRenderingScale()
         centerCanvas()
     }
 
@@ -1130,18 +1121,38 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
         if resetZoom || zoomScale < minimumZoomScale {
             zoomScale = minimumZoomScale
         }
-        canvasView.contentZoomScale = zoomScale
+        updateCanvasRenderingScale()
+        if resetZoom {
+            contentOffset = defaultContentOffset(for: fittedSize)
+        }
         centerCanvas()
     }
 
     private func fittedCanvasSize(for boundsSize: CGSize) -> CGSize {
-        let availableWidth = max(boundsSize.width - 8 - canvasSelectionPadding * 2, 1)
-        let availableHeight = max(boundsSize.height - 8 - canvasSelectionPadding * 2, 1)
+        let availableWidth = max(boundsSize.width - canvasViewportInset, 1)
+        let availableHeight = max(boundsSize.height - canvasViewportInset, 1)
         let scale = min(availableWidth / max(imageSize.width, 1), availableHeight / max(imageSize.height, 1))
         return CGSize(
             width: imageSize.width * scale + canvasSelectionPadding * 2,
             height: imageSize.height * scale + canvasSelectionPadding * 2
         )
+    }
+
+    private func defaultContentOffset(for fittedSize: CGSize) -> CGPoint {
+        CGPoint(
+            x: fittedSize.width > bounds.width ? canvasSelectionPadding : 0,
+            y: fittedSize.height > bounds.height ? canvasSelectionPadding : 0
+        )
+    }
+
+    private func updateCanvasRenderingScale() {
+        canvasView.contentZoomScale = zoomScale
+        let renderingScale = UIScreen.main.scale * max(1, min(zoomScale, 4))
+        if abs(canvasView.contentScaleFactor - renderingScale) > .ulpOfOne {
+            canvasView.contentScaleFactor = renderingScale
+        }
+        canvasView.layer.contentsScale = renderingScale
+        canvasView.setNeedsDisplay()
     }
 
     private func centerCanvas() {

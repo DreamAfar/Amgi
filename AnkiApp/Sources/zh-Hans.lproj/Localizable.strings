@@ -943,6 +943,9 @@
 "io_discard_changes_action" = "放弃修改";
 "io_text_edit_title" = "编辑文字";
 "io_text_color" = "文字颜色";
+"io_text_only_warning_title" = "尚未设置填空";
+"io_text_only_warning_message" = "您选择的是填空题笔记模板，但尚未设置填空。是否继续？";
+"io_text_only_warning_continue" = "继续";
 "io_section_content" = "内容";
 "io_header_placeholder" = "标题（问题提示）";
 "io_back_extra_placeholder" = "背面附加（可选）";

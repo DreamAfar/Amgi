@@ -22,6 +22,7 @@ struct EditImageOcclusionNoteView: View {
     @State private var isSaving = false
     @State private var saveError: String?
     @State private var showOcclusionEditor = false
+    @State private var showTextOnlyWarning = false
 
     init(noteId: Int64, onSave: @escaping () -> Void, embedInNavigationStack: Bool = true) {
         self.noteId = noteId
@@ -132,6 +133,14 @@ struct EditImageOcclusionNoteView: View {
                 }
             }
         }
+        .alert(L("io_text_only_warning_title"), isPresented: $showTextOnlyWarning) {
+            Button(L("common_cancel"), role: .cancel) {}
+            Button(L("io_text_only_warning_continue")) {
+                Task { await save(skipTextOnlyWarning: true) }
+            }
+        } message: {
+            Text(L("io_text_only_warning_message"))
+        }
         .task { await loadNote() }
     }
 
@@ -161,8 +170,12 @@ struct EditImageOcclusionNoteView: View {
     }
 
     @MainActor
-    private func save() async {
+    private func save(skipTextOnlyWarning: Bool = false) async {
         guard !masks.isEmpty else { return }
+        guard skipTextOnlyWarning || masks.containsRealOcclusion else {
+            showTextOnlyWarning = true
+            return
+        }
         isSaving = true
         saveError = nil
         let occlusions = masks.enumerated().map { idx, mask in
