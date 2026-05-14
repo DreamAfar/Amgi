@@ -73,7 +73,7 @@ struct BrowseView: View {
 
     private var sortField: BrowseSortField {
         get { BrowseSortField(rawValue: sortFieldRaw) ?? .sortField }
-        set { sortFieldRaw = newValue.rawValue }
+        nonmutating set { sortFieldRaw = newValue.rawValue }
     }
 
     init(preselectedDeck: DeckInfo? = nil, isActive: Bool = true) {
