@@ -2237,7 +2237,7 @@ struct CardWebView: UIViewRepresentable {
                 return hiddenMarker
             }
             let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Speak", isDarkMode: isDarkMode)
-            return "<a class=\"replay-button replay-btn tts-btn\" href=\"#\" draggable=\"false\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-tts-text=\"\(spokenText)\" data-tts-lang=\"\(lang)\" data-tts-voices=\"\(voices)\" data-tts-speed=\"\(speed)\" onclick=\"return amgiPlayStructuredNode(this)\">\(iconHTML)</a>"
+            return "<a class=\"replay-button replay-btn tts-btn\" href=\"#\" draggable=\"false\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-av-kind=\"tts\" data-tts-text=\"\(spokenText)\" data-tts-lang=\"\(lang)\" data-tts-voices=\"\(voices)\" data-tts-speed=\"\(speed)\" onclick=\"return amgiPlayStructuredNode(this)\">\(iconHTML)</a>"
 
         case .none:
             return ""

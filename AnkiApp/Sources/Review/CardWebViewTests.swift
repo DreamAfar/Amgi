@@ -84,6 +84,26 @@ final class CardWebViewTests: XCTestCase {
         XCTAssertTrue(expanded.contains("data-tts-text=\"提示\""))
     }
 
+    func testExpandPlayTagsBuildsStructuredTtsButtonMarkup() {
+        var tts = Anki_CardRendering_TTSTag()
+        tts.fieldText = "提示"
+        tts.lang = "zh_CN"
+        var tag = Anki_CardRendering_AVTag()
+        tag.tts = tts
+
+        let expanded = CardWebView.expandPlayTags(
+            in: #"[anki:play:q:0]"#,
+            questionAVTags: [tag],
+            answerAVTags: [],
+            isDarkMode: false,
+            showReplayButtons: true
+        )
+
+        XCTAssertTrue(expanded.contains("class=\"replay-button replay-btn tts-btn\""))
+        XCTAssertTrue(expanded.contains("data-av-kind=\"tts\""))
+        XCTAssertTrue(expanded.contains("amgiPlayStructuredNode(this)"))
+    }
+
     func testMediaBaseTagPointsAtMediaRoot() {
         let mediaDir = URL(fileURLWithPath: "/tmp/anki-media", isDirectory: true)
 
