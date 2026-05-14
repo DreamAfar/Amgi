@@ -143,7 +143,7 @@ struct ImageOcclusionWorkspaceView: View {
     @State private var showFillEditor = false
     @State private var fillEditorColor = Color.yellow
     @State private var showDiscardConfirmation = false
-    @State private var showsTranslucentMasks = true
+    @State private var showsTranslucentMasks = false
     @State private var occlusionMode: IOOcclusionMode
     @State private var transformStartSnapshot: IOMaskSnapshot?
     @State private var zoomCommand: IOCanvasZoomCommand = .fit
@@ -173,7 +173,7 @@ struct ImageOcclusionWorkspaceView: View {
                 selectedMaskIndices: highlightedMaskIndices,
                 highlightedMaskIndices: highlightedMaskIndices,
                 shapeType: shapeType,
-                maskOpacity: showsTranslucentMasks ? 0.72 : 0.94,
+                maskOpacity: showsTranslucentMasks ? 0.4 : 1,
                 zoomCommand: zoomCommand,
                 zoomCommandID: zoomCommandID,
                 onRequestText: beginTextInsertion(at:),
@@ -1057,6 +1057,7 @@ struct ZoomableOcclusionCanvasView: UIViewRepresentable {
 
 final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate {
     let canvasView: OcclusionCanvasUIView
+    private let canvasSelectionPadding: CGFloat = 56
     private var lastBoundsSize: CGSize = .zero
     private var imageSize: CGSize
 
@@ -1073,6 +1074,8 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
         maximumZoomScale = 5
         backgroundColor = UIColor(Color.amgiSurfaceElevated)
         layer.cornerRadius = 24
+        canvasView.imageInset = canvasSelectionPadding
+        canvasView.contentZoomScale = zoomScale
         addSubview(canvasView)
     }
 
@@ -1114,6 +1117,7 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
     }
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        canvasView.contentZoomScale = zoomScale
         centerCanvas()
     }
 
@@ -1126,14 +1130,18 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
         if resetZoom || zoomScale < minimumZoomScale {
             zoomScale = minimumZoomScale
         }
+        canvasView.contentZoomScale = zoomScale
         centerCanvas()
     }
 
     private func fittedCanvasSize(for boundsSize: CGSize) -> CGSize {
-        let availableWidth = max(boundsSize.width - 8, 1)
-        let availableHeight = max(boundsSize.height - 8, 1)
+        let availableWidth = max(boundsSize.width - 8 - canvasSelectionPadding * 2, 1)
+        let availableHeight = max(boundsSize.height - 8 - canvasSelectionPadding * 2, 1)
         let scale = min(availableWidth / max(imageSize.width, 1), availableHeight / max(imageSize.height, 1))
-        return CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        return CGSize(
+            width: imageSize.width * scale + canvasSelectionPadding * 2,
+            height: imageSize.height * scale + canvasSelectionPadding * 2
+        )
     }
 
     private func centerCanvas() {

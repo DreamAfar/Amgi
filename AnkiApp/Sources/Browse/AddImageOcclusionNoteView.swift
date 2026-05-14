@@ -615,6 +615,13 @@ final class OcclusionCanvasUIView: UIView {
     private let minimumTextScale: CGFloat = 0.25
 
     var image: UIImage
+    var imageInset: CGFloat = 0
+    var contentZoomScale: CGFloat = 1 {
+        didSet {
+            guard abs(oldValue - contentZoomScale) > .ulpOfOne else { return }
+            setNeedsDisplay()
+        }
+    }
     var masks: [IOMask] = []
     var selectedMaskIndex: Int?
     var shapeType: IOShapeType = .rect
@@ -660,7 +667,7 @@ final class OcclusionCanvasUIView: UIView {
             let isSelected = i == selectedMaskIndex
             let isHighlighted = highlightedMaskIndices.contains(i)
             ctx.setStrokeColor(((isSelected || isHighlighted) ? UIColor.systemBlue : UIColor(cgColor: inactiveStroke)).cgColor)
-            ctx.setLineWidth((isSelected || isHighlighted) ? 2.5 : 1.5)
+            ctx.setLineWidth(scaledStrokeWidth(1))
             drawMask(ctx: ctx, mask: mask, imgRect: imgRect)
             drawOrdinal(ctx: ctx, index: i, mask: mask, imgRect: imgRect)
             if isSelected || isHighlighted {
@@ -677,7 +684,7 @@ final class OcclusionCanvasUIView: UIView {
         if let dr = currentDragRect {
             ctx.setFillColor(UIColor(red: 1, green: 0.55, blue: 0.55, alpha: 0.5).cgColor)
             ctx.setStrokeColor(UIColor(red: 0.8, green: 0, blue: 0, alpha: 0.8).cgColor)
-            ctx.setLineWidth(1.5)
+            ctx.setLineWidth(scaledStrokeWidth(1))
             if shapeType == .ellipse {
                 ctx.addEllipse(in: dr)
             } else {
@@ -690,13 +697,19 @@ final class OcclusionCanvasUIView: UIView {
         if !polygonPoints.isEmpty {
             ctx.setFillColor(UIColor(red: 1, green: 0.55, blue: 0.55, alpha: 0.3).cgColor)
             ctx.setStrokeColor(UIColor(red: 0.8, green: 0, blue: 0, alpha: 0.9).cgColor)
-            ctx.setLineWidth(1.5)
+            ctx.setLineWidth(scaledStrokeWidth(1))
             ctx.move(to: polygonPoints[0])
             for pt in polygonPoints.dropFirst() { ctx.addLine(to: pt) }
             ctx.drawPath(using: .fillStroke)
             for pt in polygonPoints {
                 ctx.setFillColor(UIColor.systemRed.cgColor)
-                ctx.fillEllipse(in: CGRect(x: pt.x - 4, y: pt.y - 4, width: 8, height: 8))
+                let diameter = scaledMetric(8)
+                ctx.fillEllipse(in: CGRect(
+                    x: pt.x - diameter / 2,
+                    y: pt.y - diameter / 2,
+                    width: diameter,
+                    height: diameter
+                ))
             }
         }
     }
@@ -888,10 +901,19 @@ final class OcclusionCanvasUIView: UIView {
     }
 
     private func imageRect(in bounds: CGRect) -> CGRect {
+        let paddedBounds = bounds.insetBy(
+            dx: min(imageInset, bounds.width / 2),
+            dy: min(imageInset, bounds.height / 2)
+        )
         let s = image.size
-        let scale = min(bounds.width / s.width, bounds.height / s.height)
+        let scale = min(paddedBounds.width / s.width, paddedBounds.height / s.height)
         let w = s.width * scale, h = s.height * scale
-        return CGRect(x: (bounds.width - w) / 2, y: (bounds.height - h) / 2, width: w, height: h)
+        return CGRect(
+            x: paddedBounds.minX + (paddedBounds.width - w) / 2,
+            y: paddedBounds.minY + (paddedBounds.height - h) / 2,
+            width: w,
+            height: h
+        )
     }
 
     private func normalizedMask(from r: CGRect, in imgRect: CGRect) -> IOMask {
@@ -938,9 +960,10 @@ final class OcclusionCanvasUIView: UIView {
 
     private func drawSelectionOutline(ctx: CGContext, mask: IOMask, imgRect: CGRect, showsHandles: Bool) {
         let geometry = selectionGeometry(for: mask, imgRect: imgRect)
+        let handles = supportedSelectionHandles(for: mask)
         ctx.saveGState()
         ctx.setStrokeColor(UIColor.systemBlue.cgColor)
-        ctx.setLineWidth(2)
+        ctx.setLineWidth(scaledStrokeWidth(1))
 
         ctx.beginPath()
         ctx.move(to: geometry.corners[0])
@@ -960,9 +983,10 @@ final class OcclusionCanvasUIView: UIView {
 
         let handleFill = UIColor(red: 0.73, green: 0.82, blue: 1, alpha: 1)
         ctx.setFillColor(handleFill.cgColor)
-        for handle in SelectionHandle.allCases {
+        for handle in handles {
             guard let center = geometry.handleCenters[handle] else { continue }
-            let rect = visualHandleRect(center: center).insetBy(dx: 0.5, dy: 0.5)
+            let inset = scaledMetric(0.5)
+            let rect = visualHandleRect(center: center).insetBy(dx: inset, dy: inset)
             ctx.fillEllipse(in: rect)
             ctx.strokeEllipse(in: rect)
         }
@@ -1268,20 +1292,22 @@ final class OcclusionCanvasUIView: UIView {
     }
 
     private func handleRect(center: CGPoint) -> CGRect {
+        let diameter = scaledMetric(handleHitDiameter)
         CGRect(
-            x: center.x - handleHitDiameter / 2,
-            y: center.y - handleHitDiameter / 2,
-            width: handleHitDiameter,
-            height: handleHitDiameter
+            x: center.x - diameter / 2,
+            y: center.y - diameter / 2,
+            width: diameter,
+            height: diameter
         )
     }
 
     private func visualHandleRect(center: CGPoint) -> CGRect {
+        let diameter = scaledMetric(handleVisualDiameter)
         CGRect(
-            x: center.x - handleVisualDiameter / 2,
-            y: center.y - handleVisualDiameter / 2,
-            width: handleVisualDiameter,
-            height: handleVisualDiameter
+            x: center.x - diameter / 2,
+            y: center.y - diameter / 2,
+            width: diameter,
+            height: diameter
         )
     }
 
@@ -1344,7 +1370,7 @@ final class OcclusionCanvasUIView: UIView {
 
     private func selectionGeometry(for mask: IOMask, imgRect: CGRect) -> SelectionGeometry {
         if let box = boxTransform(for: mask, imgRect: imgRect) {
-            let corners = boxCorners(origin: box.origin, size: box.size, angle: box.angle, outset: selectionOutset)
+            let corners = boxCorners(origin: box.origin, size: box.size, angle: box.angle, outset: scaledMetric(selectionOutset))
             let topCenter = midpoint(corners[0], corners[1])
             let rightCenter = midpoint(corners[1], corners[2])
             let bottomCenter = midpoint(corners[2], corners[3])
@@ -1352,29 +1378,34 @@ final class OcclusionCanvasUIView: UIView {
             let tangent = normalizedVector(from: corners[0], to: corners[1])
             let outwardNormal = CGPoint(x: tangent.y, y: -tangent.x)
             let rotationHandle = CGPoint(
-                x: topCenter.x + outwardNormal.x * rotationHandleDistance,
-                y: topCenter.y + outwardNormal.y * rotationHandleDistance
+                x: topCenter.x + outwardNormal.x * scaledMetric(rotationHandleDistance),
+                y: topCenter.y + outwardNormal.y * scaledMetric(rotationHandleDistance)
             )
+            let supportsEdgeHandles = maskSupportsEdgeHandles(mask)
+            var handleCenters: [SelectionHandle: CGPoint] = [
+                .topLeft: corners[0],
+                .topRight: corners[1],
+                .bottomRight: corners[2],
+                .bottomLeft: corners[3],
+                .rotate: rotationHandle
+            ]
+            if supportsEdgeHandles {
+                handleCenters[.top] = topCenter
+                handleCenters[.right] = rightCenter
+                handleCenters[.bottom] = bottomCenter
+                handleCenters[.left] = leftCenter
+            }
             return SelectionGeometry(
                 corners: corners,
-                handleCenters: [
-                    .topLeft: corners[0],
-                    .top: topCenter,
-                    .topRight: corners[1],
-                    .right: rightCenter,
-                    .bottomRight: corners[2],
-                    .bottom: bottomCenter,
-                    .bottomLeft: corners[3],
-                    .left: leftCenter,
-                    .rotate: rotationHandle
-                ],
+                handleCenters: handleCenters,
                 rotationStemStart: topCenter,
                 rotationStemEnd: rotationHandle,
                 center: maskCenter(for: mask, imgRect: imgRect)
             )
         }
 
-        let paddedBounds = maskBounds(for: mask, imgRect: imgRect).insetBy(dx: -selectionOutset, dy: -selectionOutset)
+        let selectionInset = scaledMetric(selectionOutset)
+        let paddedBounds = maskBounds(for: mask, imgRect: imgRect).insetBy(dx: -selectionInset, dy: -selectionInset)
         let corners = [
             CGPoint(x: paddedBounds.minX, y: paddedBounds.minY),
             CGPoint(x: paddedBounds.maxX, y: paddedBounds.minY),
@@ -1385,7 +1416,7 @@ final class OcclusionCanvasUIView: UIView {
         let rightCenter = CGPoint(x: paddedBounds.maxX, y: paddedBounds.midY)
         let bottomCenter = CGPoint(x: paddedBounds.midX, y: paddedBounds.maxY)
         let leftCenter = CGPoint(x: paddedBounds.minX, y: paddedBounds.midY)
-        let rotationHandle = CGPoint(x: paddedBounds.midX, y: paddedBounds.minY - rotationHandleDistance)
+        let rotationHandle = CGPoint(x: paddedBounds.midX, y: paddedBounds.minY - scaledMetric(rotationHandleDistance))
         return SelectionGeometry(
             corners: corners,
             handleCenters: [
@@ -1405,10 +1436,17 @@ final class OcclusionCanvasUIView: UIView {
         )
     }
 
+    private func scaledMetric(_ value: CGFloat) -> CGFloat {
+        value / max(contentZoomScale, 1)
+    }
+
+    private func scaledStrokeWidth(_ value: CGFloat) -> CGFloat {
+        scaledMetric(value)
+    }
+
     private func selectionHandle(at point: CGPoint, mask: IOMask, imgRect: CGRect) -> SelectionHandle? {
         let geometry = selectionGeometry(for: mask, imgRect: imgRect)
-        let orderedHandles: [SelectionHandle] = [.rotate, .topLeft, .top, .topRight, .right, .bottomRight, .bottom, .bottomLeft, .left]
-        for handle in orderedHandles {
+        for handle in supportedSelectionHandles(for: mask) {
             if let center = geometry.handleCenters[handle], handleRect(center: center).contains(point) {
                 return handle
             }
@@ -1484,7 +1522,59 @@ final class OcclusionCanvasUIView: UIView {
             return nil
         }
 
-        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+        let frame = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+        guard isCornerHandle(handle) else {
+            return frame
+        }
+        return proportionalFrame(
+            from: originalFrame,
+            targetFrame: frame,
+            handle: handle,
+            minimumSize: minimumSize
+        )
+    }
+
+    private func supportedSelectionHandles(for mask: IOMask) -> [SelectionHandle] {
+        if maskSupportsEdgeHandles(mask) {
+            return [.rotate, .topLeft, .top, .topRight, .right, .bottomRight, .bottom, .bottomLeft, .left]
+        }
+        return [.rotate, .topLeft, .topRight, .bottomRight, .bottomLeft]
+    }
+
+    private func maskSupportsEdgeHandles(_ mask: IOMask) -> Bool {
+        if case .text = mask {
+            return false
+        }
+        return true
+    }
+
+    private func isCornerHandle(_ handle: SelectionHandle) -> Bool {
+        switch handle {
+        case .topLeft, .topRight, .bottomRight, .bottomLeft:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func proportionalFrame(
+        from originalFrame: CGRect,
+        targetFrame: CGRect,
+        handle: SelectionHandle,
+        minimumSize: CGSize
+    ) -> CGRect {
+        let widthRatio = targetFrame.width / max(originalFrame.width, 1)
+        let heightRatio = targetFrame.height / max(originalFrame.height, 1)
+        let minimumScale = max(
+            minimumSize.width / max(originalFrame.width, 1),
+            minimumSize.height / max(originalFrame.height, 1)
+        )
+        let scale = max(minimumScale, max(widthRatio, heightRatio))
+        let scaledSize = CGSize(
+            width: originalFrame.width * scale,
+            height: originalFrame.height * scale
+        )
+        return anchoredFrame(for: targetFrame, size: scaledSize, handle: handle)
     }
 
     private func anchoredFrame(for targetFrame: CGRect, size: CGSize, handle: SelectionHandle) -> CGRect {
