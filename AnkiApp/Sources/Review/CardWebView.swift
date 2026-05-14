@@ -30,6 +30,7 @@ struct CardWebView: UIViewRepresentable {
     let stopAudioRequestID: Int
     let typedAnswerRequestID: Int
     let replayMode: ReplayMode
+    let playAudioInSilentMode: Bool
     let showInlineAudioReplayButtons: Bool
     let openLinksExternally: Bool
     let lookupPopupEnabled: Bool
@@ -53,6 +54,7 @@ struct CardWebView: UIViewRepresentable {
         stopAudioRequestID: Int = 0,
         typedAnswerRequestID: Int = 0,
         replayMode: ReplayMode = .question,
+        playAudioInSilentMode: Bool = false,
         showInlineAudioReplayButtons: Bool = true,
         openLinksExternally: Bool = true,
         lookupPopupEnabled: Bool = true,
@@ -75,6 +77,7 @@ struct CardWebView: UIViewRepresentable {
         self.stopAudioRequestID = stopAudioRequestID
         self.typedAnswerRequestID = typedAnswerRequestID
         self.replayMode = replayMode
+        self.playAudioInSilentMode = playAudioInSilentMode
         self.showInlineAudioReplayButtons = showInlineAudioReplayButtons
         self.openLinksExternally = openLinksExternally
         self.lookupPopupEnabled = lookupPopupEnabled
@@ -159,6 +162,7 @@ struct CardWebView: UIViewRepresentable {
         let cssSignature = "\(cardCSS.hashValue)"
         let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(lookupPopupEnabled)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(cssSignature)|\(processedHTML.hashValue)|\(processedPrefetchHTML?.hashValue ?? 0)"
         context.coordinator.openLinksExternally = openLinksExternally
+        context.coordinator.playAudioInSilentMode = playAudioInSilentMode
         context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
 
@@ -2568,6 +2572,7 @@ struct CardWebView: UIViewRepresentable {
         var isPageLoaded = false
         var pendingUpdateScript: String?
         var openLinksExternally: Bool = true
+        var playAudioInSilentMode: Bool = false
         weak var currentWebView: WKWebView?
         let onTypedAnswerSubmitted: ((String?) -> Void)?
         private let onAudioStateChange: ((Bool) -> Void)?
@@ -2668,6 +2673,7 @@ struct CardWebView: UIViewRepresentable {
             let utteranceID = ObjectIdentifier(utterance)
             Task { @MainActor [weak self] in
                 self?.notifyWebViewOfTTSEvent(state: "finish", forUtteranceID: utteranceID)
+                self?.restoreReviewAudioSession()
                 self?.onAudioStateChange?(false)
             }
         }
@@ -2676,6 +2682,7 @@ struct CardWebView: UIViewRepresentable {
             let utteranceID = ObjectIdentifier(utterance)
             Task { @MainActor [weak self] in
                 self?.notifyWebViewOfTTSEvent(state: "cancel", forUtteranceID: utteranceID)
+                self?.restoreReviewAudioSession()
                 self?.onAudioStateChange?(false)
             }
         }
@@ -2683,6 +2690,7 @@ struct CardWebView: UIViewRepresentable {
         func stopTTS() {
             guard speechSynthesizer.isSpeaking else { return }
             speechSynthesizer.stopSpeaking(at: .immediate)
+            restoreReviewAudioSession()
             onAudioStateChange?(false)
         }
 
@@ -2757,6 +2765,7 @@ struct CardWebView: UIViewRepresentable {
             let token = (payload["token"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
 
             stopTTS()
+            configureTTSAudioSession()
 
             let utterance = AVSpeechUtterance(string: text)
             let utteranceToken = token?.isEmpty == false ? token : nil
@@ -2779,6 +2788,38 @@ struct CardWebView: UIViewRepresentable {
             let mappedRate = AVSpeechUtteranceDefaultSpeechRate * max(0.25, min(speedMultiplier, 2.0))
             utterance.rate = min(max(mappedRate, AVSpeechUtteranceMinimumSpeechRate), AVSpeechUtteranceMaximumSpeechRate)
             speechSynthesizer.speak(utterance)
+        }
+
+        private func configureTTSAudioSession() {
+            let session = AVAudioSession.sharedInstance()
+            do {
+                if playAudioInSilentMode {
+                    try session.setCategory(
+                        .playback,
+                        mode: .voicePrompt,
+                        options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers]
+                    )
+                } else {
+                    try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+                }
+                try session.setActive(true, options: [])
+            } catch {
+                print("[CardWebView] TTS audio session configure failed: \(error)")
+            }
+        }
+
+        private func restoreReviewAudioSession() {
+            do {
+                let session = AVAudioSession.sharedInstance()
+                if playAudioInSilentMode {
+                    try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                } else {
+                    try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+                }
+                try session.setActive(true, options: [])
+            } catch {
+                print("[CardWebView] Review audio session restore failed: \(error)")
+            }
         }
 
         private func notifyWebViewOfTTSEvent(

@@ -494,6 +494,7 @@ struct ReviewView: View {
                 stopAudioRequestID: stopAudioRequestID,
                 typedAnswerRequestID: typedAnswerRequestID,
                 replayMode: replayMode,
+                playAudioInSilentMode: prefPlayAudioInSilentMode,
                 showInlineAudioReplayButtons: prefShowAudioReplayButton,
                 openLinksExternally: prefOpenLinksExternally,
                 lookupPopupEnabled: isLookupPopupEnabledForCurrentSide,
