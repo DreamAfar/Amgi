@@ -1077,8 +1077,9 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
     override func layoutSubviews() {
         super.layoutSubviews()
         if bounds.size != lastBoundsSize {
+            let needsInitialFit = lastBoundsSize == .zero
             lastBoundsSize = bounds.size
-            relayoutCanvas(resetZoom: false)
+            relayoutCanvas(resetZoom: needsInitialFit)
         }
         centerCanvas()
     }
@@ -1113,7 +1114,6 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
     }
 
     private func relayoutCanvas(resetZoom: Bool) {
-        let isInitialLayout = contentSize == .zero
         let fittedSize = fittedCanvasSize(for: bounds.size)
         canvasView.frame = CGRect(origin: .zero, size: fittedSize)
         contentSize = fittedSize
@@ -1123,7 +1123,7 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
             zoomScale = minimumZoomScale
         }
         updateCanvasRenderingScale()
-        if resetZoom || isInitialLayout {
+        if resetZoom {
             contentOffset = defaultContentOffset(for: fittedSize)
         }
         centerCanvas()

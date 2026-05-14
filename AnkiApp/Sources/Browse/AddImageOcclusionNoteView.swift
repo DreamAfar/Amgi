@@ -1482,37 +1482,22 @@ final class OcclusionCanvasUIView: UIView {
             let frame = textFrame(for: text, left: left, top: top, scale: scale, fontSize: fontSize, imgRect: imgRect)
             return BoxTransform(origin: frame.origin, size: frame.size, angle: angleRadians(for: mask))
         case .polygon(let points, _):
-            return polygonBoxTransform(points: points, imgRect: imgRect)
+            return polygonBoxTransform(points: points, angle: angleRadians(for: mask), imgRect: imgRect)
         }
     }
 
-    private func polygonBoxTransform(points: [CGPoint], imgRect: CGRect) -> BoxTransform? {
+    private func polygonBoxTransform(points: [CGPoint], angle: CGFloat, imgRect: CGRect) -> BoxTransform? {
         let absolutePoints = points.map { absolutePoint(for: $0, imgRect: imgRect) }
         guard absolutePoints.count >= 2 else { return nil }
 
-        var bestAngle: CGFloat = 0
-        var bestBounds = boundingRect(of: absolutePoints)
-        var bestArea = bestBounds.width * bestBounds.height
-
-        for index in absolutePoints.indices {
-            let start = absolutePoints[index]
-            let end = absolutePoints[(index + 1) % absolutePoints.count]
-            let edgeLength = hypot(end.x - start.x, end.y - start.y)
-            guard edgeLength > .leastNonzeroMagnitude else { continue }
-
-            let angle = atan2(end.y - start.y, end.x - start.x)
-            let rotatedPoints = absolutePoints.map { rotate($0, by: -angle) }
-            let bounds = boundingRect(of: rotatedPoints)
-            let area = bounds.width * bounds.height
-            if area < bestArea {
-                bestAngle = angle
-                bestBounds = bounds
-                bestArea = area
-            }
-        }
-
-        let origin = rotate(CGPoint(x: bestBounds.minX, y: bestBounds.minY), by: bestAngle)
-        return BoxTransform(origin: origin, size: bestBounds.size, angle: bestAngle)
+        let center = CGPoint(
+            x: absolutePoints.map(\.x).reduce(0, +) / CGFloat(absolutePoints.count),
+            y: absolutePoints.map(\.y).reduce(0, +) / CGFloat(absolutePoints.count)
+        )
+        let rotatedPoints = absolutePoints.map { rotate($0, by: -angle, around: center) }
+        let bounds = boundingRect(of: rotatedPoints)
+        let origin = rotate(CGPoint(x: bounds.minX, y: bounds.minY), by: angle, around: center)
+        return BoxTransform(origin: origin, size: bounds.size, angle: angle)
     }
 
     private func selectionGeometry(for mask: IOMask, imgRect: CGRect) -> SelectionGeometry {
@@ -1800,11 +1785,12 @@ final class OcclusionCanvasUIView: UIView {
         let snappedDelta = snappedRotationDelta(delta)
         switch mask {
         case .polygon(let points, let extras):
+            let newAngle = snappedRotationAngle(angleRadians(for: mask) + snappedDelta)
             let updatedPoints = points.map { point in
                 let absolute = absolutePoint(for: point, imgRect: imgRect)
                 return normalizedPoint(for: rotate(absolute, by: snappedDelta, around: pivot), imgRect: imgRect)
             }
-            return .polygon(points: updatedPoints, extras: extras)
+            return .polygon(points: updatedPoints, extras: extrasSettingAngle(extras, radians: newAngle))
         case .rect, .ellipse, .text:
             guard let box = boxTransform(for: mask, imgRect: imgRect) else { return nil }
             let center = maskCenter(for: mask, imgRect: imgRect)
@@ -1812,7 +1798,14 @@ final class OcclusionCanvasUIView: UIView {
             let newAngle = snappedRotationAngle(box.angle + snappedDelta)
             let rotatedHalfSize = rotate(CGPoint(x: box.size.width / 2, y: box.size.height / 2), by: newAngle)
             let newOrigin = CGPoint(x: rotatedCenter.x - rotatedHalfSize.x, y: rotatedCenter.y - rotatedHalfSize.y)
-            return updatedBoxMask(mask, origin: newOrigin, size: box.size, angle: newAngle, imgRect: imgRect)
+            return updatedBoxMask(
+                mask,
+                origin: newOrigin,
+                size: box.size,
+                angle: newAngle,
+                imgRect: imgRect,
+                clampsOriginToImageBounds: false
+            )
         }
     }
 
@@ -1864,13 +1857,22 @@ final class OcclusionCanvasUIView: UIView {
         }
     }
 
-    private func updatedBoxMask(_ mask: IOMask, origin: CGPoint, size: CGSize, angle: CGFloat, imgRect: CGRect) -> IOMask? {
+    private func updatedBoxMask(
+        _ mask: IOMask,
+        origin: CGPoint,
+        size: CGSize,
+        angle: CGFloat,
+        imgRect: CGRect,
+        clampsOriginToImageBounds: Bool = true
+    ) -> IOMask? {
         switch mask {
         case .rect(_, _, _, _, let extras):
             let normalizedWidth = max(minimumNormalizedDimension, min(1, size.width / imgRect.width))
             let normalizedHeight = max(minimumNormalizedDimension, min(1, size.height / imgRect.height))
-            let left = max(0, min(1 - normalizedWidth, (origin.x - imgRect.minX) / imgRect.width))
-            let top = max(0, min(1 - normalizedHeight, (origin.y - imgRect.minY) / imgRect.height))
+            let rawLeft = (origin.x - imgRect.minX) / imgRect.width
+            let rawTop = (origin.y - imgRect.minY) / imgRect.height
+            let left = clampsOriginToImageBounds ? max(0, min(1 - normalizedWidth, rawLeft)) : rawLeft
+            let top = clampsOriginToImageBounds ? max(0, min(1 - normalizedHeight, rawTop)) : rawTop
             return .rect(
                 left: left,
                 top: top,
@@ -1881,8 +1883,10 @@ final class OcclusionCanvasUIView: UIView {
         case .ellipse(_, _, _, _, let extras):
             let normalizedWidth = max(minimumNormalizedDimension, min(1, size.width / imgRect.width))
             let normalizedHeight = max(minimumNormalizedDimension, min(1, size.height / imgRect.height))
-            let left = max(0, min(1 - normalizedWidth, (origin.x - imgRect.minX) / imgRect.width))
-            let top = max(0, min(1 - normalizedHeight, (origin.y - imgRect.minY) / imgRect.height))
+            let rawLeft = (origin.x - imgRect.minX) / imgRect.width
+            let rawTop = (origin.y - imgRect.minY) / imgRect.height
+            let left = clampsOriginToImageBounds ? max(0, min(1 - normalizedWidth, rawLeft)) : rawLeft
+            let top = clampsOriginToImageBounds ? max(0, min(1 - normalizedHeight, rawTop)) : rawTop
             return .ellipse(
                 left: left,
                 top: top,
@@ -1893,8 +1897,10 @@ final class OcclusionCanvasUIView: UIView {
         case .text(_, _, let text, let scale, let fontSize, let extras):
             let normalizedWidth = min(1, size.width / imgRect.width)
             let normalizedHeight = min(1, size.height / imgRect.height)
-            let left = max(0, min(1 - normalizedWidth, (origin.x - imgRect.minX) / imgRect.width))
-            let top = max(0, min(1 - normalizedHeight, (origin.y - imgRect.minY) / imgRect.height))
+            let rawLeft = (origin.x - imgRect.minX) / imgRect.width
+            let rawTop = (origin.y - imgRect.minY) / imgRect.height
+            let left = clampsOriginToImageBounds ? max(0, min(1 - normalizedWidth, rawLeft)) : rawLeft
+            let top = clampsOriginToImageBounds ? max(0, min(1 - normalizedHeight, rawTop)) : rawTop
             return .text(
                 left: left,
                 top: top,
