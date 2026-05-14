@@ -2657,22 +2657,25 @@ struct CardWebView: UIViewRepresentable {
         }
 
         nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+            let utteranceID = ObjectIdentifier(utterance)
             Task { @MainActor [weak self] in
-                self?.notifyWebViewOfTTSEvent(state: "start", for: utterance, removeToken: false)
+                self?.notifyWebViewOfTTSEvent(state: "start", forUtteranceID: utteranceID, removeToken: false)
                 self?.onAudioStateChange?(true)
             }
         }
 
         nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+            let utteranceID = ObjectIdentifier(utterance)
             Task { @MainActor [weak self] in
-                self?.notifyWebViewOfTTSEvent(state: "finish", for: utterance)
+                self?.notifyWebViewOfTTSEvent(state: "finish", forUtteranceID: utteranceID)
                 self?.onAudioStateChange?(false)
             }
         }
 
         nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+            let utteranceID = ObjectIdentifier(utterance)
             Task { @MainActor [weak self] in
-                self?.notifyWebViewOfTTSEvent(state: "cancel", for: utterance)
+                self?.notifyWebViewOfTTSEvent(state: "cancel", forUtteranceID: utteranceID)
                 self?.onAudioStateChange?(false)
             }
         }
@@ -2780,10 +2783,9 @@ struct CardWebView: UIViewRepresentable {
 
         private func notifyWebViewOfTTSEvent(
             state: String,
-            for utterance: AVSpeechUtterance,
+            forUtteranceID utteranceID: ObjectIdentifier,
             removeToken: Bool = true
         ) {
-            let utteranceID = ObjectIdentifier(utterance)
             let token = ttsTokensByUtterance[utteranceID] ?? ""
             guard let webView = currentWebView else {
                 if removeToken {
