@@ -3,6 +3,7 @@ import WebKit
 import Foundation
 import UIKit
 import AVFoundation
+import AnkiProto
 
 struct CardWebView: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
@@ -22,6 +23,8 @@ struct CardWebView: UIViewRepresentable {
     let cardCSS: String
     let autoplayEnabled: Bool
     let isAnswerSide: Bool
+    let questionAVTags: [Anki_CardRendering_AVTag]
+    let answerAVTags: [Anki_CardRendering_AVTag]
     let cardOrdinal: UInt32
     let replayRequestID: Int
     let stopAudioRequestID: Int
@@ -43,6 +46,8 @@ struct CardWebView: UIViewRepresentable {
         cardCSS: String = "",
         autoplayEnabled: Bool = true,
         isAnswerSide: Bool = false,
+        questionAVTags: [Anki_CardRendering_AVTag] = [],
+        answerAVTags: [Anki_CardRendering_AVTag] = [],
         cardOrdinal: UInt32 = 0,
         replayRequestID: Int = 0,
         stopAudioRequestID: Int = 0,
@@ -63,6 +68,8 @@ struct CardWebView: UIViewRepresentable {
         self.cardCSS = cardCSS
         self.autoplayEnabled = autoplayEnabled
         self.isAnswerSide = isAnswerSide
+        self.questionAVTags = questionAVTags
+        self.answerAVTags = answerAVTags
         self.cardOrdinal = cardOrdinal
         self.replayRequestID = replayRequestID
         self.stopAudioRequestID = stopAudioRequestID
@@ -126,20 +133,23 @@ struct CardWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Convert Anki [sound:filename.mp3] tags to <audio> HTML elements.
-        // The Rust renderer keeps these tags literal; the client must expand them.
         let isDarkMode = colorScheme == .dark
-        let processedHTML = Self.deferCardScripts(in:
-            Self.expandTTSTags(
-                in: Self.expandSoundTags(
-                    html,
-                    isDarkMode: isDarkMode,
-                    showReplayButtons: showInlineAudioReplayButtons
-                ),
+        let processedHTML = Self.processReviewHTML(
+            html,
+            questionAVTags: questionAVTags,
+            answerAVTags: answerAVTags,
+            isDarkMode: isDarkMode,
+            showReplayButtons: showInlineAudioReplayButtons
+        )
+        let processedPrefetchHTML = prefetchHTML.map {
+            Self.processReviewHTML(
+                $0,
+                questionAVTags: questionAVTags,
+                answerAVTags: answerAVTags,
                 isDarkMode: isDarkMode,
                 showReplayButtons: showInlineAudioReplayButtons
             )
-        )
+        }
         let hasTypedAnswerInput = !isAnswerSide && processedHTML.contains("id=\"typeans\"")
         let bodyPaddingBottom = hasTypedAnswerInput ? 148 : 16
         let cardPaddingBottom = hasTypedAnswerInput ? 96 : 0
@@ -147,7 +157,7 @@ struct CardWebView: UIViewRepresentable {
         let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
         let pageSignature = "\(isDarkMode)"
         let cssSignature = "\(cardCSS.hashValue)"
-        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(lookupPopupEnabled)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(cssSignature)|\(processedHTML.hashValue)|\(prefetchHTML?.hashValue ?? 0)"
+        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(lookupPopupEnabled)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(cssSignature)|\(processedHTML.hashValue)|\(processedPrefetchHTML?.hashValue ?? 0)"
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
@@ -156,7 +166,7 @@ struct CardWebView: UIViewRepresentable {
         // HTML content never lives inside a <script> literal in the page source.
         let showCardScript = Self.showCardScript(
             processedHTML: processedHTML,
-            prefetchHTML: prefetchHTML,
+            prefetchHTML: processedPrefetchHTML,
             cardCSS: cardCSS,
             isAnswerSide: isAnswerSide,
             lookupPopupEnabled: lookupPopupEnabled,
@@ -165,7 +175,9 @@ struct CardWebView: UIViewRepresentable {
             replayMode: replayMode.rawValue,
             alignTop: alignTop,
             bodyPaddingBottom: bodyPaddingBottom,
-            cardPaddingBottom: cardPaddingBottom
+            cardPaddingBottom: cardPaddingBottom,
+            questionAVTags: questionAVTags,
+            answerAVTags: answerAVTags
         )
         context.coordinator.stopTTS()
 
@@ -1003,133 +1015,474 @@ struct CardWebView: UIViewRepresentable {
             }
         }
 
-        // ── Audio ────────────────────────────────────────────────────────────
+        // ── Audio / Video / TTS ───────────────────────────────────────────────
         function setAudioButtonState(btn, state) {
             if (!btn) return;
             btn.innerHTML = state === 'pause' ? PAUSE_ICON_HTML : PLAY_ICON_HTML;
         }
         function notifyAudioState(isPlaying) {
-            window.__amgiAudioPlaying = !!isPlaying;
+            isPlaying = !!isPlaying;
+            if (window.__amgiAudioPlaying === isPlaying) return;
+            window.__amgiAudioPlaying = isPlaying;
             try { window.webkit.messageHandlers.amgiAudioState.postMessage(window.__amgiAudioPlaying); } catch(e) {}
         }
         function amgiStopTts() {
             try { window.webkit.messageHandlers.amgiStopTts.postMessage(null); } catch(e) {}
         }
         window.amgiStopTts = amgiStopTts;
+        function amgiQueuePlayerHost() {
+            var host = document.getElementById('amgi-media-queue-host');
+            if (host) return host;
+            host = document.createElement('div');
+            host.id = 'amgi-media-queue-host';
+            host.style.position = 'fixed';
+            host.style.inset = '12px';
+            host.style.display = 'none';
+            host.style.alignItems = 'center';
+            host.style.justifyContent = 'center';
+            host.style.background = 'rgba(0,0,0,0.76)';
+            host.style.zIndex = '2147483647';
+            host.addEventListener('click', function(event) {
+                if (event.target === host) {
+                    stopAllSystemAudio();
+                }
+            });
+            document.body.appendChild(host);
+            return host;
+        }
         function amgiQueuePlayer() {
-            var player = document.getElementById('amgi-audio-queue-player');
+            var player = document.getElementById('amgi-media-queue-player');
             if (player) return player;
-            player = document.createElement('audio');
-            player.id = 'amgi-audio-queue-player';
+            player = document.createElement('video');
+            player.id = 'amgi-media-queue-player';
             player.preload = 'auto';
+            player.playsInline = true;
+            player.controls = true;
+            player.style.maxWidth = '100%';
+            player.style.maxHeight = '100%';
+            player.style.width = 'min(100%, 960px)';
+            player.style.background = '#000';
+            player.style.borderRadius = '12px';
             player.style.display = 'none';
-            document.body.appendChild(player);
+            amgiQueuePlayerHost().appendChild(player);
             return player;
         }
-        function amgiHasTemplateManagedMedia() {
-            return document.querySelector('audio:not(.anki-sound-audio):not(#amgi-audio-queue-player), video') !== null;
+        function amgiConfigureQueuePlayer(kind) {
+            var host = amgiQueuePlayerHost();
+            var player = amgiQueuePlayer();
+            var isVideo = kind === 'video';
+            host.style.display = isVideo ? 'flex' : 'none';
+            player.controls = isVideo;
+            player.style.display = isVideo ? 'block' : 'none';
         }
-        function stopAllSystemAudio() {
-            amgiStopTts();
-            document.querySelectorAll('.anki-sound-audio').forEach(function(a) {
-                if (!a.paused) a.pause();
-                a.currentTime = 0;
-                setAudioButtonState(a.nextElementSibling, 'play');
-                a.onended = null;
-            });
-            var queuePlayer = document.getElementById('amgi-audio-queue-player');
-            if (queuePlayer) {
-                queuePlayer.pause();
-                queuePlayer.currentTime = 0;
-                queuePlayer.onended = null;
-                queuePlayer.onerror = null;
-                queuePlayer.removeAttribute('src');
-                queuePlayer.load();
+        function amgiResetQueuePlayer() {
+            var player = document.getElementById('amgi-media-queue-player');
+            var host = document.getElementById('amgi-media-queue-host');
+            if (!player) {
+                if (host) host.style.display = 'none';
+                return;
             }
-            notifyAudioState(false);
+            player.pause();
+            player.currentTime = 0;
+            player.onended = null;
+            player.onerror = null;
+            player.removeAttribute('src');
+            player.load();
+            player.style.display = 'none';
+            if (host) host.style.display = 'none';
         }
-        window.amgiStopAllAudio = stopAllSystemAudio;
-        function collectAudioQueue(mode) {
-            var all = Array.from(document.querySelectorAll('.anki-sound-audio'));
-            if (mode === 'question' || mode === 'answerWithQuestion') return all;
-            // answerOnly: exclude audio already played on the question side.
-            // This correctly handles audio fields placed before <hr id=answer> in
-            // the back template (e.g. {{发音}} between {{FrontSide}} and <hr id=answer>).
-            var questionSrcs = window.__amgiQuestionAudioSrcs;
-            if (questionSrcs && questionSrcs.size > 0) {
-                var newAudio = all.filter(function(a) {
-                    var src = a.getAttribute('src') || '';
-                    return src && !questionSrcs.has(src);
-                });
-                return newAudio.length > 0 ? newAudio : all;
+        function amgiManagedRawMediaElements() {
+            return Array.from(document.querySelectorAll('audio:not(#amgi-media-queue-player), video:not(#amgi-media-queue-player)'));
+        }
+        function amgiMediaButtonForElement(media) {
+            var wrapper = media && media.closest ? media.closest('.sound-btn') : null;
+            return wrapper ? wrapper.querySelector('.replay-button, .replay-btn') : null;
+        }
+        function amgiTtsPayloadForDataset(dataset) {
+            dataset = dataset || {};
+            return {
+                text: dataset.ttsText || '',
+                lang: dataset.ttsLang || '',
+                voices: dataset.ttsVoices || '',
+                speed: dataset.ttsSpeed || ''
+            };
+        }
+        function amgiTtsPayloadForButton(btn) {
+            return amgiTtsPayloadForDataset(btn && btn.dataset ? btn.dataset : null);
+        }
+        function amgiTtsSignature(payload) {
+            return [
+                payload.text || '',
+                payload.lang || '',
+                payload.voices || '',
+                payload.speed || ''
+            ].join('|');
+        }
+        function amgiStructuredAVTags(side) {
+            return side === 'a' ? (window.__amgiAnswerAVTags || []) : (window.__amgiQuestionAVTags || []);
+        }
+        function amgiStructuredAVButton(side, index) {
+            var selector = '[data-av-side="' + side + '"][data-av-index="' + index + '"]';
+            return document.querySelector('.tts-btn' + selector)
+                || document.querySelector('.sound-btn' + selector + ' .replay-button')
+                || document.querySelector('.sound-btn' + selector + ' .replay-btn');
+        }
+        function amgiStructuredItemFromNode(node) {
+            if (!node) return null;
+            var carrier = node.closest ? (node.closest('.sound-btn, .tts-btn, .amgi-av-tag') || node) : node;
+            var data = carrier.dataset || {};
+            var kind = data.avKind || '';
+            if (!kind) return null;
+            var side = data.avSide || 'q';
+            var index = parseInt(data.avIndex || '-1', 10);
+            if (kind === 'tts') {
+                return {
+                    kind: 'tts',
+                    side: side,
+                    index: index,
+                    button: carrier.classList && carrier.classList.contains('tts-btn') ? carrier : null,
+                    payload: amgiTtsPayloadForDataset(data)
+                };
             }
-            // Fallback: use <hr id=answer> position when question srcs are unavailable.
-            var marker = document.getElementById('answer');
-            if (!marker) return all;
-            var after = all.filter(function(a) {
-                return !!(marker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
-            });
-            return after.length > 0 ? after : all;
+            return {
+                kind: 'structured',
+                mediaType: kind,
+                side: side,
+                index: index,
+                src: data.avSrc || '',
+                button: carrier.querySelector ? carrier.querySelector('.replay-button, .replay-btn') : null
+            };
         }
-        function splitAudioQueue() {
-            var all = Array.from(document.querySelectorAll('.anki-sound-audio'));
-            var marker = document.getElementById('answer');
-            if (!marker) return { question: all, answer: all };
-            var answer = all.filter(function(a) {
-                return !!(marker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+        function amgiStructuredMediaItemBySideIndex(side, index) {
+            var tags = amgiStructuredAVTags(side);
+            for (var i = 0; i < tags.length; i++) {
+                var tag = tags[i];
+                if (parseInt(tag.index, 10) !== index) continue;
+                if (tag.kind === 'tts') {
+                    return {
+                        kind: 'tts',
+                        side: side,
+                        index: index,
+                        button: amgiStructuredAVButton(side, index),
+                        payload: {
+                            text: tag.text || '',
+                            lang: tag.lang || '',
+                            voices: Array.isArray(tag.voices) ? tag.voices.join(',') : (tag.voices || ''),
+                            speed: tag.speed == null ? '' : String(tag.speed)
+                        }
+                    };
+                }
+                return {
+                    kind: 'structured',
+                    mediaType: tag.kind || 'audio',
+                    side: side,
+                    index: index,
+                    src: tag.src || '',
+                    button: amgiStructuredAVButton(side, index)
+                };
+            }
+            return null;
+        }
+        function amgiStructuredMediaItems(side) {
+            return amgiStructuredAVTags(side).map(function(tag) {
+                return amgiStructuredMediaItemBySideIndex(side, parseInt(tag.index, 10));
+            }).filter(Boolean);
+        }
+        function amgiRawMediaItems(elements) {
+            return (elements || []).map(function(element) {
+                return {
+                    kind: 'raw',
+                    mediaType: element.tagName.toLowerCase(),
+                    element: element,
+                    media: element,
+                    button: amgiMediaButtonForElement(element)
+                };
             });
-            var question = all.filter(function(a) {
-                return !(marker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+        }
+        function amgiMediaItemSignature(item) {
+            if (!item) return '';
+            if (item.kind === 'tts') {
+                return 'tts|' + amgiTtsSignature(item.payload || {});
+            }
+            var src = '';
+            if (item.kind === 'structured') {
+                src = item.src || '';
+            } else {
+                var media = item.media;
+                src = media ? (media.currentSrc || media.getAttribute('src') || media.src || '') : '';
+            }
+            return (item.mediaType || item.kind || 'media') + '|' + src;
+        }
+        function amgiDedupedMediaItems(items) {
+            var seen = new Set();
+            return (items || []).filter(function(item) {
+                var signature = amgiMediaItemSignature(item);
+                if (!signature || seen.has(signature)) return false;
+                seen.add(signature);
+                return true;
+            });
+        }
+        function amgiSplitRawMediaQueue() {
+            var all = amgiRawMediaItems(amgiManagedRawMediaElements());
+            var marker = document.getElementById('answer');
+            if (!marker) return { all: all, question: all, answer: all };
+            var answer = all.filter(function(item) {
+                return !!(marker.compareDocumentPosition(item.element) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+            var question = all.filter(function(item) {
+                return !(marker.compareDocumentPosition(item.element) & Node.DOCUMENT_POSITION_FOLLOWING);
             });
             return {
+                all: all,
                 question: question.length ? question : all,
                 answer: answer.length ? answer : all
             };
+        }
+        function amgiCollectMediaQueue(mode) {
+            var rawQueues = amgiSplitRawMediaQueue();
+            var question = amgiStructuredMediaItems('q').concat(rawQueues.question);
+            var answer = amgiStructuredMediaItems('a').concat(rawQueues.answer);
+            if (mode === 'question') return amgiDedupedMediaItems(question);
+            if (mode === 'answerWithQuestion') return amgiDedupedMediaItems(question.concat(answer));
+            return amgiDedupedMediaItems(answer);
+        }
+        function amgiAnyManagedMediaPlaying() {
+            var queuePlayer = document.getElementById('amgi-media-queue-player');
+            var queuePlaying = !!(queuePlayer && !queuePlayer.paused && !queuePlayer.ended && (queuePlayer.currentSrc || queuePlayer.src));
+            var elementPlaying = amgiManagedRawMediaElements().some(function(media) {
+                return !!media && !media.paused && !media.ended;
+            });
+            return queuePlaying || elementPlaying || !!window.__amgiTtsPlaying;
+        }
+        function amgiHandleManagedMediaPause(media) {
+            setAudioButtonState(amgiMediaButtonForElement(media), 'play');
+            if (!amgiAnyManagedMediaPlaying()) {
+                notifyAudioState(false);
+            }
+        }
+        function amgiSetupManagedMediaElement(media) {
+            if (!media || media.dataset.amgiManaged === '1') return;
+            media.dataset.amgiManaged = '1';
+            if (!media.preload) {
+                media.preload = 'auto';
+            }
+            media.playsInline = true;
+            media.addEventListener('play', function() {
+                stopAllSystemAudio({ exceptMedia: media, preserveReplayRun: true });
+                setAudioButtonState(amgiMediaButtonForElement(media), 'pause');
+                notifyAudioState(true);
+            });
+            media.addEventListener('click', function() {
+                if (!media.controls || !media.paused) return;
+                stopAllSystemAudio({ exceptMedia: media, preserveReplayRun: true });
+                media.play().catch(function() {});
+            });
+            media.addEventListener('pause', function() {
+                amgiHandleManagedMediaPause(media);
+            });
+            media.addEventListener('ended', function() {
+                amgiHandleManagedMediaPause(media);
+            });
+            media.addEventListener('error', function() {
+                amgiHandleManagedMediaPause(media);
+            });
+        }
+        function amgiSetupManagedMedia() {
+            amgiManagedRawMediaElements().forEach(amgiSetupManagedMediaElement);
+        }
+        window.__amgiTtsPlaying = false;
+        window.__amgiTtsResolvers = {};
+        window.__amgiReplayRunID = 0;
+        function amgiSpeakTtsPayload(payload, onComplete) {
+            var token = 'tts-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+            if (typeof onComplete === 'function') {
+                window.__amgiTtsResolvers[token] = onComplete;
+            }
+            try {
+                window.webkit.messageHandlers.amgiSpeakTts.postMessage({
+                    text: payload.text || '',
+                    lang: payload.lang || '',
+                    voices: payload.voices || '',
+                    speed: payload.speed || '',
+                    token: token
+                });
+                return token;
+            } catch(e) {
+                if (window.__amgiTtsResolvers[token]) {
+                    delete window.__amgiTtsResolvers[token];
+                }
+                return null;
+            }
+        }
+        function amgiHandleTtsEvent(payload) {
+            payload = payload || {};
+            var token = payload.token || '';
+            var state = payload.state || '';
+            if (state === 'start') {
+                window.__amgiTtsPlaying = true;
+                return;
+            }
+            window.__amgiTtsPlaying = false;
+            var resolver = token ? window.__amgiTtsResolvers[token] : null;
+            if (resolver) {
+                delete window.__amgiTtsResolvers[token];
+                resolver(state);
+            }
+            if (!amgiAnyManagedMediaPlaying()) {
+                notifyAudioState(false);
+            }
+        }
+        window.amgiHandleTtsEvent = amgiHandleTtsEvent;
+        function stopAllSystemAudio(options) {
+            options = options || {};
+            var exceptMedia = options.exceptMedia || null;
+            if (!options.preserveReplayRun) {
+                window.__amgiReplayRunID = (window.__amgiReplayRunID || 0) + 1;
+            }
+            window.__amgiTtsPlaying = false;
+            amgiStopTts();
+            document.querySelectorAll('.tts-btn, .sound-btn .replay-button, .sound-btn .replay-btn').forEach(function(btn) {
+                setAudioButtonState(btn, 'play');
+            });
+            amgiManagedRawMediaElements().forEach(function(media) {
+                if (exceptMedia && media === exceptMedia) return;
+                if (!media.paused) media.pause();
+                media.currentTime = 0;
+                setAudioButtonState(amgiMediaButtonForElement(media), 'play');
+                media.onended = null;
+                media.onerror = null;
+            });
+            amgiResetQueuePlayer();
+            notifyAudioState(false);
+        }
+        window.amgiStopAllAudio = stopAllSystemAudio;
+        function amgiPlayStructuredNode(node) {
+            return amgiPlayMediaItem(amgiStructuredItemFromNode(node));
+        }
+        window.amgiPlayStructuredNode = amgiPlayStructuredNode;
+        function amgiPlayStructuredSoundItem(item, options) {
+            options = options || {};
+            if (!item || !item.src) {
+                if (typeof options.onComplete === 'function') options.onComplete('error');
+                return false;
+            }
+            stopAllSystemAudio({ preserveReplayRun: !!options.preserveReplayRun });
+            var player = amgiQueuePlayer();
+            amgiConfigureQueuePlayer(item.mediaType);
+            player.src = item.src;
+            player.currentTime = 0;
+            setAudioButtonState(item.button, 'pause');
+            notifyAudioState(true);
+            player.onended = function() {
+                amgiResetQueuePlayer();
+                setAudioButtonState(item.button, 'play');
+                if (!amgiAnyManagedMediaPlaying()) notifyAudioState(false);
+                if (typeof options.onComplete === 'function') options.onComplete('ended');
+            };
+            player.onerror = function() {
+                amgiResetQueuePlayer();
+                setAudioButtonState(item.button, 'play');
+                if (!amgiAnyManagedMediaPlaying()) notifyAudioState(false);
+                if (typeof options.onComplete === 'function') options.onComplete('error');
+            };
+            player.play().catch(function() {
+                amgiResetQueuePlayer();
+                setAudioButtonState(item.button, 'play');
+                if (!amgiAnyManagedMediaPlaying()) notifyAudioState(false);
+                if (typeof options.onComplete === 'function') options.onComplete('error');
+            });
+            return false;
+        }
+        function amgiPlayMediaElement(media, options) {
+            options = options || {};
+            if (!media) {
+                if (typeof options.onComplete === 'function') options.onComplete('error');
+                return false;
+            }
+            stopAllSystemAudio({ exceptMedia: media, preserveReplayRun: !!options.preserveReplayRun });
+            var btn = amgiMediaButtonForElement(media);
+            media.currentTime = 0;
+            media.onended = function() {
+                setAudioButtonState(btn, 'play');
+                if (!amgiAnyManagedMediaPlaying()) notifyAudioState(false);
+                if (typeof options.onComplete === 'function') options.onComplete('ended');
+            };
+            media.onerror = function() {
+                setAudioButtonState(btn, 'play');
+                if (!amgiAnyManagedMediaPlaying()) notifyAudioState(false);
+                if (typeof options.onComplete === 'function') options.onComplete('error');
+            };
+            setAudioButtonState(btn, 'pause');
+            notifyAudioState(true);
+            media.play().catch(function() {
+                setAudioButtonState(btn, 'play');
+                if (!amgiAnyManagedMediaPlaying()) notifyAudioState(false);
+                if (typeof options.onComplete === 'function') options.onComplete('error');
+            });
+            return false;
+        }
+        function amgiPlayMediaItem(item, options) {
+            options = options || {};
+            if (!item) {
+                if (typeof options.onComplete === 'function') options.onComplete('error');
+                return false;
+            }
+            if (item.kind === 'tts') {
+                stopAllSystemAudio({ preserveReplayRun: !!options.preserveReplayRun });
+                if (item.button) {
+                    setAudioButtonState(item.button, 'pause');
+                }
+                var token = amgiSpeakTtsPayload(item.payload || {}, function() {
+                    setAudioButtonState(item.button, 'play');
+                    if (typeof options.onComplete === 'function') options.onComplete('ended');
+                });
+                if (!token) {
+                    setAudioButtonState(item.button, 'play');
+                    if (typeof options.onComplete === 'function') options.onComplete('error');
+                } else {
+                    notifyAudioState(true);
+                }
+                return false;
+            }
+            if (item.kind === 'structured') {
+                return amgiPlayStructuredSoundItem(item, options);
+            }
+            return amgiPlayMediaElement(item.media, options);
         }
         function replaySequential(queue) {
             stopAllSystemAudio();
             if (!queue || !queue.length) return;
             var idx = 0;
-            var currentBtn = null;
-            var player = amgiQueuePlayer();
-            notifyAudioState(true);
-            function clearCurrentButton() {
-                if (!currentBtn) return;
-                setAudioButtonState(currentBtn, 'play');
-                currentBtn = null;
+            var runID = window.__amgiReplayRunID;
+            function isCurrentRun() {
+                return window.__amgiReplayRunID === runID;
             }
             function playNext() {
-                clearCurrentButton();
-                if (idx >= queue.length) { notifyAudioState(false); return; }
-                var audio = queue[idx];
-                var src = audio.currentSrc || audio.src;
-                if (!src) { idx++; playNext(); return; }
-                currentBtn = audio.nextElementSibling;
-                setAudioButtonState(currentBtn, 'pause');
-                player.src = src;
-                player.currentTime = 0;
-                player.play().catch(function() { idx++; playNext(); });
+                if (!isCurrentRun()) return;
+                if (idx >= queue.length) {
+                    if (!amgiAnyManagedMediaPlaying()) notifyAudioState(false);
+                    return;
+                }
+                var item = queue[idx++];
+                amgiPlayMediaItem(item, {
+                    preserveReplayRun: true,
+                    onComplete: function() {
+                        if (!isCurrentRun()) return;
+                        playNext();
+                    }
+                });
             }
-            player.onended = function() { idx++; playNext(); };
-            player.onerror = function() { idx++; playNext(); };
             playNext();
         }
         function amgiReplayAll(mode) {
-            if (amgiHasTemplateManagedMedia()) return;
-            replaySequential(collectAudioQueue(mode));
+            replaySequential(amgiCollectMediaQueue(mode));
         }
         window.amgiReplayAll = amgiReplayAll;
-        function amgiPlayAudioElement(audio) {
-            if (!audio) return false;
-            stopAllSystemAudio(); notifyAudioState(true);
-            var btn = audio.nextElementSibling;
-            audio.currentTime = 0;
-            audio.play().catch(function() { setAudioButtonState(btn, 'play'); notifyAudioState(false); });
-            setAudioButtonState(btn, 'pause');
-            audio.onended = function() { setAudioButtonState(btn, 'play'); notifyAudioState(false); };
-            return false;
+        function playSound(btn) {
+            var structuredItem = amgiStructuredItemFromNode(btn);
+            if (structuredItem) return amgiPlayMediaItem(structuredItem);
+            return amgiPlayMediaElement(btn ? btn.previousElementSibling : null);
         }
-        function playSound(btn) { return amgiPlayAudioElement(btn ? btn.previousElementSibling : null); }
         window.playSound = playSound; globalThis.playSound = playSound;
 
         // ── pycmd (compat shim) ──────────────────────────────────────────────
@@ -1141,8 +1494,10 @@ struct CardWebView: UIViewRepresentable {
                 var side = parts[1];
                 var index = parseInt(parts[2] || '0', 10);
                 if (Number.isNaN(index) || index < 0) return false;
-                var queues = splitAudioQueue();
-                return amgiPlayAudioElement((side === 'a' ? queues.answer : queues.question)[index]);
+                var structuredItem = amgiStructuredMediaItemBySideIndex(side, index);
+                if (structuredItem) return amgiPlayMediaItem(structuredItem);
+                var queues = amgiSplitRawMediaQueue();
+                return amgiPlayMediaItem((side === 'a' ? queues.answer : queues.question)[index]);
             }
             return false;
         }
@@ -1169,14 +1524,13 @@ struct CardWebView: UIViewRepresentable {
         function amgiSpeakTts(btn) {
             if (!btn) return false;
             stopAllSystemAudio();
-            try {
-                window.webkit.messageHandlers.amgiSpeakTts.postMessage({
-                    text: btn.dataset.ttsText || '',
-                    lang: btn.dataset.ttsLang || '',
-                    voices: btn.dataset.ttsVoices || '',
-                    speed: btn.dataset.ttsSpeed || ''
-                });
-            } catch(e) {}
+            setAudioButtonState(btn, 'pause');
+            var token = amgiSpeakTtsPayload(amgiTtsPayloadForButton(btn), function() {
+                setAudioButtonState(btn, 'play');
+            });
+            if (!token) {
+                setAudioButtonState(btn, 'play');
+            }
             return false;
         }
         window.amgiSpeakTts = amgiSpeakTts; globalThis.amgiSpeakTts = amgiSpeakTts;
@@ -1326,7 +1680,13 @@ struct CardWebView: UIViewRepresentable {
             var container = document.getElementById('image-occlusion-container');
             if (!container) return;
             var img = container.querySelector('img');
-            if (!img) return;
+            if (!img) {
+                if (!container.dataset.amgiNoImageShown) {
+                    container.textContent = 'No image to show.';
+                    container.dataset.amgiNoImageShown = '1';
+                }
+                return;
+            }
             var canvas = document.getElementById('image-occlusion-canvas');
             if (!canvas) {
                 canvas = document.createElement('canvas');
@@ -1335,12 +1695,40 @@ struct CardWebView: UIViewRepresentable {
             }
             if (!amgiIOOneTimeSetupDone) {
                 window.addEventListener('resize', function() { window.requestAnimationFrame(amgiSetupImageOcclusion); });
+                window.addEventListener('keydown', function(event) {
+                    var toggleBtn = document.getElementById('toggle') || document.querySelector('.toggle');
+                    if (event.key !== 'M' || !toggleBtn || toggleBtn.style.display === 'none') return;
+                    var currentContainer = document.getElementById('image-occlusion-container');
+                    if (currentContainer && currentContainer._amgiToggleMasks) {
+                        currentContainer._amgiToggleMasks(event);
+                    }
+                });
                 amgiIOOneTimeSetupDone = true;
             }
+            container.dataset.amgiNoImageShown = '';
             function waitForImg(cb) {
                 if (!img || img.complete) { cb(); return; }
                 var fn = function() { img.removeEventListener('load', fn); img.removeEventListener('error', fn); cb(); };
                 img.addEventListener('load', fn); img.addEventListener('error', fn);
+            }
+            function optimumCanvasPixelSize(imageSize, containerSize) {
+                var dpr = window.devicePixelRatio || 1;
+                var targetWidth = containerSize.width * dpr;
+                var targetHeight = containerSize.height * dpr;
+                var containerScale = Math.min(targetWidth / imageSize.width, targetHeight / imageSize.height);
+                var width = imageSize.width * containerScale;
+                var height = imageSize.height * containerScale;
+                var maximumPixels = 4096 * 4096;
+                var requiredPixels = width * height;
+                if (requiredPixels > maximumPixels) {
+                    var shrinkScale = Math.sqrt(maximumPixels / requiredPixels);
+                    width *= shrinkScale;
+                    height *= shrinkScale;
+                }
+                return {
+                    width: Math.max(1, Math.floor(width)),
+                    height: Math.max(1, Math.floor(height))
+                };
             }
             waitForImg(function() {
                 window.requestAnimationFrame(function() {
@@ -1349,8 +1737,21 @@ struct CardWebView: UIViewRepresentable {
                     var dpr = window.devicePixelRatio || 1;
                     var width = img.offsetWidth, height = img.offsetHeight;
                     if (!width || !height) return;
+                    if (img.naturalWidth && img.naturalHeight) {
+                        if (CSS.supports && CSS.supports('aspect-ratio: 1')) {
+                            container.style.aspectRatio = String(img.naturalWidth / img.naturalHeight);
+                        } else {
+                            container.style.width = width + 'px';
+                            container.style.height = height + 'px';
+                        }
+                    }
                     canvasRef.style.width = width + 'px'; canvasRef.style.height = height + 'px';
-                    canvasRef.width = width * dpr; canvasRef.height = height * dpr;
+                    var pixelSize = optimumCanvasPixelSize(
+                        { width: img.naturalWidth || width, height: img.naturalHeight || height },
+                        { width: width, height: height }
+                    );
+                    canvasRef.width = pixelSize.width;
+                    canvasRef.height = pixelSize.height;
                     function collectShapes() {
                         var shapes = [];
                         ['cloze-inactive','cloze','cloze-highlight'].forEach(function(cls) {
@@ -1376,7 +1777,7 @@ struct CardWebView: UIViewRepresentable {
                         if (!ctx) return;
                         ctx.setTransform(1, 0, 0, 1, 0, 0);
                         ctx.clearRect(0, 0, canvasRef.width, canvasRef.height);
-                        ctx.scale(dpr, dpr);
+                        ctx.scale(canvasRef.width / width, canvasRef.height / height);
                         var masksHidden = !!container._amgiMasksHidden;
                         canvasRef.style.pointerEvents = amgiIsAnswerSide() && !masksHidden ? 'auto' : 'none';
                         canvasRef.style.cursor = amgiIsAnswerSide() && !masksHidden ? 'pointer' : 'default';
@@ -1507,15 +1908,16 @@ struct CardWebView: UIViewRepresentable {
                     if (img.complete && img.naturalWidth === 0 && img.src) img.onerror();
                 });
                 document.querySelectorAll('.sound-btn').forEach(function(span) {
-                    var audio = span.querySelector('audio');
-                    if (!audio) return;
-                    audio.onerror = function() {
+                    var media = span.querySelector('audio, video');
+                    if (!media) return;
+                    media.onerror = function() {
                         var hint = document.createElement('span');
                         hint.className = 'missing-media';
                         hint.innerHTML = MISSING_AUDIO_ICON_HTML;
                         span.replaceWith(hint);
                     };
                 });
+                amgiSetupManagedMedia();
 
                 var typeInput = document.getElementById('typeans');
         if (typeInput) {
@@ -1562,21 +1964,11 @@ struct CardWebView: UIViewRepresentable {
                     },
                     function() {
                         window.scrollTo(0, 0);
-                        // Reset question-side audio srcs for the new card.
-                        window.__amgiQuestionAudioSrcs = null;
                     },
                     function() {
                         var typeans = document.getElementById('typeans');
                         if (typeans) typeans.focus();
-                        var hasTemplateManagedMedia = amgiHasTemplateManagedMedia();
-                        if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
-                        // Record question-side audio srcs so the answer side can
-                        // avoid re-playing them when using answerOnly mode.
-                        window.__amgiQuestionAudioSrcs = new Set(
-                            Array.from(document.querySelectorAll('.anki-sound-audio')).map(function(a) {
-                                return a.getAttribute('src') || '';
-                            }).filter(Boolean)
-                        );
+                        if (amgiAutoplayEnabled()) amgiReplayAll(amgiReplayModeValue());
                         var ph = amgiPrefetchHTMLValue();
                         if (amgiContainsMathJaxMarkup(html || '') || amgiContainsMathJaxMarkup(ph || '')) {
                             void amgiEnsureMathJaxReady(1500);
@@ -1611,8 +2003,7 @@ struct CardWebView: UIViewRepresentable {
                         });
                     },
                     function() {
-                        var hasTemplateManagedMedia = amgiHasTemplateManagedMedia();
-                        if (amgiAutoplayEnabled() && !hasTemplateManagedMedia) amgiReplayAll(amgiReplayModeValue());
+                        if (amgiAutoplayEnabled()) amgiReplayAll(amgiReplayModeValue());
                     }
                 );
             });
@@ -1641,7 +2032,9 @@ struct CardWebView: UIViewRepresentable {
         replayMode: String,
         alignTop: Bool,
         bodyPaddingBottom: Int,
-        cardPaddingBottom: Int
+        cardPaddingBottom: Int,
+        questionAVTags: [Anki_CardRendering_AVTag],
+        answerAVTags: [Anki_CardRendering_AVTag]
     ) -> String {
         let htmlLit = jsStringLiteral(processedHTML)
         let cssLit = jsStringLiteral(normalizeCardCSS(cardCSS))
@@ -1649,17 +2042,102 @@ struct CardWebView: UIViewRepresentable {
         let lookupEnabled = lookupPopupEnabled ? "true" : "false"
         let alignTopStr = alignTop ? "true" : "false"
         let applyCSS = "amgiSetCardCSS(\(cssLit));"
+        let questionTagsLit = jsObjectLiteral(managedAVTagDescriptors(questionAVTags, side: "q"), fallback: "[]")
+        let answerTagsLit = jsObjectLiteral(managedAVTagDescriptors(answerAVTags, side: "a"), fallback: "[]")
+        let applyAVTags = "window.__amgiQuestionAVTags = \(questionTagsLit);window.__amgiAnswerAVTags = \(answerTagsLit);"
 
         if isAnswerSide {
-            return applyCSS + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
+            return applyCSS + applyAVTags + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         } else {
             let prefetchLit = jsStringLiteral(prefetchHTML ?? "")
-            return applyCSS + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
+            return applyCSS + applyAVTags + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         }
     }
 
-    /// Converts Anki `[sound:filename.ext]` markers to a hidden `<audio>` + styled play button.
-    private static func expandSoundTags(
+    private struct ManagedAVTagDescriptor: Encodable {
+        let side: String
+        let index: Int
+        let kind: String
+        let src: String?
+        let text: String?
+        let lang: String?
+        let voices: [String]
+        let speed: Float?
+    }
+
+    private static let audioFileExtensions: Set<String> = [
+        "3gp", "flac", "m4a", "mp3", "oga", "ogg", "opus", "spx", "wav"
+    ]
+
+    private static func processReviewHTML(
+        _ html: String,
+        questionAVTags: [Anki_CardRendering_AVTag],
+        answerAVTags: [Anki_CardRendering_AVTag],
+        isDarkMode: Bool,
+        showReplayButtons: Bool
+    ) -> String {
+        deferCardScripts(in:
+            expandTTSTags(
+                in: expandSoundTags(
+                    expandPlayTags(
+                        in: html,
+                        questionAVTags: questionAVTags,
+                        answerAVTags: answerAVTags,
+                        isDarkMode: isDarkMode,
+                        showReplayButtons: showReplayButtons
+                    ),
+                    isDarkMode: isDarkMode,
+                    showReplayButtons: showReplayButtons
+                ),
+                isDarkMode: isDarkMode,
+                showReplayButtons: showReplayButtons
+            )
+        )
+    }
+
+    static func expandPlayTags(
+        in html: String,
+        questionAVTags: [Anki_CardRendering_AVTag],
+        answerAVTags: [Anki_CardRendering_AVTag],
+        isDarkMode: Bool,
+        showReplayButtons: Bool
+    ) -> String {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"\[anki:play:([qa]):(\d+)\]"#,
+            options: [.caseInsensitive]
+        ) else { return html }
+
+        let range = NSRange(html.startIndex..., in: html)
+        let matches = regex.matches(in: html, range: range)
+        var result = html
+
+        for match in matches.reversed() {
+            guard let matchRange = Range(match.range, in: result),
+                  let sideRange = Range(match.range(at: 1), in: result),
+                  let indexRange = Range(match.range(at: 2), in: result) else { continue }
+            let side = String(result[sideRange]).lowercased()
+            let index = Int(String(result[indexRange])) ?? -1
+            let tags = side == "a" ? answerAVTags : questionAVTags
+            guard tags.indices.contains(index) else {
+                result.replaceSubrange(matchRange, with: "")
+                continue
+            }
+
+            let replacement = markup(
+                for: tags[index],
+                side: side,
+                index: index,
+                isDarkMode: isDarkMode,
+                showReplayButtons: showReplayButtons
+            )
+            result.replaceSubrange(matchRange, with: replacement)
+        }
+
+        return result
+    }
+
+    /// Converts legacy `[sound:filename.ext]` markers to managed replay markup.
+    static func expandSoundTags(
         _ html: String,
         isDarkMode: Bool,
         showReplayButtons: Bool
@@ -1676,20 +2154,21 @@ struct CardWebView: UIViewRepresentable {
             guard let matchRange = Range(match.range, in: result),
                   let filenameRange = Range(match.range(at: 1), in: result) else { continue }
             let filename = String(result[filenameRange])
-            let encoded = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? filename
-            let replacement: String
-            if showReplayButtons {
-                let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
-                replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><a class=\"replay-button replay-btn soundLink\" href=\"#\" draggable=\"false\" onclick=\"return playSound(this)\">\(iconHTML)</a></span>"
-            } else {
-                replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio></span>"
-            }
+            var tag = Anki_CardRendering_AVTag()
+            tag.soundOrVideo = filename
+            let replacement = markup(
+                for: tag,
+                side: "q",
+                index: -1,
+                isDarkMode: isDarkMode,
+                showReplayButtons: showReplayButtons
+            )
             result.replaceSubrange(matchRange, with: replacement)
         }
         return result
     }
 
-    private static func expandTTSTags(
+    static func expandTTSTags(
         in html: String,
         isDarkMode: Bool,
         showReplayButtons: Bool
@@ -1726,6 +2205,109 @@ struct CardWebView: UIViewRepresentable {
         }
 
         return result
+    }
+
+    private static func markup(
+        for tag: Anki_CardRendering_AVTag,
+        side: String,
+        index: Int,
+        isDarkMode: Bool,
+        showReplayButtons: Bool
+    ) -> String {
+        let sideAttr = htmlAttributeEscaped(side)
+        let indexAttr = String(index)
+
+        switch tag.value {
+        case .soundOrVideo(let resource):
+            let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
+            let encodedSrc = htmlAttributeEscaped(encodedMediaSource(resource))
+            let hiddenMarker = "<span class=\"amgi-av-tag sound-tag\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-av-kind=\"\(mediaKind(for: resource))\" data-av-src=\"\(encodedSrc)\"></span>"
+            guard showReplayButtons else {
+                return hiddenMarker
+            }
+            return "<span class=\"sound-btn soundLink\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-av-kind=\"\(mediaKind(for: resource))\" data-av-src=\"\(encodedSrc)\">\(hiddenMarker)<a class=\"replay-button replay-btn\" href=\"#\" draggable=\"false\" onclick=\"return amgiPlayStructuredNode(this)\">\(iconHTML)</a></span>"
+
+        case .tts(let ttsTag):
+            let spokenText = htmlAttributeEscaped(ttsTag.fieldText.trimmingCharacters(in: .whitespacesAndNewlines))
+            let lang = htmlAttributeEscaped(ttsTag.lang)
+            let voices = htmlAttributeEscaped(ttsTag.voices.joined(separator: ","))
+            let speed = ttsTag.speed > 0 ? htmlAttributeEscaped(String(ttsTag.speed)) : ""
+            let hiddenMarker = "<span class=\"amgi-av-tag tts-tag\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-av-kind=\"tts\" data-tts-text=\"\(spokenText)\" data-tts-lang=\"\(lang)\" data-tts-voices=\"\(voices)\" data-tts-speed=\"\(speed)\"></span>"
+            guard showReplayButtons else {
+                return hiddenMarker
+            }
+            let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Speak", isDarkMode: isDarkMode)
+            return "<a class=\"replay-button replay-btn tts-btn\" href=\"#\" draggable=\"false\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-tts-text=\"\(spokenText)\" data-tts-lang=\"\(lang)\" data-tts-voices=\"\(voices)\" data-tts-speed=\"\(speed)\" onclick=\"return amgiPlayStructuredNode(this)\">\(iconHTML)</a>"
+
+        case .none:
+            return ""
+        }
+    }
+
+    private static func managedAVTagDescriptors(
+        _ tags: [Anki_CardRendering_AVTag],
+        side: String
+    ) -> [ManagedAVTagDescriptor] {
+        tags.enumerated().compactMap { index, tag in
+            managedAVTagDescriptor(tag, side: side, index: index)
+        }
+    }
+
+    private static func managedAVTagDescriptor(
+        _ tag: Anki_CardRendering_AVTag,
+        side: String,
+        index: Int
+    ) -> ManagedAVTagDescriptor? {
+        switch tag.value {
+        case .soundOrVideo(let resource):
+            return ManagedAVTagDescriptor(
+                side: side,
+                index: index,
+                kind: mediaKind(for: resource),
+                src: encodedMediaSource(resource),
+                text: nil,
+                lang: nil,
+                voices: [],
+                speed: nil
+            )
+        case .tts(let ttsTag):
+            return ManagedAVTagDescriptor(
+                side: side,
+                index: index,
+                kind: "tts",
+                src: nil,
+                text: ttsTag.fieldText,
+                lang: ttsTag.lang,
+                voices: ttsTag.voices,
+                speed: ttsTag.speed > 0 ? ttsTag.speed : nil
+            )
+        case .none:
+            return nil
+        }
+    }
+
+    private static func mediaKind(for resource: String) -> String {
+        isAudioResource(resource) ? "audio" : "video"
+    }
+
+    private static func isAudioResource(_ resource: String) -> Bool {
+        let pathExtension = URL(string: resource)?.pathExtension.lowercased()
+            ?? URL(fileURLWithPath: resource).pathExtension.lowercased()
+        return audioFileExtensions.contains(pathExtension)
+    }
+
+    private static func encodedMediaSource(_ resource: String) -> String {
+        let trimmed = resource.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return trimmed
+        }
+        if let url = URL(string: trimmed), let scheme = url.scheme, !scheme.isEmpty {
+            return trimmed
+        }
+
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "#?")
+        return trimmed.addingPercentEncoding(withAllowedCharacters: allowed) ?? trimmed
     }
 
     private static func deferCardScripts(in html: String) -> String {
@@ -1839,6 +2421,15 @@ struct CardWebView: UIViewRepresentable {
             // Escape </script> so it doesn't prematurely close the enclosing <script> block
             .replacingOccurrences(of: "</script>", with: "<\\/script>", options: .caseInsensitive)
         return "'\(escaped)'"
+    }
+
+    private static func jsObjectLiteral<T: Encodable>(_ value: T, fallback: String) -> String {
+        let encoder = JSONEncoder()
+        guard let data = try? encoder.encode(value),
+              let string = String(data: data, encoding: .utf8) else {
+            return fallback
+        }
+        return string
     }
 
     private static func rewriteRelativeMediaURLs(in css: String) -> String {
@@ -1983,6 +2574,7 @@ struct CardWebView: UIViewRepresentable {
         private let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
         private let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
         private var lastThemePayload: String?
+        private var ttsTokensByUtterance: [ObjectIdentifier: String] = [:]
         private let speechSynthesizer = AVSpeechSynthesizer()
 
         init(
@@ -2066,18 +2658,21 @@ struct CardWebView: UIViewRepresentable {
 
         nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
             Task { @MainActor [weak self] in
+                self?.notifyWebViewOfTTSEvent(state: "start", for: utterance, removeToken: false)
                 self?.onAudioStateChange?(true)
             }
         }
 
         nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
             Task { @MainActor [weak self] in
+                self?.notifyWebViewOfTTSEvent(state: "finish", for: utterance)
                 self?.onAudioStateChange?(false)
             }
         }
 
         nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
             Task { @MainActor [weak self] in
+                self?.notifyWebViewOfTTSEvent(state: "cancel", for: utterance)
                 self?.onAudioStateChange?(false)
             }
         }
@@ -2156,10 +2751,15 @@ struct CardWebView: UIViewRepresentable {
             guard let payload = body as? [String: Any] else { return }
             let text = (payload["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !text.isEmpty else { return }
+            let token = (payload["token"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
 
             stopTTS()
 
             let utterance = AVSpeechUtterance(string: text)
+            let utteranceToken = token?.isEmpty == false ? token : nil
+            if let utteranceToken {
+                ttsTokensByUtterance[ObjectIdentifier(utterance)] = utteranceToken
+            }
             let lang = ((payload["lang"] as? String) ?? "").replacingOccurrences(of: "_", with: "-")
             let preferredVoices = ((payload["voices"] as? String) ?? "")
                 .split(separator: ",")
@@ -2176,6 +2776,43 @@ struct CardWebView: UIViewRepresentable {
             let mappedRate = AVSpeechUtteranceDefaultSpeechRate * max(0.25, min(speedMultiplier, 2.0))
             utterance.rate = min(max(mappedRate, AVSpeechUtteranceMinimumSpeechRate), AVSpeechUtteranceMaximumSpeechRate)
             speechSynthesizer.speak(utterance)
+        }
+
+        private func notifyWebViewOfTTSEvent(
+            state: String,
+            for utterance: AVSpeechUtterance,
+            removeToken: Bool = true
+        ) {
+            let utteranceID = ObjectIdentifier(utterance)
+            let token = ttsTokensByUtterance[utteranceID] ?? ""
+            guard let webView = currentWebView else {
+                if removeToken {
+                    ttsTokensByUtterance.removeValue(forKey: utteranceID)
+                }
+                return
+            }
+
+            let tokenLiteral = Self.jsStringLiteral(token)
+            let stateLiteral = Self.jsStringLiteral(state)
+            let script = """
+            window.amgiHandleTtsEvent && window.amgiHandleTtsEvent({ token: \(tokenLiteral), state: \(stateLiteral) });
+            """
+
+            webView.evaluateJavaScript(script, completionHandler: nil)
+            if removeToken {
+                ttsTokensByUtterance.removeValue(forKey: utteranceID)
+            }
+        }
+
+        private static func jsStringLiteral(_ string: String) -> String {
+            let escaped = string
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+                .replacingOccurrences(of: "\u{2028}", with: "\\u2028")
+                .replacingOccurrences(of: "\u{2029}", with: "\\u2029")
+            return "'\(escaped)'"
         }
 
         private func preferredVoice(lang: String, preferredNames: [String]) -> AVSpeechSynthesisVoice? {

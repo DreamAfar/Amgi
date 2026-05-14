@@ -487,6 +487,8 @@ struct ReviewView: View {
                 cardCSS: session.cardCSS,
                 autoplayEnabled: session.autoplayAudio,
                 isAnswerSide: session.showAnswer,
+                questionAVTags: session.questionAVTags,
+                answerAVTags: session.answerAVTags,
                 cardOrdinal: session.currentCard?.card.templateIdx ?? 0,
                 replayRequestID: replayRequestID,
                 stopAudioRequestID: stopAudioRequestID,

@@ -33,6 +33,8 @@ final class ReviewSession {
     private(set) var nextIntervals: [Rating: String] = [:]
     /// Next interval in seconds for each rating button.
     private(set) var nextIntervalSeconds: [Rating: UInt32] = [:]
+    private(set) var questionAVTags: [Anki_CardRendering_AVTag] = []
+    private(set) var answerAVTags: [Anki_CardRendering_AVTag] = []
     private var reviewStartTime: Date = .now
 
     /// The raw QueuedCard objects from the Rust backend — preserves scheduling states.
@@ -336,8 +338,17 @@ final class ReviewSession {
 
             let renderedQuestionHTML = renderNodes(rendered.questionNodes)
             let renderedAnswerHTML = renderNodes(rendered.answerNodes)
-            renderedFrontHTML = extractLatexIfNeeded(in: renderedQuestionHTML, svg: rendered.latexSvg)
-            renderedBackHTML = extractLatexIfNeeded(in: renderedAnswerHTML, svg: rendered.latexSvg)
+            let extractedQuestionHTML = extractLatexIfNeeded(in: renderedQuestionHTML, svg: rendered.latexSvg)
+            let extractedAnswerHTML = extractLatexIfNeeded(in: renderedAnswerHTML, svg: rendered.latexSvg)
+            let encodedQuestionHTML = encodeIriPathsIfNeeded(in: extractedQuestionHTML)
+            let encodedAnswerHTML = encodeIriPathsIfNeeded(in: extractedAnswerHTML)
+            let questionMedia = extractAVTags(from: encodedQuestionHTML, questionSide: true)
+            let answerMedia = extractAVTags(from: encodedAnswerHTML, questionSide: false)
+
+            renderedFrontHTML = questionMedia.text
+            renderedBackHTML = answerMedia.text
+            questionAVTags = questionMedia.tags
+            answerAVTags = answerMedia.tags
 
             typedAnswerState = resolveTypedAnswerState(for: queued, frontHTML: renderedFrontHTML)
             frontHTML = makeTypedAnswerFrontHTML(typedAnswerState: typedAnswerState)
@@ -351,6 +362,8 @@ final class ReviewSession {
             renderedBackHTML = backHTML
             cardCSS = ""
             typedAnswerState = nil
+            questionAVTags = []
+            answerAVTags = []
         }
     }
 
@@ -391,6 +404,48 @@ final class ReviewSession {
             || html.contains("[/$]")
             || html.contains("[$$]")
             || html.contains("[/$$]")
+    }
+
+    private func encodeIriPathsIfNeeded(in html: String) -> String {
+        guard !html.isEmpty else {
+            return html
+        }
+
+        do {
+            let response: Anki_Generic_String = try backend.invoke(
+                service: AnkiBackend.Service.cardRendering,
+                method: AnkiBackend.CardRenderingMethod.encodeIriPaths,
+                request: Anki_Generic_String.with { $0.val = html }
+            )
+            return response.val.isEmpty ? html : response.val
+        } catch {
+            print("[ReviewSession] encodeIriPaths failed: \(error)")
+            return html
+        }
+    }
+
+    private func extractAVTags(
+        from html: String,
+        questionSide: Bool
+    ) -> (text: String, tags: [Anki_CardRendering_AVTag]) {
+        guard !html.isEmpty else {
+            return (html, [])
+        }
+
+        do {
+            var request = Anki_CardRendering_ExtractAvTagsRequest()
+            request.text = html
+            request.questionSide = questionSide
+            let response: Anki_CardRendering_ExtractAvTagsResponse = try backend.invoke(
+                service: AnkiBackend.Service.cardRendering,
+                method: AnkiBackend.CardRenderingMethod.extractAvTags,
+                request: request
+            )
+            return (response.text, response.avTags)
+        } catch {
+            print("[ReviewSession] extractAVTags failed: \(error)")
+            return (html, [])
+        }
     }
 
     /// Extract the next interval from the scheduling state.
