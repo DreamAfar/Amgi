@@ -121,167 +121,7 @@ struct BrowseView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                if isEditing {
-                    VStack(spacing: 1) {
-                        Text(L("browse_nav_title"))
-                            .amgiFont(.cardTitle)
-                            .foregroundStyle(Color.amgiTextPrimary)
-                        Text(L("browse_selected_count", selectedNoteIDs.count))
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-                } else {
-                    VStack(spacing: 1) {
-                        Text(L("browse_nav_title"))
-                            .amgiFont(.cardTitle)
-                            .foregroundStyle(Color.amgiTextPrimary)
-                        Text(L("browse_total_count", allNoteIDs.count))
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-                }
-            }
-
-            if isEditing {
-                // MARK: Multi-select toolbar
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        selectAllFilteredNotes()
-                    } label: {
-                        Image(systemName: "checkmark.circle")
-                    }
-                    .accessibilityLabel(L("browse_select_all"))
-                    .disabled(allNoteIDs.isEmpty)
-                }
-
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        invertSelection()
-                    } label: {
-                        Image(systemName: "arrow.left.arrow.right")
-                    }
-                    .accessibilityLabel(L("browse_select_invert"))
-                    .disabled(allNoteIDs.isEmpty)
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(role: .destructive) {
-                        showBatchDeleteConfirm = true
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .accessibilityLabel(L("browse_batch_delete_notes"))
-                    .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        withAnimation {
-                            selectedNoteIDs.removeAll()
-                            isMultiSelecting = false
-                        }
-                    } label: {
-                        Image(systemName: "checkmark")
-                    }
-                    .accessibilityLabel(L("common_done"))
-                }
-
-            } else {
-                // MARK: Normal toolbar
-                ToolbarItem(placement: .topBarLeading) {
-                    filterMenu
-                }
-
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        withAnimation {
-                            isMultiSelecting = true
-                        }
-                    } label: {
-                        Image(systemName: "checklist")
-                    }
-                    .accessibilityLabel(L("browse_multiselect_accessibility"))
-                }
-
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            showAddNote = true
-                        } label: {
-                            Label(L("browse_add_note"), systemImage: "note.text.badge.plus")
-                        }
-                        Button {
-                            showAddImageOcclusion = true
-                        } label: {
-                            Label(L("browse_add_image_occlusion"), systemImage: "rectangle.dashed.badge.record")
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel(L("browse_add_accessibility"))
-
-                    Menu {
-                        Button {
-                            presentCollectionTagsManager()
-                        } label: {
-                            Label(L("browse_tags_manage"), systemImage: "tag")
-                        }
-
-                        Button {
-                            showFindDuplicates = true
-                        } label: {
-                            Label(L("browse_find_duplicates"), systemImage: "rectangle.and.text.magnifyingglass.rtl")
-                        }
-
-                        Menu {
-                            ForEach(BrowseSortField.allCases, id: \.self) { field in
-                                Button {
-                                    sortField = field
-                                    applySort()
-                                } label: {
-                                    if sortField == field {
-                                        Label(field.title, systemImage: "checkmark.circle.fill")
-                                    } else {
-                                        Label(field.title, systemImage: field.symbol)
-                                    }
-                                }
-                            }
-                        } label: {
-                            Label(L("browse_sort_menu_title"), systemImage: "arrow.up.arrow.down.circle")
-                        }
-
-                        Button {
-                            sortReverse = false
-                            applySort()
-                        } label: {
-                            if !sortReverse {
-                                Label(L("browse_sort_order_forward"), systemImage: "checkmark.circle.fill")
-                            } else {
-                                Label(L("browse_sort_order_forward"), systemImage: "arrow.up")
-                            }
-                        }
-
-                        Button {
-                            sortReverse = true
-                            applySort()
-                        } label: {
-                            if sortReverse {
-                                Label(L("browse_sort_order_reverse"), systemImage: "checkmark.circle.fill")
-                            } else {
-                                Label(L("browse_sort_order_reverse"), systemImage: "arrow.down")
-                            }
-                        }
-
-                        Divider()
-
-                        Toggle(L("browse_display_note_type_subtitle"), isOn: $showNotetypeSubtitle)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                    .accessibilityLabel(L("browse_more_accessibility"))
-                }
-            }
+            browseToolbarContent
         }
         .sheet(isPresented: $showTagsManager, onDismiss: {
             activeSearchTask?.cancel()
@@ -537,6 +377,168 @@ struct BrowseView: View {
     }
 
     // MARK: - Extracted Sub-Views
+
+    @ToolbarContentBuilder
+    private var browseToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            if isEditing {
+                VStack(spacing: 1) {
+                    Text(L("browse_nav_title"))
+                        .amgiFont(.cardTitle)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Text(L("browse_selected_count", selectedNoteIDs.count))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            } else {
+                VStack(spacing: 1) {
+                    Text(L("browse_nav_title"))
+                        .amgiFont(.cardTitle)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Text(L("browse_total_count", allNoteIDs.count))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+            }
+        }
+
+        if isEditing {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    selectAllFilteredNotes()
+                } label: {
+                    Image(systemName: "checkmark.circle")
+                }
+                .accessibilityLabel(L("browse_select_all"))
+                .disabled(allNoteIDs.isEmpty)
+            }
+
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    invertSelection()
+                } label: {
+                    Image(systemName: "arrow.left.arrow.right")
+                }
+                .accessibilityLabel(L("browse_select_invert"))
+                .disabled(allNoteIDs.isEmpty)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    showBatchDeleteConfirm = true
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .accessibilityLabel(L("browse_batch_delete_notes"))
+                .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    withAnimation {
+                        selectedNoteIDs.removeAll()
+                        isMultiSelecting = false
+                    }
+                } label: {
+                    Image(systemName: "checkmark")
+                }
+                .accessibilityLabel(L("common_done"))
+            }
+        } else {
+            ToolbarItem(placement: .topBarLeading) {
+                filterMenu
+            }
+
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    withAnimation {
+                        isMultiSelecting = true
+                    }
+                } label: {
+                    Image(systemName: "checklist")
+                }
+                .accessibilityLabel(L("browse_multiselect_accessibility"))
+            }
+
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        showAddNote = true
+                    } label: {
+                        Label(L("browse_add_note"), systemImage: "note.text.badge.plus")
+                    }
+                    Button {
+                        showAddImageOcclusion = true
+                    } label: {
+                        Label(L("browse_add_image_occlusion"), systemImage: "rectangle.dashed.badge.record")
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel(L("browse_add_accessibility"))
+
+                Menu {
+                    Button {
+                        presentCollectionTagsManager()
+                    } label: {
+                        Label(L("browse_tags_manage"), systemImage: "tag")
+                    }
+
+                    Button {
+                        showFindDuplicates = true
+                    } label: {
+                        Label(L("browse_find_duplicates"), systemImage: "rectangle.and.text.magnifyingglass.rtl")
+                    }
+
+                    Menu {
+                        ForEach(BrowseSortField.allCases, id: \.self) { field in
+                            Button {
+                                sortField = field
+                                applySort()
+                            } label: {
+                                if sortField == field {
+                                    Label(field.title, systemImage: "checkmark.circle.fill")
+                                } else {
+                                    Label(field.title, systemImage: field.symbol)
+                                }
+                            }
+                        }
+                    } label: {
+                        Label(L("browse_sort_menu_title"), systemImage: "arrow.up.arrow.down.circle")
+                    }
+
+                    Button {
+                        sortReverse = false
+                        applySort()
+                    } label: {
+                        if !sortReverse {
+                            Label(L("browse_sort_order_forward"), systemImage: "checkmark.circle.fill")
+                        } else {
+                            Label(L("browse_sort_order_forward"), systemImage: "arrow.up")
+                        }
+                    }
+
+                    Button {
+                        sortReverse = true
+                        applySort()
+                    } label: {
+                        if sortReverse {
+                            Label(L("browse_sort_order_reverse"), systemImage: "checkmark.circle.fill")
+                        } else {
+                            Label(L("browse_sort_order_reverse"), systemImage: "arrow.down")
+                        }
+                    }
+
+                    Divider()
+
+                    Toggle(L("browse_display_note_type_subtitle"), isOn: $showNotetypeSubtitle)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel(L("browse_more_accessibility"))
+            }
+        }
+    }
 
     private var noteListContent: some View {
         List(selection: $selectedNoteIDs) {
