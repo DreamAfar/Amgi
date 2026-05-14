@@ -636,7 +636,7 @@ final class OcclusionCanvasUIView: UIView {
 
     private let selectionOutset: CGFloat = 4
     private let handleVisualDiameter: CGFloat = 12
-    private let handleHitDiameter: CGFloat = 28
+    private let handleHitDiameter: CGFloat = 44
     private let rotationHandleDistance: CGFloat = 34
     private let rotationSnapThresholdDegrees: CGFloat = 3
     private let minimumBoxDimension: CGFloat = 24
@@ -693,6 +693,7 @@ final class OcclusionCanvasUIView: UIView {
 
         let inactiveFill = UIColor(red: 1, green: 0.92, blue: 0.64, alpha: maskOpacity).cgColor
         let inactiveStroke = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1).cgColor
+        var selectionOverlays: [(mask: IOMask, isSelected: Bool)] = []
 
         for (i, mask) in masks.enumerated() {
             ctx.setFillColor((maskFillColor(for: mask) ?? UIColor(cgColor: inactiveFill)).cgColor)
@@ -703,12 +704,7 @@ final class OcclusionCanvasUIView: UIView {
             drawMask(ctx: ctx, mask: mask, imgRect: imgRect)
             drawOrdinal(ctx: ctx, index: i, mask: mask, imgRect: imgRect)
             if multiSelectionIndices.count <= 1, isSelected || isHighlighted {
-                drawSelectionOutline(
-                    ctx: ctx,
-                    mask: mask,
-                    imgRect: imgRect,
-                    showsHandles: shapeType == .select && isSelected && activeSelectionIndices.count <= 1
-                )
+                selectionOverlays.append((mask: mask, isSelected: isSelected))
             }
         }
 
@@ -719,6 +715,15 @@ final class OcclusionCanvasUIView: UIView {
                 imgRect: imgRect,
                 showsHandles: true
             )
+        } else {
+            for overlay in selectionOverlays {
+                drawSelectionOutline(
+                    ctx: ctx,
+                    mask: overlay.mask,
+                    imgRect: imgRect,
+                    showsHandles: shapeType == .select && overlay.isSelected && activeSelectionIndices.count <= 1
+                )
+            }
         }
 
         // In-progress drag (rect or ellipse)
@@ -1326,27 +1331,31 @@ final class OcclusionCanvasUIView: UIView {
     private func resizedMask(_ mask: IOMask, handle: SelectionHandle, location: CGPoint, imgRect: CGRect) -> IOMask? {
         switch mask {
         case .polygon(let points, let extras):
-            let originalBounds = maskBounds(for: mask, imgRect: imgRect)
+            guard let box = boxTransform(for: mask, imgRect: imgRect) else {
+                return nil
+            }
+            let rotatedPoints = points.map { rotate(absolutePoint(for: $0, imgRect: imgRect), by: -box.angle) }
+            let originalBounds = boundingRect(of: rotatedPoints)
             guard originalBounds.width > 0, originalBounds.height > 0,
                   let resizedBounds = resizedFrame(
                     originalBounds,
                     handle: handle,
                     location: location,
-                    angle: 0,
+                    angle: box.angle,
                     minimumSize: CGSize(width: minimumBoxDimension, height: minimumBoxDimension)
                   ) else {
                 return nil
             }
 
-            let updatedPoints = points.map { point -> CGPoint in
-                let absolute = absolutePoint(for: point, imgRect: imgRect)
-                let relativeX = originalBounds.width > 0 ? (absolute.x - originalBounds.minX) / originalBounds.width : 0.5
-                let relativeY = originalBounds.height > 0 ? (absolute.y - originalBounds.minY) / originalBounds.height : 0.5
-                let resizedAbsolute = CGPoint(
+            let updatedPoints = rotatedPoints.map { point -> CGPoint in
+                let relativeX = originalBounds.width > 0 ? (point.x - originalBounds.minX) / originalBounds.width : 0.5
+                let relativeY = originalBounds.height > 0 ? (point.y - originalBounds.minY) / originalBounds.height : 0.5
+                let resizedPoint = CGPoint(
                     x: resizedBounds.minX + relativeX * resizedBounds.width,
                     y: resizedBounds.minY + relativeY * resizedBounds.height
                 )
-                return normalizedPoint(for: resizedAbsolute, imgRect: imgRect)
+                let absolute = rotate(resizedPoint, by: box.angle)
+                return normalizedPoint(for: absolute, imgRect: imgRect)
             }
             return .polygon(points: updatedPoints, extras: extras)
         case .text(let left, let top, let text, let scale, let fontSize, let extras):
@@ -1472,9 +1481,38 @@ final class OcclusionCanvasUIView: UIView {
         case .text(let left, let top, let text, let scale, let fontSize, _):
             let frame = textFrame(for: text, left: left, top: top, scale: scale, fontSize: fontSize, imgRect: imgRect)
             return BoxTransform(origin: frame.origin, size: frame.size, angle: angleRadians(for: mask))
-        case .polygon:
-            return nil
+        case .polygon(let points, _):
+            return polygonBoxTransform(points: points, imgRect: imgRect)
         }
+    }
+
+    private func polygonBoxTransform(points: [CGPoint], imgRect: CGRect) -> BoxTransform? {
+        let absolutePoints = points.map { absolutePoint(for: $0, imgRect: imgRect) }
+        guard absolutePoints.count >= 2 else { return nil }
+
+        var bestAngle: CGFloat = 0
+        var bestBounds = boundingRect(of: absolutePoints)
+        var bestArea = bestBounds.width * bestBounds.height
+
+        for index in absolutePoints.indices {
+            let start = absolutePoints[index]
+            let end = absolutePoints[(index + 1) % absolutePoints.count]
+            let edgeLength = hypot(end.x - start.x, end.y - start.y)
+            guard edgeLength > .leastNonzeroMagnitude else { continue }
+
+            let angle = atan2(end.y - start.y, end.x - start.x)
+            let rotatedPoints = absolutePoints.map { rotate($0, by: -angle) }
+            let bounds = boundingRect(of: rotatedPoints)
+            let area = bounds.width * bounds.height
+            if area < bestArea {
+                bestAngle = angle
+                bestBounds = bounds
+                bestArea = area
+            }
+        }
+
+        let origin = rotate(CGPoint(x: bestBounds.minX, y: bestBounds.minY), by: bestAngle)
+        return BoxTransform(origin: origin, size: bestBounds.size, angle: bestAngle)
     }
 
     private func selectionGeometry(for mask: IOMask, imgRect: CGRect) -> SelectionGeometry {
