@@ -120,4 +120,14 @@ final class CardWebViewTests: XCTestCase {
         XCTAssertEqual(wrapperFile.lastPathComponent, ".amgi-card-wrapper.html")
         XCTAssertEqual(wrapperFile.deletingLastPathComponent(), mediaDir)
     }
+
+    func testMathJaxBootstrapScriptTagsIncludeConfigAndCoreScripts() {
+        let tags = CardWebView.mathJaxBootstrapScriptTags()
+
+        XCTAssertTrue(tags.contains(CardAssetPath.mathJaxConfigScriptURLString))
+        XCTAssertTrue(tags.contains(CardAssetPath.mathJaxCoreScriptURLString))
+        XCTAssertTrue(tags.contains("data-amgi-mathjax=\"config\""))
+        XCTAssertTrue(tags.contains("data-amgi-mathjax=\"core\""))
+        XCTAssertTrue(tags.contains("onload=\"this.dataset.amgiLoaded='1'\""))
+    }
 }

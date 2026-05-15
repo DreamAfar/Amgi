@@ -78,5 +78,46 @@ class ReviewSessionTests: XCTestCase {
     func testShowAnswerInitiallyFalse() {
         XCTAssertFalse(session.showAnswer, "Answer should not be visible initially")
     }
+
+    func testLegacyAVDirectiveCountCountsSoundAndTts() {
+        let html = """
+        [sound:foo.mp3]
+        [anki:tts lang=en_US]hello[/anki:tts]
+        """
+
+        XCTAssertEqual(ReviewSession.legacyAVDirectiveCount(in: html), 2)
+    }
+
+    func testShouldUseExtractedAVHTMLRequiresMatchingPlayPlaceholders() {
+        let original = """
+        [sound:foo.mp3]
+        [anki:tts lang=en_US]hello[/anki:tts]
+        """
+        let extracted = "before [anki:play:q:0] after"
+
+        XCTAssertFalse(
+            ReviewSession.shouldUseExtractedAVHTML(
+                originalHTML: original,
+                extractedHTML: extracted,
+                avTagCount: 2
+            )
+        )
+    }
+
+    func testShouldUseExtractedAVHTMLAcceptsMatchingExtraction() {
+        let original = """
+        [sound:foo.mp3]
+        [anki:tts lang=en_US]hello[/anki:tts]
+        """
+        let extracted = "before [anki:play:q:0] after [anki:play:q:1]"
+
+        XCTAssertTrue(
+            ReviewSession.shouldUseExtractedAVHTML(
+                originalHTML: original,
+                extractedHTML: extracted,
+                avTagCount: 2
+            )
+        )
+    }
 }
 

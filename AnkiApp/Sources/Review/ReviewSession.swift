@@ -340,13 +340,21 @@ final class ReviewSession {
             let renderedAnswerHTML = renderNodes(rendered.answerNodes)
             let extractedQuestionHTML = extractLatexIfNeeded(in: renderedQuestionHTML, svg: rendered.latexSvg)
             let extractedAnswerHTML = extractLatexIfNeeded(in: renderedAnswerHTML, svg: rendered.latexSvg)
-            let encodedQuestionHTML = encodeIriPathsIfNeeded(in: extractedQuestionHTML)
-            let encodedAnswerHTML = encodeIriPathsIfNeeded(in: extractedAnswerHTML)
-            let questionMedia = extractAVTags(from: encodedQuestionHTML, questionSide: true)
-            let answerMedia = extractAVTags(from: encodedAnswerHTML, questionSide: false)
+            let questionMedia = extractAVTags(from: extractedQuestionHTML, questionSide: true)
+            let answerMedia = extractAVTags(from: extractedAnswerHTML, questionSide: false)
+            let resolvedQuestionHTML = resolveReviewHTML(
+                originalHTML: extractedQuestionHTML,
+                extractedHTML: questionMedia.text,
+                avTags: questionMedia.tags
+            )
+            let resolvedAnswerHTML = resolveReviewHTML(
+                originalHTML: extractedAnswerHTML,
+                extractedHTML: answerMedia.text,
+                avTags: answerMedia.tags
+            )
 
-            renderedFrontHTML = questionMedia.text
-            renderedBackHTML = answerMedia.text
+            renderedFrontHTML = encodeIriPathsIfNeeded(in: resolvedQuestionHTML)
+            renderedBackHTML = encodeIriPathsIfNeeded(in: resolvedAnswerHTML)
             questionAVTags = questionMedia.tags
             answerAVTags = answerMedia.tags
 
@@ -404,6 +412,56 @@ final class ReviewSession {
             || html.contains("[/$]")
             || html.contains("[$$]")
             || html.contains("[/$$]")
+    }
+
+    private func resolveReviewHTML(
+        originalHTML: String,
+        extractedHTML: String,
+        avTags: [Anki_CardRendering_AVTag]
+    ) -> String {
+        guard Self.shouldUseExtractedAVHTML(
+            originalHTML: originalHTML,
+            extractedHTML: extractedHTML,
+            avTagCount: avTags.count
+        ) else {
+            if Self.legacyAVDirectiveCount(in: originalHTML) > 0 {
+                print("[ReviewSession] Falling back to original AV HTML to keep preview/review parity")
+            }
+            return originalHTML
+        }
+
+        return extractedHTML
+    }
+
+    static func shouldUseExtractedAVHTML(
+        originalHTML: String,
+        extractedHTML: String,
+        avTagCount: Int
+    ) -> Bool {
+        let legacyDirectiveCount = legacyAVDirectiveCount(in: originalHTML)
+        guard legacyDirectiveCount > 0 else {
+            return true
+        }
+
+        let playPlaceholderCount = extractedAVPlaceholderCount(in: extractedHTML)
+        return playPlaceholderCount == legacyDirectiveCount && playPlaceholderCount == avTagCount
+    }
+
+    static func legacyAVDirectiveCount(in html: String) -> Int {
+        occurrenceCount(of: #"\[sound:[^\]]+\]"#, in: html)
+            + occurrenceCount(of: #"\[anki:tts[^\]]*\][\s\S]*?\[/anki:tts\]"#, in: html)
+    }
+
+    static func extractedAVPlaceholderCount(in html: String) -> Int {
+        occurrenceCount(of: #"\[anki:play:[qa]:\d+\]"#, in: html)
+    }
+
+    static func occurrenceCount(of pattern: String, in text: String) -> Int {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return 0
+        }
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.numberOfMatches(in: text, range: range)
     }
 
     private func encodeIriPathsIfNeeded(in html: String) -> String {

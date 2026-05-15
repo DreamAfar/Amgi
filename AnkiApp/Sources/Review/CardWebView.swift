@@ -288,6 +288,7 @@ struct CardWebView: UIViewRepresentable {
         let missingAudioIconLiteral = jsStringLiteral(missingAudioIconHTML)
         let mathJaxConfigScriptURL = jsStringLiteral(CardAssetPath.mathJaxConfigScriptURLString)
         let mathJaxCoreScriptURL = jsStringLiteral(CardAssetPath.mathJaxCoreScriptURLString)
+        let mathJaxBootstrapScriptTags = Self.mathJaxBootstrapScriptTags()
 
         return """
         <!DOCTYPE html>
@@ -442,6 +443,7 @@ struct CardWebView: UIViewRepresentable {
             .night_mode a, .night_mode a:visited, .night_mode a:active { color: #8fb8ff; }
         </style>
         <style id="amgi-card-css"></style>
+        \(mathJaxBootstrapScriptTags)
         <script>
         // ── Globals ──────────────────────────────────────────────────────────
         var PLAY_ICON_HTML = \(playIconLiteral);
@@ -824,13 +826,17 @@ struct CardWebView: UIViewRepresentable {
                         resolve();
                         return;
                     }
-                    existing.addEventListener('load', function() {
-                        existing.dataset.amgiLoaded = '1';
+                    var finishExisting = function() {
+                        existing.dataset.amgiLoaded = existing.dataset.amgiLoaded || '1';
                         resolve();
+                    };
+                    existing.addEventListener('load', function() {
+                        finishExisting();
                     }, { once: true });
                     existing.addEventListener('error', function() {
                         resolve();
                     }, { once: true });
+                    window.setTimeout(finishExisting, 50);
                     return;
                 }
 
@@ -890,6 +896,8 @@ struct CardWebView: UIViewRepresentable {
 
             return await window.__amgiMathJaxLoadPromise;
         }
+
+        void amgiEnsureMathJaxReady(4000);
 
         // ── Hooks ────────────────────────────────────────────────────────────
         function amgiRunHooks(hooks) {
@@ -2056,6 +2064,13 @@ struct CardWebView: UIViewRepresentable {
             let prefetchLit = jsStringLiteral(prefetchHTML ?? "")
             return applyCSS + applyAVTags + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         }
+    }
+
+    static func mathJaxBootstrapScriptTags() -> String {
+        """
+        <script src="\(CardAssetPath.mathJaxConfigScriptURLString)" data-amgi-mathjax="config" onload="this.dataset.amgiLoaded='1'"></script>
+        <script src="\(CardAssetPath.mathJaxCoreScriptURLString)" data-amgi-mathjax="core" onload="this.dataset.amgiLoaded='1'"></script>
+        """
     }
 
     private struct ManagedAVTagDescriptor: Encodable {
