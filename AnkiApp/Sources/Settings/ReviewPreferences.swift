@@ -17,7 +17,7 @@ enum ReaderLibrarySourceMode: String, CaseIterable, Identifiable {
 }
 
 enum ReviewPreferences {
-    enum GestureAction: String, CaseIterable, Identifiable {
+    enum GestureAction: String, CaseIterable, Identifiable, Sendable {
         case none
         case showAnswer
         case again
@@ -38,7 +38,7 @@ enum ReviewPreferences {
         var id: String { rawValue }
     }
 
-    enum ControllerButton: String, CaseIterable, Identifiable {
+    enum ControllerButton: String, CaseIterable, Identifiable, Sendable {
         case buttonA
         case buttonB
         case buttonX
@@ -59,7 +59,7 @@ enum ReviewPreferences {
         var id: String { rawValue }
     }
 
-    enum KeyboardShortcut: String, CaseIterable, Identifiable {
+    enum KeyboardShortcut: String, CaseIterable, Identifiable, Sendable {
         case space
         case enter
         case number1

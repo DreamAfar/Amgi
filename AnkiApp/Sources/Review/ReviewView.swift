@@ -1387,9 +1387,10 @@ final class ReviewControllerMonitor {
                 forName: .GCControllerDidConnect,
                 object: nil,
                 queue: .main
-            ) { [weak self] notification in
-                guard let controller = notification.object as? GCController else { return }
-                self?.configure(controller)
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.connectExistingControllers()
+                }
             }
         )
     }
@@ -1469,7 +1470,9 @@ final class ReviewKeyboardMonitor {
             queue: .main
         ) { [weak self] notification in
             guard let shortcut = notification.object as? ReviewPreferences.KeyboardShortcut else { return }
-            self?.onShortcut?(shortcut)
+            Task { @MainActor [weak self] in
+                self?.onShortcut?(shortcut)
+            }
         }
     }
 
