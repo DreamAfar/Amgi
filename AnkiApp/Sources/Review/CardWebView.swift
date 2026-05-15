@@ -2267,13 +2267,19 @@ struct CardWebView: UIViewRepresentable {
 
         switch tag.value {
         case .soundOrVideo(let resource):
-            let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
             let encodedSrc = htmlAttributeEscaped(encodedMediaSource(resource))
-            let hiddenMarker = "<span class=\"amgi-av-tag sound-tag\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-av-kind=\"\(mediaKind(for: resource))\" data-av-src=\"\(encodedSrc)\"></span>"
+            let kind = mediaKind(for: resource)
+            if kind == "video" {
+                return """
+                <video class="amgi-inline-video" controls playsinline preload="metadata" data-av-side="\(sideAttr)" data-av-index="\(indexAttr)" data-av-kind="video" data-av-src="\(encodedSrc)" src="\(encodedSrc)"></video>
+                """
+            }
+            let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: "Play", isDarkMode: isDarkMode)
+            let hiddenMarker = "<span class=\"amgi-av-tag sound-tag\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-av-kind=\"audio\" data-av-src=\"\(encodedSrc)\"></span>"
             guard showReplayButtons else {
                 return hiddenMarker
             }
-            return "<span class=\"sound-btn soundLink\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-av-kind=\"\(mediaKind(for: resource))\" data-av-src=\"\(encodedSrc)\">\(hiddenMarker)<a class=\"replay-button replay-btn\" href=\"#\" draggable=\"false\" onclick=\"return amgiPlayStructuredNode(this)\">\(iconHTML)</a></span>"
+            return "<span class=\"sound-btn soundLink\" data-av-side=\"\(sideAttr)\" data-av-index=\"\(indexAttr)\" data-av-kind=\"audio\" data-av-src=\"\(encodedSrc)\">\(hiddenMarker)<a class=\"replay-button replay-btn\" href=\"#\" draggable=\"false\" onclick=\"return amgiPlayStructuredNode(this)\">\(iconHTML)</a></span>"
 
         case .tts(let ttsTag):
             let spokenText = htmlAttributeEscaped(ttsTag.fieldText.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -2308,10 +2314,13 @@ struct CardWebView: UIViewRepresentable {
     ) -> ManagedAVTagDescriptor? {
         switch tag.value {
         case .soundOrVideo(let resource):
+            guard isAudioResource(resource) else {
+                return nil
+            }
             return ManagedAVTagDescriptor(
                 side: side,
                 index: index,
-                kind: mediaKind(for: resource),
+                kind: "audio",
                 src: encodedMediaSource(resource),
                 text: nil,
                 lang: nil,

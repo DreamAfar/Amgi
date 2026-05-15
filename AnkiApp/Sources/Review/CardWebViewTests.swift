@@ -61,8 +61,25 @@ final class CardWebViewTests: XCTestCase {
             showReplayButtons: true
         )
 
+        XCTAssertTrue(expanded.contains("<video"))
+        XCTAssertTrue(expanded.contains("class=\"amgi-inline-video\""))
+        XCTAssertTrue(expanded.contains("controls"))
+        XCTAssertTrue(expanded.contains("playsinline"))
         XCTAssertTrue(expanded.contains("data-av-kind=\"video\""))
-        XCTAssertTrue(expanded.contains("data-av-src=\"demo.mp4\""))
+        XCTAssertTrue(expanded.contains("src=\"demo.mp4\""))
+    }
+
+    func testExpandSoundTagsRendersLegacyVideoAsInlineVideo() {
+        let expanded = CardWebView.expandSoundTags(
+            "[sound:demo.mp4]",
+            isDarkMode: false,
+            showReplayButtons: true
+        )
+
+        XCTAssertTrue(expanded.contains("<video"))
+        XCTAssertTrue(expanded.contains("class=\"amgi-inline-video\""))
+        XCTAssertTrue(expanded.contains("data-av-kind=\"video\""))
+        XCTAssertTrue(expanded.contains("src=\"demo.mp4\""))
     }
 
     func testExpandPlayTagsKeepsHiddenTtsMarkerWhenReplayButtonsDisabled() {
