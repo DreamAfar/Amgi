@@ -1314,16 +1314,37 @@ struct CardWebView: UIViewRepresentable {
             return 0;
         }
         function amgiCollectMediaQueue(mode) {
-            var rawQueues = amgiSplitRawMediaQueue();
             var ttsQueues = amgiSplitTtsQueue();
-            var question = amgiStructuredMediaItems('q').concat(ttsQueues.question, rawQueues.question);
-            var answer = amgiStructuredMediaItems('a').concat(ttsQueues.answer, rawQueues.answer);
-            question.sort(amgiDomOrderCompare);
-            answer.sort(amgiDomOrderCompare);
-            if (mode === 'question') return amgiDedupedMediaItems(question);
-            if (mode === 'answerWithQuestion') {
-                return amgiDedupedMediaItems(question.concat(answer), { preferLast: true });
+            // Raw <audio>/<video> elements in templates are user-interactive only
+            // (like PC Anki: av_player only queues [sound:] and {{tts}} tags).
+            if (mode === 'question') {
+                var question = amgiStructuredMediaItems('q').concat(ttsQueues.question);
+                question.sort(amgiDomOrderCompare);
+                return amgiDedupedMediaItems(question);
             }
+            if (mode === 'answerWithQuestion') {
+                var q = amgiStructuredMediaItems('q').concat(ttsQueues.question);
+                var a = amgiStructuredMediaItems('a').concat(ttsQueues.answer);
+                var combined = q.concat(a);
+                combined.sort(amgiDomOrderCompare);
+                return amgiDedupedMediaItems(combined, { preferLast: true });
+            }
+            // answerOnly: only items DOM-positioned after <hr id=answer>
+            // (matches PC Anki answer_av_tags() which excludes {{FrontSide}} audio)
+            var marker = document.getElementById('answer');
+            var structuredA = amgiStructuredMediaItems('a');
+            if (marker) {
+                structuredA = structuredA.filter(function(item) {
+                    var el = item.button;
+                    if (!el) {
+                        var sel = '[data-av-side="a"][data-av-index="' + item.index + '"]';
+                        el = document.querySelector('.amgi-av-tag' + sel);
+                    }
+                    return !!el && !!(marker.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+                });
+            }
+            var answer = structuredA.concat(ttsQueues.answer);
+            answer.sort(amgiDomOrderCompare);
             return amgiDedupedMediaItems(answer);
         }
         function amgiAnyManagedMediaPlaying() {
