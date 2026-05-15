@@ -13,6 +13,7 @@
 		1115CE10916E262F44EA1F2C /* HourlyChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 182FC74C5BB359AB8817CA3A /* HourlyChart.swift */; };
 		1B576C6A42E1516B93F51986 /* HeatmapChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519F202DE9743805C2ACE70A /* HeatmapChart.swift */; };
 		1BE322A27F455A73831C088D /* CardWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A82DF75DFF5E0EBBA96070 /* CardWebView.swift */; };
+		1F23456789ABCDEFFEDCBA98 /* CardTTSPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A3456789ABCDEFFEDCBA987 /* CardTTSPlayer.swift */; };
 		2041FEAB09DA14F76D0166FD /* ReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78205C13A17E345E4A7493D /* ReviewView.swift */; };
 		225158C73F92195729D274D0 /* DeckListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8BCE5F7A1620D00F69AFDC1 /* DeckListView.swift */; };
 		34F00C71BBA07AE73683E392 /* TodayStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA6EA7DA097219C6A75765D /* TodayStatsCard.swift */; };
@@ -87,6 +88,7 @@
 		AF0D4C5AE73CB146B878AD82 /* DeckDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckDetailView.swift; sourceTree = "<group>"; };
 		B9B09B3F0AFE20F9E7D8B62A /* DebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugView.swift; sourceTree = "<group>"; };
 		D2A82DF75DFF5E0EBBA96070 /* CardWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardWebView.swift; sourceTree = "<group>"; };
+		2A3456789ABCDEFFEDCBA987 /* CardTTSPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTTSPlayer.swift; sourceTree = "<group>"; };
 		D7B6AD8BB31B59E02629AFC9 /* EaseChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EaseChart.swift; sourceTree = "<group>"; };
 		E3704B3ECDE0A58442E5D6BA /* LoginSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginSheet.swift; sourceTree = "<group>"; };
 		FCCF84F3C0C5A8DF76270AFE /* ReviewSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSession.swift; sourceTree = "<group>"; };
@@ -170,6 +172,7 @@
 		AEDB60314935470BD7A14666 /* Review */ = {
 			isa = PBXGroup;
 			children = (
+				2A3456789ABCDEFFEDCBA987 /* CardTTSPlayer.swift */,
 				D2A82DF75DFF5E0EBBA96070 /* CardWebView.swift */,
 				FCCF84F3C0C5A8DF76270AFE /* ReviewSession.swift */,
 				A78205C13A17E345E4A7493D /* ReviewView.swift */,
@@ -293,6 +296,7 @@
 				C20D662F27A068D4781013BB /* BrowseView.swift in Sources */,
 				9DC22A6DD970EB2C8B744866 /* ButtonsChart.swift in Sources */,
 				FF9018AA92EE17F25742AEFA /* CardCountsChart.swift in Sources */,
+				1F23456789ABCDEFFEDCBA98 /* CardTTSPlayer.swift in Sources */,
 				1BE322A27F455A73831C088D /* CardWebView.swift in Sources */,
 				9A324D1962FC23F10A12BDCC /* ContentView.swift in Sources */,
 				C606A44C4BFF3695EF243BCA /* DebugView.swift in Sources */,

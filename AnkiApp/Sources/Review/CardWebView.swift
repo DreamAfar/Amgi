@@ -2,7 +2,6 @@ import SwiftUI
 import WebKit
 import Foundation
 import UIKit
-import AVFoundation
 import AnkiProto
 
 struct CardWebView: UIViewRepresentable {
@@ -1200,6 +1199,15 @@ struct CardWebView: UIViewRepresentable {
                 return amgiStructuredMediaItemBySideIndex(side, parseInt(tag.index, 10));
             }).filter(Boolean);
         }
+        function amgiTtsButtonItems(root) {
+            return Array.from((root || document).querySelectorAll('.tts-btn')).map(function(button) {
+                return {
+                    kind: 'tts',
+                    button: button,
+                    payload: amgiTtsPayloadForButton(button)
+                };
+            });
+        }
         function amgiRawMediaItems(elements) {
             return (elements || []).map(function(element) {
                 return {
@@ -1277,10 +1285,27 @@ struct CardWebView: UIViewRepresentable {
                 answer: answer.length ? answer : all
             };
         }
+        function amgiSplitTtsQueue() {
+            var all = amgiTtsButtonItems(document);
+            var marker = document.getElementById('answer');
+            if (!marker) return { all: all, question: all, answer: all };
+            var answer = all.filter(function(item) {
+                return !!(marker.compareDocumentPosition(item.button) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+            var question = all.filter(function(item) {
+                return !(marker.compareDocumentPosition(item.button) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+            return {
+                all: all,
+                question: question.length ? question : all,
+                answer: answer.length ? answer : all
+            };
+        }
         function amgiCollectMediaQueue(mode) {
             var rawQueues = amgiSplitRawMediaQueue();
-            var question = amgiStructuredMediaItems('q').concat(rawQueues.question);
-            var answer = amgiStructuredMediaItems('a').concat(rawQueues.answer);
+            var ttsQueues = amgiSplitTtsQueue();
+            var question = amgiStructuredMediaItems('q').concat(ttsQueues.question, rawQueues.question);
+            var answer = amgiStructuredMediaItems('a').concat(ttsQueues.answer, rawQueues.answer);
             if (mode === 'question') return amgiDedupedMediaItems(question);
             if (mode === 'answerWithQuestion') {
                 return amgiDedupedMediaItems(question.concat(answer), { preferLast: true });
@@ -2616,7 +2641,7 @@ struct CardWebView: UIViewRepresentable {
     // MARK: - Navigation Delegate
 
     @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, AVSpeechSynthesizerDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var lastPageSignature: String?
         var lastContentSignature: String?
         var lastReplayRequestID: Int = 0
@@ -2632,8 +2657,7 @@ struct CardWebView: UIViewRepresentable {
         private let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
         private let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
         private var lastThemePayload: String?
-        private var ttsTokensByUtterance: [ObjectIdentifier: String] = [:]
-        private let speechSynthesizer = AVSpeechSynthesizer()
+        private let ttsPlayer = CardTTSPlayer()
 
         init(
             onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
@@ -2646,7 +2670,9 @@ struct CardWebView: UIViewRepresentable {
             self.onCardBackgroundColorChange = onCardBackgroundColorChange
             self.onLookupRequested = onLookupRequested
             super.init()
-            speechSynthesizer.delegate = self
+            ttsPlayer.onEvent = { [weak self] state, token in
+                self?.handleTTSEvent(state: state, token: token)
+            }
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -2665,7 +2691,7 @@ struct CardWebView: UIViewRepresentable {
             }
 
             if message.name == "amgiSpeakTts" {
-                speakTTS(from: message.body)
+                ttsPlayer.speak(messageBody: message.body, playAudioInSilentMode: playAudioInSilentMode)
                 return
             }
 
@@ -2714,37 +2740,8 @@ struct CardWebView: UIViewRepresentable {
             openLink(href)
         }
 
-        nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-            let utteranceID = ObjectIdentifier(utterance)
-            Task { @MainActor [weak self] in
-                self?.notifyWebViewOfTTSEvent(state: "start", forUtteranceID: utteranceID, removeToken: false)
-                self?.onAudioStateChange?(true)
-            }
-        }
-
-        nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-            let utteranceID = ObjectIdentifier(utterance)
-            Task { @MainActor [weak self] in
-                self?.notifyWebViewOfTTSEvent(state: "finish", forUtteranceID: utteranceID)
-                self?.restoreReviewAudioSession()
-                self?.onAudioStateChange?(false)
-            }
-        }
-
-        nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-            let utteranceID = ObjectIdentifier(utterance)
-            Task { @MainActor [weak self] in
-                self?.notifyWebViewOfTTSEvent(state: "cancel", forUtteranceID: utteranceID)
-                self?.restoreReviewAudioSession()
-                self?.onAudioStateChange?(false)
-            }
-        }
-
         func stopTTS() {
-            guard speechSynthesizer.isSpeaking else { return }
-            speechSynthesizer.stopSpeaking(at: .immediate)
-            restoreReviewAudioSession()
-            onAudioStateChange?(false)
+            ttsPlayer.stop()
         }
 
         private static func parseCSSColor(_ cssColor: String) -> UIColor? {
@@ -2811,83 +2808,8 @@ struct CardWebView: UIViewRepresentable {
             }
         }
 
-        private func speakTTS(from body: Any) {
-            guard let payload = body as? [String: Any] else { return }
-            let text = (payload["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            guard !text.isEmpty else { return }
-            let token = (payload["token"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            stopTTS()
-            configureTTSAudioSession()
-
-            let utterance = AVSpeechUtterance(string: text)
-            let utteranceToken = token?.isEmpty == false ? token : nil
-            if let utteranceToken {
-                ttsTokensByUtterance[ObjectIdentifier(utterance)] = utteranceToken
-            }
-            let lang = ((payload["lang"] as? String) ?? "").replacingOccurrences(of: "_", with: "-")
-            let preferredVoices = ((payload["voices"] as? String) ?? "")
-                .split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-
-            if let voice = preferredVoice(lang: lang, preferredNames: preferredVoices) {
-                utterance.voice = voice
-            } else if !lang.isEmpty {
-                utterance.voice = AVSpeechSynthesisVoice(language: lang)
-            }
-
-            let speedMultiplier = Float((payload["speed"] as? String) ?? "") ?? 1
-            let mappedRate = AVSpeechUtteranceDefaultSpeechRate * max(0.25, min(speedMultiplier, 2.0))
-            utterance.rate = min(max(mappedRate, AVSpeechUtteranceMinimumSpeechRate), AVSpeechUtteranceMaximumSpeechRate)
-            speechSynthesizer.speak(utterance)
-        }
-
-        private func configureTTSAudioSession() {
-            let session = AVAudioSession.sharedInstance()
-            do {
-                if playAudioInSilentMode {
-                    try session.setCategory(
-                        .playback,
-                        mode: .voicePrompt,
-                        options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers]
-                    )
-                } else {
-                    try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
-                }
-                try session.setActive(true, options: [])
-            } catch {
-                print("[CardWebView] TTS audio session configure failed: \(error)")
-            }
-        }
-
-        private func restoreReviewAudioSession() {
-            do {
-                let session = AVAudioSession.sharedInstance()
-                if playAudioInSilentMode {
-                    try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-                } else {
-                    try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
-                }
-                try session.setActive(true, options: [])
-            } catch {
-                print("[CardWebView] Review audio session restore failed: \(error)")
-            }
-        }
-
-        private func notifyWebViewOfTTSEvent(
-            state: String,
-            forUtteranceID utteranceID: ObjectIdentifier,
-            removeToken: Bool = true
-        ) {
-            let token = ttsTokensByUtterance[utteranceID] ?? ""
-            guard let webView = currentWebView else {
-                if removeToken {
-                    ttsTokensByUtterance.removeValue(forKey: utteranceID)
-                }
-                return
-            }
-
+        private func handleTTSEvent(state: String, token: String) {
+            guard let webView = currentWebView else { return }
             let tokenLiteral = Self.jsStringLiteral(token)
             let stateLiteral = Self.jsStringLiteral(state)
             let script = """
@@ -2895,9 +2817,7 @@ struct CardWebView: UIViewRepresentable {
             """
 
             webView.evaluateJavaScript(script, completionHandler: nil)
-            if removeToken {
-                ttsTokensByUtterance.removeValue(forKey: utteranceID)
-            }
+            onAudioStateChange?(state == "start" || ttsPlayer.isSpeakingNow)
         }
 
         private static func jsStringLiteral(_ string: String) -> String {
@@ -2909,23 +2829,6 @@ struct CardWebView: UIViewRepresentable {
                 .replacingOccurrences(of: "\u{2028}", with: "\\u2028")
                 .replacingOccurrences(of: "\u{2029}", with: "\\u2029")
             return "'\(escaped)'"
-        }
-
-        private func preferredVoice(lang: String, preferredNames: [String]) -> AVSpeechSynthesisVoice? {
-            let voices = AVSpeechSynthesisVoice.speechVoices()
-
-            for preferredName in preferredNames {
-                if let voice = voices.first(where: { $0.identifier.caseInsensitiveCompare(preferredName) == .orderedSame }) {
-                    return voice
-                }
-                if let voice = voices.first(where: { $0.name.caseInsensitiveCompare(preferredName) == .orderedSame }) {
-                    return voice
-                }
-            }
-
-            guard !lang.isEmpty else { return nil }
-            return voices.first(where: { $0.language.caseInsensitiveCompare(lang) == .orderedSame })
-                ?? voices.first(where: { $0.language.lowercased().hasPrefix(lang.lowercased()) })
         }
 
         private func openLink(_ href: String) {

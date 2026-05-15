@@ -109,58 +109,75 @@ class ReviewSessionTests: XCTestCase {
         [sound:foo.mp3]
         [anki:tts lang=en_US]hello[/anki:tts]
         """
-        let extracted = "before [anki:play:q:0] after [anki:play:q:1]"
+        let extracted = "before [anki:play:q:0] after [anki:tts lang=en_US]hello[/anki:tts]"
 
         XCTAssertTrue(
             ReviewSession.shouldUseExtractedAVHTML(
                 originalHTML: original,
                 extractedHTML: extracted,
-                avTagCount: 2
+                avTagCount: 1
             )
         )
     }
 
-    func testLegacyTTSTagsParseTextAndOptionsFromOriginalHTML() {
+    func testLegacyTTSDirectivesReturnOriginalDirectiveStrings() {
         let html = """
         before [anki:tts lang=zh_CN voices=Tingting,Sinji speed=1.2 foo=bar] 你好 \n[/anki:tts] after
         """
 
-        let tags = ReviewSession.legacyTTSTags(in: html)
+        let directives = ReviewSession.legacyTTSDirectives(in: html)
 
-        XCTAssertEqual(tags.count, 1)
-        guard case .tts(let tts)? = tags.first?.value else {
-            return XCTFail("Expected TTS tag")
-        }
-        XCTAssertEqual(tts.fieldText, "你好")
-        XCTAssertEqual(tts.lang, "zh_CN")
-        XCTAssertEqual(tts.voices, ["Tingting", "Sinji"])
-        XCTAssertEqual(tts.speed, 1.2, accuracy: 0.0001)
-        XCTAssertEqual(tts.otherArgs, ["foo=bar"])
+        XCTAssertEqual(
+            directives,
+            ["[anki:tts lang=zh_CN voices=Tingting,Sinji speed=1.2 foo=bar] 你好 \n[/anki:tts]"]
+        )
     }
 
-    func testSyncExtractedTTSTagsWithOriginalHTMLReplacesEmptyExtractedPayload() {
+    func testNormalizeExtractedReviewMediaRestoresRawTTSAndPrunesTTSTags() {
         let originalHTML = """
         [anki:tts lang=en_US voices=Alice speed=0.9]hello[/anki:tts]
         """
         let extractedHTML = "[anki:play:q:0]"
         var extractedTTS = Anki_CardRendering_TTSTag()
-        extractedTTS.lang = "en_US"
+        extractedTTS.fieldText = ""
         var extractedTag = Anki_CardRendering_AVTag()
         extractedTag.tts = extractedTTS
 
-        let synced = ReviewSession.syncExtractedTTSTagsWithOriginalHTML(
+        let normalized = ReviewSession.normalizeExtractedReviewMedia(
             originalHTML: originalHTML,
-            media: (text: extractedHTML, tags: [extractedTag])
+            media: (text: extractedHTML, tags: [extractedTag]),
+            questionSide: true
         )
 
-        XCTAssertEqual(synced.text, extractedHTML)
-        guard case .tts(let tts)? = synced.tags.first?.value else {
-            return XCTFail("Expected synced TTS tag")
-        }
-        XCTAssertEqual(tts.fieldText, "hello")
-        XCTAssertEqual(tts.lang, "en_US")
-        XCTAssertEqual(tts.voices, ["Alice"])
-        XCTAssertEqual(tts.speed, 0.9, accuracy: 0.0001)
+        XCTAssertEqual(normalized.text, originalHTML)
+        XCTAssertTrue(normalized.tags.isEmpty)
+    }
+
+    func testNormalizeExtractedReviewMediaRenumbersManagedSoundPlaceholdersAfterRemovingTTS() {
+        let originalHTML = """
+        [sound:foo.mp3] [anki:tts lang=en_US]hello[/anki:tts] [sound:bar.mp3]
+        """
+        let extractedHTML = "[anki:play:q:0] [anki:play:q:1] [anki:play:q:2]"
+        var firstSound = Anki_CardRendering_AVTag()
+        firstSound.soundOrVideo = "foo.mp3"
+        var extractedTTS = Anki_CardRendering_TTSTag()
+        extractedTTS.fieldText = "hello"
+        var ttsTag = Anki_CardRendering_AVTag()
+        ttsTag.tts = extractedTTS
+        var secondSound = Anki_CardRendering_AVTag()
+        secondSound.soundOrVideo = "bar.mp3"
+
+        let normalized = ReviewSession.normalizeExtractedReviewMedia(
+            originalHTML: originalHTML,
+            media: (text: extractedHTML, tags: [firstSound, ttsTag, secondSound]),
+            questionSide: true
+        )
+
+        XCTAssertEqual(
+            normalized.text,
+            "[anki:play:q:0] [anki:tts lang=en_US]hello[/anki:tts] [anki:play:q:1]"
+        )
+        XCTAssertEqual(normalized.tags.count, 2)
     }
 }
 
