@@ -119,5 +119,48 @@ class ReviewSessionTests: XCTestCase {
             )
         )
     }
+
+    func testLegacyTTSTagsParseTextAndOptionsFromOriginalHTML() {
+        let html = """
+        before [anki:tts lang=zh_CN voices=Tingting,Sinji speed=1.2 foo=bar] 你好 \n[/anki:tts] after
+        """
+
+        let tags = ReviewSession.legacyTTSTags(in: html)
+
+        XCTAssertEqual(tags.count, 1)
+        guard case .tts(let tts)? = tags.first?.value else {
+            return XCTFail("Expected TTS tag")
+        }
+        XCTAssertEqual(tts.fieldText, "你好")
+        XCTAssertEqual(tts.lang, "zh_CN")
+        XCTAssertEqual(tts.voices, ["Tingting", "Sinji"])
+        XCTAssertEqual(tts.speed, 1.2, accuracy: 0.0001)
+        XCTAssertEqual(tts.otherArgs, ["foo=bar"])
+    }
+
+    func testSyncExtractedTTSTagsWithOriginalHTMLReplacesEmptyExtractedPayload() {
+        let originalHTML = """
+        [anki:tts lang=en_US voices=Alice speed=0.9]hello[/anki:tts]
+        """
+        let extractedHTML = "[anki:play:q:0]"
+        var extractedTTS = Anki_CardRendering_TTSTag()
+        extractedTTS.lang = "en_US"
+        var extractedTag = Anki_CardRendering_AVTag()
+        extractedTag.tts = extractedTTS
+
+        let synced = ReviewSession.syncExtractedTTSTagsWithOriginalHTML(
+            originalHTML: originalHTML,
+            media: (text: extractedHTML, tags: [extractedTag])
+        )
+
+        XCTAssertEqual(synced.text, extractedHTML)
+        guard case .tts(let tts)? = synced.tags.first?.value else {
+            return XCTFail("Expected synced TTS tag")
+        }
+        XCTAssertEqual(tts.fieldText, "hello")
+        XCTAssertEqual(tts.lang, "en_US")
+        XCTAssertEqual(tts.voices, ["Alice"])
+        XCTAssertEqual(tts.speed, 0.9, accuracy: 0.0001)
+    }
 }
 

@@ -1216,6 +1216,19 @@ struct CardWebView: UIViewRepresentable {
             if (item.kind === 'tts') {
                 return 'tts|' + amgiTtsSignature(item.payload || {});
             }
+            function normalizedMediaSource(src) {
+                if (!src) return '';
+                var raw = String(src).trim();
+                if (!raw) return '';
+                try {
+                    var url = new URL(raw, document.baseURI);
+                    var path = decodeURIComponent(url.pathname || '');
+                    var parts = path.split('/').filter(Boolean);
+                    return parts.length ? parts[parts.length - 1] : decodeURIComponent(url.href);
+                } catch (error) {
+                    return raw;
+                }
+            }
             var src = '';
             if (item.kind === 'structured') {
                 src = item.src || '';
@@ -1223,11 +1236,25 @@ struct CardWebView: UIViewRepresentable {
                 var media = item.media;
                 src = media ? (media.currentSrc || media.getAttribute('src') || media.src || '') : '';
             }
-            return (item.mediaType || item.kind || 'media') + '|' + src;
+            return (item.mediaType || item.kind || 'media') + '|' + normalizedMediaSource(src);
         }
-        function amgiDedupedMediaItems(items) {
+        function amgiDedupedMediaItems(items, options) {
+            options = options || {};
             var seen = new Set();
-            return (items || []).filter(function(item) {
+            var list = items || [];
+            if (options.preferLast) {
+                var reversed = [];
+                for (var i = list.length - 1; i >= 0; i--) {
+                    var item = list[i];
+                    var signature = amgiMediaItemSignature(item);
+                    if (!signature || seen.has(signature)) continue;
+                    seen.add(signature);
+                    reversed.push(item);
+                }
+                reversed.reverse();
+                return reversed;
+            }
+            return list.filter(function(item) {
                 var signature = amgiMediaItemSignature(item);
                 if (!signature || seen.has(signature)) return false;
                 seen.add(signature);
@@ -1255,7 +1282,9 @@ struct CardWebView: UIViewRepresentable {
             var question = amgiStructuredMediaItems('q').concat(rawQueues.question);
             var answer = amgiStructuredMediaItems('a').concat(rawQueues.answer);
             if (mode === 'question') return amgiDedupedMediaItems(question);
-            if (mode === 'answerWithQuestion') return amgiDedupedMediaItems(question.concat(answer));
+            if (mode === 'answerWithQuestion') {
+                return amgiDedupedMediaItems(question.concat(answer), { preferLast: true });
+            }
             return amgiDedupedMediaItems(answer);
         }
         function amgiAnyManagedMediaPlaying() {
@@ -1285,7 +1314,7 @@ struct CardWebView: UIViewRepresentable {
                 notifyAudioState(true);
             });
             media.addEventListener('click', function() {
-                if (!media.controls || !media.paused) return;
+                if (media.controls || !media.paused) return;
                 stopAllSystemAudio({ exceptMedia: media, preserveReplayRun: true });
                 media.play().catch(function() {});
             });

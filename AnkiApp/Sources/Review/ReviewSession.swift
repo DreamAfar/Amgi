@@ -340,8 +340,14 @@ final class ReviewSession {
             let renderedAnswerHTML = renderNodes(rendered.answerNodes)
             let extractedQuestionHTML = extractLatexIfNeeded(in: renderedQuestionHTML, svg: rendered.latexSvg)
             let extractedAnswerHTML = extractLatexIfNeeded(in: renderedAnswerHTML, svg: rendered.latexSvg)
-            let questionMedia = extractAVTags(from: extractedQuestionHTML, questionSide: true)
-            let answerMedia = extractAVTags(from: extractedAnswerHTML, questionSide: false)
+            let questionMedia = Self.syncExtractedTTSTagsWithOriginalHTML(
+                originalHTML: extractedQuestionHTML,
+                media: extractAVTags(from: extractedQuestionHTML, questionSide: true)
+            )
+            let answerMedia = Self.syncExtractedTTSTagsWithOriginalHTML(
+                originalHTML: extractedAnswerHTML,
+                media: extractAVTags(from: extractedAnswerHTML, questionSide: false)
+            )
             let resolvedQuestionHTML = resolveReviewHTML(
                 originalHTML: extractedQuestionHTML,
                 extractedHTML: questionMedia.text,
@@ -456,12 +462,107 @@ final class ReviewSession {
         occurrenceCount(of: #"\[anki:play:[qa]:\d+\]"#, in: html)
     }
 
+    static func syncExtractedTTSTagsWithOriginalHTML(
+        originalHTML: String,
+        media: (text: String, tags: [Anki_CardRendering_AVTag])
+    ) -> (text: String, tags: [Anki_CardRendering_AVTag]) {
+        let localTTSTags = legacyTTSTags(in: originalHTML)
+        guard !localTTSTags.isEmpty else {
+            return media
+        }
+
+        var syncedTags = media.tags
+        var localIndex = 0
+
+        for index in syncedTags.indices {
+            guard let value = syncedTags[index].value,
+                  case .tts = value else {
+                continue
+            }
+            guard localTTSTags.indices.contains(localIndex) else {
+                print("[ReviewSession] TTS tag sync skipped: directive count did not match extracted tag count")
+                return media
+            }
+            syncedTags[index] = localTTSTags[localIndex]
+            localIndex += 1
+        }
+
+        guard localIndex == localTTSTags.count else {
+            print("[ReviewSession] TTS tag sync skipped: original HTML had unmatched TTS directives")
+            return media
+        }
+
+        return (media.text, syncedTags)
+    }
+
+    static func legacyTTSTags(in html: String) -> [Anki_CardRendering_AVTag] {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"\[anki:tts([^\]]*)\](.*?)\[/anki:tts\]"#,
+            options: [.dotMatchesLineSeparators, .caseInsensitive]
+        ) else {
+            return []
+        }
+
+        let range = NSRange(html.startIndex..., in: html)
+        return regex.matches(in: html, range: range).compactMap { match in
+            guard let attrsRange = Range(match.range(at: 1), in: html),
+                  let textRange = Range(match.range(at: 2), in: html) else {
+                return nil
+            }
+
+            let rawAttrs = String(html[attrsRange])
+            let attrs = parseTTSAttributes(rawAttrs)
+            let spokenText = String(html[textRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let lang = attrs["lang"]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let voices = attrs["voices"]?
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty } ?? []
+            let speed = Float(attrs["speed"] ?? "") ?? 1.0
+            let otherArgs = attrs
+                .filter { key, _ in key != "lang" && key != "voices" && key != "speed" }
+                .map { "\($0.key)=\($0.value)" }
+                .sorted()
+
+            var ttsTag = Anki_CardRendering_TTSTag()
+            ttsTag.fieldText = spokenText
+            ttsTag.lang = lang
+            ttsTag.voices = voices
+            ttsTag.speed = speed
+            ttsTag.otherArgs = otherArgs
+
+            var avTag = Anki_CardRendering_AVTag()
+            avTag.tts = ttsTag
+            return avTag
+        }
+    }
+
     static func occurrenceCount(of pattern: String, in text: String) -> Int {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
             return 0
         }
         let range = NSRange(text.startIndex..., in: text)
         return regex.numberOfMatches(in: text, range: range)
+    }
+
+    static func parseTTSAttributes(_ raw: String) -> [String: String] {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"([A-Za-z_]+)=([^\s\]]+)"#,
+            options: []
+        ) else {
+            return [:]
+        }
+
+        let range = NSRange(raw.startIndex..., in: raw)
+        var result: [String: String] = [:]
+        for match in regex.matches(in: raw, range: range) {
+            guard let keyRange = Range(match.range(at: 1), in: raw),
+                  let valueRange = Range(match.range(at: 2), in: raw) else {
+                continue
+            }
+            result[String(raw[keyRange]).lowercased()] = String(raw[valueRange])
+        }
+        return result
     }
 
     private func encodeIriPathsIfNeeded(in html: String) -> String {
