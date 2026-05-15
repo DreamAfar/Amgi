@@ -2107,7 +2107,9 @@ struct CardWebView: UIViewRepresentable {
                         });
                     },
                     function() {
-                        if (amgiAutoplayEnabled()) amgiReplayAll(amgiReplayModeValue());
+                        // PC Anki only autoplays answer-side media on flip.
+                        // The replay mode still controls explicit user replay.
+                        if (amgiAutoplayEnabled()) amgiReplayAll('answerOnly');
                     }
                 );
             });
