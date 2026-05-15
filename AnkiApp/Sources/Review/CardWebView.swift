@@ -1302,11 +1302,24 @@ struct CardWebView: UIViewRepresentable {
                 answer: answer.length ? answer : all
             };
         }
+        function amgiDomOrderCompare(a, b) {
+            var nodeA = a.button || a.element || null;
+            var nodeB = b.button || b.element || null;
+            if (!nodeA && !nodeB) return 0;
+            if (!nodeA) return 1;
+            if (!nodeB) return -1;
+            var pos = nodeA.compareDocumentPosition(nodeB);
+            if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+            if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+            return 0;
+        }
         function amgiCollectMediaQueue(mode) {
             var rawQueues = amgiSplitRawMediaQueue();
             var ttsQueues = amgiSplitTtsQueue();
             var question = amgiStructuredMediaItems('q').concat(ttsQueues.question, rawQueues.question);
             var answer = amgiStructuredMediaItems('a').concat(ttsQueues.answer, rawQueues.answer);
+            question.sort(amgiDomOrderCompare);
+            answer.sort(amgiDomOrderCompare);
             if (mode === 'question') return amgiDedupedMediaItems(question);
             if (mode === 'answerWithQuestion') {
                 return amgiDedupedMediaItems(question.concat(answer), { preferLast: true });
