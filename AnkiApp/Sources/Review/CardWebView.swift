@@ -182,9 +182,9 @@ struct CardWebView: UIViewRepresentable {
             questionAVTags: questionAVTags,
             answerAVTags: answerAVTags
         )
-        context.coordinator.stopTTS()
 
         if context.coordinator.lastPageSignature != pageSignature {
+            context.coordinator.stopTTS()
             context.coordinator.lastPageSignature = pageSignature
             context.coordinator.lastContentSignature = contentSignature
             context.coordinator.isPageLoaded = false
@@ -212,6 +212,7 @@ struct CardWebView: UIViewRepresentable {
             // The CardAssetScheme handler processes amgi-asset:// URLs.
             webView.loadHTMLString(styledHTML, baseURL: CardAssetPath.cardBaseURL)
         } else if context.coordinator.lastContentSignature != contentSignature {
+            context.coordinator.stopTTS()
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
                 webView.evaluateJavaScript(showCardScript, completionHandler: nil)
