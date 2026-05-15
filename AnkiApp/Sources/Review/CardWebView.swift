@@ -1296,10 +1296,13 @@ struct CardWebView: UIViewRepresentable {
             var question = all.filter(function(item) {
                 return !(marker.compareDocumentPosition(item.button) & Node.DOCUMENT_POSITION_FOLLOWING);
             });
+            // Do not fall back to 'all': if one side has no TTS the other side
+            // should not play its TTS (e.g. {{FrontSide}} TTS must not replay
+            // when the answer is shown in answerOnly mode).
             return {
                 all: all,
-                question: question.length ? question : all,
-                answer: answer.length ? answer : all
+                question: question,
+                answer: answer
             };
         }
         function amgiDomOrderCompare(a, b) {
