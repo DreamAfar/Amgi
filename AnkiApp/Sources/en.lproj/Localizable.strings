@@ -1431,6 +1431,7 @@
 "settings_info_review" = "Review behavior is configured per deck in deck settings.";
 "settings_review_section_audio" = "Audio";
 "settings_review_section_ui" = "Review UI";
+"settings_review_section_input_mappings" = "Input Mappings";
 "settings_review_section_gestures" = "Gestures";
 "settings_review_section_controller" = "Game Controller";
 "settings_review_section_keyboard" = "External Keyboard";

@@ -1044,6 +1044,53 @@ struct ReviewView: View {
             } else {
                 replayRequestID += 1
             }
+        case .editNote:
+            Task { await openEditorForCurrentCard() }
+        case .editTemplate:
+            Task { await openCurrentCardTemplateEditor() }
+        case .undo:
+            Task { await performUndo() }
+        case .showDeckStats:
+            showDeckStats = true
+        case .showCardInfo:
+            showCardInfo = true
+        case .moveToDeck:
+            Task { await openMoveCurrentCardToDeck() }
+        case .changeNotetype:
+            openChangeCurrentCardNotetype()
+        case .setDueDate:
+            openSetDueDateForCurrentCard()
+        case .suspendCard:
+            performCurrentCardAction(
+                { try cardClient.suspend($0) },
+                errorKey: "card_action_error_suspend"
+            )
+        case .buryCard:
+            performCurrentCardAction(
+                { try cardClient.bury($0) },
+                errorKey: "card_action_error_bury"
+            )
+        case .resetCard:
+            performCurrentCardAction(
+                { try cardClient.resetToNew($0) },
+                errorKey: "card_action_error_reset_to_new"
+            )
+        case .flagNone:
+            setCurrentCardFlag(0)
+        case .flagRed:
+            setCurrentCardFlag(1)
+        case .flagOrange:
+            setCurrentCardFlag(2)
+        case .flagGreen:
+            setCurrentCardFlag(3)
+        case .flagBlue:
+            setCurrentCardFlag(4)
+        case .flagPink:
+            setCurrentCardFlag(5)
+        case .flagCyan:
+            setCurrentCardFlag(6)
+        case .flagPurple:
+            setCurrentCardFlag(7)
         case .userAction1:
             triggerUserAction(1)
         case .userAction2:
@@ -1068,6 +1115,25 @@ struct ReviewView: View {
     private func triggerUserAction(_ index: Int) {
         pendingUserActionIndex = index
         userActionRequestID += 1
+    }
+
+    private func performCurrentCardAction(
+        _ action: (Int64) throws -> Void,
+        errorKey: String
+    ) {
+        guard let cardId = session.currentCard?.card.id else { return }
+        do {
+            try action(cardId)
+            session.refreshAndAdvance()
+        } catch {
+            toolbarErrorMessage = L(errorKey, error.localizedDescription)
+            showToolbarError = true
+        }
+    }
+
+    private func setCurrentCardFlag(_ value: UInt32) {
+        guard let cardId = session.currentCard?.card.id else { return }
+        Task { await setCurrentCardFlag(cardId: cardId, value: value) }
     }
 
     private func handleControllerButton(_ button: ReviewPreferences.ControllerButton) {

@@ -25,6 +25,25 @@ enum ReviewPreferences {
         case good
         case easy
         case replayAudio
+        case editNote
+        case editTemplate
+        case undo
+        case showDeckStats
+        case showCardInfo
+        case moveToDeck
+        case changeNotetype
+        case setDueDate
+        case suspendCard
+        case buryCard
+        case resetCard
+        case flagNone
+        case flagRed
+        case flagOrange
+        case flagGreen
+        case flagBlue
+        case flagPink
+        case flagCyan
+        case flagPurple
         case userAction1
         case userAction2
         case userAction3

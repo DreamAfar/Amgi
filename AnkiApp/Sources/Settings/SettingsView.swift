@@ -491,12 +491,6 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var glassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var autoMatchCardBackground = true
     @AppStorage(ReviewPreferences.Keys.dayStartHour) private var persistedDayStartHour = 4
-    @AppStorage(ReviewPreferences.Keys.frontTapGestureAction) private var frontTapGestureActionRaw = ReviewPreferences.GestureAction.showAnswer.rawValue
-    @AppStorage(ReviewPreferences.Keys.frontSwipeLeftGestureAction) private var frontSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
-    @AppStorage(ReviewPreferences.Keys.frontSwipeRightGestureAction) private var frontSwipeRightGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
-    @AppStorage(ReviewPreferences.Keys.backTapGestureAction) private var backTapGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
-    @AppStorage(ReviewPreferences.Keys.backSwipeLeftGestureAction) private var backSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
-    @AppStorage(ReviewPreferences.Keys.backSwipeRightGestureAction) private var backSwipeRightGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
     @State private var rolloverHour = 4
     @State private var loadBalancerEnabled = false
     @State private var fsrsShortTermWithStepsEnabled = false
@@ -524,15 +518,43 @@ private struct ReviewOptionsView: View {
         String(format: L("settings_review_day_start_hour_value"), rolloverHour)
     }
 
-    private func gestureActionBinding(_ rawValue: Binding<String>) -> Binding<ReviewPreferences.GestureAction> {
-        Binding(
-            get: { ReviewPreferences.GestureAction(rawValue: rawValue.wrappedValue) ?? .none },
-            set: { rawValue.wrappedValue = $0.rawValue }
-        )
-    }
-
     var body: some View {
         List {
+            Section(L("settings_review_section_schedule")) {
+                if isLoadingFsrsOptions {
+                    HStack {
+                        Text(L("settings_review_loading"))
+                            .foregroundStyle(SettingsValueStyle.secondary)
+                        Spacer()
+                        ProgressView()
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("settings_review_day_start"))
+                                .foregroundStyle(SettingsValueStyle.primary)
+                            Text(L("settings_review_day_start_hint"))
+                                .amgiFont(.caption)
+                                .foregroundStyle(SettingsValueStyle.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Menu {
+                            Picker(L("settings_review_day_start"), selection: rolloverHourBinding) {
+                                ForEach(0..<24, id: \.self) { hour in
+                                    Text(String(format: L("settings_review_day_start_hour_value"), hour))
+                                        .foregroundStyle(SettingsValueStyle.highlight)
+                                        .tag(hour)
+                                }
+                            }
+                        } label: {
+                            SettingsOptionCapsuleLabel(title: rolloverHourLabel)
+                        }
+                    }
+                }
+            }
+            .amgiSettingsListRowSurface()
+
             Section(L("settings_review_section_audio")) {
                 Toggle(L("settings_review_play_audio_in_silent_mode"), isOn: $playAudioInSilentMode)
             }
@@ -579,88 +601,23 @@ private struct ReviewOptionsView: View {
             }
             .amgiSettingsListRowSurface()
 
-            Section(L("settings_review_section_gestures")) {
-                gestureGroupHeader(L("settings_review_gesture_front"))
-                gestureActionRow(
-                    title: L("settings_review_tap_action"),
-                    selection: gestureActionBinding($frontTapGestureActionRaw)
-                )
-                gestureActionRow(
-                    title: L("settings_review_swipe_left_action"),
-                    selection: gestureActionBinding($frontSwipeLeftGestureActionRaw)
-                )
-                gestureActionRow(
-                    title: L("settings_review_swipe_right_action"),
-                    selection: gestureActionBinding($frontSwipeRightGestureActionRaw)
-                )
-
-                gestureGroupHeader(L("settings_review_gesture_back"))
-                gestureActionRow(
-                    title: L("settings_review_tap_action"),
-                    selection: gestureActionBinding($backTapGestureActionRaw)
-                )
-                gestureActionRow(
-                    title: L("settings_review_swipe_left_action"),
-                    selection: gestureActionBinding($backSwipeLeftGestureActionRaw)
-                )
-                gestureActionRow(
-                    title: L("settings_review_swipe_right_action"),
-                    selection: gestureActionBinding($backSwipeRightGestureActionRaw)
-                )
-            }
-            .amgiSettingsListRowSurface()
-
-            Section(L("settings_review_section_controller")) {
-                ForEach(ReviewPreferences.ControllerButton.allCases) { button in
-                    gestureActionRow(
-                        title: controllerButtonTitle(button),
-                        selection: controllerActionBinding(button)
-                    )
+            Section(L("settings_review_section_input_mappings")) {
+                NavigationLink {
+                    ReviewGestureOptionsView()
+                } label: {
+                    reviewSettingsRowLabel(L("settings_review_section_gestures"), icon: "hand.tap")
                 }
-            }
-            .amgiSettingsListRowSurface()
 
-            Section(L("settings_review_section_keyboard")) {
-                ForEach(ReviewPreferences.KeyboardShortcut.allCases) { shortcut in
-                    gestureActionRow(
-                        title: keyboardShortcutTitle(shortcut),
-                        selection: keyboardActionBinding(shortcut)
-                    )
+                NavigationLink {
+                    ReviewControllerOptionsView()
+                } label: {
+                    reviewSettingsRowLabel(L("settings_review_section_controller"), icon: "gamecontroller")
                 }
-            }
-            .amgiSettingsListRowSurface()
 
-            Section(L("settings_review_section_schedule")) {
-                if isLoadingFsrsOptions {
-                    HStack {
-                        Text(L("settings_review_loading"))
-                            .foregroundStyle(SettingsValueStyle.secondary)
-                        Spacer()
-                        ProgressView()
-                    }
-                } else {
-                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(L("settings_review_day_start"))
-                                .foregroundStyle(SettingsValueStyle.primary)
-                            Text(L("settings_review_day_start_hint"))
-                                .amgiFont(.caption)
-                                .foregroundStyle(SettingsValueStyle.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Menu {
-                            Picker(L("settings_review_day_start"), selection: rolloverHourBinding) {
-                                ForEach(0..<24, id: \.self) { hour in
-                                    Text(String(format: L("settings_review_day_start_hour_value"), hour))
-                                        .foregroundStyle(SettingsValueStyle.highlight)
-                                        .tag(hour)
-                                }
-                            }
-                        } label: {
-                            SettingsOptionCapsuleLabel(title: rolloverHourLabel)
-                        }
-                    }
+                NavigationLink {
+                    ReviewKeyboardOptionsView()
+                } label: {
+                    reviewSettingsRowLabel(L("settings_review_section_keyboard"), icon: "keyboard")
                 }
             }
             .amgiSettingsListRowSurface()
@@ -714,150 +671,10 @@ private struct ReviewOptionsView: View {
         }
     }
 
-    private func gestureActionRow(
-        title: String,
-        selection: Binding<ReviewPreferences.GestureAction>
-    ) -> some View {
-        HStack(alignment: .top, spacing: AmgiSpacing.md) {
-            Text(title)
-                .foregroundStyle(SettingsValueStyle.primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Menu {
-                Picker(title, selection: selection) {
-                    ForEach(ReviewPreferences.GestureAction.allCases) { action in
-                        Text(gestureActionTitle(action))
-                            .foregroundStyle(SettingsValueStyle.highlight)
-                            .tag(action)
-                    }
-                }
-            } label: {
-                SettingsOptionCapsuleLabel(title: gestureActionTitle(selection.wrappedValue))
-            }
-        }
-    }
-
-    private func gestureGroupHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.caption)
-            .foregroundStyle(SettingsValueStyle.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func gestureActionTitle(_ action: ReviewPreferences.GestureAction) -> String {
-        switch action {
-        case .none: return L("settings_review_gesture_action_none")
-        case .showAnswer: return L("review_show_answer")
-        case .again: return L("review_rating_again")
-        case .hard: return L("review_rating_hard")
-        case .good: return L("review_rating_good")
-        case .easy: return L("review_rating_easy")
-        case .replayAudio: return L("settings_review_gesture_action_replay_audio")
-        case .userAction1: return String(format: L("review_user_action_number"), 1)
-        case .userAction2: return String(format: L("review_user_action_number"), 2)
-        case .userAction3: return String(format: L("review_user_action_number"), 3)
-        case .userAction4: return String(format: L("review_user_action_number"), 4)
-        case .userAction5: return String(format: L("review_user_action_number"), 5)
-        case .userAction6: return String(format: L("review_user_action_number"), 6)
-        case .userAction7: return String(format: L("review_user_action_number"), 7)
-        case .userAction8: return String(format: L("review_user_action_number"), 8)
-        case .userAction9: return String(format: L("review_user_action_number"), 9)
-        }
-    }
-
-    private func controllerActionBinding(_ button: ReviewPreferences.ControllerButton) -> Binding<ReviewPreferences.GestureAction> {
-        let key = ReviewPreferences.Keys.controllerButtonAction(button)
-        return Binding(
-            get: {
-                let raw = UserDefaults.standard.string(forKey: key) ?? defaultControllerAction(for: button).rawValue
-                return ReviewPreferences.GestureAction(rawValue: raw) ?? .none
-            },
-            set: { UserDefaults.standard.set($0.rawValue, forKey: key) }
-        )
-    }
-
-    private func defaultControllerAction(for button: ReviewPreferences.ControllerButton) -> ReviewPreferences.GestureAction {
-        switch button {
-        case .buttonA: return .good
-        case .buttonB: return .again
-        case .buttonX: return .easy
-        case .buttonY: return .hard
-        case .rightShoulder: return .replayAudio
-        default: return .none
-        }
-    }
-
-    private func controllerButtonTitle(_ button: ReviewPreferences.ControllerButton) -> String {
-        switch button {
-        case .buttonA: return "A"
-        case .buttonB: return "B"
-        case .buttonX: return "X"
-        case .buttonY: return "Y"
-        case .dpadUp: return L("settings_review_controller_dpad_up")
-        case .dpadDown: return L("settings_review_controller_dpad_down")
-        case .dpadLeft: return L("settings_review_controller_dpad_left")
-        case .dpadRight: return L("settings_review_controller_dpad_right")
-        case .leftShoulder: return L("settings_review_controller_left_shoulder")
-        case .rightShoulder: return L("settings_review_controller_right_shoulder")
-        case .leftTrigger: return L("settings_review_controller_left_trigger")
-        case .rightTrigger: return L("settings_review_controller_right_trigger")
-        case .leftThumbstick: return L("settings_review_controller_left_thumbstick")
-        case .rightThumbstick: return L("settings_review_controller_right_thumbstick")
-        case .options: return L("settings_review_controller_options")
-        case .menu: return L("settings_review_controller_menu")
-        }
-    }
-
-    private func keyboardActionBinding(_ shortcut: ReviewPreferences.KeyboardShortcut) -> Binding<ReviewPreferences.GestureAction> {
-        let key = ReviewPreferences.Keys.keyboardShortcutAction(shortcut)
-        return Binding(
-            get: {
-                let raw = UserDefaults.standard.string(forKey: key) ?? defaultKeyboardAction(for: shortcut).rawValue
-                return ReviewPreferences.GestureAction(rawValue: raw) ?? .none
-            },
-            set: { UserDefaults.standard.set($0.rawValue, forKey: key) }
-        )
-    }
-
-    private func defaultKeyboardAction(for shortcut: ReviewPreferences.KeyboardShortcut) -> ReviewPreferences.GestureAction {
-        switch shortcut {
-        case .space, .enter: return .showAnswer
-        case .number1: return .again
-        case .number2: return .hard
-        case .number3: return .good
-        case .number4: return .easy
-        case .replay: return .replayAudio
-        case .command1: return .userAction1
-        case .command2: return .userAction2
-        case .command3: return .userAction3
-        case .command4: return .userAction4
-        case .command5: return .userAction5
-        case .command6: return .userAction6
-        case .command7: return .userAction7
-        case .command8: return .userAction8
-        case .command9: return .userAction9
-        }
-    }
-
-    private func keyboardShortcutTitle(_ shortcut: ReviewPreferences.KeyboardShortcut) -> String {
-        switch shortcut {
-        case .space: return L("settings_review_keyboard_space")
-        case .enter: return L("settings_review_keyboard_enter")
-        case .number1: return "1"
-        case .number2: return "2"
-        case .number3: return "3"
-        case .number4: return "4"
-        case .replay: return "R"
-        case .command1: return "⌘1"
-        case .command2: return "⌘2"
-        case .command3: return "⌘3"
-        case .command4: return "⌘4"
-        case .command5: return "⌘5"
-        case .command6: return "⌘6"
-        case .command7: return "⌘7"
-        case .command8: return "⌘8"
-        case .command9: return "⌘9"
-        }
+    private func reviewSettingsRowLabel(_ title: String, icon: String) -> some View {
+        Label(title, systemImage: icon)
+            .amgiFont(.body)
+            .foregroundStyle(SettingsValueStyle.primary)
     }
 
     @MainActor
@@ -1086,6 +903,250 @@ private struct DeckListHeatmapSettingsView: View {
 
         if !validDeckIDs.contains(selectedDeckID), let fallback = decks.first {
             selectedDeckID = Int(fallback.id)
+        }
+    }
+}
+
+private struct ReviewGestureOptionsView: View {
+    @AppStorage(ReviewPreferences.Keys.frontTapGestureAction) private var frontTapGestureActionRaw = ReviewPreferences.GestureAction.showAnswer.rawValue
+    @AppStorage(ReviewPreferences.Keys.frontSwipeLeftGestureAction) private var frontSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+    @AppStorage(ReviewPreferences.Keys.frontSwipeRightGestureAction) private var frontSwipeRightGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+    @AppStorage(ReviewPreferences.Keys.backTapGestureAction) private var backTapGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+    @AppStorage(ReviewPreferences.Keys.backSwipeLeftGestureAction) private var backSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+    @AppStorage(ReviewPreferences.Keys.backSwipeRightGestureAction) private var backSwipeRightGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+
+    var body: some View {
+        List {
+            Section(L("settings_review_gesture_front")) {
+                ReviewInputActionRow(title: L("settings_review_tap_action"), selection: binding($frontTapGestureActionRaw))
+                ReviewInputActionRow(title: L("settings_review_swipe_left_action"), selection: binding($frontSwipeLeftGestureActionRaw))
+                ReviewInputActionRow(title: L("settings_review_swipe_right_action"), selection: binding($frontSwipeRightGestureActionRaw))
+            }
+            .amgiSettingsListRowSurface()
+
+            Section(L("settings_review_gesture_back")) {
+                ReviewInputActionRow(title: L("settings_review_tap_action"), selection: binding($backTapGestureActionRaw))
+                ReviewInputActionRow(title: L("settings_review_swipe_left_action"), selection: binding($backSwipeLeftGestureActionRaw))
+                ReviewInputActionRow(title: L("settings_review_swipe_right_action"), selection: binding($backSwipeRightGestureActionRaw))
+            }
+            .amgiSettingsListRowSurface()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_review_section_gestures"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func binding(_ rawValue: Binding<String>) -> Binding<ReviewPreferences.GestureAction> {
+        Binding(
+            get: { ReviewPreferences.GestureAction(rawValue: rawValue.wrappedValue) ?? .none },
+            set: { rawValue.wrappedValue = $0.rawValue }
+        )
+    }
+}
+
+private struct ReviewControllerOptionsView: View {
+    var body: some View {
+        List {
+            Section {
+                ForEach(ReviewPreferences.ControllerButton.allCases) { button in
+                    ReviewInputActionRow(
+                        title: button.title,
+                        selection: actionBinding(button)
+                    )
+                }
+            }
+            .amgiSettingsListRowSurface()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_review_section_controller"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func actionBinding(_ button: ReviewPreferences.ControllerButton) -> Binding<ReviewPreferences.GestureAction> {
+        let key = ReviewPreferences.Keys.controllerButtonAction(button)
+        return Binding(
+            get: {
+                let raw = UserDefaults.standard.string(forKey: key) ?? button.defaultAction.rawValue
+                return ReviewPreferences.GestureAction(rawValue: raw) ?? .none
+            },
+            set: { UserDefaults.standard.set($0.rawValue, forKey: key) }
+        )
+    }
+}
+
+private struct ReviewKeyboardOptionsView: View {
+    var body: some View {
+        List {
+            Section {
+                ForEach(ReviewPreferences.KeyboardShortcut.allCases) { shortcut in
+                    ReviewInputActionRow(
+                        title: shortcut.title,
+                        selection: actionBinding(shortcut)
+                    )
+                }
+            }
+            .amgiSettingsListRowSurface()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_review_section_keyboard"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func actionBinding(_ shortcut: ReviewPreferences.KeyboardShortcut) -> Binding<ReviewPreferences.GestureAction> {
+        let key = ReviewPreferences.Keys.keyboardShortcutAction(shortcut)
+        return Binding(
+            get: {
+                let raw = UserDefaults.standard.string(forKey: key) ?? shortcut.defaultAction.rawValue
+                return ReviewPreferences.GestureAction(rawValue: raw) ?? .none
+            },
+            set: { UserDefaults.standard.set($0.rawValue, forKey: key) }
+        )
+    }
+}
+
+private struct ReviewInputActionRow: View {
+    let title: String
+    @Binding var selection: ReviewPreferences.GestureAction
+
+    var body: some View {
+        HStack(alignment: .top, spacing: AmgiSpacing.md) {
+            Text(title)
+                .foregroundStyle(SettingsValueStyle.primary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Menu {
+                Picker(title, selection: $selection) {
+                    ForEach(ReviewPreferences.GestureAction.allCases) { action in
+                        Text(action.title)
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .tag(action)
+                    }
+                }
+            } label: {
+                SettingsOptionCapsuleLabel(title: selection.title)
+            }
+        }
+    }
+}
+
+private extension ReviewPreferences.GestureAction {
+    var title: String {
+        switch self {
+        case .none: return L("settings_review_gesture_action_none")
+        case .showAnswer: return L("review_show_answer")
+        case .again: return L("review_rating_again")
+        case .hard: return L("review_rating_hard")
+        case .good: return L("review_rating_good")
+        case .easy: return L("review_rating_easy")
+        case .replayAudio: return L("settings_review_gesture_action_replay_audio")
+        case .editNote: return L("review_edit_button")
+        case .editTemplate: return L("card_template_editor_title")
+        case .undo: return L("card_action_undo")
+        case .showDeckStats: return L("stats_nav_title")
+        case .showCardInfo: return L("card_info_title")
+        case .moveToDeck: return L("browse_batch_move_deck")
+        case .changeNotetype: return L("browse_batch_change_notetype")
+        case .setDueDate: return L("card_action_set_due_date")
+        case .suspendCard: return L("card_action_suspend")
+        case .buryCard: return L("card_action_bury")
+        case .resetCard: return L("card_action_reset_to_new")
+        case .flagNone: return L("review_flag_none")
+        case .flagRed: return L("review_flag_red")
+        case .flagOrange: return L("review_flag_orange")
+        case .flagGreen: return L("review_flag_green")
+        case .flagBlue: return L("review_flag_blue")
+        case .flagPink: return L("review_flag_pink")
+        case .flagCyan: return L("review_flag_cyan")
+        case .flagPurple: return L("review_flag_purple")
+        case .userAction1: return String(format: L("review_user_action_number"), 1)
+        case .userAction2: return String(format: L("review_user_action_number"), 2)
+        case .userAction3: return String(format: L("review_user_action_number"), 3)
+        case .userAction4: return String(format: L("review_user_action_number"), 4)
+        case .userAction5: return String(format: L("review_user_action_number"), 5)
+        case .userAction6: return String(format: L("review_user_action_number"), 6)
+        case .userAction7: return String(format: L("review_user_action_number"), 7)
+        case .userAction8: return String(format: L("review_user_action_number"), 8)
+        case .userAction9: return String(format: L("review_user_action_number"), 9)
+        }
+    }
+}
+
+private extension ReviewPreferences.ControllerButton {
+    var title: String {
+        switch self {
+        case .buttonA: return "A"
+        case .buttonB: return "B"
+        case .buttonX: return "X"
+        case .buttonY: return "Y"
+        case .dpadUp: return L("settings_review_controller_dpad_up")
+        case .dpadDown: return L("settings_review_controller_dpad_down")
+        case .dpadLeft: return L("settings_review_controller_dpad_left")
+        case .dpadRight: return L("settings_review_controller_dpad_right")
+        case .leftShoulder: return L("settings_review_controller_left_shoulder")
+        case .rightShoulder: return L("settings_review_controller_right_shoulder")
+        case .leftTrigger: return L("settings_review_controller_left_trigger")
+        case .rightTrigger: return L("settings_review_controller_right_trigger")
+        case .leftThumbstick: return L("settings_review_controller_left_thumbstick")
+        case .rightThumbstick: return L("settings_review_controller_right_thumbstick")
+        case .options: return L("settings_review_controller_options")
+        case .menu: return L("settings_review_controller_menu")
+        }
+    }
+
+    var defaultAction: ReviewPreferences.GestureAction {
+        switch self {
+        case .buttonA: return .good
+        case .buttonB: return .again
+        case .buttonX: return .easy
+        case .buttonY: return .hard
+        case .rightShoulder: return .replayAudio
+        default: return .none
+        }
+    }
+}
+
+private extension ReviewPreferences.KeyboardShortcut {
+    var title: String {
+        switch self {
+        case .space: return L("settings_review_keyboard_space")
+        case .enter: return L("settings_review_keyboard_enter")
+        case .number1: return "1"
+        case .number2: return "2"
+        case .number3: return "3"
+        case .number4: return "4"
+        case .replay: return "R"
+        case .command1: return "⌘1"
+        case .command2: return "⌘2"
+        case .command3: return "⌘3"
+        case .command4: return "⌘4"
+        case .command5: return "⌘5"
+        case .command6: return "⌘6"
+        case .command7: return "⌘7"
+        case .command8: return "⌘8"
+        case .command9: return "⌘9"
+        }
+    }
+
+    var defaultAction: ReviewPreferences.GestureAction {
+        switch self {
+        case .space, .enter: return .showAnswer
+        case .number1: return .again
+        case .number2: return .hard
+        case .number3: return .good
+        case .number4: return .easy
+        case .replay: return .replayAudio
+        case .command1: return .userAction1
+        case .command2: return .userAction2
+        case .command3: return .userAction3
+        case .command4: return .userAction4
+        case .command5: return .userAction5
+        case .command6: return .userAction6
+        case .command7: return .userAction7
+        case .command8: return .userAction8
+        case .command9: return .userAction9
         }
     }
 }

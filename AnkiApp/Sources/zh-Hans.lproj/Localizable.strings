@@ -1439,6 +1439,7 @@
 "settings_info_review" = "复习行为通过牌组设置逐个配置。";
 "settings_review_section_audio" = "音频";
 "settings_review_section_ui" = "复习界面";
+"settings_review_section_input_mappings" = "输入映射";
 "settings_review_section_gestures" = "手势";
 "settings_review_section_controller" = "游戏手柄";
 "settings_review_section_keyboard" = "外接键盘";

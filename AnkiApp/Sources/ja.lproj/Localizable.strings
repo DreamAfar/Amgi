@@ -1441,6 +1441,7 @@
 "settings_info_review" = "復習動作はデッキ設定ごとに設定されます。";
 "settings_review_section_audio" = "音声";
 "settings_review_section_ui" = "復習 UI";
+"settings_review_section_input_mappings" = "入力マッピング";
 "settings_review_section_gestures" = "ジェスチャ";
 "settings_review_section_controller" = "ゲームコントローラ";
 "settings_review_section_keyboard" = "外部キーボード";
