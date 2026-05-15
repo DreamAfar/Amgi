@@ -28,6 +28,8 @@ struct CardWebView: UIViewRepresentable {
     let replayRequestID: Int
     let stopAudioRequestID: Int
     let typedAnswerRequestID: Int
+    let userActionRequestID: Int
+    let userActionIndex: Int?
     let replayMode: ReplayMode
     let playAudioInSilentMode: Bool
     let showInlineAudioReplayButtons: Bool
@@ -40,6 +42,7 @@ struct CardWebView: UIViewRepresentable {
     let onAudioStateChange: ((Bool) -> Void)?
     let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
     let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
+    let onCardGesture: ((String) -> Void)?
 
     init(
         html: String,
@@ -52,6 +55,8 @@ struct CardWebView: UIViewRepresentable {
         replayRequestID: Int = 0,
         stopAudioRequestID: Int = 0,
         typedAnswerRequestID: Int = 0,
+        userActionRequestID: Int = 0,
+        userActionIndex: Int? = nil,
         replayMode: ReplayMode = .question,
         playAudioInSilentMode: Bool = false,
         showInlineAudioReplayButtons: Bool = true,
@@ -63,7 +68,8 @@ struct CardWebView: UIViewRepresentable {
         onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
         onAudioStateChange: ((Bool) -> Void)? = nil,
         onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil,
-        onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil
+        onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil,
+        onCardGesture: ((String) -> Void)? = nil
     ) {
         self.html = html
         self.cardCSS = cardCSS
@@ -75,6 +81,8 @@ struct CardWebView: UIViewRepresentable {
         self.replayRequestID = replayRequestID
         self.stopAudioRequestID = stopAudioRequestID
         self.typedAnswerRequestID = typedAnswerRequestID
+        self.userActionRequestID = userActionRequestID
+        self.userActionIndex = userActionIndex
         self.replayMode = replayMode
         self.playAudioInSilentMode = playAudioInSilentMode
         self.showInlineAudioReplayButtons = showInlineAudioReplayButtons
@@ -87,14 +95,17 @@ struct CardWebView: UIViewRepresentable {
         self.onAudioStateChange = onAudioStateChange
         self.onCardBackgroundColorChange = onCardBackgroundColorChange
         self.onLookupRequested = onLookupRequested
+        self.onCardGesture = onCardGesture
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
+            initialUserActionRequestID: userActionRequestID,
             onTypedAnswerSubmitted: onTypedAnswerSubmitted,
             onAudioStateChange: onAudioStateChange,
             onCardBackgroundColorChange: onCardBackgroundColorChange,
-            onLookupRequested: onLookupRequested
+            onLookupRequested: onLookupRequested,
+            onCardGesture: onCardGesture
         )
     }
 
@@ -109,6 +120,7 @@ struct CardWebView: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "amgiSubmitTypedAnswer")
         config.userContentController.add(context.coordinator, name: "amgiCardTheme")
         config.userContentController.add(context.coordinator, name: "amgiLookupText")
+        config.userContentController.add(context.coordinator, name: "amgiCardGesture")
         
         // Enable media playback without user interaction
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -131,6 +143,7 @@ struct CardWebView: UIViewRepresentable {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSubmitTypedAnswer")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiCardTheme")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiLookupText")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiCardGesture")
         coordinator.stopTTS()
     }
 
@@ -241,6 +254,13 @@ struct CardWebView: UIViewRepresentable {
                 }
                 context.coordinator.onTypedAnswerSubmitted?(typedAnswer)
             }
+        }
+
+        if userActionRequestID != context.coordinator.lastUserActionRequestID,
+           let userActionIndex,
+           (1...9).contains(userActionIndex) {
+            context.coordinator.lastUserActionRequestID = userActionRequestID
+            webView.evaluateJavaScript("window.amgiRunUserAction && window.amgiRunUserAction(\(userActionIndex));", completionHandler: nil)
         }
 
         // Force bottom content inset so card content can always scroll above the floating
@@ -694,13 +714,54 @@ struct CardWebView: UIViewRepresentable {
             };
         }
 
+        function amgiIsGestureExcludedTarget(target) {
+            return !!(target && target.closest('a, button, input, textarea, select, option, [contenteditable], .replay-button, .replay-btn, .sound-btn, #image-occlusion-canvas'));
+        }
+
+        var amgiSuppressNextClick = false;
         document.addEventListener('click', function(event) {
+            if (amgiSuppressNextClick) {
+                amgiSuppressNextClick = false;
+                return;
+            }
+            if (amgiIsGestureExcludedTarget(event.target)) return;
             var state = amgiCardState();
             if (state.renderedAt && Date.now() - state.renderedAt < 300) return;
             var payload = amgiCardLookupPayloadAt(event.clientX, event.clientY, 16);
-            if (!payload) return;
-            window.webkit.messageHandlers.amgiLookupText.postMessage(payload);
+            if (payload) {
+                window.webkit.messageHandlers.amgiLookupText.postMessage(payload);
+                return;
+            }
+            window.webkit.messageHandlers.amgiCardGesture.postMessage('tapBlank');
         }, false);
+
+        var amgiTouchStart = null;
+        document.addEventListener('touchstart', function(event) {
+            if (!event.touches || event.touches.length !== 1) {
+                amgiTouchStart = null;
+                return;
+            }
+            var touch = event.touches[0];
+            var target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (amgiIsGestureExcludedTarget(target)) {
+                amgiTouchStart = null;
+                return;
+            }
+            amgiTouchStart = { x: touch.clientX, y: touch.clientY };
+        }, { passive: true });
+        document.addEventListener('touchend', function(event) {
+            if (!amgiTouchStart || !event.changedTouches || event.changedTouches.length !== 1) {
+                amgiTouchStart = null;
+                return;
+            }
+            var touch = event.changedTouches[0];
+            var dx = touch.clientX - amgiTouchStart.x;
+            var dy = touch.clientY - amgiTouchStart.y;
+            amgiTouchStart = null;
+            if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.25) return;
+            amgiSuppressNextClick = true;
+            window.webkit.messageHandlers.amgiCardGesture.postMessage(dx < 0 ? 'swipeLeft' : 'swipeRight');
+        }, { passive: true });
 
         function amgiSetCardCSS(cssText) {
             var style = document.getElementById('amgi-card-css');
@@ -1606,6 +1667,15 @@ struct CardWebView: UIViewRepresentable {
             return false;
         }
         globalThis.pycmd = pycmd; window.pycmd = pycmd;
+        function amgiRunUserAction(index) {
+            var actionIndex = Number(index);
+            if (!Number.isInteger(actionIndex) || actionIndex < 1 || actionIndex > 9) return false;
+            var action = window['userJs' + actionIndex];
+            if (typeof action !== 'function') return false;
+            action();
+            return true;
+        }
+        window.amgiRunUserAction = amgiRunUserAction;
 
         // ── Link handling ────────────────────────────────────────────────────
         function postOpenLink(rawHref) {
@@ -2687,6 +2757,7 @@ struct CardWebView: UIViewRepresentable {
         var lastReplayRequestID: Int = 0
         var lastStopAudioRequestID: Int = 0
         var lastTypedAnswerRequestID: Int = 0
+        var lastUserActionRequestID: Int = 0
         var isPageLoaded = false
         var pendingUpdateScript: String?
         var openLinksExternally: Bool = true
@@ -2696,19 +2767,24 @@ struct CardWebView: UIViewRepresentable {
         private let onAudioStateChange: ((Bool) -> Void)?
         private let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
         private let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
+        private let onCardGesture: ((String) -> Void)?
         private var lastThemePayload: String?
         private let ttsPlayer = CardTTSPlayer()
 
         init(
+            initialUserActionRequestID: Int = 0,
             onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
             onAudioStateChange: ((Bool) -> Void)? = nil,
             onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil,
-            onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil
+            onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil,
+            onCardGesture: ((String) -> Void)? = nil
         ) {
+            self.lastUserActionRequestID = initialUserActionRequestID
             self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
             self.onAudioStateChange = onAudioStateChange
             self.onCardBackgroundColorChange = onCardBackgroundColorChange
             self.onLookupRequested = onLookupRequested
+            self.onCardGesture = onCardGesture
             super.init()
             ttsPlayer.onEvent = { [weak self] state, token in
                 self?.handleTTSEvent(state: state, token: token)
@@ -2765,6 +2841,12 @@ struct CardWebView: UIViewRepresentable {
                 let x = (body["x"] as? NSNumber).map { CGFloat(truncating: $0) } ?? 0
                 let y = (body["y"] as? NSNumber).map { CGFloat(truncating: $0) } ?? 0
                 onLookupRequested?(text, sentence, CGPoint(x: x, y: y))
+                return
+            }
+
+            if message.name == "amgiCardGesture" {
+                guard let gesture = message.body as? String else { return }
+                onCardGesture?(gesture)
                 return
             }
 

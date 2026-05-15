@@ -17,6 +17,69 @@ enum ReaderLibrarySourceMode: String, CaseIterable, Identifiable {
 }
 
 enum ReviewPreferences {
+    enum GestureAction: String, CaseIterable, Identifiable {
+        case none
+        case showAnswer
+        case again
+        case hard
+        case good
+        case easy
+        case replayAudio
+        case userAction1
+        case userAction2
+        case userAction3
+        case userAction4
+        case userAction5
+        case userAction6
+        case userAction7
+        case userAction8
+        case userAction9
+
+        var id: String { rawValue }
+    }
+
+    enum ControllerButton: String, CaseIterable, Identifiable {
+        case buttonA
+        case buttonB
+        case buttonX
+        case buttonY
+        case dpadUp
+        case dpadDown
+        case dpadLeft
+        case dpadRight
+        case leftShoulder
+        case rightShoulder
+        case leftTrigger
+        case rightTrigger
+        case leftThumbstick
+        case rightThumbstick
+        case options
+        case menu
+
+        var id: String { rawValue }
+    }
+
+    enum KeyboardShortcut: String, CaseIterable, Identifiable {
+        case space
+        case enter
+        case number1
+        case number2
+        case number3
+        case number4
+        case replay
+        case command1
+        case command2
+        case command3
+        case command4
+        case command5
+        case command6
+        case command7
+        case command8
+        case command9
+
+        var id: String { rawValue }
+    }
+
     enum Keys {
         static let playAudioInSilentMode = "review_pref_play_audio_in_silent_mode"
         static let showContextMenuButton = "review_pref_show_context_menu_button"
@@ -35,6 +98,22 @@ enum ReviewPreferences {
         static let glassAnswerButtons = "review_pref_glass_answer_buttons"
         static let autoMatchCardBackground = "review_pref_auto_match_card_background"
         static let dayStartHour = "review_pref_day_start_hour"
+        static let frontTapGestureAction = "review_pref_front_tap_gesture_action"
+        static let frontSwipeLeftGestureAction = "review_pref_front_swipe_left_gesture_action"
+        static let frontSwipeRightGestureAction = "review_pref_front_swipe_right_gesture_action"
+        static let backTapGestureAction = "review_pref_back_tap_gesture_action"
+        static let backSwipeLeftGestureAction = "review_pref_back_swipe_left_gesture_action"
+        static let backSwipeRightGestureAction = "review_pref_back_swipe_right_gesture_action"
+        static let controllerButtonPrefix = "review_pref_controller_"
+        static let keyboardShortcutPrefix = "review_pref_keyboard_"
+
+        static func controllerButtonAction(_ button: ControllerButton) -> String {
+            controllerButtonPrefix + button.rawValue
+        }
+
+        static func keyboardShortcutAction(_ shortcut: KeyboardShortcut) -> String {
+            keyboardShortcutPrefix + shortcut.rawValue
+        }
     }
 }
 

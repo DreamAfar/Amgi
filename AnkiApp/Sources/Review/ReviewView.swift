@@ -9,6 +9,7 @@ import AnkiProto
 import SwiftProtobuf
 import Dependencies
 import UIKit
+import GameController
 
 struct ReviewView: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -48,6 +49,8 @@ struct ReviewView: View {
     @State private var setDueDateInput = ""
     @State private var setDueDateCardID: Int64?
     @State private var typedAnswerRequestID = 0
+    @State private var userActionRequestID = 0
+    @State private var pendingUserActionIndex: Int?
     @State private var isKeyboardVisible = false
     @State private var cardChromeUIColor: UIColor = .systemBackground
     @State private var cardChromeIsDark = false
@@ -55,6 +58,8 @@ struct ReviewView: View {
     @State private var lookupStack: [ReaderLookupPopupState] = []
     @State private var lookupErrorMessage: String?
     @State private var showLookupError = false
+    @State private var controllerMonitor = ReviewControllerMonitor()
+    @State private var keyboardMonitor = ReviewKeyboardMonitor()
 
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var prefShowContextMenuButton = true
@@ -72,6 +77,12 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var prefAutoMatchCardBackground = true
+    @AppStorage(ReviewPreferences.Keys.frontTapGestureAction) private var prefFrontTapGestureActionRaw = ReviewPreferences.GestureAction.showAnswer.rawValue
+    @AppStorage(ReviewPreferences.Keys.frontSwipeLeftGestureAction) private var prefFrontSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+    @AppStorage(ReviewPreferences.Keys.frontSwipeRightGestureAction) private var prefFrontSwipeRightGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+    @AppStorage(ReviewPreferences.Keys.backTapGestureAction) private var prefBackTapGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+    @AppStorage(ReviewPreferences.Keys.backSwipeLeftGestureAction) private var prefBackSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+    @AppStorage(ReviewPreferences.Keys.backSwipeRightGestureAction) private var prefBackSwipeRightGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
     @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
     @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
     @AppStorage(ReaderPreferences.Keys.popupFontSize) private var popupFontSize = 14
@@ -157,6 +168,18 @@ struct ReviewView: View {
             cardChromeIsDark = (colorScheme == .dark)
             session.start()
             configureAudioSession()
+            controllerMonitor.onButton = { button in
+                Task { @MainActor in
+                    handleControllerButton(button)
+                }
+            }
+            controllerMonitor.start()
+            keyboardMonitor.onShortcut = { shortcut in
+                Task { @MainActor in
+                    handleKeyboardShortcut(shortcut)
+                }
+            }
+            keyboardMonitor.start()
             scheduleAutoAdvanceIfNeeded()
             await preloadAvailableDecks()
         }
@@ -196,6 +219,8 @@ struct ReviewView: View {
         }
         .onDisappear {
             autoAdvanceTask?.cancel()
+            controllerMonitor.stop()
+            keyboardMonitor.stop()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             isKeyboardVisible = true
@@ -467,6 +492,19 @@ struct ReviewView: View {
                     Label(L("card_info_title"), systemImage: "info.circle")
                 }
                 .disabled(session.currentCard == nil)
+
+                Menu {
+                    ForEach(1...9, id: \.self) { index in
+                        Button {
+                            triggerUserAction(index)
+                        } label: {
+                            Text(String(format: L("review_user_action_number"), index))
+                        }
+                    }
+                } label: {
+                    Label(L("review_user_actions"), systemImage: "bolt")
+                }
+                .disabled(session.currentCard == nil)
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
@@ -493,6 +531,8 @@ struct ReviewView: View {
                 replayRequestID: replayRequestID,
                 stopAudioRequestID: stopAudioRequestID,
                 typedAnswerRequestID: typedAnswerRequestID,
+                userActionRequestID: userActionRequestID,
+                userActionIndex: pendingUserActionIndex,
                 replayMode: replayMode,
                 playAudioInSilentMode: prefPlayAudioInSilentMode,
                 showInlineAudioReplayButtons: prefShowAudioReplayButton,
@@ -517,10 +557,15 @@ struct ReviewView: View {
                 },
                 onLookupRequested: { selection, sentence, point in
                     handleCardLookup(selection, sentence: sentence, at: point)
+                },
+                onCardGesture: { gesture in
+                    handleCardGesture(gesture)
                 }
             )
 
             reviewLookupOverlay
+            ReviewKeyboardCommandBridge()
+                .frame(width: 0, height: 0)
         }
         .overlay(alignment: .bottom) {
             cardActionBar
@@ -947,6 +992,146 @@ struct ReviewView: View {
         }
     }
 
+    private func handleCardGesture(_ gesture: String) {
+        guard lookupStack.isEmpty else { return }
+
+        let action: ReviewPreferences.GestureAction
+        switch gesture {
+        case "tapBlank":
+            let raw = session.showAnswer ? prefBackTapGestureActionRaw : prefFrontTapGestureActionRaw
+            action = ReviewPreferences.GestureAction(rawValue: raw) ?? (session.showAnswer ? .none : .showAnswer)
+        case "swipeLeft":
+            let raw = session.showAnswer ? prefBackSwipeLeftGestureActionRaw : prefFrontSwipeLeftGestureActionRaw
+            action = ReviewPreferences.GestureAction(rawValue: raw) ?? .none
+        case "swipeRight":
+            let raw = session.showAnswer ? prefBackSwipeRightGestureActionRaw : prefFrontSwipeRightGestureActionRaw
+            action = ReviewPreferences.GestureAction(rawValue: raw) ?? .none
+        default:
+            return
+        }
+
+        performGestureAction(action)
+    }
+
+    private func performGestureAction(_ action: ReviewPreferences.GestureAction) {
+        guard session.currentCard != nil else { return }
+
+        switch action {
+        case .none:
+            return
+        case .showAnswer:
+            guard !session.showAnswer else { return }
+            if session.requiresTypedAnswerInput {
+                typedAnswerRequestID += 1
+            } else {
+                session.revealAnswer()
+            }
+        case .again:
+            guard session.showAnswer else { return }
+            ratingButtonAction(.again)
+        case .hard:
+            guard session.showAnswer else { return }
+            ratingButtonAction(.hard)
+        case .good:
+            guard session.showAnswer else { return }
+            ratingButtonAction(.good)
+        case .easy:
+            guard session.showAnswer else { return }
+            ratingButtonAction(.easy)
+        case .replayAudio:
+            if isAudioPlaying {
+                stopAudioRequestID += 1
+            } else {
+                replayRequestID += 1
+            }
+        case .userAction1:
+            triggerUserAction(1)
+        case .userAction2:
+            triggerUserAction(2)
+        case .userAction3:
+            triggerUserAction(3)
+        case .userAction4:
+            triggerUserAction(4)
+        case .userAction5:
+            triggerUserAction(5)
+        case .userAction6:
+            triggerUserAction(6)
+        case .userAction7:
+            triggerUserAction(7)
+        case .userAction8:
+            triggerUserAction(8)
+        case .userAction9:
+            triggerUserAction(9)
+        }
+    }
+
+    private func triggerUserAction(_ index: Int) {
+        pendingUserActionIndex = index
+        userActionRequestID += 1
+    }
+
+    private func handleControllerButton(_ button: ReviewPreferences.ControllerButton) {
+        guard lookupStack.isEmpty else { return }
+        let key = ReviewPreferences.Keys.controllerButtonAction(button)
+        let raw = UserDefaults.standard.string(forKey: key) ?? defaultControllerAction(for: button).rawValue
+        let action = ReviewPreferences.GestureAction(rawValue: raw) ?? .none
+        performGestureAction(action)
+    }
+
+    private func defaultControllerAction(for button: ReviewPreferences.ControllerButton) -> ReviewPreferences.GestureAction {
+        switch button {
+        case .buttonA: return session.showAnswer ? .good : .showAnswer
+        case .buttonB: return .again
+        case .buttonX: return .easy
+        case .buttonY: return .hard
+        case .rightShoulder: return .replayAudio
+        default: return .none
+        }
+    }
+
+    private func handleKeyboardShortcut(_ shortcut: ReviewPreferences.KeyboardShortcut) {
+        guard lookupStack.isEmpty else { return }
+        let key = ReviewPreferences.Keys.keyboardShortcutAction(shortcut)
+        let raw = UserDefaults.standard.string(forKey: key) ?? defaultKeyboardAction(for: shortcut).rawValue
+        let action = ReviewPreferences.GestureAction(rawValue: raw) ?? .none
+        performGestureAction(action)
+    }
+
+    private func defaultKeyboardAction(for shortcut: ReviewPreferences.KeyboardShortcut) -> ReviewPreferences.GestureAction {
+        switch shortcut {
+        case .space, .enter:
+            return session.showAnswer ? .good : .showAnswer
+        case .number1:
+            return .again
+        case .number2:
+            return .hard
+        case .number3:
+            return .good
+        case .number4:
+            return .easy
+        case .replay:
+            return .replayAudio
+        case .command1:
+            return .userAction1
+        case .command2:
+            return .userAction2
+        case .command3:
+            return .userAction3
+        case .command4:
+            return .userAction4
+        case .command5:
+            return .userAction5
+        case .command6:
+            return .userAction6
+        case .command7:
+            return .userAction7
+        case .command8:
+            return .userAction8
+        case .command9:
+            return .userAction9
+        }
+    }
+
     private func openEditorForCurrentCard() async {
         guard let noteId = session.currentCard?.card.noteID else { return }
         guard let note = try? noteClient.fetch(noteId) else { return }
@@ -1187,6 +1372,176 @@ struct ReviewView: View {
             print("[ReviewView] Audio session configure failed: \(error)")
         }
     }
+}
+
+@MainActor
+final class ReviewControllerMonitor {
+    var onButton: ((ReviewPreferences.ControllerButton) -> Void)?
+
+    private var observers: [NSObjectProtocol] = []
+
+    func start() {
+        connectExistingControllers()
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: .GCControllerDidConnect,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let controller = notification.object as? GCController else { return }
+                self?.configure(controller)
+            }
+        )
+    }
+
+    func stop() {
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers.removeAll()
+        GCController.controllers().forEach { controller in
+            controller.extendedGamepad?.valueChangedHandler = nil
+        }
+    }
+
+    private func connectExistingControllers() {
+        GCController.controllers().forEach(configure)
+    }
+
+    private func configure(_ controller: GCController) {
+        guard let gamepad = controller.extendedGamepad else { return }
+        gamepad.valueChangedHandler = { [weak self] gamepad, element in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                guard let button = self.controllerButton(for: gamepad, element: element) else { return }
+                self.onButton?(button)
+            }
+        }
+    }
+
+    private func controllerButton(
+        for gamepad: GCExtendedGamepad,
+        element: GCControllerElement
+    ) -> ReviewPreferences.ControllerButton? {
+        if let button = gamepad.leftThumbstickButton,
+           element === button,
+           button.isPressed {
+            return .leftThumbstick
+        }
+        if let button = gamepad.rightThumbstickButton,
+           element === button,
+           button.isPressed {
+            return .rightThumbstick
+        }
+        if let button = gamepad.buttonOptions,
+           element === button,
+           button.isPressed {
+            return .options
+        }
+
+        switch element {
+        case gamepad.buttonA where gamepad.buttonA.isPressed: return .buttonA
+        case gamepad.buttonB where gamepad.buttonB.isPressed: return .buttonB
+        case gamepad.buttonX where gamepad.buttonX.isPressed: return .buttonX
+        case gamepad.buttonY where gamepad.buttonY.isPressed: return .buttonY
+        case gamepad.dpad.up where gamepad.dpad.up.isPressed: return .dpadUp
+        case gamepad.dpad.down where gamepad.dpad.down.isPressed: return .dpadDown
+        case gamepad.dpad.left where gamepad.dpad.left.isPressed: return .dpadLeft
+        case gamepad.dpad.right where gamepad.dpad.right.isPressed: return .dpadRight
+        case gamepad.leftShoulder where gamepad.leftShoulder.isPressed: return .leftShoulder
+        case gamepad.rightShoulder where gamepad.rightShoulder.isPressed: return .rightShoulder
+        case gamepad.leftTrigger where gamepad.leftTrigger.isPressed: return .leftTrigger
+        case gamepad.rightTrigger where gamepad.rightTrigger.isPressed: return .rightTrigger
+        case gamepad.buttonMenu where gamepad.buttonMenu.isPressed: return .menu
+        default: return nil
+        }
+    }
+}
+
+@MainActor
+final class ReviewKeyboardMonitor {
+    var onShortcut: ((ReviewPreferences.KeyboardShortcut) -> Void)?
+
+    private var token: Any?
+
+    func start() {
+        token = NotificationCenter.default.addObserver(
+            forName: .reviewKeyboardShortcut,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let shortcut = notification.object as? ReviewPreferences.KeyboardShortcut else { return }
+            self?.onShortcut?(shortcut)
+        }
+    }
+
+    func stop() {
+        if let token {
+            NotificationCenter.default.removeObserver(token)
+        }
+        token = nil
+    }
+}
+
+private extension Notification.Name {
+    static let reviewKeyboardShortcut = Notification.Name("amgi.review.keyboard-shortcut")
+}
+
+private final class ReviewKeyboardCommandHost: UIViewController {
+    override var canBecomeFirstResponder: Bool { true }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        becomeFirstResponder()
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        [
+            command(input: " ", action: .space),
+            command(input: "\r", action: .enter),
+            command(input: "1", action: .number1),
+            command(input: "2", action: .number2),
+            command(input: "3", action: .number3),
+            command(input: "4", action: .number4),
+            command(input: "r", action: .replay),
+            command(input: "1", modifiers: .command, action: .command1),
+            command(input: "2", modifiers: .command, action: .command2),
+            command(input: "3", modifiers: .command, action: .command3),
+            command(input: "4", modifiers: .command, action: .command4),
+            command(input: "5", modifiers: .command, action: .command5),
+            command(input: "6", modifiers: .command, action: .command6),
+            command(input: "7", modifiers: .command, action: .command7),
+            command(input: "8", modifiers: .command, action: .command8),
+            command(input: "9", modifiers: .command, action: .command9)
+        ]
+    }
+
+    private func command(
+        input: String,
+        modifiers: UIKeyModifierFlags = [],
+        action: ReviewPreferences.KeyboardShortcut
+    ) -> UIKeyCommand {
+        let command = UIKeyCommand(
+            input: input,
+            modifierFlags: modifiers,
+            action: #selector(handleKeyCommand(_:))
+        )
+        command.discoverabilityTitle = action.rawValue
+        return command
+    }
+
+    @objc private func handleKeyCommand(_ sender: UIKeyCommand) {
+        guard let shortcut = ReviewPreferences.KeyboardShortcut(rawValue: sender.discoverabilityTitle ?? "") else {
+            return
+        }
+        NotificationCenter.default.post(name: .reviewKeyboardShortcut, object: shortcut)
+    }
+}
+
+private struct ReviewKeyboardCommandBridge: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> ReviewKeyboardCommandHost {
+        ReviewKeyboardCommandHost()
+    }
+
+    func updateUIViewController(_ uiViewController: ReviewKeyboardCommandHost, context: Context) {}
 }
 
 private struct ReviewCardStatsTarget: Identifiable {
