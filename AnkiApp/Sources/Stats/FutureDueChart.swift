@@ -235,9 +235,7 @@ struct FutureDueChart: View {
     }
 
     private var barWidth: MarkDimension {
-        if displayedBucketCount <= 24 { return .automatic }
-        let w: Double = max(1.5, min(6.0, 220.0 / Double(displayedBucketCount)))
-        return .fixed(w)
+        StatsBarLayoutSupport.barWidth(slotCount: displayedBucketCount)
     }
 
     private func niceTickStep(lowerBound: Int, upperBound: Int, targetCount: Int) -> Int {

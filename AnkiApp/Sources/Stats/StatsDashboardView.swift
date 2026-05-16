@@ -15,12 +15,13 @@ private enum StatsChartSection: String, CaseIterable, Identifiable {
     case reviews
     case cardCounts
     case intervals
+    case stability
     case ease
+    case retrievability
+    case retention
     case hourly
     case buttons
     case added
-    case retrievability
-    case retention
 
     var id: String { rawValue }
 
@@ -30,7 +31,8 @@ private enum StatsChartSection: String, CaseIterable, Identifiable {
         case .heatmap: L("stats_heatmap_title")
         case .reviews: L("stats_reviews_title")
         case .cardCounts: L("stats_card_counts_title")
-        case .intervals: L("stats_stability_title")
+        case .intervals: L("stats_intervals_title")
+        case .stability: L("stats_stability_title")
         case .ease: L("stats_difficulty_title")
         case .hourly: L("stats_hourly_title")
         case .buttons: L("stats_buttons_title")
@@ -238,7 +240,7 @@ struct StatsDashboardView: View {
 
     private func orderedChartSections(for graphs: Anki_Stats_GraphsResponse?) -> [StatsChartSection] {
         storedChartOrder().filter { section in
-            if section == .retrievability {
+            if section == .retrievability || section == .stability {
                 return graphs?.fsrs == true
             }
             return true
@@ -271,7 +273,9 @@ struct StatsDashboardView: View {
         case .cardCounts:
             CardCountsChart(cardCounts: graphs.cardCounts)
         case .intervals:
-            IntervalsChart(intervals: graphs.intervals, isFSRS: graphs.fsrs)
+            IntervalsChart(intervals: graphs.intervals, kind: .intervals)
+        case .stability:
+            IntervalsChart(intervals: graphs.stability, kind: .stability)
         case .ease:
             EaseChart(eases: graphs.eases, difficulty: graphs.difficulty, isFSRS: graphs.fsrs)
         case .hourly:

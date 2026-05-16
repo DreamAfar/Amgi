@@ -57,6 +57,10 @@ struct RetrievabilityChart: View {
         yAxisTicks.map(\.plottedValue)
     }
 
+    private var barWidth: MarkDimension {
+        StatsBarLayoutSupport.barWidth(slotCount: chartData.count)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             HStack {
@@ -115,7 +119,8 @@ struct RetrievabilityChart: View {
     private func retrievabilityBarMark(for item: Bucket) -> some ChartContent {
         BarMark(
             x: .value("Retrievability", item.center),
-            y: .value("Cards", item.count)
+            y: .value("Cards", item.count),
+            width: barWidth
         )
         .foregroundStyle(bucketColor(for: item.center).gradient)
     }

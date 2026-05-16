@@ -3,8 +3,31 @@ import Charts
 import AnkiProto
 
 struct IntervalsChart: View {
+    enum ChartKind {
+        case intervals
+        case stability
+
+        var titleKey: String {
+            switch self {
+            case .intervals:
+                return "stats_intervals_title"
+            case .stability:
+                return "stats_stability_title"
+            }
+        }
+
+        var subtitleKey: String {
+            switch self {
+            case .intervals:
+                return "stats_intervals_subtitle"
+            case .stability:
+                return "stats_stability_subtitle"
+            }
+        }
+    }
+
     let intervals: Anki_Stats_GraphsResponse.Intervals
-    let isFSRS: Bool
+    let kind: ChartKind
     @State private var selectedBinX: Int?
 
     private typealias IntervalBin = (label: String, x: Int, count: Int)
@@ -76,10 +99,10 @@ struct IntervalsChart: View {
         return sorted[idx]
     }
 
-    // Returns (bins, xMax) where bins = [(label, midpoint, count)]
-    private var histogramData: (bins: [(label: String, x: Int, count: Int)], xMax: Int) {
+    // Returns (bins, xMax, binSize) where bins = [(label, midpoint, count)]
+    private var histogramData: (bins: [(label: String, x: Int, count: Int)], xMax: Int, binSize: Int) {
         let sorted = flatIntervals
-        guard !sorted.isEmpty else { return ([], 0) }
+        guard !sorted.isEmpty else { return ([], 0, 1) }
 
         let xMax: Int
         switch range {
@@ -108,7 +131,7 @@ struct IntervalsChart: View {
             }
             return (label: label, x: k, count: cnt)
         }
-        return (bins, xMax)
+        return (bins, xMax, binSize)
     }
 
     private var medianInterval: Int {
@@ -139,9 +162,13 @@ struct IntervalsChart: View {
         )
     }
 
-    private func makeIntervalChartState(for bins: [IntervalBin]) -> IntervalChartState {
-        let barWidthValue = max(2.0, min(8.0, 280.0 / Double(bins.count)))
-        let barWidth: MarkDimension = bins.count <= 30 ? .automatic : .fixed(barWidthValue)
+    private func makeIntervalChartState(for bins: [IntervalBin], xMax: Int, binSize: Int) -> IntervalChartState {
+        let slotCount = StatsBarLayoutSupport.displayedSlotCount(
+            lowerBound: 0,
+            upperBound: max(1, xMax),
+            bucketSize: max(1, binSize)
+        )
+        let barWidth = StatsBarLayoutSupport.barWidth(slotCount: slotCount)
         let xAxisDesiredCount = min(10, max(4, bins.count / 8))
         let cumulative = cumulativePoints(for: bins)
         let total = cumulative.last?.cumulative ?? 0
@@ -176,11 +203,11 @@ struct IntervalsChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
-            Text(isFSRS ? L("stats_stability_title") : L("stats_intervals_title"))
+            Text(L(kind.titleKey))
                 .amgiFont(.sectionHeading)
                 .foregroundStyle(Color.amgiTextPrimary)
 
-            Text(isFSRS ? L("stats_stability_subtitle") : L("stats_intervals_subtitle"))
+            Text(L(kind.subtitleKey))
                 .amgiFont(.caption)
                 .foregroundStyle(Color.amgiTextSecondary)
 
@@ -193,14 +220,14 @@ struct IntervalsChart: View {
             .amgiFont(.micro)
             .onChange(of: range) { selectedBinX = nil }
 
-            let (bins, xMax) = histogramData
+            let (bins, xMax, binSize) = histogramData
             if bins.isEmpty {
                 Text(L("stats_intervals_empty"))
                     .amgiFont(.body)
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                intervalsChart(bins: bins, xMax: xMax)
+                intervalsChart(bins: bins, xMax: xMax, binSize: binSize)
             }
 
             HStack(spacing: 16) {
@@ -225,8 +252,8 @@ struct IntervalsChart: View {
     }
 
     @ViewBuilder
-    private func intervalsChart(bins: [IntervalBin], xMax: Int) -> some View {
-        let state = makeIntervalChartState(for: bins)
+    private func intervalsChart(bins: [IntervalBin], xMax: Int, binSize: Int) -> some View {
+        let state = makeIntervalChartState(for: bins, xMax: xMax, binSize: binSize)
         baseIntervalsChart(bins: bins, xMax: xMax, state: state)
     }
 

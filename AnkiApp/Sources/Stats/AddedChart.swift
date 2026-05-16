@@ -33,6 +33,27 @@ struct AddedChart: View {
         }
     }
 
+    private var xAxisMin: Int {
+        let periodMin: Int
+        switch period {
+        case .day:
+            periodMin = -1
+        case .week:
+            periodMin = -6
+        case .month:
+            periodMin = -30
+        case .threeMonths:
+            periodMin = -89
+        case .year:
+            periodMin = -364
+        case .all:
+            return min(filteredData.map(\.day).min() ?? -30, -1)
+        }
+
+        let dataMin = filteredData.map(\.day).min() ?? periodMin
+        return max(periodMin, dataMin)
+    }
+
     private var filteredData: [(day: Int, count: Int)] {
         let maxDay = period.days
         let bkt = bucketSize
@@ -63,11 +84,13 @@ struct AddedChart: View {
         }
     }
     private var barWidth: MarkDimension {
-        guard filteredData.count > 30 else {
-            return .automatic
-        }
-        let width = max(2.0, min(8.0, 280.0 / Double(filteredData.count)))
-        return .fixed(width)
+        StatsBarLayoutSupport.barWidth(
+            slotCount: StatsBarLayoutSupport.displayedSlotCount(
+                lowerBound: xAxisMin,
+                upperBound: 0,
+                bucketSize: bucketSize
+            )
+        )
     }
     private var rightAxisTicks: [StatsAxisTick] {
         StatsDualAxisSupport.ticks(
@@ -154,6 +177,7 @@ struct AddedChart: View {
             .chartOverlay { proxy in
                 addedChartOverlay(proxy: proxy)
             }
+            .chartXScale(domain: xAxisMin...0)
             .chartXAxis {
                 addedChartXAxis()
             }

@@ -69,6 +69,24 @@ struct EaseChart: View {
         yAxisTicks.map(\.plottedValue)
     }
 
+    private var barWidth: MarkDimension {
+        let step = chartStep
+        let slotCount = StatsBarLayoutSupport.displayedSlotCount(
+            lowerBound: xAxisLowerBound,
+            upperBound: xAxisUpperBound,
+            bucketSize: step
+        )
+        return StatsBarLayoutSupport.barWidth(slotCount: slotCount)
+    }
+
+    private var chartStep: Int {
+        guard chartData.count >= 2 else { return isFSRS ? 5 : 10 }
+        let deltas = zip(chartData, chartData.dropFirst()).map { current, next in
+            next.ease - current.ease
+        }.filter { $0 > 0 }
+        return max(1, deltas.min() ?? (isFSRS ? 5 : 10))
+    }
+
     private func yAxisLabel(for raw: Double) -> String {
         StatsDualAxisSupport.label(for: raw, in: yAxisTicks)
     }
@@ -245,7 +263,8 @@ struct EaseChart: View {
         ForEach(chartData, id: \.ease) { item in
             BarMark(
                 x: .value("Ease", item.ease),
-                y: .value("Cards", item.count)
+                y: .value("Cards", item.count),
+                width: barWidth
             )
             .foregroundStyle((isFSRS ? difficultyColor(for: item.ease) : Color.indigo).gradient)
         }

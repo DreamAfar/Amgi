@@ -146,10 +146,13 @@ struct ReviewsChart: View {
     }
 
     private var barWidth: MarkDimension {
-        let numBars = period.days / max(bucketSize, 1)
-        if numBars <= 30 { return .automatic }
-        let width: Double = max(2.0, min(8.0, 300.0 / Double(numBars)))
-        return .fixed(width)
+        StatsBarLayoutSupport.barWidth(
+            slotCount: StatsBarLayoutSupport.displayedSlotCount(
+                lowerBound: xAxisMin,
+                upperBound: 0,
+                bucketSize: bucketSize
+            )
+        )
     }
 
     private var selectedBucketEntries: [ReviewEntry] {
