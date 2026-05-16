@@ -129,7 +129,7 @@ enum ReviewDailyReminderScheduler {
 }
 
 @MainActor
-final class ReviewDailyReminderNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+final class ReviewDailyReminderNotificationDelegate: NSObject, @preconcurrency UNUserNotificationCenterDelegate {
     static let shared = ReviewDailyReminderNotificationDelegate()
 
     private override init() {}

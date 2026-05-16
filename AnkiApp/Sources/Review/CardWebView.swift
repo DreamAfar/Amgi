@@ -2856,7 +2856,7 @@ struct CardWebView: UIViewRepresentable {
     }
 
     @MainActor
-    private final class ReviewSelectionMenuWebView: WKWebView, UIEditMenuInteractionDelegate {
+    private final class ReviewSelectionMenuWebView: WKWebView, @preconcurrency UIEditMenuInteractionDelegate {
         private lazy var selectionEditMenuInteraction = UIEditMenuInteraction(delegate: self)
 
         var currentSelectionText: String? {
