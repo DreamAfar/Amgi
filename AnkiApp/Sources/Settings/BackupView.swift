@@ -28,7 +28,7 @@ struct BackupView: View {
 
     var body: some View {
         List {
-            Section(L("backup_section_settings")) {
+            Section {
                 Stepper(value: $minimumIntervalMins, in: 0...1440, step: 5) {
                     backupSettingRow(
                         title: L("backup_auto_interval"),
@@ -60,6 +60,8 @@ struct BackupView: View {
                     )
                 }
                 .disabled(isLoadingSettings || isSavingSettings)
+            } header: {
+                Text(L("backup_section_settings"))
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("backup_explanation"))
