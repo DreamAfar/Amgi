@@ -120,11 +120,7 @@ enum ReviewDailyReminderScheduler {
     private static func notificationSettings(
         center: UNUserNotificationCenter
     ) async -> UNNotificationSettings {
-        await withCheckedContinuation { continuation in
-            center.getNotificationSettings { settings in
-                continuation.resume(returning: settings)
-            }
-        }
+        await center.notificationSettings()
     }
 }
 
