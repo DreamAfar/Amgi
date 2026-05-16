@@ -1,35 +1,74 @@
 import SwiftUI
+import AnkiBackend
+import Dependencies
 
 struct BackupView: View {
     let username: String
 
-    @State private var backups: [BackupEntry] = []
+    @Dependency(\.ankiBackend) var backend
+
+    @State private var backups: [BackupFileEntry] = []
     @State private var isCreating = false
+    @State private var isRestoring = false
+    @State private var isLoadingSettings = true
+    @State private var isSavingSettings = false
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var successMessage: String?
     @State private var showSuccess = false
-    @State private var backupToDelete: BackupEntry?
+    @State private var backupToDelete: BackupFileEntry?
+    @State private var backupToRestore: BackupFileEntry?
     @State private var showDeleteConfirm = false
-
-    struct BackupEntry: Identifiable {
-        let id = UUID()
-        let url: URL
-        let date: Date
-        var formattedDate: String {
-            let fmt = DateFormatter()
-            fmt.dateStyle = .medium
-            fmt.timeStyle = .short
-            return fmt.string(from: date)
-        }
-        var fileSize: String {
-            let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
-        }
-    }
+    @State private var showRestoreConfirm = false
+    @State private var minimumIntervalMins = CollectionBackupManager.defaultMinimumIntervalMins
+    @State private var dailyBackups = CollectionBackupManager.defaultDailyBackups
+    @State private var weeklyBackups = CollectionBackupManager.defaultWeeklyBackups
+    @State private var monthlyBackups = CollectionBackupManager.defaultMonthlyBackups
+    @State private var legacyBackupCount = 0
 
     var body: some View {
         List {
+            Section(L("backup_section_settings")) {
+                Stepper(value: $minimumIntervalMins, in: 0...1440, step: 5) {
+                    backupSettingRow(
+                        title: L("backup_auto_interval"),
+                        value: "\(minimumIntervalMins)"
+                    )
+                }
+                .disabled(isLoadingSettings || isSavingSettings)
+
+                Stepper(value: $dailyBackups, in: 0...365) {
+                    backupSettingRow(
+                        title: L("backup_daily_keep"),
+                        value: "\(dailyBackups)"
+                    )
+                }
+                .disabled(isLoadingSettings || isSavingSettings)
+
+                Stepper(value: $weeklyBackups, in: 0...104) {
+                    backupSettingRow(
+                        title: L("backup_weekly_keep"),
+                        value: "\(weeklyBackups)"
+                    )
+                }
+                .disabled(isLoadingSettings || isSavingSettings)
+
+                Stepper(value: $monthlyBackups, in: 0...60) {
+                    backupSettingRow(
+                        title: L("backup_monthly_keep"),
+                        value: "\(monthlyBackups)"
+                    )
+                }
+                .disabled(isLoadingSettings || isSavingSettings)
+            } footer: {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("backup_explanation"))
+                    Text(L("backup_media_notice"))
+                }
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+            }
+
             Section {
                 Button {
                     Task { await createBackup() }
@@ -44,12 +83,17 @@ struct BackupView: View {
                         Label(L("backup_create_now"), systemImage: "externaldrive.badge.plus")
                     }
                 }
-                .disabled(isCreating)
+                .disabled(isCreating || isRestoring)
                 .listRowBackground(Color.amgiSurfaceElevated)
             } footer: {
-                Text(L("backup_storage_hint"))
-                    .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("backup_storage_hint"))
+                    if legacyBackupCount > 0 {
+                        Text(L("backup_legacy_hidden_notice", legacyBackupCount))
+                    }
+                }
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
             }
 
             if backups.isEmpty {
@@ -79,6 +123,17 @@ struct BackupView: View {
                                     .foregroundStyle(Color.amgiAccent)
                             }
                             .buttonStyle(.plain)
+
+                            if entry.url.pathExtension.lowercased() == "colpkg" {
+                                Button {
+                                    backupToRestore = entry
+                                    showRestoreConfirm = true
+                                } label: {
+                                    Image(systemName: "arrow.counterclockwise")
+                                        .foregroundStyle(Color.amgiAccent)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
@@ -86,6 +141,16 @@ struct BackupView: View {
                                 showDeleteConfirm = true
                             } label: {
                                 Label(L("common_delete"), systemImage: "trash")
+                            }
+
+                            if entry.url.pathExtension.lowercased() == "colpkg" {
+                                Button {
+                                    backupToRestore = entry
+                                    showRestoreConfirm = true
+                                } label: {
+                                    Label(L("backup_restore_action"), systemImage: "arrow.counterclockwise")
+                                }
+                                .tint(.blue)
                             }
                         }
                     }
@@ -99,10 +164,22 @@ struct BackupView: View {
         .alert(L("backup_delete_title"), isPresented: $showDeleteConfirm) {
             Button(L("common_cancel"), role: .cancel) {}
             Button(L("common_delete"), role: .destructive) {
-                if let entry = backupToDelete { deleteBackup(entry) }
+                if let entry = backupToDelete {
+                    deleteBackup(entry)
+                }
             }
         } message: {
             Text(L("backup_delete_confirm", backupToDelete?.formattedDate ?? ""))
+        }
+        .alert(L("backup_restore_title"), isPresented: $showRestoreConfirm) {
+            Button(L("common_cancel"), role: .cancel) {}
+            Button(L("backup_restore_action"), role: .destructive) {
+                if let entry = backupToRestore {
+                    Task { await restoreBackup(entry) }
+                }
+            }
+        } message: {
+            Text(L("backup_restore_confirm", backupToRestore?.url.lastPathComponent ?? ""))
         }
         .alert(L("common_done"), isPresented: $showSuccess) {
             Button(L("common_ok"), role: .cancel) {}
@@ -114,64 +191,158 @@ struct BackupView: View {
         } message: {
             Text(errorMessage ?? "")
         }
-        .task { loadBackups() }
+        .task {
+            loadBackups()
+            await loadBackupPreferences()
+        }
+        .onChange(of: minimumIntervalMins) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            persistBackupPreferencesIfNeeded()
+        }
+        .onChange(of: dailyBackups) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            persistBackupPreferencesIfNeeded()
+        }
+        .onChange(of: weeklyBackups) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            persistBackupPreferencesIfNeeded()
+        }
+        .onChange(of: monthlyBackups) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            persistBackupPreferencesIfNeeded()
+        }
     }
 
-    // MARK: - Helpers
-
-    private func backupsDirectory() -> URL? {
-        guard let docs = FileManager.default.urls(
-            for: .documentDirectory, in: .userDomainMask
-        ).first else { return nil }
-        let folderName = "Backups for \(username)"
-        let dir = docs.appendingPathComponent(folderName, isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+    private func backupSettingRow(title: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: AmgiSpacing.md) {
+            Text(title)
+                .foregroundStyle(Color.amgiTextPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(value)
+                .foregroundStyle(Color.amgiAccent)
+                .monospacedDigit()
+        }
     }
 
     private func loadBackups() {
-        guard let dir = backupsDirectory() else { return }
-        let files = (try? FileManager.default.contentsOfDirectory(
-            at: dir, includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
-            options: .skipsHiddenFiles
-        )) ?? []
-        backups = files
-            .filter { $0.pathExtension == "anki2" }
-            .compactMap { url -> BackupEntry? in
-                let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey])
-                    .contentModificationDate) ?? Date.distantPast
-                return BackupEntry(url: url, date: date)
-            }
-            .sorted { $0.date > $1.date }
+        backups = CollectionBackupManager.loadBackups(for: username)
+        legacyBackupCount = CollectionBackupManager.legacyBackupCount(for: username)
     }
 
     private func createBackup() async {
         isCreating = true
-        let user = username
+        defer { isCreating = false }
+
         do {
-            guard let dir = backupsDirectory() else {
-                throw NSError(domain: "BackupView", code: -1,
-                              userInfo: [NSLocalizedDescriptionKey: "Cannot access backup directory"])
-            }
-            let sourceURL = AppUserStore.collectionURLs(for: user).collection
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-            let timestamp = formatter.string(from: Date())
-            let destURL = dir.appendingPathComponent("\(timestamp).anki2")
-            try await Task.detached(priority: .userInitiated) {
-                try FileManager.default.copyItem(at: sourceURL, to: destURL)
-            }.value
+            let result = try await CollectionBackupManager.createBackup(
+                backend: backend,
+                username: username,
+                force: true
+            )
             loadBackups()
-            successMessage = L("backup_created_ok", destURL.lastPathComponent)
+            switch result {
+            case .created(let entry):
+                successMessage = L("backup_created_ok", entry?.url.lastPathComponent ?? "")
+            case .unchanged:
+                successMessage = L("backup_unchanged")
+            }
             showSuccess = true
         } catch {
             errorMessage = error.localizedDescription
             showError = true
         }
-        isCreating = false
     }
 
-    private func deleteBackup(_ entry: BackupEntry) {
+    private func restoreBackup(_ entry: BackupFileEntry) async {
+        guard entry.url.pathExtension.lowercased() == "colpkg" else {
+            errorMessage = L("backup_restore_unsupported")
+            showError = true
+            return
+        }
+
+        isRestoring = true
+        let capturedBackend = backend
+        let backupURL = entry.url
+        await MainActor.run {
+            AppCollectionState.shared.markOpening()
+        }
+        defer { isRestoring = false }
+
+        do {
+            let message = try await Task.detached(priority: .userInitiated) {
+                try ImportHelper.importPackage(
+                    from: backupURL,
+                    backend: capturedBackend,
+                    configuration: .collection
+                )
+            }.value
+
+            await MainActor.run {
+                AppCollectionState.shared.markReady()
+                NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
+                successMessage = message
+                showSuccess = true
+            }
+        } catch {
+            await MainActor.run {
+                AppCollectionState.shared.markFailed(error.localizedDescription)
+                errorMessage = L("backup_restore_failed", error.localizedDescription)
+                showError = true
+            }
+        }
+    }
+
+    @MainActor
+    private func loadBackupPreferences() async {
+        isLoadingSettings = true
+        defer { isLoadingSettings = false }
+
+        do {
+            let preferences = try backend.getPreferences()
+            let limits = preferences.backups
+            minimumIntervalMins = Int(limits.minimumIntervalMins)
+            dailyBackups = Int(limits.daily)
+            weeklyBackups = Int(limits.weekly)
+            monthlyBackups = Int(limits.monthly)
+        } catch {
+            errorMessage = L("backup_settings_load_failed", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func persistBackupPreferencesIfNeeded() {
+        guard !isLoadingSettings, !isSavingSettings else { return }
+        isSavingSettings = true
+
+        let interval = minimumIntervalMins
+        let daily = dailyBackups
+        let weekly = weeklyBackups
+        let monthly = monthlyBackups
+        let capturedBackend = backend
+
+        Task {
+            do {
+                var preferences = try capturedBackend.getPreferences()
+                preferences.backups.daily = UInt32(max(0, daily))
+                preferences.backups.weekly = UInt32(max(0, weekly))
+                preferences.backups.monthly = UInt32(max(0, monthly))
+                preferences.backups.minimumIntervalMins = UInt32(max(0, interval))
+                try capturedBackend.setPreferences(preferences)
+            } catch {
+                await MainActor.run {
+                    errorMessage = L("backup_settings_save_failed", error.localizedDescription)
+                    showError = true
+                }
+                await loadBackupPreferences()
+            }
+
+            await MainActor.run {
+                isSavingSettings = false
+            }
+        }
+    }
+
+    private func deleteBackup(_ entry: BackupFileEntry) {
         try? FileManager.default.removeItem(at: entry.url)
         loadBackups()
     }

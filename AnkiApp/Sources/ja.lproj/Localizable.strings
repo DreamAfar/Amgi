@@ -109,7 +109,7 @@
 "deck_config_section_lapses" = "忘却";
 "deck_config_section_display" = "表示順序";
 "deck_config_section_fsrs" = "FSRSスケジューリング";
-"deck_config_section_bury" = "同デッキの埋め込み";
+"deck_config_section_bury" = "兄弟カードの非表示";
 "deck_config_section_timer" = "タイマー";
 "deck_config_section_autoadvance" = "自動進行";
 "deck_config_section_advanced" = "詳細設定";
@@ -136,8 +136,8 @@
 "browse_batch_flag_6" = "フラグ 6（シアン）";
 "browse_batch_flag_7" = "フラグ 7（紫）";
 "browse_batch_flag_clear" = "フラグをクリア";
-"browse_batch_suspend" = "一括停止";
-"browse_batch_bury" = "一括埋め込み";
+"browse_batch_suspend" = "休止";
+"browse_batch_bury" = "今日は非表示";
 "browse_batch_clear_selection" = "選択をクリア";
 "browse_batch_delete_notes" = "ノートを削除";
 "browse_batch_delete_title" = "選択したノートを削除しますか？";
@@ -147,14 +147,14 @@
 "browse_batch_move_deck_short" = "デッキ";
 "browse_batch_change_notetype_short" = "タイプ";
 "browse_batch_flag_label" = "フラグ";
-"browse_batch_suspend_toggle" = "停止";
-"browse_batch_reset_new" = "リセット";
+"browse_batch_suspend_toggle" = "休止";
+"browse_batch_reset_new" = "新規カードにリセット";
 "browse_batch_manage_tags_short" = "タグ";
 "browse_batch_export_short" = "エクスポート";
-"browse_batch_suspend_confirm_title" = "カードを停止しますか？";
-"browse_batch_suspend_confirm_msg" = "選択した %d 枚のカードを停止しますか？";
-"browse_batch_reset_confirm_title" = "新規にリセットしますか？";
-"browse_batch_reset_confirm_msg" = "選択した %d 枚のカードを新規状態にリセットしますか？";
+"browse_batch_suspend_confirm_title" = "カードを休止しますか？";
+"browse_batch_suspend_confirm_msg" = "選択した %d 枚のカードを休止しますか？";
+"browse_batch_reset_confirm_title" = "カードを新規カードにリセットしますか？";
+"browse_batch_reset_confirm_msg" = "選択した %d 枚のカードを新規カードにリセットしますか？";
 "browse_batch_reset_confirm_action" = "リセット";
 "browse_batch_tags_add" = "タグを追加";
 "browse_batch_tags_remove" = "タグを削除";
@@ -220,6 +220,7 @@
 "review_flag_cyan" = "シアン";
 "review_flag_purple" = "紫";
 "review_flag_none" = "なし";
+"review_flag_clear" = "フラグをクリア";
 
 // MARK: - TagsView
 "tags_empty_desc_note_mode" = "コレクションにタグがありません。+ をタップして作成・適用できます。";
@@ -256,10 +257,10 @@
 "card_ctx_flag_cyan" = "フラグ：シアン";
 "card_ctx_flag_purple" = "フラグ：紫";
 "card_ctx_flag_clear" = "フラグをクリア";
-"card_ctx_suspend" = "停止";
-"card_ctx_bury" = "埋め込み";
-"card_ctx_unsuspend" = "停止を解除";
-"card_ctx_unbury" = "埋め込みを解除";
+"card_ctx_suspend" = "休止";
+"card_ctx_bury" = "今日は非表示";
+"card_ctx_unsuspend" = "休止解除";
+"card_ctx_unbury" = "非表示解除";
 
 // MARK: - SettingsView
 "settings_nav_title" = "設定";
@@ -503,14 +504,30 @@
 
 // MARK: - Backup
 "backup_nav_title" = "バックアップ";
+"backup_section_settings" = "自動バックアップ";
+"backup_auto_interval" = "自動バックアップの間隔（分）";
+"backup_daily_keep" = "各日代表のバックアップ保管数";
+"backup_weekly_keep" = "各週代表のバックアップ保管数";
+"backup_monthly_keep" = "各月代表のバックアップ保管数";
 "backup_create_now" = "今すぐバックアップ";
 "backup_creating" = "バックアップ中…";
+"backup_unchanged" = "直近のバックアップから変更がありません。";
+"backup_explanation" = "Anki は一定時間ごとにコレクションをバックアップします。バックアップが 2 日より古くなると、容量節約のため一部を削除し始めます。";
+"backup_media_notice" = "自動バックアップにはメディアは含まれません。必要なら別途、完全エクスポートやフォルダ単位のバックアップも残してください。";
+"backup_legacy_hidden_notice" = "旧 .anki2 バックアップ %d 件を Legacy サブフォルダへ移動し、この一覧からは非表示にしました。";
 "backup_storage_hint" = "バックアップはアプリの Documents フォルダに保存され、ファイル App からアクセスできます。";
 "backup_empty" = "バックアップなし";
 "backup_section_list" = "バックアップ履歴";
 "backup_delete_title" = "バックアップを削除";
 "backup_delete_confirm" = "%@ のバックアップを削除しますか？";
+"backup_restore_title" = "バックアップを復元";
+"backup_restore_action" = "復元";
+"backup_restore_confirm" = "%@ を復元して、現在のローカルコレクションを置き換えますか？";
+"backup_restore_failed" = "バックアップの復元に失敗しました: %@";
+"backup_restore_unsupported" = ".colpkg バックアップのみ復元できます。";
 "backup_created_ok" = "バックアップを保存しました: %@";
+"backup_settings_load_failed" = "バックアップ設定の読み込みに失敗しました: %@";
+"backup_settings_save_failed" = "バックアップ設定の保存に失敗しました: %@";
 
 // MARK: - Empty Cards
 "empty_cards_title" = "空のカード";
@@ -742,7 +759,7 @@
 "deck_config_leech_threshold" = "難問閾値";
 "deck_config_times_fmt" = "%d 回";
 "deck_config_leech_action" = "難問対処";
-"deck_config_leech_suspend" = "カードを一時停止";
+"deck_config_leech_suspend" = "カードを休止";
 "deck_config_leech_tag_only" = "タグのみ";
 "deck_config_review_order" = "復習の並び替え";
 "deck_config_review_order_day" = "日ごとにランダム";
@@ -781,7 +798,7 @@
 "deck_config_fsrs_simulator_run" = "シミュレーション開始";
 "deck_config_fsrs_simulator_running" = "シミュレーション実行中...";
 "deck_config_fsrs_simulator_empty" = "シミュレーション結果はまだありません";
-"deck_config_fsrs_simulator_suspend_leeches" = "リーチカードを一時停止";
+"deck_config_fsrs_simulator_suspend_leeches" = "リーチカードを休止";
 "deck_config_fsrs_simulator_clear" = "前回のシミュレーションを消去";
 "deck_config_fsrs_simulator_save_to_preset" = "変更をプリセットに保存";
 "deck_config_fsrs_simulator_result" = "シミュレーション結果";
@@ -793,9 +810,9 @@
 "deck_config_fsrs_simulator_points" = "結果点";
 "deck_config_fsrs_simulator_workload_cost" = "作業量：%@";
 "deck_config_fsrs_simulator_workload_cards" = "レビュー：%u、記憶済み：%@";
-"deck_config_bury_new" = "新規の兄弟カードを埋める";
-"deck_config_bury_reviews" = "復習の兄弟カードを埋める";
-"deck_config_bury_interday" = "跨日学習の兄弟カードを埋める";
+"deck_config_bury_new" = "兄弟関係の新規カードを同じ日に表示しない";
+"deck_config_bury_reviews" = "兄弟関係の復習カードを同じ日に表示しない";
+"deck_config_bury_interday" = "兄弟関係の習得中カードで、ステップが日をまたいでいる場合は、同じ日に表示しない";
 "deck_config_show_timer" = "タイマーを表示";
 "deck_config_timer_cap" = "回答時間制限";
 "deck_config_seconds_fmt" = "%d 秒";
@@ -806,7 +823,7 @@
 "deck_config_after_answer" = "回答後の操作";
 "deck_config_action_show_answer" = "答えを表示";
 "deck_config_action_show_reminder" = "リマインダーを表示";
-"deck_config_action_bury" = "カードを埋める";
+"deck_config_action_bury" = "カードを今日は非表示";
 "deck_config_action_again" = "もう一度";
 "deck_config_action_hard" = "難しい";
 "deck_config_action_good" = "良い";
@@ -1002,6 +1019,8 @@
 "review_current_card_stats" = "現在のカード統計";
 "review_edit_button" = "編集";
 "review_more_actions" = "その他の操作";
+"review_context_menu_title" = "コンテキストメニュー";
+"review_context_section_card_actions" = "カード操作";
 "review_user_actions" = "ユーザーアクション";
 "review_user_action_number" = "ユーザーアクション %d";
 "review_delete_note_message" = "このノートとすべてのカードを削除します。この操作は元に戺せません。";
@@ -1158,30 +1177,32 @@
 "card_flag_label" = "フラグ %d（%@）";
 
 // MARK: - CardContextMenu (extended)
-"card_action_suspend" = "現在のカードを一時停止";
-"card_action_bury" = "現在のカードを埋める";
-"card_action_suspend_note" = "このノートの全カードを一時停止";
-"card_action_bury_note" = "このノートの全カードを埋める";
+"card_action_suspend" = "カードを休止";
+"card_action_bury" = "カードを今日は非表示";
+"card_action_suspend_note" = "ノートを休止";
+"card_action_bury_note" = "ノートを今日は非表示";
+"card_action_mark_and_suspend" = "マークして休止";
+"card_action_mark_and_bury" = "マークして今日は非表示";
 "card_action_note_menu" = "ノート";
-"card_action_reset_to_new" = "新規カードに戻す";
-"card_action_set_due_date" = "期日を設定";
+"card_action_reset_to_new" = "新規カードにリセット";
+"card_action_set_due_date" = "期日を指定";
 "card_action_mark_note" = "ノートにマーク";
 "card_action_unmark_note" = "ノートのマークを解除";
 "card_action_delete_note" = "ノートを削除";
 "card_action_flag" = "フラグ";
-"card_action_undo" = "回答を取り消す";
+"card_action_undo" = "元に戻す";
 "card_action_error_title" = "操作失敗";
-"card_action_error_suspend" = "カードの一時停止に失敗しました";
-"card_action_error_bury" = "カードを埋めるのに失敗しました";
-"card_action_error_suspend_note" = "ノートの一時停止に失敗しました";
-"card_action_error_bury_note" = "ノートを埋めるのに失敗しました";
-"card_action_error_reset_to_new" = "カードを新規に戻すのに失敗しました";
+"card_action_error_suspend" = "カードを休止できませんでした";
+"card_action_error_bury" = "カードを今日は非表示にできませんでした";
+"card_action_error_suspend_note" = "ノートを休止できませんでした";
+"card_action_error_bury_note" = "ノートを今日は非表示にできませんでした";
+"card_action_error_reset_to_new" = "カードを新規カードにリセットできませんでした";
 "card_action_error_mark_note" = "ノートのマーク更新に失敗しました";
 "card_action_error_delete_note" = "ノートの削除に失敗しました";
 "card_action_error_flag" = "カードのフラグ設定に失敗しました";
 "card_action_error_undo" = "元に戻すのに失敗しました";
 
-"review_set_due_title" = "期日を設定";
+"review_set_due_title" = "期日を指定";
 "review_set_due_prompt" = "現在のカードの新しい期日を入力してください。";
 "review_set_due_placeholder" = "例: 0、1、3-5、7!";
 "review_set_due_hint" = "0、3-5、7! のような Anki の期日構文が使えます。";
@@ -1356,8 +1377,8 @@
 "stats_card_young" = "若いカード";
 "stats_card_mature" = "成熟カード";
 "stats_card_relearning" = "再学習";
-"stats_card_suspended" = "停止";
-"stats_card_buried" = "埋め込み";
+"stats_card_suspended" = "休止中";
+"stats_card_buried" = "今日は非表示";
 "stats_total_count" = "合計：%d";
 "stats_forecast_empty" = "カードを復習すると予測が表示されます";
 "stats_review_learn" = "学習";
@@ -1375,7 +1396,6 @@
 "stats_range_730" = "全期間";
 "stats_heatmap_loading_more" = "履歴データを読み込み中…";
 "stats_heatmap_load_complete" = "すべてのデータが読み込まれました";
-"deck_list_heatmap_title" = "復習ヒートマップ";
 
 // MARK: - UserManagementView
 "user_mgmt_title" = "ユーザー管理";
@@ -1466,6 +1486,8 @@
 "settings_review_swipe_right_action" = "右スワイプ操作";
 "settings_review_gesture_action_none" = "なし";
 "settings_review_gesture_action_replay_audio" = "音声を再生";
+"settings_review_gesture_action_go_back" = "戻る";
+"settings_review_gesture_action_show_context_menu" = "コンテキストメニュー";
 "settings_review_controller_dpad_up" = "十字キー上";
 "settings_review_controller_dpad_down" = "十字キー下";
 "settings_review_controller_dpad_left" = "十字キー左";
@@ -1488,6 +1510,14 @@
 "settings_review_day_start" = "新しい一日の開始時刻";
 "settings_review_day_start_hint" = "この時刻を過ぎると今日の学習統計はリセットされ、新しい学習日として集計されます。";
 "settings_review_day_start_hour_value" = "%d:00";
+"settings_review_daily_reminder_enabled" = "毎日のリマインダー";
+"settings_review_daily_reminder_time" = "通知時刻";
+"settings_review_daily_reminder_hint" = "指定時刻に、今日の学習/復習カード枚数を通知します。";
+"settings_review_daily_reminder_permission_denied" = "通知権限が無効です。iOS の設定 > 通知 > Amgi で有効にしてください。";
+"settings_review_daily_reminder_save_failed" = "毎日のリマインダー保存に失敗しました: %@";
+"settings_review_daily_reminder_notification_title" = "Amgi 毎日のリマインダー";
+"settings_review_daily_reminder_notification_body" = "今日は学習/復習カードが %d 枚あります。";
+"settings_review_daily_reminder_notification_body_empty" = "今日は学習/復習カードはありません。";
 "settings_review_section_fsrs" = "FSRS";
 "settings_review_loading" = "読み込み中...";
 "settings_review_schedule_load_failed" = "学習日の開始時刻の読み込みに失敗しました: %@";
@@ -1565,8 +1595,6 @@
 "browse_flag_6" = "フラグ 6（シアン）";
 "browse_flag_7" = "フラグ 7（紫）";
 "browse_flag_clear" = "フラグをクリア";
-"browse_batch_suspend" = "一括停止";
-"browse_batch_bury" = "一括埋める";
 "browse_batch_ops" = "一括操作";
 "browse_batch_deselect" = "選択をクリア";
 

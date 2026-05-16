@@ -9,14 +9,21 @@ import Dependencies
 import Foundation
 import OSLog
 import UIKit
+import UserNotifications
 
 @main
 struct AnkiAppApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var onboardingCompleted = UserDefaults.standard.bool(forKey: "onboardingCompleted")
     @State private var startupPhase: StartupPhase = .loading
     @StateObject private var collectionState = AppCollectionState.shared
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
     @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
+    private let periodicBackupTimer = Timer.publish(
+        every: CollectionBackupManager.periodicCheckInterval,
+        on: .main,
+        in: .common
+    ).autoconnect()
 
     private enum StartupPhase {
         case loading
@@ -70,6 +77,25 @@ struct AnkiAppApp: App {
             .environmentObject(collectionState)
             .environment(\.locale, currentLocale)
             .preferredColorScheme(preferredColorScheme)
+            .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
+                Task {
+                    await syncDailyReminderIfNeeded()
+                    await runAutomaticBackupIfNeeded()
+                }
+            }
+            .onReceive(periodicBackupTimer) { _ in
+                Task { await runAutomaticBackupIfNeeded() }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                switch newPhase {
+                case .active:
+                    Task { await runAutomaticBackupIfNeeded() }
+                case .background:
+                    Task { await syncDailyReminderIfNeeded() }
+                default:
+                    break
+                }
+            }
             .onChange(of: appLanguageRaw) { _, newValue in
                 let lang = AppLanguage(rawValue: newValue) ?? .system
                 LanguageManager.shared.apply(lang)
@@ -112,6 +138,7 @@ struct AnkiAppApp: App {
     @MainActor
     private func initializeBackend() async {
         do {
+            UNUserNotificationCenter.current().delegate = ReviewDailyReminderNotificationDelegate.shared
             let selectedUser = AppUserStore.loadSelectedUser()
             let urls = AppUserStore.collectionURLs(for: selectedUser)
             let preferredBackendLangs = self.preferredBackendLangs
@@ -155,6 +182,21 @@ struct AnkiAppApp: App {
         } catch {
             startupPhase = .failed("Startup failed: \(error.localizedDescription)")
         }
+    }
+
+    private func syncDailyReminderIfNeeded() async {
+        guard collectionState.isReady else { return }
+        @Dependency(\.ankiBackend) var backend
+        await ReviewDailyReminderScheduler.refreshIfNeeded(using: backend)
+    }
+
+    private func runAutomaticBackupIfNeeded() async {
+        guard collectionState.isReady, scenePhase == .active else { return }
+        @Dependency(\.ankiBackend) var backend
+        await CollectionBackupManager.runAutomaticBackupIfNeeded(
+            backend: backend,
+            username: AppUserStore.loadSelectedUser()
+        )
     }
 
     private nonisolated static func openCollection(

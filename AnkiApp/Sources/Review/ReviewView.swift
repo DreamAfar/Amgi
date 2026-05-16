@@ -20,6 +20,7 @@ struct ReviewView: View {
     @Dependency(\.noteClient) var noteClient
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.cardClient) var cardClient
+    @Dependency(\.tagClient) var tagClient
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
 
@@ -42,6 +43,7 @@ struct ReviewView: View {
     @State private var toolbarErrorMessage: String?
     @State private var showToolbarError = false
     @State private var showDeleteNoteConfirm = false
+    @State private var showTriggeredContextMenu = false
     @State private var showUndoError = false
     @State private var undoErrorMessage: String?
     @State private var isUndoing = false
@@ -285,6 +287,63 @@ struct ReviewView: View {
                 }
             )
         }
+        .sheet(isPresented: $showTriggeredContextMenu) {
+            ReviewContextActionsSheet(
+                hasNote: (session.currentCard?.card.noteID ?? 0) != 0,
+                onClose: { showTriggeredContextMenu = false },
+                onSuspend: {
+                    showTriggeredContextMenu = false
+                    performCurrentCardAction(
+                        { try cardClient.suspend($0) },
+                        errorKey: "card_action_error_suspend"
+                    )
+                },
+                onBury: {
+                    showTriggeredContextMenu = false
+                    performCurrentCardAction(
+                        { try cardClient.bury($0) },
+                        errorKey: "card_action_error_bury"
+                    )
+                },
+                onMarkAndSuspend: {
+                    showTriggeredContextMenu = false
+                    performMarkThenCurrentCardAction(
+                        { try cardClient.suspend($0) },
+                        errorKey: "card_action_error_suspend"
+                    )
+                },
+                onMarkAndBury: {
+                    showTriggeredContextMenu = false
+                    performMarkThenCurrentCardAction(
+                        { try cardClient.bury($0) },
+                        errorKey: "card_action_error_bury"
+                    )
+                },
+                onReset: {
+                    showTriggeredContextMenu = false
+                    performCurrentCardAction(
+                        { try cardClient.resetToNew($0) },
+                        errorKey: "card_action_error_reset_to_new"
+                    )
+                },
+                onSetDueDate: {
+                    showTriggeredContextMenu = false
+                    openSetDueDateForCurrentCard()
+                },
+                onUndo: {
+                    showTriggeredContextMenu = false
+                    Task { await performUndo() }
+                },
+                onFlag: { value in
+                    showTriggeredContextMenu = false
+                    setCurrentCardFlag(value)
+                },
+                onUserAction: { index in
+                    showTriggeredContextMenu = false
+                    triggerUserAction(index)
+                }
+            )
+        }
         .sheet(isPresented: $showDeckStats) {
             NavigationStack {
                 StatsDashboardView(initialDeckID: deckId)
@@ -493,18 +552,6 @@ struct ReviewView: View {
                 }
                 .disabled(session.currentCard == nil)
 
-                Menu {
-                    ForEach(1...9, id: \.self) { index in
-                        Button {
-                            triggerUserAction(index)
-                        } label: {
-                            Text(String(format: L("review_user_action_number"), index))
-                        }
-                    }
-                } label: {
-                    Label(L("review_user_actions"), systemImage: "bolt")
-                }
-                .disabled(session.currentCard == nil)
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
@@ -597,6 +644,9 @@ struct ReviewView: View {
                                 },
                                 onRequestSetDueDate: { _ in
                                     openSetDueDateForCurrentCard()
+                                },
+                                onTriggerUserAction: { index in
+                                    triggerUserAction(index)
                                 }
                             )
                         }
@@ -1044,6 +1094,10 @@ struct ReviewView: View {
             } else {
                 replayRequestID += 1
             }
+        case .goBack:
+            onDismiss()
+        case .showContextMenu:
+            showTriggeredContextMenu = true
         case .editNote:
             Task { await openEditorForCurrentCard() }
         case .editTemplate:
@@ -1115,6 +1169,23 @@ struct ReviewView: View {
     private func triggerUserAction(_ index: Int) {
         pendingUserActionIndex = index
         userActionRequestID += 1
+    }
+
+    private func performMarkThenCurrentCardAction(
+        _ action: (Int64) throws -> Void,
+        errorKey: String
+    ) {
+        guard let current = session.currentCard?.card else { return }
+        do {
+            if current.noteID != 0 {
+                try tagClient.addTagToNotes(reviewMarkedTag, [current.noteID])
+            }
+            try action(current.id)
+            session.refreshAndAdvance()
+        } catch {
+            toolbarErrorMessage = L(errorKey, error.localizedDescription)
+            showToolbarError = true
+        }
     }
 
     private func performCurrentCardAction(
@@ -1554,6 +1625,8 @@ private extension Notification.Name {
     static let reviewKeyboardShortcut = Notification.Name("amgi.review.keyboard-shortcut")
 }
 
+private let reviewMarkedTag = "marked"
+
 private final class ReviewKeyboardCommandHost: UIViewController {
     override var canBecomeFirstResponder: Bool { true }
 
@@ -1637,6 +1710,65 @@ private struct ReviewFieldManagerTarget: Identifiable {
 
     var id: Int64 {
         notetypeId
+    }
+}
+
+private struct ReviewContextActionsSheet: View {
+    let hasNote: Bool
+    let onClose: () -> Void
+    let onSuspend: () -> Void
+    let onBury: () -> Void
+    let onMarkAndSuspend: () -> Void
+    let onMarkAndBury: () -> Void
+    let onReset: () -> Void
+    let onSetDueDate: () -> Void
+    let onUndo: () -> Void
+    let onFlag: (UInt32) -> Void
+    let onUserAction: (Int) -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section(L("review_context_section_card_actions")) {
+                    Button(L("card_action_suspend"), action: onSuspend)
+                    Button(L("card_action_bury"), action: onBury)
+                    if hasNote {
+                        Button(L("card_action_mark_and_suspend"), action: onMarkAndSuspend)
+                        Button(L("card_action_mark_and_bury"), action: onMarkAndBury)
+                    }
+                    Button(L("card_action_reset_to_new"), action: onReset)
+                    Button(L("card_action_set_due_date"), action: onSetDueDate)
+                    Button(L("card_action_undo"), action: onUndo)
+                }
+
+                Section(L("card_action_flag")) {
+                    Button(L("review_flag_clear")) { onFlag(0) }
+                    Button(L("review_flag_red")) { onFlag(1) }
+                    Button(L("review_flag_orange")) { onFlag(2) }
+                    Button(L("review_flag_green")) { onFlag(3) }
+                    Button(L("review_flag_blue")) { onFlag(4) }
+                    Button(L("review_flag_pink")) { onFlag(5) }
+                    Button(L("review_flag_cyan")) { onFlag(6) }
+                    Button(L("review_flag_purple")) { onFlag(7) }
+                }
+
+                Section(L("review_user_actions")) {
+                    ForEach(1...9, id: \.self) { index in
+                        Button(String(format: L("review_user_action_number"), index)) {
+                            onUserAction(index)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(L("review_context_menu_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done"), action: onClose)
+                        .amgiToolbarTextButton()
+                }
+            }
+        }
     }
 }
 

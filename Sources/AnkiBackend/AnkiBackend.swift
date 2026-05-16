@@ -212,6 +212,31 @@ public final class AnkiBackend: Sendable {
         )
     }
 
+    public func createBackup(
+        backupFolder: String,
+        force: Bool = false,
+        waitForCompletion: Bool = false
+    ) throws -> Bool {
+        var req = Anki_Collection_CreateBackupRequest()
+        req.backupFolder = backupFolder
+        req.force = force
+        req.waitForCompletion = waitForCompletion
+
+        let response: Anki_Generic_Bool = try invoke(
+            service: Service.collection,
+            method: CollectionMethod.createBackup,
+            request: req
+        )
+        return response.val
+    }
+
+    public func awaitBackupCompletion() throws {
+        try callVoid(
+            service: Service.collection,
+            method: CollectionMethod.awaitBackupCompletion
+        )
+    }
+
     public var currentMediaFolderURL: URL? {
         guard let mediaFolderPath else { return nil }
         return URL(fileURLWithPath: mediaFolderPath, isDirectory: true)
@@ -386,10 +411,13 @@ extension AnkiBackend {
     public enum CollectionMethod {
         public static let open: UInt32 = 0
         public static let close: UInt32 = 1
+        public static let createBackup: UInt32 = 2
+        public static let awaitBackupCompletion: UInt32 = 3
         // BackendCollectionService has 6 backend-specific methods first.
         // CollectionService.GetUndoStatus is proto index 1, so delegated index is 6 + 1 = 7.
         public static let getUndoStatus: UInt32 = 7
         public static let latestProgress: UInt32 = 4
+        public static let setWantsAbort: UInt32 = 5
         // BackendCollectionService has 6 backend-specific methods first.
         // CollectionService.Undo is proto index 2, so delegated index is 6 + 2 = 8.
         public static let undo: UInt32 = 8

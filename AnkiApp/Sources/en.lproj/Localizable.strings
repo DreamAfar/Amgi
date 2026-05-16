@@ -136,8 +136,8 @@
 "browse_batch_flag_6" = "Flag 6 (Cyan)";
 "browse_batch_flag_7" = "Flag 7 (Purple)";
 "browse_batch_flag_clear" = "Clear Flag";
-"browse_batch_suspend" = "Batch Suspend";
-"browse_batch_bury" = "Batch Bury";
+"browse_batch_suspend" = "Suspend";
+"browse_batch_bury" = "Bury";
 "browse_batch_clear_selection" = "Clear Selection";
 "browse_batch_delete_notes" = "Delete Notes";
 "browse_batch_delete_title" = "Delete Selected Notes?";
@@ -148,13 +148,13 @@
 "browse_batch_change_notetype_short" = "Type";
 "browse_batch_flag_label" = "Flag";
 "browse_batch_suspend_toggle" = "Suspend";
-"browse_batch_reset_new" = "Reset";
+"browse_batch_reset_new" = "Reset Card";
 "browse_batch_manage_tags_short" = "Tags";
 "browse_batch_export_short" = "Export";
 "browse_batch_suspend_confirm_title" = "Suspend Cards?";
 "browse_batch_suspend_confirm_msg" = "Suspend %d selected card(s)?";
-"browse_batch_reset_confirm_title" = "Reset to New?";
-"browse_batch_reset_confirm_msg" = "Reset %d selected card(s) to new state?";
+"browse_batch_reset_confirm_title" = "Reset Cards?";
+"browse_batch_reset_confirm_msg" = "Reset %d selected card(s)?";
 "browse_batch_reset_confirm_action" = "Reset";
 "browse_batch_tags_add" = "Add Tags";
 "browse_batch_tags_remove" = "Remove Tags";
@@ -220,6 +220,7 @@
 "review_flag_cyan" = "Cyan";
 "review_flag_purple" = "Purple";
 "review_flag_none" = "None";
+"review_flag_clear" = "Clear Flag";
 
 // MARK: - TagsView
 "tags_empty_desc_note_mode" = "No tags in collection. Tap + to create and apply one.";
@@ -503,14 +504,30 @@
 
 // MARK: - Backup
 "backup_nav_title" = "Backups";
+"backup_section_settings" = "Automatic Backups";
+"backup_auto_interval" = "Minutes between automatic backups";
+"backup_daily_keep" = "Daily backups to keep";
+"backup_weekly_keep" = "Weekly backups to keep";
+"backup_monthly_keep" = "Monthly backups to keep";
 "backup_create_now" = "Create Backup";
 "backup_creating" = "Creating Backup…";
+"backup_unchanged" = "No changes since latest backup.";
+"backup_explanation" = "Anki periodically backs up your collection. After backups are more than 2 days old, it starts removing some of them to free up disk space.";
+"backup_media_notice" = "Automatic backups do not include media. If media matters, also keep a separate full export or folder backup.";
+"backup_legacy_hidden_notice" = "%d legacy .anki2 backups were moved into the Legacy subfolder and are hidden from this list.";
 "backup_storage_hint" = "Backups are stored in the app's Documents folder, accessible via the Files app.";
 "backup_empty" = "No backups yet.";
 "backup_section_list" = "Backup History";
 "backup_delete_title" = "Delete Backup";
 "backup_delete_confirm" = "Delete backup from %@?";
+"backup_restore_title" = "Restore Backup";
+"backup_restore_action" = "Restore";
+"backup_restore_confirm" = "Restore %@ and replace the current local collection?";
+"backup_restore_failed" = "Failed to restore backup: %@";
+"backup_restore_unsupported" = "Only .colpkg backups can be restored.";
 "backup_created_ok" = "Backup saved: %@";
+"backup_settings_load_failed" = "Could not load backup settings: %@";
+"backup_settings_save_failed" = "Could not save backup settings: %@";
 
 // MARK: - Empty Cards
 "empty_cards_title" = "Empty Cards";
@@ -1002,6 +1019,8 @@
 "review_current_card_stats" = "Card Stats";
 "review_edit_button" = "Edit";
 "review_more_actions" = "More Actions";
+"review_context_menu_title" = "Context Menu";
+"review_context_section_card_actions" = "Card Actions";
 "review_user_actions" = "User Actions";
 "review_user_action_number" = "User Action %d";
 "review_delete_note_message" = "This will delete the note and all its cards. This cannot be undone.";
@@ -1156,24 +1175,26 @@
 "card_flag_label" = "Flag %d (%@)";
 
 // MARK: - CardContextMenu (extended)
-"card_action_suspend" = "Suspend Current Card";
-"card_action_bury" = "Bury Current Card";
-"card_action_suspend_note" = "Suspend All Note Cards";
-"card_action_bury_note" = "Bury All Note Cards";
+"card_action_suspend" = "Suspend Card";
+"card_action_bury" = "Bury Card";
+"card_action_suspend_note" = "Suspend Note";
+"card_action_bury_note" = "Bury Note";
+"card_action_mark_and_suspend" = "Mark and Suspend";
+"card_action_mark_and_bury" = "Mark and Bury";
 "card_action_note_menu" = "Note";
-"card_action_reset_to_new" = "Forget Card";
+"card_action_reset_to_new" = "Reset Card";
 "card_action_set_due_date" = "Set Due Date";
 "card_action_mark_note" = "Mark Note";
 "card_action_unmark_note" = "Unmark Note";
 "card_action_delete_note" = "Delete Note";
 "card_action_flag" = "Flag";
-"card_action_undo" = "Undo Review Answer";
+"card_action_undo" = "Undo";
 "card_action_error_title" = "Action Failed";
 "card_action_error_suspend" = "Failed to suspend card";
 "card_action_error_bury" = "Failed to bury card";
 "card_action_error_suspend_note" = "Failed to suspend note";
 "card_action_error_bury_note" = "Failed to bury note";
-"card_action_error_reset_to_new" = "Failed to reset card to new";
+"card_action_error_reset_to_new" = "Failed to reset card";
 "card_action_error_mark_note" = "Failed to update note mark";
 "card_action_error_delete_note" = "Failed to delete note";
 "card_action_error_flag" = "Failed to flag card";
@@ -1373,7 +1394,6 @@
 "stats_range_730" = "All time";
 "stats_heatmap_loading_more" = "Loading more historical data...";
 "stats_heatmap_load_complete" = "All data loaded";
-"deck_list_heatmap_title" = "Review Heatmap";
 
 // MARK: - UserManagementView
 "user_mgmt_title" = "User Management";
@@ -1456,6 +1476,8 @@
 "settings_review_swipe_right_action" = "Swipe Right Action";
 "settings_review_gesture_action_none" = "None";
 "settings_review_gesture_action_replay_audio" = "Replay Audio";
+"settings_review_gesture_action_go_back" = "Go Back";
+"settings_review_gesture_action_show_context_menu" = "Context Menu";
 "settings_review_controller_dpad_up" = "D-Pad Up";
 "settings_review_controller_dpad_down" = "D-Pad Down";
 "settings_review_controller_dpad_left" = "D-Pad Left";
@@ -1478,6 +1500,14 @@
 "settings_review_day_start" = "New day starts at";
 "settings_review_day_start_hint" = "After this time, today’s study stats reset and a new study day begins.";
 "settings_review_day_start_hour_value" = "%d:00";
+"settings_review_daily_reminder_enabled" = "Daily Reminder";
+"settings_review_daily_reminder_time" = "Reminder Time";
+"settings_review_daily_reminder_hint" = "Send a daily notification showing how many cards are due for study/review today.";
+"settings_review_daily_reminder_permission_denied" = "Notifications are disabled. Turn them on in iOS Settings > Notifications > Amgi.";
+"settings_review_daily_reminder_save_failed" = "Failed to save daily reminder: %@";
+"settings_review_daily_reminder_notification_title" = "Amgi Daily Reminder";
+"settings_review_daily_reminder_notification_body" = "You have %d cards to study/review today.";
+"settings_review_daily_reminder_notification_body_empty" = "You have no cards to study/review today.";
 "settings_review_section_fsrs" = "FSRS";
 "settings_review_loading" = "Loading...";
 "settings_review_schedule_load_failed" = "Could not load the review day-start time: %@";
@@ -1557,8 +1587,6 @@
 "browse_flag_6" = "Flag 6 (Cyan)";
 "browse_flag_7" = "Flag 7 (Purple)";
 "browse_flag_clear" = "Clear Flag";
-"browse_batch_suspend" = "Batch Suspend";
-"browse_batch_bury" = "Batch Bury";
 "browse_batch_ops" = "Batch Operations";
 "browse_batch_deselect" = "Clear Selection";
 "debug_reset_confirm_button" = "Reset";

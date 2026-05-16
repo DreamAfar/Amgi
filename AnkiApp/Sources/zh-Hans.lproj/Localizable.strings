@@ -109,7 +109,7 @@
 "deck_config_section_lapses" = "遗忘";
 "deck_config_section_display" = "展示顺序";
 "deck_config_section_fsrs" = "FSRS 间隔算法";
-"deck_config_section_bury" = "同牌组搁置";
+"deck_config_section_bury" = "搁置";
 "deck_config_section_timer" = "计时器";
 "deck_config_section_autoadvance" = "自动前进";
 "deck_config_section_advanced" = "高级";
@@ -136,8 +136,8 @@
 "browse_batch_flag_6" = "旗标 6（青色）";
 "browse_batch_flag_7" = "旗标 7（紫色）";
 "browse_batch_flag_clear" = "清除旗标";
-"browse_batch_suspend" = "批量暂停";
-"browse_batch_bury" = "批量掩埋";
+"browse_batch_suspend" = "暂停";
+"browse_batch_bury" = "批量搁置";
 "browse_batch_clear_selection" = "清除选择";
 "browse_batch_delete_notes" = "删除笔记";
 "browse_batch_delete_title" = "删除所选笔记？";
@@ -148,13 +148,13 @@
 "browse_batch_change_notetype_short" = "模板";
 "browse_batch_flag_label" = "旗标";
 "browse_batch_suspend_toggle" = "暂停";
-"browse_batch_reset_new" = "重置";
+"browse_batch_reset_new" = "重置卡片";
 "browse_batch_manage_tags_short" = "标签";
 "browse_batch_export_short" = "导出";
 "browse_batch_suspend_confirm_title" = "暂停卡片？";
 "browse_batch_suspend_confirm_msg" = "确认暂停所选的 %d 张卡片？";
-"browse_batch_reset_confirm_title" = "重置为新卡片？";
-"browse_batch_reset_confirm_msg" = "将所选的 %d 张卡片重置为新卡片状态？";
+"browse_batch_reset_confirm_title" = "重置卡片？";
+"browse_batch_reset_confirm_msg" = "确认重置所选的 %d 张卡片？";
 "browse_batch_reset_confirm_action" = "重置";
 "browse_batch_tags_add" = "添加标签";
 "browse_batch_tags_remove" = "删除标签";
@@ -220,6 +220,7 @@
 "review_flag_cyan" = "青色";
 "review_flag_purple" = "紫色";
 "review_flag_none" = "无";
+"review_flag_clear" = "清除旗标";
 
 // MARK: - TagsView
 "tags_empty_desc_note_mode" = "集合中没有标签。您可以点击 + 新建并应用标签。";
@@ -257,9 +258,9 @@
 "card_ctx_flag_purple" = "旗标：紫色";
 "card_ctx_flag_clear" = "清除旗标";
 "card_ctx_suspend" = "暂停";
-"card_ctx_bury" = "掩埋";
+"card_ctx_bury" = "搁置";
 "card_ctx_unsuspend" = "取消暂停";
-"card_ctx_unbury" = "取消掩埋";
+"card_ctx_unbury" = "取消搁置";
 
 // MARK: - SettingsView
 "settings_nav_title" = "设置";
@@ -503,14 +504,30 @@
 
 // MARK: - Backup
 "backup_nav_title" = "备份";
+"backup_section_settings" = "自动备份";
+"backup_auto_interval" = "自动备份的间隔时间（分钟）";
+"backup_daily_keep" = "要保留的每日备份数量";
+"backup_weekly_keep" = "要保留的每周备份数量";
+"backup_monthly_keep" = "要保留的每月备份数量";
 "backup_create_now" = "立即备份";
 "backup_creating" = "正在备份…";
+"backup_unchanged" = "与最近一次备份相比，没有任何更改。";
+"backup_explanation" = "Anki 会定期备份你的集合。备份超过 2 天后，会开始删除其中一部分，以释放磁盘空间。";
+"backup_media_notice" = "自动备份不包含媒体文件。如媒体也重要，请另外保留完整导出或整库文件备份。";
+"backup_legacy_hidden_notice" = "已将 %d 个旧 .anki2 备份移入 Legacy 子文件夹，并从当前列表隐藏。";
 "backup_storage_hint" = "备份存储在应用的 Documents 文件夹中，可通过\"文件\" App 访问。";
 "backup_empty" = "暂无备份";
 "backup_section_list" = "备份记录";
 "backup_delete_title" = "删除备份";
 "backup_delete_confirm" = "删除 %@ 的备份？";
+"backup_restore_title" = "恢复备份";
+"backup_restore_action" = "恢复";
+"backup_restore_confirm" = "恢复 %@，并替换当前本地卡牌库？";
+"backup_restore_failed" = "恢复备份失败：%@";
+"backup_restore_unsupported" = "仅支持恢复 .colpkg 备份。";
 "backup_created_ok" = "备份已保存：%@";
+"backup_settings_load_failed" = "加载备份设置失败：%@";
+"backup_settings_save_failed" = "保存备份设置失败：%@";
 
 // MARK: - Empty Cards
 "empty_cards_title" = "空卡片";
@@ -793,9 +810,9 @@
 "deck_config_fsrs_simulator_points" = "结果点";
 "deck_config_fsrs_simulator_workload_cost" = "工作量：%@";
 "deck_config_fsrs_simulator_workload_cards" = "复习：%u，已记忆：%@";
-"deck_config_bury_new" = "埋藏新相关卡";
-"deck_config_bury_reviews" = "埋藏复习相关卡";
-"deck_config_bury_interday" = "埋藏跨日相关卡";
+"deck_config_bury_new" = "搁置新相关卡";
+"deck_config_bury_reviews" = "搁置复习相关卡";
+"deck_config_bury_interday" = "搁置跨日相关卡";
 "deck_config_show_timer" = "显示计时器";
 "deck_config_timer_cap" = "答题时间上限";
 "deck_config_seconds_fmt" = "%d 秒";
@@ -806,7 +823,7 @@
 "deck_config_after_answer" = "答案后操作";
 "deck_config_action_show_answer" = "显示答案";
 "deck_config_action_show_reminder" = "显示提醒";
-"deck_config_action_bury" = "埋藏卡片";
+"deck_config_action_bury" = "搁置卡片";
 "deck_config_action_again" = "再次";
 "deck_config_action_hard" = "困难";
 "deck_config_action_good" = "良好";
@@ -1002,6 +1019,8 @@
 "review_current_card_stats" = "当前卡片统计";
 "review_edit_button" = "编辑";
 "review_more_actions" = "更多操作";
+"review_context_menu_title" = "上下文菜单";
+"review_context_section_card_actions" = "卡片操作";
 "review_user_actions" = "用户动作";
 "review_user_action_number" = "用户动作 %d";
 "review_delete_note_message" = "将删除该笔记及其所有卡片，操作不可撤销。";
@@ -1156,34 +1175,36 @@
 "card_flag_label" = "标记 %d（%@）";
 
 // MARK: - CardContextMenu (extended)
-"card_action_suspend" = "暂停当前卡片";
-"card_action_bury" = "埋藏当前卡片";
-"card_action_suspend_note" = "暂停这条笔记的全部卡片";
-"card_action_bury_note" = "埋藏这条笔记的全部卡片";
+"card_action_suspend" = "暂停卡片";
+"card_action_bury" = "搁置卡片";
+"card_action_suspend_note" = "暂停笔记";
+"card_action_bury_note" = "搁置笔记";
+"card_action_mark_and_suspend" = "标记并暂停";
+"card_action_mark_and_bury" = "标记并搁置";
 "card_action_note_menu" = "笔记";
-"card_action_reset_to_new" = "遗忘卡片";
-"card_action_set_due_date" = "设置到期日期";
+"card_action_reset_to_new" = "重置卡片";
+"card_action_set_due_date" = "设置到期日";
 "card_action_mark_note" = "标记笔记";
 "card_action_unmark_note" = "取消标记笔记";
 "card_action_delete_note" = "删除笔记";
 "card_action_flag" = "旗标";
-"card_action_undo" = "撤销回答卡片";
+"card_action_undo" = "撤销";
 "card_action_error_title" = "操作失败";
 "card_action_error_suspend" = "暂停卡片失败";
-"card_action_error_bury" = "埋藏卡片失败";
+"card_action_error_bury" = "搁置卡片失败";
 "card_action_error_suspend_note" = "暂停笔记失败";
-"card_action_error_bury_note" = "埋藏笔记失败";
-"card_action_error_reset_to_new" = "将卡片重置为新卡失败";
+"card_action_error_bury_note" = "搁置笔记失败";
+"card_action_error_reset_to_new" = "重置卡片失败";
 "card_action_error_mark_note" = "更新笔记标记失败";
 "card_action_error_delete_note" = "删除笔记失败";
 "card_action_error_flag" = "设置旗标失败";
 "card_action_error_undo" = "撤销失败";
 
-"review_set_due_title" = "设置到期日期";
+"review_set_due_title" = "设置到期日";
 "review_set_due_prompt" = "为当前卡片输入新的到期值。";
 "review_set_due_placeholder" = "例如：0、1、3-5、7!";
 "review_set_due_hint" = "可使用 Anki 的到期语法，例如 0、3-5 或 7!。";
-"review_set_due_failed" = "设置到期日期失败：%@";
+"review_set_due_failed" = "设置到期日失败：%@";
 
 // MARK: - AddNoteView (extended)
 "add_note_title" = "添加笔记";
@@ -1373,7 +1394,6 @@
 "stats_range_730" = "全部时间";
 "stats_heatmap_loading_more" = "正在加载更多历史数据…";
 "stats_heatmap_load_complete" = "已全部加载";
-"deck_list_heatmap_title" = "复习热力图";
 
 // MARK: - UserManagementView
 "user_mgmt_title" = "用户管理";
@@ -1464,6 +1484,8 @@
 "settings_review_swipe_right_action" = "右滑动作";
 "settings_review_gesture_action_none" = "无";
 "settings_review_gesture_action_replay_audio" = "重播音频";
+"settings_review_gesture_action_go_back" = "返回";
+"settings_review_gesture_action_show_context_menu" = "上下文菜单";
 "settings_review_controller_dpad_up" = "方向键上";
 "settings_review_controller_dpad_down" = "方向键下";
 "settings_review_controller_dpad_left" = "方向键左";
@@ -1486,6 +1508,14 @@
 "settings_review_day_start" = "新一天开始时间";
 "settings_review_day_start_hint" = "超过这个时间后，今日学习数据会归零，并按新的一天重新统计。";
 "settings_review_day_start_hour_value" = "%d:00";
+"settings_review_daily_reminder_enabled" = "每日提醒";
+"settings_review_daily_reminder_time" = "提醒时间";
+"settings_review_daily_reminder_hint" = "到点推送一条通知，提示今天有多少卡片待学习/复习。";
+"settings_review_daily_reminder_permission_denied" = "系统通知权限未开启，请前往 iOS 设置 > 通知 > Amgi 开启。";
+"settings_review_daily_reminder_save_failed" = "保存每日提醒失败：%@";
+"settings_review_daily_reminder_notification_title" = "Amgi 每日提醒";
+"settings_review_daily_reminder_notification_body" = "今天有 %d 张卡片待学习/复习。";
+"settings_review_daily_reminder_notification_body_empty" = "今天没有待学习/复习的卡片。";
 "settings_review_section_fsrs" = "FSRS";
 "settings_review_loading" = "加载中...";
 "settings_review_schedule_load_failed" = "加载复习计划时间失败：%@";
@@ -1565,8 +1595,6 @@
 "browse_flag_6" = "旗标 6（青色）";
 "browse_flag_7" = "旗标 7（紫色）";
 "browse_flag_clear" = "清除旗标";
-"browse_batch_suspend" = "批量暂停";
-"browse_batch_bury" = "批量掩埋";
 "browse_batch_ops" = "批量操作";
 "browse_batch_deselect" = "清除选择";
 

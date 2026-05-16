@@ -283,6 +283,10 @@ struct TemplateEditorView: View {
     @State private var showFieldManager = false
     @State private var showPreviewSheet = false
     @State private var editorSearchText = ""
+    @State private var editorSearchNavigationToken = 0
+    @State private var editorSearchNavigationDirection: TemplateSourceEditor.SearchNavigationDirection = .next
+    @State private var editorSearchCurrentMatch = 0
+    @State private var editorSearchTotalMatches = 0
 
     init(
         notetypeId: Int64,
@@ -343,7 +347,7 @@ struct TemplateEditorView: View {
                 }
             }
             .background(Color.amgiBackground)
-            .navigationTitle(mode.title)
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .interactiveDismissDisabled(hasUnsavedChanges)
             .toolbar {
@@ -485,6 +489,12 @@ struct TemplateEditorView: View {
                     fieldButtonTitle: L("card_template_fields_short"),
                     doneButtonTitle: L("common_done"),
                     searchQuery: editorSearchText,
+                    searchNavigationToken: editorSearchNavigationToken,
+                    searchNavigationDirection: editorSearchNavigationDirection,
+                    onSearchResultChanged: { current, total in
+                        editorSearchCurrentMatch = current
+                        editorSearchTotalMatches = total
+                    },
                     fontSize: codeEditorFontSize
                 )
                 .padding(16)
@@ -506,6 +516,40 @@ struct TemplateEditorView: View {
                         TextField(L("card_template_search_placeholder"), text: $editorSearchText)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
+
+                        if !editorSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            HStack(spacing: 4) {
+                                Text("\(editorSearchCurrentMatch)/\(editorSearchTotalMatches)")
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .monospacedDigit()
+                                    .frame(minWidth: 40, alignment: .trailing)
+
+                                Button {
+                                    editorSearchNavigationDirection = .previous
+                                    editorSearchNavigationToken += 1
+                                } label: {
+                                    Image(systemName: "chevron.up")
+                                        .font(.system(size: 13, weight: .semibold))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(editorSearchTotalMatches == 0)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .frame(width: 28, height: 28)
+
+                                Button {
+                                    editorSearchNavigationDirection = .next
+                                    editorSearchNavigationToken += 1
+                                } label: {
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 13, weight: .semibold))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(editorSearchTotalMatches == 0)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .frame(width: 28, height: 28)
+                            }
+                        }
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)

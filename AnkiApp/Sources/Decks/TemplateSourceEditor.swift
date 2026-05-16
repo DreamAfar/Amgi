@@ -2,6 +2,11 @@ import SwiftUI
 import UIKit
 
 struct TemplateSourceEditor: UIViewRepresentable {
+    enum SearchNavigationDirection {
+        case previous
+        case next
+    }
+
     @Binding var text: String
 
     let fieldNames: [String]
@@ -9,10 +14,13 @@ struct TemplateSourceEditor: UIViewRepresentable {
     let fieldButtonTitle: String
     let doneButtonTitle: String
     let searchQuery: String
+    let searchNavigationToken: Int
+    let searchNavigationDirection: SearchNavigationDirection
+    let onSearchResultChanged: (Int, Int) -> Void
     var fontSize: Double = 14.0
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text)
+        Coordinator(text: $text, onSearchResultChanged: onSearchResultChanged)
     }
 
     func makeUIView(context: Context) -> UITextView {
@@ -43,6 +51,11 @@ struct TemplateSourceEditor: UIViewRepresentable {
             doneButtonTitle: doneButtonTitle
         )
         context.coordinator.applySearch(searchQuery, in: textView)
+        context.coordinator.navigateMatches(
+            token: searchNavigationToken,
+            direction: searchNavigationDirection,
+            in: textView
+        )
         return textView
     }
 
@@ -74,6 +87,11 @@ struct TemplateSourceEditor: UIViewRepresentable {
             doneButtonTitle: doneButtonTitle
         )
         context.coordinator.applySearch(searchQuery, in: uiView)
+        context.coordinator.navigateMatches(
+            token: searchNavigationToken,
+            direction: searchNavigationDirection,
+            in: uiView
+        )
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {
@@ -83,14 +101,23 @@ struct TemplateSourceEditor: UIViewRepresentable {
         var lastValue: String = ""
         var isHandlingProgrammaticChange = false
         private var lastSearchKey = ""
+        private var lastSearchQuery = ""
+        private var lastNavigationToken = 0
+        private var matchRanges: [NSRange] = []
+        private var selectedMatchIndex = 0
+        private let onSearchResultChanged: (Int, Int) -> Void
 
         private var lastFieldNames: [String] = []
         private var lastInsertableTokens: [String] = []
         private var lastFieldButtonTitle = ""
         private var lastDoneButtonTitle = ""
 
-        init(text: Binding<String>) {
+        init(
+            text: Binding<String>,
+            onSearchResultChanged: @escaping (Int, Int) -> Void
+        ) {
             self._text = text
+            self.onSearchResultChanged = onSearchResultChanged
         }
 
         func attach(textView: UITextView) {
@@ -106,22 +133,101 @@ struct TemplateSourceEditor: UIViewRepresentable {
         func textViewDidChange(_ textView: UITextView) {
             lastValue = textView.text
             text = textView.text
+            applySearch(lastSearchQuery, in: textView)
         }
 
         func applySearch(_ query: String, in textView: UITextView) {
-            let key = "\(query)|\(textView.text ?? "")"
+            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = "\(trimmed)|\(textView.text ?? "")"
             guard key != lastSearchKey else { return }
             lastSearchKey = key
+            lastSearchQuery = query
+            matchRanges = []
+            selectedMatchIndex = 0
 
-            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return }
+            let fullRange = NSRange(location: 0, length: textView.textStorage.length)
+            textView.textStorage.removeAttribute(.backgroundColor, range: fullRange)
+            guard !trimmed.isEmpty else {
+                onSearchResultChanged(0, 0)
+                return
+            }
 
             let nsText = textView.text as NSString? ?? ""
-            let range = nsText.range(of: trimmed, options: [.caseInsensitive])
-            guard range.location != NSNotFound else { return }
+            var searchRange = NSRange(location: 0, length: nsText.length)
+            var firstMatch: NSRange?
+            let highlightColor = UIColor(Color.amgiAccent.opacity(0.18))
+            let primaryHighlightColor = UIColor(Color.amgiAccent.opacity(0.28))
 
+            while searchRange.location < nsText.length {
+                let range = nsText.range(
+                    of: trimmed,
+                    options: [.caseInsensitive],
+                    range: searchRange
+                )
+                guard range.location != NSNotFound, range.length > 0 else { break }
+
+                if firstMatch == nil {
+                    firstMatch = range
+                } else {
+                    textView.textStorage.addAttribute(.backgroundColor, value: highlightColor, range: range)
+                }
+                matchRanges.append(range)
+
+                let nextLocation = range.location + range.length
+                guard nextLocation < nsText.length else { break }
+                searchRange = NSRange(location: nextLocation, length: nsText.length - nextLocation)
+            }
+
+            guard let firstMatch else {
+                onSearchResultChanged(0, 0)
+                return
+            }
+
+            selectedMatchIndex = 0
+            refreshMatchHighlights(in: textView)
+            focusMatch(at: selectedMatchIndex, in: textView)
+        }
+
+        func navigateMatches(
+            token: Int,
+            direction: SearchNavigationDirection,
+            in textView: UITextView
+        ) {
+            guard token != lastNavigationToken else { return }
+            lastNavigationToken = token
+
+            guard !matchRanges.isEmpty else { return }
+
+            switch direction {
+            case .previous:
+                selectedMatchIndex = (selectedMatchIndex - 1 + matchRanges.count) % matchRanges.count
+            case .next:
+                selectedMatchIndex = (selectedMatchIndex + 1) % matchRanges.count
+            }
+
+            refreshMatchHighlights(in: textView)
+            focusMatch(at: selectedMatchIndex, in: textView)
+        }
+
+        private func refreshMatchHighlights(in textView: UITextView) {
+            let fullRange = NSRange(location: 0, length: textView.textStorage.length)
+            textView.textStorage.removeAttribute(.backgroundColor, range: fullRange)
+
+            let highlightColor = UIColor(Color.amgiAccent.opacity(0.18))
+            let primaryHighlightColor = UIColor(Color.amgiAccent.opacity(0.28))
+
+            for (index, range) in matchRanges.enumerated() {
+                let color = index == selectedMatchIndex ? primaryHighlightColor : highlightColor
+                textView.textStorage.addAttribute(.backgroundColor, value: color, range: range)
+            }
+        }
+
+        private func focusMatch(at index: Int, in textView: UITextView) {
+            guard matchRanges.indices.contains(index) else { return }
+            let range = matchRanges[index]
             textView.selectedRange = range
             textView.scrollRangeToVisible(range)
+            onSearchResultChanged(index + 1, matchRanges.count)
         }
 
         func configureAccessoryView(

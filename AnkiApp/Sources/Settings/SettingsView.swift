@@ -491,6 +491,9 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var glassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var autoMatchCardBackground = true
     @AppStorage(ReviewPreferences.Keys.dayStartHour) private var persistedDayStartHour = 4
+    @AppStorage(ReviewPreferences.Keys.dailyReminderEnabledForCurrentUser()) private var dailyReminderEnabled = false
+    @AppStorage(ReviewPreferences.Keys.dailyReminderHourForCurrentUser()) private var dailyReminderHour = 20
+    @AppStorage(ReviewPreferences.Keys.dailyReminderMinuteForCurrentUser()) private var dailyReminderMinute = 0
     @State private var rolloverHour = 4
     @State private var loadBalancerEnabled = false
     @State private var fsrsShortTermWithStepsEnabled = false
@@ -499,6 +502,7 @@ private struct ReviewOptionsView: View {
     @State private var suppressFsrsOptionSync = false
     @State private var fsrsOptionsError: String?
     @State private var showFsrsOptionsError = false
+    @State private var isSyncingDailyReminder = false
 
     private var cardAlignment: Binding<CardAlignment> {
         Binding(
@@ -516,6 +520,20 @@ private struct ReviewOptionsView: View {
 
     private var rolloverHourLabel: String {
         String(format: L("settings_review_day_start_hour_value"), rolloverHour)
+    }
+
+    private var dailyReminderTimeBinding: Binding<Date> {
+        Binding(
+            get: {
+                let components = DateComponents(hour: dailyReminderHour, minute: dailyReminderMinute)
+                return Calendar.current.date(from: components) ?? Date()
+            },
+            set: { newValue in
+                let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                dailyReminderHour = components.hour ?? 20
+                dailyReminderMinute = components.minute ?? 0
+            }
+        )
     }
 
     var body: some View {
@@ -549,6 +567,28 @@ private struct ReviewOptionsView: View {
                             }
                         } label: {
                             SettingsOptionCapsuleLabel(title: rolloverHourLabel)
+                        }
+                    }
+
+                    Toggle(L("settings_review_daily_reminder_enabled"), isOn: $dailyReminderEnabled)
+
+                    if dailyReminderEnabled {
+                        HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(L("settings_review_daily_reminder_time"))
+                                    .foregroundStyle(SettingsValueStyle.primary)
+                                Text(L("settings_review_daily_reminder_hint"))
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(SettingsValueStyle.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            DatePicker(
+                                L("settings_review_daily_reminder_time"),
+                                selection: dailyReminderTimeBinding,
+                                displayedComponents: [.hourAndMinute]
+                            )
+                            .labelsHidden()
                         }
                     }
                 }
@@ -664,6 +704,18 @@ private struct ReviewOptionsView: View {
             guard oldValue != newValue, newValue != persistedDayStartHour else { return }
             persistSchedulingOptionsIfNeeded()
         }
+        .onChange(of: dailyReminderEnabled) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            syncDailyReminderSettings(enabled: newValue)
+        }
+        .onChange(of: dailyReminderHour) { oldValue, newValue in
+            guard oldValue != newValue, dailyReminderEnabled else { return }
+            syncDailyReminderSettings(enabled: true)
+        }
+        .onChange(of: dailyReminderMinute) { oldValue, newValue in
+            guard oldValue != newValue, dailyReminderEnabled else { return }
+            syncDailyReminderSettings(enabled: true)
+        }
         .alert(L("deck_action_error_title"), isPresented: $showFsrsOptionsError) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
@@ -747,6 +799,46 @@ private struct ReviewOptionsView: View {
             }
             await MainActor.run {
                 isSyncingFsrsOptions = false
+            }
+        }
+    }
+
+    private func syncDailyReminderSettings(enabled: Bool) {
+        guard !isSyncingDailyReminder else { return }
+        isSyncingDailyReminder = true
+
+        Task {
+            defer {
+                Task { @MainActor in
+                    isSyncingDailyReminder = false
+                }
+            }
+
+            if enabled {
+                do {
+                    let granted = try await ReviewDailyReminderScheduler.requestAuthorizationIfNeeded()
+                    guard granted else {
+                        await MainActor.run {
+                            dailyReminderEnabled = false
+                            fsrsOptionsError = L("settings_review_daily_reminder_permission_denied")
+                            showFsrsOptionsError = true
+                        }
+                        ReviewDailyReminderScheduler.disable()
+                        return
+                    }
+                } catch {
+                    await MainActor.run {
+                        dailyReminderEnabled = false
+                        fsrsOptionsError = L("settings_review_daily_reminder_save_failed", error.localizedDescription)
+                        showFsrsOptionsError = true
+                    }
+                    ReviewDailyReminderScheduler.disable()
+                    return
+                }
+
+                await ReviewDailyReminderScheduler.refreshIfNeeded(using: backend)
+            } else {
+                ReviewDailyReminderScheduler.disable()
             }
         }
     }
@@ -1042,6 +1134,8 @@ private extension ReviewPreferences.GestureAction {
         case .good: return L("review_rating_good")
         case .easy: return L("review_rating_easy")
         case .replayAudio: return L("settings_review_gesture_action_replay_audio")
+        case .goBack: return L("settings_review_gesture_action_go_back")
+        case .showContextMenu: return L("settings_review_gesture_action_show_context_menu")
         case .editNote: return L("review_edit_button")
         case .editTemplate: return L("card_template_editor_title")
         case .undo: return L("card_action_undo")
@@ -1053,7 +1147,7 @@ private extension ReviewPreferences.GestureAction {
         case .suspendCard: return L("card_action_suspend")
         case .buryCard: return L("card_action_bury")
         case .resetCard: return L("card_action_reset_to_new")
-        case .flagNone: return L("review_flag_none")
+        case .flagNone: return L("review_flag_clear")
         case .flagRed: return L("review_flag_red")
         case .flagOrange: return L("review_flag_orange")
         case .flagGreen: return L("review_flag_green")

@@ -25,6 +25,8 @@ enum ReviewPreferences {
         case good
         case easy
         case replayAudio
+        case goBack
+        case showContextMenu
         case editNote
         case editTemplate
         case undo
@@ -117,6 +119,9 @@ enum ReviewPreferences {
         static let glassAnswerButtons = "review_pref_glass_answer_buttons"
         static let autoMatchCardBackground = "review_pref_auto_match_card_background"
         static let dayStartHour = "review_pref_day_start_hour"
+        static let dailyReminderEnabledBase = "review_pref_daily_reminder_enabled"
+        static let dailyReminderHourBase = "review_pref_daily_reminder_hour"
+        static let dailyReminderMinuteBase = "review_pref_daily_reminder_minute"
         static let frontTapGestureAction = "review_pref_front_tap_gesture_action"
         static let frontSwipeLeftGestureAction = "review_pref_front_swipe_left_gesture_action"
         static let frontSwipeRightGestureAction = "review_pref_front_swipe_right_gesture_action"
@@ -133,6 +138,32 @@ enum ReviewPreferences {
         static func keyboardShortcutAction(_ shortcut: KeyboardShortcut) -> String {
             keyboardShortcutPrefix + shortcut.rawValue
         }
+
+        static func dailyReminderEnabledForCurrentUser() -> String {
+            scoped(dailyReminderEnabledBase)
+        }
+
+        static func dailyReminderHourForCurrentUser() -> String {
+            scoped(dailyReminderHourBase)
+        }
+
+        static func dailyReminderMinuteForCurrentUser() -> String {
+            scoped(dailyReminderMinuteBase)
+        }
+
+        private static func scoped(_ base: String) -> String {
+            "\(base).\(ReviewPreferences.currentProfileID())"
+        }
+    }
+
+    private static func currentProfileID() -> String {
+        let selectedUser = UserDefaults.standard.string(forKey: "amgi.selectedUser") ?? "default"
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let mapped = selectedUser.unicodeScalars.map { scalar -> Character in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        }
+        let profile = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return profile.isEmpty ? "default" : profile
     }
 }
 

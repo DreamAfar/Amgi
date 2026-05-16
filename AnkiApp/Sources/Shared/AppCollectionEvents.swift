@@ -4,6 +4,7 @@ import AnkiSync
 enum AppCollectionEvents {
     static let didOpenNotification = Notification.Name("amgi.collection.did-open")
     static let didResetNotification = Notification.Name("amgi.collection.did-reset")
+    static let openDeckListNotification = Notification.Name("amgi.collection.open-deck-list")
 }
 
 enum AppSyncAuthEvents {

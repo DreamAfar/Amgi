@@ -13,6 +13,7 @@ struct CardContextMenu: View {
     var onSuccess: (() -> Void)?
     var onActionSuccess: ((_ shouldAdvance: Bool) -> Void)?
     var onRequestSetDueDate: ((_ cardId: Int64) -> Void)?
+    var onTriggerUserAction: ((_ index: Int) -> Void)?
     
     @Dependency(\.cardClient) var cardClient
     @Dependency(\.noteClient) var noteClient
@@ -32,13 +33,15 @@ struct CardContextMenu: View {
         noteId: Int64? = nil,
         onSuccess: (() -> Void)? = nil,
         onActionSuccess: ((_ shouldAdvance: Bool) -> Void)? = nil,
-        onRequestSetDueDate: ((_ cardId: Int64) -> Void)? = nil
+        onRequestSetDueDate: ((_ cardId: Int64) -> Void)? = nil,
+        onTriggerUserAction: ((_ index: Int) -> Void)? = nil
     ) {
         self.cardId = cardId
         self.noteId = noteId
         self.onSuccess = onSuccess
         self.onActionSuccess = onActionSuccess
         self.onRequestSetDueDate = onRequestSetDueDate
+        self.onTriggerUserAction = onTriggerUserAction
     }
     
     var body: some View {
@@ -49,6 +52,16 @@ struct CardContextMenu: View {
             
             Button(action: performBury) {
                 Label(L("card_action_bury"), systemImage: "books.vertical")
+            }
+
+            if noteId != nil {
+                Button(action: performMarkAndSuspend) {
+                    Label(L("card_action_mark_and_suspend"), systemImage: "star.circle")
+                }
+
+                Button(action: performMarkAndBury) {
+                    Label(L("card_action_mark_and_bury"), systemImage: "star.circle.fill")
+                }
             }
 
             Button(action: performResetToNew) {
@@ -115,8 +128,22 @@ struct CardContextMenu: View {
                 Label(L("card_action_undo"), systemImage: "arrow.uturn.backward")
             }
             .disabled(!canUndo || isUndoing)
+
+            if let onTriggerUserAction {
+                Menu {
+                    ForEach(1...9, id: \.self) { index in
+                        Button {
+                            onTriggerUserAction(index)
+                        } label: {
+                            Text(String(format: L("review_user_action_number"), index))
+                        }
+                    }
+                } label: {
+                    Label(L("review_user_actions"), systemImage: "bolt")
+                }
+            }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Image(systemName: "filemenu.and.selection")
                 .font(.title2)
         }
         .alert(L("card_action_error_title"), isPresented: $showError) {
@@ -157,6 +184,20 @@ struct CardContextMenu: View {
             errorMessage = L("card_action_error_bury", error.localizedDescription)
             showError = true
         }
+    }
+
+    private func performMarkAndSuspend() {
+        performMarkThenCardAction(
+            action: { try cardClient.suspend($0) },
+            errorKey: "card_action_error_suspend"
+        )
+    }
+
+    private func performMarkAndBury() {
+        performMarkThenCardAction(
+            action: { try cardClient.bury($0) },
+            errorKey: "card_action_error_bury"
+        )
     }
 
     private func performSuspendNote() {
@@ -209,6 +250,25 @@ struct CardContextMenu: View {
             onActionSuccess?(false)
         } catch {
             errorMessage = L("card_action_error_mark_note", error.localizedDescription)
+            showError = true
+        }
+    }
+
+    private func performMarkThenCardAction(
+        action: (Int64) throws -> Void,
+        errorKey: String
+    ) {
+        guard let noteId else { return }
+        do {
+            if !isMarkedNote {
+                try tagClient.addTagToNotes(markedTag, [noteId])
+                isMarkedNote = true
+            }
+            try action(cardId)
+            onSuccess?()
+            onActionSuccess?(true)
+        } catch {
+            errorMessage = L(errorKey, error.localizedDescription)
             showError = true
         }
     }
@@ -292,7 +352,7 @@ struct CardContextMenu: View {
         case 5: return L("review_flag_pink")
         case 6: return L("review_flag_cyan")
         case 7: return L("review_flag_purple")
-        default: return L("review_flag_none")
+        default: return L("review_flag_clear")
         }
     }
 
