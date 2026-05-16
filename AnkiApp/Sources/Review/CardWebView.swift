@@ -750,6 +750,7 @@ struct CardWebView: UIViewRepresentable {
         }
 
         var amgiSuppressNextClick = false;
+        var amgiPendingTapFallback = 0;
         var amgiGestureSuppressUntil = 0;
         var amgiHadActiveTextSelection = false;
         var amgiSelectionMenuText = '';
@@ -775,6 +776,12 @@ struct CardWebView: UIViewRepresentable {
             return Date.now() < amgiGestureSuppressUntil;
         }
 
+        function amgiClearPendingTapFallback() {
+            if (!amgiPendingTapFallback) return;
+            window.clearTimeout(amgiPendingTapFallback);
+            amgiPendingTapFallback = 0;
+        }
+
         document.addEventListener('selectstart', function() {
             amgiSuppressCardGestures(900);
         }, true);
@@ -794,6 +801,7 @@ struct CardWebView: UIViewRepresentable {
         });
 
         document.addEventListener('click', function(event) {
+            amgiClearPendingTapFallback();
             if (amgiSuppressNextClick) {
                 amgiSuppressNextClick = false;
                 return;
@@ -860,7 +868,25 @@ struct CardWebView: UIViewRepresentable {
                 amgiSuppressCardGestures(900);
                 return;
             }
-            if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.25) return;
+            if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.25) {
+                amgiSuppressNextClick = true;
+                var payload = amgiCardLookupPayloadAt(touch.clientX, touch.clientY, 16);
+                if (payload) {
+                    amgiClearPendingTapFallback();
+                    window.webkit.messageHandlers.amgiLookupText.postMessage(payload);
+                } else if (!amgiLookupPopupEnabled()) {
+                    amgiClearPendingTapFallback();
+                    window.webkit.messageHandlers.amgiCardGesture.postMessage('tapBlank');
+                } else {
+                    amgiSuppressNextClick = false;
+                    amgiClearPendingTapFallback();
+                    amgiPendingTapFallback = window.setTimeout(function() {
+                        amgiPendingTapFallback = 0;
+                        window.webkit.messageHandlers.amgiCardGesture.postMessage('tapBlank');
+                    }, 220);
+                }
+                return;
+            }
             amgiSuppressCardGestures(250);
             window.webkit.messageHandlers.amgiCardGesture.postMessage(dx < 0 ? 'swipeLeft' : 'swipeRight');
         }, { passive: true });
@@ -2856,26 +2882,25 @@ struct CardWebView: UIViewRepresentable {
     }
 
     @MainActor
-    private final class ReviewSelectionMenuWebView: WKWebView, @preconcurrency UIEditMenuInteractionDelegate {
-        private lazy var selectionEditMenuInteraction = UIEditMenuInteraction(delegate: self)
+    private final class ReviewSelectionMenuWebView: WKWebView {
+        private static let selectionActionsMenuID = UIMenu.Identifier("com.amgi.review.selection-actions")
 
         var currentSelectionText: String? {
-            didSet { refreshSelectionMenuItems() }
+            didSet { setNeedsMenuRebuild() }
         }
 
         var showsLookupSelectionAction = false {
-            didSet { refreshSelectionMenuItems() }
+            didSet { setNeedsMenuRebuild() }
         }
 
         var showsAISelectionAction = false {
-            didSet { refreshSelectionMenuItems() }
+            didSet { setNeedsMenuRebuild() }
         }
 
         var onSelectionAction: ((SelectionMenuAction, String) -> Void)?
 
         override init(frame: CGRect, configuration: WKWebViewConfiguration) {
             super.init(frame: frame, configuration: configuration)
-            addInteraction(selectionEditMenuInteraction)
         }
 
         @available(*, unavailable)
@@ -2885,30 +2910,6 @@ struct CardWebView: UIViewRepresentable {
 
         override var canBecomeFirstResponder: Bool {
             true
-        }
-
-        override func becomeFirstResponder() -> Bool {
-            refreshSelectionMenuItems()
-            return super.becomeFirstResponder()
-        }
-
-        override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-            let hasSelection = normalizedSelectionText != nil
-            if action == #selector(amgiPerformLookupSelectionAction) {
-                return hasSelection && showsLookupSelectionAction
-            }
-            if action == #selector(amgiPerformAISelectionAction) {
-                return hasSelection && showsAISelectionAction
-            }
-            return super.canPerformAction(action, withSender: sender)
-        }
-
-        @objc private func amgiPerformLookupSelectionAction() {
-            performSelectionAction(.lookup)
-        }
-
-        @objc private func amgiPerformAISelectionAction() {
-            performSelectionAction(.ai)
         }
 
         private var normalizedSelectionText: String? {
@@ -2922,60 +2923,42 @@ struct CardWebView: UIViewRepresentable {
             onSelectionAction?(action, selection)
         }
 
-        private func refreshSelectionMenuItems() {
-            var items: [UIMenuItem] = []
-            if showsLookupSelectionAction {
-                items.append(UIMenuItem(title: L("review_selection_menu_lookup"), action: #selector(amgiPerformLookupSelectionAction)))
-            }
-            if showsAISelectionAction {
-                items.append(UIMenuItem(title: L("review_selection_menu_ai"), action: #selector(amgiPerformAISelectionAction)))
-            }
-            UIMenuController.shared.menuItems = items.isEmpty ? nil : items
-        }
-
-        func editMenuInteraction(
-            _ interaction: UIEditMenuInteraction,
-            menuFor configuration: UIEditMenuConfiguration,
-            suggestedActions: [UIMenuElement]
-        ) -> UIMenu? {
-            var remainingActions = suggestedActions
-            var insertedActions: [UIMenuElement] = []
-
-            if showsLookupSelectionAction, let lookupAction = resolvedMenuAction(
-                title: L("review_selection_menu_lookup"),
-                action: .lookup,
-                suggestedActions: &remainingActions
-            ) {
-                insertedActions.append(lookupAction)
-            }
-
-            if showsAISelectionAction, let aiAction = resolvedMenuAction(
-                title: L("review_selection_menu_ai"),
-                action: .ai,
-                suggestedActions: &remainingActions
-            ) {
-                insertedActions.append(aiAction)
-            }
-
-            let insertionIndex = min(1, remainingActions.count)
-            remainingActions.insert(contentsOf: insertedActions, at: insertionIndex)
-            return UIMenu(children: remainingActions)
-        }
-
-        private func resolvedMenuAction(
-            title: String,
-            action: SelectionMenuAction,
-            suggestedActions: inout [UIMenuElement]
-        ) -> UIMenuElement? {
+        private func selectionActionsMenu() -> UIMenu? {
             guard normalizedSelectionText != nil else { return nil }
 
-            if let existingIndex = suggestedActions.firstIndex(where: { $0.title == title }) {
-                return suggestedActions.remove(at: existingIndex)
+            var items: [UIMenuElement] = []
+            if showsLookupSelectionAction {
+                items.append(
+                    UIAction(title: L("review_selection_menu_lookup")) { [weak self] _ in
+                        self?.performSelectionAction(.lookup)
+                    }
+                )
             }
+            if showsAISelectionAction {
+                items.append(
+                    UIAction(title: L("review_selection_menu_ai")) { [weak self] _ in
+                        self?.performSelectionAction(.ai)
+                    }
+                )
+            }
+            guard items.isEmpty == false else { return nil }
 
-            return UIAction(title: title) { [weak self] _ in
-                self?.performSelectionAction(action)
-            }
+            return UIMenu(
+                title: "",
+                identifier: Self.selectionActionsMenuID,
+                options: [.displayInline],
+                children: items
+            )
+        }
+
+        private func setNeedsMenuRebuild() {
+            UIMenuSystem.main.setNeedsRebuild()
+        }
+
+        override func buildMenu(with builder: UIMenuBuilder) {
+            super.buildMenu(with: builder)
+            guard let menu = selectionActionsMenu() else { return }
+            builder.insertSibling(menu, beforeMenu: .standardEdit)
         }
     }
 
