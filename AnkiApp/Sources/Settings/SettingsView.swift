@@ -487,6 +487,8 @@ private struct ReviewOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.lookupPopupEnabled) private var lookupPopupEnabled = true
     @AppStorage(ReviewPreferences.Keys.lookupPopupFrontEnabled) private var lookupPopupFrontEnabled = false
     @AppStorage(ReviewPreferences.Keys.lookupPopupBackEnabled) private var lookupPopupBackEnabled = true
+    @AppStorage(ReviewPreferences.Keys.selectionMenuLookupEnabled) private var selectionMenuLookupEnabled = false
+    @AppStorage(ReviewPreferences.Keys.selectionMenuAIEnabled) private var selectionMenuAIEnabled = false
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var cardContentAlignmentRaw = CardAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var glassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var autoMatchCardBackground = true
@@ -614,6 +616,11 @@ private struct ReviewOptionsView: View {
                 if lookupPopupEnabled {
                     Toggle(L("settings_review_lookup_popup_front_enabled"), isOn: $lookupPopupFrontEnabled)
                     Toggle(L("settings_review_lookup_popup_back_enabled"), isOn: $lookupPopupBackEnabled)
+                }
+                NavigationLink {
+                    ReviewSelectionMenuSettingsView()
+                } label: {
+                    reviewSettingsRowLabel(L("settings_review_text_selection_menu"), icon: "text.cursor")
                 }
                 Toggle(L("settings_review_auto_match_card_background"), isOn: $autoMatchCardBackground)
 

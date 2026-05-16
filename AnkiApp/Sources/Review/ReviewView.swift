@@ -60,6 +60,7 @@ struct ReviewView: View {
     @State private var lookupStack: [ReaderLookupPopupState] = []
     @State private var lookupErrorMessage: String?
     @State private var showLookupError = false
+    @State private var selectionAIState: ReviewSelectionAIState?
     @State private var controllerMonitor = ReviewControllerMonitor()
     @State private var keyboardMonitor = ReviewKeyboardMonitor()
 
@@ -76,6 +77,9 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.lookupPopupEnabled) private var prefLookupPopupEnabled = true
     @AppStorage(ReviewPreferences.Keys.lookupPopupFrontEnabled) private var prefLookupPopupFrontEnabled = false
     @AppStorage(ReviewPreferences.Keys.lookupPopupBackEnabled) private var prefLookupPopupBackEnabled = true
+    @AppStorage(ReviewPreferences.Keys.selectionMenuLookupEnabled) private var prefSelectionMenuLookupEnabled = false
+    @AppStorage(ReviewPreferences.Keys.selectionMenuAIEnabled) private var prefSelectionMenuAIEnabled = false
+    @AppStorage(ReviewPreferences.Keys.selectionMenuLookupTemplate) private var prefSelectionMenuLookupTemplate = ""
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var prefAutoMatchCardBackground = true
@@ -349,6 +353,13 @@ struct ReviewView: View {
                 StatsDashboardView(initialDeckID: deckId)
             }
         }
+        .sheet(item: $selectionAIState) { state in
+            NavigationStack {
+                ReviewSelectionAISheetView(state: state) {
+                    selectionAIState = nil
+                }
+            }
+        }
         .sheet(isPresented: $showCardInfo) {
             if let queued = session.currentCard {
                 ReviewCardInfoSheet(queuedCard: queued)
@@ -585,6 +596,8 @@ struct ReviewView: View {
                 showInlineAudioReplayButtons: prefShowAudioReplayButton,
                 openLinksExternally: prefOpenLinksExternally,
                 lookupPopupEnabled: isLookupPopupEnabledForCurrentSide,
+                selectionMenuLookupEnabled: prefSelectionMenuLookupEnabled,
+                selectionMenuAIEnabled: prefSelectionMenuAIEnabled,
                 prefetchHTML: session.showAnswer ? nil : session.backHTML,
                 contentAlignment: prefCardContentAlignment,
                 bottomContentInset: actionBarHeight,
@@ -607,6 +620,9 @@ struct ReviewView: View {
                 },
                 onCardGesture: { gesture in
                     handleCardGesture(gesture)
+                },
+                onSelectionMenuAction: { action, selection in
+                    handleSelectionMenuAction(action, selection: selection)
                 }
             )
 
@@ -770,6 +786,70 @@ struct ReviewView: View {
             return
         }
         startCardLookup(for: query, sentence: sentence, anchor: point)
+    }
+
+    private func handleSelectionMenuAction(_ action: CardWebView.SelectionMenuAction, selection: String) {
+        let trimmedSelection = selection.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedSelection.isEmpty == false else { return }
+
+        switch action {
+        case .lookup:
+            openSelectionLookup(for: trimmedSelection)
+        case .ai:
+            startSelectionAI(for: trimmedSelection)
+        }
+    }
+
+    private func openSelectionLookup(for selection: String) {
+        guard prefSelectionMenuLookupEnabled else { return }
+        guard let url = ReviewSelectionURLBuilder.resolve(template: prefSelectionMenuLookupTemplate, selection: selection) else {
+            toolbarErrorMessage = L("review_selection_lookup_invalid_template")
+            showToolbarError = true
+            return
+        }
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
+
+    private func startSelectionAI(for selection: String) {
+        guard prefSelectionMenuAIEnabled else { return }
+
+        let config = ReviewSelectionAIConfig.load()
+        guard config.endpoint.trimmedOrNil != nil else {
+            toolbarErrorMessage = L("review_selection_ai_missing_endpoint")
+            showToolbarError = true
+            return
+        }
+        guard config.model.trimmedOrNil != nil else {
+            toolbarErrorMessage = L("review_selection_ai_missing_model")
+            showToolbarError = true
+            return
+        }
+
+        let state = ReviewSelectionAIState(selection: selection)
+        selectionAIState = state
+
+        Task {
+            do {
+                let response = try await ReviewSelectionAIClient.generateResponse(for: selection, config: config)
+                await MainActor.run {
+                    guard selectionAIState?.id == state.id else { return }
+                    var nextState = selectionAIState ?? state
+                    nextState.isLoading = false
+                    nextState.response = response
+                    nextState.errorMessage = nil
+                    selectionAIState = nextState
+                }
+            } catch {
+                await MainActor.run {
+                    guard selectionAIState?.id == state.id else { return }
+                    var nextState = selectionAIState ?? state
+                    nextState.isLoading = false
+                    nextState.response = nil
+                    nextState.errorMessage = error.localizedDescription
+                    selectionAIState = nextState
+                }
+            }
+        }
     }
 
     private func startCardLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil, stacksOnTop: Bool = false) {

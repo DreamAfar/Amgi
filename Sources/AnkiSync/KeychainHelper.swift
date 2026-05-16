@@ -7,6 +7,7 @@ public enum KeychainHelper: Sendable {
     private static let usernameAccountBase = "sync-username"
     private static let endpointAccountBase = "sync-endpoint"
     private static let currentEndpointAccountBase = "sync-current-endpoint"
+    private static let reviewSelectionAIAPIKeyAccountBase = "review-selection-ai-api-key"
 
     // MARK: - Host Key
 
@@ -110,6 +111,20 @@ public enum KeychainHelper: Sendable {
 
     public static func deleteCurrentEndpoint(for user: String) {
         delete(account: scopedAccount(currentEndpointAccountBase, user: user))
+    }
+
+    // MARK: - Review Selection AI API Key
+
+    public static func saveReviewSelectionAIAPIKey(_ key: String) throws {
+        try save(account: scopedAccount(reviewSelectionAIAPIKeyAccountBase), value: key)
+    }
+
+    public static func loadReviewSelectionAIAPIKey() -> String? {
+        load(account: scopedAccount(reviewSelectionAIAPIKeyAccountBase))
+    }
+
+    public static func deleteReviewSelectionAIAPIKey() {
+        delete(account: scopedAccount(reviewSelectionAIAPIKeyAccountBase))
     }
 
     public static func deleteAllSyncCredentials() {

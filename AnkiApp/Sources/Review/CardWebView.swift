@@ -13,6 +13,11 @@ struct CardWebView: UIViewRepresentable {
         case answerWithQuestion
     }
 
+    enum SelectionMenuAction: Sendable {
+        case lookup
+        case ai
+    }
+
     enum ContentAlignment: String {
         case top
         case center
@@ -35,6 +40,8 @@ struct CardWebView: UIViewRepresentable {
     let showInlineAudioReplayButtons: Bool
     let openLinksExternally: Bool
     let lookupPopupEnabled: Bool
+    let selectionMenuLookupEnabled: Bool
+    let selectionMenuAIEnabled: Bool
     let prefetchHTML: String?
     let contentAlignment: ContentAlignment
     let bottomContentInset: CGFloat
@@ -43,6 +50,7 @@ struct CardWebView: UIViewRepresentable {
     let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
     let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
     let onCardGesture: ((String) -> Void)?
+    let onSelectionMenuAction: ((SelectionMenuAction, String) -> Void)?
 
     init(
         html: String,
@@ -62,6 +70,8 @@ struct CardWebView: UIViewRepresentable {
         showInlineAudioReplayButtons: Bool = true,
         openLinksExternally: Bool = true,
         lookupPopupEnabled: Bool = true,
+        selectionMenuLookupEnabled: Bool = false,
+        selectionMenuAIEnabled: Bool = false,
         prefetchHTML: String? = nil,
         contentAlignment: ContentAlignment = .center,
         bottomContentInset: CGFloat = 0,
@@ -69,7 +79,8 @@ struct CardWebView: UIViewRepresentable {
         onAudioStateChange: ((Bool) -> Void)? = nil,
         onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil,
         onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil,
-        onCardGesture: ((String) -> Void)? = nil
+        onCardGesture: ((String) -> Void)? = nil,
+        onSelectionMenuAction: ((SelectionMenuAction, String) -> Void)? = nil
     ) {
         self.html = html
         self.cardCSS = cardCSS
@@ -88,6 +99,8 @@ struct CardWebView: UIViewRepresentable {
         self.showInlineAudioReplayButtons = showInlineAudioReplayButtons
         self.openLinksExternally = openLinksExternally
         self.lookupPopupEnabled = lookupPopupEnabled
+        self.selectionMenuLookupEnabled = selectionMenuLookupEnabled
+        self.selectionMenuAIEnabled = selectionMenuAIEnabled
         self.prefetchHTML = prefetchHTML
         self.contentAlignment = contentAlignment
         self.bottomContentInset = bottomContentInset
@@ -96,6 +109,7 @@ struct CardWebView: UIViewRepresentable {
         self.onCardBackgroundColorChange = onCardBackgroundColorChange
         self.onLookupRequested = onLookupRequested
         self.onCardGesture = onCardGesture
+        self.onSelectionMenuAction = onSelectionMenuAction
     }
 
     func makeCoordinator() -> Coordinator {
@@ -105,7 +119,8 @@ struct CardWebView: UIViewRepresentable {
             onAudioStateChange: onAudioStateChange,
             onCardBackgroundColorChange: onCardBackgroundColorChange,
             onLookupRequested: onLookupRequested,
-            onCardGesture: onCardGesture
+            onCardGesture: onCardGesture,
+            onSelectionMenuAction: onSelectionMenuAction
         )
     }
 
@@ -121,17 +136,21 @@ struct CardWebView: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "amgiCardTheme")
         config.userContentController.add(context.coordinator, name: "amgiLookupText")
         config.userContentController.add(context.coordinator, name: "amgiCardGesture")
+        config.userContentController.add(context.coordinator, name: "amgiSelectionState")
         
         // Enable media playback without user interaction
         config.mediaTypesRequiringUserActionForPlayback = []
         config.allowsInlineMediaPlayback = true
 
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = ReviewSelectionMenuWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
         webView.scrollView.showsVerticalScrollIndicator = false
         webView.navigationDelegate = context.coordinator
+        webView.onSelectionAction = { [weak coordinator = context.coordinator] action, selection in
+            coordinator?.handleSelectionMenuAction(action, selection: selection)
+        }
         return webView
     }
 
@@ -144,6 +163,7 @@ struct CardWebView: UIViewRepresentable {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiCardTheme")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiLookupText")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiCardGesture")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSelectionState")
         coordinator.stopTTS()
     }
 
@@ -177,6 +197,11 @@ struct CardWebView: UIViewRepresentable {
         context.coordinator.playAudioInSilentMode = playAudioInSilentMode
         context.coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
+        if let menuWebView = webView as? ReviewSelectionMenuWebView {
+            menuWebView.showsLookupSelectionAction = selectionMenuLookupEnabled
+            menuWebView.showsAISelectionAction = selectionMenuAIEnabled
+            menuWebView.currentSelectionText = nil
+        }
 
         // Build the JS call that shows the card – passed via evaluateJavaScript so
         // HTML content never lives inside a <script> literal in the page source.
@@ -718,12 +743,62 @@ struct CardWebView: UIViewRepresentable {
             return !!(target && target.closest('a, button, input, textarea, select, option, [contenteditable], .replay-button, .replay-btn, .sound-btn, #image-occlusion-canvas'));
         }
 
+        function amgiHasActiveTextSelection() {
+            var selection = window.getSelection ? window.getSelection() : null;
+            if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
+            return !!((selection.toString() || '').trim().length);
+        }
+
         var amgiSuppressNextClick = false;
+        var amgiGestureSuppressUntil = 0;
+        var amgiHadActiveTextSelection = false;
+        var amgiSelectionMenuText = '';
+
+        function amgiSyncSelectionMenuText() {
+            var next = '';
+            if (amgiHasActiveTextSelection()) {
+                var selection = window.getSelection ? window.getSelection() : null;
+                next = selection ? (selection.toString() || '').trim() : '';
+            }
+            if (next === amgiSelectionMenuText) return;
+            amgiSelectionMenuText = next;
+            window.webkit.messageHandlers.amgiSelectionState.postMessage(next || null);
+        }
+
+        function amgiSuppressCardGestures(durationMs) {
+            var duration = Math.max(0, durationMs || 0);
+            amgiGestureSuppressUntil = Math.max(amgiGestureSuppressUntil, Date.now() + duration);
+            amgiSuppressNextClick = true;
+        }
+
+        function amgiIsCardGestureSuppressed() {
+            return Date.now() < amgiGestureSuppressUntil;
+        }
+
+        document.addEventListener('selectstart', function() {
+            amgiSuppressCardGestures(900);
+        }, true);
+
+        document.addEventListener('selectionchange', function() {
+            var hasSelection = amgiHasActiveTextSelection();
+            amgiSyncSelectionMenuText();
+            if (hasSelection) {
+                amgiHadActiveTextSelection = true;
+                amgiSuppressCardGestures(900);
+                return;
+            }
+            if (amgiHadActiveTextSelection) {
+                amgiHadActiveTextSelection = false;
+                amgiSuppressCardGestures(250);
+            }
+        });
+
         document.addEventListener('click', function(event) {
             if (amgiSuppressNextClick) {
                 amgiSuppressNextClick = false;
                 return;
             }
+            if (amgiHasActiveTextSelection() || amgiIsCardGestureSuppressed()) return;
             if (amgiIsGestureExcludedTarget(event.target)) return;
             var state = amgiCardState();
             if (state.renderedAt && Date.now() - state.renderedAt < 300) return;
@@ -741,27 +816,59 @@ struct CardWebView: UIViewRepresentable {
                 amgiTouchStart = null;
                 return;
             }
+            if (amgiHasActiveTextSelection() || amgiIsCardGestureSuppressed()) {
+                amgiTouchStart = null;
+                return;
+            }
             var touch = event.touches[0];
             var target = document.elementFromPoint(touch.clientX, touch.clientY);
             if (amgiIsGestureExcludedTarget(target)) {
                 amgiTouchStart = null;
                 return;
             }
-            amgiTouchStart = { x: touch.clientX, y: touch.clientY };
+            amgiTouchStart = { x: touch.clientX, y: touch.clientY, startedAt: Date.now() };
+        }, { passive: true });
+        document.addEventListener('touchmove', function(event) {
+            if (!amgiTouchStart || !event.touches || event.touches.length !== 1) {
+                return;
+            }
+            if (amgiHasActiveTextSelection()) {
+                amgiSuppressCardGestures(900);
+                amgiTouchStart = null;
+                return;
+            }
+            var touch = event.touches[0];
+            amgiTouchStart.lastX = touch.clientX;
+            amgiTouchStart.lastY = touch.clientY;
         }, { passive: true });
         document.addEventListener('touchend', function(event) {
             if (!amgiTouchStart || !event.changedTouches || event.changedTouches.length !== 1) {
                 amgiTouchStart = null;
                 return;
             }
+            if (amgiHasActiveTextSelection() || amgiIsCardGestureSuppressed()) {
+                amgiSuppressCardGestures(900);
+                amgiTouchStart = null;
+                return;
+            }
             var touch = event.changedTouches[0];
             var dx = touch.clientX - amgiTouchStart.x;
             var dy = touch.clientY - amgiTouchStart.y;
+            var duration = Date.now() - (amgiTouchStart.startedAt || Date.now());
             amgiTouchStart = null;
+            if (duration >= 350) {
+                amgiSuppressCardGestures(900);
+                return;
+            }
             if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.25) return;
-            amgiSuppressNextClick = true;
+            amgiSuppressCardGestures(250);
             window.webkit.messageHandlers.amgiCardGesture.postMessage(dx < 0 ? 'swipeLeft' : 'swipeRight');
         }, { passive: true });
+        document.addEventListener('touchcancel', function() {
+            amgiTouchStart = null;
+        }, { passive: true });
+
+        window.webkit.messageHandlers.amgiSelectionState.postMessage(null);
 
         function amgiSetCardCSS(cssText) {
             var style = document.getElementById('amgi-card-css');
@@ -2748,6 +2855,130 @@ struct CardWebView: UIViewRepresentable {
         return classes.joined(separator: " ")
     }
 
+    @MainActor
+    private final class ReviewSelectionMenuWebView: WKWebView, UIEditMenuInteractionDelegate {
+        private lazy var selectionEditMenuInteraction = UIEditMenuInteraction(delegate: self)
+
+        var currentSelectionText: String? {
+            didSet { refreshSelectionMenuItems() }
+        }
+
+        var showsLookupSelectionAction = false {
+            didSet { refreshSelectionMenuItems() }
+        }
+
+        var showsAISelectionAction = false {
+            didSet { refreshSelectionMenuItems() }
+        }
+
+        var onSelectionAction: ((SelectionMenuAction, String) -> Void)?
+
+        override init(frame: CGRect, configuration: WKWebViewConfiguration) {
+            super.init(frame: frame, configuration: configuration)
+            addInteraction(selectionEditMenuInteraction)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override var canBecomeFirstResponder: Bool {
+            true
+        }
+
+        override func becomeFirstResponder() -> Bool {
+            refreshSelectionMenuItems()
+            return super.becomeFirstResponder()
+        }
+
+        override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+            let hasSelection = normalizedSelectionText != nil
+            if action == #selector(amgiPerformLookupSelectionAction) {
+                return hasSelection && showsLookupSelectionAction
+            }
+            if action == #selector(amgiPerformAISelectionAction) {
+                return hasSelection && showsAISelectionAction
+            }
+            return super.canPerformAction(action, withSender: sender)
+        }
+
+        @objc private func amgiPerformLookupSelectionAction() {
+            performSelectionAction(.lookup)
+        }
+
+        @objc private func amgiPerformAISelectionAction() {
+            performSelectionAction(.ai)
+        }
+
+        private var normalizedSelectionText: String? {
+            currentSelectionText?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .nilIfEmpty
+        }
+
+        private func performSelectionAction(_ action: SelectionMenuAction) {
+            guard let selection = normalizedSelectionText else { return }
+            onSelectionAction?(action, selection)
+        }
+
+        private func refreshSelectionMenuItems() {
+            var items: [UIMenuItem] = []
+            if showsLookupSelectionAction {
+                items.append(UIMenuItem(title: L("review_selection_menu_lookup"), action: #selector(amgiPerformLookupSelectionAction)))
+            }
+            if showsAISelectionAction {
+                items.append(UIMenuItem(title: L("review_selection_menu_ai"), action: #selector(amgiPerformAISelectionAction)))
+            }
+            UIMenuController.shared.menuItems = items.isEmpty ? nil : items
+        }
+
+        func editMenuInteraction(
+            _ interaction: UIEditMenuInteraction,
+            menuFor configuration: UIEditMenuConfiguration,
+            suggestedActions: [UIMenuElement]
+        ) -> UIMenu? {
+            var remainingActions = suggestedActions
+            var insertedActions: [UIMenuElement] = []
+
+            if showsLookupSelectionAction, let lookupAction = resolvedMenuAction(
+                title: L("review_selection_menu_lookup"),
+                action: .lookup,
+                suggestedActions: &remainingActions
+            ) {
+                insertedActions.append(lookupAction)
+            }
+
+            if showsAISelectionAction, let aiAction = resolvedMenuAction(
+                title: L("review_selection_menu_ai"),
+                action: .ai,
+                suggestedActions: &remainingActions
+            ) {
+                insertedActions.append(aiAction)
+            }
+
+            let insertionIndex = min(2, remainingActions.count)
+            remainingActions.insert(contentsOf: insertedActions, at: insertionIndex)
+            return UIMenu(children: remainingActions)
+        }
+
+        private func resolvedMenuAction(
+            title: String,
+            action: SelectionMenuAction,
+            suggestedActions: inout [UIMenuElement]
+        ) -> UIMenuElement? {
+            guard normalizedSelectionText != nil else { return nil }
+
+            if let existingIndex = suggestedActions.firstIndex(where: { $0.title == title }) {
+                return suggestedActions.remove(at: existingIndex)
+            }
+
+            return UIAction(title: title) { [weak self] _ in
+                self?.performSelectionAction(action)
+            }
+        }
+    }
+
     // MARK: - Navigation Delegate
 
     @MainActor
@@ -2768,6 +2999,7 @@ struct CardWebView: UIViewRepresentable {
         private let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
         private let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
         private let onCardGesture: ((String) -> Void)?
+        private let onSelectionMenuAction: ((SelectionMenuAction, String) -> Void)?
         private var lastThemePayload: String?
         private let ttsPlayer = CardTTSPlayer()
 
@@ -2777,7 +3009,8 @@ struct CardWebView: UIViewRepresentable {
             onAudioStateChange: ((Bool) -> Void)? = nil,
             onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil,
             onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil,
-            onCardGesture: ((String) -> Void)? = nil
+            onCardGesture: ((String) -> Void)? = nil,
+            onSelectionMenuAction: ((SelectionMenuAction, String) -> Void)? = nil
         ) {
             self.lastUserActionRequestID = initialUserActionRequestID
             self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
@@ -2785,10 +3018,15 @@ struct CardWebView: UIViewRepresentable {
             self.onCardBackgroundColorChange = onCardBackgroundColorChange
             self.onLookupRequested = onLookupRequested
             self.onCardGesture = onCardGesture
+            self.onSelectionMenuAction = onSelectionMenuAction
             super.init()
             ttsPlayer.onEvent = { [weak self] state, token in
                 self?.handleTTSEvent(state: state, token: token)
             }
+        }
+
+        func handleSelectionMenuAction(_ action: SelectionMenuAction, selection: String) {
+            onSelectionMenuAction?(action, selection)
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -2847,6 +3085,15 @@ struct CardWebView: UIViewRepresentable {
             if message.name == "amgiCardGesture" {
                 guard let gesture = message.body as? String else { return }
                 onCardGesture?(gesture)
+                return
+            }
+
+            if message.name == "amgiSelectionState" {
+                if let selection = message.body as? String {
+                    (currentWebView as? ReviewSelectionMenuWebView)?.currentSelectionText = selection
+                } else {
+                    (currentWebView as? ReviewSelectionMenuWebView)?.currentSelectionText = nil
+                }
                 return
             }
 
@@ -3021,5 +3268,11 @@ struct CardWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             print("[CardWebView] Provisional navigation failed: \(error)")
         }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }

@@ -128,6 +128,7 @@ enum ReviewDailyReminderScheduler {
     }
 }
 
+@MainActor
 final class ReviewDailyReminderNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     static let shared = ReviewDailyReminderNotificationDelegate()
 
