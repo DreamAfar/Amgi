@@ -540,7 +540,7 @@ private struct ReviewOptionsView: View {
 
     var body: some View {
         List {
-            Section(L("settings_review_section_schedule")) {
+            Section(L("settings_review_section_plan_and_reminders")) {
                 if isLoadingFsrsOptions {
                     HStack {
                         Text(L("settings_review_loading"))
@@ -593,41 +593,30 @@ private struct ReviewOptionsView: View {
                             .labelsHidden()
                         }
                     }
+
+                    Toggle(L("settings_review_load_balancer_enabled"), isOn: $loadBalancerEnabled)
+                    Text(L("settings_review_load_balancer_enabled_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+
+                    Toggle(
+                        L("settings_review_fsrs_short_term_with_steps_enabled"),
+                        isOn: $fsrsShortTermWithStepsEnabled
+                    )
+                    Text(L("settings_review_fsrs_short_term_with_steps_enabled_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(SettingsValueStyle.secondary)
                 }
             }
             .amgiSettingsListRowSurface()
 
             Section(L("settings_review_section_audio")) {
                 Toggle(L("settings_review_play_audio_in_silent_mode"), isOn: $playAudioInSilentMode)
+                Toggle(L("settings_review_show_audio_replay_button"), isOn: $showAudioReplayButton)
             }
             .amgiSettingsListRowSurface()
 
-            Section(L("settings_review_section_ui")) {
-                Toggle(L("settings_review_show_context_menu_button"), isOn: $showContextMenuButton)
-                Toggle(L("settings_review_show_audio_replay_button"), isOn: $showAudioReplayButton)
-                Toggle(L("settings_review_show_correctness_symbols"), isOn: $showCorrectnessSymbols)
-                Toggle(L("settings_review_disperse_answer_buttons"), isOn: $disperseAnswerButtons)
-                Toggle(L("settings_review_show_answer_buttons"), isOn: $showAnswerButtons)
-                Toggle(L("settings_review_hide_hard_and_easy_buttons"), isOn: $hideHardAndEasyButtons)
-                Toggle(L("settings_review_show_remaining_days"), isOn: $showRemainingDays)
-                Toggle(L("settings_review_show_next_review_time"), isOn: $showNextReviewTime)
-                Toggle(L("settings_review_open_links_externally"), isOn: $openLinksExternally)
-                Toggle(L("settings_review_lookup_popup_enabled"), isOn: $lookupPopupEnabled)
-                if lookupPopupEnabled {
-                    Toggle(L("settings_review_lookup_popup_front_enabled"), isOn: $lookupPopupFrontEnabled)
-                    Toggle(L("settings_review_lookup_popup_back_enabled"), isOn: $lookupPopupBackEnabled)
-                }
-                NavigationLink {
-                    ReviewSelectionMenuSettingsView()
-                } label: {
-                    reviewSettingsRowLabel(L("settings_review_text_selection_menu"), icon: "text.cursor")
-                }
-                Toggle(L("settings_review_auto_match_card_background"), isOn: $autoMatchCardBackground)
-
-                if #available(iOS 26.0, *) {
-                    Toggle(L("settings_review_glass_answer_buttons"), isOn: $glassAnswerButtons)
-                }
-
+            Section(L("settings_review_section_page_display")) {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_card_alignment"))
                         .foregroundStyle(SettingsValueStyle.primary)
@@ -644,6 +633,38 @@ private struct ReviewOptionsView: View {
                     } label: {
                         SettingsOptionCapsuleLabel(title: cardAlignment.wrappedValue.title)
                     }
+                }
+
+                Toggle(L("settings_review_show_context_menu_button"), isOn: $showContextMenuButton)
+                Toggle(L("settings_review_show_correctness_symbols"), isOn: $showCorrectnessSymbols)
+                Toggle(L("settings_review_auto_match_card_background"), isOn: $autoMatchCardBackground)
+            }
+            .amgiSettingsListRowSurface()
+
+            Section(L("settings_review_section_answer_buttons")) {
+                Toggle(L("settings_review_show_answer_buttons"), isOn: $showAnswerButtons)
+                Toggle(L("settings_review_disperse_answer_buttons"), isOn: $disperseAnswerButtons)
+                Toggle(L("settings_review_hide_hard_and_easy_buttons"), isOn: $hideHardAndEasyButtons)
+                Toggle(L("settings_review_show_remaining_days"), isOn: $showRemainingDays)
+                Toggle(L("settings_review_show_next_review_time"), isOn: $showNextReviewTime)
+
+                if #available(iOS 26.0, *) {
+                    Toggle(L("settings_review_glass_answer_buttons"), isOn: $glassAnswerButtons)
+                }
+            }
+            .amgiSettingsListRowSurface()
+
+            Section(L("settings_review_section_lookup_and_links")) {
+                Toggle(L("settings_review_open_links_externally"), isOn: $openLinksExternally)
+                Toggle(L("settings_review_lookup_popup_enabled"), isOn: $lookupPopupEnabled)
+                if lookupPopupEnabled {
+                    Toggle(L("settings_review_lookup_popup_front_enabled"), isOn: $lookupPopupFrontEnabled)
+                    Toggle(L("settings_review_lookup_popup_back_enabled"), isOn: $lookupPopupBackEnabled)
+                }
+                NavigationLink {
+                    ReviewSelectionMenuSettingsView()
+                } label: {
+                    reviewSettingsRowLabel(L("settings_review_text_selection_menu"), icon: "text.cursor")
                 }
             }
             .amgiSettingsListRowSurface()
@@ -665,31 +686,6 @@ private struct ReviewOptionsView: View {
                     ReviewKeyboardOptionsView()
                 } label: {
                     reviewSettingsRowLabel(L("settings_review_section_keyboard"), icon: "keyboard")
-                }
-            }
-            .amgiSettingsListRowSurface()
-
-            Section(L("settings_review_section_fsrs")) {
-                if isLoadingFsrsOptions {
-                    HStack {
-                        Text(L("settings_review_loading"))
-                            .foregroundStyle(SettingsValueStyle.secondary)
-                        Spacer()
-                        ProgressView()
-                    }
-                } else {
-                    Toggle(L("settings_review_load_balancer_enabled"), isOn: $loadBalancerEnabled)
-                    Text(L("settings_review_load_balancer_enabled_hint"))
-                        .amgiFont(.caption)
-                        .foregroundStyle(SettingsValueStyle.secondary)
-
-                    Toggle(
-                        L("settings_review_fsrs_short_term_with_steps_enabled"),
-                        isOn: $fsrsShortTermWithStepsEnabled
-                    )
-                    Text(L("settings_review_fsrs_short_term_with_steps_enabled_hint"))
-                        .amgiFont(.caption)
-                        .foregroundStyle(SettingsValueStyle.secondary)
                 }
             }
             .amgiSettingsListRowSurface()

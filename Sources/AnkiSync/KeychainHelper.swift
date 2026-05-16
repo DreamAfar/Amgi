@@ -119,12 +119,24 @@ public enum KeychainHelper: Sendable {
         try save(account: scopedAccount(reviewSelectionAIAPIKeyAccountBase), value: key)
     }
 
+    public static func saveReviewSelectionAIAPIKey(_ key: String, identifier: String) throws {
+        try save(account: scopedAccount("\(reviewSelectionAIAPIKeyAccountBase).\(identifier)"), value: key)
+    }
+
     public static func loadReviewSelectionAIAPIKey() -> String? {
         load(account: scopedAccount(reviewSelectionAIAPIKeyAccountBase))
     }
 
+    public static func loadReviewSelectionAIAPIKey(identifier: String) -> String? {
+        load(account: scopedAccount("\(reviewSelectionAIAPIKeyAccountBase).\(identifier)"))
+    }
+
     public static func deleteReviewSelectionAIAPIKey() {
         delete(account: scopedAccount(reviewSelectionAIAPIKeyAccountBase))
+    }
+
+    public static func deleteReviewSelectionAIAPIKey(identifier: String) {
+        delete(account: scopedAccount("\(reviewSelectionAIAPIKeyAccountBase).\(identifier)"))
     }
 
     public static func deleteAllSyncCredentials() {

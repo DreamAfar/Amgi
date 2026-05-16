@@ -79,7 +79,6 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.lookupPopupBackEnabled) private var prefLookupPopupBackEnabled = true
     @AppStorage(ReviewPreferences.Keys.selectionMenuLookupEnabled) private var prefSelectionMenuLookupEnabled = false
     @AppStorage(ReviewPreferences.Keys.selectionMenuAIEnabled) private var prefSelectionMenuAIEnabled = false
-    @AppStorage(ReviewPreferences.Keys.selectionMenuLookupTemplate) private var prefSelectionMenuLookupTemplate = ""
     @AppStorage(ReviewPreferences.Keys.cardContentAlignment) private var prefCardContentAlignmentRaw = CardWebView.ContentAlignment.top.rawValue
     @AppStorage(ReviewPreferences.Keys.glassAnswerButtons) private var prefGlassAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.autoMatchCardBackground) private var prefAutoMatchCardBackground = true
@@ -783,6 +782,7 @@ struct ReviewView: View {
     private func handleCardLookup(_ selection: String?, sentence: String?, at point: CGPoint) {
         guard isLookupPopupEnabledForCurrentSide,
               let query = normalizedLookupText(selection) else {
+            handleCardGesture("tapBlank")
             return
         }
         startCardLookup(for: query, sentence: sentence, anchor: point)
@@ -802,7 +802,12 @@ struct ReviewView: View {
 
     private func openSelectionLookup(for selection: String) {
         guard prefSelectionMenuLookupEnabled else { return }
-        guard let url = ReviewSelectionURLBuilder.resolve(template: prefSelectionMenuLookupTemplate, selection: selection) else {
+        let preset = ReviewSelectionLookupPresetStore.load().activePreset
+        guard let url = ReviewSelectionURLBuilder.resolve(
+            template: preset.template,
+            selection: selection,
+            shouldEncodeSelection: preset.encodeSelection
+        ) else {
             toolbarErrorMessage = L("review_selection_lookup_invalid_template")
             showToolbarError = true
             return
