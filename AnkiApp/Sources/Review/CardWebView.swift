@@ -2957,7 +2957,7 @@ struct CardWebView: UIViewRepresentable {
                 insertedActions.append(aiAction)
             }
 
-            let insertionIndex = min(2, remainingActions.count)
+            let insertionIndex = min(1, remainingActions.count)
             remainingActions.insert(contentsOf: insertedActions, at: insertionIndex)
             return UIMenu(children: remainingActions)
         }
