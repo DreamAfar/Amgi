@@ -250,13 +250,13 @@ struct HourlyChart: View {
 
     @AxisContentBuilder
     private func hourlyChartXAxis() -> some AxisContent {
-        AxisMarks(values: Array(0...23)) { value in
+        AxisMarks(values: Array(stride(from: 0, through: 22, by: 2))) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 .foregroundStyle(Color.amgiTextTertiary.opacity(0.2))
             if let hourValue = value.as(Int.self) {
                 AxisValueLabel(formatHour(hourValue))
                     .font(AmgiFont.micro.font)
-                    .foregroundStyle(Color.amgiTextSecondary.opacity(hourValue % 2 == 0 ? 1 : 0.55))
+                    .foregroundStyle(Color.amgiTextSecondary)
             }
         }
     }
