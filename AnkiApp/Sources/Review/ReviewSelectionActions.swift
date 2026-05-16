@@ -718,6 +718,7 @@ private struct ReviewSelectionAIPresetEditorView: View {
     }
 }
 
+@MainActor
 private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: String) -> some View {
     HStack(spacing: AmgiSpacing.sm) {
         Image(systemName: icon)
