@@ -87,3 +87,77 @@ enum StatsDualAxisSupport {
         return niceFraction * pow(10, exponent)
     }
 }
+
+enum StatsFormatSupport {
+    static func count(_ value: Int) -> String {
+        StatsDualAxisSupport.formatCount(Double(value))
+    }
+
+    static func count(_ value: Double) -> String {
+        StatsDualAxisSupport.formatCount(value)
+    }
+
+    static func cards(_ value: Int) -> String {
+        L("stats_cards_with_unit_fmt", count(value))
+    }
+
+    static func cardsPerDay(_ value: Double) -> String {
+        L("stats_cards_per_day_fmt", count(value))
+    }
+
+    static func reviews(_ value: Int) -> String {
+        L("stats_reviews_with_unit_fmt", count(value))
+    }
+
+    static func reviewsPerDay(_ value: Double) -> String {
+        L("stats_reviews_per_day_fmt", count(value))
+    }
+
+    static func minutesPerDay(_ value: Double) -> String {
+        L("stats_minutes_per_day_fmt", count(value))
+    }
+
+    static func percentText(_ value: Double, digits: Int = 0) -> String {
+        if digits == 0 {
+            return String(Int(value.rounded()))
+        }
+        return String(format: "%.\(digits)f", value)
+    }
+
+    static func amountOfTotal(_ amount: Int, total: Int, digits: Int = 2) -> String {
+        let percent = total > 0 ? Double(amount) / Double(total) * 100 : 0
+        return L(
+            "stats_amount_of_total_with_percentage_fmt",
+            count(amount),
+            count(total),
+            percentText(percent, digits: digits)
+        )
+    }
+
+    static func timeShort(_ seconds: Double) -> String {
+        if seconds < 60 {
+            return "\(Int(seconds.rounded()))s"
+        }
+
+        let minutes = seconds / 60
+        if minutes < 60 {
+            return trimmedDecimal(minutes, digits: 1) + "m"
+        }
+
+        let hours = seconds / 3600
+        return trimmedDecimal(hours, digits: 1) + "h"
+    }
+
+    static func hourRange(startHour: Int, endHour: Int) -> String {
+        L("stats_hour_range_fmt", startHour, endHour)
+    }
+
+    private static func trimmedDecimal(_ value: Double, digits: Int) -> String {
+        let multiplier = pow(10.0, Double(digits))
+        let roundedValue = (value * multiplier).rounded() / multiplier
+        if roundedValue == roundedValue.rounded(.towardZero) {
+            return String(Int(roundedValue))
+        }
+        return String(format: "%.\(digits)f", roundedValue)
+    }
+}

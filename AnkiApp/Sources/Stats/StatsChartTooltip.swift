@@ -29,10 +29,28 @@ struct StatsChartTooltip: View {
 }
 
 func statsBarRangeLabel(start: Int, bucketSize: Int) -> String {
-    if bucketSize <= 1 {
-        return "\(start)"
+    let endExclusive = start + max(bucketSize, 1)
+    let larger = max(Swift.abs(start), Swift.abs(endExclusive))
+    let smaller = min(Swift.abs(start), Swift.abs(endExclusive))
+
+    if larger - smaller <= 1 {
+        if start >= 0 {
+            if start == 0 {
+                return L("common_today")
+            }
+            return L("stats_in_days_single_fmt", start)
+        } else {
+            let days = -start
+            if days == 1 {
+                return L("common_yesterday")
+            }
+            return L("stats_days_ago_single_fmt", days)
+        }
     }
 
-    let end = start + bucketSize - 1
-    return "\(start) to \(end)"
+    if start >= 0 {
+        return L("stats_in_days_range_fmt", start, endExclusive - 1)
+    } else {
+        return L("stats_days_ago_range_fmt", Swift.abs(endExclusive - 1), -start)
+    }
 }

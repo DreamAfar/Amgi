@@ -141,7 +141,7 @@ struct EaseChart: View {
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
                 Spacer()
-                Text(L("stats_ease_avg_fmt", averageEase))
+                Text(L("stats_ease_median_fmt", averageEase))
                     .amgiFont(.captionBold)
                     .foregroundStyle(Color.amgiTextSecondary)
             }
@@ -280,7 +280,7 @@ struct EaseChart: View {
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
                         title: "\(selectedItem.ease)%",
-                        lines: ["\(countLabel): \(selectedItem.count)"]
+                        lines: ["\(countLabel): \(StatsFormatSupport.cards(selectedItem.count))"]
                     )
                 }
         }

@@ -49,9 +49,7 @@ struct AddedChart: View {
         case .all:
             return min(filteredData.map(\.day).min() ?? -30, -1)
         }
-
-        let dataMin = filteredData.map(\.day).min() ?? periodMin
-        return max(periodMin, dataMin)
+        return periodMin
     }
 
     private var filteredData: [(day: Int, count: Int)] {
@@ -113,10 +111,9 @@ struct AddedChart: View {
         rightAxisTicks.map(\.plottedValue)
     }
     private var avgPerDay: Double {
-        guard !filteredData.isEmpty else { return 0 }
-        let span = filteredData.count * bucketSize
-        return Double(totalAdded) / Double(max(span, 1))
+        Double(totalAdded) / Double(periodDayCount)
     }
+    private var periodDayCount: Int { max(Swift.abs(xAxisMin) + 1, 1) }
     private var selectedPoint: CumulativePoint? {
         guard let selectedDay else { return nil }
         return cumulativePoints.first(where: { $0.day == selectedDay })
@@ -163,8 +160,8 @@ struct AddedChart: View {
             }
 
             HStack(spacing: AmgiSpacing.lg) {
-                footerItem(L("stats_total"), value: "\(totalAdded)")
-                footerItem(L("stats_avg_day"), value: String(format: "%.1f", avgPerDay))
+                footerItem(L("stats_total"), value: StatsFormatSupport.cards(totalAdded))
+                footerItem(L("stats_avg_day"), value: StatsFormatSupport.cardsPerDay(avgPerDay))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -245,8 +242,8 @@ struct AddedChart: View {
                     StatsChartTooltip(
                         title: statsBarRangeLabel(start: selectedBar.day, bucketSize: bucketSize),
                         lines: [
-                            "\(countLabel): \(selectedBar.count)",
-                            "\(cumulativeLabel): \(selectedPoint.cumulative)"
+                            "\(countLabel): \(StatsFormatSupport.cards(selectedBar.count))",
+                            "\(cumulativeLabel): \(StatsFormatSupport.cards(selectedPoint.cumulative))"
                         ]
                     )
                 }

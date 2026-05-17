@@ -187,7 +187,7 @@ struct HourlyChart: View {
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
-                        title: "\(selectedEntry.hour)-\(selectedEntry.hour + 1)",
+                        title: StatsFormatSupport.hourRange(startHour: selectedEntry.hour, endHour: selectedEntry.hour + 1),
                         lines: hourlyTooltipLines(for: selectedEntry)
                     )
                 }
@@ -195,12 +195,10 @@ struct HourlyChart: View {
     }
 
     private func hourlyTooltipLines(for entry: HourEntry) -> [String] {
-        let reviewsLabel = L("stats_hourly_reviews")
-        let correctLabel = L("stats_hourly_correct_pct")
-        let correctText = String(format: "%.1f%%", entry.correctPct)
+        let correctText = StatsFormatSupport.percentText(entry.correctPct)
         return [
-            "\(reviewsLabel): \(entry.total)",
-            "\(correctLabel): \(correctText) (\(entry.correct)/\(entry.total))"
+            StatsFormatSupport.reviews(entry.total),
+            L("stats_hourly_correct_reviews_fmt", correctText, StatsFormatSupport.count(entry.correct))
         ]
     }
 

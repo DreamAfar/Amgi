@@ -50,13 +50,13 @@ struct TodayStatsCard: View {
                 }
                 Divider()
                 HStack {
-                    statBadge(L("stats_card_new"), count: today.learnCount, color: .cyan)
-                    Spacer()
-                    statBadge(L("stats_card_learn"), count: today.relearnCount, color: .orange)
+                    statBadge(L("stats_card_learn"), count: today.learnCount, color: .cyan)
                     Spacer()
                     statBadge(L("stats_card_review"), count: today.reviewCount, color: .green)
                     Spacer()
-                    statBadge(L("stats_card_again"), count: today.answerCount - today.correctCount, color: .red)
+                    statBadge(L("stats_card_relearning"), count: today.relearnCount, color: .orange)
+                    Spacer()
+                    statBadge(L("stats_review_filtered"), count: today.earlyReviewCount, color: .gray)
                 }
             }
         }
@@ -99,10 +99,6 @@ struct TodayStatsCard: View {
     }
 
     private func formatTime(_ ms: UInt32) -> String {
-        let seconds = ms / 1000
-        if seconds < 60 { return "\(seconds)s" }
-        let minutes = seconds / 60
-        if minutes < 60 { return "\(minutes)m" }
-        return "\(minutes / 60)h \(minutes % 60)m"
+        StatsFormatSupport.timeShort(Double(ms) / 1000)
     }
 }

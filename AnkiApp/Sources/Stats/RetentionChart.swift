@@ -115,7 +115,7 @@ struct RetentionChart: View {
     }
 
     private func retentionBadge(_ rate: Double) -> some View {
-        Text(rate >= 0 ? "\(Int((rate * 100).rounded()))%" : "---")
+        Text(rate >= 0 ? "\(StatsFormatSupport.percentText(rate * 100, digits: 1))%" : "---")
             .font(AmgiFont.captionBold.font.monospacedDigit())
             .foregroundStyle(retentionColor(rate))
     }

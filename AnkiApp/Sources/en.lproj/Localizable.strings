@@ -1303,6 +1303,7 @@
 "stats_ease_empty" = "No data available";
 "stats_ease_avg" = "Avg";
 "stats_ease_avg_fmt" = "Avg: %@";
+"stats_ease_median_fmt" = "Median: %@";
 "stats_difficulty_title" = "Card Difficulty";
 "stats_difficulty_subtitle" = "The higher the difficulty, the slower stability will increase.";
 "stats_forecast_title" = "Forecast";
@@ -1326,8 +1327,19 @@
 "stats_reviews_show_time" = "Time";
 "stats_reviews_cumulative" = "Cumulative";
 "stats_study_days" = "Study Days";
+"stats_study_days_ratio_fmt" = "%d/%d (%.2f%%)";
 "stats_avg_day_all" = "Avg (all days)";
 "stats_avg_day_studied" = "Avg (study days)";
+"stats_cards_with_unit_fmt" = "%@ cards";
+"stats_cards_per_day_fmt" = "%@ cards/day";
+"stats_reviews_with_unit_fmt" = "%@ reviews";
+"stats_reviews_per_day_fmt" = "%@ reviews/day";
+"stats_minutes_per_day_fmt" = "%@ minutes/day";
+"stats_amount_of_total_with_percentage_fmt" = "%@/%@ (%@%%)";
+"stats_days_ago_single_fmt" = "%d days ago";
+"stats_days_ago_range_fmt" = "%d-%d days ago";
+"stats_in_days_single_fmt" = "In %d days";
+"stats_in_days_range_fmt" = "In %d-%d days";
 "stats_retention_title" = "Retention";
 "stats_retention_subtitle" = "Pass rate of cards with an interval ≥ 1 day.";
 "stats_retention_period" = "Period";
@@ -1353,6 +1365,10 @@
 "stats_retrievability_title" = "Card Retrievability";
 "stats_retrievability_subtitle" = "The probability that you will remember a card today.";
 "stats_retrievability_empty" = "No data available";
+"stats_retrievability_average" = "Average Retrievability";
+"stats_retrievability_average_fmt" = "Average: %@";
+"stats_retrievability_knowledge" = "Estimated Knowledge";
+"stats_retrievability_knowledge_fmt" = "%@ cards / %@ notes";
 "stats_chart_order_button" = "Chart Order";
 "stats_chart_order_title" = "Reorder charts";
 "stats_chart_order_reset" = "Reset";
@@ -1362,6 +1378,8 @@
 "stats_hourly_empty" = "No data available";
 "stats_hourly_reviews" = "Reviews";
 "stats_hourly_correct_pct" = "Correct %";
+"stats_hour_range_fmt" = "%d:00-%d:00";
+"stats_hourly_correct_reviews_fmt" = "Correct %@%% (%@ reviews)";
 "stats_period_day" = "Day";
 "stats_period_week" = "Week";
 "stats_period_3months" = "3 Months";
@@ -1382,6 +1400,9 @@
 "stats_review_learn" = "Learn";
 "stats_review_relearn" = "Relearn";
 "stats_review_filtered" = "Filtered";
+"stats_button_number_fmt" = "Button: %d (%@)";
+"stats_button_times_pressed_fmt" = "Times pressed: %@ (%@%%)";
+"stats_button_correct_fmt" = "%@/%@ correct (%@%%)";
 
 // MARK: - Stats Heatmap Optimization
 "stats_range_month" = "Month";

@@ -37,6 +37,14 @@ struct RetrievabilityChart: View {
         return String(format: "%.0f%%", retrievability.average)
     }
 
+    private var estimatedKnowledgeLabel: String {
+        L(
+            "stats_retrievability_knowledge_fmt",
+            StatsFormatSupport.count(Int(retrievability.sumByCard.rounded())),
+            StatsFormatSupport.count(Int(retrievability.sumByNote.rounded()))
+        )
+    }
+
     private var selectedBucket: Bucket? {
         guard let selectedBucketStart else { return nil }
         return chartData.first(where: { $0.start == selectedBucketStart })
@@ -74,7 +82,7 @@ struct RetrievabilityChart: View {
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
                 Spacer()
-                Text(L("stats_ease_avg_fmt", averageLabel))
+                Text(L("stats_retrievability_average_fmt", averageLabel))
                     .amgiFont(.captionBold)
                     .foregroundStyle(Color.amgiTextSecondary)
             }
@@ -86,6 +94,11 @@ struct RetrievabilityChart: View {
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 retrievabilityChart
+
+                HStack(spacing: 0) {
+                    footerItem(L("stats_retrievability_average"), value: averageLabel)
+                    footerItem(L("stats_retrievability_knowledge"), value: estimatedKnowledgeLabel)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -136,7 +149,7 @@ struct RetrievabilityChart: View {
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
                         title: selectedBucket.label,
-                        lines: ["\(countLabel): \(selectedBucket.count)"]
+                        lines: ["\(countLabel): \(StatsFormatSupport.cards(selectedBucket.count))"]
                     )
                 }
         }
@@ -220,5 +233,18 @@ struct RetrievabilityChart: View {
     private func bucketColor(for center: Double) -> Color {
         let progress = min(max(center / 100.0, 0), 1)
         return Color(hue: 0.02 + (0.30 * progress), saturation: 0.72, brightness: 0.9)
+    }
+
+    private func footerItem(_ label: String, value: String) -> some View {
+        VStack(spacing: AmgiSpacing.xxs) {
+            Text(value)
+                .amgiFont(.captionBold)
+                .monospacedDigit()
+                .foregroundStyle(Color.amgiTextPrimary)
+            Text(label)
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }

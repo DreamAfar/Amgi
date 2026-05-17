@@ -85,12 +85,18 @@ struct ButtonsChart: View {
             .reduce(0) { $0 + $1.count }
     }
 
-    private func correctPercentForType(_ typeIndex: Int) -> Double {
+    private func correctCountsForType(_ typeIndex: Int) -> (correct: Int, total: Int) {
         let typeEntries = entries.filter { $0.typeIndex == typeIndex }
         let total = typeEntries.reduce(0) { $0 + $1.count }
-        guard total > 0 else { return 0 }
         let correct = typeEntries.filter { $0.buttonIndex > 0 }.reduce(0) { $0 + $1.count }
-        return Double(correct) / Double(total) * 100
+        return (correct, total)
+    }
+
+    private func correctPercentForType(_ typeIndex: Int) -> Double {
+        let counts = correctCountsForType(typeIndex)
+        let total = counts.total
+        guard total > 0 else { return 0 }
+        return Double(counts.correct) / Double(total) * 100
     }
 
     var body: some View {
@@ -189,20 +195,25 @@ struct ButtonsChart: View {
     }
 
     private func tooltipTitle(for entry: ButtonEntry) -> String {
-        "\(entry.button) • \(entry.cardType)"
+        entry.cardType
     }
 
     private func tooltipLines(for entry: ButtonEntry) -> [String] {
-        let countLabel = L("stats_card_count")
-        let correctLabel = L("stats_today_correct")
-        let correctText = String(format: "%.1f%%", correctPercentForType(entry.typeIndex))
         let total = totalForType(entry.typeIndex)
         let share = total > 0 ? Double(entry.count) / Double(total) * 100 : 0
-        let shareText = String(format: "%.1f%%", share)
+        let shareText = StatsFormatSupport.percentText(share)
+        let correctCounts = correctCountsForType(entry.typeIndex)
+        let correctText = StatsFormatSupport.percentText(correctPercentForType(entry.typeIndex))
 
         return [
-            "\(countLabel): \(entry.count) (\(shareText))",
-            "\(correctLabel): \(correctText)"
+            L("stats_button_number_fmt", entry.buttonIndex + 1, entry.button),
+            L("stats_button_times_pressed_fmt", StatsFormatSupport.count(entry.count), shareText),
+            L(
+                "stats_button_correct_fmt",
+                StatsFormatSupport.count(correctCounts.correct),
+                StatsFormatSupport.count(correctCounts.total),
+                correctText
+            )
         ]
     }
 

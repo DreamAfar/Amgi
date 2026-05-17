@@ -9,6 +9,8 @@ struct ReviewsChart: View {
     @State private var showTime = false
     @State private var selectedBucket: Int?
 
+    private typealias ReviewValue = Anki_Stats_GraphsResponse.ReviewCountsAndTimes.Reviews
+
     private struct ReviewEntry: Identifiable {
         let id = UUID()
         let bucket: Int   // representative day offset (negative)
@@ -22,6 +24,12 @@ struct ReviewsChart: View {
         let id: Int
         let bucket: Int
         let cumulative: Int
+    }
+
+    private struct FooterMetric: Identifiable {
+        let id = UUID()
+        let label: String
+        let value: String
     }
 
     private static let typeInfo: [(String, Color)] = [
@@ -42,14 +50,19 @@ struct ReviewsChart: View {
         return max(1, days / 70)
     }
 
+    private var filteredCountRows: [(Int, ReviewValue)] {
+        filteredRows(from: reviews.count)
+    }
+
+    private var filteredTimeRows: [(Int, ReviewValue)] {
+        filteredRows(from: reviews.time)
+    }
+
     private var entries: [ReviewEntry] {
-        let maxDay = period.days
         let bkt = bucketSize
-        let sourceMap = showTime ? reviews.time : reviews.count
+        let sourceRows = showTime ? filteredTimeRows : filteredCountRows
         var bucketTotals: [Int: [Int: Int]] = [:]
-        for (dayOffset, rev) in sourceMap {
-            let day = Int(dayOffset)
-            guard day <= 0, Swift.abs(day) <= maxDay else { continue }
+        for (day, rev) in sourceRows {
             let bucket = bkt == 1 ? day : -((-day) / bkt * bkt)
             for (idx, kp) in Self.valueKeys.enumerated() {
                 let rawValue = Int(rev[keyPath: kp])
@@ -107,7 +120,7 @@ struct ReviewsChart: View {
             plottedMax: leftAxisMax,
             formatter: { value in
                 if showTime {
-                    return formatTime(Int(value.rounded()))
+                    return formatTime(value)
                 } else {
                     return StatsDualAxisSupport.formatCount(value)
                 }
@@ -120,7 +133,7 @@ struct ReviewsChart: View {
             plottedMax: leftAxisMax,
             formatter: { value in
                 if showTime {
-                    return formatTime(Int(value.rounded()))
+                    return formatTime(value)
                 } else {
                     return StatsDualAxisSupport.formatCount(value)
                 }
@@ -133,16 +146,21 @@ struct ReviewsChart: View {
     private var rightAxisValues: [Double] {
         rightAxisTicks.map(\.plottedValue)
     }
-    private var uniqueStudyDays: Int { Set(entries.map(\.bucket)).count }
-
-    private var avgAllDays: Double {
-        let span = max(period.days, 1)
-        return Double(totalValue) / Double(span)
+    private var uniqueStudyDays: Int { filteredCountRows.count }
+    private var periodDayCount: Int { max(-xAxisMin + 1, 1) }
+    private var studiedPercent: Double {
+        guard periodDayCount > 0 else { return 0 }
+        return Double(uniqueStudyDays) / Double(periodDayCount) * 100
     }
-
-    private var avgStudyDays: Double {
-        guard uniqueStudyDays > 0 else { return 0 }
-        return Double(totalValue) / Double(uniqueStudyDays)
+    private var totalReviewCount: Int {
+        filteredCountRows.reduce(0) { partialResult, item in
+            partialResult + reviewCountTotal(item.1)
+        }
+    }
+    private var totalSeconds: Double {
+        filteredTimeRows.reduce(0) { partialResult, item in
+            partialResult + reviewTimeSeconds(item.1)
+        }
     }
 
     private var barWidth: MarkDimension {
@@ -191,11 +209,10 @@ struct ReviewsChart: View {
         case .year:
             periodMin = -364
         case .all:
-            return min(entries.map(\ .bucket).min() ?? -30, -1)
+            return min(entries.map(\.bucket).min() ?? -30, -1)
         }
 
-        let dataMin = entries.map(\.bucket).min() ?? periodMin
-        return max(periodMin, dataMin)
+        return periodMin
     }
 
     private var xAxisDesiredTickCount: Int {
@@ -255,14 +272,10 @@ struct ReviewsChart: View {
                 reviewChart
             }
 
-            // Footer stats
             HStack(spacing: 0) {
-                footerItem(L("stats_study_days"), value: "\(uniqueStudyDays)")
-                footerItem(L("stats_total"), value: showTime ? formatTime(totalValue) : "\(totalValue)")
-                let avgAllStr = showTime ? formatTime(Int(avgAllDays)) : String(format: "%.1f", avgAllDays)
-                let avgStudyStr = showTime ? formatTime(Int(avgStudyDays)) : String(format: "%.1f", avgStudyDays)
-                footerItem(L("stats_avg_day_all"), value: avgAllStr)
-                footerItem(L("stats_avg_day_studied"), value: avgStudyStr)
+                ForEach(footerMetrics) { metric in
+                    footerItem(metric.label, value: metric.value)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -356,16 +369,27 @@ struct ReviewsChart: View {
 
     private func reviewTooltipLines(selectedCumulativePoint: CumulativePoint) -> [String] {
         let cumulativeLabel = L("stats_reviews_cumulative")
-        let reviewLines = selectedBucketEntries.map { entry in
+        var valuesByType: [Int: Int] = [:]
+        for entry in selectedBucketEntries {
+            valuesByType[entry.typeIndex] = entry.value
+        }
+        let tooltipOrder = [4, 0, 1, 2, 3]
+        let dayTotal = selectedBucketEntries.reduce(0) { $0 + $1.value }
+        let totalLine = showTime
+            ? formatTime(Double(dayTotal))
+            : formatReviewCount(dayTotal)
+        let reviewLines = tooltipOrder.map { typeIndex in
+            let typeName = Self.typeInfo[typeIndex].0
+            let value = valuesByType[typeIndex] ?? 0
             if showTime {
-                return "\(entry.type): \(formatTime(entry.value))"
+                return "\(typeName): \(formatTime(Double(value)))"
             }
-            return "\(entry.type): \(entry.value)"
+            return "\(typeName): \(formatReviewCount(value))"
         }
         let cumulativeLine = showTime
-            ? "\(cumulativeLabel): \(formatTime(selectedCumulativePoint.cumulative))"
-            : "\(cumulativeLabel): \(selectedCumulativePoint.cumulative)"
-        return reviewLines + [cumulativeLine]
+            ? "\(cumulativeLabel): \(formatTime(Double(selectedCumulativePoint.cumulative)))"
+            : "\(cumulativeLabel): \(formatReviewCount(selectedCumulativePoint.cumulative))"
+        return [totalLine] + reviewLines + [cumulativeLine]
     }
 
     @ViewBuilder
@@ -469,9 +493,89 @@ struct ReviewsChart: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func formatTime(_ seconds: Int) -> String {
-        if seconds < 60 { return "\(seconds)s" }
-        if seconds < 3600 { return "\(seconds / 60)m" }
-        return String(format: "%.1fh", Double(seconds) / 3600)
+    private var footerMetrics: [FooterMetric] {
+        var metrics: [FooterMetric] = [
+            FooterMetric(
+                label: L("stats_study_days"),
+                value: L("stats_study_days_ratio_fmt", uniqueStudyDays, periodDayCount, studiedPercent)
+            ),
+            FooterMetric(
+                label: L("stats_total"),
+                value: showTime ? formatTime(totalSeconds) : formatReviewCount(totalReviewCount)
+            ),
+            FooterMetric(
+                label: L("stats_avg_day_all"),
+                value: showTime
+                    ? formatMinutesPerDay(totalSeconds / Double(periodDayCount) / 60)
+                    : formatReviewsPerDay(Double(totalReviewCount) / Double(periodDayCount))
+            )
+        ]
+
+        if studiedPercent < 100, uniqueStudyDays > 0 {
+            metrics.append(
+                FooterMetric(
+                    label: L("stats_avg_day_studied"),
+                    value: showTime
+                        ? formatMinutesPerDay(totalSeconds / Double(uniqueStudyDays) / 60)
+                        : formatReviewsPerDay(Double(totalReviewCount) / Double(uniqueStudyDays))
+                )
+            )
+        }
+
+        return metrics
+    }
+
+    private func filteredRows(from sourceMap: [Int32: ReviewValue]) -> [(Int, ReviewValue)] {
+        sourceMap.compactMap { dayOffset, reviewValue in
+            let day = Int(dayOffset)
+            guard isDayInSelectedPeriod(day) else { return nil }
+            return (day, reviewValue)
+        }
+    }
+
+    private func isDayInSelectedPeriod(_ day: Int) -> Bool {
+        guard day <= 0 else { return false }
+        switch period {
+        case .day:
+            return day >= -1
+        case .week:
+            return day >= -6
+        case .month:
+            return day >= -30
+        case .threeMonths:
+            return day >= -89
+        case .year:
+            return day >= -364
+        case .all:
+            return true
+        }
+    }
+
+    private func reviewCountTotal(_ reviewValue: ReviewValue) -> Int {
+        Self.valueKeys.reduce(0) { partialResult, keyPath in
+            partialResult + Int(reviewValue[keyPath: keyPath])
+        }
+    }
+
+    private func reviewTimeSeconds(_ reviewValue: ReviewValue) -> Double {
+        Self.valueKeys.reduce(0.0) { partialResult, keyPath in
+            partialResult + (Double(reviewValue[keyPath: keyPath]) / 1000)
+        }
+    }
+
+    private func formatReviewCount(_ count: Int) -> String {
+        StatsFormatSupport.reviews(count)
+    }
+
+    private func formatReviewsPerDay(_ count: Double) -> String {
+        StatsFormatSupport.reviewsPerDay(count)
+    }
+
+    private func formatMinutesPerDay(_ minutes: Double) -> String {
+        StatsFormatSupport.minutesPerDay(minutes)
+    }
+
+    private func formatTime(_ seconds: Double) -> String {
+        StatsFormatSupport.timeShort(seconds)
     }
 }

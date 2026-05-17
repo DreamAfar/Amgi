@@ -1305,6 +1305,7 @@
 "stats_ease_empty" = "データなし";
 "stats_ease_avg" = "平均";
 "stats_ease_avg_fmt" = "平均：%@";
+"stats_ease_median_fmt" = "中央値：%@";
 "stats_difficulty_title" = "カードの難度";
 "stats_difficulty_subtitle" = "難度が高いほど、安定度が上がりにくくなります";
 "stats_forecast_title" = "予測";
@@ -1328,8 +1329,19 @@
 "stats_reviews_show_time" = "時間";
 "stats_reviews_cumulative" = "累積";
 "stats_study_days" = "学習日数";
+"stats_study_days_ratio_fmt" = "%d/%d (%.2f%%)";
 "stats_avg_day_all" = "日平均（全日）";
 "stats_avg_day_studied" = "日平均（学習日）";
+"stats_cards_with_unit_fmt" = "%@枚";
+"stats_cards_per_day_fmt" = "%@枚/日";
+"stats_reviews_with_unit_fmt" = "%@回の復習";
+"stats_reviews_per_day_fmt" = "%@回/日";
+"stats_minutes_per_day_fmt" = "%@分/日";
+"stats_amount_of_total_with_percentage_fmt" = "%@/%@ (%@%%)";
+"stats_days_ago_single_fmt" = "%d日前";
+"stats_days_ago_range_fmt" = "%d-%d日前";
+"stats_in_days_single_fmt" = "%d日後";
+"stats_in_days_range_fmt" = "%d-%d日後";
 "stats_retention_title" = "正答率";
 "stats_retention_subtitle" = "間隔が1日以上のカードの、これまでの学習での正答率";
 "stats_retention_period" = "期間";
@@ -1355,6 +1367,10 @@
 "stats_retrievability_title" = "カードの想起可能性";
 "stats_retrievability_subtitle" = "今日そのカードを思い出せる確率。";
 "stats_retrievability_empty" = "データなし";
+"stats_retrievability_average" = "平均想起可能性";
+"stats_retrievability_average_fmt" = "平均：%@";
+"stats_retrievability_knowledge" = "推定習得総量";
+"stats_retrievability_knowledge_fmt" = "%@枚のカード / %@件のノート";
 "stats_chart_order_button" = "グラフ順序";
 "stats_chart_order_title" = "グラフの並び替え";
 "stats_chart_order_reset" = "リセット";
@@ -1364,6 +1380,8 @@
 "stats_hourly_empty" = "データなし";
 "stats_hourly_reviews" = "復習回数";
 "stats_hourly_correct_pct" = "正解率";
+"stats_hour_range_fmt" = "%d時〜%d時";
+"stats_hourly_correct_reviews_fmt" = "正答率 %@%%（%@回）";
 "stats_period_day" = "日";
 "stats_period_week" = "週";
 "stats_period_3months" = "3ヶ月";
@@ -1384,6 +1402,9 @@
 "stats_review_learn" = "学習";
 "stats_review_relearn" = "再学";
 "stats_review_filtered" = "フィルター";
+"stats_button_number_fmt" = "ボタン: %d（%@）";
+"stats_button_times_pressed_fmt" = "押下回数: %@（%@%%）";
+"stats_button_correct_fmt" = "正解: %@/%@（%@%%）";
 
 // MARK: - Stats Heatmap Optimization
 "stats_range_month" = "1か月";

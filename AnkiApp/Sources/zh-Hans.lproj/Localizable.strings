@@ -1303,6 +1303,7 @@
 "stats_ease_empty" = "暂无数据";
 "stats_ease_avg" = "平均";
 "stats_ease_avg_fmt" = "平均：%@";
+"stats_ease_median_fmt" = "中位数：%@";
 "stats_difficulty_title" = "卡片难度";
 "stats_difficulty_subtitle" = "卡片难度越高，记忆稳定期提升越慢。";
 "stats_forecast_title" = "到期预测";
@@ -1326,8 +1327,19 @@
 "stats_reviews_show_time" = "用时";
 "stats_reviews_cumulative" = "累计";
 "stats_study_days" = "学习天数";
+"stats_study_days_ratio_fmt" = "%d/%d (%.2f%%)";
 "stats_avg_day_all" = "日均（所有）";
 "stats_avg_day_studied" = "日均（学习日）";
+"stats_cards_with_unit_fmt" = "%@ 张";
+"stats_cards_per_day_fmt" = "%@ 张/天";
+"stats_reviews_with_unit_fmt" = "%@ 次复习";
+"stats_reviews_per_day_fmt" = "%@ 次复习/天";
+"stats_minutes_per_day_fmt" = "%@ 分钟/天";
+"stats_amount_of_total_with_percentage_fmt" = "%@/%@ (%@%%)";
+"stats_days_ago_single_fmt" = "%d 天前";
+"stats_days_ago_range_fmt" = "%d-%d 天前";
+"stats_in_days_single_fmt" = "%d 天后";
+"stats_in_days_range_fmt" = "%d-%d 天后";
 "stats_retention_title" = "记忆保留率";
 "stats_retention_subtitle" = "间隔大于 1 天的卡片的通过率";
 "stats_retention_period" = "范围";
@@ -1353,6 +1365,10 @@
 "stats_retrievability_title" = "卡片记忆可提取性";
 "stats_retrievability_subtitle" = "您能够成功回忆卡片内容的概率。";
 "stats_retrievability_empty" = "暂无数据";
+"stats_retrievability_average" = "平均记忆可提取性";
+"stats_retrievability_average_fmt" = "平均：%@";
+"stats_retrievability_knowledge" = "预估习得总数";
+"stats_retrievability_knowledge_fmt" = "%@ 张卡片 / %@ 条笔记";
 "stats_chart_order_button" = "图表排序";
 "stats_chart_order_title" = "调整图表顺序";
 "stats_chart_order_reset" = "重置";
@@ -1362,6 +1378,8 @@
 "stats_hourly_empty" = "暂无数据";
 "stats_hourly_reviews" = "复习次数";
 "stats_hourly_correct_pct" = "正确率";
+"stats_hour_range_fmt" = "%d 时~%d 时";
+"stats_hourly_correct_reviews_fmt" = "正确率 %@%%（%@ 次）";
 "stats_period_day" = "日";
 "stats_period_week" = "周";
 "stats_period_3months" = "3 个月";
@@ -1382,6 +1400,9 @@
 "stats_review_learn" = "学习";
 "stats_review_relearn" = "重新学习";
 "stats_review_filtered" = "已筛选";
+"stats_button_number_fmt" = "按钮：%d（%@）";
+"stats_button_times_pressed_fmt" = "按键次数：%@（%@%%）";
+"stats_button_correct_fmt" = "正确：%@/%@（%@%%）";
 
 // MARK: - Stats Heatmap Optimization
 "stats_range_month" = "月";

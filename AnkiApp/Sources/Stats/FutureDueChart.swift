@@ -83,32 +83,19 @@ struct FutureDueChart: View {
     }
 
     private var xAxisUpperBound: Int {
-        if includeBacklog {
-            switch period {
-            case .month:
-                return 0
-            case .threeMonths, .year:
-                return 400
-            case .all:
-                return max(roundedUp(rawMaxDay, step: 100), 0)
-            case .day, .week:
-                return 0
-            }
-        }
-
         switch period {
         case .month:
-            return 30
+            return includeBacklog ? 0 : 31
         case .threeMonths:
-            return 90
+            return includeBacklog ? 90 : 90
         case .year:
-            return 400
+            return includeBacklog ? 365 : 365
         case .all:
-            return max(roundedUp(rawMaxDay, step: 500), 500)
+            return max(rawMaxDay, includeBacklog ? 0 : 1)
         case .day:
-            return 1
+            return includeBacklog ? 0 : 1
         case .week:
-            return 7
+            return includeBacklog ? 0 : 7
         }
     }
 
@@ -226,12 +213,12 @@ struct FutureDueChart: View {
     private func axisLabel(for raw: Double, in ticks: [StatsAxisTick]) -> String {
         StatsDualAxisSupport.label(for: raw, in: ticks)
     }
-    private var dueTomorrow: Int { filteredData.first(where: { $0.day == 1 })?.count ?? 0 }
+    private var dueTomorrow: Int { Int(futureDue.futureDue[Int32(1)] ?? 0) }
     private var avgPerDay: Double {
-        let positiveDays = filteredData.filter { $0.day >= 0 }
-        guard !positiveDays.isEmpty else { return 0 }
-        let maxOffset = positiveDays.map(\.day).max() ?? 1
-        return Double(positiveDays.reduce(0) { $0 + $1.count }) / Double(max(maxOffset, 1))
+        Double(totalDue) / Double(periodDayCount)
+    }
+    private var periodDayCount: Int {
+        max(xAxisUpperBound - xAxisLowerBound, 1)
     }
 
     private var barWidth: MarkDimension {
@@ -319,10 +306,10 @@ struct FutureDueChart: View {
             }
 
             HStack(spacing: 0) {
-                footerItem(L("stats_total"), value: "\(totalDue)")
-                footerItem(L("stats_avg_day"), value: String(format: "%.1f", avgPerDay))
-                footerItem(L("stats_future_due_tomorrow"), value: "\(dueTomorrow)")
-                footerItem(L("stats_future_due_daily_load"), value: "\(futureDue.dailyLoad)")
+                footerItem(L("stats_total"), value: StatsFormatSupport.reviews(totalDue))
+                footerItem(L("stats_avg_day"), value: StatsFormatSupport.reviewsPerDay(avgPerDay))
+                footerItem(L("stats_future_due_tomorrow"), value: StatsFormatSupport.reviews(dueTomorrow))
+                footerItem(L("stats_future_due_daily_load"), value: StatsFormatSupport.reviewsPerDay(Double(futureDue.dailyLoad)))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -361,7 +348,7 @@ struct FutureDueChart: View {
                 y: .value("Cards", item.count),
                 width: barWidth
             )
-            .foregroundStyle(item.endDay < 0 ? Color.red.gradient : Color.blue.gradient)
+            .foregroundStyle(Color.green.gradient)
         }
     }
 
@@ -403,8 +390,8 @@ struct FutureDueChart: View {
                             bucketSize: selectedItem.endDay - selectedItem.startDay + 1
                         ),
                         lines: [
-                            "\(countLabel): \(selectedItem.count)",
-                            "\(cumulativeLabel): \(selectedPoint.cumulative)"
+                            "\(countLabel): \(StatsFormatSupport.cards(selectedItem.count))",
+                            "\(cumulativeLabel): \(StatsDualAxisSupport.formatCount(Double(selectedPoint.cumulative)))"
                         ]
                     )
                 }

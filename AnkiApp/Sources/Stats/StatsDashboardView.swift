@@ -208,7 +208,7 @@ struct StatsDashboardView: View {
             if let deck = selectedDeck {
                 search = "deck:\"\(deck.name)\""
             } else {
-                search = "deck:*"
+                search = ""
             }
             let client = statsClient
             let days = revlogRange.requestDays
