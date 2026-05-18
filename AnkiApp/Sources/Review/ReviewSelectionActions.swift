@@ -998,9 +998,11 @@ private struct ReviewAIQuickActionEditorView: View {
             }
             .amgiSettingsListRowSurface()
 
-            Section(L("settings_review_ai_quick_action_prompt")) {
+            Section {
                 TextEditor(text: $action.promptInstruction)
                     .frame(minHeight: 160)
+            } header: {
+                Text(L("settings_review_ai_quick_action_prompt"))
             } footer: {
                 Text(L("settings_review_ai_quick_action_prompt_footer"))
             }
@@ -1341,6 +1343,28 @@ struct ReviewSelectionAISheetView: View {
     let onSubmit: (ReviewAIQuickAction?) -> Void
     let onToggleFavorite: () -> Void
     let onAddNote: () -> Void
+    @State private var draftSelection: String
+
+    init(
+        state: Binding<ReviewSelectionAIState>,
+        presets: [ReviewSelectionAIPreset],
+        quickActions: [ReviewAIQuickAction],
+        isFavorited: Bool,
+        onClose: @escaping () -> Void,
+        onSubmit: @escaping (ReviewAIQuickAction?) -> Void,
+        onToggleFavorite: @escaping () -> Void,
+        onAddNote: @escaping () -> Void
+    ) {
+        self._state = state
+        self.presets = presets
+        self.quickActions = quickActions
+        self.isFavorited = isFavorited
+        self.onClose = onClose
+        self.onSubmit = onSubmit
+        self.onToggleFavorite = onToggleFavorite
+        self.onAddNote = onAddNote
+        self._draftSelection = State(initialValue: state.wrappedValue.draftSelection)
+    }
 
     var body: some View {
         ScrollView {
@@ -1374,7 +1398,7 @@ struct ReviewSelectionAISheetView: View {
                     Text(L("review_selection_ai_selected_text"))
                         .amgiFont(.bodyEmphasis)
                         .foregroundStyle(SettingsValueStyle.primary)
-                    TextEditor(text: $state.draftSelection)
+                    TextEditor(text: $draftSelection)
                         .frame(minHeight: 92)
                         .padding(8)
                         .scrollContentBackground(.hidden)
@@ -1490,6 +1514,9 @@ struct ReviewSelectionAISheetView: View {
                     Image(systemName: isFavorited ? "star.fill" : "star")
                 }
             }
+        }
+        .onChange(of: draftSelection) { _, newValue in
+            state.draftSelection = newValue
         }
         .onChange(of: state.activePresetID) { _, _ in
             onSubmit(nil)
