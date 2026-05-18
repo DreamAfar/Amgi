@@ -276,7 +276,11 @@ struct ReviewAIAddNoteSheetDraft: Identifiable, Equatable, Sendable {
 
 enum ReviewAIFlow {
     static func activeConfig(for presetID: String?) -> ReviewSelectionAIConfig {
-        ReviewSelectionAIPresetStore.load().config(for: presetID)
+        let store = ReviewSelectionAIPresetStore.load()
+        guard let presetID = presetID?.trimmedOrNil else {
+            return store.activeConfig()
+        }
+        return store.config(for: presetID)
     }
 
     static func validationError(for config: ReviewSelectionAIConfig) -> String? {
