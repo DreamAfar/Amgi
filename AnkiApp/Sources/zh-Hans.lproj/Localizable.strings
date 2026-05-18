@@ -1333,6 +1333,7 @@
 "stats_cards_with_unit_fmt" = "%@ 张";
 "stats_cards_per_day_fmt" = "%@ 张/天";
 "stats_reviews_with_unit_fmt" = "%@ 次复习";
+"stats_reviews_short_unit_fmt" = "%@ 次";
 "stats_reviews_per_day_fmt" = "%@ 次复习/天";
 "stats_minutes_per_day_fmt" = "%@ 分钟/天";
 "stats_amount_of_total_with_percentage_fmt" = "%@/%@ (%@%%)";
@@ -1378,6 +1379,7 @@
 "stats_hourly_empty" = "暂无数据";
 "stats_hourly_reviews" = "复习次数";
 "stats_hourly_correct_pct" = "正确率";
+"stats_average_answer_time_short" = "答题均时";
 "stats_hour_range_fmt" = "%d 时~%d 时";
 "stats_hourly_correct_reviews_fmt" = "正确率 %@%%（%@ 次）";
 "stats_period_day" = "日";

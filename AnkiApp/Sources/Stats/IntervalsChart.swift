@@ -345,30 +345,56 @@ struct IntervalsChart: View {
                 .gesture(
                     SpatialTapGesture()
                         .onEnded { value in
-                            updateSelectedBinX(for: value, proxy: proxy, geometry: geometry, bins: bins)
+                            updateSelectedBinX(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                bins: bins,
+                                togglesSelection: true
+                            )
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { value in
+                            guard selectedBinX != nil else { return }
+                            updateSelectedBinX(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                bins: bins,
+                                togglesSelection: false,
+                                emitFeedback: true
+                            )
                         }
                 )
         }
     }
 
     private func updateSelectedBinX(
-        for value: SpatialTapGesture.Value,
+        at location: CGPoint,
         proxy: ChartProxy,
         geometry: GeometryProxy,
-        bins: [IntervalBin]
+        bins: [IntervalBin],
+        togglesSelection: Bool,
+        emitFeedback: Bool = false
     ) {
         guard let plotFrameAnchor = proxy.plotFrame else {
-            selectedBinX = nil
+            if togglesSelection {
+                selectedBinX = nil
+            }
             return
         }
 
         let plotFrame = geometry[plotFrameAnchor]
-        let plotX = value.location.x - plotFrame.origin.x
+        let plotX = location.x - plotFrame.origin.x
         guard plotX >= 0,
               plotX <= proxy.plotSize.width,
               let xValue: Int = proxy.value(atX: plotX)
         else {
-            selectedBinX = nil
+            if togglesSelection {
+                selectedBinX = nil
+            }
             return
         }
 
@@ -383,7 +409,12 @@ struct IntervalsChart: View {
             }
         }
 
-        selectedBinX = selectedBinX == nearestX ? nil : nearestX
+        let nextSelection = togglesSelection && selectedBinX == nearestX ? nil : nearestX
+        guard selectedBinX != nextSelection else { return }
+        selectedBinX = nextSelection
+        if emitFeedback, nextSelection != nil {
+            StatsSelectionSupport.selectionChanged()
+        }
     }
 
     @AxisContentBuilder

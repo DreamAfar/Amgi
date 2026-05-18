@@ -182,9 +182,13 @@ struct ButtonsChart: View {
     private func selectedButtonRuleMark(for entry: ButtonEntry) -> some ChartContent {
         if let selectedEntry,
            selectedEntry.id == entry.id {
-            RuleMark(x: .value("Selected Button", entry.button))
-                .foregroundStyle(Color.amgiAccent.opacity(0.35))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            PointMark(
+                x: .value("Type", entry.cardType),
+                y: .value("Count", entry.count)
+            )
+                .position(by: .value("Button", entry.button))
+                .symbolSize(0)
+                .foregroundStyle(.clear)
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
                         title: tooltipTitle(for: selectedEntry),
@@ -242,21 +246,43 @@ struct ButtonsChart: View {
                 .gesture(
                     SpatialTapGesture()
                         .onEnded { value in
-                            updateSelectedBarKey(for: value, proxy: proxy, geometry: geometry)
+                            updateSelectedBarKey(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: true
+                            )
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { value in
+                            guard selectedBarKey != nil else { return }
+                            updateSelectedBarKey(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: false,
+                                emitFeedback: true
+                            )
                         }
                 )
         }
     }
 
     private func updateSelectedBarKey(
-        for value: SpatialTapGesture.Value,
+        at location: CGPoint,
         proxy: ChartProxy,
-        geometry: GeometryProxy
+        geometry: GeometryProxy,
+        togglesSelection: Bool,
+        emitFeedback: Bool = false
     ) {
         let plotFrame = geometry[proxy.plotAreaFrame]
-        let plotX = value.location.x - plotFrame.origin.x
+        let plotX = location.x - plotFrame.origin.x
         guard plotX >= 0, plotX <= proxy.plotSize.width else {
-            selectedBarKey = nil
+            if togglesSelection {
+                selectedBarKey = nil
+            }
             return
         }
 
@@ -269,6 +295,11 @@ struct ButtonsChart: View {
         let buttonIndex = min(max(rawButtonIndex, 0), buttonLabels.count - 1)
         let key = "\(buttonIndex)-\(typeIndex)"
 
-        selectedBarKey = selectedBarKey == key ? nil : key
+        let nextSelection = togglesSelection && selectedBarKey == key ? nil : key
+        guard selectedBarKey != nextSelection else { return }
+        selectedBarKey = nextSelection
+        if emitFeedback, nextSelection != nil {
+            StatsSelectionSupport.selectionChanged()
+        }
     }
 }

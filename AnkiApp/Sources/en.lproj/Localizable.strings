@@ -1333,6 +1333,7 @@
 "stats_cards_with_unit_fmt" = "%@ cards";
 "stats_cards_per_day_fmt" = "%@ cards/day";
 "stats_reviews_with_unit_fmt" = "%@ reviews";
+"stats_reviews_short_unit_fmt" = "%@ reviews";
 "stats_reviews_per_day_fmt" = "%@ reviews/day";
 "stats_minutes_per_day_fmt" = "%@ minutes/day";
 "stats_amount_of_total_with_percentage_fmt" = "%@/%@ (%@%%)";
@@ -1378,6 +1379,7 @@
 "stats_hourly_empty" = "No data available";
 "stats_hourly_reviews" = "Reviews";
 "stats_hourly_correct_pct" = "Correct %";
+"stats_average_answer_time_short" = "Avg Answer";
 "stats_hour_range_fmt" = "%d:00-%d:00";
 "stats_hourly_correct_reviews_fmt" = "Correct %@%% (%@ reviews)";
 "stats_period_day" = "Day";

@@ -1335,6 +1335,7 @@
 "stats_cards_with_unit_fmt" = "%@枚";
 "stats_cards_per_day_fmt" = "%@枚/日";
 "stats_reviews_with_unit_fmt" = "%@回の復習";
+"stats_reviews_short_unit_fmt" = "%@回";
 "stats_reviews_per_day_fmt" = "%@回/日";
 "stats_minutes_per_day_fmt" = "%@分/日";
 "stats_amount_of_total_with_percentage_fmt" = "%@/%@ (%@%%)";
@@ -1380,6 +1381,7 @@
 "stats_hourly_empty" = "データなし";
 "stats_hourly_reviews" = "復習回数";
 "stats_hourly_correct_pct" = "正解率";
+"stats_average_answer_time_short" = "回答平均";
 "stats_hour_range_fmt" = "%d時〜%d時";
 "stats_hourly_correct_reviews_fmt" = "正答率 %@%%（%@回）";
 "stats_period_day" = "日";

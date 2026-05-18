@@ -211,24 +211,46 @@ struct HourlyChart: View {
                 .gesture(
                     SpatialTapGesture()
                         .onEnded { value in
-                            updateSelectedHour(for: value, proxy: proxy, geometry: geometry)
+                            updateSelectedHour(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: true
+                            )
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { value in
+                            guard selectedHour != nil else { return }
+                            updateSelectedHour(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: false,
+                                emitFeedback: true
+                            )
                         }
                 )
         }
     }
 
     private func updateSelectedHour(
-        for value: SpatialTapGesture.Value,
+        at location: CGPoint,
         proxy: ChartProxy,
-        geometry: GeometryProxy
+        geometry: GeometryProxy,
+        togglesSelection: Bool,
+        emitFeedback: Bool = false
     ) {
         let plotFrame = geometry[proxy.plotAreaFrame]
-        let plotX = value.location.x - plotFrame.origin.x
+        let plotX = location.x - plotFrame.origin.x
         guard plotX >= 0,
               plotX <= proxy.plotSize.width,
               let hour: Int = proxy.value(atX: plotX)
         else {
-            selectedHour = nil
+            if togglesSelection {
+                selectedHour = nil
+            }
             return
         }
 
@@ -243,7 +265,12 @@ struct HourlyChart: View {
             }
         }
 
-        selectedHour = selectedHour == nearestHour ? nil : nearestHour
+        let nextSelection = togglesSelection && selectedHour == nearestHour ? nil : nearestHour
+        guard selectedHour != nextSelection else { return }
+        selectedHour = nextSelection
+        if emitFeedback, nextSelection != nil {
+            StatsSelectionSupport.selectionChanged()
+        }
     }
 
     @AxisContentBuilder

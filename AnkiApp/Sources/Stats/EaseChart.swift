@@ -21,7 +21,7 @@ struct EaseChart: View {
 
     private var averageEase: String {
         guard activeData.average > 0 else { return "---" }
-        return String(format: "%.0f%%", activeData.average)
+        return StatsFormatSupport.percentValue(Double(activeData.average))
     }
 
     private var selectedItem: (ease: Int, count: Int)? {
@@ -192,24 +192,46 @@ struct EaseChart: View {
                 .gesture(
                     SpatialTapGesture()
                         .onEnded { value in
-                            updateSelectedEase(for: value, proxy: proxy, geometry: geometry)
+                            updateSelectedEase(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: true
+                            )
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { value in
+                            guard selectedEase != nil else { return }
+                            updateSelectedEase(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: false,
+                                emitFeedback: true
+                            )
                         }
                 )
         }
     }
 
     private func updateSelectedEase(
-        for value: SpatialTapGesture.Value,
+        at location: CGPoint,
         proxy: ChartProxy,
-        geometry: GeometryProxy
+        geometry: GeometryProxy,
+        togglesSelection: Bool,
+        emitFeedback: Bool = false
     ) {
         let plotFrame = geometry[proxy.plotAreaFrame]
-        let plotX = value.location.x - plotFrame.origin.x
+        let plotX = location.x - plotFrame.origin.x
         guard plotX >= 0,
               plotX <= proxy.plotSize.width,
               let ease: Int = proxy.value(atX: plotX)
         else {
-            selectedEase = nil
+            if togglesSelection {
+                selectedEase = nil
+            }
             return
         }
 
@@ -224,7 +246,12 @@ struct EaseChart: View {
             }
         }
 
-        selectedEase = selectedEase == nearestEase ? nil : nearestEase
+        let nextSelection = togglesSelection && selectedEase == nearestEase ? nil : nearestEase
+        guard selectedEase != nextSelection else { return }
+        selectedEase = nextSelection
+        if emitFeedback, nextSelection != nil {
+            StatsSelectionSupport.selectionChanged()
+        }
     }
 
     @AxisContentBuilder

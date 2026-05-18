@@ -34,7 +34,7 @@ struct RetrievabilityChart: View {
 
     private var averageLabel: String {
         guard retrievability.average > 0 else { return "---" }
-        return String(format: "%.0f%%", retrievability.average)
+        return StatsFormatSupport.percentValue(Double(retrievability.average))
     }
 
     private var estimatedKnowledgeLabel: String {
@@ -95,9 +95,9 @@ struct RetrievabilityChart: View {
             } else {
                 retrievabilityChart
 
-                HStack(spacing: 0) {
-                    footerItem(L("stats_retrievability_average"), value: averageLabel)
-                    footerItem(L("stats_retrievability_knowledge"), value: estimatedKnowledgeLabel)
+                VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
+                    footerLine(L("stats_retrievability_average"), value: averageLabel)
+                    footerLine(L("stats_retrievability_knowledge"), value: estimatedKnowledgeLabel)
                 }
             }
         }
@@ -164,24 +164,46 @@ struct RetrievabilityChart: View {
                 .gesture(
                     SpatialTapGesture()
                         .onEnded { value in
-                            updateSelectedBucketStart(for: value, proxy: proxy, geometry: geometry)
+                            updateSelectedBucketStart(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: true
+                            )
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { value in
+                            guard selectedBucketStart != nil else { return }
+                            updateSelectedBucketStart(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: false,
+                                emitFeedback: true
+                            )
                         }
                 )
         }
     }
 
     private func updateSelectedBucketStart(
-        for value: SpatialTapGesture.Value,
+        at location: CGPoint,
         proxy: ChartProxy,
-        geometry: GeometryProxy
+        geometry: GeometryProxy,
+        togglesSelection: Bool,
+        emitFeedback: Bool = false
     ) {
         let plotFrame = geometry[proxy.plotAreaFrame]
-        let plotX = value.location.x - plotFrame.origin.x
+        let plotX = location.x - plotFrame.origin.x
         guard plotX >= 0,
               plotX <= proxy.plotSize.width,
               let retrievabilityValue: Double = proxy.value(atX: plotX)
         else {
-            selectedBucketStart = nil
+            if togglesSelection {
+                selectedBucketStart = nil
+            }
             return
         }
 
@@ -196,7 +218,12 @@ struct RetrievabilityChart: View {
             }
         }
 
-        selectedBucketStart = selectedBucketStart == nearestBucketStart ? nil : nearestBucketStart
+        let nextSelection = togglesSelection && selectedBucketStart == nearestBucketStart ? nil : nearestBucketStart
+        guard selectedBucketStart != nextSelection else { return }
+        selectedBucketStart = nextSelection
+        if emitFeedback, nextSelection != nil {
+            StatsSelectionSupport.selectionChanged()
+        }
     }
 
     @AxisContentBuilder
@@ -235,16 +262,18 @@ struct RetrievabilityChart: View {
         return Color(hue: 0.02 + (0.30 * progress), saturation: 0.72, brightness: 0.9)
     }
 
-    private func footerItem(_ label: String, value: String) -> some View {
-        VStack(spacing: AmgiSpacing.xxs) {
+    private func footerLine(_ label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: AmgiSpacing.xs) {
+            Text("\(label)：")
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
             Text(value)
                 .amgiFont(.captionBold)
                 .monospacedDigit()
                 .foregroundStyle(Color.amgiTextPrimary)
-            Text(label)
-                .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
     }
 }

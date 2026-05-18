@@ -306,10 +306,10 @@ struct FutureDueChart: View {
             }
 
             HStack(spacing: 0) {
-                footerItem(L("stats_total"), value: StatsFormatSupport.reviews(totalDue))
-                footerItem(L("stats_avg_day"), value: StatsFormatSupport.reviewsPerDay(avgPerDay))
-                footerItem(L("stats_future_due_tomorrow"), value: StatsFormatSupport.reviews(dueTomorrow))
-                footerItem(L("stats_future_due_daily_load"), value: StatsFormatSupport.reviewsPerDay(Double(futureDue.dailyLoad)))
+                footerItem(L("stats_total"), value: formatReviewFooterCount(totalDue))
+                footerItem(L("stats_avg_day"), value: formatReviewFooterCount(Int(avgPerDay.rounded())))
+                footerItem(L("stats_future_due_tomorrow"), value: formatReviewFooterCount(dueTomorrow))
+                footerItem(L("stats_future_due_daily_load"), value: formatReviewFooterCount(Int(Double(futureDue.dailyLoad).rounded())))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -407,24 +407,46 @@ struct FutureDueChart: View {
                 .gesture(
                     SpatialTapGesture()
                         .onEnded { value in
-                            updateSelectedDay(for: value, proxy: proxy, geometry: geometry)
+                            updateSelectedDay(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: true
+                            )
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { value in
+                            guard selectedDay != nil else { return }
+                            updateSelectedDay(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: false,
+                                emitFeedback: true
+                            )
                         }
                 )
         }
     }
 
     private func updateSelectedDay(
-        for value: SpatialTapGesture.Value,
+        at location: CGPoint,
         proxy: ChartProxy,
-        geometry: GeometryProxy
+        geometry: GeometryProxy,
+        togglesSelection: Bool,
+        emitFeedback: Bool = false
     ) {
         let plotFrame = geometry[proxy.plotAreaFrame]
-        let plotX = value.location.x - plotFrame.origin.x
+        let plotX = location.x - plotFrame.origin.x
         guard plotX >= 0,
               plotX <= proxy.plotSize.width,
               let day: Int = proxy.value(atX: plotX)
         else {
-            selectedDay = nil
+            if togglesSelection {
+                selectedDay = nil
+            }
             return
         }
 
@@ -439,7 +461,12 @@ struct FutureDueChart: View {
             }
         }
 
-        selectedDay = selectedDay == nearestDay ? nil : nearestDay
+        let nextSelection = togglesSelection && selectedDay == nearestDay ? nil : nearestDay
+        guard selectedDay != nextSelection else { return }
+        selectedDay = nextSelection
+        if emitFeedback, nextSelection != nil {
+            StatsSelectionSupport.selectionChanged()
+        }
     }
 
     @AxisContentBuilder
@@ -500,6 +527,10 @@ struct FutureDueChart: View {
                 .foregroundStyle(Color.amgiTextSecondary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func formatReviewFooterCount(_ count: Int) -> String {
+        L("stats_reviews_short_unit_fmt", StatsFormatSupport.count(count))
     }
 }
 

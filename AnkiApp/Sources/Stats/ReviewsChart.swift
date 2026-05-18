@@ -162,6 +162,10 @@ struct ReviewsChart: View {
             partialResult + reviewTimeSeconds(item.1)
         }
     }
+    private var averageAnswerSeconds: Double {
+        guard totalReviewCount > 0 else { return 0 }
+        return totalSeconds / Double(totalReviewCount)
+    }
 
     private var barWidth: MarkDimension {
         StatsBarLayoutSupport.barWidth(
@@ -401,24 +405,46 @@ struct ReviewsChart: View {
                 .gesture(
                     SpatialTapGesture()
                         .onEnded { value in
-                            updateSelectedBucket(for: value, proxy: proxy, geometry: geometry)
+                            updateSelectedBucket(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: true
+                            )
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { value in
+                            guard selectedBucket != nil else { return }
+                            updateSelectedBucket(
+                                at: value.location,
+                                proxy: proxy,
+                                geometry: geometry,
+                                togglesSelection: false,
+                                emitFeedback: true
+                            )
                         }
                 )
         }
     }
 
     private func updateSelectedBucket(
-        for value: SpatialTapGesture.Value,
+        at location: CGPoint,
         proxy: ChartProxy,
-        geometry: GeometryProxy
+        geometry: GeometryProxy,
+        togglesSelection: Bool,
+        emitFeedback: Bool = false
     ) {
         let plotFrame = geometry[proxy.plotAreaFrame]
-        let plotX = value.location.x - plotFrame.origin.x
+        let plotX = location.x - plotFrame.origin.x
         guard plotX >= 0,
               plotX <= proxy.plotSize.width,
               let bucket: Int = proxy.value(atX: plotX)
         else {
-            selectedBucket = nil
+            if togglesSelection {
+                selectedBucket = nil
+            }
             return
         }
 
@@ -437,7 +463,12 @@ struct ReviewsChart: View {
             }
         }
 
-        selectedBucket = selectedBucket == nearestBucket ? nil : nearestBucket
+        let nextSelection = togglesSelection && selectedBucket == nearestBucket ? nil : nearestBucket
+        guard selectedBucket != nextSelection else { return }
+        selectedBucket = nextSelection
+        if emitFeedback, nextSelection != nil {
+            StatsSelectionSupport.selectionChanged()
+        }
     }
 
     @AxisContentBuilder
@@ -501,13 +532,13 @@ struct ReviewsChart: View {
             ),
             FooterMetric(
                 label: L("stats_total"),
-                value: showTime ? formatTime(totalSeconds) : formatReviewCount(totalReviewCount)
+                value: showTime ? formatTime(totalSeconds) : formatReviewFooterCount(totalReviewCount)
             ),
             FooterMetric(
                 label: L("stats_avg_day_all"),
                 value: showTime
-                    ? formatMinutesPerDay(totalSeconds / Double(periodDayCount) / 60)
-                    : formatReviewsPerDay(Double(totalReviewCount) / Double(periodDayCount))
+                    ? formatTime(totalSeconds / Double(periodDayCount))
+                    : formatReviewFooterCount(Int((Double(totalReviewCount) / Double(periodDayCount)).rounded()))
             )
         ]
 
@@ -516,8 +547,17 @@ struct ReviewsChart: View {
                 FooterMetric(
                     label: L("stats_avg_day_studied"),
                     value: showTime
-                        ? formatMinutesPerDay(totalSeconds / Double(uniqueStudyDays) / 60)
-                        : formatReviewsPerDay(Double(totalReviewCount) / Double(uniqueStudyDays))
+                        ? formatTime(totalSeconds / Double(uniqueStudyDays))
+                        : formatReviewFooterCount(Int((Double(totalReviewCount) / Double(uniqueStudyDays)).rounded()))
+                )
+            )
+        }
+
+        if showTime, averageAnswerSeconds > 0 {
+            metrics.append(
+                FooterMetric(
+                    label: L("stats_average_answer_time_short"),
+                    value: formatTime(averageAnswerSeconds)
                 )
             )
         }
@@ -567,12 +607,12 @@ struct ReviewsChart: View {
         StatsFormatSupport.reviews(count)
     }
 
-    private func formatReviewsPerDay(_ count: Double) -> String {
-        StatsFormatSupport.reviewsPerDay(count)
+    private func formatReviewFooterCount(_ count: Int) -> String {
+        L("stats_reviews_short_unit_fmt", StatsFormatSupport.count(count))
     }
 
-    private func formatMinutesPerDay(_ minutes: Double) -> String {
-        StatsFormatSupport.minutesPerDay(minutes)
+    private func formatReviewsPerDay(_ count: Double) -> String {
+        StatsFormatSupport.reviewsPerDay(count)
     }
 
     private func formatTime(_ seconds: Double) -> String {

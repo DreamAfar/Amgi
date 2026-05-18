@@ -117,11 +117,8 @@ enum StatsFormatSupport {
         L("stats_minutes_per_day_fmt", count(value))
     }
 
-    static func percentText(_ value: Double, digits: Int = 0) -> String {
-        if digits == 0 {
-            return String(Int(value.rounded()))
-        }
-        return String(format: "%.\(digits)f", value)
+    static func percentText(_ value: Double, digits: Int = 2) -> String {
+        trimmedDecimal(value, digits: digits)
     }
 
     static func amountOfTotal(_ amount: Int, total: Int, digits: Int = 2) -> String {
@@ -136,16 +133,20 @@ enum StatsFormatSupport {
 
     static func timeShort(_ seconds: Double) -> String {
         if seconds < 60 {
-            return "\(Int(seconds.rounded()))s"
+            return trimmedDecimal(seconds, digits: 2) + "s"
         }
 
         let minutes = seconds / 60
         if minutes < 60 {
-            return trimmedDecimal(minutes, digits: 1) + "m"
+            return trimmedDecimal(minutes, digits: 2) + "m"
         }
 
         let hours = seconds / 3600
-        return trimmedDecimal(hours, digits: 1) + "h"
+        return trimmedDecimal(hours, digits: 2) + "h"
+    }
+
+    static func percentValue(_ value: Double, digits: Int = 2) -> String {
+        trimmedDecimal(value, digits: digits) + "%"
     }
 
     static func hourRange(startHour: Int, endHour: Int) -> String {
