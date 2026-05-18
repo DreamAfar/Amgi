@@ -100,8 +100,8 @@ struct NoteFieldsPageEditor: View {
         switch ReviewAIFlow.makeInitialStateIfConfigured(selection: selection, context: context) {
         case let .success(state):
             selectionAIState = state
-        case let .failure(errorMessage):
-            selectionAIErrorMessage = errorMessage
+        case let .failure(error):
+            selectionAIErrorMessage = error.message
             showSelectionAIError = true
             return
         }
@@ -141,9 +141,8 @@ struct NoteFieldsPageEditor: View {
                     }
                 }
             }
-        case let .failure(errorMessage):
-            guard errorMessage.isEmpty == false else { return }
-            selectionAIErrorMessage = errorMessage
+        case let .failure(error):
+            selectionAIErrorMessage = error.message
             showSelectionAIError = true
             return
         }

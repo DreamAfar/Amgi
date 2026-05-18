@@ -1565,6 +1565,7 @@
 "review_selection_lookup_invalid_template" = "查词链接模板为空或无效。";
 "review_selection_ai_missing_endpoint" = "请先配置 AI 接口地址。";
 "review_selection_ai_missing_model" = "请先配置 AI 模型。";
+"review_selection_ai_empty_selection" = "请先输入或选中要查询的文本。";
 "review_selection_ai_empty_response" = "AI 返回为空。";
 "settings_review_auto_match_card_background" = "工具栏背景自动匹配卡片";
 "settings_review_tap_action" = "轻点动作";

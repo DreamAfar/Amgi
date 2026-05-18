@@ -853,8 +853,8 @@ struct ReviewView: View {
         switch ReviewAIFlow.makeInitialStateIfConfigured(selection: selection, context: context) {
         case let .success(state):
             selectionAIState = state
-        case let .failure(errorMessage):
-            toolbarErrorMessage = errorMessage
+        case let .failure(error):
+            toolbarErrorMessage = error.message
             showToolbarError = true
             return
         }
@@ -894,9 +894,8 @@ struct ReviewView: View {
                     }
                 }
             }
-        case let .failure(errorMessage):
-            guard errorMessage.isEmpty == false else { return }
-            toolbarErrorMessage = errorMessage
+        case let .failure(error):
+            toolbarErrorMessage = error.message
             showToolbarError = true
             return
         }

@@ -1,6 +1,17 @@
 import Foundation
 import AnkiKit
 
+enum ReviewAIFlowError: Error, Equatable, Sendable {
+    case message(String)
+
+    var message: String {
+        switch self {
+        case let .message(value):
+            return value
+        }
+    }
+}
+
 struct ReviewAIQueryContext: Codable, Equatable, Hashable, Sendable {
     var selectedText: String
     var sentence: String?
@@ -293,10 +304,10 @@ enum ReviewAIFlow {
     static func makeInitialStateIfConfigured(
         selection: String,
         context: ReviewAIQueryContext
-    ) -> Result<ReviewSelectionAIState, String> {
+    ) -> Result<ReviewSelectionAIState, ReviewAIFlowError> {
         let config = activeConfig(for: nil)
         if let error = validationError(for: config) {
-            return .failure(error)
+            return .failure(.message(error))
         }
         return .success(
             ReviewSelectionAIState(
@@ -310,14 +321,14 @@ enum ReviewAIFlow {
     static func prepareSubmission(
         state: ReviewSelectionAIState,
         quickAction: ReviewAIQuickAction?
-    ) -> Result<(state: ReviewSelectionAIState, selection: String, config: ReviewSelectionAIConfig), String> {
+    ) -> Result<(state: ReviewSelectionAIState, selection: String, config: ReviewSelectionAIConfig), ReviewAIFlowError> {
         guard let selection = state.trimmedSelection else {
-            return .failure("")
+            return .failure(.message(L("review_selection_ai_empty_selection")))
         }
 
         let config = activeConfig(for: state.activePresetID)
         if let error = validationError(for: config) {
-            return .failure(error)
+            return .failure(.message(error))
         }
 
         var nextState = state

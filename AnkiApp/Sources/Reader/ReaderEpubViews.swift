@@ -1271,8 +1271,8 @@ struct ReaderEpubReaderView: View {
         switch ReviewAIFlow.makeInitialStateIfConfigured(selection: selection, context: context) {
         case let .success(state):
             selectionAIState = state
-        case let .failure(errorMessage):
-            lookupErrorMessage = errorMessage
+        case let .failure(error):
+            lookupErrorMessage = error.message
             showSelectionError = true
             return
         }
@@ -1312,9 +1312,8 @@ struct ReaderEpubReaderView: View {
                     }
                 }
             }
-        case let .failure(errorMessage):
-            guard errorMessage.isEmpty == false else { return }
-            lookupErrorMessage = errorMessage
+        case let .failure(error):
+            lookupErrorMessage = error.message
             showSelectionError = true
             return
         }

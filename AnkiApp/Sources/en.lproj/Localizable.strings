@@ -1557,6 +1557,7 @@
 "review_selection_lookup_invalid_template" = "The lookup URL template is empty or invalid.";
 "review_selection_ai_missing_endpoint" = "Configure the AI endpoint first.";
 "review_selection_ai_missing_model" = "Configure the AI model first.";
+"review_selection_ai_empty_selection" = "Enter or select some text to query first.";
 "review_selection_ai_empty_response" = "The AI response was empty.";
 "settings_review_auto_match_card_background" = "Auto-match toolbar background to card";
 "settings_review_tap_action" = "Tap Action";

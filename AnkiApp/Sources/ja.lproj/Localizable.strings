@@ -1567,6 +1567,7 @@
 "review_selection_lookup_invalid_template" = "検索 URL テンプレートが空か無効です。";
 "review_selection_ai_missing_endpoint" = "先に AI のエンドポイントを設定してください。";
 "review_selection_ai_missing_model" = "先に AI のモデルを設定してください。";
+"review_selection_ai_empty_selection" = "先に問い合わせるテキストを入力または選択してください。";
 "review_selection_ai_empty_response" = "AI の応答が空でした。";
 "settings_review_auto_match_card_background" = "ツールバー背景をカードに自動一致";
 "settings_review_tap_action" = "タップ操作";

@@ -2908,7 +2908,6 @@ struct CardWebView: UIViewRepresentable {
         return classes.joined(separator: " ")
     }
 
-    @MainActor
     // MARK: - Navigation Delegate
 
     @MainActor
