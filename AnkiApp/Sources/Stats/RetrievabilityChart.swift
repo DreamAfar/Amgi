@@ -119,6 +119,7 @@ struct RetrievabilityChart: View {
                 retrievabilityChartYAxis()
             }
             .frame(height: 180)
+            .zIndex(selectedBucketStart == nil ? 0 : 1)
     }
 
     private var baseRetrievabilityChart: some View {
@@ -173,11 +174,16 @@ struct RetrievabilityChart: View {
                         }
                 )
                 .simultaneousGesture(
-                    DragGesture(minimumDistance: 8)
+                    LongPressGesture(minimumDuration: 0.2)
+                        .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
                         .onChanged { value in
                             guard selectedBucketStart != nil else { return }
+                            guard case .second(true, let drag?) = value,
+                                  StatsSelectionSupport.isHorizontalDrag(drag.translation)
+                            else { return }
+
                             updateSelectedBucketStart(
-                                at: value.location,
+                                at: drag.location,
                                 proxy: proxy,
                                 geometry: geometry,
                                 togglesSelection: false,

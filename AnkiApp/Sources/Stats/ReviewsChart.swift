@@ -302,6 +302,7 @@ struct ReviewsChart: View {
                 reviewChartYAxis()
             }
             .frame(height: 200)
+            .zIndex(selectedBucket == nil ? 0 : 1)
     }
 
     private var baseReviewChart: some View {
@@ -414,11 +415,16 @@ struct ReviewsChart: View {
                         }
                 )
                 .simultaneousGesture(
-                    DragGesture(minimumDistance: 8)
+                    LongPressGesture(minimumDuration: 0.2)
+                        .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
                         .onChanged { value in
                             guard selectedBucket != nil else { return }
+                            guard case .second(true, let drag?) = value,
+                                  StatsSelectionSupport.isHorizontalDrag(drag.translation)
+                            else { return }
+
                             updateSelectedBucket(
-                                at: value.location,
+                                at: drag.location,
                                 proxy: proxy,
                                 geometry: geometry,
                                 togglesSelection: false,
