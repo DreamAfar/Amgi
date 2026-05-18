@@ -176,6 +176,13 @@ struct SettingsView: View {
                 .amgiSettingsListRowSurface()
 
                 NavigationLink {
+                    ReviewAISettingsHomeView()
+                } label: {
+                    settingsRowLabel(L("settings_review_ai_settings"), icon: "sparkles")
+                }
+                .amgiSettingsListRowSurface()
+
+                NavigationLink {
                     ReaderOptionsView()
                 } label: {
                     settingsRowLabel(L("settings_row_reader"), icon: "book.closed")
@@ -662,9 +669,9 @@ private struct ReviewOptionsView: View {
                     Toggle(L("settings_review_lookup_popup_back_enabled"), isOn: $lookupPopupBackEnabled)
                 }
                 NavigationLink {
-                    ReviewSelectionMenuSettingsView()
+                    ReviewSelectionLookupLinkSettingsView()
                 } label: {
-                    reviewSettingsRowLabel(L("settings_review_text_selection_menu"), icon: "text.cursor")
+                    reviewSettingsRowLabel(L("settings_review_lookup_settings"), icon: "link")
                 }
             }
             .amgiSettingsListRowSurface()

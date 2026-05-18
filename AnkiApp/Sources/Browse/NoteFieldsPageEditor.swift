@@ -22,7 +22,13 @@ struct NoteFieldsPageEditor: View {
     var onPreviewAudio: ((Int) -> Void)? = nil
     var onEditImage: ((Int) -> Void)? = nil
 
+    @AppStorage(ReviewPreferences.Keys.selectionMenuAIEnabled) private var selectionMenuAIEnabled = false
     @State private var measuredHeight: CGFloat = 120
+    @State private var selectionAIState: ReviewSelectionAIState?
+    @State private var pendingAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
+    @State private var aiFavoriteRefreshToken = 0
+    @State private var selectionAIErrorMessage: String?
+    @State private var showSelectionAIError = false
 
     var body: some View {
         NoteFieldsPageWebView(
@@ -31,15 +37,155 @@ struct NoteFieldsPageEditor: View {
             fieldSourceModes: $fieldSourceModes,
             actionStates: actionStates,
             measuredHeight: $measuredHeight,
+            selectionMenuAIEnabled: selectionMenuAIEnabled,
             onDraftExport: onDraftExport,
             onInsertPhoto: onInsertPhoto,
             onInsertCameraPhoto: onInsertCameraPhoto,
             onInsertFile: onInsertFile,
             onRecordAudio: onRecordAudio,
             onPreviewAudio: onPreviewAudio,
-            onEditImage: onEditImage
+            onEditImage: onEditImage,
+            onSelectionMenuAction: { action, snapshot in
+                handleSelectionMenuAction(action, snapshot: snapshot)
+            }
         )
         .frame(height: max(measuredHeight, 120))
+        .sheet(item: $selectionAIState) { state in
+            NavigationStack {
+                ReviewSelectionAISheetView(
+                    state: aiSheetBinding(for: state.id),
+                    presets: ReviewSelectionAIPresetStore.load().presets,
+                    isFavorited: isCurrentAIResponseFavorited,
+                    onClose: {
+                        selectionAIState = nil
+                    },
+                    onSubmit: { action in
+                        submitSelectionAI(quickAction: action)
+                    },
+                    onToggleFavorite: {
+                        toggleCurrentAIResponseFavorite()
+                    },
+                    onAddNote: {
+                        openAddNoteFromCurrentAI()
+                    }
+                )
+            }
+        }
+        .sheet(item: $pendingAIAddNoteDraft) { sheetDraft in
+            AddNoteView(
+                onSave: {
+                    pendingAIAddNoteDraft = nil
+                },
+                draft: sheetDraft.draft
+            )
+        }
+        .alert(L("common_error"), isPresented: $showSelectionAIError) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(selectionAIErrorMessage ?? L("common_error"))
+        }
+    }
+
+    private func handleSelectionMenuAction(_ action: SelectedTextAction, snapshot: SelectedTextSnapshot) {
+        guard action == .ai,
+              let selection = snapshot.text.trimmedOrNil else { return }
+        startSelectionAI(
+            for: selection,
+            context: ReviewAIQueryContext(selectedText: selection)
+        )
+    }
+
+    private func startSelectionAI(for selection: String, context: ReviewAIQueryContext) {
+        guard selectionMenuAIEnabled else { return }
+        switch ReviewAIFlow.makeInitialStateIfConfigured(selection: selection, context: context) {
+        case let .success(state):
+            selectionAIState = state
+        case let .failure(errorMessage):
+            selectionAIErrorMessage = errorMessage
+            showSelectionAIError = true
+            return
+        }
+        submitSelectionAI()
+    }
+
+    private func submitSelectionAI(quickAction: ReviewAIQuickAction? = nil) {
+        guard let state = selectionAIState else { return }
+        switch ReviewAIFlow.prepareSubmission(state: state, quickAction: quickAction) {
+        case let .success(prepared):
+            selectionAIState = prepared.state
+            let requestID = prepared.state.id
+            Task {
+                do {
+                    let response = try await ReviewAIFlow.requestResponse(
+                        selection: prepared.selection,
+                        context: prepared.state.context,
+                        quickAction: quickAction,
+                        presetID: prepared.config.presetID
+                    )
+                    await MainActor.run {
+                        guard selectionAIState?.id == requestID else { return }
+                        var nextState = selectionAIState ?? prepared.state
+                        nextState.isLoading = false
+                        nextState.response = response
+                        nextState.errorMessage = nil
+                        selectionAIState = nextState
+                    }
+                } catch {
+                    await MainActor.run {
+                        guard selectionAIState?.id == requestID else { return }
+                        var nextState = selectionAIState ?? prepared.state
+                        nextState.isLoading = false
+                        nextState.response = nil
+                        nextState.errorMessage = error.localizedDescription
+                        selectionAIState = nextState
+                    }
+                }
+            }
+        case let .failure(errorMessage):
+            guard errorMessage.isEmpty == false else { return }
+            selectionAIErrorMessage = errorMessage
+            showSelectionAIError = true
+            return
+        }
+    }
+
+    private func aiSheetBinding(for id: UUID) -> Binding<ReviewSelectionAIState> {
+        Binding(
+            get: {
+                guard let selectionAIState, selectionAIState.id == id else {
+                    return ReviewSelectionAIState(
+                        selection: "",
+                        context: ReviewAIQueryContext(selectedText: ""),
+                        activePresetID: ReviewSelectionAIPresetStore.load().selectedPresetID
+                    )
+                }
+                return selectionAIState
+            },
+            set: { newValue in
+                guard selectionAIState?.id == id else { return }
+                selectionAIState = newValue
+            }
+        )
+    }
+
+    private var currentAIFavoriteItem: ReviewAIFavoriteItem? {
+        guard let state = selectionAIState else { return nil }
+        return ReviewAIFlow.favoriteItem(for: state)
+    }
+
+    private var isCurrentAIResponseFavorited: Bool {
+        _ = aiFavoriteRefreshToken
+        return ReviewAIFlow.isFavorited(currentAIFavoriteItem)
+    }
+
+    private func toggleCurrentAIResponseFavorite() {
+        ReviewAIFlow.toggleFavorite(currentAIFavoriteItem)
+        aiFavoriteRefreshToken += 1
+    }
+
+    private func openAddNoteFromCurrentAI() {
+        guard let state = selectionAIState else { return }
+        pendingAIAddNoteDraft = ReviewAIFlow.makeAddNoteDraft(for: state)
     }
 }
 
@@ -51,6 +197,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
     @Binding var fieldSourceModes: [Bool]
     let actionStates: [NoteFieldsPageEditorActionState]
     @Binding var measuredHeight: CGFloat
+    let selectionMenuAIEnabled: Bool
     var onDraftExport: (() -> Void)?
     var onInsertPhoto: ((Int) -> Void)?
     var onInsertCameraPhoto: ((Int) -> Void)?
@@ -58,12 +205,14 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
     var onRecordAudio: ((Int) -> Void)?
     var onPreviewAudio: ((Int) -> Void)?
     var onEditImage: ((Int) -> Void)?
+    var onSelectionMenuAction: (SelectedTextAction, SelectedTextSnapshot) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             fieldValues: $fieldValues,
             fieldSourceModes: $fieldSourceModes,
             measuredHeight: $measuredHeight,
+            onSelectionMenuAction: onSelectionMenuAction,
             onDraftExport: onDraftExport,
             onInsertPhoto: onInsertPhoto,
             onInsertCameraPhoto: onInsertCameraPhoto,
@@ -90,6 +239,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = context.coordinator
         webView.accessoryView = makeInputToolbar(for: webView, coordinator: context.coordinator)
+        webView.availableSelectionActions = selectionMenuAIEnabled ? [.ai] : []
+        webView.onSelectionAction = { action, snapshot in
+            context.coordinator.handleSelectionMenuAction(action, snapshot: snapshot)
+        }
         context.coordinator.attach(webView: webView)
         return webView
     }
@@ -97,7 +250,11 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         let document = htmlDocument(colorScheme: colorScheme)
         let payload = makePayload()
+        if let noteWebView = webView as? NoteFieldsAccessoryWKWebView {
+            noteWebView.availableSelectionActions = selectionMenuAIEnabled ? [.ai] : []
+        }
         if context.coordinator.lastDocument != document {
+            (webView as? NoteFieldsAccessoryWKWebView)?.currentSelectionSnapshot = nil
             context.coordinator.prepareForDocumentReload(document: document, payload: payload)
             webView.loadHTMLString(document, baseURL: CardAssetPath.mediaBaseURL)
             return
@@ -1651,6 +1808,9 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
         document.addEventListener('selectionchange', () => {
             scheduleActiveFieldLayoutUpdate();
+            const selection = window.getSelection();
+            const text = selection ? String(selection).trim() : '';
+            notify('selectionState', text ? { text } : null);
         });
 
         if (window.visualViewport) {
@@ -2316,6 +2476,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         private let onRecordAudio: ((Int) -> Void)?
         private let onPreviewAudio: ((Int) -> Void)?
         private let onEditImage: ((Int) -> Void)?
+        private let onSelectionMenuAction: (SelectedTextAction, SelectedTextSnapshot) -> Void
         private let onDraftExport: (() -> Void)?
         private var colorSelectionHandler: ((UIColor) -> Void)?
         private var hasRegisteredLifecycleObservers = false
@@ -2335,6 +2496,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             fieldValues: Binding<[String]>,
             fieldSourceModes: Binding<[Bool]>,
             measuredHeight: Binding<CGFloat>,
+            onSelectionMenuAction: @escaping (SelectedTextAction, SelectedTextSnapshot) -> Void,
             onDraftExport: (() -> Void)?,
             onInsertPhoto: ((Int) -> Void)?,
             onInsertCameraPhoto: ((Int) -> Void)?,
@@ -2346,6 +2508,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             self._fieldValues = fieldValues
             self._fieldSourceModes = fieldSourceModes
             self._measuredHeight = measuredHeight
+            self.onSelectionMenuAction = onSelectionMenuAction
             self.onDraftExport = onDraftExport
             self.onInsertPhoto = onInsertPhoto
             self.onInsertCameraPhoto = onInsertCameraPhoto
@@ -2358,6 +2521,10 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         func attach(webView: WKWebView) {
             self.webView = webView
             registerLifecycleObservers()
+        }
+
+        func handleSelectionMenuAction(_ action: SelectedTextAction, snapshot: SelectedTextSnapshot) {
+            onSelectionMenuAction(action, snapshot)
         }
 
         func prepareForDocumentReload(document: String, payload: Payload) {
@@ -2515,6 +2682,12 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                       fieldSourceModes.indices.contains(index)
                 else { return }
                 fieldSourceModes[index] = isSourceMode
+            case "selectionState":
+                if let text = body["text"] as? String {
+                    (webView as? NoteFieldsAccessoryWKWebView)?.currentSelectionSnapshot = SelectedTextSnapshot(text: text)
+                } else {
+                    (webView as? NoteFieldsAccessoryWKWebView)?.currentSelectionSnapshot = nil
+                }
             case "flushDraft":
                 applyExportedState(body["fields"] as? [[String: Any]])
                 if let index = body["activeFieldIndex"] as? Int {
@@ -3111,7 +3284,7 @@ private final class NoteFieldsToolbarContainerView: UIView {
     }
 }
 
-private final class NoteFieldsAccessoryWKWebView: WKWebView {
+private final class NoteFieldsAccessoryWKWebView: SelectedTextActionWebView {
     var accessoryView: UIView?
 
     override var inputAccessoryView: UIView? {

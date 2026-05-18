@@ -124,6 +124,8 @@ enum ReviewPreferences {
         static let selectionMenuAISystemPrompt = "review_pref_selection_menu_ai_system_prompt"
         static let selectionMenuAIGlossary = "review_pref_selection_menu_ai_glossary"
         static let selectionMenuAIPresets = "review_pref_selection_menu_ai_presets"
+        static let aiFavorites = "review_pref_ai_favorites"
+        static let aiNoteTemplate = "review_pref_ai_note_template"
         static let cardContentAlignment = "review_pref_card_content_alignment"
         static let glassAnswerButtons = "review_pref_glass_answer_buttons"
         static let autoMatchCardBackground = "review_pref_auto_match_card_background"

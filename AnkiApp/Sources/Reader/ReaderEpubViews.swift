@@ -396,6 +396,8 @@ struct ReaderEpubReaderView: View {
     @AppStorage(ReaderPreferences.Keys.lookupNoteTemplate) private var lookupNoteTemplateData = ""
     @AppStorage(ReaderPreferences.Keys.enableStatistics) private var enableStatistics = false
     @AppStorage(ReaderPreferences.Keys.statisticsAutostartMode) private var statisticsAutostartModeRawValue = ReaderStatisticsAutostartMode.off.rawValue
+    @AppStorage(ReviewPreferences.Keys.selectionMenuLookupEnabled) private var selectionMenuLookupEnabled = false
+    @AppStorage(ReviewPreferences.Keys.selectionMenuAIEnabled) private var selectionMenuAIEnabled = false
 
     let book: BookMetadata
 
@@ -403,11 +405,14 @@ struct ReaderEpubReaderView: View {
     @State private var loadingErrorMessage: String?
     @State private var bridge = ReaderEpubWebViewBridge()
     @State private var pendingAddNoteDraft: ReaderEpubAddNoteSheetDraft?
+    @State private var pendingAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
     @State private var lookupPopupRefreshID = 0
     @State private var showSelectionError = false
     @State private var lookupErrorMessage: String?
     @State private var lookupStack: [ReaderLookupPopupState] = []
     @State private var activeSheet: ReaderEpubSheetRoute?
+    @State private var selectionAIState: ReviewSelectionAIState?
+    @State private var aiFavoriteRefreshToken = 0
 
     private var themeMode: ReaderThemeMode {
         ReaderThemeMode(rawValue: themeModeRawValue) ?? .system
@@ -596,6 +601,8 @@ struct ReaderEpubReaderView: View {
                                 lineHeight: lineHeight,
                                 characterSpacing: characterSpacing,
                                 textColorHex: resolvedTextColorHex,
+                                selectionMenuLookupEnabled: selectionMenuLookupEnabled,
+                                selectionMenuAIEnabled: selectionMenuAIEnabled,
                                 onNextChapter: {
                                     guard let action = session.actionForNextChapter() else {
                                         return false
@@ -641,6 +648,9 @@ struct ReaderEpubReaderView: View {
                                     let offsetPoint = CGPoint(x: selection.rect.midX, y: selection.rect.midY + topOverlayHeight)
                                     let offsetRect = selection.rect.offsetBy(dx: 0, dy: topOverlayHeight)
                                     handleTapLookup(selection.text, sentence: selection.sentence, at: offsetPoint, rect: offsetRect)
+                                },
+                                onSelectionMenuAction: { action, snapshot in
+                                    handleSelectionMenuAction(action, snapshot: snapshot)
                                 },
                                 onTapOutside: {
                                     lookupStack.removeAll()
@@ -837,6 +847,35 @@ struct ReaderEpubReaderView: View {
                         draft: sheetDraft.draft
                     )
                 }
+                .sheet(item: $selectionAIState) { state in
+                    NavigationStack {
+                        ReviewSelectionAISheetView(
+                            state: aiSheetBinding(for: state.id),
+                            presets: ReviewSelectionAIPresetStore.load().presets,
+                            isFavorited: isCurrentAIResponseFavorited,
+                            onClose: {
+                                selectionAIState = nil
+                            },
+                            onSubmit: { action in
+                                submitSelectionAI(quickAction: action)
+                            },
+                            onToggleFavorite: {
+                                toggleCurrentAIResponseFavorite()
+                            },
+                            onAddNote: {
+                                openAddNoteFromCurrentAI()
+                            }
+                        )
+                    }
+                }
+                .sheet(item: $pendingAIAddNoteDraft) { sheetDraft in
+                    AddNoteView(
+                        onSave: {
+                            pendingAIAddNoteDraft = nil
+                        },
+                        draft: sheetDraft.draft
+                    )
+                }
                 .sheet(item: $activeSheet) { route in
                     NavigationStack {
                         switch route {
@@ -907,6 +946,8 @@ struct ReaderEpubReaderView: View {
                     lineHeight: lineHeight,
                     characterSpacing: characterSpacing,
                     textColorHex: resolvedTextColorHex,
+                    selectionMenuLookupEnabled: selectionMenuLookupEnabled,
+                    selectionMenuAIEnabled: selectionMenuAIEnabled,
                     onNextChapter: {
                         guard let action = session.actionForNextChapter() else {
                             return false
@@ -952,6 +993,9 @@ struct ReaderEpubReaderView: View {
                         let offsetPoint = CGPoint(x: selection.rect.midX, y: selection.rect.midY + topOverlayHeight)
                         let offsetRect = selection.rect.offsetBy(dx: 0, dy: topOverlayHeight)
                         handleTapLookup(selection.text, sentence: selection.sentence, at: offsetPoint, rect: offsetRect)
+                    },
+                    onSelectionMenuAction: { action, snapshot in
+                        handleSelectionMenuAction(action, snapshot: snapshot)
                     },
                     onTapOutside: {
                         lookupStack.removeAll()
@@ -1202,6 +1246,132 @@ struct ReaderEpubReaderView: View {
             return
         }
         startLookup(for: tappedSelection, sentence: sentence, anchor: point, anchorRect: rect)
+    }
+
+    private func handleSelectionMenuAction(_ action: SelectedTextAction, snapshot: SelectedTextSnapshot) {
+        guard let selection = snapshot.text.trimmedOrNil else { return }
+
+        switch action {
+        case .lookup:
+            startLookup(for: selection, sentence: snapshot.sentence, anchor: nil, anchorRect: nil, stacksOnTop: true)
+        case .ai:
+            startSelectionAI(
+                for: selection,
+                context: ReviewAIQueryContext(
+                    selectedText: selection,
+                    sentence: normalizedSentence(snapshot.sentence),
+                    source: readerAISelectionSource
+                )
+            )
+        }
+    }
+
+    private func startSelectionAI(for selection: String, context: ReviewAIQueryContext) {
+        guard selectionMenuAIEnabled else { return }
+        switch ReviewAIFlow.makeInitialStateIfConfigured(selection: selection, context: context) {
+        case let .success(state):
+            selectionAIState = state
+        case let .failure(errorMessage):
+            lookupErrorMessage = errorMessage
+            showSelectionError = true
+            return
+        }
+        submitSelectionAI()
+    }
+
+    private func submitSelectionAI(quickAction: ReviewAIQuickAction? = nil) {
+        guard let state = selectionAIState else { return }
+        switch ReviewAIFlow.prepareSubmission(state: state, quickAction: quickAction) {
+        case let .success(prepared):
+            selectionAIState = prepared.state
+            let requestID = prepared.state.id
+            Task {
+                do {
+                    let response = try await ReviewAIFlow.requestResponse(
+                        selection: prepared.selection,
+                        context: prepared.state.context,
+                        quickAction: quickAction,
+                        presetID: prepared.config.presetID
+                    )
+                    await MainActor.run {
+                        guard selectionAIState?.id == requestID else { return }
+                        var nextState = selectionAIState ?? prepared.state
+                        nextState.isLoading = false
+                        nextState.response = response
+                        nextState.errorMessage = nil
+                        selectionAIState = nextState
+                    }
+                } catch {
+                    await MainActor.run {
+                        guard selectionAIState?.id == requestID else { return }
+                        var nextState = selectionAIState ?? prepared.state
+                        nextState.isLoading = false
+                        nextState.response = nil
+                        nextState.errorMessage = error.localizedDescription
+                        selectionAIState = nextState
+                    }
+                }
+            }
+        case let .failure(errorMessage):
+            guard errorMessage.isEmpty == false else { return }
+            lookupErrorMessage = errorMessage
+            showSelectionError = true
+            return
+        }
+    }
+
+    private var readerAISelectionSource: String {
+        var parts: [String] = []
+        if let title = book.title?.trimmedOrNil {
+            parts.append(title)
+        }
+        if let chapterTitle = session?.document.title?.trimmedOrNil,
+           parts.last != chapterTitle {
+            parts.append(chapterTitle)
+        }
+        return parts.joined(separator: " / ")
+    }
+
+    private func aiSheetBinding(for id: UUID) -> Binding<ReviewSelectionAIState> {
+        Binding(
+            get: {
+                guard let selectionAIState, selectionAIState.id == id else {
+                    return ReviewSelectionAIState(
+                        selection: "",
+                        context: ReviewAIQueryContext(selectedText: ""),
+                        activePresetID: ReviewSelectionAIPresetStore.load().selectedPresetID
+                    )
+                }
+                return selectionAIState
+            },
+            set: { newValue in
+                guard selectionAIState?.id == id else { return }
+                selectionAIState = newValue
+            }
+        )
+    }
+
+    private var currentAIFavoriteItem: ReviewAIFavoriteItem? {
+        guard let state = selectionAIState else { return nil }
+        return ReviewAIFlow.favoriteItem(for: state)
+    }
+
+    private var isCurrentAIResponseFavorited: Bool {
+        _ = aiFavoriteRefreshToken
+        return ReviewAIFlow.isFavorited(currentAIFavoriteItem)
+    }
+
+    private func toggleCurrentAIResponseFavorite() {
+        ReviewAIFlow.toggleFavorite(currentAIFavoriteItem)
+        aiFavoriteRefreshToken += 1
+    }
+
+    private func openAddNoteFromCurrentAI() {
+        guard let state = selectionAIState else { return }
+        pendingAIAddNoteDraft = ReviewAIFlow.makeAddNoteDraft(
+            for: state,
+            fallbackDeckID: selectedDeckID == 0 ? nil : Int64(selectedDeckID)
+        )
     }
 
     private func startLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil, anchorRect: CGRect? = nil, stacksOnTop: Bool = false) {
@@ -1653,6 +1823,8 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
     let lineHeight: Double
     let characterSpacing: Double
     let textColorHex: String
+    let selectionMenuLookupEnabled: Bool
+    let selectionMenuAIEnabled: Bool
     var onNextChapter: () -> Bool
     var onPreviousChapter: () -> Bool
     var onSaveBookmark: (Double) -> Void
@@ -1660,8 +1832,20 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
     var onInternalLink: (URL) -> Bool
     var onInternalJump: (Double) -> Void
     var onTextSelected: (ReaderEpubSelectionData) -> Void
+    var onSelectionMenuAction: (SelectedTextAction, SelectedTextSnapshot) -> Void
     var onTapOutside: () -> Void
     var onScroll: () -> Void
+
+    private var selectionMenuActions: [SelectedTextAction] {
+        var actions: [SelectedTextAction] = []
+        if selectionMenuLookupEnabled {
+            actions.append(.lookup)
+        }
+        if selectionMenuAIEnabled {
+            actions.append(.ai)
+        }
+        return actions
+    }
 
     let maxSelectionLength = 16
 
@@ -1673,9 +1857,10 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.add(context.coordinator, name: "textSelected")
         configuration.userContentController.add(context.coordinator, name: "restoreCompleted")
+        configuration.userContentController.add(context.coordinator, name: "amgiSelectionState")
         configuration.defaultWebpagePreferences.preferredContentMode = .mobile
 
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let webView = SelectedTextActionWebView(frame: .zero, configuration: configuration)
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
@@ -1685,6 +1870,10 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
         webView.scrollView.showsVerticalScrollIndicator = false
         webView.scrollView.showsHorizontalScrollIndicator = false
         webView.navigationDelegate = context.coordinator
+        webView.availableSelectionActions = selectionMenuActions
+        webView.onSelectionAction = { action, snapshot in
+            context.coordinator.handleSelectionMenuAction(action, snapshot: snapshot)
+        }
 
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
         tap.delegate = context.coordinator
@@ -1697,6 +1886,9 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.parent = self
+        if let menuWebView = webView as? SelectedTextActionWebView {
+            menuWebView.availableSelectionActions = selectionMenuActions
+        }
         bridge.currentProgressFetcher = { [weak bridge, weak coordinator = context.coordinator] completion in
             guard let coordinator else {
                 completion(bridge?.progress ?? 0)
@@ -1717,6 +1909,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
                     if let documentsDirectory = try? BookStorage.getDocumentsDirectory() {
                         bridge.updateState(url: url, progress: progress)
                         webView.scrollView.delegate = nil
+                        (webView as? SelectedTextActionWebView)?.currentSelectionSnapshot = nil
                         webView.alpha = 0
                         webView.loadFileURL(url, allowingReadAccessTo: documentsDirectory)
                     }
@@ -1743,6 +1936,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
             context.coordinator.pendingFragment = nil
             guard let documentsDirectory = try? BookStorage.getDocumentsDirectory() else { return }
             webView.scrollView.delegate = nil
+            (webView as? SelectedTextActionWebView)?.currentSelectionSnapshot = nil
             webView.alpha = 0
             webView.loadFileURL(url, allowingReadAccessTo: documentsDirectory)
         }
@@ -1752,6 +1946,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
         coordinator.parent.bridge.currentProgressFetcher = nil
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "textSelected")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "restoreCompleted")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSelectionState")
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, UIGestureRecognizerDelegate, WKScriptMessageHandler, UIScrollViewDelegate {
@@ -1767,6 +1962,10 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
             self.parent = parent
         }
 
+        func handleSelectionMenuAction(_ action: SelectedTextAction, snapshot: SelectedTextSnapshot) {
+            parent.onSelectionMenuAction(action, snapshot)
+        }
+
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             if message.name == "restoreCompleted" {
                 webView?.scrollView.delegate = self
@@ -1776,6 +1975,16 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
                 }
                 UIView.animate(withDuration: 0.25) {
                     message.webView?.alpha = 1
+                }
+            } else if message.name == "amgiSelectionState" {
+                if let body = message.body as? [String: Any],
+                   let text = body["text"] as? String {
+                    (webView as? SelectedTextActionWebView)?.currentSelectionSnapshot = SelectedTextSnapshot(
+                        text: text,
+                        sentence: body["sentence"] as? String
+                    )
+                } else {
+                    (webView as? SelectedTextActionWebView)?.currentSelectionSnapshot = nil
                 }
             } else if message.name == "textSelected" {
                 guard let body = message.body as? [String: Any],
@@ -1889,6 +2098,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
                 document.head.appendChild(style);
 
                 \(ReaderEpubScripts.selection)
+                \(ReaderEpubScripts.selectionMenuState)
                 \(ReaderEpubScripts.reader)
                 window.hoshiReader.pageHeight = \(max(Int(parent.viewSize.height), 1));
                 window.hoshiReader.pageWidth = \(max(Int(parent.viewSize.width), 1));
@@ -2783,6 +2993,37 @@ window.hoshiSelection = {
         this.selection = null;
     }
 };
+"""#
+
+    static let selectionMenuState = #"""
+(function() {
+    function postSelectionState() {
+        const selection = window.getSelection ? window.getSelection() : null;
+        const text = selection ? String(selection).trim() : '';
+        if (!selection || !text || selection.rangeCount === 0) {
+            webkit.messageHandlers.amgiSelectionState.postMessage(null);
+            return;
+        }
+
+        let sentence = (() => {
+            try {
+                const range = selection.getRangeAt(0);
+                return window.hoshiSelection?.getSentence(range.startContainer, range.startOffset) || null;
+            } catch (_) {
+                return null;
+            }
+        })();
+
+        webkit.messageHandlers.amgiSelectionState.postMessage({ text, sentence });
+    }
+
+    document.addEventListener('selectionchange', () => {
+        window.requestAnimationFrame(postSelectionState);
+    });
+    document.addEventListener('pointerup', () => {
+        window.requestAnimationFrame(postSelectionState);
+    });
+})();
 """#
 
     static let reader = #"""

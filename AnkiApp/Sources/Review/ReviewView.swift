@@ -61,6 +61,9 @@ struct ReviewView: View {
     @State private var lookupErrorMessage: String?
     @State private var showLookupError = false
     @State private var selectionAIState: ReviewSelectionAIState?
+    @State private var pendingAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
+    @State private var currentDeckName: String?
+    @State private var aiFavoriteRefreshToken = 0
     @State private var controllerMonitor = ReviewControllerMonitor()
     @State private var keyboardMonitor = ReviewKeyboardMonitor()
 
@@ -187,6 +190,7 @@ struct ReviewView: View {
             keyboardMonitor.start()
             scheduleAutoAdvanceIfNeeded()
             await preloadAvailableDecks()
+            await preloadCurrentDeckName()
         }
         .onChange(of: prefPlayAudioInSilentMode) { _, _ in
             configureAudioSession()
@@ -354,10 +358,32 @@ struct ReviewView: View {
         }
         .sheet(item: $selectionAIState) { state in
             NavigationStack {
-                ReviewSelectionAISheetView(state: state) {
-                    selectionAIState = nil
-                }
+                ReviewSelectionAISheetView(
+                    state: aiSheetBinding(for: state.id),
+                    presets: ReviewSelectionAIPresetStore.load().presets,
+                    isFavorited: isCurrentAIResponseFavorited,
+                    onClose: {
+                        selectionAIState = nil
+                    },
+                    onSubmit: { action in
+                        submitSelectionAI(quickAction: action)
+                    },
+                    onToggleFavorite: {
+                        toggleCurrentAIResponseFavorite()
+                    },
+                    onAddNote: {
+                        openAddNoteFromCurrentAI()
+                    }
+                )
             }
+        }
+        .sheet(item: $pendingAIAddNoteDraft) { sheetDraft in
+            AddNoteView(
+                onSave: {
+                    pendingAIAddNoteDraft = nil
+                },
+                draft: sheetDraft.draft
+            )
         }
         .sheet(isPresented: $showCardInfo) {
             if let queued = session.currentCard {
@@ -620,8 +646,8 @@ struct ReviewView: View {
                 onCardGesture: { gesture in
                     handleCardGesture(gesture)
                 },
-                onSelectionMenuAction: { action, selection in
-                    handleSelectionMenuAction(action, selection: selection)
+                onSelectionMenuAction: { action, snapshot in
+                    handleSelectionMenuAction(action, snapshot: snapshot)
                 }
             )
 
@@ -788,15 +814,22 @@ struct ReviewView: View {
         startCardLookup(for: query, sentence: sentence, anchor: point)
     }
 
-    private func handleSelectionMenuAction(_ action: CardWebView.SelectionMenuAction, selection: String) {
-        let trimmedSelection = selection.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func handleSelectionMenuAction(_ action: CardWebView.SelectionMenuAction, snapshot: CardWebView.SelectionSnapshot) {
+        let trimmedSelection = snapshot.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedSelection.isEmpty == false else { return }
 
         switch action {
         case .lookup:
             openSelectionLookup(for: trimmedSelection)
         case .ai:
-            startSelectionAI(for: trimmedSelection)
+            startSelectionAI(
+                for: trimmedSelection,
+                context: ReviewAIQueryContext(
+                    selectedText: trimmedSelection,
+                    sentence: normalizedLookupText(snapshot.sentence),
+                    source: reviewAISelectionSource
+                )
+            )
         }
     }
 
@@ -815,46 +848,65 @@ struct ReviewView: View {
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
 
-    private func startSelectionAI(for selection: String) {
+    private func startSelectionAI(for selection: String, context: ReviewAIQueryContext) {
         guard prefSelectionMenuAIEnabled else { return }
-
-        let config = ReviewSelectionAIConfig.load()
-        guard config.endpoint.trimmedOrNil != nil else {
-            toolbarErrorMessage = L("review_selection_ai_missing_endpoint")
+        switch ReviewAIFlow.makeInitialStateIfConfigured(selection: selection, context: context) {
+        case let .success(state):
+            selectionAIState = state
+        case let .failure(errorMessage):
+            toolbarErrorMessage = errorMessage
             showToolbarError = true
             return
         }
-        guard config.model.trimmedOrNil != nil else {
-            toolbarErrorMessage = L("review_selection_ai_missing_model")
-            showToolbarError = true
-            return
-        }
+        submitSelectionAI()
+    }
 
-        let state = ReviewSelectionAIState(selection: selection)
-        selectionAIState = state
-
-        Task {
-            do {
-                let response = try await ReviewSelectionAIClient.generateResponse(for: selection, config: config)
-                await MainActor.run {
-                    guard selectionAIState?.id == state.id else { return }
-                    var nextState = selectionAIState ?? state
-                    nextState.isLoading = false
-                    nextState.response = response
-                    nextState.errorMessage = nil
-                    selectionAIState = nextState
-                }
-            } catch {
-                await MainActor.run {
-                    guard selectionAIState?.id == state.id else { return }
-                    var nextState = selectionAIState ?? state
-                    nextState.isLoading = false
-                    nextState.response = nil
-                    nextState.errorMessage = error.localizedDescription
-                    selectionAIState = nextState
+    private func submitSelectionAI(quickAction: ReviewAIQuickAction? = nil) {
+        guard let state = selectionAIState else { return }
+        switch ReviewAIFlow.prepareSubmission(state: state, quickAction: quickAction) {
+        case let .success(prepared):
+            selectionAIState = prepared.state
+            let requestID = prepared.state.id
+            Task {
+                do {
+                    let response = try await ReviewAIFlow.requestResponse(
+                        selection: prepared.selection,
+                        context: prepared.state.context,
+                        quickAction: quickAction,
+                        presetID: prepared.config.presetID
+                    )
+                    await MainActor.run {
+                        guard selectionAIState?.id == requestID else { return }
+                        var nextState = selectionAIState ?? prepared.state
+                        nextState.isLoading = false
+                        nextState.response = response
+                        nextState.errorMessage = nil
+                        selectionAIState = nextState
+                    }
+                } catch {
+                    await MainActor.run {
+                        guard selectionAIState?.id == requestID else { return }
+                        var nextState = selectionAIState ?? prepared.state
+                        nextState.isLoading = false
+                        nextState.response = nil
+                        nextState.errorMessage = error.localizedDescription
+                        selectionAIState = nextState
+                    }
                 }
             }
+        case let .failure(errorMessage):
+            guard errorMessage.isEmpty == false else { return }
+            toolbarErrorMessage = errorMessage
+            showToolbarError = true
+            return
         }
+    }
+
+    private var reviewAISelectionSource: String {
+        let deckLabel = currentDeckName?.trimmedOrNil ?? "Deck \(deckId)"
+        let templateLabel = "#\((session.currentCard?.card.templateIdx ?? 0) + 1)"
+        let sideLabel = session.showAnswer ? L("deck_template_preview_back") : L("deck_template_preview_front")
+        return "\(deckLabel) / \(templateLabel) / \(sideLabel)"
     }
 
     private func startCardLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil, stacksOnTop: Bool = false) {
@@ -909,6 +961,69 @@ struct ReviewView: View {
             .replacingOccurrences(of: "\n", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func aiSheetBinding(for id: UUID) -> Binding<ReviewSelectionAIState> {
+        Binding(
+            get: {
+                guard let selectionAIState, selectionAIState.id == id else {
+                    return ReviewSelectionAIState(
+                        selection: "",
+                        context: ReviewAIQueryContext(selectedText: ""),
+                        activePresetID: ReviewSelectionAIPresetStore.load().selectedPresetID
+                    )
+                }
+                return selectionAIState
+            },
+            set: { newValue in
+                guard selectionAIState?.id == id else { return }
+                selectionAIState = newValue
+            }
+        )
+    }
+
+    private var isCurrentAIResponseFavorited: Bool {
+        _ = aiFavoriteRefreshToken
+        return ReviewAIFlow.isFavorited(currentAIFavoriteItem)
+    }
+
+    private var currentAIFavoriteItem: ReviewAIFavoriteItem? {
+        guard let state = selectionAIState,
+              let queryText = state.trimmedSelection,
+              let responseText = state.response?.trimmedOrNil else {
+            return nil
+        }
+
+        let presetStore = ReviewSelectionAIPresetStore.load()
+        let config = presetStore.config(for: state.activePresetID)
+        let context = ReviewAIQueryContext(
+            selectedText: queryText,
+            sentence: state.context.sentence,
+            source: state.context.source
+        )
+        return ReviewAIFavoriteItem(
+            id: ReviewAIFavoriteStore.load().favoriteID(
+                queryText: queryText,
+                responseText: responseText,
+                presetID: config.presetID
+            ) ?? UUID().uuidString,
+            presetID: config.presetID,
+            presetName: config.presetName,
+            queryText: queryText,
+            responseText: responseText,
+            sentence: context.sentence,
+            source: context.source
+        )
+    }
+
+    private func toggleCurrentAIResponseFavorite() {
+        ReviewAIFlow.toggleFavorite(currentAIFavoriteItem)
+        aiFavoriteRefreshToken += 1
+    }
+
+    private func openAddNoteFromCurrentAI() {
+        guard let state = selectionAIState else { return }
+        pendingAIAddNoteDraft = ReviewAIFlow.makeAddNoteDraft(for: state, fallbackDeckID: deckId)
     }
 
     private func lookupPopupPosition(in size: CGSize, anchor: CGPoint?, stackDepth: Int) -> CGPoint {
@@ -1424,6 +1539,15 @@ struct ReviewView: View {
             availableDecks = try deckClient.fetchAll().sorted(by: { $0.name < $1.name })
         } catch {
             availableDecks = []
+        }
+    }
+
+    @MainActor
+    private func preloadCurrentDeckName() async {
+        do {
+            currentDeckName = try deckClient.fetchNamesOnly().first(where: { $0.id == deckId })?.name
+        } catch {
+            currentDeckName = nil
         }
     }
 

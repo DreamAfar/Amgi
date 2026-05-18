@@ -1,13 +1,37 @@
 import SwiftUI
 import Foundation
 import AnkiSync
+import AnkiBackend
+import AnkiKit
+import AnkiClients
+import Dependencies
+import UIKit
 
 struct ReviewSelectionAIState: Identifiable {
     let id = UUID()
-    let selection: String
+    var originalSelection: String
+    var draftSelection: String
+    var context: ReviewAIQueryContext
+    var activePresetID: String
+    var lastAction: ReviewAIQuickAction?
     var isLoading = true
     var response: String?
     var errorMessage: String?
+
+    init(
+        selection: String,
+        context: ReviewAIQueryContext,
+        activePresetID: String
+    ) {
+        self.originalSelection = selection
+        self.draftSelection = selection
+        self.context = context
+        self.activePresetID = activePresetID
+    }
+
+    var trimmedSelection: String? {
+        draftSelection.trimmedOrNil
+    }
 }
 
 struct ReviewSelectionLookupPreset: Codable, Identifiable, Equatable {
@@ -55,6 +79,8 @@ struct ReviewSelectionAIPreset: Codable, Identifiable, Equatable {
 }
 
 struct ReviewSelectionAIConfig {
+    let presetID: String
+    let presetName: String
     let endpoint: String
     let model: String
     let systemPrompt: String
@@ -154,6 +180,22 @@ struct ReviewSelectionAIPresetStore: Codable, Equatable {
     func activeConfig() -> ReviewSelectionAIConfig {
         let preset = activePreset
         return ReviewSelectionAIConfig(
+            presetID: preset.id,
+            presetName: preset.name.trimmedOrNil ?? "AI",
+            endpoint: preset.endpoint,
+            model: preset.model,
+            systemPrompt: preset.systemPrompt,
+            glossary: preset.glossary,
+            apiKey: KeychainHelper.loadReviewSelectionAIAPIKey(identifier: preset.id)
+                ?? KeychainHelper.loadReviewSelectionAIAPIKey()
+        )
+    }
+
+    func config(for presetID: String) -> ReviewSelectionAIConfig {
+        let preset = presets.first(where: { $0.id == presetID }) ?? activePreset
+        return ReviewSelectionAIConfig(
+            presetID: preset.id,
+            presetName: preset.name.trimmedOrNil ?? "AI",
             endpoint: preset.endpoint,
             model: preset.model,
             systemPrompt: preset.systemPrompt,
@@ -261,7 +303,12 @@ enum ReviewSelectionURLBuilder {
 }
 
 enum ReviewSelectionAIClient {
-    static func generateResponse(for selection: String, config: ReviewSelectionAIConfig) async throws -> String {
+    static func generateResponse(
+        for selection: String,
+        context: ReviewAIQueryContext? = nil,
+        quickAction: ReviewAIQuickAction? = nil,
+        config: ReviewSelectionAIConfig
+    ) async throws -> String {
         guard let endpoint = config.endpoint.trimmedOrNil, let url = URL(string: endpoint) else {
             throw ReviewSelectionAIError.missingEndpoint
         }
@@ -281,7 +328,11 @@ enum ReviewSelectionAIClient {
             model: model,
             messages: [
                 ChatMessage(role: "system", content: resolvedSystemPrompt(from: config)),
-                ChatMessage(role: "user", content: selection)
+                ChatMessage(role: "user", content: resolvedUserPrompt(
+                    selection: selection,
+                    context: context,
+                    quickAction: quickAction
+                ))
             ]
         )
         request.httpBody = try JSONEncoder().encode(payload)
@@ -301,6 +352,25 @@ enum ReviewSelectionAIClient {
             throw ReviewSelectionAIError.emptyResponse
         }
         return content
+    }
+
+    private static func resolvedUserPrompt(
+        selection: String,
+        context: ReviewAIQueryContext?,
+        quickAction: ReviewAIQuickAction?
+    ) -> String {
+        var sections: [String] = []
+        if let quickAction {
+            sections.append("Task: \(quickAction.promptInstruction)")
+        }
+        sections.append("Selected text:\n\(selection)")
+        if let sentence = context?.sentence?.trimmedOrNil {
+            sections.append("Sentence:\n\(sentence)")
+        }
+        if let source = context?.source?.trimmedOrNil {
+            sections.append("Source:\n\(source)")
+        }
+        return sections.joined(separator: "\n\n")
     }
 
     private static func resolvedSystemPrompt(from config: ReviewSelectionAIConfig) -> String {
@@ -373,49 +443,19 @@ private enum ReviewSelectionAIError: LocalizedError {
     }
 }
 
-struct ReviewSelectionMenuSettingsView: View {
+struct ReviewSelectionLookupLinkSettingsView: View {
     @AppStorage(ReviewPreferences.Keys.selectionMenuLookupEnabled) private var selectionMenuLookupEnabled = false
-    @AppStorage(ReviewPreferences.Keys.selectionMenuAIEnabled) private var selectionMenuAIEnabled = false
+    @State private var store = ReviewSelectionLookupPresetStore.load()
 
     var body: some View {
         List {
             Section {
                 Toggle(L("settings_review_text_selection_menu_lookup_enabled"), isOn: $selectionMenuLookupEnabled)
-                Toggle(L("settings_review_text_selection_menu_ai_enabled"), isOn: $selectionMenuAIEnabled)
             } footer: {
-                Text(L("settings_review_text_selection_menu_description"))
+                Text(L("settings_review_lookup_settings_footer"))
             }
             .amgiSettingsListRowSurface()
 
-            Section {
-                NavigationLink {
-                    ReviewSelectionLookupLinkSettingsView()
-                } label: {
-                    Label(L("settings_review_lookup_link_options"), systemImage: "link")
-                        .foregroundStyle(SettingsValueStyle.primary)
-                }
-
-                NavigationLink {
-                    ReviewSelectionAISettingsView()
-                } label: {
-                    Label(L("settings_review_ai_settings"), systemImage: "sparkles")
-                        .foregroundStyle(SettingsValueStyle.primary)
-                }
-            }
-            .amgiSettingsListRowSurface()
-        }
-        .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
-        .navigationTitle(L("settings_review_text_selection_menu"))
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-private struct ReviewSelectionLookupLinkSettingsView: View {
-    @State private var store = ReviewSelectionLookupPresetStore.load()
-
-    var body: some View {
-        List {
             Section(L("settings_review_preset_section_current")) {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_preset_active"))
@@ -467,7 +507,7 @@ private struct ReviewSelectionLookupLinkSettingsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
-        .navigationTitle(L("settings_review_lookup_link_options"))
+        .navigationTitle(L("settings_review_lookup_settings"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -549,7 +589,86 @@ private struct ReviewSelectionLookupLinkPresetEditorView: View {
     }
 }
 
-private struct ReviewSelectionAISettingsView: View {
+struct ReviewAISettingsHomeView: View {
+    @AppStorage(ReviewPreferences.Keys.selectionMenuAIEnabled) private var selectionMenuAIEnabled = false
+    @State private var presetStore = ReviewSelectionAIPresetStore.load()
+    @State private var favoriteStore = ReviewAIFavoriteStore.load()
+
+    var body: some View {
+        List {
+            Section {
+                Toggle(L("settings_review_text_selection_menu_ai_enabled"), isOn: $selectionMenuAIEnabled)
+            } footer: {
+                Text(L("settings_review_ai_settings_footer"))
+            }
+            .amgiSettingsListRowSurface()
+
+            Section {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                    Text(L("settings_review_preset_active"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    SettingsOptionCapsuleLabel(title: activePresetTitle, icon: "sparkles")
+                }
+            }
+            .amgiSettingsListRowSurface()
+
+            Section {
+                NavigationLink {
+                    ReviewAIPresetManagementView()
+                } label: {
+                    settingsDestinationRow(
+                        title: L("settings_review_ai_presets"),
+                        subtitle: L("settings_review_ai_presets_subtitle"),
+                        icon: "slider.horizontal.3"
+                    )
+                }
+
+                NavigationLink {
+                    ReviewAIFavoritesView()
+                } label: {
+                    settingsDestinationRow(
+                        title: L("settings_review_ai_favorites"),
+                        subtitle: favoriteCountLabel,
+                        icon: "star"
+                    )
+                }
+
+                NavigationLink {
+                    ReviewAINoteTemplateSettingsView()
+                } label: {
+                    settingsDestinationRow(
+                        title: L("settings_review_ai_note_template"),
+                        subtitle: L("settings_review_ai_note_template_subtitle"),
+                        icon: "note.text.badge.plus"
+                    )
+                }
+            }
+            .amgiSettingsListRowSurface()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_review_ai_settings"))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            presetStore = ReviewSelectionAIPresetStore.load()
+            favoriteStore = ReviewAIFavoriteStore.load()
+        }
+    }
+
+    private var activePresetTitle: String {
+        let preset = presetStore.activePreset
+        let index = presetStore.presets.firstIndex(where: { $0.id == preset.id }) ?? 0
+        return preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1)
+    }
+
+    private var favoriteCountLabel: String {
+        L("settings_review_ai_favorites_count", favoriteStore.items.count)
+    }
+}
+
+private struct ReviewAIPresetManagementView: View {
     @State private var store = ReviewSelectionAIPresetStore.load()
 
     var body: some View {
@@ -578,7 +697,7 @@ private struct ReviewSelectionAISettingsView: View {
             Section(L("settings_review_preset_section_saved")) {
                 ForEach(Array(store.presets.enumerated()), id: \.element.id) { index, preset in
                     NavigationLink {
-                        ReviewSelectionAIPresetEditorView(
+                        ReviewAIPresetEditorView(
                             preset: presetBinding(for: preset.id),
                             title: presetTitle(preset, index: index)
                         )
@@ -605,7 +724,7 @@ private struct ReviewSelectionAISettingsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
-        .navigationTitle(L("settings_review_ai_settings"))
+        .navigationTitle(L("settings_review_ai_presets"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -652,7 +771,7 @@ private struct ReviewSelectionAISettingsView: View {
     }
 }
 
-private struct ReviewSelectionAIPresetEditorView: View {
+private struct ReviewAIPresetEditorView: View {
     @Binding var preset: ReviewSelectionAIPreset
     let title: String
     @State private var apiKey: String
@@ -718,6 +837,349 @@ private struct ReviewSelectionAIPresetEditorView: View {
     }
 }
 
+private struct ReviewAIFavoritesView: View {
+    @State private var store = ReviewAIFavoriteStore.load()
+
+    var body: some View {
+        List {
+            if store.items.isEmpty {
+                Section {
+                    Text(L("settings_review_ai_favorites_empty"))
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                }
+                .amgiSettingsListRowSurface()
+            } else {
+                Section {
+                    ForEach(store.items) { item in
+                        NavigationLink {
+                            ReviewAIFavoriteDetailView(item: item)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.queryText)
+                                    .amgiFont(.body)
+                                    .foregroundStyle(SettingsValueStyle.primary)
+                                    .lineLimit(1)
+                                Text(item.summary)
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(SettingsValueStyle.secondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                store.remove(id: item.id)
+                                store.persist()
+                            } label: {
+                                Label(L("common_delete"), systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+                .amgiSettingsListRowSurface()
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_review_ai_favorites"))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            store = ReviewAIFavoriteStore.load()
+        }
+    }
+}
+
+private struct ReviewAIFavoriteDetailView: View {
+    let item: ReviewAIFavoriteItem
+    @State private var pendingAddNoteDraft: ReviewAIAddNoteSheetDraft?
+
+    var body: some View {
+        List {
+            Section(L("review_selection_ai_selected_text")) {
+                Text(item.queryText)
+                    .textSelection(.enabled)
+            }
+            .amgiSettingsListRowSurface()
+
+            if let sentence = item.sentence?.trimmedOrNil {
+                Section(L("review_selection_ai_sentence")) {
+                    Text(sentence)
+                        .textSelection(.enabled)
+                }
+                .amgiSettingsListRowSurface()
+            }
+
+            if let source = item.source?.trimmedOrNil {
+                Section(L("review_selection_ai_source")) {
+                    Text(source)
+                        .textSelection(.enabled)
+                }
+                .amgiSettingsListRowSurface()
+            }
+
+            Section(L("review_selection_ai_result")) {
+                Text(item.responseText)
+                    .textSelection(.enabled)
+            }
+            .amgiSettingsListRowSurface()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(item.presetName)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    UIPasteboard.general.string = item.responseText
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+
+                Button {
+                    let template = ReviewAINoteTemplateStore.load().template
+                    pendingAddNoteDraft = ReviewAIAddNoteSheetDraft(
+                        draft: template.makeDraft(
+                            context: item.context,
+                            answer: item.responseText
+                        )
+                    )
+                } label: {
+                    Image(systemName: "note.text.badge.plus")
+                }
+            }
+        }
+        .sheet(item: $pendingAddNoteDraft) { sheetDraft in
+            AddNoteView(
+                onSave: {
+                    pendingAddNoteDraft = nil
+                },
+                draft: sheetDraft.draft
+            )
+        }
+    }
+}
+
+private struct ReviewAINoteTemplateSettingsView: View {
+    @Dependency(\.ankiBackend) private var backend
+    @Dependency(\.deckClient) private var deckClient
+
+    @State private var store = ReviewAINoteTemplateStore.load()
+    @State private var decks: [DeckInfo] = []
+    @State private var notetypeNames: [(id: Int64, name: String)] = []
+    @State private var availableFields: [String] = []
+
+    var body: some View {
+        List {
+            Section {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                    Text(L("add_note_section_deck"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Menu {
+                        Picker(L("add_note_section_deck"), selection: selectedDeckBinding) {
+                            Text(L("settings_reader_not_set"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(0)
+                            ForEach(decks) { deck in
+                                Text(deck.name)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(Int(deck.id))
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: selectedDeckLabel)
+                    }
+                }
+
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                    Text(L("add_note_type_label"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Menu {
+                        Picker(L("add_note_type_label"), selection: selectedNotetypeBinding) {
+                            Text(L("settings_reader_not_set"))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(0)
+                            ForEach(notetypeNames, id: \.id) { item in
+                                Text(item.name)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(Int(item.id))
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: selectedNotetypeLabel)
+                    }
+                }
+            } footer: {
+                Text(L("settings_review_ai_note_template_footer"))
+            }
+            .amgiSettingsListRowSurface()
+
+            Section {
+                ForEach(availableFields, id: \.self) { fieldName in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(fieldName)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            TextField(L("common_none"), text: templateMappingBinding(for: fieldName))
+                                .submitLabel(.done)
+                            Menu {
+                                Button("-") {
+                                    templateMappingBinding(for: fieldName).wrappedValue = ""
+                                }
+                                Divider()
+                                ForEach(ReviewAINoteTemplateToken.allCases) { token in
+                                    Button(token.title) {
+                                        insertToken(token.rawValue, into: fieldName)
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "chevron.up.chevron.down")
+                            }
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L("io_section_tags"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField(L("common_none"), text: tagsBinding)
+                        .submitLabel(.done)
+                }
+            } header: {
+                Text(L("settings_review_ai_note_template_fields"))
+            } footer: {
+                Text(L("settings_review_ai_note_template_supported_fields"))
+            }
+            .amgiSettingsListRowSurface()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_review_ai_note_template"))
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadData()
+        }
+        .onChange(of: store) { _, newValue in
+            newValue.persist()
+        }
+    }
+
+    private var selectedDeckBinding: Binding<Int> {
+        Binding(
+            get: { store.template.deckID.map(Int.init) ?? 0 },
+            set: { newValue in
+                store.template.deckID = newValue == 0 ? nil : Int64(newValue)
+            }
+        )
+    }
+
+    private var selectedNotetypeBinding: Binding<Int> {
+        Binding(
+            get: { store.template.notetypeID.map(Int.init) ?? 0 },
+            set: { newValue in
+                store.template.notetypeID = newValue == 0 ? nil : Int64(newValue)
+                loadTemplateFields(for: store.template.notetypeID)
+            }
+        )
+    }
+
+    private var selectedDeckLabel: String {
+        guard let deckID = store.template.deckID,
+              let deck = decks.first(where: { $0.id == deckID }) else {
+            return L("settings_reader_not_set")
+        }
+        return deck.name
+    }
+
+    private var selectedNotetypeLabel: String {
+        guard let notetypeID = store.template.notetypeID,
+              let entry = notetypeNames.first(where: { $0.id == notetypeID }) else {
+            return L("settings_reader_not_set")
+        }
+        return entry.name
+    }
+
+    private var tagsBinding: Binding<String> {
+        Binding(
+            get: { store.template.tags },
+            set: { newValue in
+                store.template.tags = newValue
+            }
+        )
+    }
+
+    private func templateMappingBinding(for fieldName: String) -> Binding<String> {
+        Binding(
+            get: { store.template.fieldMappings[fieldName] ?? "" },
+            set: { newValue in
+                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty {
+                    store.template.fieldMappings.removeValue(forKey: fieldName)
+                } else {
+                    store.template.fieldMappings[fieldName] = newValue
+                }
+            }
+        )
+    }
+
+    private func insertToken(_ token: String, into fieldName: String) {
+        let current = store.template.fieldMappings[fieldName] ?? ""
+        if current.isEmpty {
+            store.template.fieldMappings[fieldName] = token
+        } else if current.contains(token) == false {
+            store.template.fieldMappings[fieldName] = current + " " + token
+        }
+    }
+
+    private func loadData() async {
+        decks = (try? deckClient.fetchNamesOnly()) ?? []
+        do {
+            notetypeNames = try loadStandardNotetypeEntries(backend: backend)
+        } catch {
+            notetypeNames = []
+        }
+        loadTemplateFields(for: store.template.notetypeID)
+    }
+
+    private func loadTemplateFields(for notetypeID: Int64?) {
+        guard let notetypeID else {
+            availableFields = []
+            store.template.clearInvalidFields(validFields: [])
+            return
+        }
+
+        do {
+            let notetype = try fetchNotetype(backend: backend, id: notetypeID)
+            availableFields = notetype.fields.map(\.name)
+            store.template.clearInvalidFields(validFields: availableFields)
+        } catch {
+            availableFields = []
+            store.template.clearInvalidFields(validFields: [])
+        }
+    }
+}
+
+private func settingsDestinationRow(title: String, subtitle: String, icon: String) -> some View {
+    HStack(spacing: AmgiSpacing.sm) {
+        Image(systemName: icon)
+            .foregroundStyle(SettingsValueStyle.secondary)
+            .frame(width: 18)
+
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .amgiFont(.body)
+                .foregroundStyle(SettingsValueStyle.primary)
+            Text(subtitle)
+                .amgiFont(.caption)
+                .foregroundStyle(SettingsValueStyle.secondary)
+                .lineLimit(1)
+        }
+    }
+}
+
 @MainActor
 private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: String) -> some View {
     HStack(spacing: AmgiSpacing.sm) {
@@ -745,46 +1207,170 @@ private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: 
 }
 
 struct ReviewSelectionAISheetView: View {
-    let state: ReviewSelectionAIState
+    @Binding var state: ReviewSelectionAIState
+    let presets: [ReviewSelectionAIPreset]
+    let isFavorited: Bool
     let onClose: () -> Void
+    let onSubmit: (ReviewAIQuickAction?) -> Void
+    let onToggleFavorite: () -> Void
+    let onAddNote: () -> Void
 
     var body: some View {
-        List {
-            Section(L("review_selection_ai_selected_text")) {
-                Text(state.selection)
-                    .textSelection(.enabled)
-            }
-            .amgiSettingsListRowSurface()
-
-            Section(L("review_selection_ai_result")) {
-                if state.isLoading {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                        Text(L("review_selection_ai_loading"))
-                            .foregroundStyle(SettingsValueStyle.secondary)
+        ScrollView {
+            VStack(spacing: AmgiSpacing.md) {
+                HStack(spacing: AmgiSpacing.sm) {
+                    Menu {
+                        Picker(L("settings_review_preset_active"), selection: $state.activePresetID) {
+                            ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
+                                Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(preset.id)
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(
+                            title: selectedPresetTitle,
+                            icon: "sparkles",
+                            maxWidth: 260
+                        )
                     }
-                } else if let errorMessage = state.errorMessage?.trimmedOrNil {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .textSelection(.enabled)
-                } else {
-                    Text(state.response?.trimmedOrNil ?? L("review_selection_ai_empty_response"))
-                        .textSelection(.enabled)
+
+                    Spacer(minLength: 0)
+
+                    Button(L("review_selection_ai_retry")) {
+                        onSubmit(nil)
+                    }
+                    .amgiToolbarTextButton(tone: .neutral)
                 }
+
+                VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
+                    Text(L("review_selection_ai_selected_text"))
+                        .amgiFont(.bodyEmphasis)
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    TextEditor(text: $state.draftSelection)
+                        .frame(minHeight: 92)
+                        .padding(8)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+
+                VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
+                    Text(L("review_selection_ai_result"))
+                        .amgiFont(.bodyEmphasis)
+                        .foregroundStyle(SettingsValueStyle.primary)
+
+                    Group {
+                        if state.isLoading {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                Text(L("review_selection_ai_loading"))
+                                    .foregroundStyle(SettingsValueStyle.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        } else if let errorMessage = state.errorMessage?.trimmedOrNil {
+                            Text(errorMessage)
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        } else {
+                            Text(state.response?.trimmedOrNil ?? L("review_selection_ai_empty_response"))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
+                    .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: AmgiSpacing.xs) {
+                        ForEach(ReviewAIQuickAction.allCases) { action in
+                            Button(action.title) {
+                                onSubmit(action)
+                            }
+                            .foregroundStyle(SettingsValueStyle.secondary)
+                            .amgiCapsuleControl(backgroundColor: Color.amgiMenuSurface, horizontalPadding: 10, verticalPadding: 6)
+                        }
+                    }
+                }
+
+                if state.context.sentence?.trimmedOrNil != nil || state.context.source?.trimmedOrNil != nil {
+                    DisclosureGroup(L("review_selection_ai_more_context")) {
+                        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+                            if let sentence = state.context.sentence?.trimmedOrNil {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(L("review_selection_ai_sentence"))
+                                        .amgiFont(.caption)
+                                        .foregroundStyle(SettingsValueStyle.secondary)
+                                    Text(sentence)
+                                        .textSelection(.enabled)
+                                }
+                            }
+                            if let source = state.context.source?.trimmedOrNil {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(L("review_selection_ai_source"))
+                                        .amgiFont(.caption)
+                                        .foregroundStyle(SettingsValueStyle.secondary)
+                                    Text(source)
+                                        .textSelection(.enabled)
+                                }
+                            }
+                        }
+                        .padding(.top, AmgiSpacing.xs)
+                    }
+                    .padding(12)
+                    .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+
+                HStack(spacing: AmgiSpacing.sm) {
+                    Button(L("review_selection_ai_add_note")) {
+                        onAddNote()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button(L("review_selection_ai_copy")) {
+                        UIPasteboard.general.string = state.response?.trimmedOrNil ?? state.draftSelection
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button(isFavorited ? L("review_selection_ai_favorited") : L("review_selection_ai_favorite")) {
+                        onToggleFavorite()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .amgiSettingsListRowSurface()
+            .padding()
         }
-        .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
         .navigationTitle(L("review_selection_ai_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .topBarLeading) {
                 Button(L("common_done")) {
                     onClose()
                 }
+                .amgiToolbarTextButton(tone: .neutral)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    onToggleFavorite()
+                } label: {
+                    Image(systemName: isFavorited ? "star.fill" : "star")
+                }
             }
         }
+        .onChange(of: state.activePresetID) { _, _ in
+            onSubmit(nil)
+        }
+    }
+
+    private var selectedPresetTitle: String {
+        if let index = presets.firstIndex(where: { $0.id == state.activePresetID }) {
+            return presets[index].name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1)
+        }
+        return L("settings_review_ai_settings")
     }
 }
 
