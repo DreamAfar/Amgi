@@ -948,6 +948,7 @@ private struct ReaderChapterView: View {
     @State private var selectionRequestID = 0
     @State private var pendingAddNoteDraft: ReaderAddNoteSheetDraft?
     @State private var pendingAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
+    @State private var queuedAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
     @State private var lookupPopupRefreshID = 0
     @State private var showSelectionError = false
     @State private var pendingSelectionAction: SelectionAction?
@@ -1159,11 +1160,14 @@ private struct ReaderChapterView: View {
                 draft: sheetDraft.draft
             )
         }
-        .sheet(item: $selectionAIState) { state in
+        .sheet(item: $selectionAIState, onDismiss: {
+            presentQueuedAIAddNoteDraft()
+        }) { state in
             NavigationStack {
                 ReviewSelectionAISheetView(
                     state: aiSheetBinding(for: state.id),
                     presets: ReviewSelectionAIPresetStore.load().presets,
+                    quickActions: ReviewAIQuickActionStore.load().actions,
                     isFavorited: isCurrentAIResponseFavorited,
                     onClose: {
                         selectionAIState = nil
@@ -1575,7 +1579,14 @@ private struct ReaderChapterView: View {
 
     private func openAddNoteFromCurrentAI() {
         guard let state = selectionAIState else { return }
-        pendingAIAddNoteDraft = ReviewAIFlow.makeAddNoteDraft(for: state, fallbackDeckID: selectedDeckID == 0 ? nil : Int64(selectedDeckID))
+        queuedAIAddNoteDraft = ReviewAIFlow.makeAddNoteDraft(for: state, fallbackDeckID: selectedDeckID == 0 ? nil : Int64(selectedDeckID))
+        selectionAIState = nil
+    }
+
+    private func presentQueuedAIAddNoteDraft() {
+        guard pendingAIAddNoteDraft == nil, let queuedAIAddNoteDraft else { return }
+        pendingAIAddNoteDraft = queuedAIAddNoteDraft
+        self.queuedAIAddNoteDraft = nil
     }
 
     private func startLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil, anchorRect: CGRect? = nil, stacksOnTop: Bool = false) {

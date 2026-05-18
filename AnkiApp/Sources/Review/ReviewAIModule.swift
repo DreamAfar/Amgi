@@ -28,43 +28,100 @@ struct ReviewAIQueryContext: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-enum ReviewAIQuickAction: String, CaseIterable, Identifiable, Codable, Sendable {
-    case explain
-    case translate
-    case example
-    case grammar
-    case simplify
+struct ReviewAIQuickAction: Codable, Identifiable, Equatable, Sendable {
+    var id: String
+    var title: String
+    var promptInstruction: String
 
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .explain:
-            return L("review_selection_ai_action_explain")
-        case .translate:
-            return L("review_selection_ai_action_translate")
-        case .example:
-            return L("review_selection_ai_action_example")
-        case .grammar:
-            return L("review_selection_ai_action_grammar")
-        case .simplify:
-            return L("review_selection_ai_action_simplify")
-        }
+    init(
+        id: String = UUID().uuidString,
+        title: String,
+        promptInstruction: String
+    ) {
+        self.id = id
+        self.title = title
+        self.promptInstruction = promptInstruction
     }
 
-    var promptInstruction: String {
-        switch self {
-        case .explain:
-            return "Explain the selected text clearly in Chinese, keeping key terms."
-        case .translate:
-            return "Translate the selected text into concise natural Chinese."
-        case .example:
-            return "Provide short example sentences and explain how the selected text is used."
-        case .grammar:
-            return "Break down the grammar and structure of the selected text in Chinese."
-        case .simplify:
-            return "Rewrite the answer in a simpler and more concise Chinese explanation."
+    static func defaultActions() -> [Self] {
+        [
+            Self(
+                id: "explain",
+                title: L("review_selection_ai_action_explain"),
+                promptInstruction: "Explain the selected text clearly in Chinese, keeping key terms."
+            ),
+            Self(
+                id: "translate",
+                title: L("review_selection_ai_action_translate"),
+                promptInstruction: "Translate the selected text into concise natural Chinese."
+            ),
+            Self(
+                id: "example",
+                title: L("review_selection_ai_action_example"),
+                promptInstruction: "Provide short example sentences and explain how the selected text is used."
+            ),
+            Self(
+                id: "grammar",
+                title: L("review_selection_ai_action_grammar"),
+                promptInstruction: "Break down the grammar and structure of the selected text in Chinese."
+            ),
+            Self(
+                id: "simplify",
+                title: L("review_selection_ai_action_simplify"),
+                promptInstruction: "Rewrite the answer in a simpler and more concise Chinese explanation."
+            )
+        ]
+    }
+}
+
+struct ReviewAIQuickActionStore: Codable, Equatable, Sendable {
+    var actions: [ReviewAIQuickAction]
+
+    static func load(defaults: UserDefaults = .standard) -> Self {
+        if let data = defaults.data(forKey: ReviewPreferences.Keys.selectionMenuAIQuickActions),
+           let value = try? JSONDecoder().decode(Self.self, from: data) {
+            return value.normalized()
         }
+        let migrated = Self(actions: ReviewAIQuickAction.defaultActions())
+        migrated.persist(defaults: defaults)
+        return migrated
+    }
+
+    func persist(defaults: UserDefaults = .standard) {
+        guard let data = try? JSONEncoder().encode(normalized()) else { return }
+        defaults.set(data, forKey: ReviewPreferences.Keys.selectionMenuAIQuickActions)
+    }
+
+    mutating func addAction() {
+        actions.append(
+            ReviewAIQuickAction(
+                title: L("settings_review_ai_quick_action_new"),
+                promptInstruction: ""
+            )
+        )
+        self = normalized()
+    }
+
+    mutating func update(_ action: ReviewAIQuickAction) {
+        guard let index = actions.firstIndex(where: { $0.id == action.id }) else { return }
+        actions[index] = action
+        self = normalized()
+    }
+
+    mutating func remove(id: String) {
+        actions.removeAll { $0.id == id }
+        self = normalized()
+    }
+
+    private func normalized() -> Self {
+        var value = self
+        value.actions = value.actions.map { action in
+            var normalizedAction = action
+            normalizedAction.title = action.title
+            normalizedAction.promptInstruction = action.promptInstruction
+            return normalizedAction
+        }
+        return value
     }
 }
 

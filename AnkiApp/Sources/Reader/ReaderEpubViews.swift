@@ -406,6 +406,7 @@ struct ReaderEpubReaderView: View {
     @State private var bridge = ReaderEpubWebViewBridge()
     @State private var pendingAddNoteDraft: ReaderEpubAddNoteSheetDraft?
     @State private var pendingAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
+    @State private var queuedAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
     @State private var lookupPopupRefreshID = 0
     @State private var showSelectionError = false
     @State private var lookupErrorMessage: String?
@@ -847,11 +848,14 @@ struct ReaderEpubReaderView: View {
                         draft: sheetDraft.draft
                     )
                 }
-                .sheet(item: $selectionAIState) { state in
+                .sheet(item: $selectionAIState, onDismiss: {
+                    presentQueuedAIAddNoteDraft()
+                }) { state in
                     NavigationStack {
                         ReviewSelectionAISheetView(
                             state: aiSheetBinding(for: state.id),
                             presets: ReviewSelectionAIPresetStore.load().presets,
+                            quickActions: ReviewAIQuickActionStore.load().actions,
                             isFavorited: isCurrentAIResponseFavorited,
                             onClose: {
                                 selectionAIState = nil
@@ -1367,10 +1371,17 @@ struct ReaderEpubReaderView: View {
 
     private func openAddNoteFromCurrentAI() {
         guard let state = selectionAIState else { return }
-        pendingAIAddNoteDraft = ReviewAIFlow.makeAddNoteDraft(
+        queuedAIAddNoteDraft = ReviewAIFlow.makeAddNoteDraft(
             for: state,
             fallbackDeckID: selectedDeckID == 0 ? nil : Int64(selectedDeckID)
         )
+        selectionAIState = nil
+    }
+
+    private func presentQueuedAIAddNoteDraft() {
+        guard pendingAIAddNoteDraft == nil, let queuedAIAddNoteDraft else { return }
+        pendingAIAddNoteDraft = queuedAIAddNoteDraft
+        self.queuedAIAddNoteDraft = nil
     }
 
     private func startLookup(for query: String, sentence: String? = nil, anchor: CGPoint? = nil, anchorRect: CGRect? = nil, stacksOnTop: Bool = false) {

@@ -62,6 +62,7 @@ struct ReviewView: View {
     @State private var showLookupError = false
     @State private var selectionAIState: ReviewSelectionAIState?
     @State private var pendingAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
+    @State private var queuedAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
     @State private var currentDeckName: String?
     @State private var aiFavoriteRefreshToken = 0
     @State private var controllerMonitor = ReviewControllerMonitor()
@@ -356,11 +357,14 @@ struct ReviewView: View {
                 StatsDashboardView(initialDeckID: deckId)
             }
         }
-        .sheet(item: $selectionAIState) { state in
+        .sheet(item: $selectionAIState, onDismiss: {
+            presentQueuedAIAddNoteDraft()
+        }) { state in
             NavigationStack {
                 ReviewSelectionAISheetView(
                     state: aiSheetBinding(for: state.id),
                     presets: ReviewSelectionAIPresetStore.load().presets,
+                    quickActions: ReviewAIQuickActionStore.load().actions,
                     isFavorited: isCurrentAIResponseFavorited,
                     onClose: {
                         selectionAIState = nil
@@ -1022,7 +1026,14 @@ struct ReviewView: View {
 
     private func openAddNoteFromCurrentAI() {
         guard let state = selectionAIState else { return }
-        pendingAIAddNoteDraft = ReviewAIFlow.makeAddNoteDraft(for: state, fallbackDeckID: deckId)
+        queuedAIAddNoteDraft = ReviewAIFlow.makeAddNoteDraft(for: state, fallbackDeckID: deckId)
+        selectionAIState = nil
+    }
+
+    private func presentQueuedAIAddNoteDraft() {
+        guard pendingAIAddNoteDraft == nil, let queuedAIAddNoteDraft else { return }
+        pendingAIAddNoteDraft = queuedAIAddNoteDraft
+        self.queuedAIAddNoteDraft = nil
     }
 
     private func lookupPopupPosition(in size: CGSize, anchor: CGPoint?, stackDepth: Int) -> CGPoint {

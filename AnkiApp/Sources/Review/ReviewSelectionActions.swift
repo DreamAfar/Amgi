@@ -379,7 +379,7 @@ enum ReviewSelectionAIClient {
         guard let glossary = config.glossary.trimmedOrNil else {
             return basePrompt
         }
-        return "\(basePrompt)\n\nTerminology notes:\n\(glossary)"
+        return "\(basePrompt)\n\nTerminology constraints:\n\(glossary)"
     }
 
     private static func decodeErrorMessage(from data: Data) -> String? {
@@ -591,8 +591,8 @@ private struct ReviewSelectionLookupLinkPresetEditorView: View {
 
 struct ReviewAISettingsHomeView: View {
     @AppStorage(ReviewPreferences.Keys.selectionMenuAIEnabled) private var selectionMenuAIEnabled = false
-    @State private var presetStore = ReviewSelectionAIPresetStore.load()
     @State private var favoriteStore = ReviewAIFavoriteStore.load()
+    @State private var quickActionStore = ReviewAIQuickActionStore.load()
 
     var body: some View {
         List {
@@ -600,17 +600,6 @@ struct ReviewAISettingsHomeView: View {
                 Toggle(L("settings_review_text_selection_menu_ai_enabled"), isOn: $selectionMenuAIEnabled)
             } footer: {
                 Text(L("settings_review_ai_settings_footer"))
-            }
-            .amgiSettingsListRowSurface()
-
-            Section {
-                HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                    Text(L("settings_review_preset_active"))
-                        .foregroundStyle(SettingsValueStyle.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    SettingsOptionCapsuleLabel(title: activePresetTitle, icon: "sparkles")
-                }
             }
             .amgiSettingsListRowSurface()
 
@@ -644,6 +633,16 @@ struct ReviewAISettingsHomeView: View {
                         icon: "note.text.badge.plus"
                     )
                 }
+
+                NavigationLink {
+                    ReviewAIQuickActionsView()
+                } label: {
+                    settingsDestinationRow(
+                        title: L("settings_review_ai_quick_actions"),
+                        subtitle: quickActionCountLabel,
+                        icon: "bolt"
+                    )
+                }
             }
             .amgiSettingsListRowSurface()
         }
@@ -652,19 +651,17 @@ struct ReviewAISettingsHomeView: View {
         .navigationTitle(L("settings_review_ai_settings"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            presetStore = ReviewSelectionAIPresetStore.load()
             favoriteStore = ReviewAIFavoriteStore.load()
+            quickActionStore = ReviewAIQuickActionStore.load()
         }
-    }
-
-    private var activePresetTitle: String {
-        let preset = presetStore.activePreset
-        let index = presetStore.presets.firstIndex(where: { $0.id == preset.id }) ?? 0
-        return preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1)
     }
 
     private var favoriteCountLabel: String {
         L("settings_review_ai_favorites_count", favoriteStore.items.count)
+    }
+
+    private var quickActionCountLabel: String {
+        L("settings_review_ai_quick_actions_count", quickActionStore.actions.count)
     }
 }
 
@@ -807,14 +804,20 @@ private struct ReviewAIPresetEditorView: View {
             .amgiSettingsListRowSurface()
 
             Section(L("settings_review_ai_system_prompt")) {
-                TextEditor(text: $preset.systemPrompt)
-                    .frame(minHeight: 120)
+                placeholderTextEditor(
+                    text: $preset.systemPrompt,
+                    placeholder: L("settings_review_ai_system_prompt_placeholder"),
+                    minHeight: 120
+                )
             }
             .amgiSettingsListRowSurface()
 
             Section(L("settings_review_ai_glossary")) {
-                TextEditor(text: $preset.glossary)
-                    .frame(minHeight: 120)
+                placeholderTextEditor(
+                    text: $preset.glossary,
+                    placeholder: L("settings_review_ai_glossary_placeholder"),
+                    minHeight: 120
+                )
             }
             .amgiSettingsListRowSurface()
         }
@@ -834,6 +837,26 @@ private struct ReviewAIPresetEditorView: View {
         } else {
             try? KeychainHelper.saveReviewSelectionAIAPIKey(trimmed, identifier: preset.id)
         }
+    }
+}
+
+@MainActor
+private func placeholderTextEditor(
+    text: Binding<String>,
+    placeholder: String,
+    minHeight: CGFloat
+) -> some View {
+    ZStack(alignment: .topLeading) {
+        if text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Text(placeholder)
+                .foregroundStyle(SettingsValueStyle.secondary)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 8)
+                .allowsHitTesting(false)
+        }
+
+        TextEditor(text: text)
+            .frame(minHeight: minHeight)
     }
 }
 
@@ -885,6 +908,108 @@ private struct ReviewAIFavoritesView: View {
         .onAppear {
             store = ReviewAIFavoriteStore.load()
         }
+    }
+}
+
+private struct ReviewAIQuickActionsView: View {
+    @State private var store = ReviewAIQuickActionStore.load()
+
+    var body: some View {
+        List {
+            if store.actions.isEmpty {
+                Section {
+                    Text(L("settings_review_ai_quick_actions_empty"))
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                }
+                .amgiSettingsListRowSurface()
+            } else {
+                Section {
+                    ForEach(Array(store.actions.enumerated()), id: \.element.id) { index, action in
+                        NavigationLink {
+                            ReviewAIQuickActionEditorView(
+                                action: actionBinding(for: action.id),
+                                title: actionTitle(action, index: index)
+                            )
+                        } label: {
+                            settingsDestinationRow(
+                                title: actionTitle(action, index: index),
+                                subtitle: action.promptInstruction.trimmedOrNil ?? L("common_none"),
+                                icon: "bolt"
+                            )
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                store.remove(id: action.id)
+                            } label: {
+                                Label(L("common_delete"), systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+                .amgiSettingsListRowSurface()
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_review_ai_quick_actions"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    store.addAction()
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .onChange(of: store) { _, newValue in
+            newValue.persist()
+        }
+        .onAppear {
+            store = ReviewAIQuickActionStore.load()
+        }
+    }
+
+    private func actionBinding(for actionID: String) -> Binding<ReviewAIQuickAction> {
+        Binding(
+            get: {
+                store.actions.first(where: { $0.id == actionID })
+                    ?? ReviewAIQuickAction(id: actionID, title: "", promptInstruction: "")
+            },
+            set: { newValue in
+                store.update(newValue)
+            }
+        )
+    }
+
+    private func actionTitle(_ action: ReviewAIQuickAction, index: Int) -> String {
+        action.title.trimmedOrNil ?? L("settings_review_ai_quick_action_name_fallback", index + 1)
+    }
+}
+
+private struct ReviewAIQuickActionEditorView: View {
+    @Binding var action: ReviewAIQuickAction
+    let title: String
+
+    var body: some View {
+        List {
+            Section {
+                TextField(L("settings_review_ai_quick_action_name"), text: $action.title)
+            }
+            .amgiSettingsListRowSurface()
+
+            Section(L("settings_review_ai_quick_action_prompt")) {
+                TextEditor(text: $action.promptInstruction)
+                    .frame(minHeight: 160)
+            } footer: {
+                Text(L("settings_review_ai_quick_action_prompt_footer"))
+            }
+            .amgiSettingsListRowSurface()
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -1210,6 +1335,7 @@ private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: 
 struct ReviewSelectionAISheetView: View {
     @Binding var state: ReviewSelectionAIState
     let presets: [ReviewSelectionAIPreset]
+    let quickActions: [ReviewAIQuickAction]
     let isFavorited: Bool
     let onClose: () -> Void
     let onSubmit: (ReviewAIQuickAction?) -> Void
@@ -1256,9 +1382,20 @@ struct ReviewSelectionAISheetView: View {
                 }
 
                 VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
-                    Text(L("review_selection_ai_result"))
-                        .amgiFont(.bodyEmphasis)
-                        .foregroundStyle(SettingsValueStyle.primary)
+                    HStack(spacing: AmgiSpacing.sm) {
+                        Text(L("review_selection_ai_result"))
+                            .amgiFont(.bodyEmphasis)
+                            .foregroundStyle(SettingsValueStyle.primary)
+
+                        Spacer(minLength: 0)
+
+                        Button(L("review_selection_ai_copy")) {
+                            UIPasteboard.general.string = state.response?.trimmedOrNil
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(canCopyResponse == false)
+                    }
 
                     Group {
                         if state.isLoading {
@@ -1284,14 +1421,16 @@ struct ReviewSelectionAISheetView: View {
                     .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AmgiSpacing.xs) {
-                        ForEach(ReviewAIQuickAction.allCases) { action in
-                            Button(action.title) {
-                                onSubmit(action)
+                if quickActions.isEmpty == false {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: AmgiSpacing.xs) {
+                            ForEach(quickActions) { action in
+                                Button(action.title) {
+                                    onSubmit(action)
+                                }
+                                .foregroundStyle(SettingsValueStyle.secondary)
+                                .amgiCapsuleControl(backgroundColor: Color.amgiMenuSurface, horizontalPadding: 10, verticalPadding: 6)
                             }
-                            .foregroundStyle(SettingsValueStyle.secondary)
-                            .amgiCapsuleControl(backgroundColor: Color.amgiMenuSurface, horizontalPadding: 10, verticalPadding: 6)
                         }
                     }
                 }
@@ -1324,23 +1463,6 @@ struct ReviewSelectionAISheetView: View {
                     .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
-                HStack(spacing: AmgiSpacing.sm) {
-                    Button(L("review_selection_ai_add_note")) {
-                        onAddNote()
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Button(L("review_selection_ai_copy")) {
-                        UIPasteboard.general.string = state.response?.trimmedOrNil ?? state.draftSelection
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button(isFavorited ? L("review_selection_ai_favorited") : L("review_selection_ai_favorite")) {
-                        onToggleFavorite()
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding()
         }
@@ -1354,7 +1476,14 @@ struct ReviewSelectionAISheetView: View {
                 }
                 .amgiToolbarTextButton(tone: .neutral)
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    onAddNote()
+                } label: {
+                    Image(systemName: "note.text.badge.plus")
+                }
+                .disabled(canAddNote == false)
+
                 Button {
                     onToggleFavorite()
                 } label: {
@@ -1372,6 +1501,14 @@ struct ReviewSelectionAISheetView: View {
             return presets[index].name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1)
         }
         return L("settings_review_ai_settings")
+    }
+
+    private var canAddNote: Bool {
+        state.trimmedSelection != nil && state.response?.trimmedOrNil != nil
+    }
+
+    private var canCopyResponse: Bool {
+        state.response?.trimmedOrNil != nil
     }
 }
 
