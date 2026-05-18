@@ -1162,6 +1162,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
     }
 }
 
+@MainActor
 private func settingsDestinationRow(title: String, subtitle: String, icon: String) -> some View {
     HStack(spacing: AmgiSpacing.sm) {
         Image(systemName: icon)
