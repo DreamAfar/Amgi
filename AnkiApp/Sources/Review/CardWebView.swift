@@ -358,7 +358,7 @@ struct CardWebView: UIViewRepresentable {
             }
             html, body {
                 background: transparent;
-                overflow-x: hidden;
+                overflow-x: visible;
                 -webkit-text-size-adjust: 100%;
                 text-size-adjust: 100%;
             }
@@ -377,16 +377,17 @@ struct CardWebView: UIViewRepresentable {
             body.amgi-centered { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 40px); }
             .card-frame {
                 width: 100%; box-sizing: border-box;
+                padding: 12px 16px 0;
                 padding-bottom: var(--amgi-card-padding-bottom, 0px);
             }
             hr { border: none; border-top: 1px solid \(hrColor); margin: 16px 0; }
             ruby {
                 ruby-position: over;
-                line-height: normal;
+                line-height: 1.2;
             }
             ruby rt {
                 font-size: 0.58em;
-                line-height: 1;
+                line-height: 1.2;
             }
             img { max-width: 100%; max-height: 95vh; height: auto; border-radius: 8px; }
             li { text-align: start; }
