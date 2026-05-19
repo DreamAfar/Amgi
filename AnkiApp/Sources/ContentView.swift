@@ -230,7 +230,7 @@ struct ContentView: View {
         }
     }
 
-    private var decksTab: some View {
+    private var decksTab: some TabContent {
         Tab(L("tab_decks"), systemImage: "rectangle.stack", value: RootTab.decks) {
             NavigationStack {
                 DeckListView {
@@ -260,7 +260,7 @@ struct ContentView: View {
         }
     }
 
-    private var statsTab: some View {
+    private var statsTab: some TabContent {
         Tab(L("tab_stats"), systemImage: "chart.bar", value: RootTab.stats) {
             NavigationStack {
                 if collectionState.isReady {
@@ -273,8 +273,8 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
-    private var readerTab: some View {
+    @TabContentBuilder
+    private var readerTab: some TabContent {
         if isReaderTabEnabled {
             Tab(L("tab_reader"), systemImage: "books.vertical", value: RootTab.reader) {
                 NavigationStack {
@@ -289,7 +289,7 @@ struct ContentView: View {
         }
     }
 
-    private var settingsTab: some View {
+    private var settingsTab: some TabContent {
         Tab(L("tab_settings"), systemImage: "gearshape", value: RootTab.settings) {
             NavigationStack {
                 SettingsView()
