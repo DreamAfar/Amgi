@@ -207,30 +207,21 @@ struct ContentView: View {
 
     @ViewBuilder
     private var rootTabView: some View {
-        if shouldUseSearchRoleForBrowseTab {
-            TabView(selection: $selectedTab) {
-                decksTab
-                Tab(value: RootTab.browse, role: .search) {
-                    browseTabContent
-                }
-                statsTab
-                readerTab
-                settingsTab
-            }
-        } else {
-            TabView(selection: $selectedTab) {
-                decksTab
-                Tab(L("tab_browse"), systemImage: "magnifyingglass", value: RootTab.browse) {
-                    browseTabContent
-                }
-                statsTab
-                readerTab
-                settingsTab
-            }
+        TabView(selection: $selectedTab) {
+            rootTabs
         }
     }
 
-    private var decksTab: some TabContent {
+    @TabContentBuilder<RootTab>
+    private var rootTabs: some TabContent<RootTab> {
+        decksTab
+        browseTab
+        statsTab
+        readerTab
+        settingsTab
+    }
+
+    private var decksTab: some TabContent<RootTab> {
         Tab(L("tab_decks"), systemImage: "rectangle.stack", value: RootTab.decks) {
             NavigationStack {
                 DeckListView {
@@ -249,6 +240,19 @@ struct ContentView: View {
         }
     }
 
+    @TabContentBuilder<RootTab>
+    private var browseTab: some TabContent<RootTab> {
+        if shouldUseSearchRoleForBrowseTab {
+            Tab(value: RootTab.browse, role: .search) {
+                browseTabContent
+            }
+        } else {
+            Tab(L("tab_browse"), systemImage: "magnifyingglass", value: RootTab.browse) {
+                browseTabContent
+            }
+        }
+    }
+
     private var browseTabContent: some View {
         NavigationStack {
             if collectionState.isReady {
@@ -260,7 +264,7 @@ struct ContentView: View {
         }
     }
 
-    private var statsTab: some TabContent {
+    private var statsTab: some TabContent<RootTab> {
         Tab(L("tab_stats"), systemImage: "chart.bar", value: RootTab.stats) {
             NavigationStack {
                 if collectionState.isReady {
@@ -273,8 +277,8 @@ struct ContentView: View {
         }
     }
 
-    @TabContentBuilder
-    private var readerTab: some TabContent {
+    @TabContentBuilder<RootTab>
+    private var readerTab: some TabContent<RootTab> {
         if isReaderTabEnabled {
             Tab(L("tab_reader"), systemImage: "books.vertical", value: RootTab.reader) {
                 NavigationStack {
@@ -289,7 +293,7 @@ struct ContentView: View {
         }
     }
 
-    private var settingsTab: some TabContent {
+    private var settingsTab: some TabContent<RootTab> {
         Tab(L("tab_settings"), systemImage: "gearshape", value: RootTab.settings) {
             NavigationStack {
                 SettingsView()
