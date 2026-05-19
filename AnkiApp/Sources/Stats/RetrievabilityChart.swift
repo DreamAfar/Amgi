@@ -68,7 +68,11 @@ struct RetrievabilityChart: View {
     private var barWidth: MarkDimension {
         StatsBarLayoutSupport.barWidth(
             slotCount: chartData.count,
-            availableWidth: containerWidth
+            automaticThreshold: 12,
+            availableWidth: containerWidth,
+            minimum: 6,
+            fillRatio: 0.84,
+            maximumOverride: 16
         )
     }
 

@@ -10,6 +10,7 @@ struct CardCountsChart: View {
     let prefersWideSingleColumnLayout: Bool
     @AppStorage(CardCountsPreferences.separateInactiveKey) private var separateInactive = true
     @State private var containerWidth: CGFloat = 390
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     init(
         cardCounts: Anki_Stats_GraphsResponse.CardCounts,
@@ -33,6 +34,10 @@ struct CardCountsChart: View {
     }
 
     private var total: Int { chartData.reduce(0) { $0 + $1.count } }
+
+    private var prefersCompactLegendLayout: Bool {
+        horizontalSizeClass == .compact || containerWidth < 420
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
@@ -79,24 +84,34 @@ struct CardCountsChart: View {
         ForEach(chartData, id: \.name) { item in
             let percentage = total > 0 ? (Double(item.count) / Double(total) * 100) : 0
             let formattedPercentage = String(format: "%.2f%%", percentage)
-            HStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Circle()
                     .fill(item.color)
                     .frame(width: 10, height: 10)
                 Text(item.name)
                     .amgiFont(.caption)
                     .foregroundStyle(Color.amgiTextSecondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                 Spacer(minLength: 8)
-                Text("\(item.count)")
-                    .amgiFont(.captionBold)
-                    .monospacedDigit()
-                    .foregroundStyle(Color.amgiTextPrimary)
-                Text(formattedPercentage)
-                    .amgiFont(.captionBold)
-                    .monospacedDigit()
-                    .foregroundStyle(Color.amgiTextSecondary)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("\(item.count)")
+                        .amgiFont(.captionBold)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.amgiTextPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Text(formattedPercentage)
+                        .amgiFont(.captionBold)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.amgiTextSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .fixedSize(horizontal: true, vertical: false)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -111,8 +126,14 @@ struct CardCountsChart: View {
             donutChart
                 .frame(height: 200)
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 4) {
-                legendItems
+            if prefersCompactLegendLayout {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    legendItems
+                }
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 6) {
+                    legendItems
+                }
             }
 
             separateInactiveToggle

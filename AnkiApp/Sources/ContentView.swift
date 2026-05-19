@@ -214,11 +214,19 @@ struct ContentView: View {
 
     @TabContentBuilder<RootTab>
     private var rootTabs: some TabContent<RootTab> {
-        decksTab
-        browseTab
-        statsTab
-        readerTab
-        settingsTab
+        if shouldUseSearchRoleForBrowseTab {
+            decksTab
+            browseTab
+            statsTab
+            readerTab
+            settingsTab
+        } else {
+            decksTab
+            statsTab
+            readerTab
+            settingsTab
+            browseTab
+        }
     }
 
     private var decksTab: some TabContent<RootTab> {

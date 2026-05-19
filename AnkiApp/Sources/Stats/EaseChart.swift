@@ -76,7 +76,14 @@ struct EaseChart: View {
             upperBound: xAxisUpperBound,
             bucketSize: step
         )
-        return StatsBarLayoutSupport.barWidth(slotCount: slotCount, availableWidth: containerWidth)
+        return StatsBarLayoutSupport.barWidth(
+            slotCount: slotCount,
+            automaticThreshold: 12,
+            availableWidth: containerWidth,
+            minimum: 6,
+            fillRatio: 0.84,
+            maximumOverride: 16
+        )
     }
 
     private var chartStep: Int {

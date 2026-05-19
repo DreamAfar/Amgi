@@ -17,25 +17,27 @@ enum StatsBarLayoutSupport {
         automaticThreshold: Int = 24,
         availableWidth: CGFloat? = nil,
         minimum: Double = 2.5,
-        fillRatio: Double = 0.72
+        fillRatio: Double = 0.72,
+        maximumOverride: Double? = nil
     ) -> MarkDimension {
         guard slotCount > automaticThreshold else { return .automatic }
         let resolvedWidth = Double(max(availableWidth ?? 390, 180))
         let plotWidth = max(resolvedWidth - 56, 120)
         let slotWidth = plotWidth / Double(max(slotCount, 1))
-        let maximum: Double
-        switch plotWidth {
-        case ..<300:
-            maximum = 7
-        case ..<420:
-            maximum = 9
-        case ..<820:
-            maximum = 12
-        case ..<1180:
-            maximum = 16
-        default:
-            maximum = 22
-        }
+        let maximum: Double = maximumOverride ?? {
+            switch plotWidth {
+            case ..<300:
+                return 7
+            case ..<420:
+                return 9
+            case ..<820:
+                return 12
+            case ..<1180:
+                return 16
+            default:
+                return 22
+            }
+        }()
         let adjustedFillRatio: Double
         switch slotCount {
         case 0..<24:
