@@ -2,6 +2,7 @@ import Charts
 import Foundation
 import UIKit
 
+@MainActor
 enum StatsBarLayoutSupport {
     static func displayedSlotCount(
         lowerBound: Int,
