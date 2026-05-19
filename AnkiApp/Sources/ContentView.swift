@@ -251,8 +251,8 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
-    private var browseTab: some View {
+    @TabContentBuilder
+    private var browseTab: some TabContent {
         if shouldUseSearchRoleForBrowseTab {
             Tab(value: RootTab.browse, role: .search) {
                 browseTabContent
