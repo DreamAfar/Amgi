@@ -70,6 +70,9 @@ enum AppUserStore {
         for key in syncPreferenceKeys(for: user) {
             defaults.removeObject(forKey: key)
         }
+        for key in readerPreferenceKeys(for: user) {
+            defaults.removeObject(forKey: key)
+        }
 
         DeckListHeatmapCache.clear(for: user)
         DeckTreeCache.clear(for: user)
@@ -255,6 +258,14 @@ enum AppUserStore {
             }
         }
 
+        let readerScopedBases = ReaderPreferences.Keys.allBases + [ReaderPreferences.legacyMigrationMarkerBase]
+        for base in readerScopedBases {
+            let oldKey = ReaderPreferences.scopedKey(for: base, profileID: oldProfileID)
+            if key == oldKey {
+                return ReaderPreferences.scopedKey(for: base, profileID: newProfileID)
+            }
+        }
+
         let readerPrefix = "reader.progress.\(oldProfileID)."
         if key.hasPrefix(readerPrefix) {
             return "reader.progress.\(newProfileID)." + String(key.dropFirst(readerPrefix.count))
@@ -272,6 +283,13 @@ enum AppUserStore {
             "incremental_sync_\(profileID)",
         ]
         return prefixes.contains { key.hasPrefix($0) }
+    }
+
+    private static func readerPreferenceKeys(for user: String) -> [String] {
+        let profileID = profileID(for: user)
+        return (ReaderPreferences.Keys.allBases + [ReaderPreferences.legacyMigrationMarkerBase]).map {
+            ReaderPreferences.scopedKey(for: $0, profileID: profileID)
+        }
     }
 }
 

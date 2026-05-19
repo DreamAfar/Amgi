@@ -25,6 +25,10 @@ struct AnkiAppApp: App {
         in: .common
     ).autoconnect()
 
+    init() {
+        ReaderPreferences.migrateLegacyDefaultsIfNeeded(for: AppUserStore.loadSelectedUser())
+    }
+
     private enum StartupPhase {
         case loading
         case ready

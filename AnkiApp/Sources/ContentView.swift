@@ -6,6 +6,7 @@ import AnkiKit
 import Dependencies
 import Foundation
 import OSLog
+import UIKit
 
 private let logger = Logger(subsystem: "amgi", category: "startup")
 
@@ -63,10 +64,14 @@ struct ContentView: View {
     @State private var exportDraft = ExportPackageDraft()
     @State private var importDraft = ImportPackageDraft()
     @State private var selectedTab: RootTab = .decks
-    @AppStorage(ReaderPreferences.Keys.showTab) private var isReaderTabEnabled = false
+    @State private var isReaderTabEnabled = false
 
     private var isImportExportInProgress: Bool {
         importExportOperation != nil
+    }
+
+    private var shouldUseSearchRoleForBrowseTab: Bool {
+        UIDevice.current.userInterfaceIdiom != .pad
     }
 
     var body: some View {
@@ -88,16 +93,7 @@ struct ContentView: View {
                             }
                     }
                 }
-                Tab(value: RootTab.browse, role: .search) {
-                    NavigationStack {
-                        if collectionState.isReady {
-                            BrowseView(isActive: selectedTab == .browse)
-                                .id(refreshID)
-                        } else {
-                            CollectionPreparingView()
-                        }
-                    }
-                }
+                browseTab
                 Tab(L("tab_stats"), systemImage: "chart.bar", value: RootTab.stats) {
                     NavigationStack {
                         if collectionState.isReady {
@@ -190,6 +186,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: AppUserStore.didChangeNotification)) { _ in
             reloadUsers()
         }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            reloadReaderTabPreference()
+        }
         .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didResetNotification)) { _ in
             Task { await reopenCurrentCollectionAfterReset() }
         }
@@ -208,6 +207,7 @@ struct ContentView: View {
             }
         }
         .task {
+            reloadReaderTabPreference()
             updateSyncBadge()
             runCheckDatabaseIfReady()
         }
@@ -248,6 +248,30 @@ struct ContentView: View {
             Button(L("btn_ok"), role: .cancel) {}
         } message: {
             Text(userSwitchError ?? L("label_error_unknown"))
+        }
+    }
+
+    @ViewBuilder
+    private var browseTab: some View {
+        if shouldUseSearchRoleForBrowseTab {
+            Tab(value: RootTab.browse, role: .search) {
+                browseTabContent
+            }
+        } else {
+            Tab(L("tab_browse"), systemImage: "magnifyingglass", value: RootTab.browse) {
+                browseTabContent
+            }
+        }
+    }
+
+    private var browseTabContent: some View {
+        NavigationStack {
+            if collectionState.isReady {
+                BrowseView(isActive: selectedTab == .browse)
+                    .id(refreshID)
+            } else {
+                CollectionPreparingView()
+            }
         }
     }
 
@@ -433,6 +457,7 @@ struct ContentView: View {
 
             selectedUser = user
             AppUserStore.setSelectedUser(user)
+            reloadReaderTabPreference()
             refreshID = UUID()
             collectionState.markReady()
         } catch {
@@ -496,6 +521,10 @@ struct ContentView: View {
                 showExportOptions = true
             }
         }
+    }
+
+    private func reloadReaderTabPreference() {
+        isReaderTabEnabled = UserDefaults.standard.object(forKey: ReaderPreferences.Keys.showTab) as? Bool ?? false
     }
 
     private func startExport(using draft: ExportPackageDraft) {

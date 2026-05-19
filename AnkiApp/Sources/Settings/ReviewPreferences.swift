@@ -181,60 +181,212 @@ enum ReviewPreferences {
 
 enum ReaderPreferences {
     enum Keys {
-        static let showTab = "reader_pref_show_tab"
-        static let tapLookup = "reader_pref_tap_lookup"
-        static let sourceMode = "reader_pref_source_mode"
-        static let deckID = "reader_pref_deck_id"
-        static let notetypeID = "reader_pref_notetype_id"
-        static let bookIDField = "reader_pref_book_id_field"
-        static let bookTitleField = "reader_pref_book_title_field"
-        static let bookCoverField = "reader_pref_book_cover_field"
-        static let chapterTitleField = "reader_pref_chapter_title_field"
-        static let chapterOrderField = "reader_pref_chapter_order_field"
-        static let contentField = "reader_pref_content_field"
-        static let languageField = "reader_pref_language_field"
-        static let bookshelfColumns = "reader_pref_bookshelf_columns"
-        static let verticalLayout = "reader_pref_vertical_layout"
-        static let selectedFont = "reader_pref_selected_font"
-        static let fontSize = "reader_pref_font_size"
-        static let hideFurigana = "reader_pref_hide_furigana"
-        static let horizontalPadding = "reader_pref_horizontal_padding"
-        static let verticalPadding = "reader_pref_vertical_padding"
-        static let avoidPageBreak = "reader_pref_avoid_page_break"
-        static let justifyText = "reader_pref_justify_text"
-        static let layoutAdvanced = "reader_pref_layout_advanced"
-        static let lineHeight = "reader_pref_line_height"
-        static let characterSpacing = "reader_pref_character_spacing"
-        static let showTitle = "reader_pref_show_title"
-        static let showPercentage = "reader_pref_show_percentage"
-        static let showProgressTop = "reader_pref_show_progress_top"
-        static let themeMode = "reader_pref_theme_mode"
-        static let customContentColor = "reader_pref_custom_content_color"
-        static let customBackgroundColor = "reader_pref_custom_background_color"
-        static let customTextColor = "reader_pref_custom_text_color"
-        static let customHintColor = "reader_pref_custom_hint_color"
-        static let popupWidth = "reader_pref_popup_width"
-        static let popupHeight = "reader_pref_popup_height"
-        static let popupFontSize = "reader_pref_popup_font_size"
-        static let popupFrequencyFontSize = "reader_pref_popup_frequency_font_size"
-        static let popupContentFontSize = "reader_pref_popup_content_font_size"
-        static let popupDictionaryNameFontSize = "reader_pref_popup_dictionary_name_font_size"
-        static let popupKanaFontSize = "reader_pref_popup_kana_font_size"
-        static let popupFullWidth = "reader_pref_popup_full_width"
-        static let popupSwipeToDismiss = "reader_pref_popup_swipe_to_dismiss"
-        static let popupCollapseDictionaries = "reader_pref_popup_collapse_dictionaries"
-        static let popupCompactGlossaries = "reader_pref_popup_compact_glossaries"
-        static let popupAudioSourcePreset = "reader_pref_popup_audio_source_preset"
-        static let popupAudioSourceTemplate = "reader_pref_popup_audio_source_template"
-        static let popupLocalAudioEnabled = "reader_pref_popup_local_audio_enabled"
-        static let popupAudioAutoplay = "reader_pref_popup_audio_autoplay"
-        static let popupAudioPlaybackMode = "reader_pref_popup_audio_playback_mode"
-        static let popupDebugInfoEnabled = "reader_pref_popup_debug_info_enabled"
-        static let dictionaryMaxResults = "reader_pref_dictionary_max_results"
-        static let dictionaryScanLength = "reader_pref_dictionary_scan_length"
-        static let lookupNoteTemplate = "reader_pref_lookup_note_template"
-        static let enableStatistics = "reader_pref_enable_statistics"
-        static let statisticsAutostartMode = "reader_pref_statistics_autostart_mode"
+        static let showTabBase = "reader_pref_show_tab"
+        static let tapLookupBase = "reader_pref_tap_lookup"
+        static let sourceModeBase = "reader_pref_source_mode"
+        static let deckIDBase = "reader_pref_deck_id"
+        static let notetypeIDBase = "reader_pref_notetype_id"
+        static let bookIDFieldBase = "reader_pref_book_id_field"
+        static let bookTitleFieldBase = "reader_pref_book_title_field"
+        static let bookCoverFieldBase = "reader_pref_book_cover_field"
+        static let chapterTitleFieldBase = "reader_pref_chapter_title_field"
+        static let chapterOrderFieldBase = "reader_pref_chapter_order_field"
+        static let contentFieldBase = "reader_pref_content_field"
+        static let languageFieldBase = "reader_pref_language_field"
+        static let bookshelfColumnsBase = "reader_pref_bookshelf_columns"
+        static let verticalLayoutBase = "reader_pref_vertical_layout"
+        static let selectedFontBase = "reader_pref_selected_font"
+        static let fontSizeBase = "reader_pref_font_size"
+        static let hideFuriganaBase = "reader_pref_hide_furigana"
+        static let horizontalPaddingBase = "reader_pref_horizontal_padding"
+        static let verticalPaddingBase = "reader_pref_vertical_padding"
+        static let avoidPageBreakBase = "reader_pref_avoid_page_break"
+        static let justifyTextBase = "reader_pref_justify_text"
+        static let layoutAdvancedBase = "reader_pref_layout_advanced"
+        static let lineHeightBase = "reader_pref_line_height"
+        static let characterSpacingBase = "reader_pref_character_spacing"
+        static let showTitleBase = "reader_pref_show_title"
+        static let showPercentageBase = "reader_pref_show_percentage"
+        static let showProgressTopBase = "reader_pref_show_progress_top"
+        static let themeModeBase = "reader_pref_theme_mode"
+        static let customContentColorBase = "reader_pref_custom_content_color"
+        static let customBackgroundColorBase = "reader_pref_custom_background_color"
+        static let customTextColorBase = "reader_pref_custom_text_color"
+        static let customHintColorBase = "reader_pref_custom_hint_color"
+        static let popupWidthBase = "reader_pref_popup_width"
+        static let popupHeightBase = "reader_pref_popup_height"
+        static let popupFontSizeBase = "reader_pref_popup_font_size"
+        static let popupFrequencyFontSizeBase = "reader_pref_popup_frequency_font_size"
+        static let popupContentFontSizeBase = "reader_pref_popup_content_font_size"
+        static let popupDictionaryNameFontSizeBase = "reader_pref_popup_dictionary_name_font_size"
+        static let popupKanaFontSizeBase = "reader_pref_popup_kana_font_size"
+        static let popupFullWidthBase = "reader_pref_popup_full_width"
+        static let popupSwipeToDismissBase = "reader_pref_popup_swipe_to_dismiss"
+        static let popupCollapseDictionariesBase = "reader_pref_popup_collapse_dictionaries"
+        static let popupCompactGlossariesBase = "reader_pref_popup_compact_glossaries"
+        static let popupAudioSourcePresetBase = "reader_pref_popup_audio_source_preset"
+        static let popupAudioSourceTemplateBase = "reader_pref_popup_audio_source_template"
+        static let popupLocalAudioEnabledBase = "reader_pref_popup_local_audio_enabled"
+        static let popupAudioAutoplayBase = "reader_pref_popup_audio_autoplay"
+        static let popupAudioPlaybackModeBase = "reader_pref_popup_audio_playback_mode"
+        static let popupDebugInfoEnabledBase = "reader_pref_popup_debug_info_enabled"
+        static let dictionaryMaxResultsBase = "reader_pref_dictionary_max_results"
+        static let dictionaryScanLengthBase = "reader_pref_dictionary_scan_length"
+        static let lookupNoteTemplateBase = "reader_pref_lookup_note_template"
+        static let enableStatisticsBase = "reader_pref_enable_statistics"
+        static let statisticsAutostartModeBase = "reader_pref_statistics_autostart_mode"
+
+        static let allBases = [
+            showTabBase,
+            tapLookupBase,
+            sourceModeBase,
+            deckIDBase,
+            notetypeIDBase,
+            bookIDFieldBase,
+            bookTitleFieldBase,
+            bookCoverFieldBase,
+            chapterTitleFieldBase,
+            chapterOrderFieldBase,
+            contentFieldBase,
+            languageFieldBase,
+            bookshelfColumnsBase,
+            verticalLayoutBase,
+            selectedFontBase,
+            fontSizeBase,
+            hideFuriganaBase,
+            horizontalPaddingBase,
+            verticalPaddingBase,
+            avoidPageBreakBase,
+            justifyTextBase,
+            layoutAdvancedBase,
+            lineHeightBase,
+            characterSpacingBase,
+            showTitleBase,
+            showPercentageBase,
+            showProgressTopBase,
+            themeModeBase,
+            customContentColorBase,
+            customBackgroundColorBase,
+            customTextColorBase,
+            customHintColorBase,
+            popupWidthBase,
+            popupHeightBase,
+            popupFontSizeBase,
+            popupFrequencyFontSizeBase,
+            popupContentFontSizeBase,
+            popupDictionaryNameFontSizeBase,
+            popupKanaFontSizeBase,
+            popupFullWidthBase,
+            popupSwipeToDismissBase,
+            popupCollapseDictionariesBase,
+            popupCompactGlossariesBase,
+            popupAudioSourcePresetBase,
+            popupAudioSourceTemplateBase,
+            popupLocalAudioEnabledBase,
+            popupAudioAutoplayBase,
+            popupAudioPlaybackModeBase,
+            popupDebugInfoEnabledBase,
+            dictionaryMaxResultsBase,
+            dictionaryScanLengthBase,
+            lookupNoteTemplateBase,
+            enableStatisticsBase,
+            statisticsAutostartModeBase,
+        ]
+
+        static var showTab: String { scoped(showTabBase) }
+        static var tapLookup: String { scoped(tapLookupBase) }
+        static var sourceMode: String { scoped(sourceModeBase) }
+        static var deckID: String { scoped(deckIDBase) }
+        static var notetypeID: String { scoped(notetypeIDBase) }
+        static var bookIDField: String { scoped(bookIDFieldBase) }
+        static var bookTitleField: String { scoped(bookTitleFieldBase) }
+        static var bookCoverField: String { scoped(bookCoverFieldBase) }
+        static var chapterTitleField: String { scoped(chapterTitleFieldBase) }
+        static var chapterOrderField: String { scoped(chapterOrderFieldBase) }
+        static var contentField: String { scoped(contentFieldBase) }
+        static var languageField: String { scoped(languageFieldBase) }
+        static var bookshelfColumns: String { scoped(bookshelfColumnsBase) }
+        static var verticalLayout: String { scoped(verticalLayoutBase) }
+        static var selectedFont: String { scoped(selectedFontBase) }
+        static var fontSize: String { scoped(fontSizeBase) }
+        static var hideFurigana: String { scoped(hideFuriganaBase) }
+        static var horizontalPadding: String { scoped(horizontalPaddingBase) }
+        static var verticalPadding: String { scoped(verticalPaddingBase) }
+        static var avoidPageBreak: String { scoped(avoidPageBreakBase) }
+        static var justifyText: String { scoped(justifyTextBase) }
+        static var layoutAdvanced: String { scoped(layoutAdvancedBase) }
+        static var lineHeight: String { scoped(lineHeightBase) }
+        static var characterSpacing: String { scoped(characterSpacingBase) }
+        static var showTitle: String { scoped(showTitleBase) }
+        static var showPercentage: String { scoped(showPercentageBase) }
+        static var showProgressTop: String { scoped(showProgressTopBase) }
+        static var themeMode: String { scoped(themeModeBase) }
+        static var customContentColor: String { scoped(customContentColorBase) }
+        static var customBackgroundColor: String { scoped(customBackgroundColorBase) }
+        static var customTextColor: String { scoped(customTextColorBase) }
+        static var customHintColor: String { scoped(customHintColorBase) }
+        static var popupWidth: String { scoped(popupWidthBase) }
+        static var popupHeight: String { scoped(popupHeightBase) }
+        static var popupFontSize: String { scoped(popupFontSizeBase) }
+        static var popupFrequencyFontSize: String { scoped(popupFrequencyFontSizeBase) }
+        static var popupContentFontSize: String { scoped(popupContentFontSizeBase) }
+        static var popupDictionaryNameFontSize: String { scoped(popupDictionaryNameFontSizeBase) }
+        static var popupKanaFontSize: String { scoped(popupKanaFontSizeBase) }
+        static var popupFullWidth: String { scoped(popupFullWidthBase) }
+        static var popupSwipeToDismiss: String { scoped(popupSwipeToDismissBase) }
+        static var popupCollapseDictionaries: String { scoped(popupCollapseDictionariesBase) }
+        static var popupCompactGlossaries: String { scoped(popupCompactGlossariesBase) }
+        static var popupAudioSourcePreset: String { scoped(popupAudioSourcePresetBase) }
+        static var popupAudioSourceTemplate: String { scoped(popupAudioSourceTemplateBase) }
+        static var popupLocalAudioEnabled: String { scoped(popupLocalAudioEnabledBase) }
+        static var popupAudioAutoplay: String { scoped(popupAudioAutoplayBase) }
+        static var popupAudioPlaybackMode: String { scoped(popupAudioPlaybackModeBase) }
+        static var popupDebugInfoEnabled: String { scoped(popupDebugInfoEnabledBase) }
+        static var dictionaryMaxResults: String { scoped(dictionaryMaxResultsBase) }
+        static var dictionaryScanLength: String { scoped(dictionaryScanLengthBase) }
+        static var lookupNoteTemplate: String { scoped(lookupNoteTemplateBase) }
+        static var enableStatistics: String { scoped(enableStatisticsBase) }
+        static var statisticsAutostartMode: String { scoped(statisticsAutostartModeBase) }
+
+        private static func scoped(_ base: String) -> String {
+            ReaderPreferences.scopedKey(for: base, profileID: ReaderPreferences.currentProfileID())
+        }
+    }
+
+    static let legacyMigrationMarkerBase = "reader_pref_legacy_migrated"
+
+    static func migrateLegacyDefaultsIfNeeded(for user: String) {
+        let defaults = UserDefaults.standard
+        let profileID = currentProfileID(for: user)
+        let markerKey = migrationMarkerKey(for: profileID)
+        guard defaults.bool(forKey: markerKey) == false else { return }
+
+        for base in Keys.allBases {
+            let scopedKey = scopedKey(for: base, profileID: profileID)
+            if defaults.object(forKey: scopedKey) == nil,
+               let legacyValue = defaults.object(forKey: base) {
+                defaults.set(legacyValue, forKey: scopedKey)
+            }
+            defaults.removeObject(forKey: base)
+        }
+
+        defaults.set(true, forKey: markerKey)
+    }
+
+    static func scopedKey(for base: String, profileID: String) -> String {
+        "\(base).\(profileID)"
+    }
+
+    static func migrationMarkerKey(for profileID: String) -> String {
+        scopedKey(for: legacyMigrationMarkerBase, profileID: profileID)
+    }
+
+    private static func currentProfileID() -> String {
+        currentProfileID(for: AppUserStore.loadSelectedUser())
+    }
+
+    private static func currentProfileID(for user: String) -> String {
+        AppUserStore.profileID(for: user)
     }
 }
 
