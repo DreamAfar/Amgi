@@ -76,53 +76,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            TabView(selection: $selectedTab) {
-                Tab(L("tab_decks"), systemImage: "rectangle.stack", value: RootTab.decks) {
-                    NavigationStack {
-                        DeckListView {
-                            refreshID = UUID()
-                        }
-                            .id(refreshID)
-                            .toolbar {
-                                ToolbarItem(placement: .topBarLeading) {
-                                    userMenu
-                                }
-                                ToolbarItem(placement: .topBarTrailing) {
-                                    trailingActions
-                                }
-                            }
-                    }
-                }
-                browseTab
-                Tab(L("tab_stats"), systemImage: "chart.bar", value: RootTab.stats) {
-                    NavigationStack {
-                        if collectionState.isReady {
-                            StatsDashboardView(isActive: selectedTab == .stats)
-                                .id(refreshID)
-                        } else {
-                            CollectionPreparingView()
-                        }
-                    }
-                }
-                if isReaderTabEnabled {
-                    Tab(L("tab_reader"), systemImage: "books.vertical", value: RootTab.reader) {
-                        NavigationStack {
-                            if collectionState.isReady {
-                                ReaderLibraryView()
-                                    .id(refreshID)
-                            } else {
-                                CollectionPreparingView()
-                            }
-                        }
-                    }
-                }
-                Tab(L("tab_settings"), systemImage: "gearshape", value: RootTab.settings) {
-                    NavigationStack {
-                        SettingsView()
-                            .id(refreshID)
-                    }
-                }
-            }
+            rootTabView
             .disabled(isImportExportInProgress)
 
             if let importExportOperation {
@@ -251,15 +205,46 @@ struct ContentView: View {
         }
     }
 
-    @TabContentBuilder
-    private var browseTab: some TabContent {
+    @ViewBuilder
+    private var rootTabView: some View {
         if shouldUseSearchRoleForBrowseTab {
-            Tab(value: RootTab.browse, role: .search) {
-                browseTabContent
+            TabView(selection: $selectedTab) {
+                decksTab
+                Tab(value: RootTab.browse, role: .search) {
+                    browseTabContent
+                }
+                statsTab
+                readerTab
+                settingsTab
             }
         } else {
-            Tab(L("tab_browse"), systemImage: "magnifyingglass", value: RootTab.browse) {
-                browseTabContent
+            TabView(selection: $selectedTab) {
+                decksTab
+                Tab(L("tab_browse"), systemImage: "magnifyingglass", value: RootTab.browse) {
+                    browseTabContent
+                }
+                statsTab
+                readerTab
+                settingsTab
+            }
+        }
+    }
+
+    private var decksTab: some View {
+        Tab(L("tab_decks"), systemImage: "rectangle.stack", value: RootTab.decks) {
+            NavigationStack {
+                DeckListView {
+                    refreshID = UUID()
+                }
+                    .id(refreshID)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            userMenu
+                        }
+                        ToolbarItem(placement: .topBarTrailing) {
+                            trailingActions
+                        }
+                    }
             }
         }
     }
@@ -271,6 +256,44 @@ struct ContentView: View {
                     .id(refreshID)
             } else {
                 CollectionPreparingView()
+            }
+        }
+    }
+
+    private var statsTab: some View {
+        Tab(L("tab_stats"), systemImage: "chart.bar", value: RootTab.stats) {
+            NavigationStack {
+                if collectionState.isReady {
+                    StatsDashboardView(isActive: selectedTab == .stats)
+                        .id(refreshID)
+                } else {
+                    CollectionPreparingView()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var readerTab: some View {
+        if isReaderTabEnabled {
+            Tab(L("tab_reader"), systemImage: "books.vertical", value: RootTab.reader) {
+                NavigationStack {
+                    if collectionState.isReady {
+                        ReaderLibraryView()
+                            .id(refreshID)
+                    } else {
+                        CollectionPreparingView()
+                    }
+                }
+            }
+        }
+    }
+
+    private var settingsTab: some View {
+        Tab(L("tab_settings"), systemImage: "gearshape", value: RootTab.settings) {
+            NavigationStack {
+                SettingsView()
+                    .id(refreshID)
             }
         }
     }
