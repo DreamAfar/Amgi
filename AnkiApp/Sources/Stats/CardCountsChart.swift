@@ -1,7 +1,6 @@
 import SwiftUI
 import Charts
 import AnkiProto
-
 private enum CardCountsPreferences {
     static let separateInactiveKey = "stats_card_counts_separate_inactive"
 }
@@ -10,6 +9,7 @@ struct CardCountsChart: View {
     let cardCounts: Anki_Stats_GraphsResponse.CardCounts
     let prefersWideSingleColumnLayout: Bool
     @AppStorage(CardCountsPreferences.separateInactiveKey) private var separateInactive = true
+    @State private var containerWidth: CGFloat = 390
 
     init(
         cardCounts: Anki_Stats_GraphsResponse.CardCounts,
@@ -60,6 +60,7 @@ struct CardCountsChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
     }
 
@@ -119,22 +120,26 @@ struct CardCountsChart: View {
     }
 
     private var wideSingleColumnLayout: some View {
-        GeometryReader { geometry in
-            let chartWidth = min(max(geometry.size.width * 0.34, 260), 360)
-            HStack(alignment: .center, spacing: 28) {
-                donutChart
-                    .frame(width: chartWidth, height: chartWidth)
+        let chartWidth = min(max(containerWidth * 0.30, 220), 320)
 
-                VStack(alignment: .leading, spacing: 12) {
-                    LazyVGrid(columns: [GridItem(.flexible(minimum: 220), spacing: 16)], spacing: 10) {
-                        legendItems
-                    }
-                    Spacer(minLength: 0)
-                    separateInactiveToggle
+        return HStack(alignment: .top, spacing: 28) {
+            donutChart
+                .aspectRatio(1, contentMode: .fit)
+                .frame(width: chartWidth, height: chartWidth)
+                .layoutPriority(1)
+
+            VStack(alignment: .leading, spacing: 12) {
+                LazyVGrid(columns: [GridItem(.flexible(minimum: 220), spacing: 16)], spacing: 10) {
+                    legendItems
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                Spacer(minLength: 0)
+
+                separateInactiveToggle
             }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .frame(height: 320)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(minHeight: max(chartWidth, 240), alignment: .top)
     }
 }

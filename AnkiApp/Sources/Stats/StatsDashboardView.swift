@@ -174,13 +174,6 @@ struct StatsDashboardView: View {
         supportsChartLayoutToggle && chartLayoutMode == .double
     }
 
-    private var chartGridColumns: [GridItem] {
-        [
-            GridItem(.flexible(minimum: 320, maximum: 720), spacing: 16, alignment: .top),
-            GridItem(.flexible(minimum: 320, maximum: 720), spacing: 16, alignment: .top)
-        ]
-    }
-
     private func toggleChartLayout() {
         chartLayoutRaw = usesDoubleColumnLayout
             ? StatsChartLayoutMode.single.rawValue
@@ -310,16 +303,67 @@ struct StatsDashboardView: View {
     private func chartCards(for graphs: Anki_Stats_GraphsResponse) -> some View {
         let sections = orderedChartSections(for: graphs)
         if usesDoubleColumnLayout {
-            LazyVGrid(columns: chartGridColumns, alignment: .leading, spacing: 16) {
-                ForEach(sections, id: \.self) { section in
-                    chartView(for: section, graphs: graphs)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            let columns = balancedChartColumns(for: sections)
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(columns.left, id: \.self) { section in
+                        chartView(for: section, graphs: graphs)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .top)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(columns.right, id: \.self) { section in
+                        chartView(for: section, graphs: graphs)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
             }
         } else {
             ForEach(sections, id: \.self) { section in
                 chartView(for: section, graphs: graphs)
             }
+        }
+    }
+
+    private func balancedChartColumns(
+        for sections: [StatsChartSection]
+    ) -> (left: [StatsChartSection], right: [StatsChartSection]) {
+        var left: [StatsChartSection] = []
+        var right: [StatsChartSection] = []
+        var leftHeight: CGFloat = 0
+        var rightHeight: CGFloat = 0
+
+        for section in sections {
+            let estimate = estimatedHeight(for: section)
+            if leftHeight <= rightHeight {
+                left.append(section)
+                leftHeight += estimate
+            } else {
+                right.append(section)
+                rightHeight += estimate
+            }
+        }
+
+        return (left, right)
+    }
+
+    private func estimatedHeight(for section: StatsChartSection) -> CGFloat {
+        switch section {
+        case .futureDue: return 320
+        case .heatmap: return 260
+        case .reviews: return 360
+        case .cardCounts: return 320
+        case .intervals: return 330
+        case .stability: return 330
+        case .ease: return 240
+        case .retrievability: return 220
+        case .retention: return 260
+        case .hourly: return 300
+        case .buttons: return 280
+        case .added: return 260
         }
     }
 

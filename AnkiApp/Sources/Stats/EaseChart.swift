@@ -1,12 +1,12 @@
 import SwiftUI
 import Charts
 import AnkiProto
-
 struct EaseChart: View {
     let eases: Anki_Stats_GraphsResponse.Eases
     let difficulty: Anki_Stats_GraphsResponse.Eases
     let isFSRS: Bool
     @State private var selectedEase: Int?
+    @State private var containerWidth: CGFloat = 390
 
     /// Active dataset: difficulty for FSRS decks, eases for SM-2
     private var activeData: Anki_Stats_GraphsResponse.Eases {
@@ -76,7 +76,7 @@ struct EaseChart: View {
             upperBound: xAxisUpperBound,
             bucketSize: step
         )
-        return StatsBarLayoutSupport.barWidth(slotCount: slotCount)
+        return StatsBarLayoutSupport.barWidth(slotCount: slotCount, availableWidth: containerWidth)
     }
 
     private var chartStep: Int {
@@ -156,6 +156,7 @@ struct EaseChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
     }
 

@@ -1,11 +1,11 @@
 import SwiftUI
 import Charts
 import AnkiProto
-
 struct RetrievabilityChart: View {
     let retrievability: Anki_Stats_GraphsResponse.Retrievability
 
     @State private var selectedBucketStart: Int?
+    @State private var containerWidth: CGFloat = 390
 
     private struct Bucket: Identifiable {
         let start: Int
@@ -66,7 +66,10 @@ struct RetrievabilityChart: View {
     }
 
     private var barWidth: MarkDimension {
-        StatsBarLayoutSupport.barWidth(slotCount: chartData.count)
+        StatsBarLayoutSupport.barWidth(
+            slotCount: chartData.count,
+            availableWidth: containerWidth
+        )
     }
 
     var body: some View {
@@ -102,6 +105,7 @@ struct RetrievabilityChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
     }
 

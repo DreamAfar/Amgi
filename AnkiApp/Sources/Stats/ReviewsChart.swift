@@ -1,13 +1,13 @@
 import SwiftUI
 import Charts
 import AnkiProto
-
 struct ReviewsChart: View {
     let reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes
     let revlogRange: RevlogRange
     @State private var period: StatsPeriod = .month
     @State private var showTime = false
     @State private var selectedBucket: Int?
+    @State private var containerWidth: CGFloat = 390
 
     private typealias ReviewValue = Anki_Stats_GraphsResponse.ReviewCountsAndTimes.Reviews
 
@@ -173,7 +173,8 @@ struct ReviewsChart: View {
                 lowerBound: xAxisMin,
                 upperBound: 0,
                 bucketSize: bucketSize
-            )
+            ),
+            availableWidth: containerWidth
         )
     }
 
@@ -283,6 +284,7 @@ struct ReviewsChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
     }
 

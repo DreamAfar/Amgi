@@ -1148,23 +1148,44 @@ struct ReviewView: View {
         .padding(.horizontal)
     }
 
+    @ViewBuilder
     private var compactAnswerMenu: some View {
-        Menu {
-            ForEach(visibleRatings, id: \.self) { rating in
-                Button(ratingLabel(rating)) { session.answer(rating: rating) }
+        if shouldForceCapsuleAnswerButtonsOnPad {
+            Menu {
+                ForEach(visibleRatings, id: \.self) { rating in
+                    Button(ratingLabel(rating)) { session.answer(rating: rating) }
+                }
+            } label: {
+                Text(L("review_answer_button"))
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
             }
-        } label: {
-            Text(L("review_answer_button"))
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding()
+            .buttonStyle(.borderedProminent)
+            .clipShape(Capsule())
+            .padding(.horizontal)
+        } else {
+            Menu {
+                ForEach(visibleRatings, id: \.self) { rating in
+                    Button(ratingLabel(rating)) { session.answer(rating: rating) }
+                }
+            } label: {
+                Text(L("review_answer_button"))
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.horizontal)
         }
-        .buttonStyle(.borderedProminent)
-        .padding(.horizontal)
     }
 
     private var visibleRatings: [Rating] {
         prefHideHardAndEasyButtons ? [.again, .good] : [.again, .hard, .good, .easy]
+    }
+
+    private var shouldForceCapsuleAnswerButtonsOnPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
     }
 
     private func ratingColor(_ rating: Rating) -> Color {
@@ -1179,21 +1200,43 @@ struct ReviewView: View {
     @ViewBuilder
     private func ratingButton(_ rating: Rating, color: Color) -> some View {
         if #available(iOS 26.0, *), prefGlassAnswerButtons {
-            Button {
-                ratingButtonAction(rating)
-            } label: {
-                ratingButtonLabel(rating)
+            if shouldForceCapsuleAnswerButtonsOnPad {
+                Button {
+                    ratingButtonAction(rating)
+                } label: {
+                    ratingButtonLabel(rating)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(color)
+                .clipShape(Capsule())
+            } else {
+                Button {
+                    ratingButtonAction(rating)
+                } label: {
+                    ratingButtonLabel(rating)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(color)
             }
-            .buttonStyle(.glassProminent)
-            .tint(color)
         } else {
-            Button {
-                ratingButtonAction(rating)
-            } label: {
-                ratingButtonLabel(rating)
+            if shouldForceCapsuleAnswerButtonsOnPad {
+                Button {
+                    ratingButtonAction(rating)
+                } label: {
+                    ratingButtonLabel(rating)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(color)
+                .clipShape(Capsule())
+            } else {
+                Button {
+                    ratingButtonAction(rating)
+                } label: {
+                    ratingButtonLabel(rating)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(color)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(color)
         }
     }
 

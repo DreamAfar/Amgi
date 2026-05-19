@@ -1,12 +1,12 @@
 import SwiftUI
 import Charts
 import AnkiProto
-
 struct ButtonsChart: View {
     let buttons: Anki_Stats_GraphsResponse.Buttons
     let revlogRange: RevlogRange
     @State private var period: StatsPeriod = .year
     @State private var selectedBarKey: String?
+    @State private var containerWidth: CGFloat = 390
 
     private var buttonCounts: Anki_Stats_GraphsResponse.Buttons.ButtonCounts {
         switch period {
@@ -79,6 +79,16 @@ struct ButtonsChart: View {
         yAxisTicks.map(\.plottedValue)
     }
 
+    private var barWidth: MarkDimension {
+        StatsBarLayoutSupport.barWidth(
+            slotCount: max(entries.count, 4),
+            automaticThreshold: 0,
+            availableWidth: containerWidth,
+            minimum: 8,
+            fillRatio: 0.48
+        )
+    }
+
     private func totalForType(_ typeIndex: Int) -> Int {
         entries
             .filter { $0.typeIndex == typeIndex }
@@ -134,6 +144,7 @@ struct ButtonsChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
     }
 
@@ -173,7 +184,8 @@ struct ButtonsChart: View {
     private func buttonBarMark(for entry: ButtonEntry) -> some ChartContent {
         BarMark(
             x: .value("Type", entry.cardType),
-            y: .value("Count", entry.count)
+            y: .value("Count", entry.count),
+            width: barWidth
         )
         .position(by: .value("Button", entry.button))
         .foregroundStyle(by: .value("Button", entry.button))

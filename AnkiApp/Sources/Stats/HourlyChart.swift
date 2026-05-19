@@ -1,12 +1,12 @@
 import SwiftUI
 import Charts
 import AnkiProto
-
 struct HourlyChart: View {
     let hours: Anki_Stats_GraphsResponse.Hours
     let revlogRange: RevlogRange
     @State private var period: StatsPeriod = .year
     @State private var selectedHour: Int?
+    @State private var containerWidth: CGFloat = 390
 
     private var hourData: [Anki_Stats_GraphsResponse.Hours.Hour] {
         switch period {
@@ -78,6 +78,16 @@ struct HourlyChart: View {
         )
     }
 
+    private var barWidth: MarkDimension {
+        StatsBarLayoutSupport.barWidth(
+            slotCount: entries.count,
+            automaticThreshold: 0,
+            availableWidth: containerWidth,
+            minimum: 4,
+            fillRatio: 0.56
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_hourly_title"))
@@ -113,6 +123,7 @@ struct HourlyChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
     }
 
@@ -147,7 +158,7 @@ struct HourlyChart: View {
             BarMark(
                 x: .value("Hour", entry.hour),
                 y: .value(L("stats_hourly_reviews"), entry.total),
-                width: .fixed(9)
+                width: barWidth
             )
             .foregroundStyle(
                 Color(

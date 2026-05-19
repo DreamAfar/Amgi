@@ -1,7 +1,6 @@
 import SwiftUI
 import Charts
 import AnkiProto
-
 struct IntervalsChart: View {
     enum ChartKind {
         case intervals
@@ -29,6 +28,7 @@ struct IntervalsChart: View {
     let intervals: Anki_Stats_GraphsResponse.Intervals
     let kind: ChartKind
     @State private var selectedBinX: Int?
+    @State private var containerWidth: CGFloat = 390
 
     private typealias IntervalBin = (label: String, x: Int, count: Int)
 
@@ -168,7 +168,10 @@ struct IntervalsChart: View {
             upperBound: max(1, xMax),
             bucketSize: max(1, binSize)
         )
-        let barWidth = StatsBarLayoutSupport.barWidth(slotCount: slotCount)
+        let barWidth = StatsBarLayoutSupport.barWidth(
+            slotCount: slotCount,
+            availableWidth: containerWidth
+        )
         let xAxisDesiredCount = min(10, max(4, bins.count / 8))
         let cumulative = cumulativePoints(for: bins)
         let total = cumulative.last?.cumulative ?? 0
@@ -235,6 +238,7 @@ struct IntervalsChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
     }
 

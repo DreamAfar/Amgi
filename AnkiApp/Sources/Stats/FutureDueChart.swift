@@ -1,12 +1,12 @@
 import SwiftUI
 import Charts
 import AnkiProto
-
 struct FutureDueChart: View {
     let futureDue: Anki_Stats_GraphsResponse.FutureDue
     @State private var period: StatsPeriod = .month
     @State private var includeBacklog = false
     @State private var selectedDay: Int?
+    @State private var containerWidth: CGFloat = 390
 
     private struct DisplayPoint: Identifiable {
         let startDay: Int
@@ -222,7 +222,10 @@ struct FutureDueChart: View {
     }
 
     private var barWidth: MarkDimension {
-        StatsBarLayoutSupport.barWidth(slotCount: displayedBucketCount)
+        StatsBarLayoutSupport.barWidth(
+            slotCount: displayedBucketCount,
+            availableWidth: containerWidth
+        )
     }
 
     private func niceTickStep(lowerBound: Int, upperBound: Int, targetCount: Int) -> Int {
@@ -313,6 +316,7 @@ struct FutureDueChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
     }
 

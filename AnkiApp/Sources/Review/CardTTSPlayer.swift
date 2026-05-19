@@ -60,7 +60,6 @@ final class CardTTSPlayer: NSObject, AVSpeechSynthesizerDelegate {
         } catch {
             print("[CardTTSPlayer] TTS audio session configure failed: \(error)")
             emitEvent(state: "error", token: payload.token)
-            deactivateAudioSession()
             return
         }
 
@@ -87,8 +86,6 @@ final class CardTTSPlayer: NSObject, AVSpeechSynthesizerDelegate {
     func stop() {
         if speechSynthesizer.isSpeaking || speechSynthesizer.isPaused {
             speechSynthesizer.stopSpeaking(at: .immediate)
-        } else {
-            deactivateAudioSession()
         }
     }
 
@@ -103,7 +100,6 @@ final class CardTTSPlayer: NSObject, AVSpeechSynthesizerDelegate {
         let utteranceID = ObjectIdentifier(utterance)
         Task { @MainActor [weak self] in
             self?.emitDelegateEvent(state: "finish", utteranceID: utteranceID)
-            self?.deactivateAudioSession()
         }
     }
 
@@ -111,7 +107,6 @@ final class CardTTSPlayer: NSObject, AVSpeechSynthesizerDelegate {
         let utteranceID = ObjectIdentifier(utterance)
         Task { @MainActor [weak self] in
             self?.emitDelegateEvent(state: "cancel", utteranceID: utteranceID)
-            self?.deactivateAudioSession()
         }
     }
 
@@ -134,19 +129,11 @@ final class CardTTSPlayer: NSObject, AVSpeechSynthesizerDelegate {
     private func configureAudioSession(playAudioInSilentMode: Bool) throws {
         let session = AVAudioSession.sharedInstance()
         if playAudioInSilentMode {
-            try session.setCategory(
-                .playback,
-                mode: .voicePrompt,
-                options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers]
-            )
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         } else {
             try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
         }
         try session.setActive(true, options: [])
-    }
-
-    private func deactivateAudioSession() {
-        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
     }
 
     private func preferredVoice(lang: String, preferredNames: [String]) -> AVSpeechSynthesisVoice? {

@@ -1,11 +1,11 @@
 ﻿import SwiftUI
 import Charts
 import AnkiProto
-
 struct AddedChart: View {
     let added: Anki_Stats_GraphsResponse.Added
     @State private var period: StatsPeriod = .month
     @State private var selectedDay: Int?
+    @State private var containerWidth: CGFloat = 390
 
     private struct CumulativePoint: Identifiable {
         let id: Int
@@ -87,7 +87,8 @@ struct AddedChart: View {
                 lowerBound: xAxisMin,
                 upperBound: 0,
                 bucketSize: bucketSize
-            )
+            ),
+            availableWidth: containerWidth
         )
     }
     private var rightAxisTicks: [StatsAxisTick] {
@@ -165,6 +166,7 @@ struct AddedChart: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
     }
 
