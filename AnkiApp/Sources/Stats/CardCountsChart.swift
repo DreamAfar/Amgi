@@ -8,7 +8,16 @@ private enum CardCountsPreferences {
 
 struct CardCountsChart: View {
     let cardCounts: Anki_Stats_GraphsResponse.CardCounts
+    let prefersWideSingleColumnLayout: Bool
     @AppStorage(CardCountsPreferences.separateInactiveKey) private var separateInactive = true
+
+    init(
+        cardCounts: Anki_Stats_GraphsResponse.CardCounts,
+        prefersWideSingleColumnLayout: Bool = false
+    ) {
+        self.cardCounts = cardCounts
+        self.prefersWideSingleColumnLayout = prefersWideSingleColumnLayout
+    }
 
     private var chartData: [(name: String, count: Int, color: Color)] {
         let c = separateInactive ? cardCounts.excludingInactive : cardCounts.includingInactive
@@ -43,40 +52,89 @@ struct CardCountsChart: View {
                     .foregroundStyle(Color.amgiTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
-                Chart(chartData, id: \.name) { item in
-                    SectorMark(
-                        angle: .value("Count", item.count),
-                        innerRadius: .ratio(0.5),
-                        angularInset: 1
-                    )
-                    .foregroundStyle(item.color)
+                if prefersWideSingleColumnLayout {
+                    wideSingleColumnLayout
+                } else {
+                    defaultLayout
                 }
-                .frame(height: 200)
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 4) {
-                    ForEach(chartData, id: \.name) { item in
-                        let percentage = total > 0 ? (Double(item.count) / Double(total) * 100) : 0
-                        let formattedPercentage = String(format: "%.2f%%", percentage)
-                        HStack(spacing: 4) {
-                            Circle().fill(item.color).frame(width: 8, height: 8)
-                            Text(item.name)
-                                .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                            Spacer()
-                            Text("\(item.count)  \(formattedPercentage)")
-                                .amgiFont(.captionBold)
-                                .monospacedDigit()
-                                .foregroundStyle(Color.amgiTextPrimary)
-                        }
-                    }
-                }
-
-                Toggle(L("stats_card_counts_separate_inactive"), isOn: $separateInactive)
-                    .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .amgiCard(elevated: true)
+    }
+
+    private var donutChart: some View {
+        Chart(chartData, id: \.name) { item in
+            SectorMark(
+                angle: .value("Count", item.count),
+                innerRadius: .ratio(0.5),
+                angularInset: 1
+            )
+            .foregroundStyle(item.color)
+        }
+    }
+
+    private var legendItems: some View {
+        ForEach(chartData, id: \.name) { item in
+            let percentage = total > 0 ? (Double(item.count) / Double(total) * 100) : 0
+            let formattedPercentage = String(format: "%.2f%%", percentage)
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(item.color)
+                    .frame(width: 10, height: 10)
+                Text(item.name)
+                    .amgiFont(.caption)
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Text("\(item.count)")
+                    .amgiFont(.captionBold)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.amgiTextPrimary)
+                Text(formattedPercentage)
+                    .amgiFont(.captionBold)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+        }
+    }
+
+    private var separateInactiveToggle: some View {
+        Toggle(L("stats_card_counts_separate_inactive"), isOn: $separateInactive)
+            .amgiFont(.caption)
+            .foregroundStyle(Color.amgiTextSecondary)
+    }
+
+    private var defaultLayout: some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            donutChart
+                .frame(height: 200)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 4) {
+                legendItems
+            }
+
+            separateInactiveToggle
+        }
+    }
+
+    private var wideSingleColumnLayout: some View {
+        GeometryReader { geometry in
+            let chartWidth = min(max(geometry.size.width * 0.34, 260), 360)
+            HStack(alignment: .center, spacing: 28) {
+                donutChart
+                    .frame(width: chartWidth, height: chartWidth)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.flexible(minimum: 220), spacing: 16)], spacing: 10) {
+                        legendItems
+                    }
+                    Spacer(minLength: 0)
+                    separateInactiveToggle
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+        }
+        .frame(height: 320)
     }
 }

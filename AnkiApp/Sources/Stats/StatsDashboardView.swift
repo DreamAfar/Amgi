@@ -7,6 +7,12 @@ import SwiftProtobuf
 
 private enum StatsPreferences {
     static let chartOrderKey = "stats_chart_order"
+    static let chartLayoutKey = "stats_chart_layout"
+}
+
+private enum StatsChartLayoutMode: String {
+    case single
+    case double
 }
 
 private enum StatsChartSection: String, CaseIterable, Identifiable {
@@ -46,6 +52,7 @@ private enum StatsChartSection: String, CaseIterable, Identifiable {
 struct StatsDashboardView: View {
     @Dependency(\.statsClient) var statsClient
     @Dependency(\.deckClient) var deckClient
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var graphs: Anki_Stats_GraphsResponse?
     @State private var isLoading = true
@@ -56,6 +63,7 @@ struct StatsDashboardView: View {
     @State private var hasLoadedInitialData = false
     @State private var showChartOrderSheet = false
     @AppStorage(StatsPreferences.chartOrderKey) private var chartOrderRaw = ""
+    @AppStorage(StatsPreferences.chartLayoutKey) private var chartLayoutRaw = StatsChartLayoutMode.single.rawValue
     private let initialDeckID: Int64?
     private let isActive: Bool
 
@@ -79,9 +87,7 @@ struct StatsDashboardView: View {
                 } else if let graphs {
                     Section {
                         TodayStatsCard(today: graphs.today)
-                        ForEach(orderedChartSections(for: graphs), id: \.self) { section in
-                            chartView(for: section, graphs: graphs)
-                        }
+                        chartCards(for: graphs)
                     } header: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 8) {
@@ -100,6 +106,20 @@ struct StatsDashboardView: View {
         }
         .navigationTitle(L("stats_nav_title"))
         .toolbar {
+            if supportsChartLayoutToggle {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        toggleChartLayout()
+                    } label: {
+                        Image(systemName: usesDoubleColumnLayout ? "rectangle.grid.1x2" : "square.grid.2x2")
+                    }
+                    .accessibilityLabel(
+                        usesDoubleColumnLayout
+                        ? L("stats_chart_layout_single")
+                        : L("stats_chart_layout_double")
+                    )
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showChartOrderSheet = true
@@ -140,6 +160,31 @@ struct StatsDashboardView: View {
         .onChange(of: revlogRange) {
             Task { await loadStats() }
         }
+    }
+
+    private var supportsChartLayoutToggle: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular
+    }
+
+    private var chartLayoutMode: StatsChartLayoutMode {
+        StatsChartLayoutMode(rawValue: chartLayoutRaw) ?? .single
+    }
+
+    private var usesDoubleColumnLayout: Bool {
+        supportsChartLayoutToggle && chartLayoutMode == .double
+    }
+
+    private var chartGridColumns: [GridItem] {
+        [
+            GridItem(.flexible(minimum: 320, maximum: 720), spacing: 16, alignment: .top),
+            GridItem(.flexible(minimum: 320, maximum: 720), spacing: 16, alignment: .top)
+        ]
+    }
+
+    private func toggleChartLayout() {
+        chartLayoutRaw = usesDoubleColumnLayout
+            ? StatsChartLayoutMode.single.rawValue
+            : StatsChartLayoutMode.double.rawValue
     }
 
     // MARK: - Deck Menu
@@ -262,6 +307,23 @@ struct StatsDashboardView: View {
     }
 
     @ViewBuilder
+    private func chartCards(for graphs: Anki_Stats_GraphsResponse) -> some View {
+        let sections = orderedChartSections(for: graphs)
+        if usesDoubleColumnLayout {
+            LazyVGrid(columns: chartGridColumns, alignment: .leading, spacing: 16) {
+                ForEach(sections, id: \.self) { section in
+                    chartView(for: section, graphs: graphs)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+            }
+        } else {
+            ForEach(sections, id: \.self) { section in
+                chartView(for: section, graphs: graphs)
+            }
+        }
+    }
+
+    @ViewBuilder
     private func chartView(for section: StatsChartSection, graphs: Anki_Stats_GraphsResponse) -> some View {
         switch section {
         case .futureDue:
@@ -271,7 +333,10 @@ struct StatsDashboardView: View {
         case .reviews:
             ReviewsChart(reviews: graphs.reviews, revlogRange: revlogRange)
         case .cardCounts:
-            CardCountsChart(cardCounts: graphs.cardCounts)
+            CardCountsChart(
+                cardCounts: graphs.cardCounts,
+                prefersWideSingleColumnLayout: supportsChartLayoutToggle && !usesDoubleColumnLayout
+            )
         case .intervals:
             IntervalsChart(intervals: graphs.intervals, kind: .intervals)
         case .stability:

@@ -1,0 +1,2 @@
+"NSCameraUsageDescription" = "Amgi 需要使用相机来拍照并将图片插入到笔记字段中。";
+"NSMicrophoneUsageDescription" = "Amgi 需要使用麦克风来录制音频并将录音插入到笔记字段中。";

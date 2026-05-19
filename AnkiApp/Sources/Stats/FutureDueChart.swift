@@ -402,7 +402,7 @@ struct FutureDueChart: View {
     @ViewBuilder
     private func futureDueChartOverlay(proxy: ChartProxy) -> some View {
         GeometryReader { geometry in
-            Rectangle()
+            let overlay = Rectangle()
                 .fill(Color.clear)
                 .contentShape(Rectangle())
                 .gesture(
@@ -416,11 +416,11 @@ struct FutureDueChart: View {
                             )
                         }
                 )
-                .simultaneousGesture(
+            if selectedDay != nil {
+                overlay.simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.2)
                         .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
                         .onChanged { value in
-                            guard selectedDay != nil else { return }
                             guard case .second(true, let drag?) = value,
                                   StatsSelectionSupport.isHorizontalDrag(drag.translation)
                             else { return }
@@ -434,6 +434,9 @@ struct FutureDueChart: View {
                             )
                         }
                 )
+            } else {
+                overlay
+            }
         }
     }
 

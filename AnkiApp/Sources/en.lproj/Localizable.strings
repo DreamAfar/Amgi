@@ -320,11 +320,14 @@
 "settings_reader_statistics_autostart_on" = "Always On";
 "settings_reader_note_add_settings" = "Note Add Settings";
 "settings_reader_note_add_settings_description" = "When Add Note is tapped in the lookup popup, these defaults fill the preview before the note is added.";
+"settings_reader_note_template_language" = "Language";
+"settings_reader_note_template_language_placeholder" = "default / ja / en";
 "settings_reader_note_template_deck" = "Default Deck";
 "settings_reader_note_template_notetype" = "Default Note Template";
 "settings_reader_note_template_duplicate_check_field" = "Duplicate Check Field";
 "settings_reader_note_template_duplicate_check_field_default" = "Notetype First Field (%@)";
 "settings_reader_note_template_fields" = "Field Mapping";
+"settings_reader_note_template_tags" = "Tags";
 "settings_reader_note_template_term_field" = "Word Field";
 "settings_reader_note_template_reading_field" = "Pinyin/Kana/Phonetic Field";
 "settings_reader_note_template_sentence_field" = "Context Sentence Field";
@@ -1371,6 +1374,8 @@
 "stats_retrievability_knowledge" = "Estimated Knowledge";
 "stats_retrievability_knowledge_fmt" = "%@ cards / %@ notes";
 "stats_chart_order_button" = "Chart Order";
+"stats_chart_layout_single" = "Switch to single-column charts";
+"stats_chart_layout_double" = "Switch to two-column charts";
 "stats_chart_order_title" = "Reorder charts";
 "stats_chart_order_reset" = "Reset";
 "stats_card_count" = "Cards";

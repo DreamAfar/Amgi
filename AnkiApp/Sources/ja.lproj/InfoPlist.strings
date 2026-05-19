@@ -1,0 +1,2 @@
+"NSCameraUsageDescription" = "Amgi は写真を撮影してノート欄に挿入するために、カメラへのアクセスが必要です。";
+"NSMicrophoneUsageDescription" = "Amgi は音声を録音してノート欄に挿入するために、マイクへのアクセスが必要です。";

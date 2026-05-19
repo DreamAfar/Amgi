@@ -1,0 +1,2 @@
+"NSCameraUsageDescription" = "Amgi needs camera access to take photos and insert them into note fields.";
+"NSMicrophoneUsageDescription" = "Amgi needs microphone access to record audio and insert recordings into note fields.";

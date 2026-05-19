@@ -808,12 +808,12 @@ struct ReaderAdvancedSettingsView: View {
 
             Section {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Language")
+                    Text(L("settings_reader_note_template_language"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
 
                     HStack {
-                        TextField("default / ja / en", text: $selectedTemplateLanguageKey)
+                        TextField(L("settings_reader_note_template_language_placeholder"), text: $selectedTemplateLanguageKey)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .submitLabel(.done)
@@ -918,11 +918,11 @@ struct ReaderAdvancedSettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Tags")
+                    Text(L("settings_reader_note_template_tags"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
 
-                    TextField("None", text: templateTagsBinding)
+                    TextField(L("common_none"), text: templateTagsBinding)
                         .submitLabel(.done)
                 }
             } header: {
@@ -952,7 +952,7 @@ struct ReaderAdvancedSettingsView: View {
                 .foregroundStyle(.secondary)
 
             HStack {
-                TextField("None", text: selection)
+                TextField(L("common_none"), text: selection)
                     .submitLabel(.done)
 
                 Menu {

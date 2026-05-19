@@ -320,11 +320,14 @@
 "settings_reader_statistics_autostart_on" = "常にオン";
 "settings_reader_note_add_settings" = "ノート追加設定";
 "settings_reader_note_add_settings_description" = "検索ポップアップでノート追加をタップすると、ここで設定した既定テンプレートで入力済みプレビューを開きます。";
+"settings_reader_note_template_language" = "言語";
+"settings_reader_note_template_language_placeholder" = "default / ja / en";
 "settings_reader_note_template_deck" = "既定デッキ";
 "settings_reader_note_template_notetype" = "既定ノートテンプレート";
 "settings_reader_note_template_duplicate_check_field" = "重複チェックフィールド";
 "settings_reader_note_template_duplicate_check_field_default" = "ノートタイプ先頭フィールド（%@）";
 "settings_reader_note_template_fields" = "フィールド対応";
+"settings_reader_note_template_tags" = "タグ";
 "settings_reader_note_template_term_field" = "単語フィールド";
 "settings_reader_note_template_reading_field" = "ピンイン/かな/発音フィールド";
 "settings_reader_note_template_sentence_field" = "文脈文フィールド";
@@ -1373,6 +1376,8 @@
 "stats_retrievability_knowledge" = "推定習得総量";
 "stats_retrievability_knowledge_fmt" = "%@枚のカード / %@件のノート";
 "stats_chart_order_button" = "グラフ順序";
+"stats_chart_layout_single" = "単一列グラフに切り替え";
+"stats_chart_layout_double" = "2列グラフに切り替え";
 "stats_chart_order_title" = "グラフの並び替え";
 "stats_chart_order_reset" = "リセット";
 "stats_card_count" = "カード数";

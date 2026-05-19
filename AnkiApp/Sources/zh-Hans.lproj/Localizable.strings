@@ -320,11 +320,14 @@
 "settings_reader_statistics_autostart_on" = "始终开启";
 "settings_reader_note_add_settings" = "笔记添加设置";
 "settings_reader_note_add_settings_description" = "查词弹窗点击添加笔记时，会按这里的默认模板填充字段，并弹出预览后再添加。";
+"settings_reader_note_template_language" = "语言";
+"settings_reader_note_template_language_placeholder" = "default / ja / en";
 "settings_reader_note_template_deck" = "默认牌组";
 "settings_reader_note_template_notetype" = "默认笔记模板";
 "settings_reader_note_template_duplicate_check_field" = "重复检查字段";
 "settings_reader_note_template_duplicate_check_field_default" = "笔记类型首字段（%@）";
 "settings_reader_note_template_fields" = "字段映射";
+"settings_reader_note_template_tags" = "标签";
 "settings_reader_note_template_term_field" = "单词字段";
 "settings_reader_note_template_reading_field" = "拼音/假名/音标字段";
 "settings_reader_note_template_sentence_field" = "上下文句子字段";
@@ -1371,6 +1374,8 @@
 "stats_retrievability_knowledge" = "预估习得总数";
 "stats_retrievability_knowledge_fmt" = "%@ 张卡片 / %@ 条笔记";
 "stats_chart_order_button" = "图表排序";
+"stats_chart_layout_single" = "切换为单列图表";
+"stats_chart_layout_double" = "切换为双列图表";
 "stats_chart_order_title" = "调整图表顺序";
 "stats_chart_order_reset" = "重置";
 "stats_card_count" = "卡片数";

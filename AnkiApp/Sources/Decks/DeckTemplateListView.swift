@@ -452,7 +452,7 @@ struct TemplateEditorView: View {
                             .foregroundStyle(Color.amgiTextSecondary)
                     }
 
-                    Picker("Template Editor", selection: $editorTab) {
+                    Picker(L("deck_template_edit_template"), selection: $editorTab) {
                         ForEach(TemplateEditorTab.allCases, id: \.self) { tab in
                             Text(tab.label).tag(tab)
                         }

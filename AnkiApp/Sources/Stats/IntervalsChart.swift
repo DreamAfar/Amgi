@@ -340,7 +340,7 @@ struct IntervalsChart: View {
     @ViewBuilder
     private func intervalsChartOverlay(proxy: ChartProxy, bins: [IntervalBin]) -> some View {
         GeometryReader { geometry in
-            Rectangle()
+            let overlay = Rectangle()
                 .fill(Color.clear)
                 .contentShape(Rectangle())
                 .gesture(
@@ -355,11 +355,11 @@ struct IntervalsChart: View {
                             )
                         }
                 )
-                .simultaneousGesture(
+            if selectedBinX != nil {
+                overlay.simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.2)
                         .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
                         .onChanged { value in
-                            guard selectedBinX != nil else { return }
                             guard case .second(true, let drag?) = value,
                                   StatsSelectionSupport.isHorizontalDrag(drag.translation)
                             else { return }
@@ -374,6 +374,9 @@ struct IntervalsChart: View {
                             )
                         }
                 )
+            } else {
+                overlay
+            }
         }
     }
 

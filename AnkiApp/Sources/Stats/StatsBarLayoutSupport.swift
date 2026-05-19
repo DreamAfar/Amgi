@@ -1,5 +1,6 @@
 import Charts
 import Foundation
+import UIKit
 
 enum StatsBarLayoutSupport {
     static func displayedSlotCount(
@@ -15,12 +16,25 @@ enum StatsBarLayoutSupport {
     static func barWidth(
         slotCount: Int,
         automaticThreshold: Int = 24,
-        denominator: Double = 220,
+        availableWidth: CGFloat = UIScreen.main.bounds.width,
         minimum: Double = 1.5,
-        maximum: Double = 6
+        fillRatio: Double = 0.82
     ) -> MarkDimension {
         guard slotCount > automaticThreshold else { return .automatic }
-        let width = max(minimum, min(maximum, denominator / Double(slotCount)))
+        let plotWidth = max(Double(availableWidth) - 72, 160)
+        let slotWidth = plotWidth / Double(max(slotCount, 1))
+        let maximum: Double
+        switch plotWidth {
+        case ..<480:
+            maximum = 8
+        case ..<820:
+            maximum = 12
+        case ..<1180:
+            maximum = 16
+        default:
+            maximum = 22
+        }
+        let width = max(minimum, min(maximum, slotWidth * fillRatio))
         return .fixed(width)
     }
 }

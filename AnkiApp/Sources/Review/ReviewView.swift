@@ -13,6 +13,7 @@ import GameController
 
 struct ReviewView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     let deckId: Int64
     let onDismiss: () -> Void
@@ -135,6 +136,14 @@ struct ReviewView: View {
 
     private var resolvedCardChromeIsDark: Bool {
         prefAutoMatchCardBackground ? cardChromeIsDark : (colorScheme == .dark)
+    }
+
+    private var usesExpandedToolbarLayout: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular
+    }
+
+    private var hasCurrentCard: Bool {
+        session.currentCard != nil
     }
 
     private var currentCardFlagView: some View {
@@ -551,47 +560,86 @@ struct ReviewView: View {
                 Image(systemName: "square.and.pencil")
             }
             .accessibilityLabel(L("card_template_editor_title"))
-            .disabled(session.currentCard == nil)
+            .disabled(!hasCurrentCard)
         }
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
+        if usesExpandedToolbarLayout {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showDeckStats = true
                 } label: {
-                    Label(L("stats_nav_title"), systemImage: "chart.bar.doc.horizontal")
+                    Image(systemName: "chart.bar.doc.horizontal")
                 }
-                .disabled(session.currentCard == nil)
-
+                .accessibilityLabel(L("stats_nav_title"))
+                .disabled(!hasCurrentCard)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     Task { await openMoveCurrentCardToDeck() }
                 } label: {
-                    Label(L("browse_batch_move_deck"), systemImage: "rectangle.stack.badge.plus")
+                    Image(systemName: "rectangle.stack.badge.plus")
                 }
-                .disabled(session.currentCard == nil)
-
+                .accessibilityLabel(L("browse_batch_move_deck"))
+                .disabled(!hasCurrentCard)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     openChangeCurrentCardNotetype()
                 } label: {
-                    Label(L("browse_batch_change_notetype"), systemImage: "doc.badge.gearshape")
+                    Image(systemName: "doc.badge.gearshape")
                 }
-                .disabled(session.currentCard == nil)
+                .accessibilityLabel(L("browse_batch_change_notetype"))
+                .disabled(!hasCurrentCard)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showCardInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .accessibilityLabel(L("card_info_title"))
+                .disabled(!hasCurrentCard)
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                if !usesExpandedToolbarLayout {
+                    Button {
+                        showDeckStats = true
+                    } label: {
+                        Label(L("stats_nav_title"), systemImage: "chart.bar.doc.horizontal")
+                    }
+                    .disabled(!hasCurrentCard)
 
-                Divider()
+                    Button {
+                        Task { await openMoveCurrentCardToDeck() }
+                    } label: {
+                        Label(L("browse_batch_move_deck"), systemImage: "rectangle.stack.badge.plus")
+                    }
+                    .disabled(!hasCurrentCard)
+
+                    Button {
+                        openChangeCurrentCardNotetype()
+                    } label: {
+                        Label(L("browse_batch_change_notetype"), systemImage: "doc.badge.gearshape")
+                    }
+                    .disabled(!hasCurrentCard)
+
+                    Button {
+                        showCardInfo = true
+                    } label: {
+                        Label(L("card_info_title"), systemImage: "info.circle")
+                    }
+                    .disabled(!hasCurrentCard)
+
+                    Divider()
+                }
 
                 Button(role: .destructive) {
                     showDeleteNoteConfirm = true
                 } label: {
                     Label(L("browse_batch_delete_notes"), systemImage: "trash")
                 }
-                .disabled(session.currentCard == nil)
-
-                Button {
-                    showCardInfo = true
-                } label: {
-                    Label(L("card_info_title"), systemImage: "info.circle")
-                }
-                .disabled(session.currentCard == nil)
-
+                .disabled(!hasCurrentCard)
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
