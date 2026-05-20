@@ -2,9 +2,9 @@ import Foundation
 
 @MainActor
 final class AnkiJSBridge {
-    static let apiVersion = "0.0.3"
-    static let minimumAPIVersion = "0.0.3"
-    static let messageHandlerName = "amgiAnkiJS"
+    nonisolated static let apiVersion = "0.0.3"
+    nonisolated static let minimumAPIVersion = "0.0.3"
+    nonisolated static let messageHandlerName = "amgiAnkiJS"
 
     var context: AnkiJSContext
 
