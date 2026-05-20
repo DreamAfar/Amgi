@@ -43,6 +43,8 @@ struct ReviewView: View {
     @State private var fieldManagerTarget: ReviewFieldManagerTarget?
     @State private var toolbarErrorMessage: String?
     @State private var showToolbarError = false
+    @State private var ankiJSToastState: AnkiJSToastState?
+    @State private var ankiJSToastDismissTask: Task<Void, Never>?
     @State private var showDeleteNoteConfirm = false
     @State private var showTriggeredContextMenu = false
     @State private var showUndoError = false
@@ -116,6 +118,147 @@ struct ReviewView: View {
 
     private var prefCardContentAlignment: CardWebView.ContentAlignment {
         CardWebView.ContentAlignment(rawValue: prefCardContentAlignmentRaw) ?? .top
+    }
+
+    private var ankiJSContext: AnkiJSContext {
+        AnkiJSContext(
+            isDisplayingAnswer: {
+                session.showAnswer
+            },
+            isNightMode: {
+                colorScheme == .dark
+            },
+            showAnswer: { typedAnswer in
+                session.revealAnswer(typedAnswer: typedAnswer)
+            },
+            answerEase: { ease, typedAnswer in
+                if session.showAnswer {
+                    session.answer(rating: try rating(forAnkiEase: ease))
+                } else {
+                    session.revealAnswer(typedAnswer: typedAnswer)
+                }
+            },
+            getCounts: {
+                session.remainingCounts
+            },
+            getETA: {
+                estimatedAnkiJSETA()
+            },
+            getNextTime: { ease in
+                guard let rating = try? rating(forAnkiEase: ease) else {
+                    return nil
+                }
+                return session.nextIntervals[rating]
+            },
+            getCardInfo: {
+                try currentAnkiJSCardInfo()
+            },
+            getDeckName: {
+                if let cached = currentDeckName?.trimmedOrNil {
+                    return cached
+                }
+                let resolvedDeckID = session.currentCard?.card.deckID ?? deckId
+                return try? deckClient.fetchDeck(resolvedDeckID).name
+            },
+            buryCard: {
+                let cardId = try currentReviewCardID()
+                try cardClient.bury(cardId)
+                session.refreshAndAdvance()
+            },
+            buryNote: {
+                let noteId = try currentReviewNoteID()
+                for card in try cardClient.fetchByNote(noteId) {
+                    try cardClient.bury(card.id)
+                }
+                session.refreshAndAdvance()
+            },
+            suspendCard: {
+                let cardId = try currentReviewCardID()
+                try cardClient.suspend(cardId)
+                session.refreshAndAdvance()
+            },
+            suspendNote: {
+                let noteId = try currentReviewNoteID()
+                for card in try cardClient.fetchByNote(noteId) {
+                    try cardClient.suspend(card.id)
+                }
+                session.refreshAndAdvance()
+            },
+            resetProgress: {
+                let cardId = try currentReviewCardID()
+                try cardClient.resetToNew(cardId)
+                session.refreshAndAdvance()
+            },
+            setCardDue: { days in
+                let cardId = try currentReviewCardID()
+                try cardClient.setDueDate(cardId, days)
+                session.refreshAndAdvance()
+            },
+            toggleMark: {
+                let noteId = try currentReviewNoteID()
+                let existingTags = try loadNoteTags(noteId: noteId)
+                let isMarked = existingTags.contains { $0.caseInsensitiveCompare(reviewMarkedTag) == .orderedSame }
+                if isMarked {
+                    try tagClient.removeTagFromNotes(reviewMarkedTag, [noteId])
+                } else {
+                    try tagClient.addTagToNotes(reviewMarkedTag, [noteId])
+                }
+                Task { [session] in
+                    await session.refreshAfterCardMutation()
+                }
+                return !isMarked
+            },
+            setFlag: { value in
+                let cardId = try currentReviewCardID()
+                try cardClient.flag(cardId, value)
+                Task { [session] in
+                    await session.refreshAfterCardMutation()
+                }
+            },
+            getNoteTags: {
+                try loadNoteTags(noteId: currentReviewNoteID())
+            },
+            setNoteTags: { tags in
+                let noteId = try currentReviewNoteID()
+                guard var note = try noteClient.fetch(noteId) else {
+                    throw AnkiJSBridgeError.noteNotFound(noteId)
+                }
+                note.tags = sanitizeAnkiJSTags(tags).joined(separator: " ")
+                try noteClient.save(note)
+                Task { [session] in
+                    await session.refreshAfterCardMutation()
+                }
+            },
+            addTagToCurrentCard: {
+                let noteId = try currentReviewNoteID()
+                guard let note = try noteClient.fetch(noteId) else {
+                    throw AnkiJSBridgeError.noteNotFound(noteId)
+                }
+                editingNote = note
+            },
+            addTagToNote: { noteId, tag in
+                let targetNoteID = noteId ?? (try currentReviewNoteID())
+                let normalizedTag = sanitizeAnkiJSTags([tag]).first ?? ""
+                guard normalizedTag.isEmpty == false else {
+                    throw AnkiJSBridgeError.invalidArgument("tag")
+                }
+                try tagClient.addTagToNotes(normalizedTag, [targetNoteID])
+                if targetNoteID == session.currentCard?.card.noteID {
+                    Task { [session] in
+                        await session.refreshAfterCardMutation()
+                    }
+                }
+            },
+            searchCard: { query in
+                AppCollectionEvents.postOpenBrowseSearch(query: query)
+            },
+            searchCardWithCallbackPayload: { query in
+                try makeAnkiJSSearchCallbackPayload(query: query)
+            },
+            showToast: { message, shortLength in
+                presentAnkiJSToast(message: message, shortLength: shortLength)
+            }
+        )
     }
 
     private var isLookupPopupEnabledForCurrentSide: Bool {
@@ -472,6 +615,13 @@ struct ReviewView: View {
                     .transition(.opacity)
             }
         }
+        .overlay(alignment: .top) {
+            if let toast = ankiJSToastState {
+                AnkiJSToastView(message: toast.message)
+                    .padding(.top, 12)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
     }
 
     private var reviewNavigationContent: some View {
@@ -678,6 +828,7 @@ struct ReviewView: View {
                 prefetchHTML: session.showAnswer ? nil : session.backHTML,
                 contentAlignment: prefCardContentAlignment,
                 bottomContentInset: actionBarHeight,
+                ankiJSContext: ankiJSContext,
                 onTypedAnswerSubmitted: { typedAnswer in
                     session.revealAnswer(typedAnswer: typedAnswer)
                 },
@@ -864,6 +1015,147 @@ struct ReviewView: View {
             return
         }
         startCardLookup(for: query, sentence: sentence, anchor: point)
+    }
+
+    private func rating(forAnkiEase ease: Int) throws -> Rating {
+        switch ease {
+        case 1:
+            .again
+        case 2:
+            .hard
+        case 3:
+            .good
+        case 4:
+            .easy
+        default:
+            throw AnkiJSBridgeError.invalidArgument("ease")
+        }
+    }
+
+    private func currentReviewCardID() throws -> Int64 {
+        guard let cardId = session.currentCard?.card.id else {
+            throw AnkiJSBridgeError.noCurrentCard
+        }
+        return cardId
+    }
+
+    private func currentReviewNoteID() throws -> Int64 {
+        guard let noteId = session.currentCard?.card.noteID, noteId != 0 else {
+            throw AnkiJSBridgeError.noCurrentNote
+        }
+        return noteId
+    }
+
+    private func loadNoteTags(noteId: Int64) throws -> [String] {
+        guard let note = try noteClient.fetch(noteId) else {
+            throw AnkiJSBridgeError.noteNotFound(noteId)
+        }
+        return note.tags
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+            .filter { $0.isEmpty == false }
+    }
+
+    private func sanitizeAnkiJSTags(_ tags: [String]) -> [String] {
+        tags.compactMap { tag in
+            let trimmed = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.isEmpty == false else { return nil }
+            return trimmed
+                .replacingOccurrences(of: " ", with: "_")
+                .replacingOccurrences(of: "\u{3000}", with: "_")
+        }
+    }
+
+    private func currentAnkiJSCardInfo() throws -> AnkiJSCardInfo {
+        guard let card = session.currentCard?.card else {
+            throw AnkiJSBridgeError.noCurrentCard
+        }
+
+        let tags = try loadNoteTags(noteId: card.noteID)
+        let isMarked = tags.contains { $0.caseInsensitiveCompare(reviewMarkedTag) == .orderedSame }
+        let userFlag = Int(card.flags & 0b111)
+
+        return AnkiJSCardInfo(
+            cardId: card.id,
+            noteId: card.noteID,
+            deckId: card.deckID,
+            cardType: Int(card.ctype),
+            left: Int(card.remainingSteps),
+            originalDeckId: card.originalDeckID,
+            originalDue: Int(card.originalDue),
+            queue: Int(card.queue),
+            lapses: Int(card.lapses),
+            due: Int(card.due),
+            reps: Int(card.reps),
+            interval: Int(card.interval),
+            factor: Int(card.easeFactor),
+            modified: Int(card.mtimeSecs),
+            userFlag: userFlag,
+            isMarked: isMarked
+        )
+    }
+
+    private func estimatedAnkiJSETA() -> Int {
+        let remaining = session.remainingCounts.newCount
+            + session.remainingCounts.learnCount
+            + session.remainingCounts.reviewCount
+        guard remaining > 0 else { return 0 }
+
+        let reviewed = session.sessionStats.reviewed
+        let averageSecondsPerCard: Double
+        if reviewed > 0, session.sessionStats.totalTimeMs > 0 {
+            averageSecondsPerCard = Double(session.sessionStats.totalTimeMs) / Double(reviewed) / 1000
+        } else {
+            averageSecondsPerCard = 20
+        }
+
+        let estimatedMinutes = Int(ceil((Double(remaining) * averageSecondsPerCard) / 60))
+        return max(1, estimatedMinutes)
+    }
+
+    private func makeAnkiJSSearchCallbackPayload(query: String) throws -> String {
+        let cards = try cardClient.search(query)
+        let noteIDs = Array(Set(cards.map(\.nid)))
+        let notes = try noteClient.fetchBatch(noteIDs)
+        let notesByID = Dictionary(uniqueKeysWithValues: notes.map { ($0.id, $0) })
+
+        var fieldNamesByNotetype: [Int64: [String]] = [:]
+        for note in notes where fieldNamesByNotetype[note.mid] == nil {
+            fieldNamesByNotetype[note.mid] = try fetchNotetypeFieldNames(note.mid)
+        }
+
+        let results = cards.compactMap { card -> AnkiJSSearchCallbackResult? in
+            guard let note = notesByID[card.nid] else { return nil }
+            let fieldNames = fieldNamesByNotetype[note.mid] ?? []
+            let fieldValues = splitAnkiJSFields(note.flds)
+            var fieldsData: [String: String] = [:]
+            for (index, fieldName) in fieldNames.enumerated() {
+                fieldsData[fieldName] = index < fieldValues.count ? fieldValues[index] : ""
+            }
+            return AnkiJSSearchCallbackResult(
+                cardId: card.id,
+                noteId: note.id,
+                fieldsData: fieldsData
+            )
+        }
+
+        let data = try JSONEncoder().encode(results)
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private func fetchNotetypeFieldNames(_ notetypeID: Int64) throws -> [String] {
+        var request = Anki_Notetypes_NotetypeId()
+        request.ntid = notetypeID
+        let notetype: Anki_Notetypes_Notetype = try backend.invoke(
+            service: AnkiBackend.Service.notetypes,
+            method: AnkiBackend.NotetypesMethod.getNotetype,
+            request: request
+        )
+        return notetype.fields.map(\.name)
+    }
+
+    private func splitAnkiJSFields(_ raw: String) -> [String] {
+        raw.split(separator: "\u{1f}", omittingEmptySubsequences: false).map(String.init)
     }
 
     private func handleSelectionMenuAction(_ action: CardWebView.SelectionMenuAction, snapshot: CardWebView.SelectionSnapshot) {
@@ -1576,6 +1868,23 @@ struct ReviewView: View {
         editingNote = note
     }
 
+    private func presentAnkiJSToast(message: String, shortLength: Bool) {
+        let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedMessage.isEmpty == false else { return }
+        ankiJSToastDismissTask?.cancel()
+        withAnimation(.easeOut(duration: 0.2)) {
+            ankiJSToastState = AnkiJSToastState(message: trimmedMessage)
+        }
+        let duration: Duration = shortLength ? .seconds(2) : .seconds(3.5)
+        ankiJSToastDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeIn(duration: 0.2)) {
+                ankiJSToastState = nil
+            }
+        }
+    }
+
     private func deleteCurrentNote() async {
         guard let noteId = session.currentCard?.card.noteID else { return }
         do {
@@ -1936,6 +2245,32 @@ private extension Notification.Name {
 }
 
 private let reviewMarkedTag = "marked"
+
+private struct AnkiJSToastState: Equatable {
+    let message: String
+}
+
+private struct AnkiJSSearchCallbackResult: Encodable, Equatable {
+    let cardId: Int64
+    let noteId: Int64
+    let fieldsData: [String: String]
+}
+
+private struct AnkiJSToastView: View {
+    let message: String
+
+    var body: some View {
+        Text(message)
+            .font(.subheadline)
+            .foregroundStyle(.primary)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.regularMaterial, in: Capsule())
+            .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 4)
+            .padding(.horizontal, 16)
+    }
+}
 
 private final class ReviewKeyboardCommandHost: UIViewController {
     override var canBecomeFirstResponder: Bool { true }

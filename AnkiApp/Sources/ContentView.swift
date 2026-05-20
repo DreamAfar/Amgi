@@ -152,6 +152,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.openDeckListNotification)) { _ in
             selectedTab = .decks
         }
+        .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.openBrowseSearchNotification)) { _ in
+            selectedTab = .browse
+        }
         .onReceive(syncCoordinator.$state) { _ in
             updateSyncBadge()
         }

@@ -6,6 +6,7 @@ struct CardTTSPayload {
     let lang: String
     let voices: [String]
     let speed: Float
+    let pitch: Float
     let token: String
 
     init?(messageBody: Any) {
@@ -23,6 +24,7 @@ struct CardTTSPayload {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         self.speed = Float((payload["speed"] as? String) ?? "") ?? 1
+        self.pitch = Float((payload["pitch"] as? String) ?? "") ?? 1
         self.token = ((payload["token"] as? String) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -80,6 +82,7 @@ final class CardTTSPlayer: NSObject, AVSpeechSynthesizerDelegate {
             max(mappedRate, AVSpeechUtteranceMinimumSpeechRate),
             AVSpeechUtteranceMaximumSpeechRate
         )
+        utterance.pitchMultiplier = min(max(payload.pitch, 0.5), 2.0)
         speechSynthesizer.speak(utterance)
     }
 

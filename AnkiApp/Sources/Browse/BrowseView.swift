@@ -345,6 +345,10 @@ struct BrowseView: View {
                 await performSearch()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.openBrowseSearchNotification)) { notification in
+            let query = notification.userInfo?[AppCollectionEvents.browseSearchQueryUserInfoKey] as? String ?? ""
+            applyExternalSearchQuery(query)
+        }
         .task(id: isActive) {
             guard isActive, !hasLoadedInitialData else { return }
             hasLoadedInitialData = true
@@ -352,6 +356,9 @@ struct BrowseView: View {
             async let tagsLoad: Void = loadTags()
             async let notetypesLoad: Void = loadNotetypeNames()
             _ = await (decksLoad, tagsLoad, notetypesLoad)
+            if let pendingQuery = AppCollectionEvents.consumePendingBrowseSearchQuery() {
+                applyExternalSearchQuery(pendingQuery)
+            }
             await performSearch()
         }
         // Keep Add Note outside the searchable host; otherwise Browse can recreate the
@@ -1354,6 +1361,19 @@ struct BrowseView: View {
         activeTag = nil
         quickFilter = .all
         searchText = BrowseFindDuplicatesSheet.noteIDsQuery(noteIDs)
+    }
+
+    private func applyExternalSearchQuery(_ query: String) {
+        parentDeck = nil
+        activeDeck = nil
+        activeTag = nil
+        quickFilter = .all
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if searchText == trimmed {
+            scheduleSearch()
+        } else {
+            searchText = trimmed
+        }
     }
 
     private func loadNotetypeNames() async {

@@ -43,6 +43,7 @@ struct CardWebView: UIViewRepresentable {
     let prefetchHTML: String?
     let contentAlignment: ContentAlignment
     let bottomContentInset: CGFloat
+    let ankiJSContext: AnkiJSContext?
     let onTypedAnswerSubmitted: ((String?) -> Void)?
     let onAudioStateChange: ((Bool) -> Void)?
     let onCardBackgroundColorChange: ((UIColor, Bool) -> Void)?
@@ -73,6 +74,7 @@ struct CardWebView: UIViewRepresentable {
         prefetchHTML: String? = nil,
         contentAlignment: ContentAlignment = .center,
         bottomContentInset: CGFloat = 0,
+        ankiJSContext: AnkiJSContext? = nil,
         onTypedAnswerSubmitted: ((String?) -> Void)? = nil,
         onAudioStateChange: ((Bool) -> Void)? = nil,
         onCardBackgroundColorChange: ((UIColor, Bool) -> Void)? = nil,
@@ -102,6 +104,7 @@ struct CardWebView: UIViewRepresentable {
         self.prefetchHTML = prefetchHTML
         self.contentAlignment = contentAlignment
         self.bottomContentInset = bottomContentInset
+        self.ankiJSContext = ankiJSContext
         self.onTypedAnswerSubmitted = onTypedAnswerSubmitted
         self.onAudioStateChange = onAudioStateChange
         self.onCardBackgroundColorChange = onCardBackgroundColorChange
@@ -135,6 +138,11 @@ struct CardWebView: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "amgiLookupText")
         config.userContentController.add(context.coordinator, name: "amgiCardGesture")
         config.userContentController.add(context.coordinator, name: "amgiSelectionState")
+        config.userContentController.addScriptMessageHandler(
+            context.coordinator,
+            contentWorld: .page,
+            name: AnkiJSBridge.messageHandlerName
+        )
         
         // Enable media playback without user interaction
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -162,6 +170,10 @@ struct CardWebView: UIViewRepresentable {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiLookupText")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiCardGesture")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiSelectionState")
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: AnkiJSBridge.messageHandlerName,
+            contentWorld: .page
+        )
         coordinator.stopTTS()
     }
 
@@ -205,6 +217,7 @@ struct CardWebView: UIViewRepresentable {
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.playAudioInSilentMode = playAudioInSilentMode
         context.coordinator.currentWebView = webView
+        context.coordinator.updateAnkiJS(context: ankiJSContext)
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
         if let menuWebView = webView as? SelectedTextActionWebView {
             menuWebView.availableSelectionActions = selectionMenuActions
@@ -515,6 +528,7 @@ struct CardWebView: UIViewRepresentable {
         var amgiPreloadDoc = document.implementation.createHTMLDocument('');
         var amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
         var amgiCachedFonts = new Set();
+        \(AnkiJSInjectedScript.source(handlerName: AnkiJSBridge.messageHandlerName))
 
         // ── Card state ──────────────────────────────────────────────────────
         window.__amgiCardState = {};
@@ -2912,7 +2926,7 @@ struct CardWebView: UIViewRepresentable {
     // MARK: - Navigation Delegate
 
     @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKScriptMessageHandlerWithReply {
         var lastPageSignature: String?
         var lastContentSignature: String?
         var lastReplayRequestID: Int = 0
@@ -2932,6 +2946,7 @@ struct CardWebView: UIViewRepresentable {
         private let onSelectionMenuAction: ((SelectionMenuAction, SelectionSnapshot) -> Void)?
         private var lastThemePayload: String?
         private let ttsPlayer = CardTTSPlayer()
+        private var ankiJSBridge: AnkiJSBridge?
 
         init(
             initialUserActionRequestID: Int = 0,
@@ -2957,6 +2972,58 @@ struct CardWebView: UIViewRepresentable {
 
         func handleSelectionMenuAction(_ action: SelectionMenuAction, snapshot: SelectionSnapshot) {
             onSelectionMenuAction?(action, snapshot)
+        }
+
+        func updateAnkiJS(context: AnkiJSContext?) {
+            guard let context else {
+                ankiJSBridge = nil
+                return
+            }
+
+            if let ankiJSBridge {
+                ankiJSBridge.context = context
+                return
+            }
+
+            let ttsController = AnkiJSTTSController(
+                speak: { [weak self] payload in
+                    self?.ttsPlayer.speak(
+                        messageBody: [
+                            "text": payload.text,
+                            "lang": payload.lang,
+                            "voices": payload.voices.joined(separator: ","),
+                            "speed": String(payload.speed),
+                            "pitch": String(payload.pitch),
+                            "token": UUID().uuidString,
+                        ],
+                        playAudioInSilentMode: self?.playAudioInSilentMode ?? false
+                    )
+                },
+                stop: { [weak self] in
+                    self?.stopTTS()
+                },
+                isSpeaking: { [weak self] in
+                    self?.ttsPlayer.isSpeakingNow ?? false
+                }
+            )
+
+            let scrollController = AnkiJSScrollController(
+                setHorizontalScrollbarEnabled: { [weak self] enabled in
+                    self?.currentWebView?.scrollView.showsHorizontalScrollIndicator = enabled
+                },
+                setVerticalScrollbarEnabled: { [weak self] enabled in
+                    self?.currentWebView?.scrollView.showsVerticalScrollIndicator = enabled
+                }
+            )
+
+            ankiJSBridge = AnkiJSBridge(
+                context: context,
+                ttsController: ttsController,
+                scrollController: scrollController,
+                jsEvaluator: { [weak self] script in
+                    self?.currentWebView?.evaluateJavaScript(script, completionHandler: nil)
+                }
+            )
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -3041,6 +3108,13 @@ struct CardWebView: UIViewRepresentable {
 
             guard let href, !href.isEmpty else { return }
             openLink(href)
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) async -> (Any?, String?) {
+            guard message.name == AnkiJSBridge.messageHandlerName else {
+                return (nil, nil)
+            }
+            return ankiJSBridge?.handleMessage(message.body) ?? (nil, "Anki JS API bridge is unavailable")
         }
 
         func stopTTS() {
