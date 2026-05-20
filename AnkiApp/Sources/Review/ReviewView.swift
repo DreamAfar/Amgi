@@ -308,9 +308,15 @@ struct ReviewView: View {
         isPadDevice ? 16 : 0
     }
 
+    private var usesFullscreenPadReviewControls: Bool {
+        guard usesWidePadReviewControls else { return false }
+        return reviewViewportWidth >= UIScreen.main.bounds.width * 0.9
+    }
+
     private var reviewPrimaryButtonMaxWidth: CGFloat? {
         guard usesWidePadReviewControls else { return nil }
-        let preferredWidth = reviewControlAvailableWidth * (2.0 / 3.0)
+        let widthRatio = usesFullscreenPadReviewControls ? (1.0 / 3.0) : (2.0 / 3.0)
+        let preferredWidth = reviewControlAvailableWidth * widthRatio
         let minimumWidth: CGFloat = prefSmallReviewButtons ? 260 : 320
         return min(reviewControlAvailableWidth, max(preferredWidth, minimumWidth))
     }
