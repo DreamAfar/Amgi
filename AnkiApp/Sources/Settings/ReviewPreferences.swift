@@ -108,6 +108,7 @@ enum ReviewPreferences {
         static let showCorrectnessSymbols = "review_pref_show_correctness_symbols"
         static let disperseAnswerButtons = "review_pref_disperse_answer_buttons"
         static let showAnswerButtons = "review_pref_show_answer_buttons"
+        static let smallReviewButtons = "review_pref_small_review_buttons"
         static let hideHardAndEasyButtons = "review_pref_hide_hard_and_easy_buttons"
         static let showRemainingDays = "review_pref_show_remaining_days"
         static let showNextReviewTime = "review_pref_show_next_review_time"

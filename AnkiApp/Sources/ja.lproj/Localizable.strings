@@ -1505,6 +1505,7 @@
 "settings_review_show_correctness_symbols" = "正誤シンボルを表示";
 "settings_review_disperse_answer_buttons" = "回答ボタンを分散表示";
 "settings_review_show_answer_buttons" = "回答ボタンを表示";
+"settings_review_small_review_buttons" = "小さい復習ボタンを使う";
 "settings_review_hide_hard_and_easy_buttons" = "「難しい / 簡単」ボタンを隠す";
 "settings_review_show_remaining_days" = "残り日数を表示";
 "settings_review_show_next_review_time" = "次回回答時刻を表示";

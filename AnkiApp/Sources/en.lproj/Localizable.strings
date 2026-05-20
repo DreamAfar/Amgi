@@ -1495,6 +1495,7 @@
 "settings_review_show_correctness_symbols" = "Show correctness symbols";
 "settings_review_disperse_answer_buttons" = "Disperse answer buttons";
 "settings_review_show_answer_buttons" = "Show answer buttons";
+"settings_review_small_review_buttons" = "Use smaller review buttons";
 "settings_review_hide_hard_and_easy_buttons" = "Hide Hard / Easy buttons";
 "settings_review_show_remaining_days" = "Show remaining days";
 "settings_review_show_next_review_time" = "Show next review time";

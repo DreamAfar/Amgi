@@ -70,6 +70,7 @@ struct ReviewView: View {
     @State private var aiFavoriteRefreshToken = 0
     @State private var controllerMonitor = ReviewControllerMonitor()
     @State private var keyboardMonitor = ReviewKeyboardMonitor()
+    @State private var reviewViewportWidth: CGFloat = 0
 
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var prefShowContextMenuButton = true
@@ -77,6 +78,7 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.showCorrectnessSymbols) private var prefShowCorrectnessSymbols = false
     @AppStorage(ReviewPreferences.Keys.disperseAnswerButtons) private var prefDisperseAnswerButtons = false
     @AppStorage(ReviewPreferences.Keys.showAnswerButtons) private var prefShowAnswerButtons = true
+    @AppStorage(ReviewPreferences.Keys.smallReviewButtons) private var prefSmallReviewButtons = false
     @AppStorage(ReviewPreferences.Keys.hideHardAndEasyButtons) private var prefHideHardAndEasyButtons = false
     @AppStorage(ReviewPreferences.Keys.showRemainingDays) private var prefShowRemainingDays = true
     @AppStorage(ReviewPreferences.Keys.showNextReviewTime) private var prefShowNextReviewTime = false
@@ -237,7 +239,12 @@ struct ReviewView: View {
                 editingNote = note
             },
             addTagToNote: { noteId, tag in
-                let targetNoteID = noteId ?? (try currentReviewNoteID())
+                let targetNoteID: Int64
+                if let noteId {
+                    targetNoteID = noteId
+                } else {
+                    targetNoteID = try currentReviewNoteID()
+                }
                 let normalizedTag = sanitizeAnkiJSTags([tag]).first ?? ""
                 guard normalizedTag.isEmpty == false else {
                     throw AnkiJSBridgeError.invalidArgument("tag")
@@ -283,6 +290,62 @@ struct ReviewView: View {
 
     private var usesExpandedToolbarLayout: Bool {
         UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular
+    }
+
+    private var isPadDevice: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
+    private var usesWidePadReviewControls: Bool {
+        isPadDevice && horizontalSizeClass == .regular && reviewControlAvailableWidth > 0
+    }
+
+    private var reviewControlAvailableWidth: CGFloat {
+        max(reviewViewportWidth - 32, 0)
+    }
+
+    private var reviewControlsBottomPadding: CGFloat {
+        isPadDevice ? 16 : 0
+    }
+
+    private var reviewPrimaryButtonMaxWidth: CGFloat? {
+        guard usesWidePadReviewControls else { return nil }
+        let preferredWidth = reviewControlAvailableWidth * (2.0 / 3.0)
+        let minimumWidth: CGFloat = prefSmallReviewButtons ? 260 : 320
+        return min(reviewControlAvailableWidth, max(preferredWidth, minimumWidth))
+    }
+
+    private var reviewAnswerButtonsMaxWidth: CGFloat? {
+        guard usesWidePadReviewControls else { return nil }
+        let minimumButtonWidth: CGFloat = prefSmallReviewButtons ? 76 : 92
+        let minimumTotalWidth = CGFloat(visibleRatings.count) * minimumButtonWidth
+            + CGFloat(max(visibleRatings.count - 1, 0)) * 8
+        let preferredWidth = reviewControlAvailableWidth * 0.6
+        return min(reviewControlAvailableWidth, max(preferredWidth, minimumTotalWidth))
+    }
+
+    private var reviewButtonControlSize: ControlSize {
+        prefSmallReviewButtons ? .small : .regular
+    }
+
+    private var reviewButtonHorizontalPadding: CGFloat {
+        prefSmallReviewButtons ? 14 : 16
+    }
+
+    private var reviewButtonMinimumHeight: CGFloat {
+        prefSmallReviewButtons ? 44 : 52
+    }
+
+    private var reviewButtonTitleFont: Font {
+        prefSmallReviewButtons ? .subheadline.weight(.semibold) : .headline
+    }
+
+    private var reviewRatingSpacing: CGFloat {
+        prefSmallReviewButtons ? 2 : 4
+    }
+
+    private var reviewRatingTitleFont: Font {
+        prefSmallReviewButtons ? .footnote.weight(.semibold) : .subheadline.weight(.medium)
     }
 
     private var hasCurrentCard: Bool {
@@ -858,6 +921,11 @@ struct ReviewView: View {
             ReviewKeyboardCommandBridge()
                 .frame(width: 0, height: 0)
         }
+        .onGeometryChange(for: CGFloat.self) { geo in
+            geo.size.width
+        } action: { width in
+            reviewViewportWidth = width
+        }
         .overlay(alignment: .bottom) {
             cardActionBar
                 .onGeometryChange(for: CGFloat.self) { geo in
@@ -908,37 +976,51 @@ struct ReviewView: View {
             } else {
                 let usesCompactShowAnswerButton = session.requiresTypedAnswerInput && isKeyboardVisible
 
-                HStack {
-                    if usesCompactShowAnswerButton {
+                if usesCompactShowAnswerButton {
+                    HStack {
                         Spacer()
-                    }
 
-                    Button {
-                        if session.requiresTypedAnswerInput {
+                        Button {
                             typedAnswerRequestID += 1
-                        } else {
-                            session.revealAnswer()
+                        } label: {
+                            Text(L("review_show_answer"))
+                                .font(.footnote.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
                         }
-                    } label: {
-                        Text(L("review_show_answer"))
-                            .font(usesCompactShowAnswerButton ? .footnote.weight(.semibold) : .headline)
-                            .frame(maxWidth: usesCompactShowAnswerButton ? nil : .infinity)
-                            .padding(.horizontal, usesCompactShowAnswerButton ? 12 : 16)
-                            .padding(.vertical, usesCompactShowAnswerButton ? 8 : 16)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(usesCompactShowAnswerButton ? .small : .regular)
-                    .clipShape(Capsule())
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .clipShape(Capsule())
 
-                    if usesCompactShowAnswerButton {
                         Spacer()
                     }
+                    .padding(.horizontal, 16)
+                } else {
+                    HStack {
+                        Spacer()
+
+                        Button {
+                            session.revealAnswer()
+                        } label: {
+                            Text(L("review_show_answer"))
+                                .font(reviewButtonTitleFont)
+                                .frame(maxWidth: .infinity, minHeight: reviewButtonMinimumHeight)
+                                .padding(.horizontal, reviewButtonHorizontalPadding)
+                        }
+                        .frame(maxWidth: reviewPrimaryButtonMaxWidth ?? .infinity)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(reviewButtonControlSize)
+                        .clipShape(Capsule())
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
                 }
-                .padding(.horizontal, 16)
                 .background(.clear)
                 .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
             }
         }
+        .padding(.bottom, reviewControlsBottomPadding)
         // Keep the floating review controls transparent so they do not paint an
         // opaque strip over the card content again. The surrounding review screen
         // still provides the toolbar/safe-area chrome color.
@@ -1407,35 +1489,42 @@ struct ReviewView: View {
     }
 
     private var answerButtons: some View {
-        Group {
-            if prefDisperseAnswerButtons {
-                if visibleRatings.count <= 2 {
+        HStack {
+            Spacer(minLength: 0)
+
+            Group {
+                if prefDisperseAnswerButtons {
+                    if visibleRatings.count <= 2 {
+                        HStack(spacing: 8) {
+                            ForEach(visibleRatings, id: \.self) { rating in
+                                ratingButton(rating, color: ratingColor(rating))
+                            }
+                        }
+                    } else {
+                        VStack(spacing: 8) {
+                            HStack(spacing: 8) {
+                                ForEach(Array(visibleRatings.prefix(2)), id: \.self) { rating in
+                                    ratingButton(rating, color: ratingColor(rating))
+                                }
+                            }
+                            HStack(spacing: 8) {
+                                ForEach(Array(visibleRatings.dropFirst(2)), id: \.self) { rating in
+                                    ratingButton(rating, color: ratingColor(rating))
+                                }
+                            }
+                        }
+                    }
+                } else {
                     HStack(spacing: 8) {
                         ForEach(visibleRatings, id: \.self) { rating in
                             ratingButton(rating, color: ratingColor(rating))
                         }
                     }
-                } else {
-                    VStack(spacing: 8) {
-                        HStack(spacing: 8) {
-                            ForEach(Array(visibleRatings.prefix(2)), id: \.self) { rating in
-                                ratingButton(rating, color: ratingColor(rating))
-                            }
-                        }
-                        HStack(spacing: 8) {
-                            ForEach(Array(visibleRatings.dropFirst(2)), id: \.self) { rating in
-                                ratingButton(rating, color: ratingColor(rating))
-                            }
-                        }
-                    }
-                }
-            } else {
-                HStack(spacing: 8) {
-                    ForEach(visibleRatings, id: \.self) { rating in
-                        ratingButton(rating, color: ratingColor(rating))
-                    }
                 }
             }
+            .frame(maxWidth: reviewAnswerButtonsMaxWidth ?? .infinity)
+
+            Spacer(minLength: 0)
         }
         .padding(.horizontal)
     }
@@ -1443,31 +1532,49 @@ struct ReviewView: View {
     @ViewBuilder
     private var compactAnswerMenu: some View {
         if shouldForceCapsuleAnswerButtonsOnPad {
-            Menu {
-                ForEach(visibleRatings, id: \.self) { rating in
-                    Button(ratingLabel(rating)) { session.answer(rating: rating) }
+            HStack {
+                Spacer(minLength: 0)
+
+                Menu {
+                    ForEach(visibleRatings, id: \.self) { rating in
+                        Button(ratingLabel(rating)) { session.answer(rating: rating) }
+                    }
+                } label: {
+                    Text(L("review_answer_button"))
+                        .font(reviewButtonTitleFont)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: reviewButtonMinimumHeight)
+                        .padding(.horizontal, reviewButtonHorizontalPadding)
                 }
-            } label: {
-                Text(L("review_answer_button"))
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
+                .buttonStyle(.borderedProminent)
+                .controlSize(reviewButtonControlSize)
+                .clipShape(Capsule())
+                .frame(maxWidth: reviewAnswerButtonsMaxWidth ?? .infinity)
+
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.borderedProminent)
-            .clipShape(Capsule())
             .padding(.horizontal)
         } else {
-            Menu {
-                ForEach(visibleRatings, id: \.self) { rating in
-                    Button(ratingLabel(rating)) { session.answer(rating: rating) }
+            HStack {
+                Spacer(minLength: 0)
+
+                Menu {
+                    ForEach(visibleRatings, id: \.self) { rating in
+                        Button(ratingLabel(rating)) { session.answer(rating: rating) }
+                    }
+                } label: {
+                    Text(L("review_answer_button"))
+                        .font(reviewButtonTitleFont)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: reviewButtonMinimumHeight)
+                        .padding(.horizontal, reviewButtonHorizontalPadding)
                 }
-            } label: {
-                Text(L("review_answer_button"))
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
+                .buttonStyle(.borderedProminent)
+                .controlSize(reviewButtonControlSize)
+                .frame(maxWidth: reviewAnswerButtonsMaxWidth ?? .infinity)
+
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.borderedProminent)
             .padding(.horizontal)
         }
     }
@@ -1545,7 +1652,7 @@ struct ReviewView: View {
 
     @ViewBuilder
     private func ratingButtonLabel(_ rating: Rating) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: reviewRatingSpacing) {
             if prefShowRemainingDays {
                 Text(session.nextIntervals[rating] ?? "")
                     .font(.caption2)
@@ -1557,10 +1664,10 @@ struct ReviewView: View {
                     .foregroundStyle(.secondary)
             }
             Text(ratingLabel(rating))
-                .font(.subheadline.weight(.medium))
+                .font(reviewRatingTitleFont)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: reviewButtonMinimumHeight)
+        .padding(.horizontal, 8)
     }
 
     private func ratingLabel(_ rating: Rating) -> String {

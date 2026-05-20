@@ -1503,6 +1503,7 @@
 "settings_review_show_correctness_symbols" = "显示对错符号";
 "settings_review_disperse_answer_buttons" = "分散显示回答按钮";
 "settings_review_show_answer_buttons" = "显示回答按钮";
+"settings_review_small_review_buttons" = "使用小尺寸复习按钮";
 "settings_review_hide_hard_and_easy_buttons" = "隐藏“困难 / 简单”按钮";
 "settings_review_show_remaining_days" = "显示剩余天数";
 "settings_review_show_next_review_time" = "显示下次答题时间";
