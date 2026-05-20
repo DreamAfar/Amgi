@@ -8,6 +8,29 @@ enum AnkiJSInjectedScript {
          * Compatibility source: AnkiDroid JavaScript API
          * Version: \(AnkiJSBridge.apiVersion)
          */
+        const ankiJsHookStore = globalThis.__ankiJsHooks ?? {};
+        globalThis.__ankiJsHooks = ankiJsHookStore;
+
+        function addHook(name, callback) {
+            if (typeof callback !== "function") return;
+            if (!Array.isArray(ankiJsHookStore[name])) {
+                ankiJsHookStore[name] = [];
+            }
+            ankiJsHookStore[name].push(callback);
+        }
+
+        function runHook(name, arg) {
+            const callbacks = ankiJsHookStore[name];
+            if (!Array.isArray(callbacks)) return;
+            callbacks.forEach(callback => {
+                try {
+                    callback(arg);
+                } catch (error) {
+                    console.error("Anki JS API hook error:", error);
+                }
+            });
+        }
+
         const jsApiList = {
             ankiGetNewCardCount: "newCardCount",
             ankiGetLrnCardCount: "lrnCardCount",
@@ -187,6 +210,10 @@ enum AnkiJSInjectedScript {
         window.AnkiDroidJS = AnkiDroidJS;
         globalThis.AnkiJS = AnkiDroidJS;
         window.AnkiJS = AnkiDroidJS;
+        globalThis.addHook = addHook;
+        window.addHook = addHook;
+        globalThis.runHook = runHook;
+        window.runHook = runHook;
         """
     }
 }

@@ -217,8 +217,13 @@ final class AnkiJSBridge {
         case "searchCardWithCallback":
             let payload = try context.searchCardWithCallbackPayload(request.stringData ?? "")
             let script = """
-            if (typeof window.ankiSearchCard === "function") {
-                window.ankiSearchCard(\(Self.jsStringLiteral(payload)));
+            {
+                const ankiSearchResult = JSON.parse(\(Self.jsStringLiteral(payload)));
+                if (typeof window.runHook === "function") {
+                    window.runHook("ankiSearchCard", ankiSearchResult);
+                } else if (typeof window.ankiSearchCard === "function") {
+                    window.ankiSearchCard(ankiSearchResult);
+                }
             }
             """
             jsEvaluator(script)

@@ -175,7 +175,8 @@ final class AnkiJSBridgeTests: XCTestCase {
         XCTAssertNil(error)
         XCTAssertEqual(response as? String, #"{"success":true,"value":true}"#)
         XCTAssertNotNil(evaluatedScript)
-        XCTAssertTrue(evaluatedScript?.contains("window.ankiSearchCard") == true)
+        XCTAssertTrue(evaluatedScript?.contains("window.runHook(\"ankiSearchCard\"") == true)
+        XCTAssertTrue(evaluatedScript?.contains("JSON.parse") == true)
         XCTAssertTrue(evaluatedScript?.contains("Front") == true)
     }
 
@@ -189,6 +190,8 @@ final class AnkiJSBridgeTests: XCTestCase {
         XCTAssertTrue(script.contains("ankiAddTagToCard"))
         XCTAssertTrue(script.contains("ankiGetETA"))
         XCTAssertTrue(script.contains("ankiSearchCardWithCallback"))
+        XCTAssertTrue(script.contains("function addHook"))
+        XCTAssertTrue(script.contains("function runHook"))
     }
 
     private func request(endpoint: String, data: Any? = nil) -> [String: Any] {

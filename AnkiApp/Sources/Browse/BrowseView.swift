@@ -76,12 +76,15 @@ struct BrowseView: View {
         nonmutating set { sortFieldRaw = newValue.rawValue }
     }
 
-    init(preselectedDeck: DeckInfo? = nil, isActive: Bool = true) {
+    init(preselectedDeck: DeckInfo? = nil, initialSearchQuery: String = "", isActive: Bool = true) {
         self.preselectedDeck = preselectedDeck
         self.isActive = isActive
         if let deck = preselectedDeck {
             _activeDeck = State(initialValue: deck)
             _parentDeck = State(initialValue: deck)
+        }
+        if initialSearchQuery.isEmpty == false {
+            _searchText = State(initialValue: initialSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines))
         }
     }
 

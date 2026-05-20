@@ -67,6 +67,8 @@ struct ReviewView: View {
     @State private var pendingAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
     @State private var queuedAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
     @State private var currentDeckName: String?
+    @State private var ankiJSSearchQuery = ""
+    @State private var showAnkiJSSearchSheet = false
     @State private var aiFavoriteRefreshToken = 0
     @State private var controllerMonitor = ReviewControllerMonitor()
     @State private var keyboardMonitor = ReviewKeyboardMonitor()
@@ -257,7 +259,8 @@ struct ReviewView: View {
                 }
             },
             searchCard: { query in
-                AppCollectionEvents.postOpenBrowseSearch(query: query)
+                ankiJSSearchQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                showAnkiJSSearchSheet = true
             },
             searchCardWithCallbackPayload: { query in
                 try makeAnkiJSSearchCallbackPayload(query: query)
@@ -576,6 +579,19 @@ struct ReviewView: View {
         .sheet(isPresented: $showDeckStats) {
             NavigationStack {
                 StatsDashboardView(initialDeckID: deckId)
+            }
+        }
+        .sheet(isPresented: $showAnkiJSSearchSheet) {
+            NavigationStack {
+                BrowseView(initialSearchQuery: ankiJSSearchQuery)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(L("common_done")) {
+                                showAnkiJSSearchSheet = false
+                            }
+                            .amgiToolbarTextButton(tone: .neutral)
+                        }
+                    }
             }
         }
         .sheet(item: $selectionAIState, onDismiss: {
