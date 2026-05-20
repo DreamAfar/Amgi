@@ -976,45 +976,47 @@ struct ReviewView: View {
             } else {
                 let usesCompactShowAnswerButton = session.requiresTypedAnswerInput && isKeyboardVisible
 
-                if usesCompactShowAnswerButton {
-                    HStack {
-                        Spacer()
+                Group {
+                    if usesCompactShowAnswerButton {
+                        HStack {
+                            Spacer()
 
-                        Button {
-                            typedAnswerRequestID += 1
-                        } label: {
-                            Text(L("review_show_answer"))
-                                .font(.footnote.weight(.semibold))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
+                            Button {
+                                typedAnswerRequestID += 1
+                            } label: {
+                                Text(L("review_show_answer"))
+                                    .font(.footnote.weight(.semibold))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .clipShape(Capsule())
+
+                            Spacer()
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .clipShape(Capsule())
+                        .padding(.horizontal, 16)
+                    } else {
+                        HStack {
+                            Spacer()
 
-                        Spacer()
-                    }
-                    .padding(.horizontal, 16)
-                } else {
-                    HStack {
-                        Spacer()
+                            Button {
+                                session.revealAnswer()
+                            } label: {
+                                Text(L("review_show_answer"))
+                                    .font(reviewButtonTitleFont)
+                                    .frame(maxWidth: .infinity, minHeight: reviewButtonMinimumHeight)
+                                    .padding(.horizontal, reviewButtonHorizontalPadding)
+                            }
+                            .frame(maxWidth: reviewPrimaryButtonMaxWidth ?? .infinity)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(reviewButtonControlSize)
+                            .clipShape(Capsule())
 
-                        Button {
-                            session.revealAnswer()
-                        } label: {
-                            Text(L("review_show_answer"))
-                                .font(reviewButtonTitleFont)
-                                .frame(maxWidth: .infinity, minHeight: reviewButtonMinimumHeight)
-                                .padding(.horizontal, reviewButtonHorizontalPadding)
+                            Spacer()
                         }
-                        .frame(maxWidth: reviewPrimaryButtonMaxWidth ?? .infinity)
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(reviewButtonControlSize)
-                        .clipShape(Capsule())
-
-                        Spacer()
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.horizontal, 16)
                 }
                 .background(.clear)
                 .animation(.easeInOut(duration: 0.18), value: usesCompactShowAnswerButton)
