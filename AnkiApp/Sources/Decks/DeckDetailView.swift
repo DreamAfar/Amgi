@@ -354,7 +354,7 @@ struct DeckDetailView: View {
 
                     Button {
                         selectedChildDeck = child
-                        renameText = child.name
+                        renameText = child.fullName
                         showRenamePrompt = true
                     } label: {
                         Label(L("deck_row_rename"), systemImage: "pencil")

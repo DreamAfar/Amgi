@@ -82,8 +82,8 @@
 "deck_row_delete" = "删除";
 "deck_export_error" = "导出失败：%@";
 "deck_rename_alert_title" = "重命名牌组";
-"deck_rename_alert_placeholder" = "新名称";
-"deck_rename_alert_message" = "请输入新的牌组名称";
+"deck_rename_alert_placeholder" = "新名称或完整路径";
+"deck_rename_alert_message" = "请输入新的牌组名称；使用“父牌组::子牌组”可移动牌组";
 "deck_delete_confirm1_title" = "删除牌组（第1次确认）";
 "deck_delete_confirm1_message" = "即将删除 %@，请再次确认。";
 "deck_delete_confirm2_title" = "删除牌组";

@@ -23,6 +23,10 @@ struct DeckListView: View {
     @State private var showDeckExportShareSheet = false
     @State private var exportError: String?
     @State private var showExportError = false
+    @State private var draggedDeckID: Int64?
+    @State private var isMovingDeck = false
+    @State private var moveError: String?
+    @State private var showMoveError = false
     var onDeckChanged: (() -> Void)? = nil
 
     init(onDeckChanged: (() -> Void)? = nil) {
@@ -58,6 +62,9 @@ struct DeckListView: View {
                                 node: node,
                                 depth: 0,
                                 isCollectionReady: collectionState.isReady,
+                                draggedDeckID: $draggedDeckID,
+                                isMovingDeck: isMovingDeck,
+                                canAcceptDrop: canAcceptDrop,
                                 onDeckChanged: {
                                     Task { await loadDecks() }
                                     refreshHeatmap()
@@ -69,6 +76,9 @@ struct DeckListView: View {
                                 },
                                 onExportRequested: { node in
                                     Task { await exportDeck(node) }
+                                },
+                                onMoveRequested: { sourceID, targetID in
+                                    Task { await moveDeck(sourceID: sourceID, targetID: targetID) }
                                 }
                             )
                         }
@@ -126,6 +136,11 @@ struct DeckListView: View {
             Button(L("btn_got_it"), role: .cancel) {}
         } message: {
             Text(exportError ?? L("label_error_unknown"))
+        }
+        .alert(L("deck_action_error_title"), isPresented: $showMoveError) {
+            Button(L("btn_got_it"), role: .cancel) {}
+        } message: {
+            Text(moveError ?? L("label_error_unknown"))
         }
         .sheet(isPresented: $showDeckExportShareSheet) {
             if let url = exportedDeckFileURL {
@@ -225,6 +240,57 @@ struct DeckListView: View {
             }
         }
     }
+
+    private func canAcceptDrop(sourceID: Int64, targetID: Int64) -> Bool {
+        guard sourceID != targetID else { return false }
+        guard let source = findNode(id: sourceID, in: tree) else { return false }
+        return !contains(deckID: targetID, in: source)
+    }
+
+    @MainActor
+    private func moveDeck(sourceID: Int64, targetID: Int64) async {
+        defer { draggedDeckID = nil }
+
+        guard collectionState.isReady, !isMovingDeck else { return }
+        guard canAcceptDrop(sourceID: sourceID, targetID: targetID) else { return }
+        guard let source = findNode(id: sourceID, in: tree) else { return }
+        guard let target = findNode(id: targetID, in: tree) else { return }
+
+        let destinationName = "\(target.fullName)::\(source.name)"
+        guard destinationName != source.fullName else { return }
+
+        isMovingDeck = true
+        defer { isMovingDeck = false }
+
+        do {
+            try deckClient.rename(sourceID, destinationName)
+            await loadDecks()
+            refreshHeatmap()
+            onDeckChanged?()
+        } catch {
+            moveError = error.localizedDescription
+            showMoveError = true
+        }
+    }
+
+    private func findNode(id: Int64, in nodes: [DeckTreeNode]) -> DeckTreeNode? {
+        for node in nodes {
+            if node.id == id {
+                return node
+            }
+            if let child = findNode(id: id, in: node.children) {
+                return child
+            }
+        }
+        return nil
+    }
+
+    private func contains(deckID: Int64, in node: DeckTreeNode) -> Bool {
+        if node.id == deckID {
+            return true
+        }
+        return node.children.contains { contains(deckID: deckID, in: $0) }
+    }
 }
 
 // MARK: - DeckRowView
@@ -234,14 +300,20 @@ private struct DeckRowView: View {
     let node: DeckTreeNode
     let depth: Int
     let isCollectionReady: Bool
+    @Binding var draggedDeckID: Int64?
+    let isMovingDeck: Bool
+    let canAcceptDrop: (Int64, Int64) -> Bool
     let onDeckChanged: () -> Void
     let onDeleteRequested: (DeckTreeNode) -> Void
     let onExportRequested: (DeckTreeNode) -> Void
+    let onMoveRequested: (Int64, Int64) -> Void
 
     @State private var showRenamePrompt = false
     @State private var renameText = ""
     @State private var actionError: String?
     @State private var showActionError = false
+    @State private var isExpanded = false
+    @State private var isDropTargeted = false
 
     var body: some View {
         deckContent
@@ -273,8 +345,10 @@ private struct DeckRowView: View {
 
     @ViewBuilder
     private var leafRow: some View {
-        NavigationLink(value: deckInfo) {
-            rowContent
+        interactiveRow {
+            NavigationLink(value: deckInfo) {
+                rowContent
+            }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             swipeButtons
@@ -283,56 +357,60 @@ private struct DeckRowView: View {
 
     @ViewBuilder
     private var parentRow: some View {
-        if depth == 0 {
-            DisclosureGroup {
-                childrenList
-            } label: {
+        let disclosureGroup = DisclosureGroup(isExpanded: $isExpanded) {
+            childrenList
+        } label: {
+            interactiveRow {
                 NavigationLink(value: deckInfo) {
                     rowContent
                 }
             }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                swipeButtons
-            }
+        }
+
+        if isExpanded {
+            disclosureGroup
         } else {
-            DisclosureGroup {
-                childrenList
-            } label: {
-                NavigationLink(value: deckInfo) {
-                    rowContent
+            disclosureGroup
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    swipeButtons
                 }
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                swipeButtons
-            }
         }
     }
 
-    @ViewBuilder
-    private var swipeButtons: some View {
-        Button {
-            onExportRequested(node)
-        } label: {
-            Label(L("deck_row_export"), systemImage: "square.and.arrow.up")
-        }
-        .tint(Color.amgiPositive)
-        .disabled(!isCollectionReady)
+    private func interactiveRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .contentShape(Rectangle())
+            .overlay(alignment: .leading) {
+                if showsDropTarget {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.amgiAccent, lineWidth: 2)
+                        .padding(.vertical, 2)
+                }
+            }
+            .onDrag {
+                draggedDeckID = node.id
+                return NSItemProvider(object: NSString(string: String(node.id)))
+            }
+            .dropDestination(for: String.self) { items, _ in
+                guard let item = items.first, let sourceID = Int64(item) else {
+                    draggedDeckID = nil
+                    return false
+                }
+                guard canAcceptDrop(sourceID, node.id) else {
+                    draggedDeckID = nil
+                    return false
+                }
+                onMoveRequested(sourceID, node.id)
+                return true
+            } isTargeted: { targeted in
+                isDropTargeted = targeted
+            }
+            .disabled(!isCollectionReady || isMovingDeck)
+    }
 
-        Button {
-            renameText = node.name
-            showRenamePrompt = true
-        } label: {
-            Label(L("deck_row_rename"), systemImage: "pencil")
-        }
-        .tint(Color.amgiAccent)
-        .disabled(!isCollectionReady)
-
-        Button(role: .destructive) {
-            onDeleteRequested(node)
-        } label: {
-            Label(L("deck_row_delete"), systemImage: "trash")
-        }
-        .disabled(!isCollectionReady)
+    private var showsDropTarget: Bool {
+        guard isDropTargeted, let sourceID = draggedDeckID else { return false }
+        return canAcceptDrop(sourceID, node.id)
     }
 
     private var childrenList: some View {
@@ -341,9 +419,13 @@ private struct DeckRowView: View {
                 node: child,
                 depth: depth + 1,
                 isCollectionReady: isCollectionReady,
+                draggedDeckID: $draggedDeckID,
+                isMovingDeck: isMovingDeck,
+                canAcceptDrop: canAcceptDrop,
                 onDeckChanged: onDeckChanged,
                 onDeleteRequested: onDeleteRequested,
-                onExportRequested: onExportRequested
+                onExportRequested: onExportRequested,
+                onMoveRequested: onMoveRequested
             )
         }
     }
@@ -373,5 +455,32 @@ private struct DeckRowView: View {
             actionError = error.localizedDescription
             showActionError = true
         }
+    }
+
+    @ViewBuilder
+    private var swipeButtons: some View {
+        Button {
+            onExportRequested(node)
+        } label: {
+            Label(L("deck_row_export"), systemImage: "square.and.arrow.up")
+        }
+        .tint(Color.amgiPositive)
+        .disabled(!isCollectionReady)
+
+        Button {
+            renameText = node.fullName
+            showRenamePrompt = true
+        } label: {
+            Label(L("deck_row_rename"), systemImage: "pencil")
+        }
+        .tint(Color.amgiAccent)
+        .disabled(!isCollectionReady)
+
+        Button(role: .destructive) {
+            onDeleteRequested(node)
+        } label: {
+            Label(L("deck_row_delete"), systemImage: "trash")
+        }
+        .disabled(!isCollectionReady)
     }
 }

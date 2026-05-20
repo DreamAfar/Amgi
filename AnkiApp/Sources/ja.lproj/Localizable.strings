@@ -82,8 +82,8 @@
 "deck_row_delete" = "削除";
 "deck_export_error" = "エクスポート失敗：%@";
 "deck_rename_alert_title" = "デッキ名変更";
-"deck_rename_alert_placeholder" = "新しい名前";
-"deck_rename_alert_message" = "新しいデッキ名を入力してください";
+"deck_rename_alert_placeholder" = "新しい名前またはフルパス";
+"deck_rename_alert_message" = "新しいデッキ名を入力してください。「親::子」でデッキを移動できます";
 "deck_delete_confirm1_title" = "デッキを削除（確認 1）";
 "deck_delete_confirm1_message" = "%@ を削除しようとしています。よろしいですか？";
 "deck_delete_confirm2_title" = "デッキを削除";
