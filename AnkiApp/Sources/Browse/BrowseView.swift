@@ -68,6 +68,7 @@ struct BrowseView: View {
     @State private var showFindDuplicates = false
 
     private let preselectedDeck: DeckInfo?
+    private let initialSearchQuery: String
     private let isActive: Bool
     private let pageSize = 50
 
@@ -78,13 +79,11 @@ struct BrowseView: View {
 
     init(preselectedDeck: DeckInfo? = nil, initialSearchQuery: String = "", isActive: Bool = true) {
         self.preselectedDeck = preselectedDeck
+        self.initialSearchQuery = initialSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         self.isActive = isActive
         if let deck = preselectedDeck {
             _activeDeck = State(initialValue: deck)
             _parentDeck = State(initialValue: deck)
-        }
-        if initialSearchQuery.isEmpty == false {
-            _searchText = State(initialValue: initialSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines))
         }
     }
 
@@ -361,6 +360,8 @@ struct BrowseView: View {
             _ = await (decksLoad, tagsLoad, notetypesLoad)
             if let pendingQuery = AppCollectionEvents.consumePendingBrowseSearchQuery() {
                 applyExternalSearchQuery(pendingQuery)
+            } else if initialSearchQuery.isEmpty == false {
+                applyExternalSearchQuery(initialSearchQuery)
             }
             await performSearch()
         }

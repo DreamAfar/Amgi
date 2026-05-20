@@ -584,6 +584,7 @@ struct ReviewView: View {
         .sheet(isPresented: $showAnkiJSSearchSheet) {
             NavigationStack {
                 BrowseView(initialSearchQuery: ankiJSSearchQuery)
+                    .id(ankiJSSearchQuery)
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button(L("common_done")) {
