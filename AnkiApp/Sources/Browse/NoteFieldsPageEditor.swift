@@ -2479,6 +2479,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         var lastPayloadJSON = ""
         var isPageReady = false
         fileprivate var pendingPayloadAfterLoad: Payload?
+        private var shouldSkipNextLocalEchoPayload = false
         var activeFieldIndex = 0
         private let onInsertPhoto: ((Int) -> Void)?
         private let onInsertCameraPhoto: ((Int) -> Void)?
@@ -2550,6 +2551,11 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 return
             }
             guard let payloadJSON = Self.javaScriptObjectLiteral(from: payload) else { return }
+            if force == false, shouldSkipNextLocalEchoPayload {
+                shouldSkipNextLocalEchoPayload = false
+                lastPayloadJSON = payloadJSON
+                return
+            }
             guard force || payloadJSON != lastPayloadJSON else { return }
             lastPayloadJSON = payloadJSON
             let functionName = force ? "bootstrap" : "syncPayload"
@@ -2685,12 +2691,14 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                       let html = body["html"] as? String,
                       fieldValues.indices.contains(index)
                 else { return }
+                shouldSkipNextLocalEchoPayload = true
                 fieldValues[index] = RichNoteFieldEditor.normalizedStoredHTML(html)
             case "sourceModeChanged":
                 guard let index = body["index"] as? Int,
                       let isSourceMode = body["isSourceMode"] as? Bool,
                       fieldSourceModes.indices.contains(index)
                 else { return }
+                shouldSkipNextLocalEchoPayload = true
                 fieldSourceModes[index] = isSourceMode
             case "selectionState":
                 if let text = body["text"] as? String {
