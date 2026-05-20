@@ -67,8 +67,7 @@ struct ReviewView: View {
     @State private var pendingAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
     @State private var queuedAIAddNoteDraft: ReviewAIAddNoteSheetDraft?
     @State private var currentDeckName: String?
-    @State private var ankiJSSearchQuery = ""
-    @State private var showAnkiJSSearchSheet = false
+    @State private var ankiJSSearchSheetRequest: AnkiJSSearchSheetRequest?
     @State private var aiFavoriteRefreshToken = 0
     @State private var controllerMonitor = ReviewControllerMonitor()
     @State private var keyboardMonitor = ReviewKeyboardMonitor()
@@ -259,8 +258,9 @@ struct ReviewView: View {
                 }
             },
             searchCard: { query in
-                ankiJSSearchQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-                showAnkiJSSearchSheet = true
+                ankiJSSearchSheetRequest = .init(
+                    query: query.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
             },
             searchCardWithCallbackPayload: { query in
                 try makeAnkiJSSearchCallbackPayload(query: query)
@@ -581,14 +581,13 @@ struct ReviewView: View {
                 StatsDashboardView(initialDeckID: deckId)
             }
         }
-        .sheet(isPresented: $showAnkiJSSearchSheet) {
+        .sheet(item: $ankiJSSearchSheetRequest) { request in
             NavigationStack {
-                BrowseView(initialSearchQuery: ankiJSSearchQuery)
-                    .id(ankiJSSearchQuery)
+                BrowseView(initialSearchQuery: request.query)
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button(L("common_done")) {
-                                showAnkiJSSearchSheet = false
+                                ankiJSSearchSheetRequest = nil
                             }
                             .amgiToolbarTextButton(tone: .neutral)
                         }
@@ -2380,6 +2379,11 @@ private let reviewMarkedTag = "marked"
 
 private struct AnkiJSToastState: Equatable {
     let message: String
+}
+
+private struct AnkiJSSearchSheetRequest: Identifiable {
+    let id = UUID()
+    let query: String
 }
 
 private struct AnkiJSSearchCallbackResult: Encodable, Equatable {
