@@ -19,6 +19,9 @@ struct DeckTemplateListView: View {
     @State private var renameTarget: Anki_Notetypes_NotetypeNameId?
     @State private var renameText = ""
     @State private var showRenamePrompt = false
+    @State private var pendingNotetypeCreationSource: NotetypeCreationSource?
+    @State private var selectedNotetypeCreationSource: NotetypeCreationSource?
+    @State private var showAddNotetypeSourcePicker = false
     @State private var addNotetypeText = ""
     @State private var showAddNotetypePrompt = false
     @State private var deleteTarget: Anki_Notetypes_NotetypeNameId?
@@ -43,8 +46,8 @@ struct DeckTemplateListView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        addNotetypeText = ""
-                        showAddNotetypePrompt = true
+                        selectedNotetypeCreationSource = nil
+                        showAddNotetypeSourcePicker = true
                     } label: {
                         Image(systemName: "plus")
                     }
@@ -64,6 +67,22 @@ struct DeckTemplateListView: View {
                     mode: .manager,
                     onSaved: { await loadTemplates() }
                 )
+            }
+            .sheet(isPresented: $showAddNotetypeSourcePicker) {
+                NavigationStack {
+                    NotetypeCreationSourcePickerView(
+                        entries: entries,
+                        selection: $selectedNotetypeCreationSource,
+                        onCancel: {
+                            showAddNotetypeSourcePicker = false
+                        },
+                        onConfirm: {
+                            guard let selectedNotetypeCreationSource else { return }
+                            showAddNotetypeSourcePicker = false
+                            beginNotetypeCreation(from: selectedNotetypeCreationSource)
+                        }
+                    )
+                }
             }
             .alert(L("deck_template_add_notetype_title"), isPresented: $showAddNotetypePrompt) {
                 TextField(L("deck_template_add_notetype_placeholder"), text: $addNotetypeText)
@@ -165,6 +184,13 @@ struct DeckTemplateListView: View {
                     Label(L("user_mgmt_rename"), systemImage: "pencil")
                 }
                 .tint(Color.amgiAccent)
+
+                Button {
+                    beginNotetypeCreation(from: .existing(id: entry.id, name: entry.name))
+                } label: {
+                    Label(L("deck_template_copy_action"), systemImage: "doc.on.doc")
+                }
+                .tint(.green)
             }
         }
         .scrollContentBackground(.hidden)
@@ -236,6 +262,11 @@ struct DeckTemplateListView: View {
 
     @MainActor
     private func createNotetype() async {
+        guard let pendingNotetypeCreationSource else {
+            actionError = L("deck_template_add_notetype_missing_source")
+            showActionError = true
+            return
+        }
         let newName = addNotetypeText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newName.isEmpty else {
             actionError = L("deck_template_add_name_empty")
@@ -249,22 +280,18 @@ struct DeckTemplateListView: View {
         }
 
         do {
-            var stockRequest = Anki_Notetypes_StockNotetype()
-            stockRequest.kind = .basic
-            let stockResponse: Anki_Generic_Json = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: DeckTemplateBackendMethod.getStockNotetypeLegacy,
-                request: stockRequest
-            )
-            guard var jsonObject = try JSONSerialization.jsonObject(with: stockResponse.json) as? [String: Any] else {
-                throw NSError(domain: "DeckTemplateListView", code: 1, userInfo: [
-                    NSLocalizedDescriptionKey: "Invalid stock notetype payload."
-                ])
+            var jsonObject = try await loadNotetypeCreationPayload(for: pendingNotetypeCreationSource)
+            jsonObject["name"] = newName
+            if case .existing = pendingNotetypeCreationSource {
+                jsonObject["id"] = 0
+                jsonObject["originalId"] = NSNull()
             }
 
-            jsonObject["name"] = newName
-            jsonObject["flds"] = []
-            jsonObject["tmpls"] = []
+            guard JSONSerialization.isValidJSONObject(jsonObject) else {
+                throw NSError(domain: "DeckTemplateListView", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "Invalid notetype payload."
+                ])
+            }
 
             var addRequest = Anki_Generic_Json()
             addRequest.json = try JSONSerialization.data(withJSONObject: jsonObject)
@@ -276,10 +303,153 @@ struct DeckTemplateListView: View {
 
             await loadTemplates()
             addNotetypeText = ""
+            self.pendingNotetypeCreationSource = nil
             editorTarget = TemplateEditorTarget(id: response.id, initialTemplateIndex: 0)
         } catch {
             actionError = L("deck_template_add_notetype_failed", error.localizedDescription)
             showActionError = true
+        }
+    }
+
+    private func beginNotetypeCreation(from source: NotetypeCreationSource) {
+        pendingNotetypeCreationSource = source
+        addNotetypeText = defaultNotetypeName(for: source)
+        showAddNotetypePrompt = true
+    }
+
+    private func defaultNotetypeName(for source: NotetypeCreationSource) -> String {
+        switch source {
+        case .stock(_, let name):
+            return name
+        case .existing(_, let name):
+            return "\(name) \(L("deck_template_copy_suffix"))"
+        }
+    }
+
+    private func loadNotetypeCreationPayload(for source: NotetypeCreationSource) async throws -> [String: Any] {
+        let response: Anki_Generic_Json
+
+        switch source {
+        case .stock(let kind, _):
+            var stockRequest = Anki_Notetypes_StockNotetype()
+            stockRequest.kind = kind
+            response = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: DeckTemplateBackendMethod.getStockNotetypeLegacy,
+                request: stockRequest
+            )
+        case .existing(let id, _):
+            var request = Anki_Notetypes_NotetypeId()
+            request.ntid = id
+            response = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: DeckTemplateBackendMethod.getNotetypeLegacy,
+                request: request
+            )
+        }
+
+        guard let jsonObject = try JSONSerialization.jsonObject(with: response.json) as? [String: Any] else {
+            throw NSError(domain: "DeckTemplateListView", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "Invalid notetype payload."
+            ])
+        }
+        return jsonObject
+    }
+}
+
+private enum NotetypeCreationSource: Hashable {
+    case stock(Anki_Notetypes_StockNotetype.Kind, name: String)
+    case existing(id: Int64, name: String)
+}
+
+private struct NotetypeCreationSourcePickerView: View {
+    let entries: [Anki_Notetypes_NotetypeNameId]
+    @Binding var selection: NotetypeCreationSource?
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+
+    private var stockSources: [NotetypeCreationSource] {
+        [
+            .stock(.basic, name: L("deck_template_stock_basic")),
+            .stock(.basicAndReversed, name: L("deck_template_stock_basic_reversed")),
+            .stock(.basicOptionalReversed, name: L("deck_template_stock_basic_optional_reversed")),
+            .stock(.basicTyping, name: L("deck_template_stock_basic_typing")),
+            .stock(.cloze, name: L("deck_template_stock_cloze")),
+            .stock(.imageOcclusion, name: L("deck_template_stock_image_occlusion")),
+        ]
+    }
+
+    var body: some View {
+        List {
+            Section {
+                Text(L("deck_template_add_notetype_source_message"))
+                    .amgiFont(.subheadline)
+                    .foregroundStyle(Color.amgiTextSecondary)
+                    .padding(.vertical, 4)
+            }
+
+            Section(L("deck_template_add_notetype_source_presets")) {
+                ForEach(stockSources, id: \.self) { source in
+                    sourceRow(source, title: source.displayTitle, subtitle: L("deck_template_add_notetype_source_add"))
+                }
+            }
+
+            Section(L("deck_template_add_notetype_source_existing")) {
+                ForEach(entries, id: \.id) { entry in
+                    let source = NotetypeCreationSource.existing(id: entry.id, name: entry.name)
+                    sourceRow(source, title: entry.name, subtitle: L("deck_template_add_notetype_source_copy"))
+                }
+            }
+        }
+        .navigationTitle(L("deck_template_add_notetype_source_title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(L("common_cancel")) {
+                    onCancel()
+                }
+                .amgiToolbarTextButton(tone: .neutral)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(L("common_add")) {
+                    onConfirm()
+                }
+                .amgiToolbarTextButton()
+                .disabled(selection == nil)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sourceRow(_ source: NotetypeCreationSource, title: String, subtitle: String) -> some View {
+        Button {
+            selection = source
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .amgiFont(.body)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Text(subtitle)
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
+                Spacer()
+                if selection == source {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.amgiAccent)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private extension NotetypeCreationSource {
+    var displayTitle: String {
+        switch self {
+        case .stock(_, let name), .existing(_, let name):
+            return name
         }
     }
 }
@@ -514,7 +684,10 @@ struct TemplateEditorView: View {
                         notetypeId: notetypeId,
                         preferredName: notetype.name,
                         onSaved: {
-                            await loadNotetype()
+                            await loadNotetype(
+                                preserveEditorDrafts: true,
+                                preferredTemplateIndex: selectedTemplateIndex
+                            )
                             if let onSaved {
                                 await onSaved()
                             }
@@ -526,7 +699,7 @@ struct TemplateEditorView: View {
                 previewSheet
             }
             .task {
-                await loadNotetype()
+                await loadNotetype(preferredTemplateIndex: initialTemplateIndex)
             }
         }
     }
@@ -773,20 +946,33 @@ struct TemplateEditorView: View {
     }
 
     @MainActor
-    private func loadNotetype() async {
+    private func loadNotetype(
+        preserveEditorDrafts: Bool = false,
+        preferredTemplateIndex: Int? = nil
+    ) async {
         isLoading = true
         defer { isLoading = false }
 
         do {
             var req = Anki_Notetypes_NotetypeId()
             req.ntid = notetypeId
-            notetype = try backend.invoke(
+            let fetched: Anki_Notetypes_Notetype = try backend.invoke(
                 service: AnkiBackend.Service.notetypes,
                 method: AnkiBackend.NotetypesMethod.getNotetype,
                 request: req
             )
-            originalNotetype = notetype
-            normalizeTemplateIndex(preferred: initialTemplateIndex)
+            var refreshed = fetched
+            if preserveEditorDrafts {
+                refreshed.templates = notetype.templates
+                var config = refreshed.config
+                config.css = notetype.config.css
+                refreshed.config = config
+            }
+            notetype = refreshed
+            originalNotetype = fetched
+            normalizeTemplateIndex(
+                preferred: preferredTemplateIndex ?? (preserveEditorDrafts ? selectedTemplateIndex : initialTemplateIndex)
+            )
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -880,6 +1066,7 @@ struct TemplateEditorView: View {
 private enum DeckTemplateBackendMethod {
     static let addNotetypeLegacy: UInt32 = 2
     static let getStockNotetypeLegacy: UInt32 = 5
+    static let getNotetypeLegacy: UInt32 = 7
 }
 
 func sortDeckTemplateEntries(
