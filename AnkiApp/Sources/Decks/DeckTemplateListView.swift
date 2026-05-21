@@ -383,7 +383,7 @@ private struct NotetypeCreationSourcePickerView: View {
         List {
             Section {
                 Text(L("deck_template_add_notetype_source_message"))
-                    .amgiFont(.subheadline)
+                    .amgiFont(.body)
                     .foregroundStyle(Color.amgiTextSecondary)
                     .padding(.vertical, 4)
             }
