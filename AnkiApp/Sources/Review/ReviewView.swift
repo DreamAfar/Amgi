@@ -72,6 +72,10 @@ struct ReviewView: View {
     @State private var controllerMonitor = ReviewControllerMonitor()
     @State private var keyboardMonitor = ReviewKeyboardMonitor()
     @State private var reviewViewportWidth: CGFloat = 0
+    @State private var showFinishedCelebration = false
+    @State private var finishedCelebrationStart: Date?
+    @State private var finishedCelebrationToken = 0
+    @State private var finishedCelebrationHideTask: Task<Void, Never>?
 
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var prefPlayAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var prefShowContextMenuButton = true
@@ -401,6 +405,15 @@ struct ReviewView: View {
 
     private var reviewLifecycleContent: some View {
         reviewNavigationContent
+        .overlay {
+            if session.isFinished,
+               showFinishedCelebration,
+               let finishedCelebrationStart {
+                ReviewFinishedConfettiView(startDate: finishedCelebrationStart)
+                    .id(finishedCelebrationToken)
+                    .transition(.opacity)
+            }
+        }
         .background(cardChromeColor.ignoresSafeArea())
         .task {
             cardChromeIsDark = (colorScheme == .dark)
@@ -438,6 +451,14 @@ struct ReviewView: View {
             lookupStack.removeAll()
             scheduleAutoAdvanceIfNeeded()
         }
+        .onChange(of: session.isFinished) { oldValue, newValue in
+            if !oldValue, newValue {
+                triggerFinishedCelebration()
+            } else if oldValue, !newValue {
+                finishedCelebrationHideTask?.cancel()
+                showFinishedCelebration = false
+            }
+        }
         .onChange(of: isAudioPlaying) { _, _ in
             scheduleAutoAdvanceIfNeeded()
         }
@@ -458,6 +479,7 @@ struct ReviewView: View {
         }
         .onDisappear {
             autoAdvanceTask?.cancel()
+            finishedCelebrationHideTask?.cancel()
             controllerMonitor.stop()
             keyboardMonitor.stop()
         }
@@ -1768,6 +1790,28 @@ struct ReviewView: View {
             }
             .frame(height: 56)
             .padding(.bottom, 16)
+        }
+    }
+
+    private func triggerFinishedCelebration() {
+        guard session.sessionStats.reviewed > 0 else { return }
+
+        finishedCelebrationHideTask?.cancel()
+        finishedCelebrationStart = .now
+        finishedCelebrationToken += 1
+
+        withAnimation(.easeIn(duration: 0.12)) {
+            showFinishedCelebration = true
+        }
+
+        finishedCelebrationHideTask = Task {
+            try? await Task.sleep(for: .seconds(2.6))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    showFinishedCelebration = false
+                }
+            }
         }
     }
 
