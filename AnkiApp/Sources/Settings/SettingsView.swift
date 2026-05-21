@@ -1012,6 +1012,7 @@ private struct DeckListHeatmapSettingsView: View {
 }
 
 private struct ReviewGestureOptionsView: View {
+    @AppStorage(ReviewPreferences.Keys.tapGestureLayout) private var tapGestureLayoutRaw = ReviewPreferences.TapGestureLayout.threeRows.rawValue
     @AppStorage(ReviewPreferences.Keys.frontTapGestureAction) private var frontTapGestureActionRaw = ReviewPreferences.GestureAction.showAnswer.rawValue
     @AppStorage(ReviewPreferences.Keys.frontSwipeLeftGestureAction) private var frontSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
     @AppStorage(ReviewPreferences.Keys.frontSwipeRightGestureAction) private var frontSwipeRightGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
@@ -1019,17 +1020,52 @@ private struct ReviewGestureOptionsView: View {
     @AppStorage(ReviewPreferences.Keys.backSwipeLeftGestureAction) private var backSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
     @AppStorage(ReviewPreferences.Keys.backSwipeRightGestureAction) private var backSwipeRightGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
 
+    private var tapGestureLayout: ReviewPreferences.TapGestureLayout {
+        ReviewPreferences.TapGestureLayout(rawValue: tapGestureLayoutRaw) ?? .threeRows
+    }
+
     var body: some View {
         List {
+            Section {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                    Text(L("settings_review_tap_layout"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Menu {
+                        Picker(L("settings_review_tap_layout"), selection: $tapGestureLayoutRaw) {
+                            ForEach(ReviewPreferences.TapGestureLayout.allCases) { layout in
+                                Text(layout.title)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(layout.rawValue)
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: tapGestureLayout.title)
+                    }
+                }
+            }
+            .amgiSettingsListRowSurface()
+
             Section(L("settings_review_gesture_front")) {
-                ReviewInputActionRow(title: L("settings_review_tap_action"), selection: binding($frontTapGestureActionRaw))
+                ForEach(tapRegionsForCurrentLayout) { region in
+                    ReviewInputActionRow(
+                        title: region.title,
+                        selection: tapRegionBinding(isBackSide: false, region: region)
+                    )
+                }
                 ReviewInputActionRow(title: L("settings_review_swipe_left_action"), selection: binding($frontSwipeLeftGestureActionRaw))
                 ReviewInputActionRow(title: L("settings_review_swipe_right_action"), selection: binding($frontSwipeRightGestureActionRaw))
             }
             .amgiSettingsListRowSurface()
 
             Section(L("settings_review_gesture_back")) {
-                ReviewInputActionRow(title: L("settings_review_tap_action"), selection: binding($backTapGestureActionRaw))
+                ForEach(tapRegionsForCurrentLayout) { region in
+                    ReviewInputActionRow(
+                        title: region.title,
+                        selection: tapRegionBinding(isBackSide: true, region: region)
+                    )
+                }
                 ReviewInputActionRow(title: L("settings_review_swipe_left_action"), selection: binding($backSwipeLeftGestureActionRaw))
                 ReviewInputActionRow(title: L("settings_review_swipe_right_action"), selection: binding($backSwipeRightGestureActionRaw))
             }
@@ -1045,6 +1081,30 @@ private struct ReviewGestureOptionsView: View {
         Binding(
             get: { ReviewPreferences.GestureAction(rawValue: rawValue.wrappedValue) ?? .none },
             set: { rawValue.wrappedValue = $0.rawValue }
+        )
+    }
+
+    private var tapRegionsForCurrentLayout: [ReviewPreferences.TapGestureRegion] {
+        switch tapGestureLayout {
+        case .threeRows:
+            return [.topCenter, .middleCenter, .bottomCenter]
+        case .nineGrid:
+            return ReviewPreferences.TapGestureRegion.allCases
+        }
+    }
+
+    private func tapRegionBinding(
+        isBackSide: Bool,
+        region: ReviewPreferences.TapGestureRegion
+    ) -> Binding<ReviewPreferences.GestureAction> {
+        let key = ReviewPreferences.Keys.tapGestureRegionAction(isBackSide: isBackSide, region: region)
+        return Binding(
+            get: {
+                let fallback = isBackSide ? backTapGestureActionRaw : frontTapGestureActionRaw
+                let raw = UserDefaults.standard.string(forKey: key) ?? fallback
+                return ReviewPreferences.GestureAction(rawValue: raw) ?? .none
+            },
+            set: { UserDefaults.standard.set($0.rawValue, forKey: key) }
         )
     }
 }
@@ -1176,6 +1236,42 @@ private extension ReviewPreferences.GestureAction {
         case .userAction7: return String(format: L("review_user_action_number"), 7)
         case .userAction8: return String(format: L("review_user_action_number"), 8)
         case .userAction9: return String(format: L("review_user_action_number"), 9)
+        }
+    }
+}
+
+private extension ReviewPreferences.TapGestureLayout {
+    var title: String {
+        switch self {
+        case .threeRows:
+            return L("settings_review_tap_layout_three_rows")
+        case .nineGrid:
+            return L("settings_review_tap_layout_nine_grid")
+        }
+    }
+}
+
+private extension ReviewPreferences.TapGestureRegion {
+    var title: String {
+        switch self {
+        case .topLeft:
+            return L("settings_review_tap_region_top_left")
+        case .topCenter:
+            return L("settings_review_tap_region_top")
+        case .topRight:
+            return L("settings_review_tap_region_top_right")
+        case .middleLeft:
+            return L("settings_review_tap_region_middle_left")
+        case .middleCenter:
+            return L("settings_review_tap_region_middle")
+        case .middleRight:
+            return L("settings_review_tap_region_middle_right")
+        case .bottomLeft:
+            return L("settings_review_tap_region_bottom_left")
+        case .bottomCenter:
+            return L("settings_review_tap_region_bottom")
+        case .bottomRight:
+            return L("settings_review_tap_region_bottom_right")
         }
     }
 }

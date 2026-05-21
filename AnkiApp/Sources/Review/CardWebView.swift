@@ -824,6 +824,16 @@ struct CardWebView: UIViewRepresentable {
             amgiPendingTapFallback = 0;
         }
 
+        function amgiTapRegionAt(x, y) {
+            var width = Math.max(window.innerWidth || 0, 1);
+            var height = Math.max(window.innerHeight || 0, 1);
+            var column = Math.max(0, Math.min(2, Math.floor((x / width) * 3)));
+            var row = Math.max(0, Math.min(2, Math.floor((y / height) * 3)));
+            var rows = ['top', 'middle', 'bottom'];
+            var columns = ['Left', 'Center', 'Right'];
+            return rows[row] + columns[column];
+        }
+
         document.addEventListener('selectstart', function() {
             amgiSuppressCardGestures(900);
         }, true);
@@ -857,7 +867,7 @@ struct CardWebView: UIViewRepresentable {
                 window.webkit.messageHandlers.amgiLookupText.postMessage(payload);
                 return;
             }
-            window.webkit.messageHandlers.amgiCardGesture.postMessage('tapBlank');
+            window.webkit.messageHandlers.amgiCardGesture.postMessage('tap:' + amgiTapRegionAt(event.clientX, event.clientY));
         }, false);
 
         var amgiTouchStart = null;
@@ -904,13 +914,15 @@ struct CardWebView: UIViewRepresentable {
             var touch = event.changedTouches[0];
             var dx = touch.clientX - amgiTouchStart.x;
             var dy = touch.clientY - amgiTouchStart.y;
+            var distance = Math.hypot(dx, dy);
             var duration = Date.now() - (amgiTouchStart.startedAt || Date.now());
             amgiTouchStart = null;
             if (duration >= 350) {
+                amgiSuppressNextClick = true;
                 amgiSuppressCardGestures(900);
                 return;
             }
-            if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.25) {
+            if (distance <= 12) {
                 amgiSuppressNextClick = true;
                 var payload = amgiCardLookupPayloadAt(touch.clientX, touch.clientY, 16);
                 if (payload) {
@@ -918,15 +930,20 @@ struct CardWebView: UIViewRepresentable {
                     window.webkit.messageHandlers.amgiLookupText.postMessage(payload);
                 } else if (!amgiLookupPopupEnabled()) {
                     amgiClearPendingTapFallback();
-                    window.webkit.messageHandlers.amgiCardGesture.postMessage('tapBlank');
+                    window.webkit.messageHandlers.amgiCardGesture.postMessage('tap:' + amgiTapRegionAt(touch.clientX, touch.clientY));
                 } else {
                     amgiSuppressNextClick = false;
                     amgiClearPendingTapFallback();
                     amgiPendingTapFallback = window.setTimeout(function() {
                         amgiPendingTapFallback = 0;
-                        window.webkit.messageHandlers.amgiCardGesture.postMessage('tapBlank');
+                        window.webkit.messageHandlers.amgiCardGesture.postMessage('tap:' + amgiTapRegionAt(touch.clientX, touch.clientY));
                     }, 220);
                 }
+                return;
+            }
+            amgiSuppressNextClick = true;
+            if (Math.abs(dx) < 72 || Math.abs(dx) <= Math.abs(dy) * 1.5) {
+                amgiSuppressCardGestures(250);
                 return;
             }
             amgiSuppressCardGestures(250);

@@ -98,6 +98,7 @@ struct ReviewView: View {
     @AppStorage(ReviewPreferences.Keys.backTapGestureAction) private var prefBackTapGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
     @AppStorage(ReviewPreferences.Keys.backSwipeLeftGestureAction) private var prefBackSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
     @AppStorage(ReviewPreferences.Keys.backSwipeRightGestureAction) private var prefBackSwipeRightGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
+    @AppStorage(ReviewPreferences.Keys.tapGestureLayout) private var prefTapGestureLayoutRaw = ReviewPreferences.TapGestureLayout.threeRows.rawValue
     @AppStorage(ReaderPreferences.Keys.popupWidth) private var popupWidth = 320
     @AppStorage(ReaderPreferences.Keys.popupHeight) private var popupHeight = 250
     @AppStorage(ReaderPreferences.Keys.popupFontSize) private var popupFontSize = 14
@@ -277,6 +278,10 @@ struct ReviewView: View {
 
     private var popupAudioPlaybackMode: ReaderLookupAudioPlaybackMode {
         ReaderLookupAudioDefaults.resolvedPlaybackMode(popupAudioPlaybackModeRawValue)
+    }
+
+    private var prefTapGestureLayout: ReviewPreferences.TapGestureLayout {
+        ReviewPreferences.TapGestureLayout(rawValue: prefTapGestureLayoutRaw) ?? .threeRows
     }
 
     private var cardChromeColor: Color {
@@ -1117,7 +1122,7 @@ struct ReviewView: View {
     private func handleCardLookup(_ selection: String?, sentence: String?, at point: CGPoint) {
         guard isLookupPopupEnabledForCurrentSide,
               let query = normalizedLookupText(selection) else {
-            handleCardGesture("tapBlank")
+            handleCardGesture("tap:middleCenter")
             return
         }
         startCardLookup(for: query, sentence: sentence, anchor: point)
@@ -1771,9 +1776,10 @@ struct ReviewView: View {
 
         let action: ReviewPreferences.GestureAction
         switch gesture {
-        case "tapBlank":
-            let raw = session.showAnswer ? prefBackTapGestureActionRaw : prefFrontTapGestureActionRaw
-            action = ReviewPreferences.GestureAction(rawValue: raw) ?? (session.showAnswer ? .none : .showAnswer)
+        case let tapGesture where tapGesture.hasPrefix("tap:"):
+            let rawRegion = String(tapGesture.dropFirst(4))
+            let region = ReviewPreferences.TapGestureRegion(rawValue: rawRegion) ?? .middleCenter
+            action = configuredTapGestureAction(for: region)
         case "swipeLeft":
             let raw = session.showAnswer ? prefBackSwipeLeftGestureActionRaw : prefFrontSwipeLeftGestureActionRaw
             action = ReviewPreferences.GestureAction(rawValue: raw) ?? .none
@@ -1785,6 +1791,35 @@ struct ReviewView: View {
         }
 
         performGestureAction(action)
+    }
+
+    private func configuredTapGestureAction(
+        for rawRegion: ReviewPreferences.TapGestureRegion
+    ) -> ReviewPreferences.GestureAction {
+        let resolvedRegion: ReviewPreferences.TapGestureRegion
+        switch prefTapGestureLayout {
+        case .threeRows:
+            resolvedRegion = rawRegion.collapsedToThreeRows
+        case .nineGrid:
+            resolvedRegion = rawRegion
+        }
+
+        let raw = UserDefaults.standard.string(
+            forKey: ReviewPreferences.Keys.tapGestureRegionAction(
+                isBackSide: session.showAnswer,
+                region: resolvedRegion
+            )
+        ) ?? legacyTapGestureFallbackRawValue(isBackSide: session.showAnswer)
+
+        return ReviewPreferences.GestureAction(rawValue: raw)
+            ?? (session.showAnswer ? .none : .showAnswer)
+    }
+
+    private func legacyTapGestureFallbackRawValue(isBackSide: Bool) -> String {
+        if isBackSide {
+            return prefBackTapGestureActionRaw
+        }
+        return prefFrontTapGestureActionRaw
     }
 
     private func performGestureAction(_ action: ReviewPreferences.GestureAction) {

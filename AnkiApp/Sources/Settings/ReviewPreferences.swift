@@ -17,6 +17,38 @@ enum ReaderLibrarySourceMode: String, CaseIterable, Identifiable {
 }
 
 enum ReviewPreferences {
+    enum TapGestureLayout: String, CaseIterable, Identifiable, Sendable {
+        case threeRows
+        case nineGrid
+
+        var id: String { rawValue }
+    }
+
+    enum TapGestureRegion: String, CaseIterable, Identifiable, Sendable {
+        case topLeft
+        case topCenter
+        case topRight
+        case middleLeft
+        case middleCenter
+        case middleRight
+        case bottomLeft
+        case bottomCenter
+        case bottomRight
+
+        var id: String { rawValue }
+
+        var collapsedToThreeRows: Self {
+            switch self {
+            case .topLeft, .topCenter, .topRight:
+                return .topCenter
+            case .middleLeft, .middleCenter, .middleRight:
+                return .middleCenter
+            case .bottomLeft, .bottomCenter, .bottomRight:
+                return .bottomCenter
+            }
+        }
+    }
+
     enum GestureAction: String, CaseIterable, Identifiable, Sendable {
         case none
         case showAnswer
@@ -141,6 +173,9 @@ enum ReviewPreferences {
         static let backTapGestureAction = "review_pref_back_tap_gesture_action"
         static let backSwipeLeftGestureAction = "review_pref_back_swipe_left_gesture_action"
         static let backSwipeRightGestureAction = "review_pref_back_swipe_right_gesture_action"
+        static let tapGestureLayout = "review_pref_tap_gesture_layout"
+        static let frontTapGestureRegionPrefix = "review_pref_front_tap_region_"
+        static let backTapGestureRegionPrefix = "review_pref_back_tap_region_"
         static let controllerButtonPrefix = "review_pref_controller_"
         static let keyboardShortcutPrefix = "review_pref_keyboard_"
 
@@ -150,6 +185,14 @@ enum ReviewPreferences {
 
         static func keyboardShortcutAction(_ shortcut: KeyboardShortcut) -> String {
             keyboardShortcutPrefix + shortcut.rawValue
+        }
+
+        static func tapGestureRegionAction(
+            isBackSide: Bool,
+            region: TapGestureRegion
+        ) -> String {
+            let prefix = isBackSide ? backTapGestureRegionPrefix : frontTapGestureRegionPrefix
+            return prefix + region.rawValue
         }
 
         static func dailyReminderEnabledForCurrentUser() -> String {

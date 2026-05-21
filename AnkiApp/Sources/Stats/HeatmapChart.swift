@@ -201,7 +201,11 @@ struct HeatmapChart: View {
                 .foregroundStyle(Color.amgiTextSecondary)
             ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.green.opacity(max(0.1, intensity)))
+                    .fill(
+                        Color.green.opacity(
+                            HeatmapColorScale.opacity(forNormalizedValue: intensity)
+                        )
+                    )
                     .frame(width: cellSize, height: cellSize)
             }
             Text(L("stats_heatmap_more"))
@@ -287,7 +291,6 @@ struct HeatmapChart: View {
 
     private func heatColor(count: Int) -> Color {
         if count == 0 { return Color(.systemGray6) }
-        let intensity = min(1.0, Double(count) / Double(max(maxCount, 1)))
-        return .green.opacity(max(0.2, intensity))
+        return .green.opacity(HeatmapColorScale.opacity(for: count, maxCount: maxCount))
     }
 }

@@ -9,6 +9,8 @@ struct DeckTemplateListView: View {
     @Dependency(\.ankiBackend) var backend
     @Environment(\.dismiss) private var dismiss
 
+    let showsDoneButton: Bool
+
     @State private var entries: [Anki_Notetypes_NotetypeNameId] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -17,6 +19,8 @@ struct DeckTemplateListView: View {
     @State private var renameTarget: Anki_Notetypes_NotetypeNameId?
     @State private var renameText = ""
     @State private var showRenamePrompt = false
+    @State private var addNotetypeText = ""
+    @State private var showAddNotetypePrompt = false
     @State private var deleteTarget: Anki_Notetypes_NotetypeNameId?
     @State private var showDeleteConfirm = false
     @State private var actionError: String?
@@ -24,6 +28,10 @@ struct DeckTemplateListView: View {
 
     private var filteredEntries: [Anki_Notetypes_NotetypeNameId] {
         filterDeckTemplateEntries(entries, searchText: searchText)
+    }
+
+    init(showsDoneButton: Bool = false) {
+        self.showsDoneButton = showsDoneButton
     }
 
     var body: some View {
@@ -34,8 +42,19 @@ struct DeckTemplateListView: View {
             .searchable(text: $searchText, prompt: L("deck_template_search"))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(L("common_done")) { dismiss() }
-                        .amgiToolbarTextButton()
+                    Button {
+                        addNotetypeText = ""
+                        showAddNotetypePrompt = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel(L("deck_template_add_notetype_title"))
+                }
+                if showsDoneButton {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(L("common_done")) { dismiss() }
+                            .amgiToolbarTextButton()
+                    }
                 }
             }
             .sheet(item: $editorTarget) { target in
@@ -45,6 +64,13 @@ struct DeckTemplateListView: View {
                     mode: .manager,
                     onSaved: { await loadTemplates() }
                 )
+            }
+            .alert(L("deck_template_add_notetype_title"), isPresented: $showAddNotetypePrompt) {
+                TextField(L("deck_template_add_notetype_placeholder"), text: $addNotetypeText)
+                Button(L("common_cancel"), role: .cancel) {}
+                Button(L("common_add")) {
+                    Task { await createNotetype() }
+                }
             }
             .alert(L("deck_template_rename_title"), isPresented: $showRenamePrompt) {
                 TextField(L("deck_template_rename_placeholder"), text: $renameText)
@@ -207,6 +233,55 @@ struct DeckTemplateListView: View {
             showActionError = true
         }
     }
+
+    @MainActor
+    private func createNotetype() async {
+        let newName = addNotetypeText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty else {
+            actionError = L("deck_template_add_name_empty")
+            showActionError = true
+            return
+        }
+        guard !entries.contains(where: { $0.name.caseInsensitiveCompare(newName) == .orderedSame }) else {
+            actionError = L("deck_template_add_notetype_duplicate")
+            showActionError = true
+            return
+        }
+
+        do {
+            var stockRequest = Anki_Notetypes_StockNotetype()
+            stockRequest.kind = .basic
+            let stockResponse: Anki_Generic_Json = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: DeckTemplateBackendMethod.getStockNotetypeLegacy,
+                request: stockRequest
+            )
+            guard var jsonObject = try JSONSerialization.jsonObject(with: stockResponse.json) as? [String: Any] else {
+                throw NSError(domain: "DeckTemplateListView", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "Invalid stock notetype payload."
+                ])
+            }
+
+            jsonObject["name"] = newName
+            jsonObject["flds"] = []
+            jsonObject["tmpls"] = []
+
+            var addRequest = Anki_Generic_Json()
+            addRequest.json = try JSONSerialization.data(withJSONObject: jsonObject)
+            let response: Anki_Collection_OpChangesWithId = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: DeckTemplateBackendMethod.addNotetypeLegacy,
+                request: addRequest
+            )
+
+            await loadTemplates()
+            addNotetypeText = ""
+            editorTarget = TemplateEditorTarget(id: response.id, initialTemplateIndex: 0)
+        } catch {
+            actionError = L("deck_template_add_notetype_failed", error.localizedDescription)
+            showActionError = true
+        }
+    }
 }
 
 private struct TemplateEditorTarget: Identifiable {
@@ -287,6 +362,10 @@ struct TemplateEditorView: View {
     @State private var editorSearchNavigationDirection: TemplateSourceEditor.SearchNavigationDirection = .next
     @State private var editorSearchCurrentMatch = 0
     @State private var editorSearchTotalMatches = 0
+    @State private var addTemplateText = ""
+    @State private var showAddTemplatePrompt = false
+    @State private var templateActionError: String?
+    @State private var showTemplateActionError = false
 
     init(
         notetypeId: Int64,
@@ -315,6 +394,14 @@ struct TemplateEditorView: View {
         notetype.templates.indices.contains(selectedTemplateIndex)
             && currentTemplateValidationMessage == nil
             && !isSaving
+    }
+
+    private var canAddTemplate: Bool {
+        mode == .manager && notetype.config.kind != .cloze && !notetype.fields.isEmpty && !isLoading
+    }
+
+    private var showsAddTemplateButton: Bool {
+        mode == .manager && notetype.config.kind != .cloze
     }
 
     private var separatorBorderColor: Color {
@@ -369,6 +456,18 @@ struct TemplateEditorView: View {
                     .disabled(isLoading)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    if showsAddTemplateButton {
+                        Button {
+                            addTemplateText = ""
+                            showAddTemplatePrompt = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel(L("deck_template_add_template_title"))
+                        .disabled(!canAddTemplate)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     if isSaving {
                         ProgressView()
                     } else {
@@ -384,6 +483,18 @@ struct TemplateEditorView: View {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {
                 Text(errorMessage ?? L("common_unknown_error"))
+            }
+            .alert(L("deck_template_add_template_title"), isPresented: $showAddTemplatePrompt) {
+                TextField(L("deck_template_add_template_placeholder"), text: $addTemplateText)
+                Button(L("common_cancel"), role: .cancel) {}
+                Button(L("common_add")) {
+                    addTemplate()
+                }
+            }
+            .alert(L("common_error"), isPresented: $showTemplateActionError) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(templateActionError ?? L("common_unknown_error"))
             }
             .confirmationDialog(
                 L("common_unsaved_changes_title"),
@@ -724,6 +835,51 @@ struct TemplateEditorView: View {
             selectedTemplateIndex = 0
         }
     }
+
+    private func addTemplate() {
+        guard !notetype.fields.isEmpty else {
+            templateActionError = L("deck_template_add_template_requires_field")
+            showTemplateActionError = true
+            return
+        }
+
+        let newName = addTemplateText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty else {
+            templateActionError = L("deck_template_add_name_empty")
+            showTemplateActionError = true
+            return
+        }
+        guard !notetype.templates.contains(where: { $0.name.caseInsensitiveCompare(newName) == .orderedSame }) else {
+            templateActionError = L("deck_template_add_template_duplicate")
+            showTemplateActionError = true
+            return
+        }
+
+        var template = notetype.templates.first ?? Anki_Notetypes_Notetype.Template()
+        template.name = newName
+        template.mtimeSecs = 0
+        template.usn = 0
+        template.clearOrd()
+
+        var config = template.config
+        config.qFormat = ""
+        config.aFormat = ""
+        config.qFormatBrowser = ""
+        config.aFormatBrowser = ""
+        config.targetDeckID = 0
+        config.clearID()
+        template.config = config
+
+        notetype.templates.append(template)
+        addTemplateText = ""
+        normalizeTemplateIndex(preferred: notetype.templates.count - 1)
+        editorTab = .front
+    }
+}
+
+private enum DeckTemplateBackendMethod {
+    static let addNotetypeLegacy: UInt32 = 2
+    static let getStockNotetypeLegacy: UInt32 = 5
 }
 
 func sortDeckTemplateEntries(

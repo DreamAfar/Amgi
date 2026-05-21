@@ -138,6 +138,17 @@ struct IntervalsChart: View {
         let s = flatIntervals
         return s.isEmpty ? 0 : quantile(s, 0.5)
     }
+
+    private var medianSummaryText: String {
+        let days = L("stats_intervals_days_fmt", medianInterval)
+        switch kind {
+        case .intervals:
+            return L("stats_intervals_median_line_fmt", days)
+        case .stability:
+            return L("stats_stability_median_line_fmt", days)
+        }
+    }
+
     private func cumulativePoints(for bins: [IntervalBin]) -> [CumulativePoint] {
         var runningTotal = 0
         return bins.map { bin in
@@ -233,26 +244,14 @@ struct IntervalsChart: View {
                 intervalsChart(bins: bins, xMax: xMax, binSize: binSize)
             }
 
-            HStack(spacing: 16) {
-                footerItem(L("stats_intervals_median"), value: L("stats_intervals_days_fmt", medianInterval))
-            }
+            Text(medianSummaryText)
+                .amgiFont(.captionBold)
+                .monospacedDigit()
+                .foregroundStyle(Color.amgiTextPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .statsTrackWidth($containerWidth)
         .amgiCard(elevated: true)
-    }
-
-    private func footerItem(_ label: String, value: String) -> some View {
-        VStack(spacing: AmgiSpacing.xxs) {
-            Text(value)
-                .amgiFont(.captionBold)
-                .monospacedDigit()
-                .foregroundStyle(Color.amgiTextPrimary)
-            Text(label)
-                .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
-        }
-        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder

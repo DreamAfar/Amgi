@@ -88,10 +88,6 @@ struct RetrievabilityChart: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
-                Spacer()
-                Text(L("stats_retrievability_average_fmt", averageLabel))
-                    .amgiFont(.captionBold)
-                    .foregroundStyle(Color.amgiTextSecondary)
             }
 
             if chartData.allSatisfy({ $0.count == 0 }) {

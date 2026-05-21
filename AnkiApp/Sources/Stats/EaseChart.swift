@@ -24,6 +24,10 @@ struct EaseChart: View {
         return StatsFormatSupport.percentValue(Double(activeData.average))
     }
 
+    private var difficultyMedianText: String {
+        L("stats_difficulty_median_fmt", averageEase)
+    }
+
     private var selectedItem: (ease: Int, count: Int)? {
         guard let selectedEase else { return nil }
         return chartData.first(where: { $0.ease == selectedEase })
@@ -147,10 +151,12 @@ struct EaseChart: View {
                         .amgiFont(.caption)
                         .foregroundStyle(Color.amgiTextSecondary)
                 }
-                Spacer()
-                Text(L("stats_ease_median_fmt", averageEase))
-                    .amgiFont(.captionBold)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                if !isFSRS {
+                    Spacer()
+                    Text(L("stats_ease_median_fmt", averageEase))
+                        .amgiFont(.captionBold)
+                        .foregroundStyle(Color.amgiTextSecondary)
+                }
             }
 
             if chartData.isEmpty {
@@ -160,6 +166,12 @@ struct EaseChart: View {
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 easeChart()
+                if isFSRS {
+                    Text(difficultyMedianText)
+                        .amgiFont(.captionBold)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.amgiTextPrimary)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

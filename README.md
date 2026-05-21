@@ -30,12 +30,13 @@ Amgi wraps the official [ankitects/anki](https://github.com/ankitects/anki) Rust
 - **Flexible Sync** -- Sign in to AnkiWeb or connect to a compatible self-hosted sync server, with normal sync, full upload/download, media sync, progress reporting, and conflict-resolution flows built into the app.
 - **Real FSRS, Not a Clone** -- Powered by Anki's official FSRS engine, including deck-level FSRS controls, desired retention tuning, preset management, workload simulation, and parameter optimization.
 - **Desktop-Accurate Card Rendering** -- Cards are rendered by Anki's template engine with media support, matching desktop behavior as closely as possible for templates, styling, and review presentation.
-- **Deck Management** -- Browse hierarchical decks, inspect new/learn/review counts, create and rename decks or subdecks, export deck packages, and manage deck presets and scheduling options.
-- **Focused Review Experience** -- Study with Again/Hard/Good/Easy, interval previews, audio replay, typed-answer support, flagging, bury/suspend actions, undo, due-date changes, and in-session note/card editing tools.
+- **Deck Management** -- Browse hierarchical decks, inspect new/learn/review counts, create, rename, move, and export decks or subdecks, use swipe actions on deck entries, drag decks into other decks, and manage deck presets and scheduling options.
+- **Focused Review Experience** -- Study with Again/Hard/Good/Easy, interval previews, audio replay, typed-answer support, flagging, bury/suspend actions, undo, due-date changes, configurable tap regions (3-row or 3x3 layouts), and in-session note/card editing tools.
+- **Configurable AI Workflows** -- Add an AI action to selected-text menus in review, reader, and note-editing flows, connect to OpenAI-compatible chat completions endpoints, manage presets with per-preset model/system prompt/glossary settings, define quick actions, save favorite answers, and turn AI responses into note drafts with field mapping and tags.
 - **Powerful Browse & Batch Actions** -- Search across the collection, filter by deck and tag, sort results, lazy-load notes, multi-select items, and run batch actions such as tag edits, deletion, deck moves, notetype changes, export, suspend, and reset-to-new.
-- **Rich Note Editing** -- Create and edit notes with real field names from the backend, rich field editing, tag management, media insertion, audio recording, source editing, and live card preview before committing changes.
+- **Rich Note Editing** -- Create and edit notes with real field names from the backend, rich field editing, tag management, media insertion, audio recording, source editing, live card preview before committing changes, and an image optimization workflow with cropping, compression, preset resize targets, and custom longest-side limits that avoid upscaling smaller images.
 - **Image Occlusion Support** -- Create and edit image occlusion notes with mask tools for rectangles, ellipses, polygons, and text, integrated directly into the native workflow.
-- **Template & Notetype Tools** -- Inspect and edit card templates, CSS, and notetype fields from inside the app, with dedicated management screens for templates and field definitions.
+- **Template & Notetype Tools** -- Inspect and edit card templates, CSS, and notetype fields from inside the app, with dedicated management screens for templates and field definitions, including creating new note types, adding card templates, and managing field definitions without leaving the app.
 - **Comprehensive Statistics** -- Explore daily stats, review heatmaps, future due forecasts, card counts, stability/difficulty charts, hourly patterns, answer-button breakdowns, retrievability, and retention, with deck filtering and customizable chart order.
 - **Integrated Reader** -- Read long-form content sourced from Anki notes or imported EPUB files, track reading progress, manage a bookshelf, and connect reading directly to your study workflow.
 - **Dictionary-Powered Lookup** -- Includes Yomitan-style dictionary lookup for both the reader and review flow, plus dictionary import, recommended downloads, updates, enable/disable controls, and local audio options.
@@ -81,6 +82,10 @@ Rust static library (ankitects/anki)
 Swift owns the UI. Rust owns everything else -- database, sync, FSRS scheduling, card templates, statistics.
 
 For the full architecture walkthrough, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
+Related documentation:
+
+- **[Anki JS API Guide](docs/Anki-JS-API.en.md)**
 
 ## Requirements
 

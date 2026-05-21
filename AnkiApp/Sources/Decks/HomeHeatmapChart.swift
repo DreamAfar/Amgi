@@ -112,7 +112,11 @@ struct HomeHeatmapChart: View {
                 .foregroundStyle(Color.amgiTextSecondary)
             ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(Color.amgiPositive.opacity(max(0.12, intensity)))
+                    .fill(
+                        Color.amgiPositive.opacity(
+                            HeatmapColorScale.opacity(forNormalizedValue: intensity)
+                        )
+                    )
                     .frame(width: layout.cellSize, height: layout.cellSize)
             }
             Text(L("stats_heatmap_more"))
@@ -181,8 +185,6 @@ struct HomeHeatmapChart: View {
         if count == 0 {
             return Color.amgiSurface
         }
-
-        let intensity = min(1.0, Double(count) / Double(maxCount))
-        return Color.amgiPositive.opacity(max(0.2, intensity))
+        return Color.amgiPositive.opacity(HeatmapColorScale.opacity(for: count, maxCount: maxCount))
     }
 }

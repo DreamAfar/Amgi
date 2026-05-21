@@ -163,7 +163,7 @@ struct DeckDetailView: View {
         }
         .sheet(isPresented: $showTemplateManager) {
             NavigationStack {
-                DeckTemplateListView()
+                DeckTemplateListView(showsDoneButton: true)
             }
         }
         .fullScreenCover(isPresented: $showReview) {

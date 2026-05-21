@@ -24,9 +24,11 @@ struct NoteImageOptimizationSheet: View {
     let request: NoteImageOptimizationRequest
 
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("image_optimizer_custom_max_dimension") private var storedCustomMaxDimension = 640
 
     @State private var cropAspect: CropAspectPreset = .original
     @State private var maxDimension: Int = 1600
+    @State private var selectedResolutionOption: ResolutionOption = .preset(1600)
     @State private var compressionQuality: Double = 0.82
     @State private var zoom: CGFloat = 1
     @State private var zoomAnchor: CGFloat = 1
@@ -34,6 +36,10 @@ struct NoteImageOptimizationSheet: View {
     @State private var dragAnchor: CGSize = .zero
     @State private var outputPreview: NoteOptimizedImageResult?
     @State private var previewContainerSize: CGSize = .zero
+    @State private var showCustomDimensionPrompt = false
+    @State private var customDimensionText = ""
+    @State private var customDimensionErrorMessage: String?
+    @State private var showCustomDimensionError = false
 
     private var image: UIImage {
         request.image.amgiNormalizedOrientation()
@@ -42,6 +48,12 @@ struct NoteImageOptimizationSheet: View {
     private var originalPixelSize: CGSize {
         CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
     }
+
+    private var originalLongestSide: Int {
+        Int(max(originalPixelSize.width, originalPixelSize.height).rounded())
+    }
+
+    private let resolutionPresets = [0, 2048, 1600, 1280, 1024, 768]
 
     var body: some View {
         NavigationStack {
@@ -72,7 +84,25 @@ struct NoteImageOptimizationSheet: View {
                     .disabled(outputPreview == nil)
                 }
             }
-            .onAppear { refreshOutputPreview() }
+            .alert(L("image_optimizer_resolution_custom_title"), isPresented: $showCustomDimensionPrompt) {
+                TextField(L("image_optimizer_resolution_custom_placeholder"), text: $customDimensionText)
+                    .keyboardType(.numberPad)
+                Button(L("common_cancel"), role: .cancel) {}
+                Button(L("common_save")) {
+                    applyCustomDimension()
+                }
+            } message: {
+                Text(L("image_optimizer_resolution_custom_message", originalLongestSide))
+            }
+            .alert(L("common_error"), isPresented: $showCustomDimensionError) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(customDimensionErrorMessage ?? L("common_unknown_error"))
+            }
+            .onAppear {
+                configureInitialResolutionSelection()
+                refreshOutputPreview()
+            }
             .onChange(of: cropAspect) {
                 resetCropIfNeeded()
             }
@@ -241,14 +271,27 @@ struct NoteImageOptimizationSheet: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text(L("image_optimizer_resolution_title"))
-                    .font(.subheadline.weight(.semibold))
-                Picker(L("image_optimizer_resolution_title"), selection: $maxDimension) {
-                    ForEach([0, 2048, 1600, 1280, 1024, 768], id: \.self) { value in
-                        Text(maxDimensionLabel(for: value)).tag(value)
-                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L("image_optimizer_resolution_title"))
+                        .font(.subheadline.weight(.semibold))
+                    Text(L("image_optimizer_resolution_original_longest_fmt", originalLongestSide))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text(L("image_optimizer_resolution_no_upscale_hint"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
-                .pickerStyle(.segmented)
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 92), spacing: 10)],
+                    alignment: .leading,
+                    spacing: 10
+                ) {
+                    ForEach(resolutionPresets, id: \.self) { value in
+                        resolutionOptionButton(for: value)
+                    }
+                    customResolutionButton
+                }
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -272,6 +315,109 @@ struct NoteImageOptimizationSheet: View {
             return L("image_optimizer_resolution_original")
         }
         return "\(value)px"
+    }
+
+    private func resolutionOptionButton(for value: Int) -> some View {
+        let option: ResolutionOption = value == 0 ? .original : .preset(value)
+        let isSelected = selectedResolutionOption == option
+        let isEnabled = isResolutionOptionEnabled(option)
+
+        return Button {
+            guard isEnabled else { return }
+            selectedResolutionOption = option
+            maxDimension = value
+        } label: {
+            Text(maxDimensionLabel(for: value))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(resolutionButtonTextColor(isSelected: isSelected, isEnabled: isEnabled))
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(resolutionButtonBackground(isSelected: isSelected, isEnabled: isEnabled))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.45)
+    }
+
+    private var customResolutionButton: some View {
+        let isSelected = selectedResolutionOption == .custom
+        let customLabelValue = isSelected ? maxDimension : storedCustomMaxDimension
+
+        return Button {
+            customDimensionText = "\(max(1, min(storedCustomMaxDimension, max(originalLongestSide, 1))))"
+            showCustomDimensionPrompt = true
+        } label: {
+            VStack(spacing: 4) {
+                Text(L("image_optimizer_resolution_custom"))
+                    .font(.subheadline.weight(.semibold))
+                Text("\(customLabelValue)px")
+                    .font(.caption)
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.9) : Color.secondary)
+            }
+            .foregroundStyle(isSelected ? Color.white : Color.primary)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(resolutionButtonBackground(isSelected: isSelected, isEnabled: true))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func resolutionButtonBackground(isSelected: Bool, isEnabled: Bool) -> Color {
+        if isSelected {
+            return .accentColor
+        }
+        return isEnabled ? Color(.tertiarySystemFill) : Color(.quaternarySystemFill)
+    }
+
+    private func resolutionButtonTextColor(isSelected: Bool, isEnabled: Bool) -> Color {
+        if isSelected {
+            return .white
+        }
+        return isEnabled ? .primary : .secondary
+    }
+
+    private func isResolutionOptionEnabled(_ option: ResolutionOption) -> Bool {
+        switch option {
+        case .original:
+            return true
+        case .preset(let value):
+            return value <= originalLongestSide
+        case .custom:
+            return true
+        }
+    }
+
+    private func configureInitialResolutionSelection() {
+        if case .custom = selectedResolutionOption {
+            maxDimension = min(max(storedCustomMaxDimension, 1), max(originalLongestSide, 1))
+            return
+        }
+
+        if maxDimension == 0 {
+            selectedResolutionOption = .original
+        } else if maxDimension > originalLongestSide {
+            maxDimension = 0
+            selectedResolutionOption = .original
+        } else {
+            selectedResolutionOption = .preset(maxDimension)
+        }
+    }
+
+    private func applyCustomDimension() {
+        let trimmed = customDimensionText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Int(trimmed), value > 0, value <= originalLongestSide else {
+            customDimensionErrorMessage = L("image_optimizer_resolution_custom_invalid", originalLongestSide)
+            showCustomDimensionError = true
+            return
+        }
+
+        storedCustomMaxDimension = value
+        selectedResolutionOption = .custom
+        maxDimension = value
     }
 
     private func dragGesture(for cropRect: CGRect) -> some Gesture {
@@ -395,6 +541,12 @@ struct NoteImageOptimizationSheet: View {
             height: visibleHeight * image.scale
         ).integral
     }
+}
+
+private enum ResolutionOption: Hashable {
+    case original
+    case preset(Int)
+    case custom
 }
 
 private enum CropAspectPreset: String, CaseIterable, Identifiable {
