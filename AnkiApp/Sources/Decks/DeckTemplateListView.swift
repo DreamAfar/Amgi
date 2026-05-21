@@ -26,6 +26,8 @@ struct DeckTemplateListView: View {
     @State private var showAddNotetypePrompt = false
     @State private var deleteTarget: Anki_Notetypes_NotetypeNameId?
     @State private var showDeleteConfirm = false
+    @State private var pendingSchemaDeleteTarget: Anki_Notetypes_NotetypeNameId?
+    @State private var showSchemaChangeConfirm = false
     @State private var actionError: String?
     @State private var showActionError = false
 
@@ -102,11 +104,21 @@ struct DeckTemplateListView: View {
             }
             .alert(L("deck_template_delete_title"), isPresented: $showDeleteConfirm) {
                 Button(L("common_delete"), role: .destructive) {
-                    Task { await deleteNotetype() }
+                    Task { await requestDeleteNotetype() }
                 }
                 Button(L("common_cancel"), role: .cancel) {}
             } message: {
                 Text(L("deck_template_delete_message", deleteTarget?.name ?? ""))
+            }
+            .alert(L("sync_full_required_title"), isPresented: $showSchemaChangeConfirm) {
+                Button(L("common_cancel"), role: .cancel) {
+                    pendingSchemaDeleteTarget = nil
+                }
+                Button(L("schema_change_confirm_continue")) {
+                    Task { await confirmPendingSchemaDelete() }
+                }
+            } message: {
+                Text(L("schema_change_confirm_message"))
             }
             .alert(L("common_error"), isPresented: $showActionError) {
                 Button(L("common_ok"), role: .cancel) {}
@@ -242,8 +254,31 @@ struct DeckTemplateListView: View {
         }
     }
 
-    private func deleteNotetype() async {
+    @MainActor
+    private func requestDeleteNotetype() async {
         guard let deleteTarget else { return }
+
+        guard let shouldConfirm = await shouldConfirmSchemaChange() else {
+            return
+        }
+
+        guard shouldConfirm else {
+            await deleteNotetype(deleteTarget)
+            return
+        }
+
+        pendingSchemaDeleteTarget = deleteTarget
+        showSchemaChangeConfirm = true
+    }
+
+    @MainActor
+    private func confirmPendingSchemaDelete() async {
+        guard let pendingSchemaDeleteTarget else { return }
+        self.pendingSchemaDeleteTarget = nil
+        await deleteNotetype(pendingSchemaDeleteTarget)
+    }
+
+    private func deleteNotetype(_ deleteTarget: Anki_Notetypes_NotetypeNameId) async {
 
         do {
             var req = Anki_Notetypes_NotetypeId()
@@ -257,6 +292,17 @@ struct DeckTemplateListView: View {
         } catch {
             actionError = L("deck_template_delete_failed", error.localizedDescription)
             showActionError = true
+        }
+    }
+
+    @MainActor
+    private func shouldConfirmSchemaChange() async -> Bool? {
+        do {
+            return try backend.schemaChangedSinceLastSync() == false
+        } catch {
+            actionError = error.localizedDescription
+            showActionError = true
+            return nil
         }
     }
 
@@ -534,6 +580,16 @@ struct TemplateEditorView: View {
     @State private var editorSearchTotalMatches = 0
     @State private var addTemplateText = ""
     @State private var showAddTemplatePrompt = false
+    @State private var copyTemplateText = ""
+    @State private var showCopyTemplatePrompt = false
+    @State private var renameTemplateText = ""
+    @State private var showRenameTemplatePrompt = false
+    @State private var reorderTemplateText = ""
+    @State private var showReorderTemplatePrompt = false
+    @State private var showDeleteTemplateConfirm = false
+    @State private var pendingSchemaTemplateAction: TemplateSchemaAction?
+    @State private var showSchemaChangeConfirm = false
+    @State private var hasConfirmedSchemaChangeInSession = false
     @State private var templateActionError: String?
     @State private var showTemplateActionError = false
 
@@ -570,8 +626,18 @@ struct TemplateEditorView: View {
         mode == .manager && notetype.config.kind != .cloze && !notetype.fields.isEmpty && !isLoading
     }
 
-    private var showsAddTemplateButton: Bool {
+    private var showsTemplateActionMenu: Bool {
+        mode == .manager
+    }
+
+    private var canMutateTemplateStructure: Bool {
         mode == .manager && notetype.config.kind != .cloze
+    }
+
+    private var canDeleteOrReorderTemplate: Bool {
+        canMutateTemplateStructure
+            && notetype.templates.count > 1
+            && notetype.templates.indices.contains(selectedTemplateIndex)
     }
 
     private var separatorBorderColor: Color {
@@ -626,18 +692,6 @@ struct TemplateEditorView: View {
                     .disabled(isLoading)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if showsAddTemplateButton {
-                        Button {
-                            addTemplateText = ""
-                            showAddTemplatePrompt = true
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                        .accessibilityLabel(L("deck_template_add_template_title"))
-                        .disabled(!canAddTemplate)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
                     if isSaving {
                         ProgressView()
                     } else {
@@ -658,8 +712,50 @@ struct TemplateEditorView: View {
                 TextField(L("deck_template_add_template_placeholder"), text: $addTemplateText)
                 Button(L("common_cancel"), role: .cancel) {}
                 Button(L("common_add")) {
-                    addTemplate()
+                    Task { await requestAddTemplate() }
                 }
+            }
+            .alert(L("deck_template_copy_template_title"), isPresented: $showCopyTemplatePrompt) {
+                TextField(L("deck_template_copy_template_placeholder"), text: $copyTemplateText)
+                Button(L("common_cancel"), role: .cancel) {}
+                Button(L("common_add")) {
+                    Task { await requestCopyTemplate() }
+                }
+            }
+            .alert(L("deck_template_rename_template_title"), isPresented: $showRenameTemplatePrompt) {
+                TextField(L("deck_template_rename_template_placeholder"), text: $renameTemplateText)
+                Button(L("common_cancel"), role: .cancel) {}
+                Button(L("common_save")) {
+                    renameCurrentTemplate()
+                }
+            }
+            .alert(L("deck_template_reorder_template_title"), isPresented: $showReorderTemplatePrompt) {
+                TextField(L("deck_template_reorder_template_placeholder"), text: $reorderTemplateText)
+                    .keyboardType(.numberPad)
+                Button(L("common_cancel"), role: .cancel) {}
+                Button(L("common_save")) {
+                    Task { await requestReorderTemplate() }
+                }
+            } message: {
+                Text(L("deck_template_reorder_template_message", currentTemplateName, notetype.templates.count))
+            }
+            .alert(L("deck_template_delete_template_title"), isPresented: $showDeleteTemplateConfirm) {
+                Button(L("common_delete"), role: .destructive) {
+                    Task { await requestDeleteTemplate() }
+                }
+                Button(L("common_cancel"), role: .cancel) {}
+            } message: {
+                Text(L("deck_template_delete_template_message", currentTemplateName))
+            }
+            .alert(L("sync_full_required_title"), isPresented: $showSchemaChangeConfirm) {
+                Button(L("common_cancel"), role: .cancel) {
+                    pendingSchemaTemplateAction = nil
+                }
+                Button(L("schema_change_confirm_continue")) {
+                    Task { await confirmPendingSchemaTemplateAction() }
+                }
+            } message: {
+                Text(L("schema_change_confirm_message"))
             }
             .alert(L("common_error"), isPresented: $showTemplateActionError) {
                 Button(L("common_ok"), role: .cancel) {}
@@ -680,7 +776,7 @@ struct TemplateEditorView: View {
             }
             .sheet(isPresented: $showFieldManager) {
                 NavigationStack {
-                    NotetypeFieldManagerView(
+                    NotetypeFieldEditorView(
                         notetypeId: notetypeId,
                         preferredName: notetype.name,
                         onSaved: {
@@ -708,32 +804,12 @@ struct TemplateEditorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 14) {
-                    if mode.allowsTemplateSelection, notetype.templates.count > 1 {
-                        HStack(spacing: 12) {
-                            Spacer()
-                            
-                            Menu {
-                                ForEach(Array(notetype.templates.enumerated()), id: \.offset) { index, template in
-                                    Button {
-                                        selectedTemplateIndex = index
-                                    } label: {
-                                        if selectedTemplateIndex == index {
-                                            Label(template.name, systemImage: "checkmark")
-                                                .foregroundStyle(Color.amgiAccent)
-                                        } else {
-                                            Text(template.name)
-                                                .foregroundStyle(Color.amgiAccent)
-                                        }
-                                    }
-                                }
-                            } label: {
-                                SettingsOptionCapsuleLabel(title: currentTemplateName)
-                            }
+                    HStack(spacing: 12) {
+                        currentTemplateSelectionView
+                        Spacer(minLength: 0)
+                        if showsTemplateActionMenu {
+                            templateActionMenu
                         }
-                    } else {
-                        Text(currentTemplateName)
-                            .amgiFont(.bodyEmphasis)
-                            .foregroundStyle(Color.amgiTextSecondary)
                     }
 
                     Picker(L("deck_template_edit_template"), selection: $editorTab) {
@@ -876,6 +952,90 @@ struct TemplateEditorView: View {
                 }.value
             }
         )
+    }
+
+    @ViewBuilder
+    private var currentTemplateSelectionView: some View {
+        if mode.allowsTemplateSelection, notetype.templates.count > 1 {
+            Menu {
+                ForEach(Array(notetype.templates.enumerated()), id: \.offset) { index, template in
+                    Button {
+                        selectedTemplateIndex = index
+                    } label: {
+                        if selectedTemplateIndex == index {
+                            Label(template.name, systemImage: "checkmark")
+                                .foregroundStyle(Color.amgiAccent)
+                        } else {
+                            Text(template.name)
+                                .foregroundStyle(Color.amgiAccent)
+                        }
+                    }
+                }
+            } label: {
+                SettingsOptionCapsuleLabel(title: currentTemplateName)
+            }
+        } else {
+            SettingsOptionCapsuleLabel(title: currentTemplateName)
+        }
+    }
+
+    private var templateActionMenu: some View {
+        Menu {
+            if canMutateTemplateStructure {
+                Button {
+                    addTemplateText = ""
+                    showAddTemplatePrompt = true
+                } label: {
+                    Label(L("deck_template_menu_add_template"), systemImage: "plus")
+                }
+                .disabled(!canAddTemplate)
+
+                Button {
+                    copyTemplateText = defaultCopiedTemplateName(for: currentTemplateName)
+                    showCopyTemplatePrompt = true
+                } label: {
+                    Label(L("deck_template_menu_copy_template"), systemImage: "doc.on.doc")
+                }
+                .disabled(!notetype.templates.indices.contains(selectedTemplateIndex))
+            }
+
+            Button {
+                renameTemplateText = currentTemplateName
+                showRenameTemplatePrompt = true
+            } label: {
+                Label(L("deck_template_menu_rename_template"), systemImage: "pencil")
+            }
+            .disabled(!notetype.templates.indices.contains(selectedTemplateIndex))
+
+            if canDeleteOrReorderTemplate {
+                Button {
+                    reorderTemplateText = "\(selectedTemplateIndex + 1)"
+                    showReorderTemplatePrompt = true
+                } label: {
+                    Label(L("deck_template_menu_reorder_template"), systemImage: "arrow.up.arrow.down")
+                }
+
+                Button(role: .destructive) {
+                    showDeleteTemplateConfirm = true
+                } label: {
+                    Label(L("deck_template_menu_delete_template"), systemImage: "trash")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.amgiTextPrimary)
+                .frame(width: 42, height: 42)
+                .background(
+                    Circle()
+                        .fill(Color.amgiSurfaceElevated)
+                )
+                .overlay(
+                    Circle()
+                        .stroke(separatorBorderColor, lineWidth: 1)
+                )
+        }
+        .accessibilityLabel(L("deck_template_menu_more"))
     }
 
     private var currentFieldNames: [String] {
@@ -1022,25 +1182,80 @@ struct TemplateEditorView: View {
         }
     }
 
-    private func addTemplate() {
-        guard !notetype.fields.isEmpty else {
-            templateActionError = L("deck_template_add_template_requires_field")
+    @MainActor
+    private func requestAddTemplate() async {
+        guard validateTemplateStructureMutationAllowed(),
+              let newName = validatedTemplateName(addTemplateText) else { return }
+        await requestTemplateSchemaAction(.add(name: newName))
+    }
+
+    @MainActor
+    private func requestCopyTemplate() async {
+        guard validateTemplateStructureMutationAllowed(),
+              let newName = validatedTemplateName(copyTemplateText) else { return }
+        guard notetype.templates.indices.contains(selectedTemplateIndex) else { return }
+        await requestTemplateSchemaAction(.copy(sourceIndex: selectedTemplateIndex, name: newName))
+    }
+
+    @MainActor
+    private func requestDeleteTemplate() async {
+        guard canDeleteOrReorderTemplate else { return }
+        await requestTemplateSchemaAction(.delete(index: selectedTemplateIndex))
+    }
+
+    @MainActor
+    private func requestReorderTemplate() async {
+        guard canDeleteOrReorderTemplate else { return }
+        let trimmed = reorderTemplateText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let newPosition = Int(trimmed),
+              (1...notetype.templates.count).contains(newPosition) else {
+            templateActionError = L("deck_template_reorder_template_invalid")
             showTemplateActionError = true
             return
         }
+        let newIndex = newPosition - 1
+        guard newIndex != selectedTemplateIndex else { return }
+        await requestTemplateSchemaAction(.reorder(sourceIndex: selectedTemplateIndex, targetIndex: newIndex))
+    }
 
-        let newName = addTemplateText.trimmingCharacters(in: .whitespacesAndNewlines)
+    @MainActor
+    private func confirmPendingSchemaTemplateAction() async {
+        guard let action = pendingSchemaTemplateAction else { return }
+        hasConfirmedSchemaChangeInSession = true
+        pendingSchemaTemplateAction = nil
+        applyTemplateSchemaAction(action)
+    }
+
+    private func validatedTemplateName(_ rawName: String, excluding index: Int? = nil) -> String? {
+        let newName = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newName.isEmpty else {
             templateActionError = L("deck_template_add_name_empty")
             showTemplateActionError = true
-            return
+            return nil
         }
-        guard !notetype.templates.contains(where: { $0.name.caseInsensitiveCompare(newName) == .orderedSame }) else {
+        guard !notetype.templates.enumerated().contains(where: { currentIndex, template in
+            if let index, currentIndex == index {
+                return false
+            }
+            return template.name.caseInsensitiveCompare(newName) == .orderedSame
+        }) else {
             templateActionError = L("deck_template_add_template_duplicate")
             showTemplateActionError = true
-            return
+            return nil
         }
+        return newName
+    }
 
+    private func validateTemplateStructureMutationAllowed() -> Bool {
+        guard !notetype.fields.isEmpty else {
+            templateActionError = L("deck_template_add_template_requires_field")
+            showTemplateActionError = true
+            return false
+        }
+        return true
+    }
+
+    private func addTemplate(named newName: String) {
         var template = notetype.templates.first ?? Anki_Notetypes_Notetype.Template()
         template.name = newName
         template.mtimeSecs = 0
@@ -1057,10 +1272,117 @@ struct TemplateEditorView: View {
         template.config = config
 
         notetype.templates.append(template)
+        reindexTemplates()
         addTemplateText = ""
         normalizeTemplateIndex(preferred: notetype.templates.count - 1)
         editorTab = .front
     }
+
+    private func copyTemplate(from sourceIndex: Int, named newName: String) {
+        guard notetype.templates.indices.contains(sourceIndex) else { return }
+        var template = notetype.templates[sourceIndex]
+        template.name = newName
+        template.mtimeSecs = 0
+        template.usn = 0
+        template.clearOrd()
+        var config = template.config
+        config.clearID()
+        template.config = config
+        notetype.templates.append(template)
+        reindexTemplates()
+        copyTemplateText = ""
+        normalizeTemplateIndex(preferred: notetype.templates.count - 1)
+        editorTab = .front
+    }
+
+    private func renameCurrentTemplate() {
+        guard notetype.templates.indices.contains(selectedTemplateIndex) else { return }
+        guard let newName = validatedTemplateName(renameTemplateText, excluding: selectedTemplateIndex) else { return }
+        guard newName != notetype.templates[selectedTemplateIndex].name else { return }
+        notetype.templates[selectedTemplateIndex].name = newName
+        renameTemplateText = ""
+    }
+
+    private func deleteTemplate(at index: Int) {
+        guard notetype.templates.indices.contains(index), notetype.templates.count > 1 else { return }
+        notetype.templates.remove(at: index)
+        reindexTemplates()
+        normalizeTemplateIndex(preferred: min(index, notetype.templates.count - 1))
+    }
+
+    private func reorderTemplate(from sourceIndex: Int, to targetIndex: Int) {
+        guard notetype.templates.indices.contains(sourceIndex),
+              notetype.templates.indices.contains(targetIndex),
+              sourceIndex != targetIndex else { return }
+        let destination = sourceIndex < targetIndex ? targetIndex + 1 : targetIndex
+        notetype.templates.move(fromOffsets: IndexSet(integer: sourceIndex), toOffset: destination)
+        reindexTemplates()
+        normalizeTemplateIndex(preferred: targetIndex)
+    }
+
+    private func reindexTemplates() {
+        for index in notetype.templates.indices {
+            var ord = notetype.templates[index].ord
+            ord.val = UInt32(index)
+            notetype.templates[index].ord = ord
+        }
+    }
+
+    private func defaultCopiedTemplateName(for name: String) -> String {
+        "\(name) \(L("deck_template_copy_suffix"))"
+    }
+
+    @MainActor
+    private func requestTemplateSchemaAction(_ action: TemplateSchemaAction) async {
+        if hasConfirmedSchemaChangeInSession {
+            applyTemplateSchemaAction(action)
+            return
+        }
+
+        guard let shouldConfirm = await shouldConfirmSchemaChange() else {
+            return
+        }
+
+        guard shouldConfirm else {
+            applyTemplateSchemaAction(action)
+            return
+        }
+
+        pendingSchemaTemplateAction = action
+        showSchemaChangeConfirm = true
+    }
+
+    @MainActor
+    private func applyTemplateSchemaAction(_ action: TemplateSchemaAction) {
+        switch action {
+        case .add(let name):
+            addTemplate(named: name)
+        case .copy(let sourceIndex, let name):
+            copyTemplate(from: sourceIndex, named: name)
+        case .delete(let index):
+            deleteTemplate(at: index)
+        case .reorder(let sourceIndex, let targetIndex):
+            reorderTemplate(from: sourceIndex, to: targetIndex)
+        }
+    }
+
+    @MainActor
+    private func shouldConfirmSchemaChange() async -> Bool? {
+        do {
+            return try backend.schemaChangedSinceLastSync() == false
+        } catch {
+            templateActionError = error.localizedDescription
+            showTemplateActionError = true
+            return nil
+        }
+    }
+}
+
+private enum TemplateSchemaAction {
+    case add(name: String)
+    case copy(sourceIndex: Int, name: String)
+    case delete(index: Int)
+    case reorder(sourceIndex: Int, targetIndex: Int)
 }
 
 private enum DeckTemplateBackendMethod {

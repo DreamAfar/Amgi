@@ -39,7 +39,10 @@ struct NotetypeFieldManagerListView: View {
             } else {
                 List(filteredEntries, id: \.id) { entry in
                     NavigationLink {
-                        NotetypeFieldManagerView(notetypeId: entry.id, preferredName: entry.name)
+                        NotetypeFieldEditorView(
+                            notetypeId: entry.id,
+                            preferredName: entry.name
+                        )
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: "text.badge.plus")
@@ -102,6 +105,8 @@ struct NotetypeFieldManagerView: View {
     @State private var showError = false
     @State private var showAddPrompt = false
     @State private var addFieldName = ""
+    @State private var pendingSchemaAddFieldName: String?
+    @State private var showSchemaChangeConfirm = false
 
     var body: some View {
         Group {
@@ -133,8 +138,18 @@ struct NotetypeFieldManagerView: View {
             TextField(L("notetype_field_name_placeholder"), text: $addFieldName)
             Button(L("common_cancel"), role: .cancel) {}
             Button(L("common_add")) {
-                Task { await addField() }
+                Task { await requestAddField() }
             }
+        }
+        .alert(L("sync_full_required_title"), isPresented: $showSchemaChangeConfirm) {
+            Button(L("common_cancel"), role: .cancel) {
+                pendingSchemaAddFieldName = nil
+            }
+            Button(L("schema_change_confirm_continue")) {
+                Task { await confirmPendingSchemaChange() }
+            }
+        } message: {
+            Text(L("schema_change_confirm_message"))
         }
         .alert(L("common_error"), isPresented: $showError) {
             Button(L("common_ok"), role: .cancel) {}
@@ -195,10 +210,32 @@ struct NotetypeFieldManagerView: View {
     }
 
     @MainActor
-    private func addField() async {
+    private func requestAddField() async {
         let newName = normalizedFieldName(addFieldName)
         guard validateFieldName(newName) else { return }
 
+        guard let shouldConfirm = await shouldConfirmSchemaChange() else {
+            return
+        }
+
+        guard shouldConfirm else {
+            await addField(named: newName)
+            return
+        }
+
+        pendingSchemaAddFieldName = newName
+        showSchemaChangeConfirm = true
+    }
+
+    @MainActor
+    private func confirmPendingSchemaChange() async {
+        guard let fieldName = pendingSchemaAddFieldName else { return }
+        pendingSchemaAddFieldName = nil
+        await addField(named: fieldName)
+    }
+
+    @MainActor
+    private func addField(named newName: String) async {
         var updated = notetype
         var field = Anki_Notetypes_Notetype.Field()
         var ord = Anki_Generic_UInt32()
@@ -254,10 +291,22 @@ struct NotetypeFieldManagerView: View {
         }
     }
 
+    @MainActor
+    private func shouldConfirmSchemaChange() async -> Bool? {
+        do {
+            return try backend.schemaChangedSinceLastSync() == false
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+            return nil
+        }
+    }
+
 }
 
 struct NotetypeFieldEditorView: View {
     @Dependency(\.ankiBackend) var backend
+    @Environment(\.dismiss) private var dismiss
 
     let notetypeId: Int64
     var preferredName: String? = nil
@@ -275,11 +324,22 @@ struct NotetypeFieldEditorView: View {
     @State private var deleteFieldIndex: Int?
     @State private var showDeleteConfirm = false
     @State private var draggedFieldIndex: Int?
+    @State private var reorderBaseline: NotetypeFieldReorderBaseline?
     @State private var pendingFocusIndex: Int?
+    @State private var pendingSchemaAction: PendingSchemaAction?
+    @State private var showSchemaChangeConfirm = false
+    @State private var showDiscardChangesConfirmation = false
     @FocusState private var focusedFieldIndex: Int?
 
     private var titleText: String {
         L("notetype_field_editor_title")
+    }
+
+    private var hasPendingDraftChanges: Bool {
+        guard fieldNameDrafts.count == notetype.fields.count else { return false }
+        return notetype.fields.indices.contains { index in
+            normalizedFieldName(fieldNameDrafts[index]) != notetype.fields[index].name
+        }
     }
 
     var body: some View {
@@ -289,15 +349,18 @@ struct NotetypeFieldEditorView: View {
             } else {
                 List {
                     Section {
+                        Text(L("notetype_field_editor_footer"))
+                            .amgiFont(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                            .padding(.vertical, 4)
+                    }
+
+                    Section {
                         ForEach(Array(notetype.fields.enumerated()), id: \.offset) { index, field in
                             editableFieldRow(field, at: index)
                         }
                     } header: {
                         Text(L("notetype_field_section_fields"))
-                    } footer: {
-                        Text(L("notetype_field_editor_footer"))
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
                     }
                 }
                 .listStyle(.plain)
@@ -308,7 +371,14 @@ struct NotetypeFieldEditorView: View {
         .background(Color.amgiBackground)
         .navigationTitle(titleText)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(L("common_back")) {
+                    attemptDismiss()
+                }
+                .amgiToolbarTextButton(tone: .neutral)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     addFieldName = ""
@@ -323,12 +393,12 @@ struct NotetypeFieldEditorView: View {
             TextField(L("notetype_field_name_placeholder"), text: $addFieldName)
             Button(L("common_cancel"), role: .cancel) {}
             Button(L("common_add")) {
-                Task { await addField() }
+                Task { await requestAddField() }
             }
         }
         .alert(L("notetype_field_delete_title"), isPresented: $showDeleteConfirm) {
             Button(L("common_delete"), role: .destructive) {
-                Task { await deleteField() }
+                Task { await requestDeleteField() }
             }
             Button(L("common_cancel"), role: .cancel) {}
         } message: {
@@ -338,10 +408,35 @@ struct NotetypeFieldEditorView: View {
                 Text("")
             }
         }
+        .alert(L("sync_full_required_title"), isPresented: $showSchemaChangeConfirm) {
+            Button(L("common_cancel"), role: .cancel) {
+                cancelPendingSchemaAction()
+            }
+            Button(L("schema_change_confirm_continue")) {
+                Task { await confirmPendingSchemaAction() }
+            }
+        } message: {
+            Text(L("schema_change_confirm_message"))
+        }
         .alert(L("common_error"), isPresented: $showError) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
             Text(errorMessage ?? L("common_unknown_error"))
+        }
+        .confirmationDialog(
+            L("common_unsaved_changes_title"),
+            isPresented: $showDiscardChangesConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(L("common_save")) {
+                Task { await saveDraftsAndDismiss() }
+            }
+            Button(L("common_discard_changes"), role: .destructive) {
+                discardDraftChangesAndDismiss()
+            }
+            Button(L("common_cancel"), role: .cancel) {}
+        } message: {
+            Text(L("common_unsaved_changes_message"))
         }
         .task {
             pendingFocusIndex = initiallySelectedFieldIndex
@@ -350,11 +445,6 @@ struct NotetypeFieldEditorView: View {
         .onChange(of: focusedFieldIndex) { oldValue, newValue in
             guard let oldValue, oldValue != newValue else { return }
             Task { await commitRenameIfNeeded(at: oldValue) }
-        }
-        .onDisappear {
-            if let focusedFieldIndex {
-                Task { await commitRenameIfNeeded(at: focusedFieldIndex) }
-            }
         }
     }
 
@@ -393,7 +483,7 @@ struct NotetypeFieldEditorView: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if Int(notetype.config.sortFieldIdx) != index {
                 Button {
-                    Task { await setSortField(to: index) }
+                    Task { await requestSetSortField(to: index) }
                 } label: {
                     Label(L("notetype_field_sort_action"), systemImage: "arrow.up.arrow.down.circle")
                 }
@@ -411,6 +501,12 @@ struct NotetypeFieldEditorView: View {
         }
         .onDrag {
             draggedFieldIndex = index
+            if reorderBaseline == nil {
+                reorderBaseline = NotetypeFieldReorderBaseline(
+                    notetype: notetype,
+                    fieldNameDrafts: fieldNameDrafts
+                )
+            }
             return NSItemProvider(object: NSString(string: field.name))
         }
         .onDrop(
@@ -418,10 +514,11 @@ struct NotetypeFieldEditorView: View {
             delegate: NotetypeFieldDropDelegate(
                 targetIndex: index,
                 draggedFieldIndex: $draggedFieldIndex,
+                reorderBaseline: $reorderBaseline,
                 notetype: $notetype,
                 fieldNameDrafts: $fieldNameDrafts,
-                onPersist: { updated in
-                    Task { await persist(updated, resetDrafts: false) }
+                onPersist: { updated, baseline in
+                    Task { await requestPersistReorder(updated, baseline: baseline) }
                 }
             )
         )
@@ -468,10 +565,25 @@ struct NotetypeFieldEditorView: View {
     }
 
     @MainActor
-    private func addField() async {
+    private func requestAddField() async {
         let newName = normalizedFieldName(addFieldName)
         guard validateFieldName(newName, excluding: nil) else { return }
 
+        let action = PendingSchemaAction.addField(newName)
+        guard let shouldConfirm = await shouldConfirmSchemaChange() else {
+            return
+        }
+
+        guard shouldConfirm else {
+            await executeSchemaAction(action)
+            return
+        }
+        pendingSchemaAction = action
+        showSchemaChangeConfirm = true
+    }
+
+    @MainActor
+    private func addField(named newName: String) async {
         var updated = notetype
         var field = Anki_Notetypes_Notetype.Field()
         var ord = Anki_Generic_UInt32()
@@ -501,7 +613,7 @@ struct NotetypeFieldEditorView: View {
     }
 
     @MainActor
-    private func deleteField() async {
+    private func requestDeleteField() async {
         guard let deleteFieldIndex, notetype.fields.indices.contains(deleteFieldIndex) else { return }
         guard notetype.fields.count > 1 else {
             errorMessage = L("notetype_field_delete_last_error")
@@ -509,6 +621,21 @@ struct NotetypeFieldEditorView: View {
             return
         }
 
+        let action = PendingSchemaAction.deleteField(deleteFieldIndex)
+        guard let shouldConfirm = await shouldConfirmSchemaChange() else {
+            return
+        }
+
+        guard shouldConfirm else {
+            await executeSchemaAction(action)
+            return
+        }
+        pendingSchemaAction = action
+        showSchemaChangeConfirm = true
+    }
+
+    @MainActor
+    private func deleteField(at deleteFieldIndex: Int) async {
         var updated = notetype
         updated.fields.remove(at: deleteFieldIndex)
         reindexFields(&updated)
@@ -519,15 +646,92 @@ struct NotetypeFieldEditorView: View {
     }
 
     @MainActor
-    private func setSortField(to index: Int) async {
+    private func requestSetSortField(to index: Int) async {
         guard notetype.fields.indices.contains(index) else { return }
+        let action = PendingSchemaAction.setSortField(index)
+        guard let shouldConfirm = await shouldConfirmSchemaChange() else {
+            return
+        }
+
+        guard shouldConfirm else {
+            await executeSchemaAction(action)
+            return
+        }
+        pendingSchemaAction = action
+        showSchemaChangeConfirm = true
+    }
+
+    @MainActor
+    private func setSortField(to index: Int) async {
         var updated = notetype
         updated.config.sortFieldIdx = UInt32(index)
         await persist(updated, resetDrafts: false)
     }
 
+    @MainActor
+    private func requestPersistReorder(
+        _ updated: Anki_Notetypes_Notetype,
+        baseline: NotetypeFieldReorderBaseline
+    ) async {
+        let action = PendingSchemaAction.reorder(updated, baseline)
+        guard let shouldConfirm = await shouldConfirmSchemaChange() else {
+            notetype = baseline.notetype
+            fieldNameDrafts = baseline.fieldNameDrafts
+            reorderBaseline = nil
+            draggedFieldIndex = nil
+            return
+        }
+
+        guard shouldConfirm else {
+            pendingSchemaAction = action
+            await executeSchemaAction(action)
+            return
+        }
+        pendingSchemaAction = action
+        showSchemaChangeConfirm = true
+    }
+
+    @MainActor
+    private func confirmPendingSchemaAction() async {
+        guard let action = pendingSchemaAction else { return }
+        await executeSchemaAction(action)
+    }
+
+    @MainActor
+    private func cancelPendingSchemaAction() {
+        if case .some(.reorder(_, let baseline)) = pendingSchemaAction {
+            notetype = baseline.notetype
+            fieldNameDrafts = baseline.fieldNameDrafts
+        }
+        pendingSchemaAction = nil
+        reorderBaseline = nil
+        draggedFieldIndex = nil
+    }
+
+    @MainActor
+    private func executeSchemaAction(_ action: PendingSchemaAction) async {
+        switch action {
+        case .addField(let name):
+            await addField(named: name)
+        case .deleteField(let index):
+            await deleteField(at: index)
+        case .setSortField(let index):
+            await setSortField(to: index)
+        case .reorder(let updated, _):
+            await persist(updated, resetDrafts: false)
+        }
+    }
+
     private func normalizedFieldName(_ name: String) -> String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func attemptDismiss() {
+        if hasPendingDraftChanges {
+            showDiscardChangesConfirmation = true
+        } else {
+            dismiss()
+        }
     }
 
     private func validateFieldName(_ name: String, excluding index: Int?) -> Bool {
@@ -555,6 +759,25 @@ struct NotetypeFieldEditorView: View {
 
     private func syncDraftsFromNotetype() {
         fieldNameDrafts = notetype.fields.map(\.name)
+    }
+
+    @MainActor
+    private func saveDraftsAndDismiss() async {
+        await commitAllDraftsIfNeeded()
+        guard hasPendingDraftChanges == false else { return }
+        dismiss()
+    }
+
+    private func discardDraftChangesAndDismiss() {
+        syncDraftsFromNotetype()
+        dismiss()
+    }
+
+    @MainActor
+    private func commitAllDraftsIfNeeded() async {
+        for index in notetype.fields.indices {
+            await commitRenameIfNeeded(at: index)
+        }
     }
 
     private func syncDraftsAfterDeletion(at index: Int) {
@@ -589,7 +812,10 @@ struct NotetypeFieldEditorView: View {
     }
 
     @MainActor
-    private func persist(_ updated: Anki_Notetypes_Notetype, resetDrafts: Bool = true) async {
+    private func persist(
+        _ updated: Anki_Notetypes_Notetype,
+        resetDrafts: Bool = true
+    ) async {
         isSaving = true
         defer { isSaving = false }
 
@@ -603,6 +829,9 @@ struct NotetypeFieldEditorView: View {
             if resetDrafts || fieldNameDrafts.count != updated.fields.count {
                 syncDraftsFromNotetype()
             }
+            reorderBaseline = nil
+            pendingSchemaAction = nil
+            draggedFieldIndex = nil
             if let onSaved {
                 await onSaved()
             }
@@ -610,6 +839,24 @@ struct NotetypeFieldEditorView: View {
             errorMessage = error.localizedDescription
             showError = true
             syncDraftsFromNotetype()
+            if case .some(.reorder(_, let baseline)) = pendingSchemaAction {
+                notetype = baseline.notetype
+                fieldNameDrafts = baseline.fieldNameDrafts
+            }
+            reorderBaseline = nil
+            pendingSchemaAction = nil
+            draggedFieldIndex = nil
+        }
+    }
+
+    @MainActor
+    private func shouldConfirmSchemaChange() async -> Bool? {
+        do {
+            return try backend.schemaChangedSinceLastSync() == false
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+            return nil
         }
     }
 }
@@ -617,9 +864,10 @@ struct NotetypeFieldEditorView: View {
 private struct NotetypeFieldDropDelegate: DropDelegate {
     let targetIndex: Int
     @Binding var draggedFieldIndex: Int?
+    @Binding var reorderBaseline: NotetypeFieldReorderBaseline?
     @Binding var notetype: Anki_Notetypes_Notetype
     @Binding var fieldNameDrafts: [String]
-    let onPersist: (Anki_Notetypes_Notetype) -> Void
+    let onPersist: (Anki_Notetypes_Notetype, NotetypeFieldReorderBaseline) -> Void
 
     func dropEntered(info: DropInfo) {
         guard let draggedFieldIndex,
@@ -628,6 +876,13 @@ private struct NotetypeFieldDropDelegate: DropDelegate {
               notetype.fields.indices.contains(targetIndex)
         else {
             return
+        }
+
+        if reorderBaseline == nil {
+            reorderBaseline = NotetypeFieldReorderBaseline(
+                notetype: notetype,
+                fieldNameDrafts: fieldNameDrafts
+            )
         }
 
         let destination = draggedFieldIndex < targetIndex ? targetIndex + 1 : targetIndex
@@ -645,11 +900,28 @@ private struct NotetypeFieldDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        guard let baseline = reorderBaseline else {
+            draggedFieldIndex = nil
+            return false
+        }
         let updated = notetype
         draggedFieldIndex = nil
-        onPersist(updated)
+        reorderBaseline = nil
+        onPersist(updated, baseline)
         return true
     }
+}
+
+private struct NotetypeFieldReorderBaseline {
+    var notetype: Anki_Notetypes_Notetype
+    var fieldNameDrafts: [String]
+}
+
+private enum PendingSchemaAction {
+    case addField(String)
+    case deleteField(Int)
+    case setSortField(Int)
+    case reorder(Anki_Notetypes_Notetype, NotetypeFieldReorderBaseline)
 }
 
 private func reorderFields(
