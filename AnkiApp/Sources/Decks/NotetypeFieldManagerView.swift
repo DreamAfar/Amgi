@@ -349,10 +349,16 @@ struct NotetypeFieldEditorView: View {
             } else {
                 List {
                     Section {
-                        Text(L("notetype_field_editor_footer"))
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                            .padding(.vertical, 4)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("notetype_field_editor_hint_title"))
+                                .amgiFont(.captionBold)
+                                .foregroundStyle(Color.amgiTextPrimary)
+                            Text(L("notetype_field_editor_footer"))
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, 4)
                     }
 
                     Section {

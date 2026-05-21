@@ -1135,6 +1135,7 @@
 "notetype_field_position" = "Position %d";
 "notetype_field_footer" = "Renaming or deleting fields can affect cards and note editing.";
 "notetype_field_editor_title" = "Field Editor";
+"notetype_field_editor_hint_title" = "Editing Tips";
 "notetype_field_editor_footer" = "Tap a field to edit its name directly. Swipe to delete or set the sort field, and long-press to drag and reorder.";
 "notetype_field_add_title" = "Add Field";
 "notetype_field_rename_title" = "Rename Field";

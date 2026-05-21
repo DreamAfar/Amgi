@@ -1135,6 +1135,7 @@
 "notetype_field_position" = "位置 %d";
 "notetype_field_footer" = "重命名或删除字段可能影响现有卡片和笔记编辑。";
 "notetype_field_editor_title" = "字段编辑";
+"notetype_field_editor_hint_title" = "编辑说明";
 "notetype_field_editor_footer" = "点击字段可直接编辑名称；右滑可删除或设为排序字段，长按可拖动排序。";
 "notetype_field_add_title" = "新增字段";
 "notetype_field_rename_title" = "重命名字段";

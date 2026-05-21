@@ -666,19 +666,13 @@ struct TemplateEditorView: View {
                 }
             }
             .background(Color.amgiBackground)
-            .navigationTitle("")
+            .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .interactiveDismissDisabled(hasUnsavedChanges)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { attemptDismiss() }
                         .amgiToolbarTextButton(tone: .neutral)
-                }
-                ToolbarItem(placement: .principal) {
-                    Text(mode.title)
-                        .amgiFont(.bodyEmphasis)
-                        .foregroundStyle(Color.amgiTextPrimary)
-                        .lineLimit(1)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("card_template_fields_short")) {
@@ -960,19 +954,37 @@ struct TemplateEditorView: View {
                     } label: {
                         if selectedTemplateIndex == index {
                             Label(template.name, systemImage: "checkmark")
-                                .foregroundStyle(Color.amgiAccent)
                         } else {
                             Text(template.name)
-                                .foregroundStyle(Color.amgiAccent)
                         }
                     }
                 }
             } label: {
-                SettingsOptionCapsuleLabel(title: currentTemplateName)
+                templateSwitcherChip(showsIndicator: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else {
-            SettingsOptionCapsuleLabel(title: currentTemplateName)
+            templateSwitcherChip(showsIndicator: false)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func templateSwitcherChip(showsIndicator: Bool) -> some View {
+        HStack(spacing: 6) {
+            Text(currentTemplateName)
+                .amgiFont(.bodyEmphasis)
+                .foregroundStyle(Color.amgiTextPrimary)
+                .lineLimit(1)
+
+            if showsIndicator {
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(.tertiarySystemFill), in: Capsule())
     }
 
     private var templateActionMenu: some View {
@@ -1018,18 +1030,9 @@ struct TemplateEditorView: View {
                 }
             }
         } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Color.amgiTextPrimary)
-                .frame(width: 42, height: 42)
-                .background(
-                    Circle()
-                        .fill(Color.amgiSurfaceElevated)
-                )
-                .overlay(
-                    Circle()
-                        .stroke(separatorBorderColor, lineWidth: 1)
-                )
+            Image(systemName: "ellipsis.circle")
+                .font(.title3.weight(.medium))
+                .foregroundStyle(Color.amgiTextSecondary)
         }
         .accessibilityLabel(L("deck_template_menu_more"))
     }

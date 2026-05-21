@@ -1135,6 +1135,7 @@
 "notetype_field_position" = "位置 %d";
 "notetype_field_footer" = "フィールド名の変更や削除は既存カードとノート編集に影響する場合があります。";
 "notetype_field_editor_title" = "フィールド編集";
+"notetype_field_editor_hint_title" = "編集のヒント";
 "notetype_field_editor_footer" = "フィールド名は直接編集できます。左スワイプで削除やソートフィールド指定、長押しで並べ替えできます。";
 "notetype_field_add_title" = "フィールドを追加";
 "notetype_field_rename_title" = "フィールド名を変更";
