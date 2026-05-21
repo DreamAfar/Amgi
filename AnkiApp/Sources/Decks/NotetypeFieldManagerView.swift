@@ -243,7 +243,7 @@ struct NotetypeFieldManagerView: View {
         field.ord = ord
         field.name = newName
         updated.fields.append(field)
-        await persist(updated)
+        await persist(updated, markSchemaChange: true)
     }
 
     private func normalizedFieldName(_ name: String) -> String {
@@ -271,7 +271,10 @@ struct NotetypeFieldManagerView: View {
     }
 
     @MainActor
-    private func persist(_ updated: Anki_Notetypes_Notetype) async {
+    private func persist(
+        _ updated: Anki_Notetypes_Notetype,
+        markSchemaChange: Bool = false
+    ) async {
         isSaving = true
         defer { isSaving = false }
 
@@ -282,6 +285,9 @@ struct NotetypeFieldManagerView: View {
                 request: updated
             )
             notetype = updated
+            if markSchemaChange {
+                SchemaChangeFullSyncGuard.markPendingFullUpload()
+            }
             if let onSaved {
                 await onSaved()
             }
@@ -293,13 +299,7 @@ struct NotetypeFieldManagerView: View {
 
     @MainActor
     private func shouldConfirmSchemaChange() async -> Bool? {
-        do {
-            return try backend.schemaChangedSinceLastSync() == false
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
-            return nil
-        }
+        !SchemaChangeFullSyncGuard.needsFullUpload()
     }
 
 }
@@ -592,7 +592,7 @@ struct NotetypeFieldEditorView: View {
         field.name = newName
         updated.fields.append(field)
         pendingFocusIndex = updated.fields.count - 1
-        await persist(updated)
+        await persist(updated, markSchemaChange: true)
     }
 
     @MainActor
@@ -642,7 +642,7 @@ struct NotetypeFieldEditorView: View {
         normalizeSortField(&updated)
         adjustCardRequirements(&updated, removingFieldAt: deleteFieldIndex)
         syncDraftsAfterDeletion(at: deleteFieldIndex)
-        await persist(updated)
+        await persist(updated, markSchemaChange: true)
     }
 
     @MainActor
@@ -665,7 +665,7 @@ struct NotetypeFieldEditorView: View {
     private func setSortField(to index: Int) async {
         var updated = notetype
         updated.config.sortFieldIdx = UInt32(index)
-        await persist(updated, resetDrafts: false)
+        await persist(updated, resetDrafts: false, markSchemaChange: true)
     }
 
     @MainActor
@@ -718,7 +718,7 @@ struct NotetypeFieldEditorView: View {
         case .setSortField(let index):
             await setSortField(to: index)
         case .reorder(let updated, _):
-            await persist(updated, resetDrafts: false)
+            await persist(updated, resetDrafts: false, markSchemaChange: true)
         }
     }
 
@@ -814,7 +814,8 @@ struct NotetypeFieldEditorView: View {
     @MainActor
     private func persist(
         _ updated: Anki_Notetypes_Notetype,
-        resetDrafts: Bool = true
+        resetDrafts: Bool = true,
+        markSchemaChange: Bool = false
     ) async {
         isSaving = true
         defer { isSaving = false }
@@ -826,6 +827,9 @@ struct NotetypeFieldEditorView: View {
                 request: updated
             )
             notetype = updated
+            if markSchemaChange {
+                SchemaChangeFullSyncGuard.markPendingFullUpload()
+            }
             if resetDrafts || fieldNameDrafts.count != updated.fields.count {
                 syncDraftsFromNotetype()
             }
@@ -851,13 +855,7 @@ struct NotetypeFieldEditorView: View {
 
     @MainActor
     private func shouldConfirmSchemaChange() async -> Bool? {
-        do {
-            return try backend.schemaChangedSinceLastSync() == false
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
-            return nil
-        }
+        !SchemaChangeFullSyncGuard.needsFullUpload()
     }
 }
 

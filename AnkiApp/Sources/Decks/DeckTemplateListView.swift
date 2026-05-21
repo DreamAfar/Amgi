@@ -288,6 +288,7 @@ struct DeckTemplateListView: View {
                 method: AnkiBackend.NotetypesMethod.removeNotetype,
                 request: req
             )
+            SchemaChangeFullSyncGuard.markPendingFullUpload()
             await loadTemplates()
         } catch {
             actionError = L("deck_template_delete_failed", error.localizedDescription)
@@ -297,13 +298,7 @@ struct DeckTemplateListView: View {
 
     @MainActor
     private func shouldConfirmSchemaChange() async -> Bool? {
-        do {
-            return try backend.schemaChangedSinceLastSync() == false
-        } catch {
-            actionError = error.localizedDescription
-            showActionError = true
-            return nil
-        }
+        !SchemaChangeFullSyncGuard.needsFullUpload()
     }
 
     @MainActor
@@ -590,6 +585,7 @@ struct TemplateEditorView: View {
     @State private var pendingSchemaTemplateAction: TemplateSchemaAction?
     @State private var showSchemaChangeConfirm = false
     @State private var hasConfirmedSchemaChangeInSession = false
+    @State private var hasPendingSchemaMutation = false
     @State private var templateActionError: String?
     @State private var showTemplateActionError = false
 
@@ -1158,6 +1154,11 @@ struct TemplateEditorView: View {
                 method: AnkiBackend.NotetypesMethod.updateNotetype,
                 request: notetype
             )
+            if hasPendingSchemaMutation {
+                SchemaChangeFullSyncGuard.markPendingFullUpload()
+            }
+            hasPendingSchemaMutation = false
+            hasConfirmedSchemaChangeInSession = false
             if let onSaved {
                 await onSaved()
             }
@@ -1354,6 +1355,7 @@ struct TemplateEditorView: View {
 
     @MainActor
     private func applyTemplateSchemaAction(_ action: TemplateSchemaAction) {
+        hasPendingSchemaMutation = true
         switch action {
         case .add(let name):
             addTemplate(named: name)
@@ -1368,13 +1370,7 @@ struct TemplateEditorView: View {
 
     @MainActor
     private func shouldConfirmSchemaChange() async -> Bool? {
-        do {
-            return try backend.schemaChangedSinceLastSync() == false
-        } catch {
-            templateActionError = error.localizedDescription
-            showTemplateActionError = true
-            return nil
-        }
+        !SchemaChangeFullSyncGuard.needsFullUpload()
     }
 }
 

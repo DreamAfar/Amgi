@@ -237,14 +237,6 @@ public final class AnkiBackend: Sendable {
         )
     }
 
-    public func schemaChangedSinceLastSync() throws -> Bool {
-        let response: Anki_Generic_Bool = try invoke(
-            service: Service.collection,
-            method: CollectionMethod.schemaChanged
-        )
-        return response.val
-    }
-
     public var currentMediaFolderURL: URL? {
         guard let mediaFolderPath else { return nil }
         return URL(fileURLWithPath: mediaFolderPath, isDirectory: true)
@@ -429,8 +421,6 @@ extension AnkiBackend {
         // BackendCollectionService has 6 backend-specific methods first.
         // CollectionService.Undo is proto index 2, so delegated index is 6 + 2 = 8.
         public static let undo: UInt32 = 8
-        // CollectionService.SchemaChanged is proto index 9, so delegated index is 6 + 9 = 15.
-        public static let schemaChanged: UInt32 = 15
     }
 
     public enum CheckDatabaseMethod {

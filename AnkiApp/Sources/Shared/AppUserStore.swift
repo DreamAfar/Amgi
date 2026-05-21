@@ -194,6 +194,7 @@ enum AppUserStore {
             SyncPreferences.Keys.mediaLastLogBase,
             SyncPreferences.Keys.mediaLastSyncedAtBase,
             SyncPreferences.Keys.lastCollectionSyncedAtBase,
+            SyncPreferences.Keys.schemaPendingFullUploadBase,
         ].map { "\($0).\(profileID)" }
     }
 
@@ -250,6 +251,7 @@ enum AppUserStore {
             SyncPreferences.Keys.mediaLastLogBase,
             SyncPreferences.Keys.mediaLastSyncedAtBase,
             SyncPreferences.Keys.lastCollectionSyncedAtBase,
+            SyncPreferences.Keys.schemaPendingFullUploadBase,
         ]
         for base in scopedBases {
             let oldKey = "\(base).\(oldProfileID)"

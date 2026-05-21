@@ -284,6 +284,16 @@ struct SyncSheet: View {
             return
         }
 
+        if SchemaChangeFullSyncGuard.needsFullUpload() {
+            syncCoordinator.reset()
+            syncCoordinator.setState(
+                .needsFullSync(
+                    SyncFullSyncRequirement(kind: .uploadOnly)
+                )
+            )
+            return
+        }
+
         syncCoordinator.startSync(syncClient: syncClient, syncMediaEnabled: syncMediaEnabled)
     }
 
@@ -538,6 +548,9 @@ struct SyncSheet: View {
         case .downloadOnly:
             return L("sync_full_download_confirm_desc")
         case .uploadOnly:
+            if SchemaChangeFullSyncGuard.needsFullUpload() {
+                return L("schema_change_confirm_message")
+            }
             return L("sync_full_upload_confirm_desc")
         }
     }

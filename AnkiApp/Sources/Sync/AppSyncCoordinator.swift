@@ -170,6 +170,11 @@ final class AppSyncCoordinator: ObservableObject {
                         self.apply(event, syncMediaEnabled: syncMediaEnabled)
                     }
                 }
+                if direction == .upload {
+                    await MainActor.run {
+                        SchemaChangeFullSyncGuard.clearPendingFullUpload()
+                    }
+                }
             } catch is CancellationError {
                 await MainActor.run {
                     self.state = .idle

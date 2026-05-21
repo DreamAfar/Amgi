@@ -452,6 +452,7 @@ enum SyncPreferences {
         static let mediaLastLogBase = "sync_pref_media_last_log"
         static let mediaLastSyncedAtBase = "sync_pref_media_last_synced_at"
         static let lastCollectionSyncedAtBase = "sync_pref_collection_last_synced_at"
+        static let schemaPendingFullUploadBase = "sync_pref_schema_pending_full_upload"
 
         static func modeForCurrentUser() -> String {
             scoped(modeBase)
@@ -475,6 +476,10 @@ enum SyncPreferences {
 
         static func lastCollectionSyncedAtForCurrentUser() -> String {
             scoped(lastCollectionSyncedAtBase)
+        }
+
+        static func schemaPendingFullUploadForCurrentUser() -> String {
+            scoped(schemaPendingFullUploadBase)
         }
 
         private static func scoped(_ base: String) -> String {
