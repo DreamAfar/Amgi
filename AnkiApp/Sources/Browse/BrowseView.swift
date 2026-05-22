@@ -368,6 +368,12 @@ struct BrowseView: View {
     }
 
     private func browseStateObserverContent<Content: View>(_ content: Content) -> some View {
+        let filterObserverContent = browseFilterObserverContent(content)
+        let notificationObserverContent = browseNotificationObserverContent(filterObserverContent)
+        return browsePresentationObserverContent(notificationObserverContent)
+    }
+
+    private func browseFilterObserverContent<Content: View>(_ content: Content) -> some View {
         content
         .onAppear {
             syncExternalFiltersIntoLocal()
@@ -413,6 +419,10 @@ struct BrowseView: View {
                 }
             }
         }
+    }
+
+    private func browseNotificationObserverContent<Content: View>(_ content: Content) -> some View {
+        content
         .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
             guard isActive else { return }
             Task {
@@ -442,6 +452,10 @@ struct BrowseView: View {
             }
             await performSearch()
         }
+    }
+
+    private func browsePresentationObserverContent<Content: View>(_ content: Content) -> some View {
+        content
         // Keep Add Note outside the searchable host; otherwise Browse can recreate the
         // presented tree on app state transitions and wipe the in-progress draft.
         .sheet(isPresented: $showAddNote) {
