@@ -89,6 +89,13 @@ enum StatsGroup: String, CaseIterable, Identifiable {
     }
 }
 
+private struct StatsChartRun: Identifiable {
+    let id: Int
+    let group: StatsGroup
+    let sections: [StatsChartSection]
+    let showsAnchor: Bool
+}
+
 struct StatsDashboardView: View {
     @Dependency(\.statsClient) var statsClient
     @Dependency(\.deckClient) var deckClient
@@ -154,13 +161,7 @@ struct StatsDashboardView: View {
                                 .id(StatsGroup.overview)
                             TodayStatsCard(today: graphs.today)
                                 .id(StatsGroup.today)
-                            statsGroupCards(for: .overview, graphs: graphs)
-                            statsGroupCards(for: .heatmap, graphs: graphs)
-                                .id(StatsGroup.heatmap)
-                            statsGroupCards(for: .cards, graphs: graphs)
-                                .id(StatsGroup.cards)
-                            statsGroupCards(for: .fsrs, graphs: graphs)
-                                .id(StatsGroup.fsrs)
+                            orderedChartContent(graphs: graphs)
                         } header: {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 8) {
@@ -438,37 +439,77 @@ struct StatsDashboardView: View {
     }
 
     @ViewBuilder
-    private func statsGroupCards(
-        for group: StatsGroup,
-        graphs: Anki_Stats_GraphsResponse
-    ) -> some View {
-        let sections = orderedChartSections(for: graphs).filter { statsGroup(for: $0) == group }
-        if sections.isEmpty == false {
-            if usesDoubleColumnLayout && (group == .cards || group == .fsrs || group == .overview) {
-                let columns = balancedChartColumns(for: sections)
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        ForEach(columns.left, id: \.self) { section in
-                            chartView(for: section, graphs: graphs)
-                                .frame(maxWidth: .infinity, alignment: .topLeading)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .top)
+    private func orderedChartContent(graphs: Anki_Stats_GraphsResponse) -> some View {
+        ForEach(chartRuns(for: graphs)) { run in
+            if run.showsAnchor {
+                Color.clear
+                    .frame(height: 1)
+                    .id(run.group)
+            }
+            chartRunContent(run, graphs: graphs)
+        }
+    }
 
-                    VStack(alignment: .leading, spacing: 16) {
-                        ForEach(columns.right, id: \.self) { section in
-                            chartView(for: section, graphs: graphs)
-                                .frame(maxWidth: .infinity, alignment: .topLeading)
-                        }
+    @ViewBuilder
+    private func chartRunContent(_ run: StatsChartRun, graphs: Anki_Stats_GraphsResponse) -> some View {
+        if usesDoubleColumnLayout && shouldUseDoubleColumnLayout(for: run.group) && run.sections.count > 1 {
+            let columns = balancedChartColumns(for: run.sections)
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(columns.left, id: \.self) { section in
+                        chartView(for: section, graphs: graphs)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .top)
                 }
-            } else {
-                ForEach(sections, id: \.self) { section in
-                    chartView(for: section, graphs: graphs)
+                .frame(maxWidth: .infinity, alignment: .top)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(columns.right, id: \.self) { section in
+                        chartView(for: section, graphs: graphs)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        } else {
+            ForEach(run.sections, id: \.self) { section in
+                chartView(for: section, graphs: graphs)
             }
         }
+    }
+
+    private func chartRuns(for graphs: Anki_Stats_GraphsResponse) -> [StatsChartRun] {
+        let sections = orderedChartSections(for: graphs)
+        var runs: [StatsChartRun] = []
+        var anchoredGroups = Set<StatsGroup>()
+
+        for section in sections {
+            let group = statsGroup(for: section)
+            let showsAnchor = anchoredGroups.insert(group).inserted
+            if let lastIndex = runs.indices.last, runs[lastIndex].group == group {
+                runs[lastIndex] = StatsChartRun(
+                    id: runs[lastIndex].id,
+                    group: group,
+                    sections: runs[lastIndex].sections + [section],
+                    showsAnchor: runs[lastIndex].showsAnchor
+                )
+            } else {
+                runs.append(
+                    StatsChartRun(
+                        id: runs.count,
+                        group: group,
+                        sections: [section],
+                        showsAnchor: showsAnchor
+                    )
+                )
+            }
+        }
+
+        return runs
+    }
+
+    private func shouldUseDoubleColumnLayout(for group: StatsGroup) -> Bool {
+        group == .overview || group == .cards || group == .fsrs
     }
 
     private func statsGroup(for section: StatsChartSection) -> StatsGroup {
