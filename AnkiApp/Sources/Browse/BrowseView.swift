@@ -131,21 +131,25 @@ struct BrowseView: View {
     }
 
     var body: some View {
-        ZStack {
-            if usesSidebarLayout {
-                browseSplitRoot
-            } else {
-                browseCompactRoot
-            }
+        let rootContent = AnyView(
+            ZStack {
+                if usesSidebarLayout {
+                    browseSplitRoot
+                } else {
+                    browseCompactRoot
+                }
 
-            if isBatchWorking {
-                batchProgressOverlay
-            }
+                if isBatchWorking {
+                    batchProgressOverlay
+                }
 
-            if isExportingSelection {
-                exportProgressOverlay
+                if isExportingSelection {
+                    exportProgressOverlay
+                }
             }
-        }
+        )
+
+        return rootContent
         .sheet(isPresented: $showTagsManager, onDismiss: {
             activeSearchTask?.cancel()
             activeSearchTask = nil
