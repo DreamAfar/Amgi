@@ -122,6 +122,7 @@
 "browse_search_placeholder" = "搜索笔记…";
 "browse_loading" = "正在加载笔记…";
 "browse_empty_desc" = "您的卡牌集为空。";
+"browse_preview_empty_desc" = "宽屏下可在右侧查看选中笔记的摘要与字段预览。";
 "browse_no_results_title" = "无结果";
 "browse_no_results_desc" = "请尝试其他搜索词。";
 "browse_note_count_format" = "%d 条笔记";
@@ -685,6 +686,7 @@
 "common_view" = "查看";
 "common_save" = "保存";
 "common_done" = "完成";
+"common_edit" = "编辑";
 "common_add" = "添加";
 "common_delete" = "删除";
 "common_back" = "返回";

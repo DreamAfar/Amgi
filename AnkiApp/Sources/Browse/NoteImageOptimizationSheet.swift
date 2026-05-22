@@ -201,14 +201,14 @@ struct NoteImageOptimizationSheet: View {
     private var infoSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("\(L(\"image_optimizer_original_title\"))：\(pixelSizeText(originalPixelSize))")
+                Text("\(L("image_optimizer_original_title"))：\(pixelSizeText(originalPixelSize))")
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "arrow.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
 
-                Text("\(L(\"image_optimizer_output_title\"))：\(pixelSizeText(outputPreview?.pixelSize ?? originalPixelSize))")
+                Text("\(L("image_optimizer_output_title"))：\(pixelSizeText(outputPreview?.pixelSize ?? originalPixelSize))")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .font(.subheadline.weight(.semibold))

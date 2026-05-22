@@ -120,6 +120,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 
 struct SettingsView: View {
     @Dependency(\.ankiBackend) var backend
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
@@ -145,193 +146,22 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        List {
-            Section(L("settings_section_basic")) {
-                NavigationLink {
-                    UserManagementView()
-                } label: {
-                    settingsRowLabel(L("settings_row_account"), icon: "person.crop.circle")
+        GeometryReader { proxy in
+            Group {
+                if usesTwoColumnLayout(for: proxy.size.width) {
+                    splitSettingsContent
+                } else {
+                    settingsList(sections: {
+                        basicSettingsSection
+                        displaySettingsSection
+                        maintenanceSettingsSection
+                        otherSettingsSection
+                    })
                 }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    SyncSettingsView()
-                } label: {
-                    settingsRowLabel(L("settings_row_sync"), icon: "arrow.triangle.2.circlepath")
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    CodeEditorSettingsView()
-                } label: {
-                    settingsRowLabel(L("settings_row_editing"), icon: "pencil.and.scribble")
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    ReviewOptionsView()
-                } label: {
-                    settingsRowLabel(L("settings_row_review"), icon: "rectangle.on.rectangle")
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    ReviewAISettingsHomeView()
-                } label: {
-                    settingsRowLabel(L("settings_review_ai_settings"), icon: "sparkles")
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    ReaderOptionsView()
-                } label: {
-                    settingsRowLabel(L("settings_row_reader"), icon: "book.closed")
-                }
-                .amgiSettingsListRowSurface()
             }
-
-            Section(L("settings_section_display")) {
-                HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                    Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
-                        .foregroundStyle(SettingsValueStyle.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Menu {
-                        Picker(L("settings_picker_theme"), selection: selectedTheme) {
-                            ForEach(AppTheme.allCases) { theme in
-                                Text(theme.displayName)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
-                                    .tag(theme)
-                            }
-                        }
-                    } label: {
-                        SettingsOptionCapsuleLabel(title: selectedTheme.wrappedValue.displayName)
-                    }
-                }
-                .amgiSettingsListRowSurface()
-
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                        Label(L("settings_picker_language"), systemImage: "globe")
-                            .foregroundStyle(SettingsValueStyle.primary)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Menu {
-                            Picker(L("settings_picker_language"), selection: selectedLanguage) {
-                                ForEach(AppLanguage.allCases) { lang in
-                                    Text(lang.displayName)
-                                        .foregroundStyle(SettingsValueStyle.highlight)
-                                        .tag(lang)
-                                }
-                            }
-                        } label: {
-                            SettingsOptionCapsuleLabel(title: selectedLanguage.wrappedValue.displayName)
-                        }
-                    }
-
-                    if selectedLanguage.wrappedValue != .system {
-                        Text(L("settings_language_restart_hint"))
-                            .amgiFont(.caption)
-                            .foregroundStyle(SettingsValueStyle.secondary)
-                            .padding(.leading, 28)
-                    }
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    DeckListHeatmapSettingsView()
-                } label: {
-                    settingsRowLabel(L("settings_row_home_heatmap"), icon: "chart.bar.xaxis")
-                }
-                .amgiSettingsListRowSurface()
-            }
-
-            Section(L("settings_section_maintenance")) {
-                NavigationLink {
-                    BackupView(username: AppUserStore.loadSelectedUser())
-                } label: {
-                    settingsRowLabel(L("settings_row_backup"), icon: "externaldrive")
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    UserFileManagerView(username: AppUserStore.loadSelectedUser())
-                } label: {
-                    settingsRowLabel(L("settings_row_file_manager"), icon: "folder")
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    DeckTemplateListView()
-                } label: {
-                    settingsRowLabel(L("settings_row_deck_templates"), icon: "square.stack.3d.up")
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    NotetypeFieldManagerListView()
-                } label: {
-                    settingsRowLabel(L("settings_row_field_manager"), icon: "text.badge.plus")
-                }
-                .amgiSettingsListRowSurface()
-
-                Button {
-                    checkDatabase()
-                } label: {
-                    if isCheckingDatabase {
-                        HStack {
-                            settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
-                                .foregroundStyle(SettingsValueStyle.primary)
-                            Spacer()
-                            ProgressView()
-                        }
-                        .contentShape(Rectangle())
-                    } else {
-                        HStack {
-                            settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
-                                .foregroundStyle(SettingsValueStyle.primary)
-                            Spacer()
-                        }
-                        .contentShape(Rectangle())
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(isCheckingDatabase)
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    MediaCheckResultView()
-                } label: {
-                    settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    EmptyCardsView()
-                } label: {
-                    settingsRowLabel(L("settings_row_empty_cards"), icon: "rectangle.stack.badge.minus")
-                }
-                .amgiSettingsListRowSurface()
-
-                NavigationLink {
-                    DebugView()
-                } label: {
-                    settingsRowLabel(L("debug_nav_title"), icon: "ladybug")
-                }
-                .amgiSettingsListRowSurface()
-            }
-
-            Section(L("settings_section_other")) {
-                NavigationLink {
-                    AboutView()
-                } label: {
-                    settingsRowLabel(L("settings_row_about"), icon: "info.circle")
-                }
-                .amgiSettingsListRowSurface()
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Color.amgiBackground)
         }
-        .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
         .navigationTitle(L("settings_nav_title"))
         .alert(L("common_done"), isPresented: $showMaintenanceAlert) {
             Button(L("common_ok"), role: .cancel) {}
@@ -346,6 +176,232 @@ struct SettingsView: View {
                     showsResetCurrentUserButton: true
                 )
             }
+        }
+    }
+
+    private func usesTwoColumnLayout(for width: CGFloat) -> Bool {
+        horizontalSizeClass == .regular && width >= 960
+    }
+
+    private var splitSettingsContent: some View {
+        HStack(alignment: .top, spacing: AmgiSpacing.lg) {
+            settingsList(sections: {
+                basicSettingsSection
+                displaySettingsSection
+            })
+
+            settingsList(sections: {
+                maintenanceSettingsSection
+                otherSettingsSection
+            })
+        }
+        .padding(.horizontal, AmgiSpacing.md)
+        .padding(.top, AmgiSpacing.xs)
+    }
+
+    private func settingsList<Content: View>(@ViewBuilder sections: () -> Content) -> some View {
+        List {
+            sections()
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private var basicSettingsSection: some View {
+        Section(L("settings_section_basic")) {
+            NavigationLink {
+                UserManagementView()
+            } label: {
+                settingsRowLabel(L("settings_row_account"), icon: "person.crop.circle")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                SyncSettingsView()
+            } label: {
+                settingsRowLabel(L("settings_row_sync"), icon: "arrow.triangle.2.circlepath")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                CodeEditorSettingsView()
+            } label: {
+                settingsRowLabel(L("settings_row_editing"), icon: "pencil.and.scribble")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                ReviewOptionsView()
+            } label: {
+                settingsRowLabel(L("settings_row_review"), icon: "rectangle.on.rectangle")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                ReviewAISettingsHomeView()
+            } label: {
+                settingsRowLabel(L("settings_review_ai_settings"), icon: "sparkles")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                ReaderOptionsView()
+            } label: {
+                settingsRowLabel(L("settings_row_reader"), icon: "book.closed")
+            }
+            .amgiSettingsListRowSurface()
+        }
+    }
+
+    @ViewBuilder
+    private var displaySettingsSection: some View {
+        Section(L("settings_section_display")) {
+            HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
+                    .foregroundStyle(SettingsValueStyle.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Menu {
+                    Picker(L("settings_picker_theme"), selection: selectedTheme) {
+                        ForEach(AppTheme.allCases) { theme in
+                            Text(theme.displayName)
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(theme)
+                        }
+                    }
+                } label: {
+                    SettingsOptionCapsuleLabel(title: selectedTheme.wrappedValue.displayName)
+                }
+            }
+            .amgiSettingsListRowSurface()
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                    Label(L("settings_picker_language"), systemImage: "globe")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Menu {
+                        Picker(L("settings_picker_language"), selection: selectedLanguage) {
+                            ForEach(AppLanguage.allCases) { lang in
+                                Text(lang.displayName)
+                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .tag(lang)
+                            }
+                        }
+                    } label: {
+                        SettingsOptionCapsuleLabel(title: selectedLanguage.wrappedValue.displayName)
+                    }
+                }
+
+                if selectedLanguage.wrappedValue != .system {
+                    Text(L("settings_language_restart_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .padding(.leading, 28)
+                }
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                DeckListHeatmapSettingsView()
+            } label: {
+                settingsRowLabel(L("settings_row_home_heatmap"), icon: "chart.bar.xaxis")
+            }
+            .amgiSettingsListRowSurface()
+        }
+    }
+
+    @ViewBuilder
+    private var maintenanceSettingsSection: some View {
+        Section(L("settings_section_maintenance")) {
+            NavigationLink {
+                BackupView(username: AppUserStore.loadSelectedUser())
+            } label: {
+                settingsRowLabel(L("settings_row_backup"), icon: "externaldrive")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                UserFileManagerView(username: AppUserStore.loadSelectedUser())
+            } label: {
+                settingsRowLabel(L("settings_row_file_manager"), icon: "folder")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                DeckTemplateListView()
+            } label: {
+                settingsRowLabel(L("settings_row_deck_templates"), icon: "square.stack.3d.up")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                NotetypeFieldManagerListView()
+            } label: {
+                settingsRowLabel(L("settings_row_field_manager"), icon: "text.badge.plus")
+            }
+            .amgiSettingsListRowSurface()
+
+            Button {
+                checkDatabase()
+            } label: {
+                if isCheckingDatabase {
+                    HStack {
+                        settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
+                            .foregroundStyle(SettingsValueStyle.primary)
+                        Spacer()
+                        ProgressView()
+                    }
+                    .contentShape(Rectangle())
+                } else {
+                    HStack {
+                        settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
+                            .foregroundStyle(SettingsValueStyle.primary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(isCheckingDatabase)
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                MediaCheckResultView()
+            } label: {
+                settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                EmptyCardsView()
+            } label: {
+                settingsRowLabel(L("settings_row_empty_cards"), icon: "rectangle.stack.badge.minus")
+            }
+            .amgiSettingsListRowSurface()
+
+            NavigationLink {
+                DebugView()
+            } label: {
+                settingsRowLabel(L("debug_nav_title"), icon: "ladybug")
+            }
+            .amgiSettingsListRowSurface()
+        }
+    }
+
+    @ViewBuilder
+    private var otherSettingsSection: some View {
+        Section(L("settings_section_other")) {
+            NavigationLink {
+                AboutView()
+            } label: {
+                settingsRowLabel(L("settings_row_about"), icon: "info.circle")
+            }
+            .amgiSettingsListRowSurface()
         }
     }
 

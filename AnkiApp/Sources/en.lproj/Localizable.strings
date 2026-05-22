@@ -122,6 +122,7 @@
 "browse_search_placeholder" = "Search notes…";
 "browse_loading" = "Loading notes...";
 "browse_empty_desc" = "Your collection is empty.";
+"browse_preview_empty_desc" = "Select a note to inspect its summary and field preview on the right.";
 "browse_no_results_title" = "No Results";
 "browse_no_results_desc" = "Try a different search term.";
 "browse_note_count_format" = "%d notes";
@@ -685,6 +686,7 @@
 "common_view" = "View";
 "common_save" = "Save";
 "common_done" = "Done";
+"common_edit" = "Edit";
 "common_add" = "Add";
 "common_delete" = "Delete";
 "common_back" = "Back";

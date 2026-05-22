@@ -11,6 +11,7 @@ struct BrowseView: View {
     @Dependency(\.cardClient) var cardClient
     @Dependency(\.tagClient) var tagClient
     @Dependency(\.ankiBackend) var backend
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var searchText = ""
     @State private var allNoteIDs: [Int64] = []
@@ -62,6 +63,10 @@ struct BrowseView: View {
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var searchGeneration = 0
     @State private var hasLoadedInitialData = false
+    @State private var selectedPreviewNoteID: Int64?
+    @State private var previewEditingNote: NoteRecord?
+    @State private var previewFieldNamesByNotetypeID: [Int64: [String]] = [:]
+    @State private var previewLoadingNotetypeIDs = Set<Int64>()
     @State private var showTopLevelDecksSheet = false
     @State private var showChildDecksSheet = false
     @State private var showAllTagsSheet = false
@@ -88,36 +93,38 @@ struct BrowseView: View {
     }
 
     var body: some View {
-        Group {
-            if isLoading && notes.isEmpty {
-                // 初始加载中：居中显示转圈动画
-                VStack(spacing: AmgiSpacing.md) {
-                    ProgressView()
-                        .controlSize(.large)
-                    Text(L("browse_loading"))
-                        .amgiFont(.body)
-                        .foregroundStyle(Color.amgiTextSecondary)
+        GeometryReader { proxy in
+            Group {
+                if isLoading && notes.isEmpty {
+                    // 初始加载中：居中显示转圈动画
+                    VStack(spacing: AmgiSpacing.md) {
+                        ProgressView()
+                            .controlSize(.large)
+                        Text(L("browse_loading"))
+                            .amgiFont(.body)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                } else if notes.isEmpty && !isLoading && searchText.isEmpty && activeDeck == nil {
+                    ContentUnavailableView(
+                        L("browse_nav_title"),
+                        systemImage: "magnifyingglass",
+                        description: Text(L("browse_empty_desc"))
+                    )
+                } else if notes.isEmpty && !isLoading {
+                    ContentUnavailableView.search(text: searchText)
+                } else {
+                    noteListContent(for: proxy.size.width)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .transition(.opacity.animation(.easeInOut(duration: 0.2)))
-            } else if notes.isEmpty && !isLoading && searchText.isEmpty && activeDeck == nil {
-                ContentUnavailableView(
-                    L("browse_nav_title"),
-                    systemImage: "magnifyingglass",
-                    description: Text(L("browse_empty_desc"))
-                )
-            } else if notes.isEmpty && !isLoading {
-                ContentUnavailableView.search(text: searchText)
-            } else {
-                noteListContent
-            }
 
-            if isBatchWorking {
-                batchProgressOverlay
-            }
+                if isBatchWorking {
+                    batchProgressOverlay
+                }
 
-            if isExportingSelection {
-                exportProgressOverlay
+                if isExportingSelection {
+                    exportProgressOverlay
+                }
             }
         }
         .navigationTitle("")
@@ -169,6 +176,11 @@ struct BrowseView: View {
         }
         .sheet(isPresented: $showChangeNotetype) {
             ChangeNotetypeSheet(noteIDs: Array(selectedNoteIDs)) {
+                scheduleSearch()
+            }
+        }
+        .sheet(item: $previewEditingNote) { note in
+            NoteEditingDestinationView(note: note, embedInNavigationStack: true) {
                 scheduleSearch()
             }
         }
@@ -332,8 +344,6 @@ struct BrowseView: View {
             Task {
                 if isEnabled {
                     await loadNotetypeNames()
-                } else {
-                    notetypeNamesByID = [:]
                 }
             }
         }
@@ -551,7 +561,25 @@ struct BrowseView: View {
         }
     }
 
-    private var noteListContent: some View {
+    private func usesTwoPaneLayout(for width: CGFloat) -> Bool {
+        horizontalSizeClass == .regular && width >= 1040 && !isEditing
+    }
+
+    private var selectedPreviewNote: NoteRecord? {
+        guard let selectedPreviewNoteID else { return nil }
+        return notes.first(where: { $0.id == selectedPreviewNoteID })
+    }
+
+    @ViewBuilder
+    private func noteListContent(for width: CGFloat) -> some View {
+        if usesTwoPaneLayout(for: width) {
+            browseSplitContent
+        } else {
+            noteNavigationList
+        }
+    }
+
+    private var noteNavigationList: some View {
         List(selection: $selectedNoteIDs) {
             ForEach(notes, id: \.id) { note in
                 if isEditing {
@@ -607,6 +635,99 @@ struct BrowseView: View {
         .navigationDestination(for: NoteRecord.self) { note in
             NoteEditingDestinationView(note: note) {
                 scheduleSearch()
+            }
+        }
+    }
+
+    private var browseSplitContent: some View {
+        HStack(alignment: .top, spacing: AmgiSpacing.lg) {
+            splitNoteList
+                .frame(width: 420)
+
+            browsePreviewPane
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .padding(.horizontal, AmgiSpacing.md)
+        .padding(.top, AmgiSpacing.xs)
+        .background(Color.amgiBackground)
+        .onAppear {
+            Task { await synchronizePreviewSelection() }
+        }
+    }
+
+    private var splitNoteList: some View {
+        List {
+            ForEach(notes, id: \.id) { note in
+                Button {
+                    selectPreviewNote(note)
+                } label: {
+                    NoteRowView(note: note, notetypeName: showNotetypeSubtitle ? notetypeNamesByID[note.mid] : nil)
+                        .contentShape(Rectangle())
+                        .onAppear {
+                            if note.id == notes.last?.id {
+                                Task { await loadNextPage() }
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        selectedNoteForDelete = note
+                        showDeleteConfirm = true
+                    } label: {
+                        Label(L("common_delete"), systemImage: "trash")
+                    }
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    if note.isImageOcclusionNote {
+                        Button {
+                            editIOItem = IONoteEditItem(noteId: note.id)
+                        } label: {
+                            Label(L("io_edit_action"), systemImage: "pencil.and.scribble")
+                        }
+                        .tint(.indigo)
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
+                .listRowBackground(
+                    selectedPreviewNoteID == note.id
+                    ? Color.amgiAccent.opacity(0.12)
+                    : Color.amgiSurfaceElevated
+                )
+            }
+
+            if isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .listRowBackground(Color.amgiSurfaceElevated)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+    }
+
+    private var browsePreviewPane: some View {
+        Group {
+            if let note = selectedPreviewNote {
+                BrowseNotePreviewPane(
+                    note: note,
+                    notetypeName: notetypeNamesByID[note.mid],
+                    fieldNames: previewFieldNamesByNotetypeID[note.mid] ?? [],
+                    onEdit: {
+                        previewEditingNote = note
+                    }
+                )
+            } else {
+                ContentUnavailableView(
+                    L("review_queue_preview"),
+                    systemImage: "rectangle.on.rectangle.angled",
+                    description: Text(L("browse_preview_empty_desc"))
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
@@ -1298,6 +1419,7 @@ struct BrowseView: View {
             guard generation == searchGeneration else { return }
             notes = orderedNotes(firstBatch, matching: Array(ids.prefix(pageSize)))
             hasMorePages = ids.count > pageSize
+            await synchronizePreviewSelection()
         } catch is CancellationError {
             if generation == searchGeneration {
                 isLoading = false
@@ -1330,6 +1452,7 @@ struct BrowseView: View {
         }.value) ?? []
         notes.append(contentsOf: orderedNotes(batch, matching: nextIDs))
         hasMorePages = notes.count < allNoteIDs.count
+        await synchronizePreviewSelection()
     }
 
     private func buildQuery() -> String {
@@ -1381,10 +1504,7 @@ struct BrowseView: View {
     }
 
     private func loadNotetypeNames() async {
-        guard showNotetypeSubtitle else {
-            notetypeNamesByID = [:]
-            return
-        }
+        guard showNotetypeSubtitle else { return }
         do {
             let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
                 service: AnkiBackend.Service.notetypes,
@@ -1393,6 +1513,54 @@ struct BrowseView: View {
             notetypeNamesByID = Dictionary(uniqueKeysWithValues: response.entries.map { ($0.id, $0.name) })
         } catch {
             notetypeNamesByID = [:]
+        }
+    }
+
+    @MainActor
+    private func selectPreviewNote(_ note: NoteRecord) {
+        selectedPreviewNoteID = note.id
+        Task {
+            await cachePreviewFieldNamesIfNeeded(for: note.mid)
+        }
+    }
+
+    @MainActor
+    private func synchronizePreviewSelection() {
+        guard !notes.isEmpty else {
+            selectedPreviewNoteID = nil
+            return
+        }
+
+        if let selectedPreviewNoteID,
+           notes.contains(where: { $0.id == selectedPreviewNoteID }) {
+            return
+        }
+
+        if let firstNote = notes.first {
+            selectPreviewNote(firstNote)
+        }
+    }
+
+    @MainActor
+    private func cachePreviewFieldNamesIfNeeded(for notetypeID: Int64) async {
+        guard previewFieldNamesByNotetypeID[notetypeID] == nil else { return }
+        guard !previewLoadingNotetypeIDs.contains(notetypeID) else { return }
+        previewLoadingNotetypeIDs.insert(notetypeID)
+        let backend = self.backend
+        defer {
+            previewLoadingNotetypeIDs.remove(notetypeID)
+        }
+
+        do {
+            let resolved = try await Task.detached(priority: .utility) {
+                try fetchNotetype(backend: backend, id: notetypeID)
+            }.value
+            previewFieldNamesByNotetypeID[notetypeID] = resolved.fields.map(\.name)
+            if notetypeNamesByID[notetypeID] == nil {
+                notetypeNamesByID[notetypeID] = resolved.name
+            }
+        } catch {
+            previewFieldNamesByNotetypeID[notetypeID] = []
         }
     }
 
@@ -1831,6 +1999,150 @@ struct NoteRowView: View {
     private func shortTagName(_ tag: String) -> String {
         // Show only the last component of a hierarchical tag (e.g. "日语::词汇" → "词汇")
         String(tag.split(separator: "::").last ?? Substring(tag))
+    }
+}
+
+private struct BrowseNotePreviewPane: View {
+    let note: NoteRecord
+    let notetypeName: String?
+    let fieldNames: [String]
+    let onEdit: () -> Void
+
+    private var tagList: [String] {
+        note.tags
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+    }
+
+    private var previewFields: [(name: String, value: String)] {
+        let rawFields = NoteProtoFactory.makeNote(from: note).fields
+        let names = fieldNames.isEmpty
+            ? rawFields.indices.map { "\($0 + 1)" }
+            : fieldNames
+
+        return zip(names, rawFields)
+            .map { ($0, cleanedPreviewText($1)) }
+            .filter { !$0.1.isEmpty }
+            .prefix(4)
+            .map { $0 }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AmgiSpacing.md) {
+                previewHeader
+                metadataCard
+                fieldsCard
+            }
+            .padding(.vertical, AmgiSpacing.xs)
+        }
+    }
+
+    private var previewHeader: some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("review_queue_preview"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(Color.amgiTextSecondary)
+
+                    Text(note.sfld.isEmpty ? "—" : note.sfld)
+                        .amgiFont(.cardTitle)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Button(action: onEdit) {
+                    Label(L("common_edit"), systemImage: "square.and.pencil")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+            }
+        }
+        .padding(AmgiSpacing.lg)
+        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private var metadataCard: some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            previewSectionTitle(L("card_info_notetype"))
+            Text(notetypeName ?? "—")
+                .amgiFont(.body)
+                .foregroundStyle(Color.amgiTextPrimary)
+
+            if !tagList.isEmpty {
+                Divider()
+
+                previewSectionTitle(L("add_note_section_tags"))
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(tagList, id: \.self) { tag in
+                            Text(shortTagName(tag))
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiAccent)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.amgiAccent.opacity(0.12), in: Capsule())
+                        }
+                    }
+                }
+            }
+        }
+        .padding(AmgiSpacing.lg)
+        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private var fieldsCard: some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.md) {
+            previewSectionTitle(L("add_note_section_fields"))
+
+            if previewFields.isEmpty {
+                Text("—")
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
+            } else {
+                VStack(alignment: .leading, spacing: AmgiSpacing.md) {
+                    ForEach(Array(previewFields.enumerated()), id: \.offset) { index, field in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(field.name)
+                                .amgiFont(.caption)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                            Text(field.value)
+                                .amgiFont(.body)
+                                .foregroundStyle(Color.amgiTextPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        if index < previewFields.count - 1 {
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
+        .padding(AmgiSpacing.lg)
+        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func previewSectionTitle(_ title: String) -> some View {
+        Text(title)
+            .amgiFont(.caption)
+            .foregroundStyle(Color.amgiTextSecondary)
+            .textCase(.uppercase)
+    }
+
+    private func shortTagName(_ tag: String) -> String {
+        String(tag.split(separator: "::").last ?? Substring(tag))
+    }
+
+    private func cleanedPreviewText(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\[sound:[^\\]]+\\]", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

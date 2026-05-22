@@ -122,6 +122,7 @@
 "browse_search_placeholder" = "ノートを検索…";
 "browse_loading" = "ノートを読み込んでいます…";
 "browse_empty_desc" = "コレクションが空です。";
+"browse_preview_empty_desc" = "ワイド画面では、選択したノートの概要とフィールド内容を右側で確認できます。";
 "browse_no_results_title" = "結果なし";
 "browse_no_results_desc" = "別の検索ワードをお試しください。";
 "browse_note_count_format" = "%d 件のノート";
@@ -685,6 +686,7 @@
 "common_view" = "表示";
 "common_save" = "保存";
 "common_done" = "完了";
+"common_edit" = "編集";
 "common_add" = "追加";
 "common_delete" = "削除";
 "common_back" = "戻る";
