@@ -2,9 +2,15 @@ import SwiftUI
 import AnkiProto
 
 struct TodayStatsCard: View {
+    enum LayoutStyle {
+        case standard
+        case sidebar
+    }
+
     let today: Anki_Stats_GraphsResponse.Today
     var embedded: Bool = false
     var compactText: Bool = false
+    var layoutStyle: LayoutStyle = .standard
 
     private var primaryValueFont: Font {
         compactText
@@ -38,6 +44,23 @@ struct TodayStatsCard: View {
                     .foregroundStyle(Color.amgiTextPrimary)
             }
 
+            metricsContent
+        }
+
+        Group {
+            if embedded {
+                content
+            } else {
+                content
+                    .amgiCard(elevated: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var metricsContent: some View {
+        switch layoutStyle {
+        case .standard:
             VStack(spacing: compactText ? 10 : 12) {
                 HStack {
                     statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
@@ -59,20 +82,28 @@ struct TodayStatsCard: View {
                     statBadge(L("stats_review_filtered"), count: today.earlyReviewCount, color: .gray)
                 }
             }
-        }
 
-        Group {
-            if embedded {
-                content
-            } else {
-                content
-                    .amgiCard(elevated: true)
+        case .sidebar:
+            let columns = [
+                GridItem(.flexible(), spacing: 12, alignment: .leading),
+                GridItem(.flexible(), spacing: 12, alignment: .leading),
+            ]
+
+            LazyVGrid(columns: columns, alignment: .leading, spacing: compactText ? 12 : 14) {
+                statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
+                statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: Color.amgiTextPrimary)
+                statItem(title: L("stats_today_correct"), value: accuracy, color: .green)
+                statItem(title: L("stats_today_mature"), value: matureAccuracy, color: .purple)
+                statBadge(L("stats_card_learn"), count: today.learnCount, color: .cyan)
+                statBadge(L("stats_card_review"), count: today.reviewCount, color: .green)
+                statBadge(L("stats_card_relearning"), count: today.relearnCount, color: .orange)
+                statBadge(L("stats_review_filtered"), count: today.earlyReviewCount, color: .gray)
             }
         }
     }
 
     private func statItem(title: String, value: String, color: Color) -> some View {
-        VStack(spacing: 2) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(value)
                 .font(primaryValueFont)
                 .foregroundStyle(color)
@@ -83,10 +114,11 @@ struct TodayStatsCard: View {
                 .foregroundStyle(Color.amgiTextSecondary)
                 .lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func statBadge(_ title: String, count: UInt32, color: Color) -> some View {
-        VStack(spacing: 2) {
+        VStack(alignment: .leading, spacing: 2) {
             Text("\(count)")
                 .font(badgeValueFont)
                 .foregroundStyle(color)
@@ -96,6 +128,7 @@ struct TodayStatsCard: View {
                 .foregroundStyle(Color.amgiTextSecondary)
                 .lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func formatTime(_ ms: UInt32) -> String {

@@ -157,57 +157,62 @@ struct DeckTemplateListView: View {
     }
 
     private var templateList: some View {
-        List(filteredEntries, id: \.id) { entry in
-            Button {
-                editorTarget = TemplateEditorTarget(id: entry.id, initialTemplateIndex: 0)
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "square.stack.3d.up")
-                        .foregroundStyle(Color.amgiAccent)
-                    VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
-                        Text(entry.name)
-                            .amgiFont(.body)
-                            .foregroundStyle(Color.amgiTextPrimary)
-                        Text("ID: \(entry.id)")
-                            .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
+        List {
+            Section {
+                ForEach(filteredEntries, id: \.id) { entry in
+                    Button {
+                        editorTarget = TemplateEditorTarget(id: entry.id, initialTemplateIndex: 0)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "square.stack.3d.up")
+                                .foregroundStyle(Color.amgiAccent)
+                            VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
+                                Text(entry.name)
+                                    .amgiFont(.body)
+                                    .foregroundStyle(Color.amgiTextPrimary)
+                                Text("ID: \(entry.id)")
+                                    .amgiFont(.caption)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(AmgiFont.caption.font)
+                                .foregroundStyle(Color.amgiTextTertiary)
+                        }
                     }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(AmgiFont.caption.font)
-                        .foregroundStyle(Color.amgiTextTertiary)
-                }
-            }
-            .buttonStyle(.plain)
-            .padding(.vertical, 2)
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button(role: .destructive) {
-                    deleteTarget = entry
-                    showDeleteConfirm = true
-                } label: {
-                    Label(L("common_delete"), systemImage: "trash")
-                }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, 2)
+                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            deleteTarget = entry
+                            showDeleteConfirm = true
+                        } label: {
+                            Label(L("common_delete"), systemImage: "trash")
+                        }
 
-                Button {
-                    renameTarget = entry
-                    renameText = entry.name
-                    showRenamePrompt = true
-                } label: {
-                    Label(L("user_mgmt_rename"), systemImage: "pencil")
-                }
-                .tint(Color.amgiAccent)
+                        Button {
+                            renameTarget = entry
+                            renameText = entry.name
+                            showRenamePrompt = true
+                        } label: {
+                            Label(L("user_mgmt_rename"), systemImage: "pencil")
+                        }
+                        .tint(Color.amgiAccent)
 
-                Button {
-                    beginNotetypeCreation(from: .existing(id: entry.id, name: entry.name))
-                } label: {
-                    Label(L("deck_template_copy_action"), systemImage: "doc.on.doc")
+                        Button {
+                            beginNotetypeCreation(from: .existing(id: entry.id, name: entry.name))
+                        } label: {
+                            Label(L("deck_template_copy_action"), systemImage: "doc.on.doc")
+                        }
+                        .tint(.green)
+                    }
                 }
-                .tint(.green)
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color.amgiBackground)
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
     }
 
     private func loadTemplates() async {
@@ -670,7 +675,7 @@ struct TemplateEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .interactiveDismissDisabled(hasUnsavedChanges)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button(L("common_cancel")) { attemptDismiss() }
                         .amgiToolbarTextButton(tone: .neutral)
                 }
@@ -681,7 +686,7 @@ struct TemplateEditorView: View {
                     .amgiToolbarTextButton(tone: .neutral)
                     .disabled(isLoading)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     if isSaving {
                         ProgressView()
                     } else {

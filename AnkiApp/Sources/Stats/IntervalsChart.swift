@@ -248,6 +248,8 @@ struct IntervalsChart: View {
                 .amgiFont(.captionBold)
                 .monospacedDigit()
                 .foregroundStyle(Color.amgiTextPrimary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .statsTrackWidth($containerWidth)

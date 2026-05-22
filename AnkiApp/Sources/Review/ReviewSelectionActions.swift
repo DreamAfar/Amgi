@@ -1368,7 +1368,7 @@ struct ReviewSelectionAISheetView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: AmgiSpacing.md) {
+            VStack(alignment: .leading, spacing: AmgiSpacing.md) {
                 HStack(spacing: AmgiSpacing.sm) {
                     Menu {
                         Picker(L("settings_review_preset_active"), selection: $state.activePresetID) {
@@ -1393,6 +1393,7 @@ struct ReviewSelectionAISheetView: View {
                     }
                     .amgiToolbarTextButton(tone: .neutral)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
                     Text(L("review_selection_ai_selected_text"))
@@ -1404,6 +1405,7 @@ struct ReviewSelectionAISheetView: View {
                         .scrollContentBackground(.hidden)
                         .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
                     HStack(spacing: AmgiSpacing.sm) {
@@ -1444,6 +1446,7 @@ struct ReviewSelectionAISheetView: View {
                     .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
                     .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 if quickActions.isEmpty == false {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -1457,6 +1460,7 @@ struct ReviewSelectionAISheetView: View {
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if state.context.sentence?.trimmedOrNil != nil || state.context.source?.trimmedOrNil != nil {
@@ -1485,6 +1489,7 @@ struct ReviewSelectionAISheetView: View {
                     }
                     .padding(12)
                     .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
             }

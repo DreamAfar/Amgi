@@ -22,9 +22,11 @@ struct DeckListHeatmapCard: View {
     @State private var isTodayStatsCollapsed = false
     @State private var heatmapSectionHeight: CGFloat = 0
     @State private var todayStatsSectionHeight: CGFloat = 0
+    @State private var splitTodayStatsSectionHeight: CGFloat = 0
 
     private let todayStatsAnimation = Animation.easeInOut(duration: 0.24)
     private let todayStatsTopSpacing: CGFloat = 14
+    private let splitTodayStatsWidth: CGFloat = 308
 
     let showsExternalLoading: Bool
 
@@ -43,36 +45,12 @@ struct DeckListHeatmapCard: View {
 
         Group {
             if let graphs {
-                ZStack(alignment: .topLeading) {
-                    HeatmapChart(
-                        reviews: graphs.reviews,
-                        compactHeight: deckListHeatmapHeight,
-                        embedded: true,
-                        onTapHeatmap: {
-                            isTodayStatsCollapsed.toggle()
-                        }
-                    )
-                    .background(heightReader($heatmapSectionHeight))
+                ViewThatFits(in: .horizontal) {
+                    splitLayout(for: graphs)
+                        .frame(minWidth: 960, alignment: .leading)
 
-                    VStack(alignment: .leading, spacing: 14) {
-                        Divider()
-                        TodayStatsCard(
-                            today: graphs.today,
-                            embedded: true,
-                            compactText: true
-                        )
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, todayStatsTopSpacing)
-                    .background(heightReader($todayStatsSectionHeight))
-                    .offset(y: resolvedHeatmapSectionHeight ?? 0)
-                    .allowsHitTesting(!isTodayStatsCollapsed)
-                    .accessibilityHidden(isTodayStatsCollapsed)
+                    stackedLayout(for: graphs, cardContentHeight: cardContentHeight)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: cardContentHeight, alignment: .top)
-                .clipped()
-                .animation(todayStatsAnimation, value: isTodayStatsCollapsed)
                 .padding(16)
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -120,6 +98,91 @@ struct DeckListHeatmapCard: View {
             guard isReady else { return }
             Task { await loadStats() }
         }
+    }
+
+    private func stackedLayout(
+        for graphs: Anki_Stats_GraphsResponse,
+        cardContentHeight: CGFloat?
+    ) -> some View {
+        ZStack(alignment: .topLeading) {
+            HeatmapChart(
+                reviews: graphs.reviews,
+                compactHeight: deckListHeatmapHeight,
+                embedded: true,
+                onTapHeatmap: {
+                    isTodayStatsCollapsed.toggle()
+                }
+            )
+            .background(heightReader($heatmapSectionHeight))
+
+            VStack(alignment: .leading, spacing: 14) {
+                Divider()
+                TodayStatsCard(
+                    today: graphs.today,
+                    embedded: true,
+                    compactText: true
+                )
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, todayStatsTopSpacing)
+            .background(heightReader($todayStatsSectionHeight))
+            .offset(y: resolvedHeatmapSectionHeight ?? 0)
+            .allowsHitTesting(!isTodayStatsCollapsed)
+            .accessibilityHidden(isTodayStatsCollapsed)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: cardContentHeight, alignment: .top)
+        .clipped()
+        .animation(todayStatsAnimation, value: isTodayStatsCollapsed)
+    }
+
+    private func splitLayout(for graphs: Anki_Stats_GraphsResponse) -> some View {
+        HStack(alignment: .top, spacing: 20) {
+            HeatmapChart(
+                reviews: graphs.reviews,
+                compactHeight: deckListHeatmapHeight,
+                embedded: true
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(heightReader($heatmapSectionHeight))
+
+            splitTodayStatsPanel(for: graphs.today)
+                .frame(width: splitTodayStatsWidth, alignment: .topLeading)
+                .background(heightReader($splitTodayStatsSectionHeight))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(
+            minHeight: max(resolvedHeatmapSectionHeight ?? 0, splitTodayStatsSectionHeight),
+            alignment: .top
+        )
+    }
+
+    private func splitTodayStatsPanel(
+        for today: Anki_Stats_GraphsResponse.Today
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(L("stats_today_title"))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
+
+            Divider()
+
+            TodayStatsCard(
+                today: today,
+                embedded: true,
+                compactText: true,
+                layoutStyle: .sidebar
+            )
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.amgiSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
+        )
     }
 
     @MainActor

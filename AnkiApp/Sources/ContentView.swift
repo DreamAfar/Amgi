@@ -11,6 +11,8 @@ import UIKit
 private let logger = Logger(subsystem: "amgi", category: "startup")
 
 struct ContentView: View {
+    @Binding var incomingImportURL: URL?
+
     private enum RootTab: Hashable {
         case decks
         case browse
@@ -48,6 +50,7 @@ struct ContentView: View {
     @State private var showExportNotice = false
     @State private var exportedFileURL: URL?
     @State private var pendingImportURL: URL?
+    @State private var pendingImportNeedsSecurityScope = false
     @State private var showExportShareSheet = false
     @State private var showExportOptions = false
     @State private var importExportOperation: ImportExportOperation?
@@ -119,8 +122,7 @@ struct ContentView: View {
                         fileExtension: pendingImportURL.pathExtension,
                         draft: $importDraft,
                         onCancel: {
-                            self.pendingImportURL = nil
-                            showImportOptions = false
+                            cancelPendingImport()
                         },
                         onImport: {
                             let url = pendingImportURL
@@ -167,10 +169,15 @@ struct ContentView: View {
             reloadReaderTabPreference()
             updateSyncBadge()
             runCheckDatabaseIfReady()
+            consumePendingIncomingImportURLIfNeeded()
         }
         .onChange(of: collectionState.isReady) { _, isReady in
             guard isReady else { return }
             runCheckDatabaseIfReady()
+            consumePendingIncomingImportURLIfNeeded()
+        }
+        .onChange(of: incomingImportURL) { _, _ in
+            consumePendingIncomingImportURLIfNeeded()
         }
         .fileImporter(isPresented: $showImport, allowedContentTypes: [.data]) { result in
             handleImport(result)
@@ -678,19 +685,51 @@ struct ContentView: View {
     private func handleImport(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
-            let ext = url.pathExtension.lowercased()
-            guard ext == "apkg" || ext == "colpkg" else {
-                importMessage = "Unsupported file type. Please select an .apkg or .colpkg file."
-                showImportAlert = true
-                return
-            }
-            pendingImportURL = url
-            importDraft = ImportPackageDraft()
-            showImportOptions = true
+            prepareImport(from: url)
         case .failure(let error):
             importMessage = "Could not select file: \(error.localizedDescription)"
             showImportAlert = true
         }
+    }
+
+    private func handleIncomingImportURL(_ url: URL) {
+        guard url.isFileURL else { return }
+        prepareImport(from: url, requiresSecurityScope: true)
+    }
+
+    private func consumePendingIncomingImportURLIfNeeded() {
+        guard collectionState.isReady, let incomingImportURL else { return }
+        self.incomingImportURL = nil
+        handleIncomingImportURL(incomingImportURL)
+    }
+
+    private func prepareImport(from url: URL, requiresSecurityScope: Bool = false) {
+        let ext = url.pathExtension.lowercased()
+        guard ext == "apkg" || ext == "colpkg" else {
+            if requiresSecurityScope {
+                _ = url.stopAccessingSecurityScopedResource()
+            }
+            importMessage = "Unsupported file type. Please select an .apkg or .colpkg file."
+            showImportAlert = true
+            return
+        }
+
+        if pendingImportNeedsSecurityScope, let pendingImportURL {
+            pendingImportURL.stopAccessingSecurityScopedResource()
+            pendingImportNeedsSecurityScope = false
+            self.pendingImportURL = nil
+        }
+
+        if requiresSecurityScope {
+            let didStart = url.startAccessingSecurityScopedResource()
+            pendingImportNeedsSecurityScope = didStart
+        } else {
+            pendingImportNeedsSecurityScope = false
+        }
+
+        pendingImportURL = url
+        importDraft = ImportPackageDraft()
+        showImportOptions = true
     }
 
     private func startImport(from url: URL, configuration: ImportHelper.ImportPackageConfiguration) {
@@ -698,8 +737,13 @@ struct ContentView: View {
 
         importExportOperation = .importing
         let backend = self.backend
+        let shouldStopSecurityScope = pendingImportNeedsSecurityScope
+        pendingImportNeedsSecurityScope = false
         Task {
             defer {
+                if shouldStopSecurityScope {
+                    url.stopAccessingSecurityScopedResource()
+                }
                 importExportOperation = nil
                 showImportAlert = true
             }
@@ -721,6 +765,15 @@ struct ContentView: View {
                 importMessage = "Import failed: \(error.localizedDescription)"
             }
         }
+    }
+
+    private func cancelPendingImport() {
+        if pendingImportNeedsSecurityScope, let pendingImportURL {
+            pendingImportURL.stopAccessingSecurityScopedResource()
+        }
+        pendingImportNeedsSecurityScope = false
+        pendingImportURL = nil
+        showImportOptions = false
     }
 }
 

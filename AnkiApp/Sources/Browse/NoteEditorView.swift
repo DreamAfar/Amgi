@@ -27,6 +27,7 @@ struct NoteEditorView: View {
     @State private var originalTags: String = ""
     @State private var showDiscardChangesConfirmation = false
     @State private var showPreviewSheet = false
+    @State private var showFieldEditor = false
     @State private var pendingMediaFieldIndex: Int?
     @State private var pendingTagRemoval: String?
     @State private var showPhotoPicker = false
@@ -122,11 +123,18 @@ struct NoteEditorView: View {
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(hasUnsavedChanges)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .cancellationAction) {
                 Button(L("common_cancel")) {
                     attemptDismiss()
                 }
                 .amgiToolbarTextButton(tone: .neutral)
+            }
+            ToolbarItem(placement: .topBarLeading) {
+                Button(L("card_template_fields_short")) {
+                    showFieldEditor = true
+                }
+                .amgiToolbarTextButton(tone: .neutral)
+                .disabled(notetype == nil || isSaving)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("card_template_preview_btn")) {
@@ -197,6 +205,19 @@ struct NoteEditorView: View {
                         )
                     }
                 )
+            }
+        }
+        .sheet(isPresented: $showFieldEditor) {
+            if let notetype {
+                NavigationStack {
+                    NotetypeFieldEditorView(
+                        notetypeId: notetype.id,
+                        preferredName: notetype.name,
+                        onSaved: {
+                            await refreshNotetypePreservingDrafts()
+                        }
+                    )
+                }
             }
         }
         .sheet(item: $imageOptimizationRequest) { request in
@@ -594,20 +615,8 @@ struct NoteEditorView: View {
     }
 
     private func loadNote() async {
-        let backend = self.backend
-        let mid = note.mid
         let noteData = note
-
-        // Fetch notetype field names off the main thread
-        let fetchedNotetype: Anki_Notetypes_Notetype? = await Task.detached(priority: .userInitiated) {
-            var ntReq = Anki_Notetypes_NotetypeId()
-            ntReq.ntid = mid
-            return try? backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetype,
-                request: ntReq
-            ) as Anki_Notetypes_Notetype
-        }.value
+        let fetchedNotetype = await fetchNotetype(note.mid)
 
         if let fetchedNotetype {
             notetype = fetchedNotetype
@@ -627,6 +636,43 @@ struct NoteEditorView: View {
         originalFieldValues = fieldValues
         originalTags = trimmedTags
         hasLoadedOriginalState = true
+    }
+
+    private func fetchNotetype(_ id: Int64) async -> Anki_Notetypes_Notetype? {
+        let backend = self.backend
+        return await Task.detached(priority: .userInitiated) {
+            var request = Anki_Notetypes_NotetypeId()
+            request.ntid = id
+            return try? backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.getNotetype,
+                request: request
+            ) as Anki_Notetypes_Notetype
+        }.value
+    }
+
+    @MainActor
+    private func refreshNotetypePreservingDrafts() async {
+        guard let refreshedNotetype = await fetchNotetype(note.mid) else {
+            errorMessage = L("common_failed_load_notetype")
+            showError = true
+            return
+        }
+
+        notetype = refreshedNotetype
+        fieldNames = refreshedNotetype.fields.map(\.name)
+
+        if fieldValues.count < fieldNames.count {
+            fieldValues += Array(repeating: "", count: fieldNames.count - fieldValues.count)
+        } else if fieldValues.count > fieldNames.count {
+            fieldValues = Array(fieldValues.prefix(fieldNames.count))
+        }
+
+        if fieldSourceModes.count < fieldNames.count {
+            fieldSourceModes += Array(repeating: false, count: fieldNames.count - fieldSourceModes.count)
+        } else if fieldSourceModes.count > fieldNames.count {
+            fieldSourceModes = Array(fieldSourceModes.prefix(fieldNames.count))
+        }
     }
 
     private func removeTag(_ tag: String) {

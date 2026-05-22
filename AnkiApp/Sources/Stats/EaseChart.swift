@@ -171,6 +171,8 @@ struct EaseChart: View {
                         .amgiFont(.captionBold)
                         .monospacedDigit()
                         .foregroundStyle(Color.amgiTextPrimary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .multilineTextAlignment(.center)
                 }
             }
         }

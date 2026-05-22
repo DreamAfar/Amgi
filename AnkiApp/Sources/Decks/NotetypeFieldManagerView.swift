@@ -37,28 +37,33 @@ struct NotetypeFieldManagerListView: View {
             } else if filteredEntries.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             } else {
-                List(filteredEntries, id: \.id) { entry in
-                    NavigationLink {
-                        NotetypeFieldEditorView(
-                            notetypeId: entry.id,
-                            preferredName: entry.name
-                        )
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "text.badge.plus")
-                                .foregroundStyle(Color.amgiAccent)
-                            VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
-                                Text(entry.name)
-                                    .amgiFont(.body)
-                                    .foregroundStyle(Color.amgiTextPrimary)
-                                Text("ID: \(entry.id)")
-                                    .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                List {
+                    Section {
+                        ForEach(filteredEntries, id: \.id) { entry in
+                            NavigationLink {
+                                NotetypeFieldEditorView(
+                                    notetypeId: entry.id,
+                                    preferredName: entry.name
+                                )
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "text.badge.plus")
+                                        .foregroundStyle(Color.amgiAccent)
+                                    VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
+                                        Text(entry.name)
+                                            .amgiFont(.body)
+                                            .foregroundStyle(Color.amgiTextPrimary)
+                                        Text("ID: \(entry.id)")
+                                            .amgiFont(.caption)
+                                            .foregroundStyle(Color.amgiTextSecondary)
+                                    }
+                                }
                             }
+                            .listRowBackground(Color.amgiSurfaceElevated)
                         }
                     }
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .background(Color.amgiBackground)
             }
@@ -114,9 +119,11 @@ struct NotetypeFieldManagerView: View {
                 ProgressView()
             } else {
                 List {
-                    fieldsList
+                    Section {
+                        fieldsList
+                    }
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .background(Color.amgiBackground)
             }
@@ -188,6 +195,7 @@ struct NotetypeFieldManagerView: View {
                 Spacer()
             }
         }
+        .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     @MainActor
@@ -349,19 +357,6 @@ struct NotetypeFieldEditorView: View {
             } else {
                 List {
                     Section {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(L("notetype_field_editor_hint_title"))
-                                .amgiFont(.captionBold)
-                                .foregroundStyle(Color.amgiTextPrimary)
-                            Text(L("notetype_field_editor_footer"))
-                                .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.vertical, 4)
-                    }
-
-                    Section {
                         ForEach(Array(notetype.fields.enumerated()), id: \.offset) { index, field in
                             editableFieldRow(field, at: index)
                         }
@@ -369,21 +364,34 @@ struct NotetypeFieldEditorView: View {
                         Text(L("notetype_field_section_fields"))
                     }
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .background(Color.amgiBackground)
             }
         }
         .background(Color.amgiBackground)
+        .safeAreaInset(edge: .top, spacing: 12) {
+            if !isLoading {
+                fieldEditorHintCard
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+            }
+        }
         .navigationTitle(titleText)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button(L("common_back")) {
+                Button {
                     attemptDismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.headline.weight(.semibold))
+                        .frame(minWidth: 44, minHeight: 44, alignment: .leading)
                 }
-                .amgiToolbarTextButton(tone: .neutral)
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.amgiAccent)
+                .accessibilityLabel(L("common_back"))
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -451,6 +459,25 @@ struct NotetypeFieldEditorView: View {
         .onChange(of: focusedFieldIndex) { oldValue, newValue in
             guard let oldValue, oldValue != newValue else { return }
             Task { await commitRenameIfNeeded(at: oldValue) }
+        }
+    }
+
+    private var fieldEditorHintCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L("notetype_field_editor_hint_title"))
+                .amgiFont(.captionBold)
+                .foregroundStyle(Color.amgiTextPrimary)
+            Text(L("notetype_field_editor_footer"))
+                .amgiFont(.caption)
+                .foregroundStyle(Color.amgiTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.amgiBorder.opacity(0.55), lineWidth: 1)
         }
     }
 
@@ -528,6 +555,7 @@ struct NotetypeFieldEditorView: View {
                 }
             )
         )
+        .listRowBackground(Color.amgiSurfaceElevated)
     }
 
     private func bindingForFieldName(at index: Int) -> Binding<String> {

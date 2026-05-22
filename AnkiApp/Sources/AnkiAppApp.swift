@@ -16,6 +16,7 @@ struct AnkiAppApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var onboardingCompleted = UserDefaults.standard.bool(forKey: "onboardingCompleted")
     @State private var startupPhase: StartupPhase = .loading
+    @State private var pendingImportURL: URL?
     @StateObject private var collectionState = AppCollectionState.shared
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
     @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
@@ -71,7 +72,7 @@ struct AnkiAppApp: App {
                     }
                 case .ready:
                     if onboardingCompleted {
-                        ContentView()
+                        ContentView(incomingImportURL: $pendingImportURL)
                     } else {
                         OnboardingView(isCompleted: $onboardingCompleted)
                     }
@@ -103,6 +104,9 @@ struct AnkiAppApp: App {
             .onChange(of: appLanguageRaw) { _, newValue in
                 let lang = AppLanguage(rawValue: newValue) ?? .system
                 LanguageManager.shared.apply(lang)
+            }
+            .onOpenURL { url in
+                pendingImportURL = url
             }
         }
     }

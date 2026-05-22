@@ -199,46 +199,41 @@ struct NoteImageOptimizationSheet: View {
     }
 
     private var infoSection: some View {
-        HStack(spacing: 10) {
-            compactInfoChip(
-                title: L("image_optimizer_original_title"),
-                pixelSize: originalPixelSize,
-                byteCount: request.originalByteCount
-            )
-            Image(systemName: "arrow.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            compactInfoChip(
-                title: L("image_optimizer_output_title"),
-                pixelSize: outputPreview?.pixelSize ?? originalPixelSize,
-                byteCount: outputPreview?.fileSize ?? request.originalByteCount,
-                emphasizesValue: true
-            )
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("\(L(\"image_optimizer_original_title\"))：\(pixelSizeText(originalPixelSize))")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "arrow.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Text("\(L(\"image_optimizer_output_title\"))：\(pixelSizeText(outputPreview?.pixelSize ?? originalPixelSize))")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.amgiTextPrimary)
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(ByteCountFormatter.string(fromByteCount: Int64(request.originalByteCount), countStyle: .file))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Color.clear
+                    .frame(width: 12, height: 1)
+
+                Text(ByteCountFormatter.string(fromByteCount: Int64(outputPreview?.fileSize ?? request.originalByteCount), countStyle: .file))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .font(.caption)
+            .foregroundStyle(Color.amgiTextSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 2)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
     }
 
-    private func compactInfoChip(
-        title: String,
-        pixelSize: CGSize,
-        byteCount: Int,
-        emphasizesValue: Bool = false
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text("\(Int(pixelSize.width)) × \(Int(pixelSize.height))")
-                .font(.subheadline.weight(emphasizesValue ? .bold : .semibold))
-            Text(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    private func pixelSizeText(_ pixelSize: CGSize) -> String {
+        "\(Int(pixelSize.width)) × \(Int(pixelSize.height))"
     }
 
     private var controlsSection: some View {
@@ -283,9 +278,9 @@ struct NoteImageOptimizationSheet: View {
                 }
 
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 92), spacing: 10)],
+                    columns: [GridItem(.adaptive(minimum: 72), spacing: 8)],
                     alignment: .leading,
-                    spacing: 10
+                    spacing: 8
                 ) {
                     ForEach(resolutionPresets, id: \.self) { value in
                         resolutionOptionButton(for: value)
@@ -328,13 +323,14 @@ struct NoteImageOptimizationSheet: View {
             maxDimension = value
         } label: {
             Text(maxDimensionLabel(for: value))
-                .font(.subheadline.weight(.semibold))
+                .font(.callout.weight(.semibold))
                 .foregroundStyle(resolutionButtonTextColor(isSelected: isSelected, isEnabled: isEnabled))
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, minHeight: 32)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
                 .background(resolutionButtonBackground(isSelected: isSelected, isEnabled: isEnabled))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -349,19 +345,22 @@ struct NoteImageOptimizationSheet: View {
             customDimensionText = "\(max(1, min(storedCustomMaxDimension, max(originalLongestSide, 1))))"
             showCustomDimensionPrompt = true
         } label: {
-            VStack(spacing: 4) {
+            HStack(spacing: 4) {
                 Text(L("image_optimizer_resolution_custom"))
-                    .font(.subheadline.weight(.semibold))
-                Text("\(customLabelValue)px")
-                    .font(.caption)
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.9) : Color.secondary)
+                    .font(.callout.weight(.semibold))
+                if isSelected {
+                    Text("\(customLabelValue)px")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.white.opacity(0.92))
+                }
             }
             .foregroundStyle(isSelected ? Color.white : Color.primary)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, minHeight: 32)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .background(resolutionButtonBackground(isSelected: isSelected, isEnabled: true))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
     }

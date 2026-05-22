@@ -16,6 +16,33 @@
     <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>0.1.0</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Anki Deck Package</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Default</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.amgi.anki.apkg</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Anki Collection Package</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Default</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.amgi.anki.colpkg</string>
+            </array>
+        </dict>
+    </array>
     <key>NSCameraUsageDescription</key>
     <string>Amgi 需要使用相机来拍照并将图片插入到笔记字段中。</string>
     <key>NSMicrophoneUsageDescription</key>
@@ -24,6 +51,39 @@
     <true/>
     <key>LSSupportsOpeningDocumentsInPlace</key>
     <true/>
+    <key>UTImportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeIdentifier</key>
+            <string>com.amgi.anki.apkg</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>apkg</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeIdentifier</key>
+            <string>com.amgi.anki.colpkg</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>colpkg</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations~ipad</key>

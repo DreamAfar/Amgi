@@ -161,7 +161,7 @@ struct ButtonsChart: View {
     private var buttonsChart: some View {
         baseButtonsChart
             .chartForegroundStyleScale(buttonsColorScale)
-            .chartLegend(position: .bottom, spacing: 8)
+            .chartLegend(position: .bottom, alignment: .center, spacing: 8)
             .chartYScale(domain: 0...yAxisMax)
             .chartYAxis {
                 buttonsChartYAxis()
