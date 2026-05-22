@@ -50,7 +50,8 @@ final class CardTTSPlayer: NSObject, AVSpeechSynthesizerDelegate {
         guard let payload = CardTTSPayload(messageBody: messageBody) else {
             return
         }
-        guard !payload.text.isEmpty else {
+        let speakableText = TTSTextSanitizer.sanitizedText(from: payload.text)
+        guard !speakableText.isEmpty else {
             emitEvent(state: "error", token: payload.token)
             return
         }
@@ -65,7 +66,7 @@ final class CardTTSPlayer: NSObject, AVSpeechSynthesizerDelegate {
             return
         }
 
-        let utterance = AVSpeechUtterance(string: payload.text)
+        let utterance = AVSpeechUtterance(string: speakableText)
         if !payload.token.isEmpty {
             tokensByUtterance[ObjectIdentifier(utterance)] = payload.token
         }

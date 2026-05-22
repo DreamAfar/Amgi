@@ -105,11 +105,9 @@ struct EditImageOcclusionNoteView: View {
         .navigationTitle(L("io_edit_nav_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if embedInNavigationStack {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(L("common_cancel")) { dismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
-                }
+            ToolbarItem(placement: .topBarLeading) {
+                Button(L("common_cancel")) { dismiss() }
+                    .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("common_save")) {

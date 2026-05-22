@@ -3,6 +3,7 @@ import AnkiSync
 import AnkiClients
 import AnkiBackend
 import AnkiKit
+import AnkiReader
 import Dependencies
 import Foundation
 import OSLog

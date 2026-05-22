@@ -3775,7 +3775,7 @@ private final class ReaderLookupSpeechPlayer {
     }
 
     func speak(_ text: String, languageHint: String?) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = TTSTextSanitizer.sanitizedText(from: text)
         guard trimmed.isEmpty == false else {
             return
         }
