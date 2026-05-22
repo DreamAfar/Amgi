@@ -131,7 +131,13 @@ struct BrowseView: View {
     }
 
     var body: some View {
-        let rootContent = AnyView(
+        let rootContent = browseRootContent
+        let presentedContent = browsePresentationContent(rootContent)
+        return browseLifecycleContent(presentedContent)
+    }
+
+    private var browseRootContent: AnyView {
+        AnyView(
             ZStack {
                 if usesSidebarLayout {
                     browseSplitRoot
@@ -148,8 +154,10 @@ struct BrowseView: View {
                 }
             }
         )
+    }
 
-        return rootContent
+    private func browsePresentationContent<Content: View>(_ content: Content) -> some View {
+        content
         .sheet(isPresented: $showTagsManager, onDismiss: {
             activeSearchTask?.cancel()
             activeSearchTask = nil
@@ -306,6 +314,10 @@ struct BrowseView: View {
                 ShareSheet(items: [exportedFileURL])
             }
         }
+    }
+
+    private func browseLifecycleContent<Content: View>(_ content: Content) -> some View {
+        content
         .alert(L("browse_batch_delete_title"), isPresented: $showBatchDeleteConfirm) {
             Button(L("common_cancel"), role: .cancel) { }
             Button(L("common_delete"), role: .destructive) {
