@@ -895,6 +895,7 @@
 "browse_filter_due" = "Due";
 "browse_filter_flag" = "Flag %d";
 "browse_filter_by_deck" = "By Deck";
+"browse_filter_by_notetype" = "By Note Type";
 "browse_filter_by_tag" = "By Tag";
 "browse_sort_modified_desc" = "Modified (Newest)";
 "browse_sort_modified_asc" = "Modified (Oldest)";

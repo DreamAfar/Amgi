@@ -895,6 +895,7 @@
 "browse_filter_due" = "期限あり";
 "browse_filter_flag" = "フラグ %d";
 "browse_filter_by_deck" = "デッキで絞り込み";
+"browse_filter_by_notetype" = "ノートタイプで絞り込み";
 "browse_filter_by_tag" = "タグで絞り込み";
 "browse_sort_modified_desc" = "更新日時（新しい順）";
 "browse_sort_modified_asc" = "更新日時（古い順）";

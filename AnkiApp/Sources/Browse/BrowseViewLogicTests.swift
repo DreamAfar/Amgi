@@ -23,6 +23,14 @@ final class BrowseViewLogicTests: XCTestCase {
         }
     }
 
+    func testNotetypeQueryEscapesQuotesAndBackslashes() {
+        let name = #"Basic "Quoted" \ Path"#
+        XCTAssertEqual(
+            browseNotetypeQuery(name: name),
+            #"note:"Basic \"Quoted\" \\ Path""#
+        )
+    }
+
     func testSortFieldTitlesAndSymbolsExist() {
         for field in BrowseSortField.allCases {
             XCTAssertFalse(field.title.isEmpty)

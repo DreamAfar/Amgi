@@ -895,6 +895,7 @@
 "browse_filter_due" = "待复习";
 "browse_filter_flag" = "旗标 %d";
 "browse_filter_by_deck" = "按牌组";
+"browse_filter_by_notetype" = "按笔记模板";
 "browse_filter_by_tag" = "按标签";
 "browse_sort_modified_desc" = "按修改时间（新到旧）";
 "browse_sort_modified_asc" = "按修改时间（旧到新）";

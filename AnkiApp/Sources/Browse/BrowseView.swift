@@ -5,6 +5,16 @@ import AnkiProto
 import AnkiClients
 import Dependencies
 
+func browseEscapedSearchTerm(_ text: String) -> String {
+    text
+        .replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "\"", with: "\\\"")
+}
+
+func browseNotetypeQuery(name: String) -> String {
+    "note:\"\(browseEscapedSearchTerm(name))\""
+}
+
 struct BrowseView: View {
     @Dependency(\.noteClient) var noteClient
     @Dependency(\.deckClient) var deckClient
@@ -23,6 +33,7 @@ struct BrowseView: View {
     @State private var activeDeck: DeckInfo?
     @State private var allTags: [String] = []
     @State private var activeTag: String?
+    @State private var activeNotetypeID: Int64?
     @State private var quickFilter: BrowseQuickFilter = .all
     @AppStorage("browse_sort_field") private var sortFieldRaw = BrowseSortField.sortField.rawValue
     @AppStorage("browse_sort_reverse") private var sortReverse = true
@@ -66,6 +77,7 @@ struct BrowseView: View {
     @State private var showTopLevelDecksSheet = false
     @State private var showChildDecksSheet = false
     @State private var showAllTagsSheet = false
+    @State private var showAllNotetypesSheet = false
     @State private var showFindDuplicates = false
 
     private let preselectedDeck: DeckInfo?
@@ -74,6 +86,7 @@ struct BrowseView: View {
     private let usesExternalRootSidebar: Bool
     private let externalDeckSelection: Binding<DeckInfo?>?
     private let externalTagSelection: Binding<String?>?
+    private let externalNotetypeSelection: Binding<Int64?>?
     private let externalQuickFilterSelection: Binding<BrowseQuickFilter>?
     private let pageSize = 50
 
@@ -89,6 +102,7 @@ struct BrowseView: View {
         usesExternalRootSidebar: Bool = false,
         externalDeckSelection: Binding<DeckInfo?>? = nil,
         externalTagSelection: Binding<String?>? = nil,
+        externalNotetypeSelection: Binding<Int64?>? = nil,
         externalQuickFilterSelection: Binding<BrowseQuickFilter>? = nil
     ) {
         self.preselectedDeck = preselectedDeck
@@ -97,6 +111,7 @@ struct BrowseView: View {
         self.usesExternalRootSidebar = usesExternalRootSidebar
         self.externalDeckSelection = externalDeckSelection
         self.externalTagSelection = externalTagSelection
+        self.externalNotetypeSelection = externalNotetypeSelection
         self.externalQuickFilterSelection = externalQuickFilterSelection
 
         let initialDeck = externalDeckSelection?.wrappedValue ?? preselectedDeck
@@ -106,6 +121,9 @@ struct BrowseView: View {
         }
         if let initialTag = externalTagSelection?.wrappedValue {
             _activeTag = State(initialValue: initialTag)
+        }
+        if let initialNotetypeID = externalNotetypeSelection?.wrappedValue {
+            _activeNotetypeID = State(initialValue: initialNotetypeID)
         }
         if let initialQuickFilter = externalQuickFilterSelection?.wrappedValue {
             _quickFilter = State(initialValue: initialQuickFilter)
@@ -243,6 +261,27 @@ struct BrowseView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showAllNotetypesSheet) {
+            NavigationStack {
+                BrowseFilterQuickPickerSheet(
+                    title: L("browse_filter_by_notetype"),
+                    allTitle: L("browse_filter_all"),
+                    options: sortedNotetypeOptions.map { notetype in
+                        BrowseQuickPickerOption(id: String(notetype.id), title: notetype.name)
+                    },
+                    selectedOptionID: activeNotetypeID.map { String($0) }
+                ) { selectedID in
+                    guard let selectedID,
+                          let notetypeID = Int64(selectedID) else {
+                        activeNotetypeID = nil
+                        return
+                    }
+                    activeNotetypeID = notetypeID
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showExportOptions) {
             NavigationStack {
                 ExportOptionsView(
@@ -317,6 +356,9 @@ struct BrowseView: View {
         .onChange(of: externalSelectedTag) { _, _ in
             syncExternalFiltersIntoLocal()
         }
+        .onChange(of: externalSelectedNotetypeID) { _, _ in
+            syncExternalFiltersIntoLocal()
+        }
         .onChange(of: externalSelectedQuickFilter) { _, _ in
             syncExternalFiltersIntoLocal()
         }
@@ -328,6 +370,10 @@ struct BrowseView: View {
             }
         }
         .onChange(of: activeTag) {
+            syncLocalFiltersToExternal()
+            scheduleSearch()
+        }
+        .onChange(of: activeNotetypeID) {
             syncLocalFiltersToExternal()
             scheduleSearch()
         }
@@ -625,8 +671,18 @@ struct BrowseView: View {
         externalTagSelection?.wrappedValue
     }
 
+    private var externalSelectedNotetypeID: Int64? {
+        externalNotetypeSelection?.wrappedValue
+    }
+
     private var externalSelectedQuickFilter: BrowseQuickFilter? {
         externalQuickFilterSelection?.wrappedValue
+    }
+
+    private var sortedNotetypeOptions: [(id: Int64, name: String)] {
+        notetypeNamesByID
+            .map { (id: $0.key, name: $0.value) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private var browseCompactRoot: some View {
@@ -661,7 +717,7 @@ struct BrowseView: View {
                 browseToolbarContent
             }
             .safeAreaInset(edge: .top) {
-                if !usesSidebarLayout && !usesExternalRootSidebar && (!allDecks.isEmpty || !allTags.isEmpty) {
+                if !usesSidebarLayout && !usesExternalRootSidebar && (!allDecks.isEmpty || !allTags.isEmpty || !sortedNotetypeOptions.isEmpty) {
                     deckFilterBar
                 }
             }
@@ -779,6 +835,13 @@ struct BrowseView: View {
                 }
             }
 
+            if !sortedNotetypeOptions.isEmpty {
+                Section(L("browse_filter_by_notetype")) {
+                    browseSidebarNotetypeChips
+                        .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
+                }
+            }
+
             Section(L("browse_batch_flag_label")) {
                 browseSidebarFlagList
                     .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
@@ -857,6 +920,28 @@ struct BrowseView: View {
                     small: true
                 ) {
                     activeTag = activeTag == tag ? nil : tag
+                }
+            }
+        }
+    }
+
+    private var browseSidebarNotetypeChips: some View {
+        browseSidebarChipGrid {
+            chipButton(
+                label: L("browse_filter_all"),
+                isSelected: activeNotetypeID == nil,
+                small: true
+            ) {
+                activeNotetypeID = nil
+            }
+
+            ForEach(sortedNotetypeOptions, id: \.id) { notetype in
+                chipButton(
+                    label: notetype.name,
+                    isSelected: activeNotetypeID == notetype.id,
+                    small: true
+                ) {
+                    activeNotetypeID = activeNotetypeID == notetype.id ? nil : notetype.id
                 }
             }
         }
@@ -1042,6 +1127,32 @@ struct BrowseView: View {
                                 Label(shortTagName(tag), systemImage: "checkmark.circle.fill")
                             } else {
                                 Label(shortTagName(tag), systemImage: "tag")
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !sortedNotetypeOptions.isEmpty {
+                Menu(L("browse_filter_by_notetype")) {
+                    Button {
+                        activeNotetypeID = nil
+                    } label: {
+                        if activeNotetypeID == nil {
+                            Label(L("browse_filter_all"), systemImage: "checkmark")
+                        } else {
+                            Text(L("browse_filter_all"))
+                        }
+                    }
+
+                    ForEach(sortedNotetypeOptions, id: \.id) { notetype in
+                        Button {
+                            activeNotetypeID = notetype.id
+                        } label: {
+                            if activeNotetypeID == notetype.id {
+                                Label(notetype.name, systemImage: "checkmark.circle.fill")
+                            } else {
+                                Label(notetype.name, systemImage: "doc.text")
                             }
                         }
                     }
@@ -1328,6 +1439,47 @@ struct BrowseView: View {
                     }
                 }
             }
+
+            if !sortedNotetypeOptions.isEmpty {
+                ScrollViewReader { proxy in
+                    HStack(spacing: 8) {
+                        chipButton(
+                            label: L("browse_filter_all"),
+                            isSelected: activeNotetypeID == nil,
+                            small: true,
+                            onLongPress: {
+                                showAllNotetypesSheet = true
+                            }
+                        ) {
+                            activeNotetypeID = nil
+                        }
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(sortedNotetypeOptions, id: \.id) { notetype in
+                                    chipButton(
+                                        label: notetype.name,
+                                        isSelected: activeNotetypeID == notetype.id,
+                                        small: true
+                                    ) {
+                                        activeNotetypeID = activeNotetypeID == notetype.id ? nil : notetype.id
+                                    }
+                                    .id(notetypeChipID(notetype.id))
+                                }
+                            }
+                            .padding(.trailing)
+                            .padding(.bottom, 8)
+                        }
+                    }
+                    .padding(.leading)
+                    .onAppear {
+                        scrollToNotetypeChip(proxy: proxy, animated: false)
+                    }
+                    .onChange(of: activeNotetypeID) { _, _ in
+                        scrollToNotetypeChip(proxy: proxy)
+                    }
+                }
+            }
         }
         .background(.bar)
     }
@@ -1398,6 +1550,13 @@ struct BrowseView: View {
             return "tag-\(tag)"
         }
         return "tag-all"
+    }
+
+    private func notetypeChipID(_ notetypeID: Int64?) -> String {
+        if let notetypeID {
+            return "notetype-\(notetypeID)"
+        }
+        return "notetype-all"
     }
 
     private func scrollToDeckChip(proxy: ScrollViewProxy, animated: Bool = true) {
@@ -1482,6 +1641,18 @@ struct BrowseView: View {
         }
     }
 
+    private func scrollToNotetypeChip(proxy: ScrollViewProxy, animated: Bool = true) {
+        guard let activeNotetypeID else { return }
+        let target = notetypeChipID(activeNotetypeID)
+        if animated {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                proxy.scrollTo(target, anchor: .center)
+            }
+        } else {
+            proxy.scrollTo(target, anchor: .center)
+        }
+    }
+
     private func syncExternalFiltersIntoLocal() {
         guard usesExternalRootSidebar else { return }
 
@@ -1501,6 +1672,10 @@ struct BrowseView: View {
             activeTag = externalTagSelection.wrappedValue
         }
 
+        if let externalNotetypeSelection, activeNotetypeID != externalNotetypeSelection.wrappedValue {
+            activeNotetypeID = externalNotetypeSelection.wrappedValue
+        }
+
         if let externalQuickFilterSelection, quickFilter != externalQuickFilterSelection.wrappedValue {
             quickFilter = externalQuickFilterSelection.wrappedValue
         }
@@ -1515,6 +1690,10 @@ struct BrowseView: View {
 
         if let externalTagSelection, externalTagSelection.wrappedValue != activeTag {
             externalTagSelection.wrappedValue = activeTag
+        }
+
+        if let externalNotetypeSelection, externalNotetypeSelection.wrappedValue != activeNotetypeID {
+            externalNotetypeSelection.wrappedValue = activeNotetypeID
         }
 
         if let externalQuickFilterSelection, externalQuickFilterSelection.wrappedValue != quickFilter {
@@ -1705,6 +1884,9 @@ struct BrowseView: View {
         if let activeTag {
             parts.append("tag:\"\(activeTag)\"")
         }
+        if let activeNotetypeID, let notetypeName = notetypeNamesByID[activeNotetypeID] {
+            parts.append(browseNotetypeQuery(name: notetypeName))
+        }
         let trimmed = searchText.trimmingCharacters(in: .whitespaces)
         if !trimmed.isEmpty {
             parts.append(trimmed)
@@ -1725,6 +1907,7 @@ struct BrowseView: View {
         parentDeck = nil
         activeDeck = nil
         activeTag = nil
+        activeNotetypeID = nil
         quickFilter = .all
         searchText = BrowseFindDuplicatesSheet.noteIDsQuery(noteIDs)
     }
@@ -1733,6 +1916,7 @@ struct BrowseView: View {
         parentDeck = nil
         activeDeck = nil
         activeTag = nil
+        activeNotetypeID = nil
         quickFilter = .all
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if searchText == trimmed {
@@ -1743,15 +1927,18 @@ struct BrowseView: View {
     }
 
     private func loadNotetypeNames() async {
-        guard showNotetypeSubtitle else { return }
         do {
             let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
                 service: AnkiBackend.Service.notetypes,
                 method: AnkiBackend.NotetypesMethod.getNotetypeNames
             )
             notetypeNamesByID = Dictionary(uniqueKeysWithValues: response.entries.map { ($0.id, $0.name) })
+            if let activeNotetypeID, notetypeNamesByID[activeNotetypeID] == nil {
+                self.activeNotetypeID = nil
+            }
         } catch {
             notetypeNamesByID = [:]
+            activeNotetypeID = nil
         }
     }
 

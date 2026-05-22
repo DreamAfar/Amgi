@@ -3,6 +3,7 @@ import AnkiSync
 import AnkiClients
 import AnkiBackend
 import AnkiKit
+import AnkiProto
 import AnkiReader
 import Dependencies
 import Foundation
@@ -67,6 +68,7 @@ private struct ReaderSidebarState {
 private struct BrowseSidebarState {
     var selectedDeckID: Int64?
     var selectedTag: String?
+    var selectedNotetypeID: Int64?
     var selectedFlag: Int?
 }
 
@@ -106,6 +108,11 @@ private struct ReaderSidebarBookSummary: Identifiable {
     let title: String
     let source: Source
     let lastAccess: Date
+}
+
+private struct BrowseSidebarNotetypeOption: Identifiable {
+    let id: Int64
+    let name: String
 }
 
 struct ContentView: View {
@@ -176,6 +183,7 @@ struct ContentView: View {
     @State private var splitDeckTree: [DeckTreeNode] = DeckTreeCache.load()
     @State private var splitDeckOptions: [DeckInfo] = []
     @State private var splitBrowseTags: [String] = []
+    @State private var splitBrowseNotetypes: [BrowseSidebarNotetypeOption] = []
     @State private var splitReaderRecentBooks: [ReaderSidebarBookSummary] = []
 
     private var isImportExportInProgress: Bool {
@@ -480,10 +488,10 @@ struct ContentView: View {
                     }
                     .id(refreshID)
                 }
-                .toolbar {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        deckManagementMenu
-                    }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    deckManagementMenu
                 }
             }
         case .stats:
@@ -521,6 +529,7 @@ struct ContentView: View {
                     usesExternalRootSidebar: true,
                     externalDeckSelection: splitBrowseSelectedDeckBinding,
                     externalTagSelection: splitBrowseSelectedTagBinding,
+                    externalNotetypeSelection: splitBrowseSelectedNotetypeIDBinding,
                     externalQuickFilterSelection: splitBrowseQuickFilterBinding
                 )
                     .id(refreshID)
@@ -623,6 +632,13 @@ struct ContentView: View {
         )
     }
 
+    private var splitBrowseSelectedNotetypeIDBinding: Binding<Int64?> {
+        Binding(
+            get: { splitShell.browse.selectedNotetypeID },
+            set: { splitShell.browse.selectedNotetypeID = $0 }
+        )
+    }
+
     private var splitBrowseQuickFilterBinding: Binding<BrowseQuickFilter> {
         Binding(
             get: { browseQuickFilter(for: splitShell.browse.selectedFlag) },
@@ -652,6 +668,11 @@ struct ContentView: View {
             if !splitBrowseTags.isEmpty {
                 Section(L("browse_filter_by_tag")) {
                     splitSidebarBrowseTagRows
+                }
+            }
+            if !splitBrowseNotetypes.isEmpty {
+                Section(L("browse_filter_by_notetype")) {
+                    splitSidebarBrowseNotetypeRows
                 }
             }
             Section(L("browse_batch_flag_label")) {
@@ -775,6 +796,42 @@ struct ContentView: View {
                             .foregroundStyle(Color.amgiTextPrimary)
                         Spacer()
                         if splitShell.browse.selectedTag == tag {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var splitSidebarBrowseNotetypeRows: some View {
+        Group {
+            Button {
+                splitShell.browse.selectedNotetypeID = nil
+            } label: {
+                HStack {
+                    Text(L("browse_filter_all"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.browse.selectedNotetypeID == nil {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            ForEach(splitBrowseNotetypes) { notetype in
+                Button {
+                    splitShell.browse.selectedNotetypeID = splitShell.browse.selectedNotetypeID == notetype.id ? nil : notetype.id
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(notetype.name)
+                            .foregroundStyle(Color.amgiTextPrimary)
+                        Spacer()
+                        if splitShell.browse.selectedNotetypeID == notetype.id {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(Color.accentColor)
                         }
@@ -1163,6 +1220,7 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
     private var browseTabContent: some View {
         if collectionState.isReady {
             BrowseView(isActive: selectedTab == .browse)
@@ -1583,11 +1641,13 @@ struct ContentView: View {
             splitDeckTree = DeckTreeCache.load()
             splitDeckOptions = []
             splitBrowseTags = []
+            splitBrowseNotetypes = []
             splitReaderRecentBooks = []
             splitShell.decks.selectedDeckID = nil
             splitShell.decks.expandedDeckIDs = normalizedExpandedDeckIDs(for: splitDeckTree)
             splitShell.browse.selectedDeckID = nil
             splitShell.browse.selectedTag = nil
+            splitShell.browse.selectedNotetypeID = nil
             splitShell.browse.selectedFlag = nil
             splitShell.stats.selectedDeckID = nil
             splitShell.reader.selectedBookID = nil
@@ -1596,14 +1656,17 @@ struct ContentView: View {
 
         async let decksLoad: [DeckInfo] = loadExportDeckOptions()
         async let deckTreeLoad: [DeckTreeNode] = loadSplitDeckTree()
+        async let notetypesLoad: [BrowseSidebarNotetypeOption] = loadSplitBrowseNotetypes()
         let decks = await decksLoad
         let deckTree = await deckTreeLoad
+        let notetypes = await notetypesLoad
         let tags = await loadSplitBrowseTagsForCurrentDeck(using: decks)
         let readerRecentBooks = isReaderTabEnabled ? loadSplitReaderRecentBooks(using: decks) : []
 
         splitDeckTree = deckTree
         splitDeckOptions = decks
         splitBrowseTags = tags
+        splitBrowseNotetypes = notetypes
         splitReaderRecentBooks = readerRecentBooks
 
         if !decks.contains(where: { $0.id == splitShell.decks.selectedDeckID }) {
@@ -1618,6 +1681,10 @@ struct ContentView: View {
         }
         if let selectedTag = splitShell.browse.selectedTag, !tags.contains(selectedTag) {
             splitShell.browse.selectedTag = nil
+        }
+        if let selectedNotetypeID = splitShell.browse.selectedNotetypeID,
+           !notetypes.contains(where: { $0.id == selectedNotetypeID }) {
+            splitShell.browse.selectedNotetypeID = nil
         }
     }
 
@@ -1703,6 +1770,20 @@ struct ContentView: View {
         }
     }
 
+    private func loadSplitBrowseNotetypes() async -> [BrowseSidebarNotetypeOption] {
+        do {
+            let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.getNotetypeNames
+            )
+            return response.entries
+                .map { BrowseSidebarNotetypeOption(id: $0.id, name: $0.name) }
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        } catch {
+            return []
+        }
+    }
+
     private func loadSplitReaderRecentBooks(using decks: [DeckInfo]) -> [ReaderSidebarBookSummary] {
         let noteBooks = loadSplitReaderNoteBooks(using: decks)
         let epubBooks = (try? readerEpubLibraryClient.loadState().books) ?? []
@@ -1717,7 +1798,7 @@ struct ContentView: View {
         }
         let epubItems = epubBooks.map { book in
             let trimmedTitle = (book.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            ReaderSidebarBookSummary(
+            return ReaderSidebarBookSummary(
                 id: "epub:\(book.id.uuidString)",
                 title: trimmedTitle.isEmpty ? book.id.uuidString : trimmedTitle,
                 source: .epub,
