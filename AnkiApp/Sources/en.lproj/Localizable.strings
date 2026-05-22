@@ -656,6 +656,8 @@
 
 // MARK: - Statistics
 "stats_nav_title" = "Statistics";
+"stats_group_overview" = "Overview";
+"stats_group_cards" = "Cards";
 "stats_loading" = "Loading statistics...";
 "stats_load_failed_title" = "Failed to Load Stats";
 "stats_whole_collection" = "Whole Collection";
@@ -1474,6 +1476,7 @@
 "stats_range_month" = "Month";
 "stats_range_year" = "Past Year";
 "stats_range_all" = "All Time";
+"stats_period_label" = "Stats Range";
 "stats_heatmap_loading_more" = "Loading more historical data...";
 "stats_heatmap_load_complete" = "All data loaded";
 

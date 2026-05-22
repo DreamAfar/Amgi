@@ -8,7 +8,7 @@ import AnkiClients
 import Dependencies
 import UIKit
 
-private enum ReaderBookSortOption: String, CaseIterable, Identifiable {
+enum ReaderBookSortOption: String, CaseIterable, Identifiable {
     case recent
     case title
     case progress
@@ -27,7 +27,7 @@ private enum ReaderBookSortOption: String, CaseIterable, Identifiable {
     }
 }
 
-private enum ReaderLibrarySettingsRoute: String, Identifiable {
+enum ReaderLibrarySettingsRoute: String, Identifiable {
     case source
     case dictionaries
     case display
@@ -106,7 +106,12 @@ struct ReaderLibraryView: View {
     @State private var sortOption: ReaderBookSortOption = .recent
     @State private var isSelecting = false
     @State private var selectedBookIDs: Set<String> = []
+    @State private var selectedSidebarBookID: String?
     @State private var settingsRoute: ReaderLibrarySettingsRoute?
+    private let externalSortOption: Binding<ReaderBookSortOption>?
+    private let externalBookshelfColumns: Binding<Int>?
+    private let externalSelectedBookID: Binding<String?>?
+    private let externalSettingsRoute: Binding<ReaderLibrarySettingsRoute?>?
 
     private var resolvedBookshelfColumns: Int {
         bookshelfColumns == 2 ? 2 : 3
@@ -190,6 +195,13 @@ struct ReaderLibraryView: View {
         }
     }
 
+    private var selectedSidebarBook: ReaderLibraryBookItem? {
+        guard let selectedSidebarBookID else {
+            return nil
+        }
+        return libraryBookItems.first { $0.id == selectedSidebarBookID }
+    }
+
     private var bookGridColumns: [GridItem] {
         Array(
             repeating: GridItem(
@@ -201,11 +213,31 @@ struct ReaderLibraryView: View {
         )
     }
 
+    init(
+        externalSortOption: Binding<ReaderBookSortOption>? = nil,
+        externalBookshelfColumns: Binding<Int>? = nil,
+        externalSelectedBookID: Binding<String?>? = nil,
+        externalSettingsRoute: Binding<ReaderLibrarySettingsRoute?>? = nil
+    ) {
+        self.externalSortOption = externalSortOption
+        self.externalBookshelfColumns = externalBookshelfColumns
+        self.externalSelectedBookID = externalSelectedBookID
+        self.externalSettingsRoute = externalSettingsRoute
+        if let externalSortOption {
+            _sortOption = State(initialValue: externalSortOption.wrappedValue)
+        }
+        if let externalSelectedBookID {
+            _selectedSidebarBookID = State(initialValue: externalSelectedBookID.wrappedValue)
+        }
+    }
+
     var body: some View {
         Group {
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let selectedSidebarBook, isSelecting == false {
+                readerDestination(for: selectedSidebarBook)
             } else if sortedBooks.isEmpty {
                 if let configurationProblem, epubLibraryState.books.isEmpty {
                 ContentUnavailableView(
@@ -260,8 +292,8 @@ struct ReaderLibraryView: View {
             }
         }
         .background(Color.amgiBackground)
-        .navigationTitle(L("reader_library_title"))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationTitle(selectedSidebarBook?.title ?? L("reader_library_title"))
+        .navigationBarTitleDisplayMode(selectedSidebarBook == nil ? .large : .inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 Menu {
@@ -279,6 +311,8 @@ struct ReaderLibraryView: View {
                     if isSelecting {
                         clearSelection()
                     } else {
+                        selectedSidebarBookID = nil
+                        syncLocalStateToExternal()
                         isSelecting = true
                     }
                 } label: {
@@ -353,12 +387,39 @@ struct ReaderLibraryView: View {
             await loadBooks()
         }
         .onAppear {
+            syncExternalStateIntoLocal()
+        }
+        .onAppear {
             guard books.isEmpty == false || epubLibraryState.books.isEmpty == false || configurationProblem != nil else {
                 return
             }
             Task {
                 await loadBooks()
             }
+        }
+        .onChange(of: externalSortValue) { _, _ in
+            syncExternalStateIntoLocal()
+        }
+        .onChange(of: externalLayoutColumnsValue) { _, _ in
+            syncExternalStateIntoLocal()
+        }
+        .onChange(of: externalSelectedBookIDValue) { _, _ in
+            syncExternalStateIntoLocal()
+        }
+        .onChange(of: externalSettingsRouteValue?.rawValue) { _, _ in
+            syncExternalStateIntoLocal()
+        }
+        .onChange(of: sortOption) {
+            syncLocalStateToExternal()
+        }
+        .onChange(of: resolvedBookshelfColumns) {
+            syncLocalStateToExternal()
+        }
+        .onChange(of: selectedSidebarBookID) { _, _ in
+            syncLocalStateToExternal()
+        }
+        .onChange(of: settingsRoute?.rawValue) { _, _ in
+            syncLocalStateToExternal()
         }
         .fileImporter(
             isPresented: $showImporter,
@@ -411,6 +472,22 @@ struct ReaderLibraryView: View {
         } message: {
             Text(L("reader_epub_delete_confirmation", selectedEpubBookIDs.count))
         }
+    }
+
+    private var externalSortValue: ReaderBookSortOption? {
+        externalSortOption?.wrappedValue
+    }
+
+    private var externalLayoutColumnsValue: Int? {
+        externalBookshelfColumns?.wrappedValue
+    }
+
+    private var externalSelectedBookIDValue: String? {
+        externalSelectedBookID?.wrappedValue
+    }
+
+    private var externalSettingsRouteValue: ReaderLibrarySettingsRoute? {
+        externalSettingsRoute?.wrappedValue
     }
 
     private func loadBooks() async {
@@ -517,8 +594,48 @@ struct ReaderLibraryView: View {
 
     private func reconcileSelection() {
         selectedBookIDs.formIntersection(Set(libraryBookItems.map(\.id)))
+        if let selectedSidebarBookID,
+           libraryBookItems.contains(where: { $0.id == selectedSidebarBookID }) == false {
+            self.selectedSidebarBookID = nil
+        }
         if selectedBookIDs.isEmpty {
             isSelecting = false
+        }
+    }
+
+    private func syncExternalStateIntoLocal() {
+        if let externalSortOption, sortOption != externalSortOption.wrappedValue {
+            sortOption = externalSortOption.wrappedValue
+        }
+        if let externalBookshelfColumns {
+            let resolved = externalBookshelfColumns.wrappedValue == 2 ? 2 : 3
+            if resolvedBookshelfColumns != resolved {
+                bookshelfColumns = resolved
+            }
+        }
+        if let externalSelectedBookID, selectedSidebarBookID != externalSelectedBookID.wrappedValue {
+            selectedSidebarBookID = externalSelectedBookID.wrappedValue
+            if externalSelectedBookID.wrappedValue != nil {
+                clearSelection()
+            }
+        }
+        if let externalSettingsRoute, settingsRoute?.id != externalSettingsRoute.wrappedValue?.id {
+            settingsRoute = externalSettingsRoute.wrappedValue
+        }
+    }
+
+    private func syncLocalStateToExternal() {
+        if let externalSortOption, externalSortOption.wrappedValue != sortOption {
+            externalSortOption.wrappedValue = sortOption
+        }
+        if let externalBookshelfColumns, externalBookshelfColumns.wrappedValue != resolvedBookshelfColumns {
+            externalBookshelfColumns.wrappedValue = resolvedBookshelfColumns
+        }
+        if let externalSelectedBookID, externalSelectedBookID.wrappedValue != selectedSidebarBookID {
+            externalSelectedBookID.wrappedValue = selectedSidebarBookID
+        }
+        if let externalSettingsRoute, externalSettingsRoute.wrappedValue?.id != settingsRoute?.id {
+            externalSettingsRoute.wrappedValue = settingsRoute
         }
     }
 }

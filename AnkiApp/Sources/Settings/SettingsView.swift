@@ -130,6 +130,7 @@ struct SettingsView: View {
     @State private var isCheckingDatabase = false
     @State private var databaseCheckResult = ""
     @State private var showDatabaseCheckResult = false
+    @State private var selectedPane: SettingsPane? = .basic
 
     private var selectedTheme: Binding<AppTheme> {
         Binding(
@@ -146,23 +147,22 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            Group {
-                if usesTwoColumnLayout(for: proxy.size.width) {
-                    splitSettingsContent
-                } else {
+        Group {
+            if usesSplitSidebarLayout {
+                splitSettingsContent
+            } else {
+                NavigationStack {
                     settingsList(sections: {
                         basicSettingsSection
                         displaySettingsSection
                         maintenanceSettingsSection
                         otherSettingsSection
                     })
+                    .navigationTitle(L("settings_nav_title"))
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Color.amgiBackground)
         }
-        .navigationTitle(L("settings_nav_title"))
+        .background(Color.amgiBackground)
         .alert(L("common_done"), isPresented: $showMaintenanceAlert) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
@@ -179,24 +179,28 @@ struct SettingsView: View {
         }
     }
 
-    private func usesTwoColumnLayout(for width: CGFloat) -> Bool {
-        horizontalSizeClass == .regular && width >= 960
+    private var usesSplitSidebarLayout: Bool {
+        horizontalSizeClass == .regular
     }
 
     private var splitSettingsContent: some View {
-        HStack(alignment: .top, spacing: AmgiSpacing.lg) {
-            settingsList(sections: {
-                basicSettingsSection
-                displaySettingsSection
-            })
-
-            settingsList(sections: {
-                maintenanceSettingsSection
-                otherSettingsSection
-            })
+        NavigationSplitView {
+            List(SettingsPane.allCases, selection: $selectedPane) { pane in
+                Label(pane.title, systemImage: pane.icon)
+                    .amgiFont(.body)
+                    .foregroundStyle(SettingsValueStyle.primary)
+                    .tag(pane)
+            }
+            .listStyle(.sidebar)
+            .navigationTitle(L("settings_nav_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 360)
+        } detail: {
+            NavigationStack {
+                settingsDetailContent(for: selectedPane ?? .basic)
+            }
         }
-        .padding(.horizontal, AmgiSpacing.md)
-        .padding(.top, AmgiSpacing.xs)
+        .navigationSplitViewStyle(.balanced)
     }
 
     private func settingsList<Content: View>(@ViewBuilder sections: () -> Content) -> some View {
@@ -207,6 +211,24 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private func settingsDetailContent(for pane: SettingsPane) -> some View {
+        switch pane {
+        case .basic:
+            settingsList(sections: { basicSettingsSection })
+                .navigationTitle(pane.title)
+        case .display:
+            settingsList(sections: { displaySettingsSection })
+                .navigationTitle(pane.title)
+        case .maintenance:
+            settingsList(sections: { maintenanceSettingsSection })
+                .navigationTitle(pane.title)
+        case .other:
+            settingsList(sections: { otherSettingsSection })
+                .navigationTitle(pane.title)
+        }
     }
 
     @ViewBuilder
@@ -441,6 +463,41 @@ struct SettingsView: View {
         }
     }
 
+}
+
+private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
+    case basic
+    case display
+    case maintenance
+    case other
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .basic:
+            L("settings_section_basic")
+        case .display:
+            L("settings_section_display")
+        case .maintenance:
+            L("settings_section_maintenance")
+        case .other:
+            L("settings_section_other")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .basic:
+            "slider.horizontal.3"
+        case .display:
+            "paintbrush"
+        case .maintenance:
+            "wrench.and.screwdriver"
+        case .other:
+            "ellipsis.circle"
+        }
+    }
 }
 
 private struct SettingsInfoView: View {

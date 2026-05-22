@@ -63,10 +63,6 @@ struct BrowseView: View {
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var searchGeneration = 0
     @State private var hasLoadedInitialData = false
-    @State private var selectedPreviewNoteID: Int64?
-    @State private var previewEditingNote: NoteRecord?
-    @State private var previewFieldNamesByNotetypeID: [Int64: [String]] = [:]
-    @State private var previewLoadingNotetypeIDs = Set<Int64>()
     @State private var showTopLevelDecksSheet = false
     @State private var showChildDecksSheet = false
     @State private var showAllTagsSheet = false
@@ -75,6 +71,10 @@ struct BrowseView: View {
     private let preselectedDeck: DeckInfo?
     private let initialSearchQuery: String
     private let isActive: Bool
+    private let usesExternalRootSidebar: Bool
+    private let externalDeckSelection: Binding<DeckInfo?>?
+    private let externalTagSelection: Binding<String?>?
+    private let externalQuickFilterSelection: Binding<BrowseQuickFilter>?
     private let pageSize = 50
 
     private var sortField: BrowseSortField {
@@ -82,55 +82,51 @@ struct BrowseView: View {
         nonmutating set { sortFieldRaw = newValue.rawValue }
     }
 
-    init(preselectedDeck: DeckInfo? = nil, initialSearchQuery: String = "", isActive: Bool = true) {
+    init(
+        preselectedDeck: DeckInfo? = nil,
+        initialSearchQuery: String = "",
+        isActive: Bool = true,
+        usesExternalRootSidebar: Bool = false,
+        externalDeckSelection: Binding<DeckInfo?>? = nil,
+        externalTagSelection: Binding<String?>? = nil,
+        externalQuickFilterSelection: Binding<BrowseQuickFilter>? = nil
+    ) {
         self.preselectedDeck = preselectedDeck
         self.initialSearchQuery = initialSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         self.isActive = isActive
-        if let deck = preselectedDeck {
+        self.usesExternalRootSidebar = usesExternalRootSidebar
+        self.externalDeckSelection = externalDeckSelection
+        self.externalTagSelection = externalTagSelection
+        self.externalQuickFilterSelection = externalQuickFilterSelection
+
+        let initialDeck = externalDeckSelection?.wrappedValue ?? preselectedDeck
+        if let deck = initialDeck {
             _activeDeck = State(initialValue: deck)
             _parentDeck = State(initialValue: deck)
+        }
+        if let initialTag = externalTagSelection?.wrappedValue {
+            _activeTag = State(initialValue: initialTag)
+        }
+        if let initialQuickFilter = externalQuickFilterSelection?.wrappedValue {
+            _quickFilter = State(initialValue: initialQuickFilter)
         }
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            Group {
-                if isLoading && notes.isEmpty {
-                    // 初始加载中：居中显示转圈动画
-                    VStack(spacing: AmgiSpacing.md) {
-                        ProgressView()
-                            .controlSize(.large)
-                        Text(L("browse_loading"))
-                            .amgiFont(.body)
-                            .foregroundStyle(Color.amgiTextSecondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .transition(.opacity.animation(.easeInOut(duration: 0.2)))
-                } else if notes.isEmpty && !isLoading && searchText.isEmpty && activeDeck == nil {
-                    ContentUnavailableView(
-                        L("browse_nav_title"),
-                        systemImage: "magnifyingglass",
-                        description: Text(L("browse_empty_desc"))
-                    )
-                } else if notes.isEmpty && !isLoading {
-                    ContentUnavailableView.search(text: searchText)
-                } else {
-                    noteListContent(for: proxy.size.width)
-                }
-
-                if isBatchWorking {
-                    batchProgressOverlay
-                }
-
-                if isExportingSelection {
-                    exportProgressOverlay
-                }
+        ZStack {
+            if usesSidebarLayout {
+                browseSplitRoot
+            } else {
+                browseCompactRoot
             }
-        }
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            browseToolbarContent
+
+            if isBatchWorking {
+                batchProgressOverlay
+            }
+
+            if isExportingSelection {
+                exportProgressOverlay
+            }
         }
         .sheet(isPresented: $showTagsManager, onDismiss: {
             activeSearchTask?.cancel()
@@ -176,11 +172,6 @@ struct BrowseView: View {
         }
         .sheet(isPresented: $showChangeNotetype) {
             ChangeNotetypeSheet(noteIDs: Array(selectedNoteIDs)) {
-                scheduleSearch()
-            }
-        }
-        .sheet(item: $previewEditingNote) { note in
-            NoteEditingDestinationView(note: note, embedInNavigationStack: true) {
                 scheduleSearch()
             }
         }
@@ -314,30 +305,34 @@ struct BrowseView: View {
         } message: {
             Text(L("browse_batch_reset_confirm_msg", selectedNoteIDs.count))
         }
-        .safeAreaInset(edge: .top) {
-            if !allDecks.isEmpty || !allTags.isEmpty {
-                deckFilterBar
-            }
+        .onAppear {
+            syncExternalFiltersIntoLocal()
         }
-        .safeAreaInset(edge: .bottom) {
-            if isEditing {
-                batchBottomBar
-            }
-        }
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: L("browse_search_placeholder"))
         .onChange(of: searchText) {
             scheduleSearch(debounce: true)
         }
+        .onChange(of: externalSelectedDeckID) { _, _ in
+            syncExternalFiltersIntoLocal()
+        }
+        .onChange(of: externalSelectedTag) { _, _ in
+            syncExternalFiltersIntoLocal()
+        }
+        .onChange(of: externalSelectedQuickFilter) { _, _ in
+            syncExternalFiltersIntoLocal()
+        }
         .onChange(of: activeDeck?.id) { _, _ in
+            syncLocalFiltersToExternal()
             Task {
                 await loadTags()
                 await performSearch()
             }
         }
         .onChange(of: activeTag) {
+            syncLocalFiltersToExternal()
             scheduleSearch()
         }
         .onChange(of: quickFilter) {
+            syncLocalFiltersToExternal()
             scheduleSearch()
         }
         .onChange(of: showNotetypeSubtitle) { _, isEnabled in
@@ -368,6 +363,7 @@ struct BrowseView: View {
             async let tagsLoad: Void = loadTags()
             async let notetypesLoad: Void = loadNotetypeNames()
             _ = await (decksLoad, tagsLoad, notetypesLoad)
+            syncExternalFiltersIntoLocal()
             if let pendingQuery = AppCollectionEvents.consumePendingBrowseSearchQuery() {
                 applyExternalSearchQuery(pendingQuery)
             } else if initialSearchQuery.isEmpty == false {
@@ -394,7 +390,6 @@ struct BrowseView: View {
                 scheduleSearch()
             }
         }
-        .toolbar(isEditing ? .hidden : .visible, for: .tabBar)
     }
 
     // MARK: - Extracted Sub-Views
@@ -467,7 +462,9 @@ struct BrowseView: View {
             }
         } else {
             ToolbarItem(placement: .topBarLeading) {
-                filterMenu
+                if !usesExternalRootSidebar {
+                    filterMenu
+                }
             }
 
             ToolbarItem(placement: .topBarLeading) {
@@ -482,6 +479,57 @@ struct BrowseView: View {
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
+                if usesSidebarLayout || usesExternalRootSidebar {
+                    Button {
+                        presentCollectionTagsManager()
+                    } label: {
+                        Image(systemName: "tag")
+                    }
+                    .accessibilityLabel(L("browse_tags_manage"))
+
+                    Menu {
+                        ForEach(BrowseSortField.allCases, id: \.self) { field in
+                            Button {
+                                sortField = field
+                                applySort()
+                            } label: {
+                                if sortField == field {
+                                    Label(field.title, systemImage: "checkmark.circle.fill")
+                                } else {
+                                    Label(field.title, systemImage: field.symbol)
+                                }
+                            }
+                        }
+
+                        Divider()
+
+                        Button {
+                            sortReverse = false
+                            applySort()
+                        } label: {
+                            if !sortReverse {
+                                Label(L("browse_sort_order_forward"), systemImage: "checkmark.circle.fill")
+                            } else {
+                                Label(L("browse_sort_order_forward"), systemImage: "arrow.up")
+                            }
+                        }
+
+                        Button {
+                            sortReverse = true
+                            applySort()
+                        } label: {
+                            if sortReverse {
+                                Label(L("browse_sort_order_reverse"), systemImage: "checkmark.circle.fill")
+                            } else {
+                                Label(L("browse_sort_order_reverse"), systemImage: "arrow.down")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down.circle")
+                    }
+                    .accessibilityLabel(L("browse_sort_menu_title"))
+                }
+
                 Menu {
                     Button {
                         showAddNote = true
@@ -500,53 +548,57 @@ struct BrowseView: View {
 
                 Menu {
                     Button {
-                        presentCollectionTagsManager()
-                    } label: {
-                        Label(L("browse_tags_manage"), systemImage: "tag")
-                    }
-
-                    Button {
                         showFindDuplicates = true
                     } label: {
                         Label(L("browse_find_duplicates"), systemImage: "rectangle.and.text.magnifyingglass.rtl")
                     }
 
-                    Menu {
-                        ForEach(BrowseSortField.allCases, id: \.self) { field in
-                            Button {
-                                sortField = field
-                                applySort()
-                            } label: {
-                                if sortField == field {
-                                    Label(field.title, systemImage: "checkmark.circle.fill")
-                                } else {
-                                    Label(field.title, systemImage: field.symbol)
+                    if !usesSidebarLayout && !usesExternalRootSidebar {
+                        Button {
+                            presentCollectionTagsManager()
+                        } label: {
+                            Label(L("browse_tags_manage"), systemImage: "tag")
+                        }
+
+                        Menu {
+                            ForEach(BrowseSortField.allCases, id: \.self) { field in
+                                Button {
+                                    sortField = field
+                                    applySort()
+                                } label: {
+                                    if sortField == field {
+                                        Label(field.title, systemImage: "checkmark.circle.fill")
+                                    } else {
+                                        Label(field.title, systemImage: field.symbol)
+                                    }
                                 }
                             }
-                        }
-                    } label: {
-                        Label(L("browse_sort_menu_title"), systemImage: "arrow.up.arrow.down.circle")
-                    }
 
-                    Button {
-                        sortReverse = false
-                        applySort()
-                    } label: {
-                        if !sortReverse {
-                            Label(L("browse_sort_order_forward"), systemImage: "checkmark.circle.fill")
-                        } else {
-                            Label(L("browse_sort_order_forward"), systemImage: "arrow.up")
-                        }
-                    }
+                            Divider()
 
-                    Button {
-                        sortReverse = true
-                        applySort()
-                    } label: {
-                        if sortReverse {
-                            Label(L("browse_sort_order_reverse"), systemImage: "checkmark.circle.fill")
-                        } else {
-                            Label(L("browse_sort_order_reverse"), systemImage: "arrow.down")
+                            Button {
+                                sortReverse = false
+                                applySort()
+                            } label: {
+                                if !sortReverse {
+                                    Label(L("browse_sort_order_forward"), systemImage: "checkmark.circle.fill")
+                                } else {
+                                    Label(L("browse_sort_order_forward"), systemImage: "arrow.up")
+                                }
+                            }
+
+                            Button {
+                                sortReverse = true
+                                applySort()
+                            } label: {
+                                if sortReverse {
+                                    Label(L("browse_sort_order_reverse"), systemImage: "checkmark.circle.fill")
+                                } else {
+                                    Label(L("browse_sort_order_reverse"), systemImage: "arrow.down")
+                                }
+                            }
+                        } label: {
+                            Label(L("browse_sort_menu_title"), systemImage: "arrow.up.arrow.down.circle")
                         }
                     }
 
@@ -561,19 +613,91 @@ struct BrowseView: View {
         }
     }
 
-    private func usesTwoPaneLayout(for width: CGFloat) -> Bool {
-        horizontalSizeClass == .regular && width >= 1040 && !isEditing
+    private var usesSidebarLayout: Bool {
+        horizontalSizeClass == .regular && !isEditing && !usesExternalRootSidebar
     }
 
-    private var selectedPreviewNote: NoteRecord? {
-        guard let selectedPreviewNoteID else { return nil }
-        return notes.first(where: { $0.id == selectedPreviewNoteID })
+    private var externalSelectedDeckID: Int64? {
+        externalDeckSelection?.wrappedValue?.id
+    }
+
+    private var externalSelectedTag: String? {
+        externalTagSelection?.wrappedValue
+    }
+
+    private var externalSelectedQuickFilter: BrowseQuickFilter? {
+        externalQuickFilterSelection?.wrappedValue
+    }
+
+    private var browseCompactRoot: some View {
+        NavigationStack {
+            browseNavigationScaffold {
+                browseResultsContent
+            }
+        }
+    }
+
+    private var browseSplitRoot: some View {
+        NavigationSplitView {
+            browseSidebar
+                .navigationSplitViewColumnWidth(min: 300, ideal: 320, max: 360)
+        } detail: {
+            NavigationStack {
+                browseNavigationScaffold {
+                    browseResultsContent
+                }
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+    }
+
+    private func browseNavigationScaffold<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                browseToolbarContent
+            }
+            .safeAreaInset(edge: .top) {
+                if !usesSidebarLayout && !usesExternalRootSidebar && (!allDecks.isEmpty || !allTags.isEmpty) {
+                    deckFilterBar
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if isEditing {
+                    batchBottomBar
+                }
+            }
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: L("browse_search_placeholder")
+            )
+            .toolbar(isEditing ? .hidden : .visible, for: .tabBar)
     }
 
     @ViewBuilder
-    private func noteListContent(for width: CGFloat) -> some View {
-        if usesTwoPaneLayout(for: width) {
-            browseSplitContent
+    private var browseResultsContent: some View {
+        if isLoading && notes.isEmpty {
+            VStack(spacing: AmgiSpacing.md) {
+                ProgressView()
+                    .controlSize(.large)
+                Text(L("browse_loading"))
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+        } else if notes.isEmpty && !isLoading && searchText.isEmpty && activeDeck == nil {
+            ContentUnavailableView(
+                L("browse_nav_title"),
+                systemImage: "magnifyingglass",
+                description: Text(L("browse_empty_desc"))
+            )
+        } else if notes.isEmpty && !isLoading {
+            ContentUnavailableView.search(text: searchText)
         } else {
             noteNavigationList
         }
@@ -639,96 +763,161 @@ struct BrowseView: View {
         }
     }
 
-    private var browseSplitContent: some View {
-        HStack(alignment: .top, spacing: AmgiSpacing.lg) {
-            splitNoteList
-                .frame(width: 420)
-
-            browsePreviewPane
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .padding(.horizontal, AmgiSpacing.md)
-        .padding(.top, AmgiSpacing.xs)
-        .background(Color.amgiBackground)
-        .onAppear {
-            Task { await synchronizePreviewSelection() }
-        }
-    }
-
-    private var splitNoteList: some View {
+    private var browseSidebar: some View {
         List {
-            ForEach(notes, id: \.id) { note in
-                Button {
-                    selectPreviewNote(note)
-                } label: {
-                    NoteRowView(note: note, notetypeName: showNotetypeSubtitle ? notetypeNamesByID[note.mid] : nil)
-                        .contentShape(Rectangle())
-                        .onAppear {
-                            if note.id == notes.last?.id {
-                                Task { await loadNextPage() }
-                            }
-                        }
+            if !allDecks.isEmpty {
+                Section(L("browse_filter_by_deck")) {
+                    browseSidebarDeckChips
+                        .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
                 }
-                .buttonStyle(.plain)
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive) {
-                        selectedNoteForDelete = note
-                        showDeleteConfirm = true
-                    } label: {
-                        Label(L("common_delete"), systemImage: "trash")
-                    }
-                }
-                .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                    if note.isImageOcclusionNote {
-                        Button {
-                            editIOItem = IONoteEditItem(noteId: note.id)
-                        } label: {
-                            Label(L("io_edit_action"), systemImage: "pencil.and.scribble")
-                        }
-                        .tint(.indigo)
-                    }
-                }
-                .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 12))
-                .listRowBackground(
-                    selectedPreviewNoteID == note.id
-                    ? Color.amgiAccent.opacity(0.12)
-                    : Color.amgiSurfaceElevated
-                )
             }
 
-            if isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
+            if !allTags.isEmpty {
+                Section(L("browse_filter_by_tag")) {
+                    browseSidebarTagChips
+                        .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+            }
+
+            Section(L("browse_batch_flag_label")) {
+                browseSidebarFlagList
+                    .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
-        .background(Color.clear)
+        .background(Color(.secondarySystemBackground))
     }
 
-    private var browsePreviewPane: some View {
-        Group {
-            if let note = selectedPreviewNote {
-                BrowseNotePreviewPane(
-                    note: note,
-                    notetypeName: notetypeNamesByID[note.mid],
-                    fieldNames: previewFieldNamesByNotetypeID[note.mid] ?? [],
-                    onEdit: {
-                        previewEditingNote = note
+    private var browseSidebarDeckChips: some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+            browseSidebarChipGrid {
+                chipButton(
+                    label: L("browse_filter_all"),
+                    isSelected: activeDeck == nil
+                ) {
+                    parentDeck = nil
+                    activeDeck = nil
+                }
+
+                ForEach(topLevelDecks) { deck in
+                    chipButton(
+                        label: deck.name,
+                        isSelected: parentDeck?.id == deck.id && activeDeck?.id == deck.id
+                    ) {
+                        if parentDeck?.id == deck.id && activeDeck?.id == deck.id {
+                            parentDeck = nil
+                            activeDeck = nil
+                        } else {
+                            parentDeck = deck
+                            activeDeck = deck
+                        }
                     }
-                )
-            } else {
-                ContentUnavailableView(
-                    L("review_queue_preview"),
-                    systemImage: "rectangle.on.rectangle.angled",
-                    description: Text(L("browse_preview_empty_desc"))
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
+
+            if !childDecks.isEmpty {
+                browseSidebarChipGrid {
+                    chipButton(
+                        label: L("browse_filter_all"),
+                        isSelected: activeDeck?.id == parentDeck?.id,
+                        small: true
+                    ) {
+                        activeDeck = activeDeck?.id == parentDeck?.id ? nil : parentDeck
+                    }
+
+                    ForEach(childDecks) { child in
+                        chipButton(
+                            label: shortName(child.name),
+                            isSelected: activeDeck?.id == child.id,
+                            small: true
+                        ) {
+                            activeDeck = activeDeck?.id == child.id ? parentDeck : child
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var browseSidebarTagChips: some View {
+        browseSidebarChipGrid {
+            chipButton(
+                label: L("browse_filter_all"),
+                isSelected: activeTag == nil,
+                small: true
+            ) {
+                activeTag = nil
+            }
+
+            ForEach(allTags, id: \.self) { tag in
+                chipButton(
+                    label: shortTagName(tag),
+                    isSelected: activeTag == tag,
+                    small: true
+                ) {
+                    activeTag = activeTag == tag ? nil : tag
+                }
+            }
+        }
+    }
+
+    private var browseSidebarFlagList: some View {
+        VStack(spacing: 2) {
+            browseSidebarFlagRow(
+                title: L("browse_filter_all"),
+                color: .secondary,
+                isSelected: quickFilter == .all
+            ) {
+                quickFilter = .all
+            }
+
+            ForEach(BrowseQuickFilter.flagCases, id: \.self) { filter in
+                let flagValue = UInt32(BrowseQuickFilter.flagCases.firstIndex(of: filter)! + 1)
+                browseSidebarFlagRow(
+                    title: filter.title,
+                    color: browseFlagColor(for: flagValue),
+                    isSelected: quickFilter == filter
+                ) {
+                    quickFilter = quickFilter == filter ? .all : filter
+                }
+            }
+        }
+    }
+
+    private func browseSidebarFlagRow(
+        title: String,
+        color: Color,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 10, height: 10)
+                Text(title)
+                    .amgiFont(.body)
+                    .foregroundStyle(Color.amgiTextPrimary)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(isSelected ? Color.amgiAccent.opacity(0.12) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func browseSidebarChipGrid<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 92), spacing: AmgiSpacing.sm)],
+            alignment: .leading,
+            spacing: AmgiSpacing.sm
+        ) {
+            content()
         }
     }
 
@@ -1252,6 +1441,7 @@ struct BrowseView: View {
     private func loadDecks() async {
         do {
             allDecks = try deckClient.fetchAll()
+            syncExternalFiltersIntoLocal()
             await loadTags()
         } catch {
             allDecks = []
@@ -1290,6 +1480,57 @@ struct BrowseView: View {
             allTags = []
             activeTag = nil
         }
+    }
+
+    private func syncExternalFiltersIntoLocal() {
+        guard usesExternalRootSidebar else { return }
+
+        if let externalDeckSelection {
+            let externalDeck = externalDeckSelection.wrappedValue
+            if activeDeck?.id != externalDeck?.id {
+                activeDeck = externalDeck
+            }
+
+            let resolvedParent = resolveParentDeck(for: externalDeck)
+            if parentDeck?.id != resolvedParent?.id {
+                parentDeck = resolvedParent
+            }
+        }
+
+        if let externalTagSelection, activeTag != externalTagSelection.wrappedValue {
+            activeTag = externalTagSelection.wrappedValue
+        }
+
+        if let externalQuickFilterSelection, quickFilter != externalQuickFilterSelection.wrappedValue {
+            quickFilter = externalQuickFilterSelection.wrappedValue
+        }
+    }
+
+    private func syncLocalFiltersToExternal() {
+        guard usesExternalRootSidebar else { return }
+
+        if let externalDeckSelection, externalDeckSelection.wrappedValue?.id != activeDeck?.id {
+            externalDeckSelection.wrappedValue = activeDeck
+        }
+
+        if let externalTagSelection, externalTagSelection.wrappedValue != activeTag {
+            externalTagSelection.wrappedValue = activeTag
+        }
+
+        if let externalQuickFilterSelection, externalQuickFilterSelection.wrappedValue != quickFilter {
+            externalQuickFilterSelection.wrappedValue = quickFilter
+        }
+    }
+
+    private func resolveParentDeck(for deck: DeckInfo?) -> DeckInfo? {
+        guard let deck else { return nil }
+        if let topLevelDeck = allDecks.first(where: { $0.id == deck.id && !$0.name.contains("::") }) {
+            return topLevelDeck
+        }
+
+        let prefix = deck.name.split(separator: "::", maxSplits: 1, omittingEmptySubsequences: true).first
+        guard let prefix else { return nil }
+        return allDecks.first(where: { $0.name == String(prefix) })
     }
 
     private func presentSelectedNotesExportOptions() {
@@ -1419,7 +1660,6 @@ struct BrowseView: View {
             guard generation == searchGeneration else { return }
             notes = orderedNotes(firstBatch, matching: Array(ids.prefix(pageSize)))
             hasMorePages = ids.count > pageSize
-            await synchronizePreviewSelection()
         } catch is CancellationError {
             if generation == searchGeneration {
                 isLoading = false
@@ -1452,7 +1692,6 @@ struct BrowseView: View {
         }.value) ?? []
         notes.append(contentsOf: orderedNotes(batch, matching: nextIDs))
         hasMorePages = notes.count < allNoteIDs.count
-        await synchronizePreviewSelection()
     }
 
     private func buildQuery() -> String {
@@ -1513,54 +1752,6 @@ struct BrowseView: View {
             notetypeNamesByID = Dictionary(uniqueKeysWithValues: response.entries.map { ($0.id, $0.name) })
         } catch {
             notetypeNamesByID = [:]
-        }
-    }
-
-    @MainActor
-    private func selectPreviewNote(_ note: NoteRecord) {
-        selectedPreviewNoteID = note.id
-        Task {
-            await cachePreviewFieldNamesIfNeeded(for: note.mid)
-        }
-    }
-
-    @MainActor
-    private func synchronizePreviewSelection() {
-        guard !notes.isEmpty else {
-            selectedPreviewNoteID = nil
-            return
-        }
-
-        if let selectedPreviewNoteID,
-           notes.contains(where: { $0.id == selectedPreviewNoteID }) {
-            return
-        }
-
-        if let firstNote = notes.first {
-            selectPreviewNote(firstNote)
-        }
-    }
-
-    @MainActor
-    private func cachePreviewFieldNamesIfNeeded(for notetypeID: Int64) async {
-        guard previewFieldNamesByNotetypeID[notetypeID] == nil else { return }
-        guard !previewLoadingNotetypeIDs.contains(notetypeID) else { return }
-        previewLoadingNotetypeIDs.insert(notetypeID)
-        let backend = self.backend
-        defer {
-            previewLoadingNotetypeIDs.remove(notetypeID)
-        }
-
-        do {
-            let resolved = try await Task.detached(priority: .utility) {
-                try fetchNotetype(backend: backend, id: notetypeID)
-            }.value
-            previewFieldNamesByNotetypeID[notetypeID] = resolved.fields.map(\.name)
-            if notetypeNamesByID[notetypeID] == nil {
-                notetypeNamesByID[notetypeID] = resolved.name
-            }
-        } catch {
-            previewFieldNamesByNotetypeID[notetypeID] = []
         }
     }
 
@@ -1999,150 +2190,6 @@ struct NoteRowView: View {
     private func shortTagName(_ tag: String) -> String {
         // Show only the last component of a hierarchical tag (e.g. "日语::词汇" → "词汇")
         String(tag.split(separator: "::").last ?? Substring(tag))
-    }
-}
-
-private struct BrowseNotePreviewPane: View {
-    let note: NoteRecord
-    let notetypeName: String?
-    let fieldNames: [String]
-    let onEdit: () -> Void
-
-    private var tagList: [String] {
-        note.tags
-            .split(whereSeparator: { $0.isWhitespace })
-            .map(String.init)
-            .filter { !$0.isEmpty }
-    }
-
-    private var previewFields: [(name: String, value: String)] {
-        let rawFields = NoteProtoFactory.makeNote(from: note).fields
-        let names = fieldNames.isEmpty
-            ? rawFields.indices.map { "\($0 + 1)" }
-            : fieldNames
-
-        return zip(names, rawFields)
-            .map { ($0, cleanedPreviewText($1)) }
-            .filter { !$0.1.isEmpty }
-            .prefix(4)
-            .map { $0 }
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AmgiSpacing.md) {
-                previewHeader
-                metadataCard
-                fieldsCard
-            }
-            .padding(.vertical, AmgiSpacing.xs)
-        }
-    }
-
-    private var previewHeader: some View {
-        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
-            HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L("review_queue_preview"))
-                        .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
-
-                    Text(note.sfld.isEmpty ? "—" : note.sfld)
-                        .amgiFont(.cardTitle)
-                        .foregroundStyle(Color.amgiTextPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                Button(action: onEdit) {
-                    Label(L("common_edit"), systemImage: "square.and.pencil")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-            }
-        }
-        .padding(AmgiSpacing.lg)
-        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-    }
-
-    private var metadataCard: some View {
-        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
-            previewSectionTitle(L("card_info_notetype"))
-            Text(notetypeName ?? "—")
-                .amgiFont(.body)
-                .foregroundStyle(Color.amgiTextPrimary)
-
-            if !tagList.isEmpty {
-                Divider()
-
-                previewSectionTitle(L("add_note_section_tags"))
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(tagList, id: \.self) { tag in
-                            Text(shortTagName(tag))
-                                .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiAccent)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color.amgiAccent.opacity(0.12), in: Capsule())
-                        }
-                    }
-                }
-            }
-        }
-        .padding(AmgiSpacing.lg)
-        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-    }
-
-    private var fieldsCard: some View {
-        VStack(alignment: .leading, spacing: AmgiSpacing.md) {
-            previewSectionTitle(L("add_note_section_fields"))
-
-            if previewFields.isEmpty {
-                Text("—")
-                    .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
-            } else {
-                VStack(alignment: .leading, spacing: AmgiSpacing.md) {
-                    ForEach(Array(previewFields.enumerated()), id: \.offset) { index, field in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(field.name)
-                                .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                            Text(field.value)
-                                .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextPrimary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-
-                        if index < previewFields.count - 1 {
-                            Divider()
-                        }
-                    }
-                }
-            }
-        }
-        .padding(AmgiSpacing.lg)
-        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-    }
-
-    private func previewSectionTitle(_ title: String) -> some View {
-        Text(title)
-            .amgiFont(.caption)
-            .foregroundStyle(Color.amgiTextSecondary)
-            .textCase(.uppercase)
-    }
-
-    private func shortTagName(_ tag: String) -> String {
-        String(tag.split(separator: "::").last ?? Substring(tag))
-    }
-
-    private func cleanedPreviewText(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: "\\[sound:[^\\]]+\\]", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: "&nbsp;", with: " ")
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

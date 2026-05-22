@@ -123,13 +123,12 @@ struct NoteEditorView: View {
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(hasUnsavedChanges)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
+            ToolbarItemGroup(placement: .topBarLeading) {
                 Button(L("common_cancel")) {
                     attemptDismiss()
                 }
                 .amgiToolbarTextButton(tone: .neutral)
-            }
-            ToolbarItem(placement: .topBarLeading) {
+
                 Button(L("card_template_fields_short")) {
                     showFieldEditor = true
                 }

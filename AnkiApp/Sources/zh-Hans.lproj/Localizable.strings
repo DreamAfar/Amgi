@@ -656,6 +656,8 @@
 
 // MARK: - Statistics
 "stats_nav_title" = "统计";
+"stats_group_overview" = "概览";
+"stats_group_cards" = "卡片";
 "stats_loading" = "正在加载统计数据…";
 "stats_load_failed_title" = "统计加载失败";
 "stats_whole_collection" = "全部卡牌集";
@@ -1474,6 +1476,7 @@
 "stats_range_month" = "月";
 "stats_range_year" = "近一年";
 "stats_range_all" = "全部";
+"stats_period_label" = "统计范围";
 "stats_heatmap_loading_more" = "正在加载更多历史数据…";
 "stats_heatmap_load_complete" = "已全部加载";
 

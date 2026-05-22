@@ -10,8 +10,106 @@ import UIKit
 
 private let logger = Logger(subsystem: "amgi", category: "startup")
 
+private enum SplitRootSection: String, CaseIterable, Identifiable {
+    case decks
+    case stats
+    case reader
+    case browse
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .decks:
+            return L("tab_decks")
+        case .stats:
+            return L("tab_stats")
+        case .reader:
+            return L("tab_reader")
+        case .browse:
+            return L("tab_browse")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .decks:
+            return "rectangle.stack"
+        case .stats:
+            return "chart.bar"
+        case .reader:
+            return "books.vertical"
+        case .browse:
+            return "magnifyingglass"
+        }
+    }
+}
+
+private struct DecksSidebarState {
+    var expandedDeckIDs: Set<Int64> = []
+    var selectedDeckID: Int64?
+}
+
+private struct StatsSidebarState {
+    var selectedDeckID: Int64?
+    var selectedGroup: StatsGroup = .overview
+    var selectedRevlogRange: RevlogRange = .year
+}
+
+private struct ReaderSidebarState {
+    var sortOption: ReaderBookSortOption = .recent
+    var bookshelfColumns = 3
+    var selectedBookID: String?
+    var settingsRoute: ReaderLibrarySettingsRoute?
+}
+
+private struct BrowseSidebarState {
+    var selectedDeckID: Int64?
+    var selectedTag: String?
+    var selectedFlag: Int?
+}
+
+private struct SplitShellState {
+    var selectedSection: SplitRootSection = .decks
+    var decks = DecksSidebarState()
+    var stats = StatsSidebarState()
+    var reader = ReaderSidebarState()
+    var browse = BrowseSidebarState()
+}
+
+private struct ReaderSidebarBookSummary: Identifiable {
+    enum Source {
+        case ankiNotes
+        case epub
+
+        var title: String {
+            switch self {
+            case .ankiNotes:
+                return L("reader_library_source_badge_anki")
+            case .epub:
+                return L("reader_library_source_badge_epub")
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .ankiNotes:
+                return "square.stack"
+            case .epub:
+                return "book.closed"
+            }
+        }
+    }
+
+    let id: String
+    let title: String
+    let source: Source
+    let lastAccess: Date
+}
+
 struct ContentView: View {
     @Binding var incomingImportURL: URL?
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private enum RootTab: Hashable {
         case decks
@@ -36,6 +134,10 @@ struct ContentView: View {
     }
 
     @Dependency(\.deckClient) var deckClient
+    @Dependency(\.tagClient) var tagClient
+    @Dependency(\.noteClient) var noteClient
+    @Dependency(\.readerBookClient) var readerBookClient
+    @Dependency(\.readerEpubLibraryClient) var readerEpubLibraryClient
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.syncClient) var syncClient
     @ObservedObject private var syncCoordinator = AppSyncCoordinator.shared
@@ -68,6 +170,12 @@ struct ContentView: View {
     @State private var importDraft = ImportPackageDraft()
     @State private var selectedTab: RootTab = .decks
     @State private var isReaderTabEnabled = false
+    @State private var splitShell = SplitShellState()
+    @State private var showSplitSettings = false
+    @State private var splitDeckTree: [DeckTreeNode] = DeckTreeCache.load()
+    @State private var splitDeckOptions: [DeckInfo] = []
+    @State private var splitBrowseTags: [String] = []
+    @State private var splitReaderRecentBooks: [ReaderSidebarBookSummary] = []
 
     private var isImportExportInProgress: Bool {
         importExportOperation != nil
@@ -78,12 +186,14 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack {
-            rootTabView
-            .disabled(isImportExportInProgress)
+        GeometryReader { proxy in
+            ZStack {
+                adaptiveRootContainer(for: proxy.size)
+                    .disabled(isImportExportInProgress)
 
-            if let importExportOperation {
-                importExportOverlay(for: importExportOperation)
+                if let importExportOperation {
+                    importExportOverlay(for: importExportOperation)
+                }
             }
         }
         .sheet(isPresented: $showSync) {
@@ -98,6 +208,10 @@ struct ContentView: View {
             UserManagementView()
                 .presentationDetents([.fraction(0.5)])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showSplitSettings) {
+            SettingsView()
+                .id(refreshID)
         }
         .sheet(isPresented: $showExportOptions) {
             NavigationStack {
@@ -152,29 +266,46 @@ struct ContentView: View {
             updateSyncBadge()
         }
         .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.openDeckListNotification)) { _ in
-            selectedTab = .decks
+            selectSplitSection(.decks)
         }
         .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.openBrowseSearchNotification)) { _ in
-            selectedTab = .browse
+            selectSplitSection(.browse)
         }
         .onReceive(syncCoordinator.$state) { _ in
             updateSyncBadge()
         }
         .onChange(of: isReaderTabEnabled) {
             if isReaderTabEnabled == false, selectedTab == .reader {
-                selectedTab = .settings
+                selectedTab = usesWideSplitShell(for: UIScreen.main.bounds.size) ? .decks : .settings
             }
+            normalizeSplitSectionSelection()
+        }
+        .onChange(of: selectedTab) { _, newValue in
+            syncSplitSection(from: newValue)
+        }
+        .onChange(of: splitShell.selectedSection) { _, _ in
+            Task { await reloadSplitSidebarContext() }
+        }
+        .onChange(of: splitShell.browse.selectedDeckID) { _, _ in
+            Task { await reloadSplitBrowseTags() }
+        }
+        .onChange(of: splitShell.reader.settingsRoute?.rawValue) { oldValue, newValue in
+            guard oldValue != nil, newValue == nil else { return }
+            Task { await reloadSplitSidebarContext() }
         }
         .task {
             reloadReaderTabPreference()
+            syncSplitSection(from: selectedTab)
             updateSyncBadge()
             runCheckDatabaseIfReady()
             consumePendingIncomingImportURLIfNeeded()
+            await reloadSplitSidebarContext()
         }
         .onChange(of: collectionState.isReady) { _, isReady in
             guard isReady else { return }
             runCheckDatabaseIfReady()
             consumePendingIncomingImportURLIfNeeded()
+            Task { await reloadSplitSidebarContext() }
         }
         .onChange(of: incomingImportURL) { _, _ in
             consumePendingIncomingImportURLIfNeeded()
@@ -216,10 +347,25 @@ struct ContentView: View {
     }
 
     @ViewBuilder
+    private func adaptiveRootContainer(for size: CGSize) -> some View {
+        if usesWideSplitShell(for: size) {
+            splitRootView
+        } else {
+            rootTabView
+        }
+    }
+
+    @ViewBuilder
     private var rootTabView: some View {
         TabView(selection: $selectedTab) {
             rootTabs
         }
+    }
+
+    private func usesWideSplitShell(for size: CGSize) -> Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+        && horizontalSizeClass == .regular
+        && size.width > size.height
     }
 
     @TabContentBuilder<RootTab>
@@ -237,6 +383,751 @@ struct ContentView: View {
             settingsTab
             browseTab
         }
+    }
+
+    private var splitRootSections: [SplitRootSection] {
+        var sections: [SplitRootSection] = [.decks, .stats]
+        if isReaderTabEnabled {
+            sections.append(.reader)
+        }
+        sections.append(.browse)
+        return sections
+    }
+
+    private var splitSelectionBinding: Binding<SplitRootSection?> {
+        Binding(
+            get: {
+                splitRootSections.contains(splitShell.selectedSection) ? splitShell.selectedSection : .decks
+            },
+            set: { newValue in
+                selectSplitSection(newValue ?? .decks)
+            }
+        )
+    }
+
+    private var splitRootView: some View {
+        NavigationSplitView {
+            splitSidebarShell
+            .navigationTitle("Amgi")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 360)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    userMenu
+                }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    splitShellGlobalActions
+                }
+            }
+        } detail: {
+            splitDetailView
+        }
+        .navigationSplitViewStyle(.balanced)
+        .onAppear {
+            normalizeSplitSectionSelection()
+            Task { await reloadSplitSidebarContext() }
+        }
+    }
+
+    private var splitSidebarShell: some View {
+        VStack(spacing: 0) {
+            List(selection: splitSelectionBinding) {
+                ForEach(splitRootSections) { section in
+                    Label(section.title, systemImage: section.icon)
+                        .tag(section)
+                }
+            }
+            .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
+            .frame(minHeight: 220, maxHeight: 260)
+
+            Divider()
+
+            splitSidebarContextPanel
+        }
+    }
+
+    @ViewBuilder
+    private var splitSidebarContextPanel: some View {
+        if collectionState.isReady {
+            List {
+                splitSidebarContextSections
+            }
+            .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(Color.amgiBackground)
+        } else {
+            CollectionPreparingView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.amgiBackground)
+        }
+    }
+
+    @ViewBuilder
+    private var splitDetailView: some View {
+        switch splitShell.selectedSection {
+        case .decks:
+            NavigationStack {
+                if let splitSelectedDeck {
+                    DeckDetailView(deck: splitSelectedDeck)
+                        .id("\(refreshID)-deck-\(splitSelectedDeck.id)")
+                } else {
+                    DeckListView {
+                        refreshID = UUID()
+                        Task { await reloadSplitDeckOptions() }
+                    }
+                    .id(refreshID)
+                }
+                .toolbar {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        deckManagementMenu
+                    }
+                }
+            }
+        case .stats:
+            NavigationStack {
+                if collectionState.isReady {
+                    StatsDashboardView(
+                        isActive: true,
+                        externalSelectedDeck: splitStatsSelectedDeckBinding,
+                        externalRevlogRange: splitStatsRevlogRangeBinding,
+                        externalSelectedGroup: splitStatsSelectedGroupBinding
+                    )
+                        .id(refreshID)
+                } else {
+                    CollectionPreparingView()
+                }
+            }
+        case .reader:
+            NavigationStack {
+                if collectionState.isReady {
+                    ReaderLibraryView(
+                        externalSortOption: splitReaderSortOptionBinding,
+                        externalBookshelfColumns: splitReaderBookshelfColumnsBinding,
+                        externalSelectedBookID: splitReaderSelectedBookIDBinding,
+                        externalSettingsRoute: splitReaderSettingsRouteBinding
+                    )
+                        .id(refreshID)
+                } else {
+                    CollectionPreparingView()
+                }
+            }
+        case .browse:
+            if collectionState.isReady {
+                BrowseView(
+                    isActive: true,
+                    usesExternalRootSidebar: true,
+                    externalDeckSelection: splitBrowseSelectedDeckBinding,
+                    externalTagSelection: splitBrowseSelectedTagBinding,
+                    externalQuickFilterSelection: splitBrowseQuickFilterBinding
+                )
+                    .id(refreshID)
+            } else {
+                CollectionPreparingView()
+            }
+        }
+    }
+
+    private var splitShellGlobalActions: some View {
+        HStack(spacing: 14) {
+            syncToolbarButton
+
+            Button {
+                showSplitSettings = true
+            } label: {
+                Image(systemName: "gearshape")
+            }
+        }
+    }
+
+    private var splitSelectedDeck: DeckInfo? {
+        splitDeckOptions.first { $0.id == splitShell.decks.selectedDeckID }
+    }
+
+    private var splitExpandedDeckIDsBinding: Binding<Set<Int64>> {
+        Binding(
+            get: { splitShell.decks.expandedDeckIDs },
+            set: { splitShell.decks.expandedDeckIDs = $0 }
+        )
+    }
+
+    private var splitSelectedDeckIDBinding: Binding<Int64?> {
+        Binding(
+            get: { splitShell.decks.selectedDeckID },
+            set: { splitShell.decks.selectedDeckID = $0 }
+        )
+    }
+
+    private var splitStatsSelectedDeckBinding: Binding<DeckInfo?> {
+        Binding(
+            get: { splitDeckOptions.first { $0.id == splitShell.stats.selectedDeckID } },
+            set: { splitShell.stats.selectedDeckID = $0?.id }
+        )
+    }
+
+    private var splitStatsSelectedGroupBinding: Binding<StatsGroup> {
+        Binding(
+            get: { splitShell.stats.selectedGroup },
+            set: { splitShell.stats.selectedGroup = $0 }
+        )
+    }
+
+    private var splitStatsRevlogRangeBinding: Binding<RevlogRange> {
+        Binding(
+            get: { splitShell.stats.selectedRevlogRange },
+            set: { splitShell.stats.selectedRevlogRange = $0 }
+        )
+    }
+
+    private var splitReaderSortOptionBinding: Binding<ReaderBookSortOption> {
+        Binding(
+            get: { splitShell.reader.sortOption },
+            set: { splitShell.reader.sortOption = $0 }
+        )
+    }
+
+    private var splitReaderBookshelfColumnsBinding: Binding<Int> {
+        Binding(
+            get: { splitShell.reader.bookshelfColumns },
+            set: { splitShell.reader.bookshelfColumns = $0 }
+        )
+    }
+
+    private var splitReaderSettingsRouteBinding: Binding<ReaderLibrarySettingsRoute?> {
+        Binding(
+            get: { splitShell.reader.settingsRoute },
+            set: { splitShell.reader.settingsRoute = $0 }
+        )
+    }
+
+    private var splitReaderSelectedBookIDBinding: Binding<String?> {
+        Binding(
+            get: { splitShell.reader.selectedBookID },
+            set: { splitShell.reader.selectedBookID = $0 }
+        )
+    }
+
+    private var splitBrowseSelectedDeckBinding: Binding<DeckInfo?> {
+        Binding(
+            get: { splitDeckOptions.first { $0.id == splitShell.browse.selectedDeckID } },
+            set: { splitShell.browse.selectedDeckID = $0?.id }
+        )
+    }
+
+    private var splitBrowseSelectedTagBinding: Binding<String?> {
+        Binding(
+            get: { splitShell.browse.selectedTag },
+            set: { splitShell.browse.selectedTag = $0 }
+        )
+    }
+
+    private var splitBrowseQuickFilterBinding: Binding<BrowseQuickFilter> {
+        Binding(
+            get: { browseQuickFilter(for: splitShell.browse.selectedFlag) },
+            set: { splitShell.browse.selectedFlag = selectedFlagNumber(for: $0) }
+        )
+    }
+
+    @ViewBuilder
+    private var splitSidebarContextSections: some View {
+        switch splitShell.selectedSection {
+        case .decks:
+            if !splitDeckTree.isEmpty {
+                Section(L("deck_list_nav_title")) {
+                    splitSidebarDeckTreeRows
+                }
+            } else if !splitDeckOptions.isEmpty {
+                Section(L("deck_list_nav_title")) {
+                    splitSidebarDeckRows
+                }
+            }
+        case .browse:
+            if !splitDeckOptions.isEmpty {
+                Section(L("browse_filter_by_deck")) {
+                    splitSidebarBrowseDeckRows
+                }
+            }
+            if !splitBrowseTags.isEmpty {
+                Section(L("browse_filter_by_tag")) {
+                    splitSidebarBrowseTagRows
+                }
+            }
+            Section(L("browse_batch_flag_label")) {
+                splitSidebarBrowseFlagRows
+            }
+        case .stats:
+            Section(L("stats_nav_title")) {
+                splitSidebarStatsGroupRows
+            }
+            Section(L("browse_filter_by_deck")) {
+                splitSidebarStatsDeckRows
+            }
+            Section(L("stats_period_label")) {
+                splitSidebarStatsRangeRows
+            }
+        case .reader:
+            Section(L("reader_library_title")) {
+                splitSidebarReaderLibraryRows
+            }
+            if !splitReaderRecentBooks.isEmpty {
+                Section(L("reader_library_sort_recent")) {
+                    splitSidebarReaderRecentRows
+                }
+            }
+            Section(L("tab_settings")) {
+                splitSidebarReaderSettingsRows
+            }
+        }
+    }
+
+    private var splitSidebarDeckTreeRows: some View {
+        ForEach(splitDeckTree) { node in
+            SplitDeckSidebarTreeRow(
+                node: node,
+                depth: 0,
+                expandedDeckIDs: splitExpandedDeckIDsBinding,
+                selectedDeckID: splitSelectedDeckIDBinding,
+                onSelect: selectSplitDeck
+            )
+        }
+    }
+
+    private var splitSidebarDeckRows: some View {
+        ForEach(splitDeckOptions) { deck in
+            Button {
+                selectSplitDeck(deck.id)
+            } label: {
+                HStack(spacing: 10) {
+                    Text(deck.name)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.decks.selectedDeckID == deck.id {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var splitSidebarBrowseDeckRows: some View {
+        Group {
+            Button {
+                splitShell.browse.selectedDeckID = nil
+            } label: {
+                HStack {
+                    Text(L("browse_filter_all"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.browse.selectedDeckID == nil {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            ForEach(splitDeckOptions) { deck in
+                Button {
+                    splitShell.browse.selectedDeckID = splitShell.browse.selectedDeckID == deck.id ? nil : deck.id
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(deck.name)
+                            .foregroundStyle(Color.amgiTextPrimary)
+                        Spacer()
+                        if splitShell.browse.selectedDeckID == deck.id {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var splitSidebarBrowseTagRows: some View {
+        Group {
+            Button {
+                splitShell.browse.selectedTag = nil
+            } label: {
+                HStack {
+                    Text(L("browse_filter_all"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.browse.selectedTag == nil {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            ForEach(splitBrowseTags, id: \.self) { tag in
+                Button {
+                    splitShell.browse.selectedTag = splitShell.browse.selectedTag == tag ? nil : tag
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(tag)
+                            .foregroundStyle(Color.amgiTextPrimary)
+                        Spacer()
+                        if splitShell.browse.selectedTag == tag {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var splitSidebarBrowseFlagRows: some View {
+        Group {
+            Button {
+                splitShell.browse.selectedFlag = nil
+            } label: {
+                HStack(spacing: 10) {
+                    Text(L("browse_filter_all"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.browse.selectedFlag == nil {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            ForEach(BrowseQuickFilter.flagCases, id: \.self) { filter in
+                Button {
+                    let flagNumber = selectedFlagNumber(for: filter)
+                    splitShell.browse.selectedFlag = splitShell.browse.selectedFlag == flagNumber ? nil : flagNumber
+                } label: {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(splitSidebarFlagColor(for: filter))
+                            .frame(width: 10, height: 10)
+                        Text(filter.title)
+                            .foregroundStyle(Color.amgiTextPrimary)
+                        Spacer()
+                        if splitShell.browse.selectedFlag == selectedFlagNumber(for: filter) {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var splitSidebarStatsDeckRows: some View {
+        Group {
+            Button {
+                splitShell.stats.selectedDeckID = nil
+            } label: {
+                HStack {
+                    Text(L("stats_whole_collection"))
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.stats.selectedDeckID == nil {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            ForEach(splitDeckOptions.filter { !$0.name.contains("::") }) { deck in
+                Button {
+                    splitShell.stats.selectedDeckID = splitShell.stats.selectedDeckID == deck.id ? nil : deck.id
+                } label: {
+                    HStack {
+                        Text(deck.name)
+                            .foregroundStyle(Color.amgiTextPrimary)
+                        Spacer()
+                        if splitShell.stats.selectedDeckID == deck.id {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var splitSidebarStatsGroupRows: some View {
+        ForEach(StatsGroup.allCases) { group in
+            Button {
+                splitShell.stats.selectedGroup = group
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: group.icon)
+                        .foregroundStyle(group == splitShell.stats.selectedGroup ? Color.accentColor : Color.amgiTextSecondary)
+                    Text(group.title)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.stats.selectedGroup == group {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var splitSidebarStatsRangeRows: some View {
+        ForEach(RevlogRange.allCases, id: \.self) { range in
+            Button {
+                splitShell.stats.selectedRevlogRange = range
+            } label: {
+                HStack {
+                    Text(range.localizedLabel)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.stats.selectedRevlogRange == range {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var splitSidebarReaderLibraryRows: some View {
+        Button {
+            splitShell.reader.selectedBookID = nil
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "books.vertical")
+                    .foregroundStyle(splitShell.reader.selectedBookID == nil ? Color.accentColor : Color.amgiTextSecondary)
+                Text(L("browse_filter_all"))
+                    .foregroundStyle(Color.amgiTextPrimary)
+                Spacer()
+                if splitShell.reader.selectedBookID == nil {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var splitSidebarReaderRecentRows: some View {
+        ForEach(splitReaderRecentBooks) { book in
+            Button {
+                splitShell.reader.selectedBookID = splitShell.reader.selectedBookID == book.id ? nil : book.id
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: book.source.icon)
+                        .foregroundStyle(splitShell.reader.selectedBookID == book.id ? Color.accentColor : Color.amgiTextSecondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(book.title)
+                            .foregroundStyle(Color.amgiTextPrimary)
+                            .lineLimit(2)
+                        Text("\(book.source.title) · \(splitReaderLastAccessText(for: book.lastAccess))")
+                            .font(.caption)
+                            .foregroundStyle(Color.amgiTextSecondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    if splitShell.reader.selectedBookID == book.id {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var splitSidebarReaderSettingsRows: some View {
+        Group {
+            splitSidebarReaderSettingsButton(
+                title: L("settings_reader_section_source"),
+                icon: "tray.full",
+                route: .source
+            )
+            splitSidebarReaderSettingsButton(
+                title: L("settings_reader_manage_dictionaries"),
+                icon: "character.book.closed",
+                route: .dictionaries
+            )
+            splitSidebarReaderSettingsButton(
+                title: L("settings_reader_display_settings"),
+                icon: "paintbrush",
+                route: .display
+            )
+            splitSidebarReaderSettingsButton(
+                title: L("settings_reader_advanced_settings"),
+                icon: "gearshape.2",
+                route: .advanced
+            )
+        }
+    }
+
+    private func splitSidebarReaderSettingsButton(
+        title: String,
+        icon: String,
+        route: ReaderLibrarySettingsRoute
+    ) -> some View {
+        Button {
+            splitShell.reader.settingsRoute = route
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .foregroundStyle(Color.accentColor)
+                Text(title)
+                    .foregroundStyle(Color.amgiTextPrimary)
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func splitReaderLastAccessText(for date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    private func rootTab(for section: SplitRootSection) -> RootTab {
+        switch section {
+        case .decks:
+            return .decks
+        case .stats:
+            return .stats
+        case .reader:
+            return .reader
+        case .browse:
+            return .browse
+        }
+    }
+
+    private func splitSection(for tab: RootTab) -> SplitRootSection? {
+        switch tab {
+        case .decks:
+            return .decks
+        case .stats:
+            return .stats
+        case .reader:
+            return .reader
+        case .browse:
+            return .browse
+        case .settings:
+            return nil
+        }
+    }
+
+    private func selectSplitSection(_ section: SplitRootSection) {
+        splitShell.selectedSection = section
+        let targetTab = rootTab(for: section)
+        if selectedTab != targetTab {
+            selectedTab = targetTab
+        }
+    }
+
+    private func selectSplitDeck(_ deckID: Int64?) {
+        splitShell.decks.selectedDeckID = splitShell.decks.selectedDeckID == deckID ? nil : deckID
+        guard let selectedDeckID = splitShell.decks.selectedDeckID else { return }
+        splitShell.decks.expandedDeckIDs.formUnion(ancestorDeckIDs(for: selectedDeckID, in: splitDeckTree))
+    }
+
+    private func syncSplitSection(from tab: RootTab) {
+        guard let section = splitSection(for: tab) else { return }
+        if !splitRootSections.contains(section) {
+            splitShell.selectedSection = .decks
+            return
+        }
+        if splitShell.selectedSection != section {
+            splitShell.selectedSection = section
+        }
+    }
+
+    private func normalizeSplitSectionSelection() {
+        if !splitRootSections.contains(splitShell.selectedSection) {
+            splitShell.selectedSection = .decks
+        }
+        if selectedTab == .reader && isReaderTabEnabled == false {
+            selectedTab = .decks
+        }
+    }
+
+    private func browseQuickFilter(for selectedFlag: Int?) -> BrowseQuickFilter {
+        guard let selectedFlag else { return .all }
+        switch selectedFlag {
+        case 1:
+            return .flag1
+        case 2:
+            return .flag2
+        case 3:
+            return .flag3
+        case 4:
+            return .flag4
+        case 5:
+            return .flag5
+        case 6:
+            return .flag6
+        case 7:
+            return .flag7
+        default:
+            return .all
+        }
+    }
+
+    private func selectedFlagNumber(for filter: BrowseQuickFilter) -> Int? {
+        switch filter {
+        case .flag1:
+            return 1
+        case .flag2:
+            return 2
+        case .flag3:
+            return 3
+        case .flag4:
+            return 4
+        case .flag5:
+            return 5
+        case .flag6:
+            return 6
+        case .flag7:
+            return 7
+        default:
+            return nil
+        }
+    }
+
+    private func ancestorDeckIDs(for selectedDeckID: Int64, in nodes: [DeckTreeNode]) -> [Int64] {
+        for node in nodes {
+            if node.id == selectedDeckID {
+                return []
+            }
+            let descendantPath = ancestorDeckIDs(for: selectedDeckID, in: node.children)
+            if node.children.isEmpty == false, descendantPath.isEmpty == false || node.children.contains(where: { $0.id == selectedDeckID }) {
+                return [node.id] + descendantPath
+            }
+        }
+        return []
+    }
+
+    private func normalizedExpandedDeckIDs(for nodes: [DeckTreeNode]) -> Set<Int64> {
+        let validDeckIDs = allDeckIDs(in: nodes)
+        var expandedDeckIDs = splitShell.decks.expandedDeckIDs.intersection(validDeckIDs)
+        if let selectedDeckID = splitShell.decks.selectedDeckID {
+            expandedDeckIDs.formUnion(ancestorDeckIDs(for: selectedDeckID, in: nodes))
+        }
+        return expandedDeckIDs
+    }
+
+    private func allDeckIDs(in nodes: [DeckTreeNode]) -> Set<Int64> {
+        Set(nodes.flatMap { node in
+            [node.id] + Array(allDeckIDs(in: node.children))
+        })
     }
 
     private var decksTab: some TabContent<RootTab> {
@@ -272,13 +1163,11 @@ struct ContentView: View {
     }
 
     private var browseTabContent: some View {
-        NavigationStack {
-            if collectionState.isReady {
-                BrowseView(isActive: selectedTab == .browse)
-                    .id(refreshID)
-            } else {
-                CollectionPreparingView()
-            }
+        if collectionState.isReady {
+            BrowseView(isActive: selectedTab == .browse)
+                .id(refreshID)
+        } else {
+            CollectionPreparingView()
         }
     }
 
@@ -313,10 +1202,8 @@ struct ContentView: View {
 
     private var settingsTab: some TabContent<RootTab> {
         Tab(L("tab_settings"), systemImage: "gearshape", value: RootTab.settings) {
-            NavigationStack {
-                SettingsView()
-                    .id(refreshID)
-            }
+            SettingsView()
+                .id(refreshID)
         }
     }
 
@@ -382,48 +1269,55 @@ struct ContentView: View {
 
     private var trailingActions: some View {
         HStack(spacing: 14) {
-            Button {
-                showSync = true
-            } label: {
-                if syncCoordinator.isRunning {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text(L("sync_syncing"))
-                            .amgiFont(.captionBold)
-                            .foregroundStyle(Color.amgiTextPrimary)
-                    }
-                } else {
-                    ZStack(alignment: .topTrailing) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .padding(.top, 3)
-                            .padding(.trailing, 3)
-                        if showSyncBadge {
-                            Circle()
-                                .fill(Color.amgiDanger)
-                                .frame(width: 7, height: 7)
-                        }
-                    }
-                }
-            }
-            .disabled(!collectionState.isReady)
-
-            Menu {
-                Button(L("menu_add_deck")) {
-                    showAddDeckPrompt = true
-                }
-                Button(L("menu_export_deck")) {
-                    presentExportOptions()
-                }
-                Divider()
-                Button(L("menu_import_apkg")) {
-                    showImport = true
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .disabled(!collectionState.isReady)
+            syncToolbarButton
+            deckManagementMenu
         }
+    }
+
+    private var syncToolbarButton: some View {
+        Button {
+            showSync = true
+        } label: {
+            if syncCoordinator.isRunning {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(L("sync_syncing"))
+                        .amgiFont(.captionBold)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                }
+            } else {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .padding(.top, 3)
+                        .padding(.trailing, 3)
+                    if showSyncBadge {
+                        Circle()
+                            .fill(Color.amgiDanger)
+                            .frame(width: 7, height: 7)
+                    }
+                }
+            }
+        }
+        .disabled(!collectionState.isReady)
+    }
+
+    private var deckManagementMenu: some View {
+        Menu {
+            Button(L("menu_add_deck")) {
+                showAddDeckPrompt = true
+            }
+            Button(L("menu_export_deck")) {
+                presentExportOptions()
+            }
+            Divider()
+            Button(L("menu_import_apkg")) {
+                showImport = true
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .disabled(!collectionState.isReady)
     }
 
     private func reloadUsers() {
@@ -682,6 +1576,229 @@ struct ContentView: View {
             .sorted { $0.name < $1.name }
     }
 
+    @MainActor
+    private func reloadSplitSidebarContext() async {
+        guard collectionState.isReady else {
+            splitDeckTree = DeckTreeCache.load()
+            splitDeckOptions = []
+            splitBrowseTags = []
+            splitReaderRecentBooks = []
+            splitShell.decks.selectedDeckID = nil
+            splitShell.decks.expandedDeckIDs = normalizedExpandedDeckIDs(for: splitDeckTree)
+            splitShell.browse.selectedDeckID = nil
+            splitShell.browse.selectedTag = nil
+            splitShell.browse.selectedFlag = nil
+            splitShell.stats.selectedDeckID = nil
+            splitShell.reader.selectedBookID = nil
+            return
+        }
+
+        async let decksLoad: [DeckInfo] = loadExportDeckOptions()
+        async let deckTreeLoad: [DeckTreeNode] = loadSplitDeckTree()
+        let decks = await decksLoad
+        let deckTree = await deckTreeLoad
+        let tags = await loadSplitBrowseTagsForCurrentDeck(using: decks)
+        let readerRecentBooks = isReaderTabEnabled ? loadSplitReaderRecentBooks(using: decks) : []
+
+        splitDeckTree = deckTree
+        splitDeckOptions = decks
+        splitBrowseTags = tags
+        splitReaderRecentBooks = readerRecentBooks
+
+        if !decks.contains(where: { $0.id == splitShell.decks.selectedDeckID }) {
+            splitShell.decks.selectedDeckID = nil
+        }
+        splitShell.decks.expandedDeckIDs = normalizedExpandedDeckIDs(for: deckTree)
+        if !decks.contains(where: { $0.id == splitShell.browse.selectedDeckID }) {
+            splitShell.browse.selectedDeckID = nil
+        }
+        if !decks.contains(where: { $0.id == splitShell.stats.selectedDeckID }) {
+            splitShell.stats.selectedDeckID = nil
+        }
+        if let selectedTag = splitShell.browse.selectedTag, !tags.contains(selectedTag) {
+            splitShell.browse.selectedTag = nil
+        }
+    }
+
+    @MainActor
+    private func reloadSplitBrowseTags() async {
+        guard collectionState.isReady else {
+            splitBrowseTags = []
+            splitShell.browse.selectedTag = nil
+            return
+        }
+
+        let tags = await loadSplitBrowseTagsForCurrentDeck()
+        splitBrowseTags = tags
+        if let selectedTag = splitShell.browse.selectedTag, !tags.contains(selectedTag) {
+            splitShell.browse.selectedTag = nil
+        }
+    }
+
+    @MainActor
+    private func reloadSplitDeckOptions() async {
+        guard collectionState.isReady else {
+            splitDeckTree = DeckTreeCache.load()
+            splitDeckOptions = []
+            splitShell.decks.selectedDeckID = nil
+            splitShell.decks.expandedDeckIDs = normalizedExpandedDeckIDs(for: splitDeckTree)
+            splitShell.browse.selectedDeckID = nil
+            splitShell.stats.selectedDeckID = nil
+            return
+        }
+
+        async let decksLoad: [DeckInfo] = loadExportDeckOptions()
+        async let deckTreeLoad: [DeckTreeNode] = loadSplitDeckTree()
+        let (decks, deckTree) = await (decksLoad, deckTreeLoad)
+
+        splitDeckTree = deckTree
+        splitDeckOptions = decks
+
+        if !decks.contains(where: { $0.id == splitShell.decks.selectedDeckID }) {
+            splitShell.decks.selectedDeckID = nil
+        }
+        splitShell.decks.expandedDeckIDs = normalizedExpandedDeckIDs(for: deckTree)
+        if !decks.contains(where: { $0.id == splitShell.browse.selectedDeckID }) {
+            splitShell.browse.selectedDeckID = nil
+        }
+        if !decks.contains(where: { $0.id == splitShell.stats.selectedDeckID }) {
+            splitShell.stats.selectedDeckID = nil
+        }
+    }
+
+    private func loadSplitDeckTree() async -> [DeckTreeNode] {
+        if let tree = try? deckClient.fetchTree() {
+            return tree
+        }
+        return DeckTreeCache.load()
+    }
+
+    private func loadSplitBrowseTagsForCurrentDeck(using decks: [DeckInfo]? = nil) async -> [String] {
+        do {
+            let availableDecks = decks ?? splitDeckOptions
+            if let selectedDeck = availableDecks.first(where: { $0.id == splitShell.browse.selectedDeckID }) {
+                let noteIDs = try noteClient.searchIds("deck:\"\(selectedDeck.name)\"")
+                var tagSet = Set<String>()
+                let batchSize = 500
+                var startIndex = 0
+                while startIndex < noteIDs.count {
+                    let endIndex = min(startIndex + batchSize, noteIDs.count)
+                    let batchIDs = Array(noteIDs[startIndex..<endIndex])
+                    let batchNotes = try noteClient.fetchBatch(batchIDs)
+                    for note in batchNotes {
+                        let tags = note.tags
+                            .split(separator: " ")
+                            .map(String.init)
+                            .filter { !$0.isEmpty }
+                        tagSet.formUnion(tags)
+                    }
+                    startIndex = endIndex
+                }
+                return tagSet.sorted()
+            }
+            return try tagClient.getAllTags().sorted()
+        } catch {
+            return []
+        }
+    }
+
+    private func loadSplitReaderRecentBooks(using decks: [DeckInfo]) -> [ReaderSidebarBookSummary] {
+        let noteBooks = loadSplitReaderNoteBooks(using: decks)
+        let epubBooks = (try? readerEpubLibraryClient.loadState().books) ?? []
+
+        let noteItems = noteBooks.map { book in
+            ReaderSidebarBookSummary(
+                id: "anki:\(book.id)",
+                title: book.title,
+                source: .ankiNotes,
+                lastAccess: ReaderProgressStore.load(bookID: book.id)?.updatedAt ?? .distantPast
+            )
+        }
+        let epubItems = epubBooks.map { book in
+            let trimmedTitle = (book.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            ReaderSidebarBookSummary(
+                id: "epub:\(book.id.uuidString)",
+                title: trimmedTitle.isEmpty ? book.id.uuidString : trimmedTitle,
+                source: .epub,
+                lastAccess: book.lastAccess
+            )
+        }
+
+        return Array(
+            (noteItems + epubItems)
+                .filter { $0.lastAccess > .distantPast }
+                .sorted { lhs, rhs in
+                    if lhs.lastAccess != rhs.lastAccess {
+                        return lhs.lastAccess > rhs.lastAccess
+                    }
+                    let titleComparison = lhs.title.localizedCaseInsensitiveCompare(rhs.title)
+                    if titleComparison != .orderedSame {
+                        return titleComparison == .orderedAscending
+                    }
+                    return lhs.id < rhs.id
+                }
+                .prefix(8)
+        )
+    }
+
+    private func loadSplitReaderNoteBooks(using decks: [DeckInfo]) -> [ReaderBook] {
+        let defaults = UserDefaults.standard
+        let selectedDeckID = defaults.integer(forKey: ReaderPreferences.Keys.deckID)
+        guard selectedDeckID != 0,
+              let selectedDeck = decks.first(where: { Int($0.id) == selectedDeckID }) else {
+            return []
+        }
+
+        let bookIDField = defaults.string(forKey: ReaderPreferences.Keys.bookIDField) ?? ""
+        let bookTitleField = defaults.string(forKey: ReaderPreferences.Keys.bookTitleField) ?? ""
+        let bookCoverField = defaults.string(forKey: ReaderPreferences.Keys.bookCoverField) ?? ""
+        let chapterTitleField = defaults.string(forKey: ReaderPreferences.Keys.chapterTitleField) ?? ""
+        let chapterOrderField = defaults.string(forKey: ReaderPreferences.Keys.chapterOrderField) ?? ""
+        let contentField = defaults.string(forKey: ReaderPreferences.Keys.contentField) ?? ""
+        let languageField = defaults.string(forKey: ReaderPreferences.Keys.languageField) ?? ""
+
+        guard !bookIDField.isEmpty,
+              !bookTitleField.isEmpty,
+              !chapterTitleField.isEmpty,
+              !chapterOrderField.isEmpty,
+              !contentField.isEmpty else {
+            return []
+        }
+
+        let selectedNotetypeID = defaults.integer(forKey: ReaderPreferences.Keys.notetypeID)
+        let configuration = ReaderLibraryConfiguration(
+            deckName: selectedDeck.name,
+            notetypeID: selectedNotetypeID == 0 ? nil : Int64(selectedNotetypeID),
+            fieldMapping: ReaderFieldMapping(
+                bookIDField: bookIDField,
+                bookTitleField: bookTitleField,
+                bookCoverField: bookCoverField.isEmpty ? nil : bookCoverField,
+                chapterTitleField: chapterTitleField,
+                chapterOrderField: chapterOrderField,
+                contentField: contentField,
+                languageField: languageField.isEmpty ? nil : languageField
+            )
+        )
+        return (try? readerBookClient.loadBooks(configuration)) ?? []
+    }
+
+    private func splitSidebarFlagColor(for filter: BrowseQuickFilter) -> Color {
+        guard let index = BrowseQuickFilter.flagCases.firstIndex(of: filter) else {
+            return .secondary
+        }
+
+        switch index + 1 {
+        case 1: return .red
+        case 2: return .orange
+        case 3: return .green
+        case 4: return .blue
+        case 5: return .pink
+        case 6: return .cyan
+        case 7: return .purple
+        default: return .secondary
+        }
+    }
+
     private func handleImport(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
@@ -774,6 +1891,87 @@ struct ContentView: View {
         pendingImportNeedsSecurityScope = false
         pendingImportURL = nil
         showImportOptions = false
+    }
+}
+
+private struct SplitDeckSidebarTreeRow: View {
+    let node: DeckTreeNode
+    let depth: Int
+    @Binding var expandedDeckIDs: Set<Int64>
+    @Binding var selectedDeckID: Int64?
+    let onSelect: (Int64?) -> Void
+
+    private var hasChildren: Bool {
+        !node.children.isEmpty
+    }
+
+    private var isExpanded: Bool {
+        expandedDeckIDs.contains(node.id)
+    }
+
+    private var isSelected: Bool {
+        selectedDeckID == node.id
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                if hasChildren {
+                    Button {
+                        if isExpanded {
+                            expandedDeckIDs.remove(node.id)
+                        } else {
+                            expandedDeckIDs.insert(node.id)
+                        }
+                    } label: {
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.amgiTextSecondary)
+                            .frame(width: 16, height: 16)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Color.clear
+                        .frame(width: 16, height: 16)
+                }
+
+                Button {
+                    onSelect(node.id)
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(node.name)
+                            .foregroundStyle(Color.amgiTextPrimary)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        if node.counts.total > 0 {
+                            Text("\(node.counts.total)")
+                                .font(.caption2)
+                                .foregroundStyle(Color.amgiTextSecondary)
+                        }
+                        if isSelected {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.leading, CGFloat(depth) * 14)
+
+            if hasChildren && isExpanded {
+                ForEach(node.children) { child in
+                    SplitDeckSidebarTreeRow(
+                        node: child,
+                        depth: depth + 1,
+                        expandedDeckIDs: $expandedDeckIDs,
+                        selectedDeckID: $selectedDeckID,
+                        onSelect: onSelect
+                    )
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 

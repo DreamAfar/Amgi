@@ -656,6 +656,8 @@
 
 // MARK: - Statistics
 "stats_nav_title" = "統計";
+"stats_group_overview" = "概要";
+"stats_group_cards" = "カード";
 "stats_loading" = "統計データを読み込み中…";
 "stats_load_failed_title" = "統計の読み込みに失敗しました";
 "stats_whole_collection" = "コレクション全体";
@@ -1476,6 +1478,7 @@
 "stats_range_month" = "1か月";
 "stats_range_year" = "過去1年";
 "stats_range_all" = "すべて";
+"stats_period_label" = "統計範囲";
 "stats_heatmap_loading_more" = "履歴データを読み込み中…";
 "stats_heatmap_load_complete" = "すべてのデータが読み込まれました";
 
