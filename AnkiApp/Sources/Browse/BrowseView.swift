@@ -317,6 +317,11 @@ struct BrowseView: View {
     }
 
     private func browseLifecycleContent<Content: View>(_ content: Content) -> some View {
+        let alertContent = browseAlertContent(content)
+        return browseStateObserverContent(alertContent)
+    }
+
+    private func browseAlertContent<Content: View>(_ content: Content) -> some View {
         content
         .alert(L("browse_batch_delete_title"), isPresented: $showBatchDeleteConfirm) {
             Button(L("common_cancel"), role: .cancel) { }
@@ -360,6 +365,10 @@ struct BrowseView: View {
         } message: {
             Text(L("browse_batch_reset_confirm_msg", selectedNoteIDs.count))
         }
+    }
+
+    private func browseStateObserverContent<Content: View>(_ content: Content) -> some View {
+        content
         .onAppear {
             syncExternalFiltersIntoLocal()
         }

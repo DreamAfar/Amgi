@@ -232,65 +232,79 @@ struct ReaderLibraryView: View {
     }
 
     var body: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let selectedSidebarBook, isSelecting == false {
-                readerDestination(for: selectedSidebarBook)
-            } else if sortedBooks.isEmpty {
-                if let configurationProblem, epubLibraryState.books.isEmpty {
-                ContentUnavailableView(
-                    L("reader_library_missing_config_title"),
-                    systemImage: "books.vertical",
-                    description: Text(configurationProblem)
-                )
-                } else {
-                ContentUnavailableView(
-                    L("reader_library_empty_title"),
-                    systemImage: "book.closed",
-                    description: Text(L("reader_library_empty_description")) + Text("\n\n") + Text(L("reader_epub_empty_description"))
-                )
-                }
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        if isSelecting {
-                            Text(L("reader_library_selected_count", selectedBookIDs.count))
-                                .font(.footnote)
-                                .foregroundStyle(Color.amgiTextSecondary)
-                                .padding(.horizontal, 2)
-                        }
+        let rootContent = readerLibraryRootContent
+        let chromeContent = readerLibraryChromeContent(rootContent)
+        let observerContent = readerLibraryObserverContent(chromeContent)
+        let presentationContent = readerLibraryPresentationContent(observerContent)
+        return readerLibraryAlertContent(presentationContent)
+    }
 
-                        LazyVGrid(columns: bookGridColumns, alignment: .leading, spacing: Self.bookGridSpacing) {
-                            ForEach(sortedBooks) { book in
-                                if isSelecting {
-                                    Button {
-                                        toggleSelection(for: book)
-                                    } label: {
-                                        ReaderBookCard(
-                                            item: book,
-                                            isSelecting: true,
-                                            isSelected: selectedBookIDs.contains(book.id)
-                                        )
+    private var readerLibraryRootContent: AnyView {
+        AnyView(
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let selectedSidebarBook, isSelecting == false {
+                    readerDestination(for: selectedSidebarBook)
+                } else if sortedBooks.isEmpty {
+                    if let configurationProblem, epubLibraryState.books.isEmpty {
+                        ContentUnavailableView(
+                            L("reader_library_missing_config_title"),
+                            systemImage: "books.vertical",
+                            description: Text(configurationProblem)
+                        )
+                    } else {
+                        ContentUnavailableView(
+                            L("reader_library_empty_title"),
+                            systemImage: "book.closed",
+                            description: Text(L("reader_library_empty_description")) + Text("\n\n") + Text(L("reader_epub_empty_description"))
+                        )
+                    }
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 14) {
+                            if isSelecting {
+                                Text(L("reader_library_selected_count", selectedBookIDs.count))
+                                    .font(.footnote)
+                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .padding(.horizontal, 2)
+                            }
+
+                            LazyVGrid(columns: bookGridColumns, alignment: .leading, spacing: Self.bookGridSpacing) {
+                                ForEach(sortedBooks) { book in
+                                    if isSelecting {
+                                        Button {
+                                            toggleSelection(for: book)
+                                        } label: {
+                                            ReaderBookCard(
+                                                item: book,
+                                                isSelecting: true,
+                                                isSelected: selectedBookIDs.contains(book.id)
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    } else {
+                                        NavigationLink {
+                                            readerDestination(for: book)
+                                        } label: {
+                                            ReaderBookCard(item: book)
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
-                                } else {
-                                    NavigationLink {
-                                        readerDestination(for: book)
-                                    } label: {
-                                        ReaderBookCard(item: book)
-                                    }
-                                    .buttonStyle(.plain)
                                 }
                             }
                         }
+                        .padding(16)
                     }
-                    .padding(16)
+                    .scrollIndicators(.hidden)
                 }
-                .scrollIndicators(.hidden)
             }
-        }
+        )
+    }
+
+    private func readerLibraryChromeContent<Content: View>(_ content: Content) -> some View {
+        content
         .background(Color.amgiBackground)
         .navigationTitle(selectedSidebarBook?.title ?? L("reader_library_title"))
         .navigationBarTitleDisplayMode(selectedSidebarBook == nil ? .large : .inline)
@@ -383,6 +397,10 @@ struct ReaderLibraryView: View {
                 }
             }
         }
+    }
+
+    private func readerLibraryObserverContent<Content: View>(_ content: Content) -> some View {
+        content
         .task(id: configurationSignature) {
             await loadBooks()
         }
@@ -437,6 +455,10 @@ struct ReaderLibraryView: View {
                 }
             }
         }
+    }
+
+    private func readerLibraryPresentationContent<Content: View>(_ content: Content) -> some View {
+        content
         .sheet(item: $settingsRoute) { route in
             NavigationStack {
                 switch route {
@@ -451,6 +473,10 @@ struct ReaderLibraryView: View {
                 }
             }
         }
+    }
+
+    private func readerLibraryAlertContent<Content: View>(_ content: Content) -> some View {
+        content
         .alert(L("common_error"), isPresented: $showError) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {

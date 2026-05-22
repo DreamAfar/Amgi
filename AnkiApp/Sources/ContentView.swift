@@ -195,16 +195,29 @@ struct ContentView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                adaptiveRootContainer(for: proxy.size)
-                    .disabled(isImportExportInProgress)
+        let rootContent = contentRootView
+        let presentationContent = contentPresentationShell(rootContent)
+        let observerContent = contentObserverShell(presentationContent)
+        return contentAlertShell(observerContent)
+    }
 
-                if let importExportOperation {
-                    importExportOverlay(for: importExportOperation)
+    private var contentRootView: AnyView {
+        AnyView(
+            GeometryReader { proxy in
+                ZStack {
+                    adaptiveRootContainer(for: proxy.size)
+                        .disabled(isImportExportInProgress)
+
+                    if let importExportOperation {
+                        importExportOverlay(for: importExportOperation)
+                    }
                 }
             }
-        }
+        )
+    }
+
+    private func contentPresentationShell<Content: View>(_ content: Content) -> some View {
+        content
         .sheet(isPresented: $showSync) {
             updateSyncBadge()
             refreshID = UUID()
@@ -262,6 +275,18 @@ struct ContentView: View {
                 }
             }
         }
+        .sheet(isPresented: $showExportShareSheet) {
+            if let url = exportedFileURL {
+                ShareSheet(items: [url])
+            }
+        }
+        .fileImporter(isPresented: $showImport, allowedContentTypes: [.data]) { result in
+            handleImport(result)
+        }
+    }
+
+    private func contentObserverShell<Content: View>(_ content: Content) -> some View {
+        content
         .onReceive(NotificationCenter.default.publisher(for: AppUserStore.didChangeNotification)) { _ in
             reloadUsers()
         }
@@ -319,9 +344,10 @@ struct ContentView: View {
         .onChange(of: incomingImportURL) { _, _ in
             consumePendingIncomingImportURLIfNeeded()
         }
-        .fileImporter(isPresented: $showImport, allowedContentTypes: [.data]) { result in
-            handleImport(result)
-        }
+    }
+
+    private func contentAlertShell<Content: View>(_ content: Content) -> some View {
+        content
         .alert(L("alert_new_deck_title"), isPresented: $showAddDeckPrompt) {
             TextField(L("alert_new_deck_placeholder"), text: $newDeckName)
             Button(L("btn_cancel"), role: .cancel) {
@@ -342,11 +368,6 @@ struct ContentView: View {
             Button(L("btn_ok")) { }
         } message: {
             Text(importMessage ?? "")
-        }
-        .sheet(isPresented: $showExportShareSheet) {
-            if let url = exportedFileURL {
-                ShareSheet(items: [url])
-            }
         }
         .alert(L("deck_action_error_title"), isPresented: $showUserSwitchError) {
             Button(L("btn_ok"), role: .cancel) {}
