@@ -401,9 +401,9 @@ struct SettingsView: View {
     @ViewBuilder
     private var displaySettingsSection: some View {
         Section(L("settings_section_display")) {
-            themeSettingsRow
+            themeSettingsNavigationRow
 
-            languageSettingsRow
+            languageSettingsNavigationRow
 
             NavigationLink {
                 DeckListHeatmapSettingsView()
