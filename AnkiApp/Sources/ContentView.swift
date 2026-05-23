@@ -476,27 +476,12 @@ struct ContentView: View {
 
             Divider()
 
-            splitSidebarContextHeader
-
             splitSidebarContextPanel
         }
     }
 
     private var splitSidebarNavigationHeight: CGFloat {
         CGFloat(splitRootSections.count) * 48 + 18
-    }
-
-    private var splitSidebarContextHeader: some View {
-        HStack(spacing: 12) {
-            Text(splitShell.selectedSection.title)
-                .amgiFont(.captionBold)
-                .foregroundStyle(Color.amgiTextSecondary)
-            Spacer()
-            splitSidebarToggleButton
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color.amgiBackground)
     }
 
     @ViewBuilder
@@ -532,7 +517,7 @@ struct ContentView: View {
                 }
             }
             .toolbar {
-                splitDetailToolbarContent()
+                splitDeckDetailToolbarContent()
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     deckManagementMenu
                 }
@@ -551,9 +536,6 @@ struct ContentView: View {
                     CollectionPreparingView()
                 }
             }
-            .toolbar {
-                splitDetailToolbarContent()
-            }
         case .reader:
             NavigationStack {
                 if collectionState.isReady {
@@ -568,9 +550,6 @@ struct ContentView: View {
                     CollectionPreparingView()
                 }
             }
-            .toolbar {
-                splitDetailToolbarContent()
-            }
         case .browse:
             if collectionState.isReady {
                 BrowseView(
@@ -582,9 +561,6 @@ struct ContentView: View {
                     externalQuickFilterSelection: splitBrowseQuickFilterBinding
                 )
                     .id(refreshID)
-                    .toolbar {
-                        splitDetailToolbarContent()
-                    }
             } else {
                 CollectionPreparingView()
             }
@@ -596,35 +572,17 @@ struct ContentView: View {
                 )
                 .id(refreshID)
             }
-            .toolbar {
-                splitDetailToolbarContent()
-            }
         }
     }
 
     @ToolbarContentBuilder
-    private func splitDetailToolbarContent() -> some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            splitSidebarToggleButton
-        }
+    private func splitDeckDetailToolbarContent() -> some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             userMenu
         }
         ToolbarItem(placement: .topBarTrailing) {
             syncToolbarButton
         }
-    }
-
-    private var splitSidebarToggleButton: some View {
-        Button {
-            toggleSplitSidebar()
-        } label: {
-            Image(systemName: splitColumnVisibility == .detailOnly ? "sidebar.right" : "sidebar.left")
-        }
-    }
-
-    private func toggleSplitSidebar() {
-        splitColumnVisibility = splitColumnVisibility == .detailOnly ? .all : .detailOnly
     }
 
     private var splitSelectedDeck: DeckInfo? {
@@ -803,10 +761,7 @@ struct ContentView: View {
     }
 
     private func splitSidebarSectionHeader(title: String, key: String) -> some View {
-        HStack(spacing: 12) {
-            Text(title)
-                .amgiFont(.captionBold)
-                .foregroundStyle(Color.amgiTextSecondary)
+        HStack {
             Spacer()
             Button {
                 toggleSplitSidebarContextSection(key)
@@ -814,6 +769,7 @@ struct ContentView: View {
                 Image(systemName: isSplitSidebarContextSectionExpanded(key) ? "chevron.up" : "chevron.down")
                     .foregroundStyle(Color.amgiTextSecondary)
             }
+            .accessibilityLabel(title)
             .buttonStyle(.plain)
         }
         .textCase(nil)
@@ -859,6 +815,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
         }
     }
 
@@ -878,6 +835,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
 
             ForEach(splitDeckOptions) { deck in
                 Button {
@@ -894,6 +852,7 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .amgiListRowTapTarget()
             }
         }
     }
@@ -914,6 +873,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
 
             ForEach(splitBrowseTags, id: \.self) { tag in
                 Button {
@@ -930,6 +890,7 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .amgiListRowTapTarget()
             }
         }
     }
@@ -950,6 +911,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
 
             ForEach(splitBrowseNotetypes) { notetype in
                 Button {
@@ -966,6 +928,7 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .amgiListRowTapTarget()
             }
         }
     }
@@ -986,6 +949,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
 
             ForEach(BrowseQuickFilter.flagCases, id: \.self) { filter in
                 Button {
@@ -1006,6 +970,7 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .amgiListRowTapTarget()
             }
         }
     }
@@ -1026,6 +991,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
 
             ForEach(splitDeckOptions.filter { !$0.name.contains("::") }) { deck in
                 Button {
@@ -1042,6 +1008,7 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .amgiListRowTapTarget()
             }
         }
     }
@@ -1064,6 +1031,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
         }
     }
 
@@ -1097,14 +1065,12 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
         }
     }
 
     private func splitSidebarSettingsHeader(for group: SettingsSidebarGroup) -> some View {
-        HStack(spacing: 12) {
-            Text(group.title)
-                .amgiFont(.captionBold)
-                .foregroundStyle(Color.amgiTextSecondary)
+        HStack {
             Spacer()
             Button {
                 toggleSplitSettingsGroup(group)
@@ -1112,6 +1078,7 @@ struct ContentView: View {
                 Image(systemName: isSplitSettingsGroupExpanded(group) ? "chevron.up" : "chevron.down")
                     .foregroundStyle(Color.amgiTextSecondary)
             }
+            .accessibilityLabel(group.title)
             .buttonStyle(.plain)
         }
         .textCase(nil)
@@ -1145,6 +1112,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
         }
     }
 
@@ -1165,6 +1133,7 @@ struct ContentView: View {
             }
         }
         .buttonStyle(.plain)
+        .amgiListRowTapTarget()
     }
 
     private var splitSidebarReaderRecentRows: some View {
@@ -1192,6 +1161,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
         }
     }
 
@@ -1237,6 +1207,7 @@ struct ContentView: View {
             }
         }
         .buttonStyle(.plain)
+        .amgiListRowTapTarget()
     }
 
     private func splitReaderLastAccessText(for date: Date) -> String {
@@ -2227,7 +2198,7 @@ private struct SplitDeckSidebarTreeRow: View {
                                 .foregroundStyle(Color.accentColor)
                         }
                     }
-                    .contentShape(Rectangle())
+                    .amgiListRowTapTarget()
                 }
                 .buttonStyle(.plain)
             }

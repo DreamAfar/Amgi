@@ -51,6 +51,11 @@ extension View {
             )
         )
     }
+
+    func amgiListRowTapTarget(alignment: Alignment = .leading) -> some View {
+        frame(maxWidth: .infinity, alignment: alignment)
+            .contentShape(Rectangle())
+    }
 }
 
 // MARK: - AppTheme
@@ -132,9 +137,6 @@ struct SettingsView: View {
 
     @State private var maintenanceMessage: String?
     @State private var showMaintenanceAlert = false
-    @State private var isCheckingDatabase = false
-    @State private var databaseCheckResult = ""
-    @State private var showDatabaseCheckResult = false
     @State private var selectedItem: SettingsSidebarItem? = .account
     @State private var collapsedGroups: Set<SettingsSidebarGroup> = []
     private let usesExternalRootSidebar: Bool
@@ -186,15 +188,6 @@ struct SettingsView: View {
         } message: {
             Text(maintenanceMessage ?? L("common_unknown_error"))
         }
-        .sheet(isPresented: $showDatabaseCheckResult) {
-            NavigationStack {
-                SettingsInfoView(
-                    title: L("settings_row_check_database"),
-                    message: databaseCheckResult,
-                    showsResetCurrentUserButton: true
-                )
-            }
-        }
     }
 
     private var usesSplitSidebarLayout: Bool {
@@ -210,7 +203,7 @@ struct SettingsView: View {
     }
 
     private var splitSettingsContent: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: .constant(.all)) {
             List {
                 splitSettingsSidebarSections
             }
@@ -252,19 +245,13 @@ struct SettingsView: View {
         case .reader:
             ReaderOptionsView()
         case .theme:
-            settingsList(sections: {
-                Section(L("settings_section_display")) {
-                    themeSettingsRow
-                }
-            })
-            .navigationTitle(item.title)
+            settingsNavigationEntryPage(title: item.title) {
+                themeSettingsNavigationRow
+            }
         case .language:
-            settingsList(sections: {
-                Section(L("settings_section_display")) {
-                    languageSettingsRow
-                }
-            })
-            .navigationTitle(item.title)
+            settingsNavigationEntryPage(title: item.title) {
+                languageSettingsNavigationRow
+            }
         case .homeHeatmap:
             DeckListHeatmapSettingsView()
         case .backup:
@@ -276,12 +263,7 @@ struct SettingsView: View {
         case .fieldManager:
             NotetypeFieldManagerListView()
         case .checkDatabase:
-            settingsList(sections: {
-                Section(L("settings_section_maintenance")) {
-                    checkDatabaseSettingsRow
-                }
-            })
-            .navigationTitle(item.title)
+            DatabaseCheckView()
         case .checkMedia:
             MediaCheckResultView()
         case .emptyCards:
@@ -291,6 +273,18 @@ struct SettingsView: View {
         case .about:
             AboutView()
         }
+    }
+
+    private func settingsNavigationEntryPage<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        settingsList {
+            Section {
+                content()
+            }
+        }
+        .navigationTitle(title)
     }
 
     @ViewBuilder
@@ -324,6 +318,7 @@ struct SettingsView: View {
                 }
             }
             .buttonStyle(.plain)
+            .amgiListRowTapTarget()
         }
     }
 
@@ -450,7 +445,7 @@ struct SettingsView: View {
             }
             .amgiSettingsListRowSurface()
 
-            checkDatabaseSettingsRow
+            checkDatabaseNavigationRow
 
             NavigationLink {
                 MediaCheckResultView()
@@ -491,113 +486,44 @@ struct SettingsView: View {
         Label(title, systemImage: icon)
             .amgiFont(.body)
             .foregroundStyle(SettingsValueStyle.primary)
+            .amgiListRowTapTarget()
     }
 
-    private var themeSettingsRow: some View {
-        HStack(alignment: .top, spacing: AmgiSpacing.md) {
-            Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
-                .foregroundStyle(SettingsValueStyle.primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Menu {
-                Picker(L("settings_picker_theme"), selection: selectedTheme) {
-                    ForEach(AppTheme.allCases) { theme in
-                        Text(theme.displayName)
-                            .foregroundStyle(SettingsValueStyle.highlight)
-                            .tag(theme)
-                    }
-                }
-            } label: {
+    private var themeSettingsNavigationRow: some View {
+        NavigationLink {
+            ThemeSettingsView(selectedTheme: selectedTheme)
+        } label: {
+            HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                settingsRowLabel(L("settings_picker_theme"), icon: "circle.lefthalf.filled")
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 SettingsOptionCapsuleLabel(title: selectedTheme.wrappedValue.displayName)
             }
+            .amgiListRowTapTarget()
         }
         .amgiSettingsListRowSurface()
     }
 
-    private var languageSettingsRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                Label(L("settings_picker_language"), systemImage: "globe")
-                    .foregroundStyle(SettingsValueStyle.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Menu {
-                    Picker(L("settings_picker_language"), selection: selectedLanguage) {
-                        ForEach(AppLanguage.allCases) { lang in
-                            Text(lang.displayName)
-                                .foregroundStyle(SettingsValueStyle.highlight)
-                                .tag(lang)
-                        }
-                    }
-                } label: {
-                    SettingsOptionCapsuleLabel(title: selectedLanguage.wrappedValue.displayName)
-                }
-            }
-
-            if selectedLanguage.wrappedValue != .system {
-                Text(L("settings_language_restart_hint"))
-                    .amgiFont(.caption)
-                    .foregroundStyle(SettingsValueStyle.secondary)
-                    .padding(.leading, 28)
-            }
-        }
-        .amgiSettingsListRowSurface()
-    }
-
-    private var checkDatabaseSettingsRow: some View {
-        Button {
-            checkDatabase()
+    private var languageSettingsNavigationRow: some View {
+        NavigationLink {
+            LanguageSettingsView(selectedLanguage: selectedLanguage)
         } label: {
-            if isCheckingDatabase {
-                HStack {
-                    settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
-                        .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
-                    ProgressView()
-                }
-                .contentShape(Rectangle())
-            } else {
-                HStack {
-                    settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
-                        .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
-                }
-                .contentShape(Rectangle())
+            HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                settingsRowLabel(L("settings_picker_language"), icon: "globe")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                SettingsOptionCapsuleLabel(title: selectedLanguage.wrappedValue.displayName)
             }
+            .amgiListRowTapTarget()
         }
-        .buttonStyle(.plain)
-        .disabled(isCheckingDatabase)
         .amgiSettingsListRowSurface()
     }
 
-    private func checkDatabase() {
-        isCheckingDatabase = true
-        let capturedBackend = backend
-        Task.detached {
-            do {
-                let response: Anki_Collection_CheckDatabaseResponse = try capturedBackend.invoke(
-                    service: AnkiBackend.Service.collection,
-                    method: AnkiBackend.CheckDatabaseMethod.checkDatabase
-                )
-                let resultText: String
-                if response.problems.isEmpty {
-                    resultText = L("settings_check_database_no_issues")
-                } else {
-                    resultText = response.problems.joined(separator: "\n")
-                }
-                await MainActor.run {
-                    isCheckingDatabase = false
-                    databaseCheckResult = resultText
-                    showDatabaseCheckResult = true
-                }
-            } catch {
-                await MainActor.run {
-                    isCheckingDatabase = false
-                    maintenanceMessage = L("debug_check_db_error", error.localizedDescription)
-                    showMaintenanceAlert = true
-                }
-            }
+    private var checkDatabaseNavigationRow: some View {
+        NavigationLink {
+            DatabaseCheckView()
+        } label: {
+            settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
         }
+        .amgiSettingsListRowSurface()
     }
 
 }
@@ -829,6 +755,189 @@ private struct SettingsInfoView: View {
             resetErrorMessage = error.localizedDescription
             showResetError = true
         }
+    }
+}
+
+private struct DatabaseCheckView: View {
+    @Dependency(\.ankiBackend) private var backend
+    @Environment(\.dismiss) private var dismiss
+    @State private var isChecking = true
+    @State private var resultMessage = ""
+    @State private var loadErrorMessage: String?
+    @State private var hasStarted = false
+    @State private var showResetConfirm = false
+    @State private var showResetComplete = false
+    @State private var showResetError = false
+    @State private var resetErrorMessage = ""
+
+    var body: some View {
+        List {
+            Section {
+                if isChecking {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
+                    .padding(.vertical, 24)
+                    .listRowBackground(Color.amgiSurfaceElevated)
+                } else {
+                    Text(loadErrorMessage ?? resultMessage)
+                        .amgiFont(.body)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 4)
+                        .listRowBackground(Color.amgiSurfaceElevated)
+                }
+            }
+
+            if !isChecking {
+                Section {
+                    Button(L("debug_reset_button"), role: .destructive) {
+                        showResetConfirm = true
+                    }
+                    .listRowBackground(Color.amgiSurfaceElevated)
+                } footer: {
+                    Text(L("debug_reset_confirm_msg"))
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_row_check_database"))
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            guard !hasStarted else { return }
+            hasStarted = true
+            await runDatabaseCheck()
+        }
+        .confirmationDialog(L("debug_reset_confirm_msg"), isPresented: $showResetConfirm, titleVisibility: .visible) {
+            Button(L("debug_reset_confirm_button"), role: .destructive) {
+                resetCurrentUserData()
+            }
+        }
+        .alert(L("common_done"), isPresented: $showResetComplete) {
+            Button(L("common_ok"), role: .cancel) {
+                dismiss()
+            }
+        } message: {
+            Text(L("debug_reset_complete"))
+        }
+        .alert(L("common_error"), isPresented: $showResetError) {
+            Button(L("common_ok"), role: .cancel) {}
+        } message: {
+            Text(resetErrorMessage)
+        }
+    }
+
+    @MainActor
+    private func runDatabaseCheck() async {
+        isChecking = true
+        loadErrorMessage = nil
+
+        do {
+            let response: Anki_Collection_CheckDatabaseResponse = try backend.invoke(
+                service: AnkiBackend.Service.collection,
+                method: AnkiBackend.CheckDatabaseMethod.checkDatabase
+            )
+            if response.problems.isEmpty {
+                resultMessage = L("settings_check_database_no_issues")
+            } else {
+                resultMessage = response.problems.joined(separator: "\n")
+            }
+        } catch {
+            loadErrorMessage = L("debug_check_db_error", error.localizedDescription)
+        }
+
+        isChecking = false
+    }
+
+    private func resetCurrentUserData() {
+        let currentUser = AppUserStore.loadSelectedUser()
+        try? backend.closeCollection()
+
+        do {
+            try AppUserStore.deleteUserData(for: currentUser)
+            NotificationCenter.default.post(name: AppCollectionEvents.didResetNotification, object: nil)
+            showResetComplete = true
+        } catch {
+            resetErrorMessage = error.localizedDescription
+            showResetError = true
+        }
+    }
+}
+
+private struct ThemeSettingsView: View {
+    @Binding var selectedTheme: AppTheme
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(AppTheme.allCases) { theme in
+                    Button {
+                        selectedTheme = theme
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(theme.displayName)
+                                .amgiFont(.body)
+                                .foregroundStyle(Color.amgiTextPrimary)
+                            Spacer()
+                            if selectedTheme == theme {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                        .amgiListRowTapTarget()
+                    }
+                    .buttonStyle(.plain)
+                    .amgiSettingsListRowSurface()
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_picker_theme"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct LanguageSettingsView: View {
+    @Binding var selectedLanguage: AppLanguage
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(AppLanguage.allCases) { language in
+                    Button {
+                        selectedLanguage = language
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(language.displayName)
+                                .amgiFont(.body)
+                                .foregroundStyle(Color.amgiTextPrimary)
+                            Spacer()
+                            if selectedLanguage == language {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                        .amgiListRowTapTarget()
+                    }
+                    .buttonStyle(.plain)
+                    .amgiSettingsListRowSurface()
+                }
+            } footer: {
+                if selectedLanguage != .system {
+                    Text(L("settings_language_restart_hint"))
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.amgiBackground)
+        .navigationTitle(L("settings_picker_language"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -1889,6 +1998,7 @@ private struct SyncSettingsView: View {
                                 .foregroundStyle(SettingsValueStyle.primary)
                             Spacer()
                         }
+                        .amgiListRowTapTarget()
                     }
                     .buttonStyle(.plain)
                     VStack(alignment: .leading, spacing: 6) {
