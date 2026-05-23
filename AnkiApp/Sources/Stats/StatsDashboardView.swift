@@ -170,6 +170,7 @@ struct StatsDashboardView: View {
                             TodayStatsCard(today: graphs.today)
                                 .id(StatsGroup.today)
                             orderedChartContent(graphs: graphs)
+                                .id("stats-layout-\(chartLayoutRaw)-\(chartOrderRaw)")
                         } header: {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 8) {
@@ -264,6 +265,10 @@ struct StatsDashboardView: View {
             .onChange(of: selectedGroup) {
                 syncLocalStateToExternal()
                 scrollToSelectedGroup(with: proxy, animated: true)
+            }
+            .onChange(of: chartLayoutRaw) { _, _ in
+                doubleColumnRowHeights = [:]
+                scrollToSelectedGroup(with: proxy, animated: false)
             }
             .onChange(of: isLoading) { _, loading in
                 guard !loading else { return }
@@ -494,10 +499,8 @@ struct StatsDashboardView: View {
             }
         }
         .onPreferenceChange(StatsMeasuredHeightPreferenceKey.self) { heights in
-            for (key, height) in heights {
-                if doubleColumnRowHeights[key] != height {
-                    doubleColumnRowHeights[key] = height
-                }
+            if doubleColumnRowHeights != heights {
+                doubleColumnRowHeights = heights
             }
         }
     }

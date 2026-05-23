@@ -87,6 +87,7 @@ struct BrowseView: View {
     private let initialSearchQuery: String
     private let isActive: Bool
     private let usesExternalRootSidebar: Bool
+    private let isExternalRootSidebarVisible: Bool
     private let externalDeckSelection: Binding<DeckInfo?>?
     private let externalTagSelection: Binding<String?>?
     private let externalNotetypeSelection: Binding<Int64?>?
@@ -103,6 +104,7 @@ struct BrowseView: View {
         initialSearchQuery: String = "",
         isActive: Bool = true,
         usesExternalRootSidebar: Bool = false,
+        isExternalRootSidebarVisible: Bool = false,
         externalDeckSelection: Binding<DeckInfo?>? = nil,
         externalTagSelection: Binding<String?>? = nil,
         externalNotetypeSelection: Binding<Int64?>? = nil,
@@ -112,6 +114,7 @@ struct BrowseView: View {
         self.initialSearchQuery = initialSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         self.isActive = isActive
         self.usesExternalRootSidebar = usesExternalRootSidebar
+        self.isExternalRootSidebarVisible = isExternalRootSidebarVisible
         self.externalDeckSelection = externalDeckSelection
         self.externalTagSelection = externalTagSelection
         self.externalNotetypeSelection = externalNotetypeSelection
@@ -550,7 +553,7 @@ struct BrowseView: View {
             }
         } else {
             ToolbarItem(placement: .topBarLeading) {
-                if !usesExternalRootSidebar {
+                if !usesExternalRootSidebar || !isExternalRootSidebarVisible {
                     filterMenu
                 }
             }

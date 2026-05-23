@@ -54,6 +54,7 @@ extension View {
 
     func amgiListRowTapTarget(alignment: Alignment = .leading) -> some View {
         frame(maxWidth: .infinity, alignment: alignment)
+            .background(Color.black.opacity(0.001))
             .contentShape(Rectangle())
     }
 }
@@ -225,7 +226,7 @@ struct SettingsView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.clear)
+        .background(Color.amgiBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
@@ -245,13 +246,9 @@ struct SettingsView: View {
         case .reader:
             ReaderOptionsView()
         case .theme:
-            settingsNavigationEntryPage(title: item.title) {
-                themeSettingsNavigationRow
-            }
+            ThemeSettingsView(selectedTheme: selectedTheme)
         case .language:
-            settingsNavigationEntryPage(title: item.title) {
-                languageSettingsNavigationRow
-            }
+            LanguageSettingsView(selectedLanguage: selectedLanguage)
         case .homeHeatmap:
             DeckListHeatmapSettingsView()
         case .backup:
@@ -493,12 +490,7 @@ struct SettingsView: View {
         NavigationLink {
             ThemeSettingsView(selectedTheme: selectedTheme)
         } label: {
-            HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                settingsRowLabel(L("settings_picker_theme"), icon: "circle.lefthalf.filled")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                SettingsOptionCapsuleLabel(title: selectedTheme.wrappedValue.displayName)
-            }
-            .amgiListRowTapTarget()
+            settingsRowLabel(L("settings_picker_theme"), icon: "circle.lefthalf.filled")
         }
         .amgiSettingsListRowSurface()
     }
@@ -507,12 +499,7 @@ struct SettingsView: View {
         NavigationLink {
             LanguageSettingsView(selectedLanguage: selectedLanguage)
         } label: {
-            HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                settingsRowLabel(L("settings_picker_language"), icon: "globe")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                SettingsOptionCapsuleLabel(title: selectedLanguage.wrappedValue.displayName)
-            }
-            .amgiListRowTapTarget()
+            settingsRowLabel(L("settings_picker_language"), icon: "globe")
         }
         .amgiSettingsListRowSurface()
     }

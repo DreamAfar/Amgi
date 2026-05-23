@@ -79,7 +79,7 @@ private struct BrowseSidebarState {
     var selectedDeckID: Int64?
     var selectedTag: String?
     var selectedNotetypeID: Int64?
-    var selectedFlag: Int?
+    var quickFilter: BrowseQuickFilter = .all
 }
 
 private struct SplitShellState {
@@ -215,14 +215,12 @@ struct ContentView: View {
 
     private var contentRootView: AnyView {
         AnyView(
-            GeometryReader { proxy in
-                ZStack {
-                    adaptiveRootContainer(for: proxy.size)
-                        .disabled(isImportExportInProgress)
+            ZStack {
+                adaptiveRootContainer
+                    .disabled(isImportExportInProgress)
 
-                    if let importExportOperation {
-                        importExportOverlay(for: importExportOperation)
-                    }
+                if let importExportOperation {
+                    importExportOverlay(for: importExportOperation)
                 }
             }
         )
@@ -318,7 +316,7 @@ struct ContentView: View {
         }
         .onChange(of: isReaderTabEnabled) {
             if isReaderTabEnabled == false, selectedTab == .reader {
-                selectedTab = usesWideSplitShell(for: UIScreen.main.bounds.size) ? .decks : .settings
+                selectedTab = usesWideSplitShell ? .decks : .settings
             }
             normalizeSplitSectionSelection()
         }
@@ -385,8 +383,8 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private func adaptiveRootContainer(for size: CGSize) -> some View {
-        if usesWideSplitShell(for: size) {
+    private var adaptiveRootContainer: some View {
+        if usesWideSplitShell {
             splitRootView
         } else {
             rootTabView
@@ -400,10 +398,9 @@ struct ContentView: View {
         }
     }
 
-    private func usesWideSplitShell(for size: CGSize) -> Bool {
+    private var usesWideSplitShell: Bool {
         UIDevice.current.userInterfaceIdiom == .pad
         && horizontalSizeClass == .regular
-        && size.width > size.height
     }
 
     @TabContentBuilder<RootTab>
@@ -453,7 +450,7 @@ struct ContentView: View {
         } detail: {
             splitDetailView
         }
-        .navigationSplitViewStyle(.balanced)
+        .navigationSplitViewStyle(.automatic)
         .onAppear {
             normalizeSplitSectionSelection()
             Task { await reloadSplitSidebarContext() }
@@ -555,6 +552,7 @@ struct ContentView: View {
                 BrowseView(
                     isActive: true,
                     usesExternalRootSidebar: true,
+                    isExternalRootSidebarVisible: splitColumnVisibility != .detailOnly,
                     externalDeckSelection: splitBrowseSelectedDeckBinding,
                     externalTagSelection: splitBrowseSelectedTagBinding,
                     externalNotetypeSelection: splitBrowseSelectedNotetypeIDBinding,
@@ -682,8 +680,8 @@ struct ContentView: View {
 
     private var splitBrowseQuickFilterBinding: Binding<BrowseQuickFilter> {
         Binding(
-            get: { browseQuickFilter(for: splitShell.browse.selectedFlag) },
-            set: { splitShell.browse.selectedFlag = selectedFlagNumber(for: $0) }
+            get: { splitShell.browse.quickFilter },
+            set: { splitShell.browse.quickFilter = $0 }
         )
     }
 
@@ -701,6 +699,9 @@ struct ContentView: View {
                 }
             }
         case .browse:
+            splitSidebarCollapsibleSection(L("browse_quick_filter_buttons"), key: "browse.quick-filters") {
+                splitSidebarBrowseQuickFilterRows
+            }
             if !splitDeckOptions.isEmpty {
                 splitSidebarCollapsibleSection(L("browse_filter_by_deck"), key: "browse.decks") {
                     splitSidebarBrowseDeckRows
@@ -751,28 +752,24 @@ struct ContentView: View {
         key: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        Section {
+        DisclosureGroup(
+            isExpanded: Binding(
+                get: { isSplitSidebarContextSectionExpanded(key) },
+                set: { isExpanded in
+                    if isExpanded {
+                        splitShell.collapsedContextSectionIDs.remove(key)
+                    } else {
+                        splitShell.collapsedContextSectionIDs.insert(key)
+                    }
+                }
+            )
+        ) {
             if isSplitSidebarContextSectionExpanded(key) {
                 content()
             }
-        } header: {
-            splitSidebarSectionHeader(title: title, key: key)
+        } label: {
+            Text(title)
         }
-    }
-
-    private func splitSidebarSectionHeader(title: String, key: String) -> some View {
-        HStack {
-            Spacer()
-            Button {
-                toggleSplitSidebarContextSection(key)
-            } label: {
-                Image(systemName: isSplitSidebarContextSectionExpanded(key) ? "chevron.up" : "chevron.down")
-                    .foregroundStyle(Color.amgiTextSecondary)
-            }
-            .accessibilityLabel(title)
-            .buttonStyle(.plain)
-        }
-        .textCase(nil)
     }
 
     private func isSplitSidebarContextSectionExpanded(_ key: String) -> Bool {
@@ -857,6 +854,28 @@ struct ContentView: View {
         }
     }
 
+    private var splitSidebarBrowseQuickFilterRows: some View {
+        ForEach(BrowseQuickFilter.primaryCases, id: \.self) { filter in
+            Button {
+                splitShell.browse.quickFilter = splitShell.browse.quickFilter == filter ? .all : filter
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: splitShell.browse.quickFilter == filter ? "checkmark.circle.fill" : filter.symbol)
+                        .foregroundStyle(splitShell.browse.quickFilter == filter ? Color.accentColor : Color.amgiTextSecondary)
+                    Text(filter.title)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.browse.quickFilter == filter {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .amgiListRowTapTarget()
+        }
+    }
+
     private var splitSidebarBrowseTagRows: some View {
         Group {
             Button {
@@ -936,13 +955,13 @@ struct ContentView: View {
     private var splitSidebarBrowseFlagRows: some View {
         Group {
             Button {
-                splitShell.browse.selectedFlag = nil
+                splitShell.browse.quickFilter = .all
             } label: {
                 HStack(spacing: 10) {
                     Text(L("browse_filter_all"))
                         .foregroundStyle(Color.amgiTextPrimary)
                     Spacer()
-                    if splitShell.browse.selectedFlag == nil {
+                    if splitShell.browse.quickFilter == .all {
                         Image(systemName: "checkmark")
                             .foregroundStyle(Color.accentColor)
                     }
@@ -953,8 +972,7 @@ struct ContentView: View {
 
             ForEach(BrowseQuickFilter.flagCases, id: \.self) { filter in
                 Button {
-                    let flagNumber = selectedFlagNumber(for: filter)
-                    splitShell.browse.selectedFlag = splitShell.browse.selectedFlag == flagNumber ? nil : flagNumber
+                    splitShell.browse.quickFilter = splitShell.browse.quickFilter == filter ? .all : filter
                 } label: {
                     HStack(spacing: 10) {
                         Circle()
@@ -963,7 +981,7 @@ struct ContentView: View {
                         Text(filter.title)
                             .foregroundStyle(Color.amgiTextPrimary)
                         Spacer()
-                        if splitShell.browse.selectedFlag == selectedFlagNumber(for: filter) {
+                        if splitShell.browse.quickFilter == filter {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(Color.accentColor)
                         }
@@ -1037,12 +1055,23 @@ struct ContentView: View {
 
     private var splitSidebarSettingsSections: some View {
         ForEach(SettingsSidebarGroup.allCases) { group in
-            Section {
+            DisclosureGroup(
+                isExpanded: Binding(
+                    get: { isSplitSettingsGroupExpanded(group) },
+                    set: { isExpanded in
+                        if isExpanded {
+                            splitShell.settings.collapsedGroups.remove(group)
+                        } else {
+                            splitShell.settings.collapsedGroups.insert(group)
+                        }
+                    }
+                )
+            ) {
                 if isSplitSettingsGroupExpanded(group) {
                     splitSidebarSettingsRows(for: group)
                 }
-            } header: {
-                splitSidebarSettingsHeader(for: group)
+            } label: {
+                Text(group.title)
             }
         }
     }
@@ -1067,21 +1096,6 @@ struct ContentView: View {
             .buttonStyle(.plain)
             .amgiListRowTapTarget()
         }
-    }
-
-    private func splitSidebarSettingsHeader(for group: SettingsSidebarGroup) -> some View {
-        HStack {
-            Spacer()
-            Button {
-                toggleSplitSettingsGroup(group)
-            } label: {
-                Image(systemName: isSplitSettingsGroupExpanded(group) ? "chevron.up" : "chevron.down")
-                    .foregroundStyle(Color.amgiTextSecondary)
-            }
-            .accessibilityLabel(group.title)
-            .buttonStyle(.plain)
-        }
-        .textCase(nil)
     }
 
     private func isSplitSettingsGroupExpanded(_ group: SettingsSidebarGroup) -> Bool {
@@ -1811,7 +1825,7 @@ struct ContentView: View {
             splitShell.browse.selectedDeckID = nil
             splitShell.browse.selectedTag = nil
             splitShell.browse.selectedNotetypeID = nil
-            splitShell.browse.selectedFlag = nil
+            splitShell.browse.quickFilter = .all
             splitShell.stats.selectedDeckID = nil
             splitShell.reader.selectedBookID = nil
             return

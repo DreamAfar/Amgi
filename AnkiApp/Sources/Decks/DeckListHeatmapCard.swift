@@ -206,8 +206,7 @@ struct DeckListHeatmapCard: View {
         TodayStatsCard(
             today: today,
             embedded: true,
-            compactText: true,
-            layoutStyle: .sidebar
+            compactText: true
         )
     }
 
