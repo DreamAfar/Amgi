@@ -499,8 +499,9 @@ struct StatsDashboardView: View {
             }
         }
         .onPreferenceChange(StatsMeasuredHeightPreferenceKey.self) { heights in
-            if doubleColumnRowHeights != heights {
-                doubleColumnRowHeights = heights
+            let resolvedHeights = resolvedDoubleColumnRowHeights(from: heights)
+            if doubleColumnRowHeights != resolvedHeights {
+                doubleColumnRowHeights = resolvedHeights
             }
         }
     }
@@ -614,10 +615,27 @@ struct StatsDashboardView: View {
         rowKey: String,
         graphs: Anki_Stats_GraphsResponse
     ) -> some View {
+        let measurementKey = doubleColumnMeasurementKey(rowKey: rowKey, section: section)
+
         chartView(for: section, graphs: graphs)
             .statsCardMinHeight(doubleColumnRowHeights[rowKey])
-            .statsMeasureHeight(id: rowKey)
+            .statsMeasureHeight(id: measurementKey)
             .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private func doubleColumnMeasurementKey(rowKey: String, section: StatsChartSection) -> String {
+        "\(rowKey)::\(section.rawValue)"
+    }
+
+    private func resolvedDoubleColumnRowHeights(from heights: [String: CGFloat]) -> [String: CGFloat] {
+        var resolved: [String: CGFloat] = [:]
+
+        for (key, height) in heights {
+            let rowKey = key.components(separatedBy: "::").first ?? key
+            resolved[rowKey] = max(resolved[rowKey] ?? 0, height)
+        }
+
+        return resolved
     }
 
     @ViewBuilder

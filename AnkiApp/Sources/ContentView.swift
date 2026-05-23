@@ -441,8 +441,33 @@ struct ContentView: View {
         )
     }
 
+    private var effectiveSplitColumnVisibility: NavigationSplitViewVisibility {
+        splitShell.selectedSection == .settings ? .all : splitColumnVisibility
+    }
+
+    private var splitColumnVisibilityBinding: Binding<NavigationSplitViewVisibility> {
+        Binding(
+            get: { effectiveSplitColumnVisibility },
+            set: { newValue in
+                guard splitShell.selectedSection != .settings else { return }
+                splitColumnVisibility = newValue
+            }
+        )
+    }
+
+    private var splitRootSectionBinding: Binding<SplitRootSection> {
+        Binding(
+            get: {
+                splitRootSections.contains(splitShell.selectedSection) ? splitShell.selectedSection : .decks
+            },
+            set: { newValue in
+                selectSplitSection(newValue)
+            }
+        )
+    }
+
     private var splitRootView: some View {
-        NavigationSplitView(columnVisibility: $splitColumnVisibility) {
+        NavigationSplitView(columnVisibility: splitColumnVisibilityBinding) {
             splitSidebarShell
             .navigationTitle("Amgi")
             .navigationBarTitleDisplayMode(.inline)
@@ -499,77 +524,82 @@ struct ContentView: View {
 
     @ViewBuilder
     private var splitDetailView: some View {
-        switch splitShell.selectedSection {
-        case .decks:
-            NavigationStack {
-                if let splitSelectedDeck {
-                    DeckDetailView(deck: splitSelectedDeck)
-                        .id("\(refreshID)-deck-\(splitSelectedDeck.id)")
-                } else {
-                    DeckListView {
-                        refreshID = UUID()
-                        Task { await reloadSplitDeckOptions() }
+        Group {
+            switch splitShell.selectedSection {
+            case .decks:
+                NavigationStack {
+                    if let splitSelectedDeck {
+                        DeckDetailView(deck: splitSelectedDeck)
+                            .id("\(refreshID)-deck-\(splitSelectedDeck.id)")
+                    } else {
+                        DeckListView {
+                            refreshID = UUID()
+                            Task { await reloadSplitDeckOptions() }
+                        }
+                        .id(refreshID)
                     }
-                    .id(refreshID)
                 }
-            }
-            .toolbar {
-                splitDeckDetailToolbarContent()
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    deckManagementMenu
+                .toolbar {
+                    splitDeckDetailToolbarContent()
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        deckManagementMenu
+                    }
                 }
-            }
-        case .stats:
-            NavigationStack {
+            case .stats:
+                NavigationStack {
+                    if collectionState.isReady {
+                        StatsDashboardView(
+                            isActive: true,
+                            externalSelectedDeck: splitStatsSelectedDeckBinding,
+                            externalRevlogRange: splitStatsRevlogRangeBinding,
+                            externalSelectedGroup: splitStatsSelectedGroupBinding
+                        )
+                            .id(refreshID)
+                    } else {
+                        CollectionPreparingView()
+                    }
+                }
+            case .reader:
+                NavigationStack {
+                    if collectionState.isReady {
+                        ReaderLibraryView(
+                            externalSortOption: splitReaderSortOptionBinding,
+                            externalBookshelfColumns: splitReaderBookshelfColumnsBinding,
+                            externalSelectedBookID: splitReaderSelectedBookIDBinding,
+                            externalSettingsRoute: splitReaderSettingsRouteBinding
+                        )
+                            .id(refreshID)
+                    } else {
+                        CollectionPreparingView()
+                    }
+                }
+            case .browse:
                 if collectionState.isReady {
-                    StatsDashboardView(
+                    BrowseView(
                         isActive: true,
-                        externalSelectedDeck: splitStatsSelectedDeckBinding,
-                        externalRevlogRange: splitStatsRevlogRangeBinding,
-                        externalSelectedGroup: splitStatsSelectedGroupBinding
+                        usesExternalRootSidebar: true,
+                        isExternalRootSidebarVisible: effectiveSplitColumnVisibility != .detailOnly,
+                        externalDeckSelection: splitBrowseSelectedDeckBinding,
+                        externalTagSelection: splitBrowseSelectedTagBinding,
+                        externalNotetypeSelection: splitBrowseSelectedNotetypeIDBinding,
+                        externalQuickFilterSelection: splitBrowseQuickFilterBinding
                     )
                         .id(refreshID)
                 } else {
                     CollectionPreparingView()
                 }
-            }
-        case .reader:
-            NavigationStack {
-                if collectionState.isReady {
-                    ReaderLibraryView(
-                        externalSortOption: splitReaderSortOptionBinding,
-                        externalBookshelfColumns: splitReaderBookshelfColumnsBinding,
-                        externalSelectedBookID: splitReaderSelectedBookIDBinding,
-                        externalSettingsRoute: splitReaderSettingsRouteBinding
+            case .settings:
+                NavigationStack {
+                    SettingsView(
+                        usesExternalRootSidebar: true,
+                        externalSelectedItem: splitSettingsSelectedItemBinding
                     )
-                        .id(refreshID)
-                } else {
-                    CollectionPreparingView()
-                }
-            }
-        case .browse:
-            if collectionState.isReady {
-                BrowseView(
-                    isActive: true,
-                    usesExternalRootSidebar: true,
-                    isExternalRootSidebarVisible: splitColumnVisibility != .detailOnly,
-                    externalDeckSelection: splitBrowseSelectedDeckBinding,
-                    externalTagSelection: splitBrowseSelectedTagBinding,
-                    externalNotetypeSelection: splitBrowseSelectedNotetypeIDBinding,
-                    externalQuickFilterSelection: splitBrowseQuickFilterBinding
-                )
                     .id(refreshID)
-            } else {
-                CollectionPreparingView()
+                }
             }
-        case .settings:
-            NavigationStack {
-                SettingsView(
-                    usesExternalRootSidebar: true,
-                    externalSelectedItem: splitSettingsSelectedItemBinding
-                )
-                .id(refreshID)
-            }
+        }
+        .toolbar {
+            splitRootSectionToolbarContent()
         }
     }
 
@@ -580,6 +610,24 @@ struct ContentView: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
             syncToolbarButton
+        }
+    }
+
+    @ToolbarContentBuilder
+    private func splitRootSectionToolbarContent() -> some ToolbarContent {
+        if effectiveSplitColumnVisibility == .detailOnly {
+            ToolbarItem(placement: .principal) {
+                Picker("", selection: splitRootSectionBinding) {
+                    ForEach(splitRootSections) { section in
+                        Text(section.title)
+                            .tag(section)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .controlSize(.small)
+                .frame(maxWidth: 420)
+            }
         }
     }
 

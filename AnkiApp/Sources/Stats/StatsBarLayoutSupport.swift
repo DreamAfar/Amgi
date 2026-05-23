@@ -6,9 +6,7 @@ struct StatsMeasuredHeightPreferenceKey: PreferenceKey {
     static let defaultValue: [String: CGFloat] = [:]
 
     static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
-        for (key, height) in nextValue() {
-            value[key] = max(value[key] ?? 0, height)
-        }
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }
 
