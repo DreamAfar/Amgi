@@ -74,6 +74,7 @@
 "deck_list_empty_title" = "No Decks";
 "deck_list_empty_desc" = "Sync with your server to get your decks.";
 "deck_list_heatmap_title" = "Review Heatmap";
+"deck_list_schedule_title" = "Schedule";
 "deck_list_heatmap_load_failed" = "Unable to load the review heatmap right now.";
 "heatmap_loading_full_history" = "Loading full history…";
 "heatmap_load_all_history" = "Load full history";
@@ -916,6 +917,7 @@
 "browse_sort_order_forward" = "Forward Order";
 "browse_sort_order_reverse" = "Reverse Order";
 "browse_display_note_type_subtitle" = "Show note type subtitle";
+"browse_quick_filter_buttons" = "Quick filter buttons";
 "browse_sort_field_due" = "Due";
 "browse_sort_field_card_modified" = "Card Modified";
 "browse_sort_field_card_template" = "Card Template";

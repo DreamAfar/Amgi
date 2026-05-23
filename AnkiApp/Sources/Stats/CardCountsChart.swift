@@ -36,7 +36,18 @@ struct CardCountsChart: View {
     private var total: Int { chartData.reduce(0) { $0 + $1.count } }
 
     private var prefersCompactLegendLayout: Bool {
-        horizontalSizeClass == .compact || containerWidth < 420
+        horizontalSizeClass == .compact || containerWidth < 300
+    }
+
+    private var legendColumns: [GridItem] {
+        if prefersCompactLegendLayout {
+            return [GridItem(.flexible(minimum: 0), spacing: 12)]
+        }
+
+        return [
+            GridItem(.flexible(minimum: 0), spacing: 12),
+            GridItem(.flexible(minimum: 0), spacing: 12),
+        ]
     }
 
     var body: some View {
@@ -66,7 +77,7 @@ struct CardCountsChart: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .statsTrackWidth($containerWidth)
-        .amgiCard(elevated: true)
+        .statsCard(elevated: true)
     }
 
     private var donutChart: some View {
@@ -124,16 +135,10 @@ struct CardCountsChart: View {
     private var defaultLayout: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             donutChart
-                .frame(height: 200)
+                .frame(height: 180)
 
-            if prefersCompactLegendLayout {
-                LazyVStack(alignment: .leading, spacing: 6) {
-                    legendItems
-                }
-            } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 6) {
-                    legendItems
-                }
+            LazyVGrid(columns: legendColumns, alignment: .leading, spacing: 8) {
+                legendItems
             }
 
             separateInactiveToggle

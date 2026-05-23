@@ -26,7 +26,7 @@ struct DeckListHeatmapCard: View {
 
     private let todayStatsAnimation = Animation.easeInOut(duration: 0.24)
     private let todayStatsTopSpacing: CGFloat = 14
-    private let splitTodayStatsWidth: CGFloat = 308
+    private let splitTodayStatsWidth: CGFloat = 360
 
     let showsExternalLoading: Bool
 
@@ -137,18 +137,27 @@ struct DeckListHeatmapCard: View {
     }
 
     private func splitLayout(for graphs: Anki_Stats_GraphsResponse) -> some View {
-        HStack(alignment: .top, spacing: 20) {
-            HeatmapChart(
-                reviews: graphs.reviews,
-                compactHeight: deckListHeatmapHeight,
-                embedded: true
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(heightReader($heatmapSectionHeight))
+        VStack(alignment: .leading, spacing: 18) {
+            splitHeader(for: graphs)
 
-            splitTodayStatsPanel(for: graphs.today)
-                .frame(width: splitTodayStatsWidth, alignment: .topLeading)
-                .background(heightReader($splitTodayStatsSectionHeight))
+            HStack(alignment: .top, spacing: 18) {
+                HeatmapChart(
+                    reviews: graphs.reviews,
+                    compactHeight: deckListHeatmapHeight,
+                    embedded: true,
+                    showsHeader: false
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(heightReader($heatmapSectionHeight))
+
+                Divider()
+                    .frame(maxHeight: .infinity)
+
+                splitTodayStatsContent(for: graphs.today)
+                    .frame(width: splitTodayStatsWidth, alignment: .topLeading)
+                    .background(heightReader($splitTodayStatsSectionHeight))
+                    .frame(maxHeight: .infinity, alignment: .top)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(
@@ -157,32 +166,58 @@ struct DeckListHeatmapCard: View {
         )
     }
 
-    private func splitTodayStatsPanel(
-        for today: Anki_Stats_GraphsResponse.Today
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(L("stats_today_title"))
+    private func splitHeader(for graphs: Anki_Stats_GraphsResponse) -> some View {
+        HStack(alignment: .center, spacing: 16) {
+            Text(L("deck_list_schedule_title"))
                 .amgiFont(.sectionHeading)
                 .foregroundStyle(Color.amgiTextPrimary)
 
-            Divider()
+            Spacer()
 
-            TodayStatsCard(
-                today: today,
-                embedded: true,
-                compactText: true,
-                layoutStyle: .sidebar
-            )
+            if currentStreak(for: graphs.reviews) > 0 {
+                Label(L("stats_heatmap_streak", currentStreak(for: graphs.reviews)), systemImage: "flame.fill")
+                    .amgiFont(.captionBold)
+                    .foregroundStyle(.orange)
+            }
+
+            Spacer()
+
+            Text(L("stats_today_title"))
+                .amgiFont(.sectionHeading)
+                .foregroundStyle(Color.amgiTextPrimary)
+                .frame(width: splitTodayStatsWidth, alignment: .center)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.amgiSurface)
+    }
+
+    private func splitTodayStatsContent(
+        for today: Anki_Stats_GraphsResponse.Today
+    ) -> some View {
+        TodayStatsCard(
+            today: today,
+            embedded: true,
+            compactText: true,
+            layoutStyle: .sidebar
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
-        )
+    }
+
+    private func currentStreak(for reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes) -> Int {
+        let dayCountMap = reviews.count.reduce(into: [Int: Int]()) { result, entry in
+            let total = Int(entry.value.learn + entry.value.relearn + entry.value.young + entry.value.mature + entry.value.filtered)
+            if total > 0 {
+                result[Int(entry.key)] = total
+            }
+        }
+
+        var streak = 0
+        var offset = 0
+        if dayCountMap[0] == nil || dayCountMap[0] == 0 {
+            offset = -1
+        }
+        while let count = dayCountMap[offset], count > 0 {
+            streak += 1
+            offset -= 1
+        }
+        return streak
     }
 
     @MainActor

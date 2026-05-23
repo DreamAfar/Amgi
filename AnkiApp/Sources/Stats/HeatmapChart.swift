@@ -5,6 +5,7 @@ struct HeatmapChart: View {
     let reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes
     var compactHeight: CGFloat? = nil
     var embedded: Bool = false
+    var showsHeader: Bool = true
     var onTapHeatmap: (() -> Void)? = nil
 
     private var isCompact: Bool {
@@ -134,15 +135,17 @@ struct HeatmapChart: View {
 
     var body: some View {
         let chartContent = VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(L("stats_heatmap_title"))
-                    .amgiFont(.sectionHeading)
-                    .foregroundStyle(Color.amgiTextPrimary)
-                Spacer()
-                if currentStreak > 0 {
-                    Label(L("stats_heatmap_streak", currentStreak), systemImage: "flame.fill")
-                        .amgiFont(.captionBold)
-                        .foregroundStyle(.orange)
+            if showsHeader {
+                HStack {
+                    Text(L("stats_heatmap_title"))
+                        .amgiFont(.sectionHeading)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if currentStreak > 0 {
+                        Label(L("stats_heatmap_streak", currentStreak), systemImage: "flame.fill")
+                            .amgiFont(.captionBold)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
 

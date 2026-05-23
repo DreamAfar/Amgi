@@ -1,6 +1,28 @@
 import SwiftUI
 import Charts
 import Foundation
+
+struct StatsMeasuredHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: [String: CGFloat] = [:]
+
+    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
+        for (key, height) in nextValue() {
+            value[key] = max(value[key] ?? 0, height)
+        }
+    }
+}
+
+private struct StatsCardMinHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    var statsCardMinHeight: CGFloat? {
+        get { self[StatsCardMinHeightKey.self] }
+        set { self[StatsCardMinHeightKey.self] = newValue }
+    }
+}
+
 enum StatsBarLayoutSupport {
     static func displayedSlotCount(
         lowerBound: Int,
@@ -72,8 +94,47 @@ private struct StatsMeasuredWidthModifier: ViewModifier {
     }
 }
 
+private struct StatsMeasuredHeightModifier: ViewModifier {
+    let id: String
+
+    func body(content: Content) -> some View {
+        content.background(
+            GeometryReader { geometry in
+                Color.clear
+                    .preference(
+                        key: StatsMeasuredHeightPreferenceKey.self,
+                        value: [id: geometry.size.height]
+                    )
+            }
+        )
+    }
+}
+
+private struct StatsCardModifier: ViewModifier {
+    let elevated: Bool
+    @Environment(\.statsCardMinHeight) private var minHeight
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
+            .amgiCard(elevated: elevated)
+    }
+}
+
 extension View {
     func statsTrackWidth(_ width: Binding<CGFloat>) -> some View {
         modifier(StatsMeasuredWidthModifier(width: width))
+    }
+
+    func statsMeasureHeight(id: String) -> some View {
+        modifier(StatsMeasuredHeightModifier(id: id))
+    }
+
+    func statsCard(elevated: Bool = false) -> some View {
+        modifier(StatsCardModifier(elevated: elevated))
+    }
+
+    func statsCardMinHeight(_ height: CGFloat?) -> some View {
+        environment(\.statsCardMinHeight, height)
     }
 }

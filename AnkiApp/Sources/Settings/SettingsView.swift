@@ -44,7 +44,12 @@ struct SettingsOptionCapsuleLabel: View {
 
 extension View {
     func amgiSettingsListRowSurface() -> some View {
-        listRowBackground(Color.amgiSurfaceElevated)
+        listRowBackground(
+            Color(
+                light: .systemBackground,
+                dark: UIColor(red: 0.09, green: 0.10, blue: 0.12, alpha: 1.0)
+            )
+        )
     }
 }
 
@@ -130,7 +135,18 @@ struct SettingsView: View {
     @State private var isCheckingDatabase = false
     @State private var databaseCheckResult = ""
     @State private var showDatabaseCheckResult = false
-    @State private var selectedPane: SettingsPane? = .basic
+    @State private var selectedItem: SettingsSidebarItem? = .account
+    @State private var collapsedGroups: Set<SettingsSidebarGroup> = []
+    private let usesExternalRootSidebar: Bool
+    private let externalSelectedItem: Binding<SettingsSidebarItem?>?
+
+    init(
+        usesExternalRootSidebar: Bool = false,
+        externalSelectedItem: Binding<SettingsSidebarItem?>? = nil
+    ) {
+        self.usesExternalRootSidebar = usesExternalRootSidebar
+        self.externalSelectedItem = externalSelectedItem
+    }
 
     private var selectedTheme: Binding<AppTheme> {
         Binding(
@@ -150,6 +166,8 @@ struct SettingsView: View {
         Group {
             if usesSplitSidebarLayout {
                 splitSettingsContent
+            } else if usesExternalRootSidebar {
+                settingsItemDetailContent(for: resolvedSelectedItem)
             } else {
                 NavigationStack {
                     settingsList(sections: {
@@ -180,16 +198,21 @@ struct SettingsView: View {
     }
 
     private var usesSplitSidebarLayout: Bool {
-        horizontalSizeClass == .regular
+        horizontalSizeClass == .regular && !usesExternalRootSidebar
+    }
+
+    private var selectedItemBinding: Binding<SettingsSidebarItem?> {
+        externalSelectedItem ?? $selectedItem
+    }
+
+    private var resolvedSelectedItem: SettingsSidebarItem {
+        selectedItemBinding.wrappedValue ?? .account
     }
 
     private var splitSettingsContent: some View {
         NavigationSplitView {
-            List(SettingsPane.allCases, selection: $selectedPane) { pane in
-                Label(pane.title, systemImage: pane.icon)
-                    .amgiFont(.body)
-                    .foregroundStyle(SettingsValueStyle.primary)
-                    .tag(pane)
+            List {
+                splitSettingsSidebarSections
             }
             .listStyle(.sidebar)
             .navigationTitle(L("settings_nav_title"))
@@ -197,7 +220,7 @@ struct SettingsView: View {
             .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 360)
         } detail: {
             NavigationStack {
-                settingsDetailContent(for: selectedPane ?? .basic)
+                settingsItemDetailContent(for: resolvedSelectedItem)
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -214,20 +237,122 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func settingsDetailContent(for pane: SettingsPane) -> some View {
-        switch pane {
-        case .basic:
-            settingsList(sections: { basicSettingsSection })
-                .navigationTitle(pane.title)
-        case .display:
-            settingsList(sections: { displaySettingsSection })
-                .navigationTitle(pane.title)
-        case .maintenance:
-            settingsList(sections: { maintenanceSettingsSection })
-                .navigationTitle(pane.title)
-        case .other:
-            settingsList(sections: { otherSettingsSection })
-                .navigationTitle(pane.title)
+    private func settingsItemDetailContent(for item: SettingsSidebarItem) -> some View {
+        switch item {
+        case .account:
+            UserManagementView()
+        case .sync:
+            SyncSettingsView()
+        case .editing:
+            CodeEditorSettingsView()
+        case .review:
+            ReviewOptionsView()
+        case .reviewAI:
+            ReviewAISettingsHomeView()
+        case .reader:
+            ReaderOptionsView()
+        case .theme:
+            settingsList(sections: {
+                Section(L("settings_section_display")) {
+                    themeSettingsRow
+                }
+            })
+            .navigationTitle(item.title)
+        case .language:
+            settingsList(sections: {
+                Section(L("settings_section_display")) {
+                    languageSettingsRow
+                }
+            })
+            .navigationTitle(item.title)
+        case .homeHeatmap:
+            DeckListHeatmapSettingsView()
+        case .backup:
+            BackupView(username: AppUserStore.loadSelectedUser())
+        case .fileManager:
+            UserFileManagerView(username: AppUserStore.loadSelectedUser())
+        case .deckTemplates:
+            DeckTemplateListView()
+        case .fieldManager:
+            NotetypeFieldManagerListView()
+        case .checkDatabase:
+            settingsList(sections: {
+                Section(L("settings_section_maintenance")) {
+                    checkDatabaseSettingsRow
+                }
+            })
+            .navigationTitle(item.title)
+        case .checkMedia:
+            MediaCheckResultView()
+        case .emptyCards:
+            EmptyCardsView()
+        case .debug:
+            DebugView()
+        case .about:
+            AboutView()
+        }
+    }
+
+    @ViewBuilder
+    private var splitSettingsSidebarSections: some View {
+        ForEach(SettingsSidebarGroup.allCases) { group in
+            Section {
+                if isSettingsGroupExpanded(group) {
+                    splitSettingsSidebarRows(for: group)
+                }
+            } header: {
+                splitSettingsSidebarHeader(for: group)
+            }
+        }
+    }
+
+    private func splitSettingsSidebarRows(for group: SettingsSidebarGroup) -> some View {
+        ForEach(group.items) { item in
+            Button {
+                selectedItemBinding.wrappedValue = item
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: item.icon)
+                        .foregroundStyle(item == resolvedSelectedItem ? Color.accentColor : Color.amgiTextSecondary)
+                    Text(item.title)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if resolvedSelectedItem == item {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func splitSettingsSidebarHeader(for group: SettingsSidebarGroup) -> some View {
+        HStack(spacing: 12) {
+            Text(group.title)
+                .amgiFont(.captionBold)
+                .foregroundStyle(Color.amgiTextSecondary)
+            Spacer()
+            Button {
+                toggleSettingsGroup(group)
+            } label: {
+                Image(systemName: isSettingsGroupExpanded(group) ? "chevron.up" : "chevron.down")
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .textCase(nil)
+    }
+
+    private func isSettingsGroupExpanded(_ group: SettingsSidebarGroup) -> Bool {
+        !collapsedGroups.contains(group)
+    }
+
+    private func toggleSettingsGroup(_ group: SettingsSidebarGroup) {
+        if collapsedGroups.contains(group) {
+            collapsedGroups.remove(group)
+        } else {
+            collapsedGroups.insert(group)
         }
     }
 
@@ -281,52 +406,9 @@ struct SettingsView: View {
     @ViewBuilder
     private var displaySettingsSection: some View {
         Section(L("settings_section_display")) {
-            HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
-                    .foregroundStyle(SettingsValueStyle.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Menu {
-                    Picker(L("settings_picker_theme"), selection: selectedTheme) {
-                        ForEach(AppTheme.allCases) { theme in
-                            Text(theme.displayName)
-                                .foregroundStyle(SettingsValueStyle.highlight)
-                                .tag(theme)
-                        }
-                    }
-                } label: {
-                    SettingsOptionCapsuleLabel(title: selectedTheme.wrappedValue.displayName)
-                }
-            }
-            .amgiSettingsListRowSurface()
+            themeSettingsRow
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                    Label(L("settings_picker_language"), systemImage: "globe")
-                        .foregroundStyle(SettingsValueStyle.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Menu {
-                        Picker(L("settings_picker_language"), selection: selectedLanguage) {
-                            ForEach(AppLanguage.allCases) { lang in
-                                Text(lang.displayName)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
-                                    .tag(lang)
-                            }
-                        }
-                    } label: {
-                        SettingsOptionCapsuleLabel(title: selectedLanguage.wrappedValue.displayName)
-                    }
-                }
-
-                if selectedLanguage.wrappedValue != .system {
-                    Text(L("settings_language_restart_hint"))
-                        .amgiFont(.caption)
-                        .foregroundStyle(SettingsValueStyle.secondary)
-                        .padding(.leading, 28)
-                }
-            }
-            .amgiSettingsListRowSurface()
+            languageSettingsRow
 
             NavigationLink {
                 DeckListHeatmapSettingsView()
@@ -368,29 +450,7 @@ struct SettingsView: View {
             }
             .amgiSettingsListRowSurface()
 
-            Button {
-                checkDatabase()
-            } label: {
-                if isCheckingDatabase {
-                    HStack {
-                        settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
-                            .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
-                        ProgressView()
-                    }
-                    .contentShape(Rectangle())
-                } else {
-                    HStack {
-                        settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
-                            .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
-                    }
-                    .contentShape(Rectangle())
-                }
-            }
-            .buttonStyle(.plain)
-            .disabled(isCheckingDatabase)
-            .amgiSettingsListRowSurface()
+            checkDatabaseSettingsRow
 
             NavigationLink {
                 MediaCheckResultView()
@@ -433,6 +493,83 @@ struct SettingsView: View {
             .foregroundStyle(SettingsValueStyle.primary)
     }
 
+    private var themeSettingsRow: some View {
+        HStack(alignment: .top, spacing: AmgiSpacing.md) {
+            Label(L("settings_picker_theme"), systemImage: "circle.lefthalf.filled")
+                .foregroundStyle(SettingsValueStyle.primary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Menu {
+                Picker(L("settings_picker_theme"), selection: selectedTheme) {
+                    ForEach(AppTheme.allCases) { theme in
+                        Text(theme.displayName)
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .tag(theme)
+                    }
+                }
+            } label: {
+                SettingsOptionCapsuleLabel(title: selectedTheme.wrappedValue.displayName)
+            }
+        }
+        .amgiSettingsListRowSurface()
+    }
+
+    private var languageSettingsRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                Label(L("settings_picker_language"), systemImage: "globe")
+                    .foregroundStyle(SettingsValueStyle.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Menu {
+                    Picker(L("settings_picker_language"), selection: selectedLanguage) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.displayName)
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(lang)
+                        }
+                    }
+                } label: {
+                    SettingsOptionCapsuleLabel(title: selectedLanguage.wrappedValue.displayName)
+                }
+            }
+
+            if selectedLanguage.wrappedValue != .system {
+                Text(L("settings_language_restart_hint"))
+                    .amgiFont(.caption)
+                    .foregroundStyle(SettingsValueStyle.secondary)
+                    .padding(.leading, 28)
+            }
+        }
+        .amgiSettingsListRowSurface()
+    }
+
+    private var checkDatabaseSettingsRow: some View {
+        Button {
+            checkDatabase()
+        } label: {
+            if isCheckingDatabase {
+                HStack {
+                    settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    ProgressView()
+                }
+                .contentShape(Rectangle())
+            } else {
+                HStack {
+                    settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(isCheckingDatabase)
+        .amgiSettingsListRowSurface()
+    }
+
     private func checkDatabase() {
         isCheckingDatabase = true
         let capturedBackend = backend
@@ -465,7 +602,7 @@ struct SettingsView: View {
 
 }
 
-private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
+enum SettingsSidebarGroup: String, CaseIterable, Identifiable, Hashable {
     case basic
     case display
     case maintenance
@@ -486,16 +623,134 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    var icon: String {
+    var items: [SettingsSidebarItem] {
         switch self {
         case .basic:
-            "slider.horizontal.3"
+            [.account, .sync, .editing, .review, .reviewAI, .reader]
         case .display:
-            "paintbrush"
+            [.theme, .language, .homeHeatmap]
         case .maintenance:
-            "wrench.and.screwdriver"
+            [.backup, .fileManager, .deckTemplates, .fieldManager, .checkDatabase, .checkMedia, .emptyCards, .debug]
         case .other:
-            "ellipsis.circle"
+            [.about]
+        }
+    }
+}
+
+enum SettingsSidebarItem: String, CaseIterable, Identifiable, Hashable {
+    case account
+    case sync
+    case editing
+    case review
+    case reviewAI
+    case reader
+    case theme
+    case language
+    case homeHeatmap
+    case backup
+    case fileManager
+    case deckTemplates
+    case fieldManager
+    case checkDatabase
+    case checkMedia
+    case emptyCards
+    case debug
+    case about
+
+    var id: String { rawValue }
+
+    var group: SettingsSidebarGroup {
+        switch self {
+        case .account, .sync, .editing, .review, .reviewAI, .reader:
+            .basic
+        case .theme, .language, .homeHeatmap:
+            .display
+        case .backup, .fileManager, .deckTemplates, .fieldManager, .checkDatabase, .checkMedia, .emptyCards, .debug:
+            .maintenance
+        case .about:
+            .other
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .account:
+            L("settings_row_account")
+        case .sync:
+            L("settings_row_sync")
+        case .editing:
+            L("settings_row_editing")
+        case .review:
+            L("settings_row_review")
+        case .reviewAI:
+            L("settings_review_ai_settings")
+        case .reader:
+            L("settings_row_reader")
+        case .theme:
+            L("settings_picker_theme")
+        case .language:
+            L("settings_picker_language")
+        case .homeHeatmap:
+            L("settings_row_home_heatmap")
+        case .backup:
+            L("settings_row_backup")
+        case .fileManager:
+            L("settings_row_file_manager")
+        case .deckTemplates:
+            L("settings_row_deck_templates")
+        case .fieldManager:
+            L("settings_row_field_manager")
+        case .checkDatabase:
+            L("settings_row_check_database")
+        case .checkMedia:
+            L("settings_row_check_media")
+        case .emptyCards:
+            L("settings_row_empty_cards")
+        case .debug:
+            L("debug_nav_title")
+        case .about:
+            L("settings_row_about")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .account:
+            "person.crop.circle"
+        case .sync:
+            "arrow.triangle.2.circlepath"
+        case .editing:
+            "pencil.and.scribble"
+        case .review:
+            "rectangle.on.rectangle"
+        case .reviewAI:
+            "sparkles"
+        case .reader:
+            "book.closed"
+        case .theme:
+            "circle.lefthalf.filled"
+        case .language:
+            "globe"
+        case .homeHeatmap:
+            "chart.bar.xaxis"
+        case .backup:
+            "externaldrive"
+        case .fileManager:
+            "folder"
+        case .deckTemplates:
+            "square.stack.3d.up"
+        case .fieldManager:
+            "text.badge.plus"
+        case .checkDatabase:
+            "checkmark.seal"
+        case .checkMedia:
+            "photo.on.rectangle"
+        case .emptyCards:
+            "rectangle.stack.badge.minus"
+        case .debug:
+            "ladybug"
+        case .about:
+            "info.circle"
         }
     }
 }

@@ -124,7 +124,7 @@ struct HourlyChart: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .statsTrackWidth($containerWidth)
-        .amgiCard(elevated: true)
+        .statsCard(elevated: true)
     }
 
     private var hourlyChart: some View {

@@ -317,7 +317,7 @@ struct FutureDueChart: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .statsTrackWidth($containerWidth)
-        .amgiCard(elevated: true)
+        .statsCard(elevated: true)
     }
 
     private var futureDueChart: some View {

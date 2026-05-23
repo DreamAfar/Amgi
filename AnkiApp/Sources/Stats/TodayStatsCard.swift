@@ -62,34 +62,28 @@ struct TodayStatsCard: View {
         switch layoutStyle {
         case .standard:
             VStack(spacing: compactText ? 10 : 12) {
-                HStack {
+                HStack(spacing: compactText ? 10 : 12) {
                     statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
-                    Spacer()
                     statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: Color.amgiTextPrimary)
-                    Spacer()
                     statItem(title: L("stats_today_correct"), value: accuracy, color: .green)
-                    Spacer()
                     statItem(title: L("stats_today_mature"), value: matureAccuracy, color: .purple)
                 }
                 Divider()
-                HStack {
+                HStack(spacing: compactText ? 10 : 12) {
                     statBadge(L("stats_card_learn"), count: today.learnCount, color: .cyan)
-                    Spacer()
                     statBadge(L("stats_card_review"), count: today.reviewCount, color: .green)
-                    Spacer()
                     statBadge(L("stats_card_relearning"), count: today.relearnCount, color: .orange)
-                    Spacer()
                     statBadge(L("stats_review_filtered"), count: today.earlyReviewCount, color: .gray)
                 }
             }
 
         case .sidebar:
             let columns = [
-                GridItem(.flexible(), spacing: 12, alignment: .leading),
-                GridItem(.flexible(), spacing: 12, alignment: .leading),
+                GridItem(.flexible(), spacing: 12, alignment: .center),
+                GridItem(.flexible(), spacing: 12, alignment: .center),
             ]
 
-            LazyVGrid(columns: columns, alignment: .leading, spacing: compactText ? 12 : 14) {
+            LazyVGrid(columns: columns, alignment: .center, spacing: compactText ? 12 : 14) {
                 statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
                 statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: Color.amgiTextPrimary)
                 statItem(title: L("stats_today_correct"), value: accuracy, color: .green)
@@ -103,32 +97,36 @@ struct TodayStatsCard: View {
     }
 
     private func statItem(title: String, value: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .center, spacing: 2) {
             Text(value)
                 .font(primaryValueFont)
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, alignment: .center)
             Text(title)
                 .amgiFont(compactText ? .micro : .caption)
                 .foregroundStyle(Color.amgiTextSecondary)
                 .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func statBadge(_ title: String, count: UInt32, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .center, spacing: 2) {
             Text("\(count)")
                 .font(badgeValueFont)
                 .foregroundStyle(color)
                 .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .center)
             Text(title)
                 .amgiFont(.micro)
                 .foregroundStyle(Color.amgiTextSecondary)
                 .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func formatTime(_ ms: UInt32) -> String {

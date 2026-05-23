@@ -111,7 +111,7 @@ struct RetentionChart: View {
                 }
             }
         }
-        .amgiCard(elevated: true)
+        .statsCard(elevated: true)
     }
 
     private func retentionBadge(_ rate: Double) -> some View {

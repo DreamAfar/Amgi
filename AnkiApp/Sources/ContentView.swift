@@ -17,6 +17,7 @@ private enum SplitRootSection: String, CaseIterable, Identifiable {
     case stats
     case reader
     case browse
+    case settings
 
     var id: String { rawValue }
 
@@ -30,6 +31,8 @@ private enum SplitRootSection: String, CaseIterable, Identifiable {
             return L("tab_reader")
         case .browse:
             return L("tab_browse")
+        case .settings:
+            return L("tab_settings")
         }
     }
 
@@ -43,8 +46,15 @@ private enum SplitRootSection: String, CaseIterable, Identifiable {
             return "books.vertical"
         case .browse:
             return "magnifyingglass"
+        case .settings:
+            return "gearshape"
         }
     }
+}
+
+private struct SettingsSidebarState {
+    var selectedItem: SettingsSidebarItem = .account
+    var collapsedGroups: Set<SettingsSidebarGroup> = []
 }
 
 private struct DecksSidebarState {
@@ -78,6 +88,8 @@ private struct SplitShellState {
     var stats = StatsSidebarState()
     var reader = ReaderSidebarState()
     var browse = BrowseSidebarState()
+    var settings = SettingsSidebarState()
+    var collapsedContextSectionIDs: Set<String> = []
 }
 
 private struct ReaderSidebarBookSummary: Identifiable {
@@ -179,7 +191,7 @@ struct ContentView: View {
     @State private var selectedTab: RootTab = .decks
     @State private var isReaderTabEnabled = false
     @State private var splitShell = SplitShellState()
-    @State private var showSplitSettings = false
+    @State private var splitColumnVisibility: NavigationSplitViewVisibility = .all
     @State private var splitDeckTree: [DeckTreeNode] = DeckTreeCache.load()
     @State private var splitDeckOptions: [DeckInfo] = []
     @State private var splitBrowseTags: [String] = []
@@ -230,10 +242,6 @@ struct ContentView: View {
             UserManagementView()
                 .presentationDetents([.fraction(0.5)])
                 .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showSplitSettings) {
-            SettingsView()
-                .id(refreshID)
         }
         .sheet(isPresented: $showExportOptions) {
             NavigationStack {
@@ -421,6 +429,7 @@ struct ContentView: View {
             sections.append(.reader)
         }
         sections.append(.browse)
+        sections.append(.settings)
         return sections
     }
 
@@ -436,19 +445,11 @@ struct ContentView: View {
     }
 
     private var splitRootView: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $splitColumnVisibility) {
             splitSidebarShell
             .navigationTitle("Amgi")
             .navigationBarTitleDisplayMode(.inline)
             .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 360)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    userMenu
-                }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    splitShellGlobalActions
-                }
-            }
         } detail: {
             splitDetailView
         }
@@ -469,13 +470,33 @@ struct ContentView: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            .scrollDisabled(true)
             .background(Color.amgiBackground)
-            .frame(minHeight: 220, maxHeight: 260)
+            .frame(height: splitSidebarNavigationHeight)
 
             Divider()
 
+            splitSidebarContextHeader
+
             splitSidebarContextPanel
         }
+    }
+
+    private var splitSidebarNavigationHeight: CGFloat {
+        CGFloat(splitRootSections.count) * 48 + 18
+    }
+
+    private var splitSidebarContextHeader: some View {
+        HStack(spacing: 12) {
+            Text(splitShell.selectedSection.title)
+                .amgiFont(.captionBold)
+                .foregroundStyle(Color.amgiTextSecondary)
+            Spacer()
+            splitSidebarToggleButton
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.amgiBackground)
     }
 
     @ViewBuilder
@@ -511,6 +532,7 @@ struct ContentView: View {
                 }
             }
             .toolbar {
+                splitDetailToolbarContent()
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     deckManagementMenu
                 }
@@ -529,6 +551,9 @@ struct ContentView: View {
                     CollectionPreparingView()
                 }
             }
+            .toolbar {
+                splitDetailToolbarContent()
+            }
         case .reader:
             NavigationStack {
                 if collectionState.isReady {
@@ -543,6 +568,9 @@ struct ContentView: View {
                     CollectionPreparingView()
                 }
             }
+            .toolbar {
+                splitDetailToolbarContent()
+            }
         case .browse:
             if collectionState.isReady {
                 BrowseView(
@@ -554,22 +582,49 @@ struct ContentView: View {
                     externalQuickFilterSelection: splitBrowseQuickFilterBinding
                 )
                     .id(refreshID)
+                    .toolbar {
+                        splitDetailToolbarContent()
+                    }
             } else {
                 CollectionPreparingView()
+            }
+        case .settings:
+            NavigationStack {
+                SettingsView(
+                    usesExternalRootSidebar: true,
+                    externalSelectedItem: splitSettingsSelectedItemBinding
+                )
+                .id(refreshID)
+            }
+            .toolbar {
+                splitDetailToolbarContent()
             }
         }
     }
 
-    private var splitShellGlobalActions: some View {
-        HStack(spacing: 14) {
-            syncToolbarButton
-
-            Button {
-                showSplitSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-            }
+    @ToolbarContentBuilder
+    private func splitDetailToolbarContent() -> some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            splitSidebarToggleButton
         }
+        ToolbarItem(placement: .topBarLeading) {
+            userMenu
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            syncToolbarButton
+        }
+    }
+
+    private var splitSidebarToggleButton: some View {
+        Button {
+            toggleSplitSidebar()
+        } label: {
+            Image(systemName: splitColumnVisibility == .detailOnly ? "sidebar.right" : "sidebar.left")
+        }
+    }
+
+    private func toggleSplitSidebar() {
+        splitColumnVisibility = splitColumnVisibility == .detailOnly ? .all : .detailOnly
     }
 
     private var splitSelectedDeck: DeckInfo? {
@@ -608,6 +663,13 @@ struct ContentView: View {
         Binding(
             get: { splitShell.stats.selectedRevlogRange },
             set: { splitShell.stats.selectedRevlogRange = $0 }
+        )
+    }
+
+    private var splitSettingsSelectedItemBinding: Binding<SettingsSidebarItem?> {
+        Binding(
+            get: { splitShell.settings.selectedItem },
+            set: { splitShell.settings.selectedItem = $0 ?? .account }
         )
     }
 
@@ -672,55 +734,100 @@ struct ContentView: View {
         switch splitShell.selectedSection {
         case .decks:
             if !splitDeckTree.isEmpty {
-                Section(L("deck_list_nav_title")) {
+                splitSidebarCollapsibleSection(L("deck_list_nav_title"), key: "decks.list") {
                     splitSidebarDeckTreeRows
                 }
             } else if !splitDeckOptions.isEmpty {
-                Section(L("deck_list_nav_title")) {
+                splitSidebarCollapsibleSection(L("deck_list_nav_title"), key: "decks.list") {
                     splitSidebarDeckRows
                 }
             }
         case .browse:
             if !splitDeckOptions.isEmpty {
-                Section(L("browse_filter_by_deck")) {
+                splitSidebarCollapsibleSection(L("browse_filter_by_deck"), key: "browse.decks") {
                     splitSidebarBrowseDeckRows
                 }
             }
             if !splitBrowseTags.isEmpty {
-                Section(L("browse_filter_by_tag")) {
+                splitSidebarCollapsibleSection(L("browse_filter_by_tag"), key: "browse.tags") {
                     splitSidebarBrowseTagRows
                 }
             }
             if !splitBrowseNotetypes.isEmpty {
-                Section(L("browse_filter_by_notetype")) {
+                splitSidebarCollapsibleSection(L("browse_filter_by_notetype"), key: "browse.notetypes") {
                     splitSidebarBrowseNotetypeRows
                 }
             }
-            Section(L("browse_batch_flag_label")) {
+            splitSidebarCollapsibleSection(L("browse_batch_flag_label"), key: "browse.flags") {
                 splitSidebarBrowseFlagRows
             }
+        case .settings:
+            splitSidebarSettingsSections
         case .stats:
-            Section(L("stats_nav_title")) {
+            splitSidebarCollapsibleSection(L("stats_nav_title"), key: "stats.groups") {
                 splitSidebarStatsGroupRows
             }
-            Section(L("browse_filter_by_deck")) {
+            splitSidebarCollapsibleSection(L("browse_filter_by_deck"), key: "stats.decks") {
                 splitSidebarStatsDeckRows
             }
-            Section(L("stats_period_label")) {
+            splitSidebarCollapsibleSection(L("stats_period_label"), key: "stats.range") {
                 splitSidebarStatsRangeRows
             }
         case .reader:
-            Section(L("reader_library_title")) {
+            splitSidebarCollapsibleSection(L("reader_library_title"), key: "reader.library") {
                 splitSidebarReaderLibraryRows
             }
             if !splitReaderRecentBooks.isEmpty {
-                Section(L("reader_library_sort_recent")) {
+                splitSidebarCollapsibleSection(L("reader_library_sort_recent"), key: "reader.recent") {
                     splitSidebarReaderRecentRows
                 }
             }
-            Section(L("tab_settings")) {
+            splitSidebarCollapsibleSection(L("tab_settings"), key: "reader.settings") {
                 splitSidebarReaderSettingsRows
             }
+        }
+    }
+
+    private func splitSidebarCollapsibleSection<Content: View>(
+        _ title: String,
+        key: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Section {
+            if isSplitSidebarContextSectionExpanded(key) {
+                content()
+            }
+        } header: {
+            splitSidebarSectionHeader(title: title, key: key)
+        }
+    }
+
+    private func splitSidebarSectionHeader(title: String, key: String) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .amgiFont(.captionBold)
+                .foregroundStyle(Color.amgiTextSecondary)
+            Spacer()
+            Button {
+                toggleSplitSidebarContextSection(key)
+            } label: {
+                Image(systemName: isSplitSidebarContextSectionExpanded(key) ? "chevron.up" : "chevron.down")
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .textCase(nil)
+    }
+
+    private func isSplitSidebarContextSectionExpanded(_ key: String) -> Bool {
+        !splitShell.collapsedContextSectionIDs.contains(key)
+    }
+
+    private func toggleSplitSidebarContextSection(_ key: String) {
+        if splitShell.collapsedContextSectionIDs.contains(key) {
+            splitShell.collapsedContextSectionIDs.remove(key)
+        } else {
+            splitShell.collapsedContextSectionIDs.insert(key)
         }
     }
 
@@ -960,6 +1067,68 @@ struct ContentView: View {
         }
     }
 
+    private var splitSidebarSettingsSections: some View {
+        ForEach(SettingsSidebarGroup.allCases) { group in
+            Section {
+                if isSplitSettingsGroupExpanded(group) {
+                    splitSidebarSettingsRows(for: group)
+                }
+            } header: {
+                splitSidebarSettingsHeader(for: group)
+            }
+        }
+    }
+
+    private func splitSidebarSettingsRows(for group: SettingsSidebarGroup) -> some View {
+        ForEach(group.items) { item in
+            Button {
+                splitShell.settings.selectedItem = item
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: item.icon)
+                        .foregroundStyle(item == splitShell.settings.selectedItem ? Color.accentColor : Color.amgiTextSecondary)
+                    Text(item.title)
+                        .foregroundStyle(Color.amgiTextPrimary)
+                    Spacer()
+                    if splitShell.settings.selectedItem == item {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func splitSidebarSettingsHeader(for group: SettingsSidebarGroup) -> some View {
+        HStack(spacing: 12) {
+            Text(group.title)
+                .amgiFont(.captionBold)
+                .foregroundStyle(Color.amgiTextSecondary)
+            Spacer()
+            Button {
+                toggleSplitSettingsGroup(group)
+            } label: {
+                Image(systemName: isSplitSettingsGroupExpanded(group) ? "chevron.up" : "chevron.down")
+                    .foregroundStyle(Color.amgiTextSecondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .textCase(nil)
+    }
+
+    private func isSplitSettingsGroupExpanded(_ group: SettingsSidebarGroup) -> Bool {
+        !splitShell.settings.collapsedGroups.contains(group)
+    }
+
+    private func toggleSplitSettingsGroup(_ group: SettingsSidebarGroup) {
+        if splitShell.settings.collapsedGroups.contains(group) {
+            splitShell.settings.collapsedGroups.remove(group)
+        } else {
+            splitShell.settings.collapsedGroups.insert(group)
+        }
+    }
+
     private var splitSidebarStatsRangeRows: some View {
         ForEach(RevlogRange.allCases, id: \.self) { range in
             Button {
@@ -1086,6 +1255,8 @@ struct ContentView: View {
             return .reader
         case .browse:
             return .browse
+        case .settings:
+            return .settings
         }
     }
 
@@ -1100,7 +1271,7 @@ struct ContentView: View {
         case .browse:
             return .browse
         case .settings:
-            return nil
+            return .settings
         }
     }
 

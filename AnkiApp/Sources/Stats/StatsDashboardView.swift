@@ -96,6 +96,12 @@ private struct StatsChartRun: Identifiable {
     let showsAnchor: Bool
 }
 
+private struct StatsChartRow: Identifiable {
+    let id: Int
+    let left: StatsChartSection
+    let right: StatsChartSection?
+}
+
 struct StatsDashboardView: View {
     @Dependency(\.statsClient) var statsClient
     @Dependency(\.deckClient) var deckClient
@@ -110,6 +116,7 @@ struct StatsDashboardView: View {
     @State private var hasLoadedInitialData = false
     @State private var showChartOrderSheet = false
     @State private var selectedGroup: StatsGroup = .overview
+    @State private var doubleColumnRowHeights: [String: CGFloat] = [:]
     @AppStorage(StatsPreferences.chartOrderKey) private var chartOrderRaw = ""
     @AppStorage(StatsPreferences.chartLayoutKey) private var chartLayoutRaw = StatsChartLayoutMode.single.rawValue
     private let initialDeckID: Int64?
@@ -453,23 +460,36 @@ struct StatsDashboardView: View {
     @ViewBuilder
     private func chartRunContent(_ run: StatsChartRun, graphs: Anki_Stats_GraphsResponse) -> some View {
         if usesDoubleColumnLayout && shouldUseDoubleColumnLayout(for: run.group) && run.sections.count > 1 {
-            let columns = balancedChartColumns(for: run.sections)
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(columns.left, id: \.self) { section in
-                        chartView(for: section, graphs: graphs)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
+            let rows = chartRows(for: run.sections)
+            VStack(spacing: 16) {
+                ForEach(rows) { row in
+                    let rowKey = chartRowKey(runID: run.id, rowID: row.id)
+                    HStack(alignment: .top, spacing: 16) {
+                        measuredChartCell(
+                            section: row.left,
+                            rowKey: rowKey,
+                            graphs: graphs
+                        )
 
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(columns.right, id: \.self) { section in
-                        chartView(for: section, graphs: graphs)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                        if let right = row.right {
+                            measuredChartCell(
+                                section: right,
+                                rowKey: rowKey,
+                                graphs: graphs
+                            )
+                        } else {
+                            Color.clear
+                                .frame(maxWidth: .infinity)
+                        }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .top)
+            }
+            .onPreferenceChange(StatsMeasuredHeightPreferenceKey.self) { heights in
+                for (key, height) in heights {
+                    if doubleColumnRowHeights[key] != height {
+                        doubleColumnRowHeights[key] = height
+                    }
+                }
             }
         } else {
             ForEach(run.sections, id: \.self) { section in
@@ -540,43 +560,29 @@ struct StatsDashboardView: View {
         }
     }
 
-    private func balancedChartColumns(
-        for sections: [StatsChartSection]
-    ) -> (left: [StatsChartSection], right: [StatsChartSection]) {
-        var left: [StatsChartSection] = []
-        var right: [StatsChartSection] = []
-        var leftHeight: CGFloat = 0
-        var rightHeight: CGFloat = 0
-
-        for section in sections {
-            let estimate = estimatedHeight(for: section)
-            if leftHeight <= rightHeight {
-                left.append(section)
-                leftHeight += estimate
-            } else {
-                right.append(section)
-                rightHeight += estimate
-            }
+    private func chartRows(for sections: [StatsChartSection]) -> [StatsChartRow] {
+        stride(from: 0, to: sections.count, by: 2).enumerated().map { index, offset in
+            StatsChartRow(
+                id: index,
+                left: sections[offset],
+                right: offset + 1 < sections.count ? sections[offset + 1] : nil
+            )
         }
-
-        return (left, right)
     }
 
-    private func estimatedHeight(for section: StatsChartSection) -> CGFloat {
-        switch section {
-        case .futureDue: return 320
-        case .heatmap: return 260
-        case .reviews: return 360
-        case .cardCounts: return 320
-        case .intervals: return 330
-        case .stability: return 330
-        case .ease: return 240
-        case .retrievability: return 220
-        case .retention: return 260
-        case .hourly: return 300
-        case .buttons: return 280
-        case .added: return 260
-        }
+    private func chartRowKey(runID: Int, rowID: Int) -> String {
+        "stats-row-\(runID)-\(rowID)"
+    }
+
+    private func measuredChartCell(
+        section: StatsChartSection,
+        rowKey: String,
+        graphs: Anki_Stats_GraphsResponse
+    ) -> some View {
+        chartView(for: section, graphs: graphs)
+            .statsCardMinHeight(doubleColumnRowHeights[rowKey])
+            .statsMeasureHeight(id: rowKey)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder

@@ -385,13 +385,8 @@ struct NotetypeFieldEditorView: View {
                 Button {
                     attemptDismiss()
                 } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.headline.weight(.semibold))
-                        .frame(minWidth: 44, minHeight: 44, alignment: .leading)
+                    Label(L("settings_row_field_manager"), systemImage: "chevron.backward")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.amgiAccent)
-                .accessibilityLabel(L("common_back"))
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

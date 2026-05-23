@@ -39,6 +39,9 @@ struct BrowseView: View {
     @AppStorage("browse_sort_reverse") private var sortReverse = true
     @State private var notetypeNamesByID: [Int64: String] = [:]
     @AppStorage("browse_show_notetype_subtitle") private var showNotetypeSubtitle = true
+    @AppStorage("browse_show_deck_quick_filters") private var showDeckQuickFilters = true
+    @AppStorage("browse_show_tag_quick_filters") private var showTagQuickFilters = true
+    @AppStorage("browse_show_notetype_quick_filters") private var showNotetypeQuickFilters = true
     @State private var isLoading = true
     @State private var hasMorePages = true
     @State private var showAddNote = false
@@ -689,6 +692,16 @@ struct BrowseView: View {
 
                     Divider()
 
+                    Menu {
+                        Toggle(L("browse_filter_by_deck"), isOn: $showDeckQuickFilters)
+                        Toggle(L("browse_filter_by_tag"), isOn: $showTagQuickFilters)
+                        Toggle(L("browse_filter_by_notetype"), isOn: $showNotetypeQuickFilters)
+                    } label: {
+                        Label(L("browse_quick_filter_buttons"), systemImage: "rectangle.3.group")
+                    }
+
+                    Divider()
+
                     Toggle(L("browse_display_note_type_subtitle"), isOn: $showNotetypeSubtitle)
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -756,7 +769,7 @@ struct BrowseView: View {
                 browseToolbarContent
             }
             .safeAreaInset(edge: .top) {
-                if !usesSidebarLayout && !usesExternalRootSidebar && (!allDecks.isEmpty || !allTags.isEmpty || !sortedNotetypeOptions.isEmpty) {
+                if shouldShowQuickFilterToolbar {
                     deckFilterBar
                 }
             }
@@ -1349,52 +1362,71 @@ struct BrowseView: View {
         }
     }
 
+    private var shouldShowQuickFilterToolbar: Bool {
+        guard !usesSidebarLayout && !usesExternalRootSidebar else { return false }
+        return shouldShowDeckQuickFilterRow || shouldShowTagQuickFilterRow || shouldShowNotetypeQuickFilterRow
+    }
+
+    private var shouldShowDeckQuickFilterRow: Bool {
+        showDeckQuickFilters && !allDecks.isEmpty
+    }
+
+    private var shouldShowTagQuickFilterRow: Bool {
+        showTagQuickFilters && !allTags.isEmpty
+    }
+
+    private var shouldShowNotetypeQuickFilterRow: Bool {
+        showNotetypeQuickFilters && !sortedNotetypeOptions.isEmpty
+    }
+
     private var deckFilterBar: some View {
         VStack(spacing: 0) {
             // Top-level deck chips
-            ScrollViewReader { proxy in
-                HStack(spacing: 8) {
-                    chipButton(
-                        label: L("browse_filter_all"),
-                        isSelected: activeDeck == nil,
-                        onLongPress: topLevelDecks.isEmpty ? nil : { showTopLevelDecksSheet = true }
-                    ) {
-                        parentDeck = nil
-                        activeDeck = nil
-                    }
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(topLevelDecks) { deck in
-                                chipButton(
-                                    label: deck.name,
-                                    isSelected: parentDeck?.id == deck.id && activeDeck?.id == deck.id
-                                ) {
-                                    if parentDeck?.id == deck.id && activeDeck?.id == deck.id {
-                                        parentDeck = nil
-                                        activeDeck = nil
-                                    } else {
-                                        parentDeck = deck
-                                        activeDeck = deck
-                                    }
-                                }
-                                .id(deckChipID(deck.id))
-                            }
+            if shouldShowDeckQuickFilterRow {
+                ScrollViewReader { proxy in
+                    HStack(spacing: 8) {
+                        chipButton(
+                            label: L("browse_filter_all"),
+                            isSelected: activeDeck == nil,
+                            onLongPress: topLevelDecks.isEmpty ? nil : { showTopLevelDecksSheet = true }
+                        ) {
+                            parentDeck = nil
+                            activeDeck = nil
                         }
-                        .padding(.trailing)
-                        .padding(.vertical, 8)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(topLevelDecks) { deck in
+                                    chipButton(
+                                        label: deck.name,
+                                        isSelected: parentDeck?.id == deck.id && activeDeck?.id == deck.id
+                                    ) {
+                                        if parentDeck?.id == deck.id && activeDeck?.id == deck.id {
+                                            parentDeck = nil
+                                            activeDeck = nil
+                                        } else {
+                                            parentDeck = deck
+                                            activeDeck = deck
+                                        }
+                                    }
+                                    .id(deckChipID(deck.id))
+                                }
+                            }
+                            .padding(.trailing)
+                            .padding(.vertical, 8)
+                        }
                     }
-                }
-                .padding(.leading)
-                .onAppear {
-                    scrollToDeckChip(proxy: proxy, animated: false)
-                }
-                .onChange(of: activeDeck?.id) { _, _ in
-                    scrollToDeckChip(proxy: proxy)
+                    .padding(.leading)
+                    .onAppear {
+                        scrollToDeckChip(proxy: proxy, animated: false)
+                    }
+                    .onChange(of: activeDeck?.id) { _, _ in
+                        scrollToDeckChip(proxy: proxy)
+                    }
                 }
             }
 
             // Subdeck row — stays visible as long as a parent with children is selected
-            if !childDecks.isEmpty {
+            if shouldShowDeckQuickFilterRow && !childDecks.isEmpty {
                 ScrollViewReader { proxy in
                     HStack(spacing: 8) {
                         chipButton(
@@ -1438,7 +1470,7 @@ struct BrowseView: View {
             }
 
             // Tag row
-            if !allTags.isEmpty {
+            if shouldShowTagQuickFilterRow {
                 ScrollViewReader { proxy in
                     HStack(spacing: 8) {
                         chipButton(
@@ -1479,7 +1511,7 @@ struct BrowseView: View {
                 }
             }
 
-            if !sortedNotetypeOptions.isEmpty {
+            if shouldShowNotetypeQuickFilterRow {
                 ScrollViewReader { proxy in
                     HStack(spacing: 8) {
                         chipButton(

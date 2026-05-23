@@ -145,7 +145,7 @@ struct ButtonsChart: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .statsTrackWidth($containerWidth)
-        .amgiCard(elevated: true)
+        .statsCard(elevated: true)
     }
 
     private var buttonsColorScale: KeyValuePairs<String, Color> {

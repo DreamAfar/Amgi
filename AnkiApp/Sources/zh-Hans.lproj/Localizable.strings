@@ -74,6 +74,7 @@
 "deck_list_empty_title" = "暂无牌组";
 "deck_list_empty_desc" = "与服务器同步以获取您的牌组。";
 "deck_list_heatmap_title" = "复习热力图";
+"deck_list_schedule_title" = "日程表";
 "deck_list_heatmap_load_failed" = "暂时无法加载复习热力图。";
 "heatmap_loading_full_history" = "正在加载完整历史…";
 "heatmap_load_all_history" = "加载完整历史";
@@ -916,6 +917,7 @@
 "browse_sort_order_forward" = "顺序排列";
 "browse_sort_order_reverse" = "倒序排列";
 "browse_display_note_type_subtitle" = "显示笔记模板副标题";
+"browse_quick_filter_buttons" = "快捷筛选按钮";
 "browse_sort_field_due" = "到期";
 "browse_sort_field_card_modified" = "卡片修改日期";
 "browse_sort_field_card_template" = "卡片模板";

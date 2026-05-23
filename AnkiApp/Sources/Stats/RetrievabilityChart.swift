@@ -106,7 +106,7 @@ struct RetrievabilityChart: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .statsTrackWidth($containerWidth)
-        .amgiCard(elevated: true)
+        .statsCard(elevated: true)
     }
 
     private var retrievabilityChart: some View {
