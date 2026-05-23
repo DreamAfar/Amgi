@@ -284,11 +284,8 @@ struct ContentView: View {
                                 cancelPendingImport()
                             },
                             onImport: {
-                                let url = pendingImportURL
                                 showImportOptions = false
-                                if let url {
-                                    startImport(from: url, configuration: importDraft.configuration)
-                                }
+                                startImport(from: pendingImportURL, configuration: importDraft.configuration)
                             }
                         )
                     } else {
@@ -576,7 +573,7 @@ struct ContentView: View {
 
         NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
 
-        try? backend.call(
+        _ = try? backend.call(
             service: AnkiBackend.Service.collection,
             method: AnkiBackend.CheckDatabaseMethod.checkDatabase
         )
@@ -736,7 +733,7 @@ struct ContentView: View {
         let ext = url.pathExtension.lowercased()
         guard ext == "apkg" || ext == "colpkg" else {
             if requiresSecurityScope {
-                _ = url.stopAccessingSecurityScopedResource()
+                url.stopAccessingSecurityScopedResource()
             }
             importMessage = "Unsupported file type. Please select an .apkg or .colpkg file."
             showImportAlert = true
