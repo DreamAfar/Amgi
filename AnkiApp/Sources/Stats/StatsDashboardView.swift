@@ -97,9 +97,10 @@ private struct StatsChartRun: Identifiable {
 }
 
 private struct StatsChartRow: Identifiable {
-    let id: Int
+    let id: String
     let left: StatsChartSection
     let right: StatsChartSection?
+    let anchorGroups: [StatsGroup]
 }
 
 struct StatsDashboardView: View {
@@ -447,54 +448,64 @@ struct StatsDashboardView: View {
 
     @ViewBuilder
     private func orderedChartContent(graphs: Anki_Stats_GraphsResponse) -> some View {
-        ForEach(chartRuns(for: graphs)) { run in
-            if run.showsAnchor {
-                Color.clear
-                    .frame(height: 1)
-                    .id(run.group)
+        if usesDoubleColumnLayout {
+            doubleColumnChartContent(graphs: graphs)
+        } else {
+            ForEach(chartRuns(for: graphs)) { run in
+                if run.showsAnchor {
+                    Color.clear
+                        .frame(height: 1)
+                        .id(run.group)
+                }
+                chartRunContent(run, graphs: graphs)
             }
-            chartRunContent(run, graphs: graphs)
+        }
+    }
+
+    private func doubleColumnChartContent(graphs: Anki_Stats_GraphsResponse) -> some View {
+        let rows = doubleColumnRows(for: graphs)
+
+        return VStack(spacing: 16) {
+            ForEach(rows) { row in
+                ForEach(row.anchorGroups, id: \.self) { group in
+                    Color.clear
+                        .frame(height: 1)
+                        .id(group)
+                }
+
+                HStack(alignment: .top, spacing: 16) {
+                    measuredChartCell(
+                        section: row.left,
+                        rowKey: row.id,
+                        graphs: graphs
+                    )
+
+                    if let right = row.right {
+                        measuredChartCell(
+                            section: right,
+                            rowKey: row.id,
+                            graphs: graphs
+                        )
+                    } else {
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+        .onPreferenceChange(StatsMeasuredHeightPreferenceKey.self) { heights in
+            for (key, height) in heights {
+                if doubleColumnRowHeights[key] != height {
+                    doubleColumnRowHeights[key] = height
+                }
+            }
         }
     }
 
     @ViewBuilder
     private func chartRunContent(_ run: StatsChartRun, graphs: Anki_Stats_GraphsResponse) -> some View {
-        if usesDoubleColumnLayout && shouldUseDoubleColumnLayout(for: run.group) && run.sections.count > 1 {
-            let rows = chartRows(for: run.sections)
-            VStack(spacing: 16) {
-                ForEach(rows) { row in
-                    let rowKey = chartRowKey(runID: run.id, rowID: row.id)
-                    HStack(alignment: .top, spacing: 16) {
-                        measuredChartCell(
-                            section: row.left,
-                            rowKey: rowKey,
-                            graphs: graphs
-                        )
-
-                        if let right = row.right {
-                            measuredChartCell(
-                                section: right,
-                                rowKey: rowKey,
-                                graphs: graphs
-                            )
-                        } else {
-                            Color.clear
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
-            }
-            .onPreferenceChange(StatsMeasuredHeightPreferenceKey.self) { heights in
-                for (key, height) in heights {
-                    if doubleColumnRowHeights[key] != height {
-                        doubleColumnRowHeights[key] = height
-                    }
-                }
-            }
-        } else {
-            ForEach(run.sections, id: \.self) { section in
-                chartView(for: section, graphs: graphs)
-            }
+        ForEach(run.sections, id: \.self) { section in
+            chartView(for: section, graphs: graphs)
         }
     }
 
@@ -528,10 +539,6 @@ struct StatsDashboardView: View {
         return runs
     }
 
-    private func shouldUseDoubleColumnLayout(for group: StatsGroup) -> Bool {
-        group == .overview || group == .cards || group == .fsrs
-    }
-
     private func statsGroup(for section: StatsChartSection) -> StatsGroup {
         switch section {
         case .futureDue, .added:
@@ -560,18 +567,43 @@ struct StatsDashboardView: View {
         }
     }
 
-    private func chartRows(for sections: [StatsChartSection]) -> [StatsChartRow] {
-        stride(from: 0, to: sections.count, by: 2).enumerated().map { index, offset in
-            StatsChartRow(
-                id: index,
-                left: sections[offset],
-                right: offset + 1 < sections.count ? sections[offset + 1] : nil
+    private func doubleColumnRows(for graphs: Anki_Stats_GraphsResponse) -> [StatsChartRow] {
+        let sections = orderedChartSections(for: graphs)
+        var seenGroups = Set<StatsGroup>()
+        var rows: [StatsChartRow] = []
+
+        for offset in stride(from: 0, to: sections.count, by: 2) {
+            let left = sections[offset]
+            let right = offset + 1 < sections.count ? sections[offset + 1] : nil
+            let rowSections = [left, right].compactMap { $0 }
+            var anchorGroups: [StatsGroup] = []
+
+            for section in rowSections {
+                let group = statsGroup(for: section)
+                if seenGroups.insert(group).inserted {
+                    anchorGroups.append(group)
+                }
+            }
+
+            rows.append(
+                StatsChartRow(
+                    id: chartRowID(left: left, right: right),
+                    left: left,
+                    right: right,
+                    anchorGroups: anchorGroups
+                )
             )
         }
+
+        return rows
     }
 
-    private func chartRowKey(runID: Int, rowID: Int) -> String {
-        "stats-row-\(runID)-\(rowID)"
+    private func chartRowID(left: StatsChartSection, right: StatsChartSection?) -> String {
+        if let right {
+            return "stats-row-\(left.rawValue)-\(right.rawValue)"
+        }
+
+        return "stats-row-\(left.rawValue)"
     }
 
     private func measuredChartCell(

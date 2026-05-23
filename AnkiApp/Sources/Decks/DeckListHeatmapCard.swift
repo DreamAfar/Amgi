@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import AnkiClients
 import AnkiProto
 import Dependencies
@@ -28,6 +29,10 @@ struct DeckListHeatmapCard: View {
     private let todayStatsTopSpacing: CGFloat = 14
     private let splitTodayStatsWidth: CGFloat = 360
 
+    private var shouldAlwaysUseSplitLayout: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
     let showsExternalLoading: Bool
 
     init(refreshID: Int, showsExternalLoading: Bool = false) {
@@ -45,11 +50,17 @@ struct DeckListHeatmapCard: View {
 
         Group {
             if let graphs {
-                ViewThatFits(in: .horizontal) {
-                    splitLayout(for: graphs)
-                        .frame(minWidth: 960, alignment: .leading)
+                Group {
+                    if shouldAlwaysUseSplitLayout {
+                        splitLayout(for: graphs)
+                    } else {
+                        ViewThatFits(in: .horizontal) {
+                            splitLayout(for: graphs)
+                                .frame(minWidth: 960, alignment: .leading)
 
-                    stackedLayout(for: graphs, cardContentHeight: cardContentHeight)
+                            stackedLayout(for: graphs, cardContentHeight: cardContentHeight)
+                        }
+                    }
                 }
                 .padding(16)
                 .background(
