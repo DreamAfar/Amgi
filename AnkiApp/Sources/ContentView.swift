@@ -9,6 +9,7 @@ import Dependencies
 import Foundation
 import OSLog
 import UIKit
+import UniformTypeIdentifiers
 
 private let logger = Logger(subsystem: "amgi", category: "startup")
 
@@ -49,6 +50,9 @@ struct ContentView: View {
     @State private var refreshID = UUID()
     @State private var importMessage: String?
     @State private var showImportAlert = false
+    @State private var deckNoticeMessage: String?
+    @State private var showDeckNotice = false
+    @State private var exportNoticeMessage: String?
     @State private var showExportNotice = false
     @State private var exportedFileURL: URL?
     @State private var pendingImportURL: URL?
@@ -188,6 +192,154 @@ struct ContentView: View {
             SettingsView()
                 .id(refreshID)
         }
+    }
+
+    @TabContentBuilder<RootTab>
+    private var rootTabs: some TabContent<RootTab> {
+        decksTab
+        browseTab
+        statsTab
+        readerTab
+        settingsTab
+    }
+
+    private var rootTabView: some View {
+        TabView(selection: $selectedTab) {
+            rootTabs
+        }
+        .tabViewStyle(.sidebarAdaptable)
+    }
+
+    private func contentObserverShell<Content: View>(_ content: Content) -> some View {
+        content
+            .task {
+                reloadReaderTabPreference()
+                updateSyncBadge()
+                if collectionState.isReady {
+                    consumePendingIncomingImportURLIfNeeded()
+                    runCheckDatabaseIfReady()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
+                updateSyncBadge()
+                consumePendingIncomingImportURLIfNeeded()
+                runCheckDatabaseIfReady()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didResetNotification)) { _ in
+                Task { await reopenCurrentCollectionAfterReset() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.openDeckListNotification)) { _ in
+                selectedTab = .decks
+            }
+            .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.openBrowseSearchNotification)) { _ in
+                selectedTab = .browse
+            }
+            .onReceive(NotificationCenter.default.publisher(for: AppSyncAuthEvents.didChangeNotification)) { _ in
+                updateSyncBadge()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+                reloadReaderTabPreference()
+            }
+            .onReceive(syncCoordinator.$state) { _ in
+                updateSyncBadge()
+            }
+            .onChange(of: collectionState.isReady) { _, isReady in
+                guard isReady else { return }
+                consumePendingIncomingImportURLIfNeeded()
+                runCheckDatabaseIfReady()
+                updateSyncBadge()
+            }
+            .onChange(of: isReaderTabEnabled) { _, isEnabled in
+                if !isEnabled, selectedTab == .reader {
+                    selectedTab = .settings
+                }
+            }
+    }
+
+    private func contentAlertShell<Content: View>(_ content: Content) -> some View {
+        content
+            .sheet(isPresented: $showExportOptions) {
+                NavigationStack {
+                    ExportOptionsView(
+                        draft: $exportDraft,
+                        availableKinds: [.collectionPackage, .deckPackage],
+                        decks: exportDecks,
+                        selectedNotesCount: nil,
+                        onCancel: { showExportOptions = false },
+                        onExport: {
+                            showExportOptions = false
+                            startExport(using: exportDraft)
+                        }
+                    )
+                }
+            }
+            .sheet(isPresented: $showImportOptions) {
+                NavigationStack {
+                    if let pendingImportURL {
+                        ImportOptionsView(
+                            fileName: pendingImportURL.lastPathComponent,
+                            fileExtension: pendingImportURL.pathExtension,
+                            draft: $importDraft,
+                            onCancel: {
+                                cancelPendingImport()
+                            },
+                            onImport: {
+                                let url = pendingImportURL
+                                showImportOptions = false
+                                if let url {
+                                    startImport(from: url, configuration: importDraft.configuration)
+                                }
+                            }
+                        )
+                    } else {
+                        EmptyView()
+                    }
+                }
+            }
+            .sheet(isPresented: $showExportShareSheet) {
+                if let exportedFileURL {
+                    ShareSheet(items: [exportedFileURL])
+                }
+            }
+            .fileImporter(
+                isPresented: $showImport,
+                allowedContentTypes: [
+                    UTType(filenameExtension: "apkg") ?? .data,
+                    UTType(filenameExtension: "colpkg") ?? .data
+                ]
+            ) { result in
+                handleImport(result)
+            }
+            .alert(L("alert_new_deck_title"), isPresented: $showAddDeckPrompt) {
+                TextField(L("alert_new_deck_title"), text: $newDeckName)
+                    .autocorrectionDisabled()
+                Button(L("btn_cancel"), role: .cancel) {}
+                Button(L("btn_save")) {
+                    Task { await createDeck() }
+                }
+            } message: {
+                Text(L("alert_new_deck_message"))
+            }
+            .alert(L("alert_import_title"), isPresented: $showImportAlert) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(importMessage ?? L("common_unknown_error"))
+            }
+            .alert(L("alert_new_deck_title"), isPresented: $showDeckNotice) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(deckNoticeMessage ?? L("common_unknown_error"))
+            }
+            .alert(L("menu_export_deck"), isPresented: $showExportNotice) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(exportNoticeMessage ?? L("common_unknown_error"))
+            }
+            .alert(L("common_error"), isPresented: $showUserSwitchError) {
+                Button(L("common_ok"), role: .cancel) {}
+            } message: {
+                Text(userSwitchError ?? L("common_unknown_error"))
+            }
     }
 
     // MARK: - Extracted Sub-Views
@@ -358,12 +510,12 @@ struct ContentView: View {
         do {
             _ = try deckClient.create(name)
             refreshID = UUID()
-            importMessage = L("alert_import_title") + ": \(name)"
-            showImportAlert = true
+            deckNoticeMessage = name
+            showDeckNotice = true
             newDeckName = ""
         } catch {
-            importMessage = L("alert_new_deck_failed", error.localizedDescription)
-            showImportAlert = true
+            deckNoticeMessage = L("alert_new_deck_failed", error.localizedDescription)
+            showDeckNotice = true
         }
     }
 
@@ -424,7 +576,7 @@ struct ContentView: View {
 
         NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
 
-        _ = try? backend.call(
+        try? backend.call(
             service: AnkiBackend.Service.collection,
             method: AnkiBackend.CheckDatabaseMethod.checkDatabase
         )
@@ -475,7 +627,7 @@ struct ContentView: View {
             case .deckPackage:
                 guard let deck = resolvedDecks.first(where: { $0.id == resolvedDraft.selectedDeckID }) else {
                     await MainActor.run {
-                        importMessage = L("review_no_decks_available")
+                        exportNoticeMessage = L("review_no_decks_available")
                         showExportNotice = true
                     }
                     return
@@ -490,7 +642,7 @@ struct ContentView: View {
                 )
             case .selectedNotesPackage:
                 await MainActor.run {
-                    importMessage = L("common_unknown_error")
+                    exportNoticeMessage = L("common_unknown_error")
                     showExportNotice = true
                 }
                 return
@@ -511,7 +663,7 @@ struct ContentView: View {
                 }
             } catch {
                 await MainActor.run {
-                    importMessage = L("debug_export_error", error.localizedDescription)
+                    exportNoticeMessage = L("debug_export_error", error.localizedDescription)
                     showExportNotice = true
                 }
             }

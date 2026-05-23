@@ -316,7 +316,9 @@ struct CardWebView: UIViewRepresentable {
         let targetInset = bottomContentInset
         DispatchQueue.main.async {
             webView.scrollView.contentInset.bottom = targetInset
-            webView.scrollView.scrollIndicatorInsets.bottom = targetInset
+            var indicatorInsets = webView.scrollView.verticalScrollIndicatorInsets
+            indicatorInsets.bottom = targetInset
+            webView.scrollView.verticalScrollIndicatorInsets = indicatorInsets
         }
     }
 

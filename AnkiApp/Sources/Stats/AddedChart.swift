@@ -301,7 +301,14 @@ struct AddedChart: View {
         togglesSelection: Bool,
         emitFeedback: Bool = false
     ) {
-        let plotFrame = geometry[proxy.plotAreaFrame]
+        guard let plotFrameAnchor = proxy.plotFrame else {
+            if togglesSelection {
+                selectedDay = nil
+            }
+            return
+        }
+
+        let plotFrame = geometry[plotFrameAnchor]
         let plotX = location.x - plotFrame.origin.x
 
         guard plotX >= 0,
