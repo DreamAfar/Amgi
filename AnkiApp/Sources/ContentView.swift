@@ -750,7 +750,7 @@ struct ContentView: View {
     private func splitSidebarCollapsibleSection<Content: View>(
         _ title: String,
         key: String,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         DisclosureGroup(
             isExpanded: Binding(
