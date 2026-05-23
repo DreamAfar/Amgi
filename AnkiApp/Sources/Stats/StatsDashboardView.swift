@@ -617,7 +617,7 @@ struct StatsDashboardView: View {
     ) -> some View {
         let measurementKey = doubleColumnMeasurementKey(rowKey: rowKey, section: section)
 
-        chartView(for: section, graphs: graphs)
+        return chartView(for: section, graphs: graphs)
             .statsCardMinHeight(doubleColumnRowHeights[rowKey])
             .statsMeasureHeight(id: measurementKey)
             .frame(maxWidth: .infinity, alignment: .topLeading)
