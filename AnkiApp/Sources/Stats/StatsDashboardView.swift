@@ -122,31 +122,13 @@ struct StatsDashboardView: View {
     @AppStorage(StatsPreferences.chartLayoutKey) private var chartLayoutRaw = StatsChartLayoutMode.single.rawValue
     private let initialDeckID: Int64?
     private let isActive: Bool
-    private let externalSelectedDeck: Binding<DeckInfo?>?
-    private let externalRevlogRange: Binding<RevlogRange>?
-    private let externalSelectedGroup: Binding<StatsGroup>?
 
     init(
         initialDeckID: Int64? = nil,
-        isActive: Bool = true,
-        externalSelectedDeck: Binding<DeckInfo?>? = nil,
-        externalRevlogRange: Binding<RevlogRange>? = nil,
-        externalSelectedGroup: Binding<StatsGroup>? = nil
+        isActive: Bool = true
     ) {
         self.initialDeckID = initialDeckID
         self.isActive = isActive
-        self.externalSelectedDeck = externalSelectedDeck
-        self.externalRevlogRange = externalRevlogRange
-        self.externalSelectedGroup = externalSelectedGroup
-        if let externalSelectedDeck, let initialDeck = externalSelectedDeck.wrappedValue {
-            _selectedDeck = State(initialValue: initialDeck)
-        }
-        if let externalRevlogRange {
-            _revlogRange = State(initialValue: externalRevlogRange.wrappedValue)
-        }
-        if let externalSelectedGroup {
-            _selectedGroup = State(initialValue: externalSelectedGroup.wrappedValue)
-        }
     }
 
     var body: some View {
@@ -218,7 +200,6 @@ struct StatsDashboardView: View {
                 async let decksLoad: Void = loadDecks()
                 async let statsLoad: Void = loadStats()
                 _ = await (decksLoad, statsLoad)
-                syncExternalStateIntoLocal()
                 scrollToSelectedGroup(with: proxy, animated: false)
             }
             .sheet(isPresented: $showChartOrderSheet) {
@@ -241,29 +222,15 @@ struct StatsDashboardView: View {
             }
             .refreshable { await loadStats() }
             .onAppear {
-                syncExternalStateIntoLocal()
                 scrollToSelectedGroup(with: proxy, animated: false)
             }
-            .onChange(of: externalSelectedDeckID) { _, _ in
-                syncExternalStateIntoLocal()
-            }
-            .onChange(of: externalRevlogRangeValue) { _, _ in
-                syncExternalStateIntoLocal()
-            }
-            .onChange(of: externalSelectedGroupValue) { _, _ in
-                syncExternalStateIntoLocal()
-                scrollToSelectedGroup(with: proxy, animated: true)
-            }
             .onChange(of: selectedDeck) {
-                syncLocalStateToExternal()
                 Task { await loadStats() }
             }
             .onChange(of: revlogRange) {
-                syncLocalStateToExternal()
                 Task { await loadStats() }
             }
             .onChange(of: selectedGroup) {
-                syncLocalStateToExternal()
                 scrollToSelectedGroup(with: proxy, animated: true)
             }
             .onChange(of: chartLayoutRaw) { _, _ in
@@ -275,18 +242,6 @@ struct StatsDashboardView: View {
                 scrollToSelectedGroup(with: proxy, animated: false)
             }
         }
-    }
-
-    private var externalSelectedDeckID: Int64? {
-        externalSelectedDeck?.wrappedValue?.id
-    }
-
-    private var externalRevlogRangeValue: RevlogRange? {
-        externalRevlogRange?.wrappedValue
-    }
-
-    private var externalSelectedGroupValue: StatsGroup? {
-        externalSelectedGroup?.wrappedValue
     }
 
     private var supportsChartLayoutToggle: Bool {
@@ -364,7 +319,6 @@ struct StatsDashboardView: View {
         if let initialDeckID, selectedDeck == nil {
             selectedDeck = decks.first(where: { $0.id == initialDeckID })
         }
-        syncExternalStateIntoLocal()
     }
 
     private func loadStats() async {
@@ -387,30 +341,6 @@ struct StatsDashboardView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
-    }
-
-    private func syncExternalStateIntoLocal() {
-        if let externalSelectedDeck, selectedDeck?.id != externalSelectedDeck.wrappedValue?.id {
-            selectedDeck = externalSelectedDeck.wrappedValue
-        }
-        if let externalRevlogRange, revlogRange != externalRevlogRange.wrappedValue {
-            revlogRange = externalRevlogRange.wrappedValue
-        }
-        if let externalSelectedGroup, selectedGroup != externalSelectedGroup.wrappedValue {
-            selectedGroup = externalSelectedGroup.wrappedValue
-        }
-    }
-
-    private func syncLocalStateToExternal() {
-        if let externalSelectedDeck, externalSelectedDeck.wrappedValue?.id != selectedDeck?.id {
-            externalSelectedDeck.wrappedValue = selectedDeck
-        }
-        if let externalRevlogRange, externalRevlogRange.wrappedValue != revlogRange {
-            externalRevlogRange.wrappedValue = revlogRange
-        }
-        if let externalSelectedGroup, externalSelectedGroup.wrappedValue != selectedGroup {
-            externalSelectedGroup.wrappedValue = selectedGroup
-        }
     }
 
     private func storedChartOrder() -> [StatsChartSection] {

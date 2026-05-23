@@ -139,17 +139,6 @@ struct SettingsView: View {
     @State private var maintenanceMessage: String?
     @State private var showMaintenanceAlert = false
     @State private var selectedItem: SettingsSidebarItem? = .account
-    @State private var collapsedGroups: Set<SettingsSidebarGroup> = []
-    private let usesExternalRootSidebar: Bool
-    private let externalSelectedItem: Binding<SettingsSidebarItem?>?
-
-    init(
-        usesExternalRootSidebar: Bool = false,
-        externalSelectedItem: Binding<SettingsSidebarItem?>? = nil
-    ) {
-        self.usesExternalRootSidebar = usesExternalRootSidebar
-        self.externalSelectedItem = externalSelectedItem
-    }
 
     private var selectedTheme: Binding<AppTheme> {
         Binding(
@@ -169,8 +158,6 @@ struct SettingsView: View {
         Group {
             if usesSplitSidebarLayout {
                 splitSettingsContent
-            } else if usesExternalRootSidebar {
-                settingsItemDetailContent(for: resolvedSelectedItem)
             } else {
                 NavigationStack {
                     settingsList(sections: {
@@ -192,20 +179,16 @@ struct SettingsView: View {
     }
 
     private var usesSplitSidebarLayout: Bool {
-        horizontalSizeClass == .regular && !usesExternalRootSidebar
-    }
-
-    private var selectedItemBinding: Binding<SettingsSidebarItem?> {
-        externalSelectedItem ?? $selectedItem
+        horizontalSizeClass == .regular
     }
 
     private var resolvedSelectedItem: SettingsSidebarItem {
-        selectedItemBinding.wrappedValue ?? .account
+        selectedItem ?? .account
     }
 
     private var splitSettingsContent: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
-            List {
+            List(selection: $selectedItem) {
                 splitSettingsSidebarSections
             }
             .listStyle(.sidebar)
@@ -287,64 +270,16 @@ struct SettingsView: View {
     @ViewBuilder
     private var splitSettingsSidebarSections: some View {
         ForEach(SettingsSidebarGroup.allCases) { group in
-            Section {
-                if isSettingsGroupExpanded(group) {
-                    splitSettingsSidebarRows(for: group)
-                }
-            } header: {
-                splitSettingsSidebarHeader(for: group)
+            Section(group.title) {
+                splitSettingsSidebarRows(for: group)
             }
         }
     }
 
     private func splitSettingsSidebarRows(for group: SettingsSidebarGroup) -> some View {
         ForEach(group.items) { item in
-            Button {
-                selectedItemBinding.wrappedValue = item
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: item.icon)
-                        .foregroundStyle(item == resolvedSelectedItem ? Color.accentColor : Color.amgiTextSecondary)
-                    Text(item.title)
-                        .foregroundStyle(Color.amgiTextPrimary)
-                    Spacer()
-                    if resolvedSelectedItem == item {
-                        Image(systemName: "checkmark")
-                            .foregroundStyle(Color.accentColor)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-            .amgiListRowTapTarget()
-        }
-    }
-
-    private func splitSettingsSidebarHeader(for group: SettingsSidebarGroup) -> some View {
-        HStack(spacing: 12) {
-            Text(group.title)
-                .amgiFont(.captionBold)
-                .foregroundStyle(Color.amgiTextSecondary)
-            Spacer()
-            Button {
-                toggleSettingsGroup(group)
-            } label: {
-                Image(systemName: isSettingsGroupExpanded(group) ? "chevron.up" : "chevron.down")
-                    .foregroundStyle(Color.amgiTextSecondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .textCase(nil)
-    }
-
-    private func isSettingsGroupExpanded(_ group: SettingsSidebarGroup) -> Bool {
-        !collapsedGroups.contains(group)
-    }
-
-    private func toggleSettingsGroup(_ group: SettingsSidebarGroup) {
-        if collapsedGroups.contains(group) {
-            collapsedGroups.remove(group)
-        } else {
-            collapsedGroups.insert(group)
+            Label(item.title, systemImage: item.icon)
+                .tag(Optional(item))
         }
     }
 

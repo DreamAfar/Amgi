@@ -86,12 +86,6 @@ struct BrowseView: View {
     private let preselectedDeck: DeckInfo?
     private let initialSearchQuery: String
     private let isActive: Bool
-    private let usesExternalRootSidebar: Bool
-    private let isExternalRootSidebarVisible: Bool
-    private let externalDeckSelection: Binding<DeckInfo?>?
-    private let externalTagSelection: Binding<String?>?
-    private let externalNotetypeSelection: Binding<Int64?>?
-    private let externalQuickFilterSelection: Binding<BrowseQuickFilter>?
     private let pageSize = 50
 
     private var sortField: BrowseSortField {
@@ -102,37 +96,15 @@ struct BrowseView: View {
     init(
         preselectedDeck: DeckInfo? = nil,
         initialSearchQuery: String = "",
-        isActive: Bool = true,
-        usesExternalRootSidebar: Bool = false,
-        isExternalRootSidebarVisible: Bool = false,
-        externalDeckSelection: Binding<DeckInfo?>? = nil,
-        externalTagSelection: Binding<String?>? = nil,
-        externalNotetypeSelection: Binding<Int64?>? = nil,
-        externalQuickFilterSelection: Binding<BrowseQuickFilter>? = nil
+        isActive: Bool = true
     ) {
         self.preselectedDeck = preselectedDeck
         self.initialSearchQuery = initialSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         self.isActive = isActive
-        self.usesExternalRootSidebar = usesExternalRootSidebar
-        self.isExternalRootSidebarVisible = isExternalRootSidebarVisible
-        self.externalDeckSelection = externalDeckSelection
-        self.externalTagSelection = externalTagSelection
-        self.externalNotetypeSelection = externalNotetypeSelection
-        self.externalQuickFilterSelection = externalQuickFilterSelection
 
-        let initialDeck = externalDeckSelection?.wrappedValue ?? preselectedDeck
-        if let deck = initialDeck {
+        if let deck = preselectedDeck {
             _activeDeck = State(initialValue: deck)
             _parentDeck = State(initialValue: deck)
-        }
-        if let initialTag = externalTagSelection?.wrappedValue {
-            _activeTag = State(initialValue: initialTag)
-        }
-        if let initialNotetypeID = externalNotetypeSelection?.wrappedValue {
-            _activeNotetypeID = State(initialValue: initialNotetypeID)
-        }
-        if let initialQuickFilter = externalQuickFilterSelection?.wrappedValue {
-            _quickFilter = State(initialValue: initialQuickFilter)
         }
     }
 
@@ -381,41 +353,22 @@ struct BrowseView: View {
 
     private func browseFilterObserverContent<Content: View>(_ content: Content) -> some View {
         content
-        .onAppear {
-            syncExternalFiltersIntoLocal()
-        }
         .onChange(of: searchText) {
             scheduleSearch(debounce: true)
         }
-        .onChange(of: externalSelectedDeckID) { _, _ in
-            syncExternalFiltersIntoLocal()
-        }
-        .onChange(of: externalSelectedTag) { _, _ in
-            syncExternalFiltersIntoLocal()
-        }
-        .onChange(of: externalSelectedNotetypeID) { _, _ in
-            syncExternalFiltersIntoLocal()
-        }
-        .onChange(of: externalSelectedQuickFilter) { _, _ in
-            syncExternalFiltersIntoLocal()
-        }
         .onChange(of: activeDeck?.id) { _, _ in
-            syncLocalFiltersToExternal()
             Task {
                 await loadTags()
                 await performSearch()
             }
         }
         .onChange(of: activeTag) {
-            syncLocalFiltersToExternal()
             scheduleSearch()
         }
         .onChange(of: activeNotetypeID) {
-            syncLocalFiltersToExternal()
             scheduleSearch()
         }
         .onChange(of: quickFilter) {
-            syncLocalFiltersToExternal()
             scheduleSearch()
         }
         .onChange(of: showNotetypeSubtitle) { _, isEnabled in
@@ -450,7 +403,6 @@ struct BrowseView: View {
             async let tagsLoad: Void = loadTags()
             async let notetypesLoad: Void = loadNotetypeNames()
             _ = await (decksLoad, tagsLoad, notetypesLoad)
-            syncExternalFiltersIntoLocal()
             if let pendingQuery = AppCollectionEvents.consumePendingBrowseSearchQuery() {
                 applyExternalSearchQuery(pendingQuery)
             } else if initialSearchQuery.isEmpty == false {
@@ -553,9 +505,7 @@ struct BrowseView: View {
             }
         } else {
             ToolbarItem(placement: .topBarLeading) {
-                if !usesExternalRootSidebar || !isExternalRootSidebarVisible {
-                    filterMenu
-                }
+                filterMenu
             }
 
             ToolbarItem(placement: .topBarLeading) {
@@ -570,7 +520,7 @@ struct BrowseView: View {
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
-                if usesSidebarLayout || usesExternalRootSidebar {
+                if usesSidebarLayout {
                     Button {
                         presentCollectionTagsManager()
                     } label: {
@@ -644,7 +594,7 @@ struct BrowseView: View {
                         Label(L("browse_find_duplicates"), systemImage: "rectangle.and.text.magnifyingglass.rtl")
                     }
 
-                    if !usesSidebarLayout && !usesExternalRootSidebar {
+                    if !usesSidebarLayout {
                         Button {
                             presentCollectionTagsManager()
                         } label: {
@@ -715,23 +665,7 @@ struct BrowseView: View {
     }
 
     private var usesSidebarLayout: Bool {
-        horizontalSizeClass == .regular && !isEditing && !usesExternalRootSidebar
-    }
-
-    private var externalSelectedDeckID: Int64? {
-        externalDeckSelection?.wrappedValue?.id
-    }
-
-    private var externalSelectedTag: String? {
-        externalTagSelection?.wrappedValue
-    }
-
-    private var externalSelectedNotetypeID: Int64? {
-        externalNotetypeSelection?.wrappedValue
-    }
-
-    private var externalSelectedQuickFilter: BrowseQuickFilter? {
-        externalQuickFilterSelection?.wrappedValue
+        horizontalSizeClass == .regular && !isEditing
     }
 
     private var sortedNotetypeOptions: [(id: Int64, name: String)] {
@@ -1366,7 +1300,7 @@ struct BrowseView: View {
     }
 
     private var shouldShowQuickFilterToolbar: Bool {
-        guard !usesSidebarLayout && !usesExternalRootSidebar else { return false }
+        guard !usesSidebarLayout else { return false }
         return shouldShowDeckQuickFilterRow || shouldShowTagQuickFilterRow || shouldShowNotetypeQuickFilterRow
     }
 
@@ -1674,7 +1608,6 @@ struct BrowseView: View {
     private func loadDecks() async {
         do {
             allDecks = try deckClient.fetchAll()
-            syncExternalFiltersIntoLocal()
             await loadTags()
         } catch {
             allDecks = []
@@ -1724,54 +1657,6 @@ struct BrowseView: View {
             }
         } else {
             proxy.scrollTo(target, anchor: .center)
-        }
-    }
-
-    private func syncExternalFiltersIntoLocal() {
-        guard usesExternalRootSidebar else { return }
-
-        if let externalDeckSelection {
-            let externalDeck = externalDeckSelection.wrappedValue
-            if activeDeck?.id != externalDeck?.id {
-                activeDeck = externalDeck
-            }
-
-            let resolvedParent = resolveParentDeck(for: externalDeck)
-            if parentDeck?.id != resolvedParent?.id {
-                parentDeck = resolvedParent
-            }
-        }
-
-        if let externalTagSelection, activeTag != externalTagSelection.wrappedValue {
-            activeTag = externalTagSelection.wrappedValue
-        }
-
-        if let externalNotetypeSelection, activeNotetypeID != externalNotetypeSelection.wrappedValue {
-            activeNotetypeID = externalNotetypeSelection.wrappedValue
-        }
-
-        if let externalQuickFilterSelection, quickFilter != externalQuickFilterSelection.wrappedValue {
-            quickFilter = externalQuickFilterSelection.wrappedValue
-        }
-    }
-
-    private func syncLocalFiltersToExternal() {
-        guard usesExternalRootSidebar else { return }
-
-        if let externalDeckSelection, externalDeckSelection.wrappedValue?.id != activeDeck?.id {
-            externalDeckSelection.wrappedValue = activeDeck
-        }
-
-        if let externalTagSelection, externalTagSelection.wrappedValue != activeTag {
-            externalTagSelection.wrappedValue = activeTag
-        }
-
-        if let externalNotetypeSelection, externalNotetypeSelection.wrappedValue != activeNotetypeID {
-            externalNotetypeSelection.wrappedValue = activeNotetypeID
-        }
-
-        if let externalQuickFilterSelection, externalQuickFilterSelection.wrappedValue != quickFilter {
-            externalQuickFilterSelection.wrappedValue = quickFilter
         }
     }
 
