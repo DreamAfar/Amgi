@@ -3,7 +3,7 @@ import Charts
 import Foundation
 
 struct StatsMeasuredHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: [String: CGFloat] = [:]
+    static let defaultValue: [String: CGFloat] = [:]
 
     static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
         for (key, height) in nextValue() {
