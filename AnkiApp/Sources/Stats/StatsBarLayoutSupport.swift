@@ -10,17 +10,6 @@ struct StatsMeasuredHeightPreferenceKey: PreferenceKey {
     }
 }
 
-private struct StatsCardMinHeightKey: EnvironmentKey {
-    static let defaultValue: CGFloat? = nil
-}
-
-extension EnvironmentValues {
-    var statsCardMinHeight: CGFloat? {
-        get { self[StatsCardMinHeightKey.self] }
-        set { self[StatsCardMinHeightKey.self] = newValue }
-    }
-}
-
 enum StatsBarLayoutSupport {
     static func displayedSlotCount(
         lowerBound: Int,
@@ -110,11 +99,10 @@ private struct StatsMeasuredHeightModifier: ViewModifier {
 
 private struct StatsCardModifier: ViewModifier {
     let elevated: Bool
-    @Environment(\.statsCardMinHeight) private var minHeight
 
     func body(content: Content) -> some View {
         content
-            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .amgiCard(elevated: elevated)
     }
 }
@@ -130,9 +118,5 @@ extension View {
 
     func statsCard(elevated: Bool = false) -> some View {
         modifier(StatsCardModifier(elevated: elevated))
-    }
-
-    func statsCardMinHeight(_ height: CGFloat?) -> some View {
-        environment(\.statsCardMinHeight, height)
     }
 }

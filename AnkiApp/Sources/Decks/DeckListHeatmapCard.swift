@@ -140,7 +140,7 @@ struct DeckListHeatmapCard: View {
     private func splitLayout(for graphs: Anki_Stats_GraphsResponse) -> some View {
         let splitMinHeight = max(resolvedHeatmapSectionHeight ?? 0, splitTodayStatsSectionHeight)
 
-        VStack(alignment: .leading, spacing: 18) {
+        return VStack(alignment: .leading, spacing: 18) {
             GeometryReader { proxy in
                 let columnWidths = splitColumnWidths(for: proxy.size.width)
 
