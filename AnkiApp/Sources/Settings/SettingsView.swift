@@ -196,8 +196,12 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 360)
         } detail: {
-            NavigationStack {
+            if resolvedSelectedItem.ownsDetailNavigationStack {
                 settingsItemDetailContent(for: resolvedSelectedItem)
+            } else {
+                NavigationStack {
+                    settingsItemDetailContent(for: resolvedSelectedItem)
+                }
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -278,8 +282,9 @@ struct SettingsView: View {
 
     private func splitSettingsSidebarRows(for group: SettingsSidebarGroup) -> some View {
         ForEach(group.items) { item in
-            Label(item.title, systemImage: item.icon)
-                .tag(Optional(item))
+            NavigationLink(value: item) {
+                Label(item.title, systemImage: item.icon)
+            }
         }
     }
 
@@ -599,6 +604,15 @@ enum SettingsSidebarItem: String, CaseIterable, Identifiable, Hashable {
             "ladybug"
         case .about:
             "info.circle"
+        }
+    }
+
+    var ownsDetailNavigationStack: Bool {
+        switch self {
+        case .account, .checkMedia, .emptyCards:
+            true
+        default:
+            false
         }
     }
 }
