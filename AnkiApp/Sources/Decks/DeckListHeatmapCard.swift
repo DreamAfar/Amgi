@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 import AnkiClients
 import AnkiProto
 import Dependencies
@@ -27,11 +26,8 @@ struct DeckListHeatmapCard: View {
 
     private let todayStatsAnimation = Animation.easeInOut(duration: 0.24)
     private let todayStatsTopSpacing: CGFloat = 14
-    private let splitTodayStatsWidth: CGFloat = 360
-
-    private var shouldAlwaysUseSplitLayout: Bool {
-        UIDevice.current.userInterfaceIdiom == .pad
-    }
+    private let splitLayoutSpacing: CGFloat = 18
+    private let splitTodayStatsFraction: CGFloat = 0.4
 
     let showsExternalLoading: Bool
 
@@ -50,17 +46,11 @@ struct DeckListHeatmapCard: View {
 
         Group {
             if let graphs {
-                Group {
-                    if shouldAlwaysUseSplitLayout {
-                        splitLayout(for: graphs)
-                    } else {
-                        ViewThatFits(in: .horizontal) {
-                            splitLayout(for: graphs)
-                                .frame(minWidth: 960, alignment: .leading)
+                ViewThatFits(in: .horizontal) {
+                    splitLayout(for: graphs)
+                        .frame(minWidth: 960, alignment: .leading)
 
-                            stackedLayout(for: graphs, cardContentHeight: cardContentHeight)
-                        }
-                    }
+                    stackedLayout(for: graphs, cardContentHeight: cardContentHeight)
                 }
                 .padding(16)
                 .background(
@@ -148,36 +138,45 @@ struct DeckListHeatmapCard: View {
     }
 
     private func splitLayout(for graphs: Anki_Stats_GraphsResponse) -> some View {
+        let splitMinHeight = max(resolvedHeatmapSectionHeight ?? 0, splitTodayStatsSectionHeight)
+
         VStack(alignment: .leading, spacing: 18) {
-            splitHeader(for: graphs)
+            GeometryReader { proxy in
+                let columnWidths = splitColumnWidths(for: proxy.size.width)
 
-            HStack(alignment: .top, spacing: 18) {
-                HeatmapChart(
-                    reviews: graphs.reviews,
-                    compactHeight: deckListHeatmapHeight,
-                    embedded: true,
-                    showsHeader: false
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(heightReader($heatmapSectionHeight))
+                VStack(alignment: .leading, spacing: splitLayoutSpacing) {
+                    splitHeader(for: graphs, todayWidth: columnWidths.today)
 
-                Divider()
-                    .frame(maxHeight: .infinity)
+                    HStack(alignment: .top, spacing: splitLayoutSpacing) {
+                        HeatmapChart(
+                            reviews: graphs.reviews,
+                            compactHeight: deckListHeatmapHeight,
+                            embedded: true,
+                            showsHeader: false
+                        )
+                        .frame(width: columnWidths.heatmap, alignment: .leading)
+                        .background(heightReader($heatmapSectionHeight))
 
-                splitTodayStatsContent(for: graphs.today)
-                    .frame(width: splitTodayStatsWidth, alignment: .topLeading)
-                    .background(heightReader($splitTodayStatsSectionHeight))
-                    .frame(maxHeight: .infinity, alignment: .top)
+                        Divider()
+                            .frame(maxHeight: .infinity)
+
+                        splitTodayStatsContent(for: graphs.today)
+                            .frame(width: columnWidths.today, alignment: .topLeading)
+                            .background(heightReader($splitTodayStatsSectionHeight))
+                            .frame(maxHeight: .infinity, alignment: .top)
+                    }
+                }
             }
+            .frame(height: splitMinHeight)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(
-            minHeight: max(resolvedHeatmapSectionHeight ?? 0, splitTodayStatsSectionHeight),
+            minHeight: splitMinHeight,
             alignment: .top
         )
     }
 
-    private func splitHeader(for graphs: Anki_Stats_GraphsResponse) -> some View {
+    private func splitHeader(for graphs: Anki_Stats_GraphsResponse, todayWidth: CGFloat) -> some View {
         HStack(alignment: .center, spacing: 16) {
             Text(L("deck_list_schedule_title"))
                 .amgiFont(.sectionHeading)
@@ -196,8 +195,16 @@ struct DeckListHeatmapCard: View {
             Text(L("stats_today_title"))
                 .amgiFont(.sectionHeading)
                 .foregroundStyle(Color.amgiTextPrimary)
-                .frame(width: splitTodayStatsWidth, alignment: .center)
+                .frame(width: todayWidth, alignment: .center)
         }
+    }
+
+    private func splitColumnWidths(for totalWidth: CGFloat) -> (heatmap: CGFloat, today: CGFloat) {
+        let dividerWidth: CGFloat = 1
+        let availableWidth = max(totalWidth - (splitLayoutSpacing * 2) - dividerWidth, 0)
+        let todayWidth = availableWidth * splitTodayStatsFraction
+        let heatmapWidth = max(availableWidth - todayWidth, 0)
+        return (heatmapWidth, todayWidth)
     }
 
     private func splitTodayStatsContent(

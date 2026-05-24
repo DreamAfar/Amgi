@@ -83,6 +83,10 @@ struct ContentView: View {
         UIDevice.current.userInterfaceIdiom != .pad
     }
 
+    private var usesIPadTabOrdering: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
     var body: some View {
         let rootContent = contentRootView
         let presentationContent = contentPresentationShell(rootContent)
@@ -196,11 +200,19 @@ struct ContentView: View {
 
     @TabContentBuilder<RootTab>
     private var rootTabs: some TabContent<RootTab> {
-        decksTab
-        browseTab
-        statsTab
-        readerTab
-        settingsTab
+        if usesIPadTabOrdering {
+            decksTab
+            statsTab
+            readerTab
+            browseTab
+            settingsTab
+        } else {
+            decksTab
+            browseTab
+            statsTab
+            readerTab
+            settingsTab
+        }
     }
 
     private var rootTabView: some View {
