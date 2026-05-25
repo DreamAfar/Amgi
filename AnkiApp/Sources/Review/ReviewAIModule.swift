@@ -367,7 +367,7 @@ struct ReviewAINoteTemplate: Codable, Equatable, Sendable {
     ) -> String {
         let resolvedSentence = formattedSentence(for: context) ?? ""
 
-        template
+        return template
             .replacingOccurrences(of: ReviewAINoteTemplateToken.selection.rawValue, with: context.selectedText)
             .replacingOccurrences(of: ReviewAINoteTemplateToken.sentence.rawValue, with: resolvedSentence)
             .replacingOccurrences(of: ReviewAINoteTemplateToken.source.rawValue, with: context.source ?? "")
