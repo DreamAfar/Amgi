@@ -43,8 +43,10 @@ private func configuredSyncAuth(hostKey: String, endpointOverride: String? = nil
 
     if let endpointOverride = endpointOverride?.nilIfBlank {
         auth.endpoint = endpointOverride
+    } else if let endpoint = KeychainHelper.loadCurrentEndpoint()?.nilIfBlank {
+        auth.endpoint = endpoint
     } else if UserDefaults.standard.string(forKey: SyncPreferenceValues.modeKey) == SyncPreferenceValues.customMode,
-              let endpoint = KeychainHelper.loadCurrentEndpoint() ?? KeychainHelper.loadEndpoint() {
+              let endpoint = KeychainHelper.loadEndpoint()?.nilIfBlank {
         auth.endpoint = endpoint
     }
 
