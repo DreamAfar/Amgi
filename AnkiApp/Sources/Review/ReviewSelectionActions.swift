@@ -1148,8 +1148,21 @@ private struct ReviewAINoteTemplateSettingsView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
 
-                    ForEach(ReviewAINoteSelectionFormat.allCases) { format in
-                        Toggle(format.title, isOn: selectionFormatBinding(for: format))
+                    ReviewAISelectionFormatFlowLayout(horizontalSpacing: 8, verticalSpacing: 8) {
+                        ForEach(ReviewAINoteSelectionFormat.allCases) { format in
+                            let binding = selectionFormatBinding(for: format)
+                            Button {
+                                binding.wrappedValue.toggle()
+                            } label: {
+                                ReviewAISelectionFormatCapsule(
+                                    title: format.title,
+                                    isSelected: binding.wrappedValue
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(format.title)
+                            .accessibilityAddTraits(binding.wrappedValue ? [.isButton, .isSelected] : .isButton)
+                        }
                     }
                 }
 
@@ -1320,6 +1333,79 @@ private struct ReviewAINoteTemplateSettingsView: View {
     }
 }
 
+private struct ReviewAISelectionFormatCapsule: View {
+    let title: String
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 13, weight: .semibold))
+            Text(title)
+                .amgiFont(.captionBold)
+                .lineLimit(1)
+        }
+        .foregroundStyle(isSelected ? Color.white : SettingsValueStyle.primary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(
+            isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated,
+            in: Capsule()
+        )
+        .overlay(
+            Capsule()
+                .stroke(
+                    isSelected ? Color.amgiAccent.opacity(0.16) : Color.amgiBorder.opacity(0.28),
+                    lineWidth: 1
+                )
+        )
+        .contentShape(Capsule())
+    }
+}
+
+private struct ReviewAISelectionFormatFlowLayout: Layout {
+    var horizontalSpacing: CGFloat = 8
+    var verticalSpacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth, x > 0 {
+                y += rowHeight + verticalSpacing
+                x = 0
+                rowHeight = 0
+            }
+            x += size.width + horizontalSpacing
+            rowHeight = max(rowHeight, size.height)
+        }
+
+        return CGSize(width: maxWidth, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX, x > bounds.minX {
+                x = bounds.minX
+                y += rowHeight + verticalSpacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + horizontalSpacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
 @MainActor
 private func settingsDestinationRow(title: String, subtitle: String, icon: String) -> some View {
     HStack(spacing: AmgiSpacing.sm) {
@@ -1409,20 +1495,18 @@ struct ReviewSelectionAISheetView: View {
                             }
                         }
                     } label: {
-                        SettingsOptionCapsuleLabel(
-                            title: selectedPresetTitle,
-                            icon: "sparkles",
-                            maxWidth: 260
-                        )
+                        Label(selectedPresetTitle, systemImage: "sparkles")
+                            .lineLimit(1)
+                            .labelStyle(.titleAndIcon)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Spacer(minLength: 0)
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
 
                     Button(L("review_selection_ai_retry")) {
                         onSubmit(nil)
                     }
-                    .amgiToolbarTextButton(tone: .neutral)
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 

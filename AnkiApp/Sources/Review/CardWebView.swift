@@ -392,7 +392,6 @@ struct CardWebView: UIViewRepresentable {
             body.amgi-centered { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 40px); }
             .card-frame {
                 width: 100%; box-sizing: border-box;
-                padding: 12px 16px 0;
                 padding-bottom: var(--amgi-card-padding-bottom, 0px);
             }
             hr { border: none; border-top: 1px solid \(hrColor); margin: 16px 0; }
