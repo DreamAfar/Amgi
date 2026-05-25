@@ -1449,6 +1449,8 @@ private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: 
                 .foregroundStyle(Color.amgiAccent)
         }
     }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .contentShape(Rectangle())
 }
 
 struct ReviewSelectionAISheetView: View {
@@ -1482,31 +1484,42 @@ struct ReviewSelectionAISheetView: View {
         self.onAddNote = onAddNote
     }
 
+    private var resultPanelMaximumHeight: CGFloat {
+        min(max(UIScreen.main.bounds.height * 0.46, 280), 420)
+    }
+
+    private var resultPanelMinimumHeight: CGFloat {
+        min(220, resultPanelMaximumHeight)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AmgiSpacing.md) {
                 HStack(spacing: AmgiSpacing.sm) {
-                    Menu {
-                        Picker(L("settings_review_preset_active"), selection: $state.activePresetID) {
-                            ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
-                                Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
-                                    .foregroundStyle(SettingsValueStyle.highlight)
-                                    .tag(preset.id)
-                            }
+                    Picker(L("settings_review_preset_active"), selection: $state.activePresetID) {
+                        ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
+                            Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
+                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .tag(preset.id)
                         }
                     } label: {
                         Label(selectedPresetTitle, systemImage: "sparkles")
                             .lineLimit(1)
                             .labelStyle(.titleAndIcon)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Button(L("review_selection_ai_retry")) {
+                    Button {
                         onSubmit(nil)
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .imageScale(.medium)
+                        }
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
+                    .accessibilityLabel(L("review_selection_ai_retry"))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1538,30 +1551,37 @@ struct ReviewSelectionAISheetView: View {
                         .disabled(canCopyResponse == false)
                     }
 
-                    Group {
-                        if state.isLoading {
-                            HStack(spacing: 12) {
-                                ProgressView()
-                                Text(L("review_selection_ai_loading"))
-                                    .foregroundStyle(SettingsValueStyle.secondary)
+                    ScrollView(.vertical, showsIndicators: true) {
+                        Group {
+                            if state.isLoading {
+                                HStack(spacing: 12) {
+                                    ProgressView()
+                                    Text(L("review_selection_ai_loading"))
+                                        .foregroundStyle(SettingsValueStyle.secondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            } else if let errorMessage = state.errorMessage?.trimmedOrNil {
+                                Text(errorMessage)
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .textSelection(.enabled)
+                            } else if let responseHTML = state.responseHTML?.trimmedOrNil {
+                                NoteFieldHTMLPreview(html: responseHTML)
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                            } else {
+                                Text(state.response?.trimmedOrNil ?? L("review_selection_ai_empty_response"))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .textSelection(.enabled)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        } else if let errorMessage = state.errorMessage?.trimmedOrNil {
-                            Text(errorMessage)
-                                .foregroundStyle(.red)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .textSelection(.enabled)
-                        } else if let responseHTML = state.responseHTML?.trimmedOrNil {
-                            NoteFieldHTMLPreview(html: responseHTML)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        } else {
-                            Text(state.response?.trimmedOrNil ?? L("review_selection_ai_empty_response"))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .textSelection(.enabled)
                         }
                     }
                     .padding(12)
-                    .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: resultPanelMinimumHeight,
+                        maxHeight: resultPanelMaximumHeight,
+                        alignment: .topLeading
+                    )
                     .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -1,13 +1,29 @@
 import SwiftUI
 import WebKit
 
-struct NoteFieldHTMLPreview: UIViewRepresentable {
+struct NoteFieldHTMLPreview: View {
     @Environment(\.colorScheme) private var colorScheme
+    @State private var measuredHeight: CGFloat = 180
 
     let html: String
 
+    var body: some View {
+        NoteFieldHTMLPreviewWebView(
+            html: html,
+            colorScheme: colorScheme,
+            measuredHeight: $measuredHeight
+        )
+        .frame(height: measuredHeight)
+    }
+}
+
+private struct NoteFieldHTMLPreviewWebView: UIViewRepresentable {
+    let html: String
+    let colorScheme: ColorScheme
+    @Binding var measuredHeight: CGFloat
+
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(measuredHeight: $measuredHeight)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -19,17 +35,23 @@ struct NoteFieldHTMLPreview: UIViewRepresentable {
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
         webView.scrollView.showsHorizontalScrollIndicator = false
         webView.scrollView.showsVerticalScrollIndicator = false
+        webView.navigationDelegate = context.coordinator
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         let document = htmlDocument(for: html)
-        guard document != context.coordinator.lastHTML else { return }
+        if document != context.coordinator.lastHTML {
+            context.coordinator.lastHTML = document
+            webView.loadHTMLString(document, baseURL: CardAssetPath.mediaBaseURL)
+        }
 
-        context.coordinator.lastHTML = document
-        webView.loadHTMLString(document, baseURL: CardAssetPath.mediaBaseURL)
+        DispatchQueue.main.async {
+            context.coordinator.measureHeight(in: webView)
+        }
     }
 
     private func htmlDocument(for fragment: String) -> String {
@@ -78,7 +100,25 @@ struct NoteFieldHTMLPreview: UIViewRepresentable {
         """
     }
 
-    final class Coordinator {
+    final class Coordinator: NSObject, WKNavigationDelegate {
         var lastHTML = ""
+        private var measuredHeight: Binding<CGFloat>
+
+        init(measuredHeight: Binding<CGFloat>) {
+            self.measuredHeight = measuredHeight
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            measureHeight(in: webView)
+        }
+
+        func measureHeight(in webView: WKWebView) {
+            webView.evaluateJavaScript("Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)") { result, _ in
+                guard let value = result as? NSNumber else { return }
+                let nextHeight = max(180, ceil(value.doubleValue))
+                guard abs(self.measuredHeight.wrappedValue - nextHeight) > 0.5 else { return }
+                self.measuredHeight.wrappedValue = nextHeight
+            }
+        }
     }
 }
