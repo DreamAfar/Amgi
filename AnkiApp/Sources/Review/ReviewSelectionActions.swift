@@ -1497,179 +1497,203 @@ struct ReviewSelectionAISheetView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AmgiSpacing.md) {
-                HStack(spacing: AmgiSpacing.sm) {
-                    Picker(L("settings_review_preset_active"), selection: $state.activePresetID) {
-                        ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
-                            Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
-                                .foregroundStyle(SettingsValueStyle.highlight)
-                                .tag(preset.id)
-                        }
-                    } label: {
-                        Label(selectedPresetTitle, systemImage: "sparkles")
-                            .lineLimit(1)
-                            .labelStyle(.titleAndIcon)
+        contentView
+            .background(Color.amgiBackground)
+            .navigationTitle(L("review_selection_ai_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("common_done")) {
+                        onClose()
                     }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        onAddNote()
+                    } label: {
+                        Image(systemName: "note.text.badge.plus")
+                    }
+                    .disabled(canAddNote == false)
+                    .accessibilityLabel(L("review_selection_ai_add_note"))
 
                     Button {
-                        onSubmit(nil)
+                        onToggleFavorite()
                     } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .imageScale(.medium)
+                        Image(systemName: isFavorited ? "star.fill" : "star")
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                    .accessibilityLabel(L("review_selection_ai_retry"))
+                    .accessibilityLabel(isFavorited ? L("review_selection_ai_unfavorite") : L("review_selection_ai_favorite"))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .onAppear {
+                renderResponseHTMLIfNeeded()
+            }
+            .onChange(of: state.activePresetID) { _, _ in
+                onSubmit(nil)
+            }
+            .onChange(of: state.response) { _, _ in
+                renderResponseHTMLIfNeeded()
+            }
+    }
 
-                VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
-                    Text(L("review_selection_ai_selected_text"))
-                        .amgiFont(.bodyEmphasis)
-                        .foregroundStyle(SettingsValueStyle.primary)
-                    TextEditor(text: $state.draftSelection)
-                        .frame(minHeight: 92)
-                        .padding(8)
-                        .scrollContentBackground(.hidden)
-                        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
-                    HStack(spacing: AmgiSpacing.sm) {
-                        Text(L("review_selection_ai_result"))
-                            .amgiFont(.bodyEmphasis)
-                            .foregroundStyle(SettingsValueStyle.primary)
-
-                        Spacer(minLength: 0)
-
-                        Button(L("review_selection_ai_copy")) {
-                            UIPasteboard.general.string = state.response?.trimmedOrNil
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .disabled(canCopyResponse == false)
-                    }
-
-                    ScrollView(.vertical, showsIndicators: true) {
-                        Group {
-                            if state.isLoading {
-                                HStack(spacing: 12) {
-                                    ProgressView()
-                                    Text(L("review_selection_ai_loading"))
-                                        .foregroundStyle(SettingsValueStyle.secondary)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            } else if let errorMessage = state.errorMessage?.trimmedOrNil {
-                                Text(errorMessage)
-                                    .foregroundStyle(.red)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .textSelection(.enabled)
-                            } else if let responseHTML = state.responseHTML?.trimmedOrNil {
-                                NoteFieldHTMLPreview(html: responseHTML)
-                                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                            } else {
-                                Text(state.response?.trimmedOrNil ?? L("review_selection_ai_empty_response"))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .textSelection(.enabled)
-                            }
-                        }
-                    }
-                    .padding(12)
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: resultPanelMinimumHeight,
-                        maxHeight: resultPanelMaximumHeight,
-                        alignment: .topLeading
-                    )
-                    .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                if quickActions.isEmpty == false {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: AmgiSpacing.xs) {
-                            ForEach(quickActions) { action in
-                                Button(action.title) {
-                                    onSubmit(action)
-                                }
-                                .foregroundStyle(SettingsValueStyle.secondary)
-                                .amgiCapsuleControl(backgroundColor: Color.amgiMenuSurface, horizontalPadding: 10, verticalPadding: 6)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                if state.context.sentence?.trimmedOrNil != nil || state.context.source?.trimmedOrNil != nil {
-                    DisclosureGroup(L("review_selection_ai_more_context")) {
-                        VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
-                            if let sentence = state.context.sentence?.trimmedOrNil {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(L("review_selection_ai_sentence"))
-                                        .amgiFont(.caption)
-                                        .foregroundStyle(SettingsValueStyle.secondary)
-                                    Text(sentence)
-                                        .textSelection(.enabled)
-                                }
-                            }
-                            if let source = state.context.source?.trimmedOrNil {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(L("review_selection_ai_source"))
-                                        .amgiFont(.caption)
-                                        .foregroundStyle(SettingsValueStyle.secondary)
-                                    Text(source)
-                                        .textSelection(.enabled)
-                                }
-                            }
-                        }
-                        .padding(.top, AmgiSpacing.xs)
-                    }
-                    .padding(12)
-                    .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
+    private var contentView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AmgiSpacing.md) {
+                presetPickerRow
+                selectionEditorSection
+                resultSection
+                quickActionsSection
+                contextSection
             }
             .padding()
         }
-        .background(Color.amgiBackground)
-        .navigationTitle(L("review_selection_ai_title"))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(L("common_done")) {
-                    onClose()
-                }
-            }
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    onAddNote()
-                } label: {
-                    Image(systemName: "note.text.badge.plus")
-                }
-                .disabled(canAddNote == false)
-                .accessibilityLabel(L("review_selection_ai_add_note"))
+    }
 
-                Button {
-                    onToggleFavorite()
-                } label: {
-                    Image(systemName: isFavorited ? "star.fill" : "star")
+    private var presetPickerRow: some View {
+        HStack(spacing: AmgiSpacing.sm) {
+            Picker(L("settings_review_preset_active"), selection: $state.activePresetID) {
+                ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
+                    Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .tag(preset.id)
                 }
-                .accessibilityLabel(isFavorited ? L("review_selection_ai_unfavorite") : L("review_selection_ai_favorite"))
+            } label: {
+                Label(selectedPresetTitle, systemImage: "sparkles")
+                    .lineLimit(1)
+                    .labelStyle(.titleAndIcon)
             }
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
+                onSubmit(nil)
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .imageScale(.medium)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
+            .accessibilityLabel(L("review_selection_ai_retry"))
         }
-        .onAppear {
-            renderResponseHTMLIfNeeded()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var selectionEditorSection: some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
+            Text(L("review_selection_ai_selected_text"))
+                .amgiFont(.bodyEmphasis)
+                .foregroundStyle(SettingsValueStyle.primary)
+            TextEditor(text: $state.draftSelection)
+                .frame(minHeight: 92)
+                .padding(8)
+                .scrollContentBackground(.hidden)
+                .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
-        .onChange(of: state.activePresetID) { _, _ in
-            onSubmit(nil)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var resultSection: some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
+            HStack(spacing: AmgiSpacing.sm) {
+                Text(L("review_selection_ai_result"))
+                    .amgiFont(.bodyEmphasis)
+                    .foregroundStyle(SettingsValueStyle.primary)
+
+                Spacer(minLength: 0)
+
+                Button(L("review_selection_ai_copy")) {
+                    UIPasteboard.general.string = state.response?.trimmedOrNil
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(canCopyResponse == false)
+            }
+
+            ScrollView(.vertical, showsIndicators: true) {
+                resultContent
+            }
+            .padding(12)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: resultPanelMinimumHeight,
+                maxHeight: resultPanelMaximumHeight,
+                alignment: .topLeading
+            )
+            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
-        .onChange(of: state.response) { _, _ in
-            renderResponseHTMLIfNeeded()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var resultContent: some View {
+        if state.isLoading {
+            HStack(spacing: 12) {
+                ProgressView()
+                Text(L("review_selection_ai_loading"))
+                    .foregroundStyle(SettingsValueStyle.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if let errorMessage = state.errorMessage?.trimmedOrNil {
+            Text(errorMessage)
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+        } else if let responseHTML = state.responseHTML?.trimmedOrNil {
+            NoteFieldHTMLPreview(html: responseHTML)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+        } else {
+            Text(state.response?.trimmedOrNil ?? L("review_selection_ai_empty_response"))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+        }
+    }
+
+    @ViewBuilder
+    private var quickActionsSection: some View {
+        if quickActions.isEmpty == false {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AmgiSpacing.xs) {
+                    ForEach(quickActions) { action in
+                        Button(action.title) {
+                            onSubmit(action)
+                        }
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .amgiCapsuleControl(backgroundColor: Color.amgiMenuSurface, horizontalPadding: 10, verticalPadding: 6)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private var contextSection: some View {
+        if state.context.sentence?.trimmedOrNil != nil || state.context.source?.trimmedOrNil != nil {
+            DisclosureGroup(L("review_selection_ai_more_context")) {
+                VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+                    if let sentence = state.context.sentence?.trimmedOrNil {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("review_selection_ai_sentence"))
+                                .amgiFont(.caption)
+                                .foregroundStyle(SettingsValueStyle.secondary)
+                            Text(sentence)
+                                .textSelection(.enabled)
+                        }
+                    }
+                    if let source = state.context.source?.trimmedOrNil {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("review_selection_ai_source"))
+                                .amgiFont(.caption)
+                                .foregroundStyle(SettingsValueStyle.secondary)
+                            Text(source)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+                .padding(.top, AmgiSpacing.xs)
+            }
+            .padding(12)
+            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
