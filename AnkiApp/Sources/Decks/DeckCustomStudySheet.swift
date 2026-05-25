@@ -126,7 +126,6 @@ struct DeckCustomStudySheet: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(L("common_cancel")) { dismiss() }
-                    .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 if defaults == nil && !isLoading {
@@ -139,7 +138,6 @@ struct DeckCustomStudySheet: View {
                     Button(L("common_done")) {
                         Task { await submit() }
                     }
-                    .amgiToolbarTextButton()
                     .disabled(isLoading || isWorking)
                 }
             }

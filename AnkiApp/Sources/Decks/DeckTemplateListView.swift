@@ -58,7 +58,6 @@ struct DeckTemplateListView: View {
                 if showsDoneButton {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(L("common_done")) { dismiss() }
-                            .amgiToolbarTextButton()
                     }
                 }
             }
@@ -454,7 +453,6 @@ private struct NotetypeCreationSourcePickerView: View {
                 Button(L("common_cancel")) {
                     onCancel()
                 }
-                .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("common_add")) {
@@ -678,7 +676,6 @@ struct TemplateEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L("common_cancel")) { attemptDismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("card_template_fields_short")) {

@@ -430,7 +430,6 @@ private struct MediaFilePreviewView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_done")) { dismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

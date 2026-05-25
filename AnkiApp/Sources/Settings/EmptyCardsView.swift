@@ -48,7 +48,6 @@ struct EmptyCardsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
-                        .amgiToolbarTextButton()
                 }
             }
             .alert(L("empty_cards_delete_confirm_title"), isPresented: $showDeleteConfirm) {

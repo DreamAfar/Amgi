@@ -2077,7 +2077,6 @@ private struct BrowseFilterQuickPickerSheet: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(L("common_cancel")) { dismiss() }
-                    .amgiToolbarTextButton(tone: .neutral)
             }
         }
     }
@@ -2364,7 +2363,6 @@ struct MoveToDeckSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }
@@ -2415,7 +2413,6 @@ struct ChangeNotetypeSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
             .alert(L("browse_batch_failed_title"), isPresented: $showError) {
@@ -2545,7 +2542,6 @@ struct BrowseFindDuplicatesSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
             .alert(L("common_error"), isPresented: $showError) {

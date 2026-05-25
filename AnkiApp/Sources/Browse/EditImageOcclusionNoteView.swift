@@ -107,7 +107,6 @@ struct EditImageOcclusionNoteView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(L("common_cancel")) { dismiss() }
-                    .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("common_save")) {

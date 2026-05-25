@@ -1519,7 +1519,6 @@ struct ReviewSelectionAISheetView: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                             .imageScale(.medium)
-                        }
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
@@ -1641,11 +1640,10 @@ struct ReviewSelectionAISheetView: View {
         .navigationTitle(L("review_selection_ai_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .cancellationAction) {
                 Button(L("common_done")) {
                     onClose()
                 }
-                .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
@@ -1654,12 +1652,14 @@ struct ReviewSelectionAISheetView: View {
                     Image(systemName: "note.text.badge.plus")
                 }
                 .disabled(canAddNote == false)
+                .accessibilityLabel(L("review_selection_ai_add_note"))
 
                 Button {
                     onToggleFavorite()
                 } label: {
                     Image(systemName: isFavorited ? "star.fill" : "star")
                 }
+                .accessibilityLabel(isFavorited ? L("review_selection_ai_unfavorite") : L("review_selection_ai_favorite"))
             }
         }
         .onAppear {

@@ -142,7 +142,6 @@ struct DeckConfigView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { onDismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if isSaving {

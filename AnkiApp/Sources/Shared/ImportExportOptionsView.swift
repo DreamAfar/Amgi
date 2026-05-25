@@ -128,7 +128,6 @@ struct ExportOptionsView: View {
                 Button(L("common_cancel")) {
                     onCancel()
                 }
-                .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button(L("export_config_export_button")) {
@@ -299,7 +298,6 @@ struct ImportOptionsView: View {
                 Button(L("common_cancel")) {
                     onCancel()
                 }
-                .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button(L("import_config_import_button")) {

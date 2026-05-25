@@ -657,7 +657,6 @@ private struct SettingsInfoView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("common_done")) { dismiss() }
-                    .amgiToolbarTextButton(tone: .neutral)
             }
         }
         .confirmationDialog(L("debug_reset_confirm_msg"), isPresented: $showResetConfirm, titleVisibility: .visible) {
@@ -2063,7 +2062,6 @@ private struct SyncServerSetupSheet: View {
                     Button(L("common_cancel")) {
                         isPresented = false
                     }
-                    .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

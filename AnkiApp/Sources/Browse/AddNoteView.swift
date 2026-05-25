@@ -150,7 +150,6 @@ struct AddNoteView: View {
                         clearPersistedSession()
                         dismiss()
                     }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("card_template_preview_btn")) {

@@ -616,7 +616,6 @@ struct ReviewView: View {
                             Button(L("common_done")) {
                                 ankiJSSearchSheetRequest = nil
                             }
-                            .amgiToolbarTextButton(tone: .neutral)
                         }
                     }
             }
@@ -781,7 +780,6 @@ struct ReviewView: View {
     private var reviewToolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button(L("common_done")) { onDismiss() }
-                .amgiToolbarTextButton(tone: .neutral)
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button {
@@ -2625,7 +2623,6 @@ private struct ReviewContextActionsSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done"), action: onClose)
-                        .amgiToolbarTextButton()
                 }
             }
         }
@@ -2664,7 +2661,6 @@ private struct ReviewSetDueDateSheet: View {
                     Button(L("common_cancel")) {
                         dismiss()
                     }
-                    .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L("common_save")) {
@@ -2837,7 +2833,6 @@ private struct ReviewCardStatsSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
-                        .amgiToolbarTextButton()
                 }
             }
             .task {
@@ -3209,7 +3204,6 @@ private struct ReviewCardInfoSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
-                        .amgiToolbarTextButton()
                 }
             }
             .task {

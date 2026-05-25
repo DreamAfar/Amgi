@@ -143,7 +143,6 @@ struct UncommittedCardPreviewSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
-                        .amgiToolbarTextButton()
                 }
             }
             .task {

@@ -76,7 +76,6 @@ struct MediaCheckResultView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
-                        .amgiToolbarTextButton()
                 }
             }
             .alert(L("common_done"), isPresented: $showActionAlert) {
@@ -177,7 +176,7 @@ struct MediaCheckResultView: View {
             }
 
             if currentResult.haveTrash {
-                Button {
+                Button(role: .destructive) {
                     emptyTrash()
                 } label: {
                     if isDeletingTrash {
@@ -191,7 +190,6 @@ struct MediaCheckResultView: View {
                     }
                 }
                 .disabled(isDeletingTrash)
-                .foregroundStyle(Color.amgiDanger)
                 .listRowBackground(Color.amgiSurfaceElevated)
 
                 Button {

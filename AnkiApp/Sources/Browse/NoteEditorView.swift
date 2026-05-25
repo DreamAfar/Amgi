@@ -127,7 +127,6 @@ struct NoteEditorView: View {
                 Button(L("common_cancel")) {
                     attemptDismiss()
                 }
-                .amgiToolbarTextButton(tone: .neutral)
 
                 Button(L("card_template_fields_short")) {
                     showFieldEditor = true

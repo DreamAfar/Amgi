@@ -193,7 +193,6 @@ struct ImageOcclusionWorkspaceView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(L("common_cancel")) { requestDismiss() }
-                    .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("common_save")) { saveWorkspace() }
@@ -412,7 +411,6 @@ struct ImageOcclusionWorkspaceView: View {
                     Button(L("common_cancel")) {
                         closeTextEditor()
                     }
-                    .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_save")) {
@@ -441,7 +439,6 @@ struct ImageOcclusionWorkspaceView: View {
                     Button(L("common_cancel")) {
                         showFillEditor = false
                     }
-                    .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button(L("rich_text_color_default")) {

@@ -77,7 +77,6 @@ struct TagsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_done")) { dismiss() }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAddTag = true }) {
@@ -237,7 +236,6 @@ struct TagsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { showAddTag = false }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

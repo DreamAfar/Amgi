@@ -632,7 +632,6 @@ private struct StatsChartOrderSheet: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(L("common_cancel")) { dismiss() }
-                    .amgiToolbarTextButton(tone: .neutral)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("stats_chart_order_reset")) {
@@ -642,7 +641,6 @@ private struct StatsChartOrderSheet: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L("common_done")) { dismiss() }
-                    .amgiToolbarTextButton()
             }
         }
     }

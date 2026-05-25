@@ -67,7 +67,6 @@ struct LoginSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L("btn_cancel")) { isPresented = false }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

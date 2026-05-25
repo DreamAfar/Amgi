@@ -72,7 +72,6 @@ struct SyncSheet: View {
                         }
                         isPresented = false
                     }
-                    .amgiToolbarTextButton(tone: syncCoordinator.isRunning ? .danger : .neutral)
                 }
                 if syncCoordinator.isRunning {
                     ToolbarItem(placement: .confirmationAction) {
@@ -701,7 +700,6 @@ private struct ServerSetupSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L("btn_cancel")) { isPresented = false }
-                        .amgiToolbarTextButton(tone: .neutral)
                 }
             }
         }

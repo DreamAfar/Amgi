@@ -188,7 +188,6 @@ struct DeckDetailView: View {
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button(L("common_done")) { showStats = false }
-                                .amgiToolbarTextButton(tone: .neutral)
                         }
                     }
             }
