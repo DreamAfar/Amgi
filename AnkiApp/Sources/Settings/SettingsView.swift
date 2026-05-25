@@ -980,7 +980,7 @@ private struct ReviewOptionsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                         Menu {
-                            Picker(L("settings_review_day_start"), selection: rolloverHourBinding) {
+                            Picker(selection: rolloverHourBinding) {
                                 ForEach(0..<24, id: \.self) { hour in
                                     Text(String(format: L("settings_review_day_start_hour_value"), hour))
                                         .foregroundStyle(SettingsValueStyle.highlight)
@@ -1043,7 +1043,7 @@ private struct ReviewOptionsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
-                        Picker(L("settings_review_card_alignment"), selection: cardAlignment) {
+                        Picker(selection: cardAlignment) {
                             ForEach(CardAlignment.allCases) { alignment in
                                 Text(alignment.title)
                                     .foregroundStyle(SettingsValueStyle.highlight)
@@ -1316,7 +1316,7 @@ private struct DeckListHeatmapSettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
-                            Picker(L("settings_display_heatmap_scope"), selection: heatmapScope) {
+                            Picker(selection: heatmapScope) {
                                 Text(L("settings_display_heatmap_scope_all"))
                                     .foregroundStyle(SettingsValueStyle.highlight)
                                     .tag(DeckListHeatmapScope.allDecks)
@@ -1376,7 +1376,7 @@ private struct DeckListHeatmapSettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
-                            Picker(L("settings_heatmap_initial_range"), selection: $initialDaysRaw) {
+                            Picker(selection: $initialDaysRaw) {
                                 ForEach(HeatmapInitialDays.allCases) { option in
                                     Text(option.localizedLabel)
                                         .foregroundStyle(SettingsValueStyle.highlight)
@@ -1445,7 +1445,7 @@ private struct ReviewGestureOptionsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
-                        Picker(L("settings_review_tap_layout"), selection: $tapGestureLayoutRaw) {
+                        Picker(selection: $tapGestureLayoutRaw) {
                             ForEach(ReviewPreferences.TapGestureLayout.allCases) { layout in
                                 Text(layout.title)
                                     .foregroundStyle(SettingsValueStyle.highlight)
@@ -1594,7 +1594,7 @@ private struct ReviewInputActionRow: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Menu {
-                Picker(title, selection: $selection) {
+                Picker(selection: $selection) {
                     ForEach(ReviewPreferences.GestureAction.allCases) { action in
                         Text(action.title)
                             .foregroundStyle(SettingsValueStyle.highlight)
@@ -1909,7 +1909,7 @@ private struct SyncSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
-                        Picker(L("sync_settings_timeout"), selection: timeoutBinding) {
+                        Picker(selection: timeoutBinding) {
                             ForEach(SyncPreferences.Timeout.allCases) { option in
                                 Text(L("sync_settings_timeout_seconds", option.rawValue))
                                     .foregroundStyle(SettingsValueStyle.highlight)

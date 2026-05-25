@@ -311,7 +311,7 @@ struct ReaderLibraryView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 Menu {
-                    Picker(L("reader_library_sort_menu"), selection: $sortOption) {
+                    Picker(selection: $sortOption) {
                         ForEach(ReaderBookSortOption.allCases) { option in
                             Text(option.title).tag(option)
                         }

@@ -532,7 +532,7 @@ struct DeckConfigView: View {
         Section(L("deck_config_section_basic")) {
             settingRow(L("deck_config_preset")) {
                 Menu {
-                    Picker(L("deck_config_preset"), selection: presetSelectionBinding) {
+                    Picker(selection: presetSelectionBinding) {
                         ForEach(presetOptions, id: \.config.id) { option in
                             Text(option.config.name)
                                 .foregroundStyle(Color.amgiAccent)
@@ -639,7 +639,7 @@ struct DeckConfigView: View {
             }
             settingRow(L("deck_config_insert_order")) {
                 Menu {
-                    Picker(L("deck_config_insert_order"), selection: $newCardInsertOrder) {
+                    Picker(selection: $newCardInsertOrder) {
                         Text(L("deck_config_order_due")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
                         Text(L("deck_config_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
                     }
@@ -669,7 +669,7 @@ struct DeckConfigView: View {
             }
             settingRow(L("deck_config_leech_action")) {
                 Menu {
-                    Picker(L("deck_config_leech_action"), selection: $leechAction) {
+                    Picker(selection: $leechAction) {
                         Text(L("deck_config_leech_suspend")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
                         Text(L("deck_config_leech_tag_only")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
                     }
@@ -685,7 +685,7 @@ struct DeckConfigView: View {
         Section(L("deck_config_section_order")) {
             settingRow(L("deck_config_new_gather_priority")) {
                 Menu {
-                    Picker(L("deck_config_new_gather_priority"), selection: $newCardGatherPriority) {
+                    Picker(selection: $newCardGatherPriority) {
                         Text(L("deck_config_new_gather_priority_deck")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deck)
                         Text(L("deck_config_new_gather_priority_deck_then_random_notes")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deckThenRandomNotes)
                         Text(L("deck_config_new_gather_priority_position_lowest_first")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.lowestPosition)
@@ -699,7 +699,7 @@ struct DeckConfigView: View {
             }
             settingRow(L("deck_config_new_card_sort_order")) {
                 Menu {
-                    Picker(L("deck_config_new_card_sort_order"), selection: $newCardSortOrder) {
+                    Picker(selection: $newCardSortOrder) {
                         Text(L("deck_config_sort_order_template_then_gather")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.template)
                         Text(L("deck_config_sort_order_gather")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.noSort)
                         Text(L("deck_config_sort_order_card_template_then_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.templateThenRandom)
@@ -712,7 +712,7 @@ struct DeckConfigView: View {
             }
             settingRow(L("deck_config_new_mix")) {
                 Menu {
-                    Picker(L("deck_config_new_mix"), selection: $newMix) {
+                    Picker(selection: $newMix) {
                         Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
                         Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
                         Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
@@ -723,7 +723,7 @@ struct DeckConfigView: View {
             }
             settingRow(L("deck_config_review_order")) {
                 Menu {
-                    Picker(L("deck_config_review_order"), selection: $reviewOrder) {
+                    Picker(selection: $reviewOrder) {
                         Text(L("deck_config_review_order_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
                         Text(L("deck_config_review_order_day_then_deck")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.dayThenDeck)
                         Text(L("deck_config_review_order_deck_then_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.deckThenDay)
@@ -743,7 +743,7 @@ struct DeckConfigView: View {
             }
             settingRow(L("deck_config_interday_mix")) {
                 Menu {
-                    Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
+                    Picker(selection: $interdayLearningMix) {
                         Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
                         Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
                         Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
@@ -1044,7 +1044,7 @@ struct DeckConfigView: View {
             }
             settingRow(L("deck_config_after_question")) {
                 Menu {
-                    Picker(L("deck_config_after_question"), selection: $questionAction) {
+                    Picker(selection: $questionAction) {
                         Text(L("deck_config_action_show_answer")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
                         Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
                     }
@@ -1054,7 +1054,7 @@ struct DeckConfigView: View {
             }
             settingRow(L("deck_config_after_answer")) {
                 Menu {
-                    Picker(L("deck_config_after_answer"), selection: $answerAction) {
+                    Picker(selection: $answerAction) {
                         Text(L("deck_config_action_bury")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
                         Text(L("deck_config_action_again")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
                         Text(L("deck_config_action_hard")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
