@@ -888,6 +888,8 @@ private struct ReviewAIFavoritesView: View {
                                     .foregroundStyle(SettingsValueStyle.secondary)
                                     .lineLimit(2)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
@@ -1423,6 +1425,8 @@ private func settingsDestinationRow(title: String, subtitle: String, icon: Strin
                 .lineLimit(1)
         }
     }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .contentShape(Rectangle())
 }
 
 @MainActor
