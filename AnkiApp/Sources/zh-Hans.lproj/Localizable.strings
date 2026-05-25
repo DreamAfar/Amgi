@@ -1623,6 +1623,8 @@
 "settings_review_ai_note_template_subtitle" = "配置 AI 回答转笔记时的字段映射和标签";
 "settings_review_ai_note_template_footer" = "未配置字段映射时，会按常见字段名自动生成草稿。";
 "settings_review_ai_note_template_fields" = "字段映射";
+"settings_review_ai_note_template_selection_format" = "选中文本格式";
+"settings_review_ai_note_template_selection_format_footer" = "开启后，会在生成添加笔记草稿时，将所在句子中的选中文本按勾选样式包成 HTML 标签。";
 "settings_review_ai_note_template_supported_fields" = "支持 {selection}、{sentence}、{source}、{answer}，可组合使用。";
 "review_selection_ai_note_token_selection" = "选中文本";
 "review_selection_ai_note_token_sentence" = "所在句子";

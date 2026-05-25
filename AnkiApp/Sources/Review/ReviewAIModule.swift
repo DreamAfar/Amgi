@@ -1,5 +1,7 @@
 import Foundation
+import AnkiBackend
 import AnkiKit
+import AnkiProto
 
 enum ReviewAIFlowError: Error, Equatable, Sendable {
     case message(String)
@@ -232,11 +234,51 @@ enum ReviewAINoteTemplateToken: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+enum ReviewAINoteSelectionFormat: String, CaseIterable, Codable, Identifiable, Sendable {
+    case bold
+    case highlight
+    case italic
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .bold:
+            return L("rich_text_action_bold")
+        case .highlight:
+            return L("rich_text_action_highlight")
+        case .italic:
+            return L("rich_text_action_italic")
+        }
+    }
+
+    func wrap(_ text: String) -> String {
+        switch self {
+        case .bold:
+            return "<b>\(text)</b>"
+        case .highlight:
+            return "<mark>\(text)</mark>"
+        case .italic:
+            return "<i>\(text)</i>"
+        }
+    }
+}
+
 struct ReviewAINoteTemplate: Codable, Equatable, Sendable {
     var deckID: Int64?
     var notetypeID: Int64?
     var fieldMappings: [String: String]
     var tags: String
+
+    private enum CodingKeys: String, CodingKey {
+        case deckID
+        case notetypeID
+        case fieldMappings
+        case tags
+        case selectionFormats
+    }
+
+    var selectionFormats: [ReviewAINoteSelectionFormat]
 
     static let empty = Self()
 
@@ -244,12 +286,34 @@ struct ReviewAINoteTemplate: Codable, Equatable, Sendable {
         deckID: Int64? = nil,
         notetypeID: Int64? = nil,
         fieldMappings: [String: String] = [:],
-        tags: String = "ai review-ai"
+        tags: String = "ai review-ai",
+        selectionFormats: [ReviewAINoteSelectionFormat] = []
     ) {
         self.deckID = deckID
         self.notetypeID = notetypeID
         self.fieldMappings = fieldMappings
         self.tags = tags
+        self.selectionFormats = Self.normalizedSelectionFormats(selectionFormats)
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        deckID = try container.decodeIfPresent(Int64.self, forKey: .deckID)
+        notetypeID = try container.decodeIfPresent(Int64.self, forKey: .notetypeID)
+        fieldMappings = try container.decodeIfPresent([String: String].self, forKey: .fieldMappings) ?? [:]
+        tags = try container.decodeIfPresent(String.self, forKey: .tags) ?? "ai review-ai"
+        selectionFormats = Self.normalizedSelectionFormats(
+            try container.decodeIfPresent([ReviewAINoteSelectionFormat].self, forKey: .selectionFormats) ?? []
+        )
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(deckID, forKey: .deckID)
+        try container.encodeIfPresent(notetypeID, forKey: .notetypeID)
+        try container.encode(fieldMappings, forKey: .fieldMappings)
+        try container.encode(tags, forKey: .tags)
+        try container.encode(selectionFormats, forKey: .selectionFormats)
     }
 
     mutating func clearInvalidFields(validFields: [String]) {
@@ -265,7 +329,7 @@ struct ReviewAINoteTemplate: Codable, Equatable, Sendable {
         var resolvedFieldValues: [String: String] = [:]
 
         for (fieldName, template) in fieldMappings {
-            let resolved = Self.resolve(template: template, context: context, answer: answer)
+            let resolved = resolve(template: template, context: context, answer: answer)
             if let trimmed = resolved.trimmedOrNil {
                 resolvedFieldValues[fieldName] = trimmed
             }
@@ -273,7 +337,7 @@ struct ReviewAINoteTemplate: Codable, Equatable, Sendable {
 
         if resolvedFieldValues.isEmpty {
             let selectedText = context.selectedText
-            let resolvedSentence = context.sentence?.trimmedOrNil ?? selectedText
+            let resolvedSentence = formattedSentence(for: context) ?? selectedText
             let resolvedSource = context.source?.trimmedOrNil ?? ""
 
             resolvedFieldValues = [
@@ -296,16 +360,53 @@ struct ReviewAINoteTemplate: Codable, Equatable, Sendable {
         )
     }
 
-    static func resolve(
+    func resolve(
         template: String,
         context: ReviewAIQueryContext,
         answer: String
     ) -> String {
+        let resolvedSentence = formattedSentence(for: context) ?? ""
+
         template
             .replacingOccurrences(of: ReviewAINoteTemplateToken.selection.rawValue, with: context.selectedText)
-            .replacingOccurrences(of: ReviewAINoteTemplateToken.sentence.rawValue, with: context.sentence ?? "")
+            .replacingOccurrences(of: ReviewAINoteTemplateToken.sentence.rawValue, with: resolvedSentence)
             .replacingOccurrences(of: ReviewAINoteTemplateToken.source.rawValue, with: context.source ?? "")
             .replacingOccurrences(of: ReviewAINoteTemplateToken.answer.rawValue, with: answer)
+    }
+
+    private func formattedSentence(for context: ReviewAIQueryContext) -> String? {
+        let sentence = context.sentence?.trimmedOrNil ?? context.selectedText
+        return Self.formattedSentence(
+            sentence: sentence,
+            selectedText: context.selectedText,
+            selectionFormats: selectionFormats
+        ).trimmedOrNil
+    }
+
+    private static func formattedSentence(
+        sentence: String,
+        selectedText: String,
+        selectionFormats: [ReviewAINoteSelectionFormat]
+    ) -> String {
+        guard let trimmedSentence = sentence.trimmedOrNil else { return "" }
+        guard let trimmedSelection = selectedText.trimmedOrNil else { return trimmedSentence }
+
+        let normalizedFormats = normalizedSelectionFormats(selectionFormats)
+        guard normalizedFormats.isEmpty == false,
+              trimmedSentence.contains(trimmedSelection) else {
+            return trimmedSentence
+        }
+
+        let replacement = normalizedFormats.reduce(trimmedSelection) { partial, format in
+            format.wrap(partial)
+        }
+        return trimmedSentence.replacingOccurrences(of: trimmedSelection, with: replacement)
+    }
+
+    private static func normalizedSelectionFormats(
+        _ formats: [ReviewAINoteSelectionFormat]
+    ) -> [ReviewAINoteSelectionFormat] {
+        ReviewAINoteSelectionFormat.allCases.filter { formats.contains($0) }
     }
 }
 
@@ -332,6 +433,27 @@ struct ReviewAIAddNoteSheetDraft: Identifiable, Equatable, Sendable {
 }
 
 enum ReviewAIFlow {
+    static func renderResponseHTML(markdown: String, backend: AnkiBackend) -> String? {
+        let trimmedMarkdown = markdown.trimmedOrNil ?? ""
+        guard trimmedMarkdown.isEmpty == false else { return nil }
+
+        do {
+            var request = Anki_CardRendering_RenderMarkdownRequest()
+            request.markdown = trimmedMarkdown
+            request.sanitize = true
+
+            let response: Anki_Generic_String = try backend.invoke(
+                service: AnkiBackend.Service.cardRendering,
+                method: AnkiBackend.CardRenderingMethod.renderMarkdown,
+                request: request
+            )
+            return response.val.trimmedOrNil
+        } catch {
+            print("[ReviewAIFlow] render markdown failed: \(error)")
+            return nil
+        }
+    }
+
     static func activeConfig(for presetID: String?) -> ReviewSelectionAIConfig {
         let store = ReviewSelectionAIPresetStore.load()
         guard let presetID = presetID?.trimmedOrNil else {
@@ -394,6 +516,7 @@ enum ReviewAIFlow {
 
         var nextState = state
         nextState.isLoading = true
+        nextState.responseHTML = nil
         nextState.errorMessage = nil
         nextState.lastAction = quickAction
         nextState.context.selectedText = selection
@@ -445,6 +568,8 @@ enum ReviewAIFlow {
             return nil
         }
 
+        let renderedAnswer = state.responseHTML?.trimmedOrNil ?? response
+
         let template = ReviewAINoteTemplateStore.load().template
         return ReviewAIAddNoteSheetDraft(
             draft: template.makeDraft(
@@ -453,7 +578,7 @@ enum ReviewAIFlow {
                     sentence: state.context.sentence,
                     source: state.context.source
                 ),
-                answer: response,
+                answer: renderedAnswer,
                 fallbackDeckID: fallbackDeckID
             )
         )

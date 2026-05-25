@@ -1615,6 +1615,8 @@
 "settings_review_ai_note_template_subtitle" = "Configure field mappings and tags for AI note drafts";
 "settings_review_ai_note_template_footer" = "If no field mappings are configured, a draft will be generated from common field names.";
 "settings_review_ai_note_template_fields" = "Field Mappings";
+"settings_review_ai_note_template_selection_format" = "Selected Text Formatting";
+"settings_review_ai_note_template_selection_format_footer" = "When enabled, the selected text inside the context sentence will be wrapped with the checked HTML styles when generating an add-note draft.";
 "settings_review_ai_note_template_supported_fields" = "Supports {selection}, {sentence}, {source}, and {answer}, and they can be combined.";
 "review_selection_ai_note_token_selection" = "Selected Text";
 "review_selection_ai_note_token_sentence" = "Sentence";

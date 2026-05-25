@@ -16,6 +16,7 @@ struct ReviewSelectionAIState: Identifiable {
     var lastAction: ReviewAIQuickAction?
     var isLoading = true
     var response: String?
+    var responseHTML: String?
     var errorMessage: String?
 
     init(
@@ -1142,6 +1143,16 @@ private struct ReviewAINoteTemplateSettingsView: View {
             .amgiSettingsListRowSurface()
 
             Section {
+                VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+                    Text(L("settings_review_ai_note_template_selection_format"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(ReviewAINoteSelectionFormat.allCases) { format in
+                        Toggle(format.title, isOn: selectionFormatBinding(for: format))
+                    }
+                }
+
                 ForEach(availableFields, id: \.self) { fieldName in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(fieldName)
@@ -1178,7 +1189,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
             } header: {
                 Text(L("settings_review_ai_note_template_fields"))
             } footer: {
-                Text(L("settings_review_ai_note_template_supported_fields"))
+                Text(L("settings_review_ai_note_template_selection_format_footer") + "\n" + L("settings_review_ai_note_template_supported_fields"))
             }
             .amgiSettingsListRowSurface()
         }
@@ -1234,6 +1245,26 @@ private struct ReviewAINoteTemplateSettingsView: View {
             get: { store.template.tags },
             set: { newValue in
                 store.template.tags = newValue
+            }
+        )
+    }
+
+    private func selectionFormatBinding(
+        for format: ReviewAINoteSelectionFormat
+    ) -> Binding<Bool> {
+        Binding(
+            get: { store.template.selectionFormats.contains(format) },
+            set: { isEnabled in
+                if isEnabled {
+                    if store.template.selectionFormats.contains(format) == false {
+                        store.template.selectionFormats.append(format)
+                    }
+                } else {
+                    store.template.selectionFormats.removeAll { $0 == format }
+                }
+                store.template.selectionFormats = ReviewAINoteSelectionFormat.allCases.filter {
+                    store.template.selectionFormats.contains($0)
+                }
             }
         )
     }
@@ -1335,6 +1366,7 @@ private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: 
 }
 
 struct ReviewSelectionAISheetView: View {
+    @Dependency(\.ankiBackend) private var backend
     @Binding var state: ReviewSelectionAIState
     let presets: [ReviewSelectionAIPreset]
     let quickActions: [ReviewAIQuickAction]
@@ -1343,7 +1375,6 @@ struct ReviewSelectionAISheetView: View {
     let onSubmit: (ReviewAIQuickAction?) -> Void
     let onToggleFavorite: () -> Void
     let onAddNote: () -> Void
-    @State private var draftSelection: String
 
     init(
         state: Binding<ReviewSelectionAIState>,
@@ -1363,7 +1394,6 @@ struct ReviewSelectionAISheetView: View {
         self.onSubmit = onSubmit
         self.onToggleFavorite = onToggleFavorite
         self.onAddNote = onAddNote
-        self._draftSelection = State(initialValue: state.wrappedValue.draftSelection)
     }
 
     var body: some View {
@@ -1385,6 +1415,7 @@ struct ReviewSelectionAISheetView: View {
                             maxWidth: 260
                         )
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     Spacer(minLength: 0)
 
@@ -1399,7 +1430,7 @@ struct ReviewSelectionAISheetView: View {
                     Text(L("review_selection_ai_selected_text"))
                         .amgiFont(.bodyEmphasis)
                         .foregroundStyle(SettingsValueStyle.primary)
-                    TextEditor(text: $draftSelection)
+                    TextEditor(text: $state.draftSelection)
                         .frame(minHeight: 92)
                         .padding(8)
                         .scrollContentBackground(.hidden)
@@ -1436,6 +1467,9 @@ struct ReviewSelectionAISheetView: View {
                                 .foregroundStyle(.red)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .textSelection(.enabled)
+                        } else if let responseHTML = state.responseHTML?.trimmedOrNil {
+                            NoteFieldHTMLPreview(html: responseHTML)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         } else {
                             Text(state.response?.trimmedOrNil ?? L("review_selection_ai_empty_response"))
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1520,11 +1554,14 @@ struct ReviewSelectionAISheetView: View {
                 }
             }
         }
-        .onChange(of: draftSelection) { _, newValue in
-            state.draftSelection = newValue
+        .onAppear {
+            renderResponseHTMLIfNeeded()
         }
         .onChange(of: state.activePresetID) { _, _ in
             onSubmit(nil)
+        }
+        .onChange(of: state.response) { _, _ in
+            renderResponseHTMLIfNeeded()
         }
     }
 
@@ -1541,6 +1578,22 @@ struct ReviewSelectionAISheetView: View {
 
     private var canCopyResponse: Bool {
         state.response?.trimmedOrNil != nil
+    }
+
+    private func renderResponseHTMLIfNeeded() {
+        guard state.isLoading == false,
+              state.errorMessage?.trimmedOrNil == nil,
+              let response = state.response?.trimmedOrNil else {
+            if state.responseHTML != nil {
+                state.responseHTML = nil
+            }
+            return
+        }
+
+        let renderedHTML = ReviewAIFlow.renderResponseHTML(markdown: response, backend: backend)
+        if state.responseHTML != renderedHTML {
+            state.responseHTML = renderedHTML
+        }
     }
 }
 

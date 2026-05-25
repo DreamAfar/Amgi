@@ -1625,6 +1625,8 @@
 "settings_review_ai_note_template_subtitle" = "AI 回答をノート化する際のフィールドとタグを設定";
 "settings_review_ai_note_template_footer" = "フィールド割り当てが空の場合は、一般的なフィールド名から下書きを自動生成します。";
 "settings_review_ai_note_template_fields" = "フィールド割り当て";
+"settings_review_ai_note_template_selection_format" = "選択テキストの書式";
+"settings_review_ai_note_template_selection_format_footer" = "有効にすると、ノート追加下書きの文脈文内にある選択テキストを、選んだ HTML スタイルで包みます。";
 "settings_review_ai_note_template_supported_fields" = "{selection}、{sentence}、{source}、{answer} に対応し、組み合わせて使えます。";
 "review_selection_ai_note_token_selection" = "選択テキスト";
 "review_selection_ai_note_token_sentence" = "文脈文";

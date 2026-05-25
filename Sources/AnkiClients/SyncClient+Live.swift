@@ -444,13 +444,12 @@ extension SyncClient: DependencyKey {
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }
 
                 let auth = configuredSyncAuth(hostKey: hostKey, endpointOverride: endpoint)
-                let requestedServerUsn = syncMediaEnabled() ? serverUsn : nil
 
                 var req = Anki_Sync_FullUploadOrDownloadRequest()
                 req.auth = auth
                 req.upload = (direction == .upload)
-                if let requestedServerUsn {
-                    req.serverUsn = requestedServerUsn
+                if syncMediaEnabled(), let serverUsn {
+                    req.serverUsn = serverUsn
                 }
 
                 do {
@@ -459,9 +458,7 @@ extension SyncClient: DependencyKey {
                         method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                         request: req
                     )
-                    if requestedServerUsn != nil {
-                        try await waitForMediaSyncToComplete(backend: syncBackend)
-                    }
+                    try syncBackend.reopenAfterFullSync()
                     UserDefaults.standard.set(
                         Date().timeIntervalSince1970,
                         forKey: SyncPreferenceValues.lastCollectionSyncKey
@@ -480,15 +477,14 @@ extension SyncClient: DependencyKey {
                             guard !hostKey.isEmpty else { throw SyncError.authFailed }
 
                             let auth = configuredSyncAuth(hostKey: hostKey, endpointOverride: endpoint)
-                            let requestedServerUsn = syncMediaEnabled() ? serverUsn : nil
 
                             await emitter.yield(direction == .download ? .fullDownloading : .fullUploading)
 
                             var req = Anki_Sync_FullUploadOrDownloadRequest()
                             req.auth = auth
                             req.upload = (direction == .upload)
-                            if let requestedServerUsn {
-                                req.serverUsn = requestedServerUsn
+                            if syncMediaEnabled(), let serverUsn {
+                                req.serverUsn = serverUsn
                             }
 
                             do {
@@ -497,20 +493,13 @@ extension SyncClient: DependencyKey {
                                     method: AnkiBackend.SyncMethod.fullUploadOrDownload,
                                     request: req
                                 )
+                                try syncBackend.reopenAfterFullSync()
                             } catch let error as BackendError {
                                 if error.isSyncAuthError { throw SyncError.authFailed }
                                 throw SyncError(message: error.message)
                             }
 
                             try Task.checkCancellation()
-
-                            if requestedServerUsn != nil {
-                                await emitter.yield(.syncingMedia)
-                                try await waitForMediaSyncToComplete(
-                                    backend: syncBackend,
-                                    emitter: emitter
-                                )
-                            }
 
                             UserDefaults.standard.set(
                                 Date().timeIntervalSince1970,
