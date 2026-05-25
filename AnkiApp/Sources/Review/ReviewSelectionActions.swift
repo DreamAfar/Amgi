@@ -464,7 +464,7 @@ struct ReviewSelectionLookupLinkSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
-                        Picker(selection: selectedPresetBinding) {
+                        Picker(L("settings_review_preset_active"), selection: selectedPresetBinding) {
                             ForEach(Array(store.presets.enumerated()), id: \.element.id) { index, preset in
                                 Text(presetTitle(preset, index: index))
                                     .foregroundStyle(SettingsValueStyle.highlight)
@@ -678,7 +678,7 @@ private struct ReviewAIPresetManagementView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
-                        Picker(selection: selectedPresetBinding) {
+                        Picker(L("settings_review_preset_active"), selection: selectedPresetBinding) {
                             ForEach(Array(store.presets.enumerated()), id: \.element.id) { index, preset in
                                 Text(presetTitle(preset, index: index))
                                     .foregroundStyle(SettingsValueStyle.highlight)
@@ -1550,17 +1550,21 @@ struct ReviewSelectionAISheetView: View {
 
     private var presetPickerRow: some View {
         HStack(spacing: AmgiSpacing.sm) {
-            Picker(selection: $state.activePresetID) {
-                ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
-                    Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                        .tag(preset.id)
+            Picker(
+                selection: $state.activePresetID,
+                content: {
+                    ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
+                        Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .tag(preset.id)
+                    }
+                },
+                label: {
+                    Label(selectedPresetTitle, systemImage: "sparkles")
+                        .lineLimit(1)
+                        .labelStyle(.titleAndIcon)
                 }
-            } label: {
-                Label(selectedPresetTitle, systemImage: "sparkles")
-                    .lineLimit(1)
-                    .labelStyle(.titleAndIcon)
-            }
+            )
             .pickerStyle(.menu)
             .frame(maxWidth: .infinity, alignment: .leading)
 

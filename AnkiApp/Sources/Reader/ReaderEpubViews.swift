@@ -134,7 +134,7 @@ struct ReaderEpubLibraryView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 Menu {
-                    Picker(selection: $sortOption) {
+                    Picker(L("reader_library_sort_menu"), selection: $sortOption) {
                         Text(L("reader_library_sort_recent")).tag(SortOption.recent)
                         Text(L("reader_library_sort_title")).tag(SortOption.title)
                     }

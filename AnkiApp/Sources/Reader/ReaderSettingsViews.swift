@@ -787,7 +787,7 @@ struct ReaderAdvancedSettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
-                            Picker(selection: statisticsAutostartModeSelection) {
+                            Picker(L("settings_reader_statistics_autostart"), selection: statisticsAutostartModeSelection) {
                                 Text(L("settings_reader_statistics_autostart_off")).tag(ReaderStatisticsAutostartMode.off)
                                 Text(L("settings_reader_statistics_autostart_page_turn")).tag(ReaderStatisticsAutostartMode.pageTurn)
                                 Text(L("settings_reader_statistics_autostart_on")).tag(ReaderStatisticsAutostartMode.on)
