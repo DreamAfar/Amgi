@@ -1928,7 +1928,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
                     context.coordinator.pendingFragment = nil
                     context.coordinator.shouldSyncProgressAfterRestore = false
                     bridge.progress = progress
-                    webView.evaluateJavaScript("window.hoshiReader.restoreProgress(\(progress))") { _, _ in }
+                    webView.evaluateJavaScript("window.hoshiReader.restoreProgress(\(progress))") { (_: Any?, _: Error?) in }
                 case let .jumpToFragment(fragment):
                     context.coordinator.jumpToFragment(fragment)
                 case .clearHighlight:
@@ -2166,7 +2166,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
             let point = gesture.location(in: webView)
             let script = "window.hoshiSelection.selectText(\(point.x), \(point.y), \(parent.maxSelectionLength))"
 
-            webView.evaluateJavaScript(script) { result, _ in
+            webView.evaluateJavaScript(script) { (result: Any?, _: Error?) in
                 if result is NSNull || result == nil {
                     self.parent.onTapOutside()
                 }
@@ -2208,7 +2208,7 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
         func jumpToFragment(_ fragment: String) {
             guard let webView else { return }
             shouldSyncProgressAfterRestore = true
-            webView.evaluateJavaScript("window.hoshiReader.jumpToFragment(\(javaScriptStringLiteral(fragment)))") { _, _ in }
+            webView.evaluateJavaScript("window.hoshiReader.jumpToFragment(\(javaScriptStringLiteral(fragment)))") { (_: Any?, _: Error?) in }
         }
 
         private func syncLinkJumpProgress() {
@@ -2253,12 +2253,12 @@ private struct ReaderEpubScrollWebView: UIViewRepresentable {
 
         func highlightSelection(count: Int) {
             guard let webView else { return }
-            webView.evaluateJavaScript("window.hoshiSelection.highlightSelection(\(count))") { _, _ in }
+            webView.evaluateJavaScript("window.hoshiSelection.highlightSelection(\(count))") { (_: Any?, _: Error?) in }
         }
 
         func clearHighlight() {
             guard let webView else { return }
-            webView.evaluateJavaScript("window.hoshiSelection.clearHighlight()") { _, _ in }
+            webView.evaluateJavaScript("window.hoshiSelection.clearHighlight()") { (_: Any?, _: Error?) in }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -2399,7 +2399,7 @@ private struct ReaderEpubWebView: UIViewRepresentable {
                     context.coordinator.pendingFragment = nil
                     context.coordinator.shouldSyncProgressAfterRestore = false
                     bridge.progress = progress
-                    webView.evaluateJavaScript("window.hoshiReader.restoreProgress(\(progress))") { _, _ in }
+                    webView.evaluateJavaScript("window.hoshiReader.restoreProgress(\(progress))") { (_: Any?, _: Error?) in }
                 case let .jumpToFragment(fragment):
                     context.coordinator.jumpToFragment(fragment)
                 case .clearHighlight:
@@ -2626,7 +2626,7 @@ private struct ReaderEpubWebView: UIViewRepresentable {
             clearHighlight()
 
             let script = paginationScript(direction: direction)
-            webView.evaluateJavaScript(script) { [weak self] result, _ in
+            webView.evaluateJavaScript(script) { [weak self] (result: Any?, _: Error?) in
                 guard let self else { return }
 
                 if let res = result as? String, res == "scrolled" {
@@ -2667,7 +2667,7 @@ private struct ReaderEpubWebView: UIViewRepresentable {
             let point = gesture.location(in: webView)
             let script = "window.hoshiSelection.selectText(\(point.x), \(point.y), \(parent.maxSelectionLength))"
 
-            webView.evaluateJavaScript(script) { result, _ in
+            webView.evaluateJavaScript(script) { (result: Any?, _: Error?) in
                 if result is NSNull || result == nil {
                     self.parent.onTapOutside()
                 }
@@ -2683,7 +2683,7 @@ private struct ReaderEpubWebView: UIViewRepresentable {
         func jumpToFragment(_ fragment: String) {
             guard let webView else { return }
             shouldSyncProgressAfterRestore = true
-            webView.evaluateJavaScript("window.hoshiReader.jumpToFragment(\(javaScriptStringLiteral(fragment)))") { _, _ in }
+            webView.evaluateJavaScript("window.hoshiReader.jumpToFragment(\(javaScriptStringLiteral(fragment)))") { (_: Any?, _: Error?) in }
         }
 
         private func syncLinkJumpProgress() {
@@ -2694,7 +2694,7 @@ private struct ReaderEpubWebView: UIViewRepresentable {
 
         private func fetchCurrentProgress(_ completion: @escaping (Double) -> Void) {
             guard let webView else { return }
-            webView.evaluateJavaScript("window.hoshiReader.calculateProgress()") { result, _ in
+            webView.evaluateJavaScript("window.hoshiReader.calculateProgress()") { (result: Any?, _: Error?) in
                 guard let progress = result as? Double else { return }
                 completion(progress)
             }
@@ -2727,12 +2727,12 @@ private struct ReaderEpubWebView: UIViewRepresentable {
 
         func highlightSelection(count: Int) {
             guard let webView else { return }
-            webView.evaluateJavaScript("window.hoshiSelection.highlightSelection(\(count))") { _, _ in }
+            webView.evaluateJavaScript("window.hoshiSelection.highlightSelection(\(count))") { (_: Any?, _: Error?) in }
         }
 
         func clearHighlight() {
             guard let webView else { return }
-            webView.evaluateJavaScript("window.hoshiSelection.clearHighlight()") { _, _ in }
+            webView.evaluateJavaScript("window.hoshiSelection.clearHighlight()") { (_: Any?, _: Error?) in }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {

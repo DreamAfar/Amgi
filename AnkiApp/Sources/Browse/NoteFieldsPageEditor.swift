@@ -2591,7 +2591,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
         func clearFormatting(_ kind: ClearFormattingKind) {
             if kind == .all {
-                webView?.evaluateJavaScript("window.amgiNoteFieldsEditor && window.amgiNoteFieldsEditor.hasSelection();") { [weak self] result, _ in
+                webView?.evaluateJavaScript("window.amgiNoteFieldsEditor && window.amgiNoteFieldsEditor.hasSelection();") { [weak self] (result: Any?, _: Error?) in
                     guard let self else { return }
                     if (result as? Bool) == true {
                         self.performClearFormatting(kind)
@@ -2928,7 +2928,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
                 return editor.activeFieldSnapshot();
             })();
             """
-            webView.evaluateJavaScript(script) { [weak self] result, _ in
+            webView.evaluateJavaScript(script) { [weak self] (result: Any?, _: Error?) in
                 guard let self else { return }
                 guard let payload = result as? [String: Any],
                       let fieldRect = Self.rect(from: payload, prefix: "field"),

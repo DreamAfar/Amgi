@@ -291,7 +291,7 @@ struct CardWebView: UIViewRepresentable {
 
         if typedAnswerRequestID != context.coordinator.lastTypedAnswerRequestID {
             context.coordinator.lastTypedAnswerRequestID = typedAnswerRequestID
-            webView.evaluateJavaScript("window.amgiGetTypedAnswer ? window.amgiGetTypedAnswer() : null") { value, _ in
+            webView.evaluateJavaScript("window.amgiGetTypedAnswer ? window.amgiGetTypedAnswer() : null") { (value: Any?, _: Error?) in
                 let typedAnswer: String?
                 if let string = value as? String {
                     typedAnswer = string

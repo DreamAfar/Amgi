@@ -113,9 +113,11 @@ private struct NoteFieldHTMLPreviewWebView: UIViewRepresentable {
         }
 
         func measureHeight(in webView: WKWebView) {
-            webView.evaluateJavaScript("Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)") { result, _ in
+            webView.evaluateJavaScript(
+                "Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)"
+            ) { (result: Any?, _: Error?) in
                 guard let value = result as? NSNumber else { return }
-                let nextHeight = max(180, ceil(value.doubleValue))
+                let nextHeight = max(CGFloat(180), CGFloat(ceil(value.doubleValue)))
                 guard abs(self.measuredHeight.wrappedValue - nextHeight) > 0.5 else { return }
                 self.measuredHeight.wrappedValue = nextHeight
             }

@@ -753,7 +753,7 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
         }
 
         func clearFormatting() {
-            webView?.evaluateJavaScript("window.amgiNoteField && window.amgiNoteField.hasSelection();") { [weak self] result, _ in
+            webView?.evaluateJavaScript("window.amgiNoteField && window.amgiNoteField.hasSelection();") { [weak self] (result: Any?, _: Error?) in
                 guard let self else { return }
                 if (result as? Bool) == true {
                     self.webView?.evaluateJavaScript(

@@ -2429,17 +2429,17 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
         if selectionRequestID != context.coordinator.lastSelectionRequestID {
             context.coordinator.lastSelectionRequestID = selectionRequestID
-            webView.evaluateJavaScript("window.amgiReaderSelectionText ? window.amgiReaderSelectionText() : ''") { value, _ in
+            webView.evaluateJavaScript("window.amgiReaderSelectionText ? window.amgiReaderSelectionText() : ''") { (value: Any?, _: Error?) in
                 context.coordinator.onSelectionResolved(value as? String)
             }
         }
         if clearLookupHighlightRequestID != context.coordinator.lastClearLookupHighlightRequestID {
             context.coordinator.lastClearLookupHighlightRequestID = clearLookupHighlightRequestID
-            webView.evaluateJavaScript("window.amgiReaderSelection?.clearSelection()") { _, _ in }
+            webView.evaluateJavaScript("window.amgiReaderSelection?.clearSelection()") { (_: Any?, _: Error?) in }
         }
         if lookupHighlightLengthRequestID != context.coordinator.lastLookupHighlightLengthRequestID {
             context.coordinator.lastLookupHighlightLengthRequestID = lookupHighlightLengthRequestID
-            webView.evaluateJavaScript("window.amgiReaderSelection?.highlightSelection(\(max(0, lookupHighlightLength)))") { _, _ in }
+            webView.evaluateJavaScript("window.amgiReaderSelection?.highlightSelection(\(max(0, lookupHighlightLength)))") { (_: Any?, _: Error?) in }
         }
 
         guard context.coordinator.lastHTML != document else { return }
@@ -3333,7 +3333,7 @@ private struct ReaderChapterWebView: UIViewRepresentable {
 
             let point = recognizer.location(in: webView)
             let script = "window.amgiReaderLookupPayloadAt ? window.amgiReaderLookupPayloadAt(\(point.x), \(point.y)) : null"
-            webView.evaluateJavaScript(script) { [onLookupRequested] value, _ in
+            webView.evaluateJavaScript(script) { [onLookupRequested] (value: Any?, _: Error?) in
                 if let payload = value as? [String: Any] {
                     onLookupRequested(
                         payload["text"] as? String,
