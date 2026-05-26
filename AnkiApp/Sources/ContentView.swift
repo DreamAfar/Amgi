@@ -584,7 +584,7 @@ struct ContentView: View {
                     }
                 }
             } catch {
-                backgroundSyncLogger.debug("Foreground sync status check failed: \(error.localizedDescription)")
+                logger.debug("Foreground sync status check failed: \(error.localizedDescription)")
             }
         }
     }
@@ -876,7 +876,7 @@ struct ContentView: View {
                 }.value
 
                 do {
-                    try reopenCollection(for: selectedUser)
+                    try await reopenCollection(for: selectedUser)
                     Swift.print("[ContentView] Reopened collection after import for user=\(selectedUser)")
                 } catch {
                     Swift.print("[ContentView] Failed to reopen collection after import for user=\(selectedUser): \(error)")
