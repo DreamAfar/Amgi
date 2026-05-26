@@ -1806,13 +1806,6 @@ private struct SyncSettingsView: View {
         )
     }
 
-    private var timeoutBinding: Binding<SyncPreferences.Timeout> {
-        Binding(
-            get: { timeout },
-            set: { ioTimeoutSecs = $0.rawValue }
-        )
-    }
-
     private var timeoutLabel: String {
         L("sync_settings_timeout_seconds", timeout.rawValue)
     }
@@ -1862,123 +1855,135 @@ private struct SyncSettingsView: View {
         }
     }
 
-    var body: some View {
-        List {
-            Section(L("sync_settings_section_server")) {
-                HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                    Text(L("sync_settings_server_type"))
-                        .foregroundStyle(SettingsValueStyle.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    serverTypeMenu
-                }
-
-                if syncMode == .official {
-                    ankiWebSupportNoticeRow()
-                } else {
-                    infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
-                }
-                infoRow(title: L("sync_settings_current_server"), value: currentServerValue)
-                infoRow(title: L("sync_settings_account"), value: currentAccountValue)
-
-                if syncMode == .custom {
-                    Button(L("sync_settings_change_server")) {
-                        showServerSetup = true
-                    }
-                    .foregroundStyle(SettingsValueStyle.highlight)
-                }
-
-                if syncMode != .local {
-                    if KeychainHelper.loadHostKey() == nil {
-                        Button(L("login_btn_sign_in")) {
-                            showLogin = true
-                        }
-                        .foregroundStyle(SettingsValueStyle.highlight)
-                    } else {
-                        Button(L("sync_menu_logout"), role: .destructive) {
-                            showLogoutConfirm = true
-                        }
-                    }
-                }
+    private var timeoutMenu: some View {
+        Menu {
+            ForEach(SyncPreferences.Timeout.allCases) { option in
+                timeoutMenuButton(option)
             }
-            .amgiSettingsListRowSurface()
+        } label: {
+            SettingsOptionCapsuleLabel(title: timeoutLabel)
+        }
+    }
 
-            Section(L("sync_settings_section_options")) {
-                Toggle(L("sync_settings_sync_media"), isOn: $syncMediaEnabled)
-
-                Toggle(L("sync_settings_background_sync_enabled"), isOn: $backgroundSyncEnabled)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L("sync_settings_background_sync_hint"))
-                        .amgiFont(.caption)
-                        .foregroundStyle(SettingsValueStyle.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.vertical, 4)
-
-                NavigationLink {
-                    SettingsInfoView(
-                        title: L("sync_settings_background_refresh_info_title"),
-                        message: L("sync_settings_background_refresh_info_message"),
-                        showsResetCurrentUserButton: false
-                    )
-                } label: {
-                    HStack(alignment: .center, spacing: AmgiSpacing.md) {
-                        Text(L("sync_settings_background_refresh_info_title"))
-                            .foregroundStyle(SettingsValueStyle.primary)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(AmgiFont.caption.font)
-                            .foregroundStyle(SettingsValueStyle.tertiary)
-                    }
-                    .amgiListRowTapTarget()
-                }
-                .buttonStyle(.plain)
-
-                HStack(alignment: .top, spacing: AmgiSpacing.md) {
-                    Text(L("sync_settings_timeout"))
-                        .foregroundStyle(SettingsValueStyle.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Menu {
-                        Picker(L("sync_settings_timeout"), selection: timeoutBinding) {
-                            ForEach(SyncPreferences.Timeout.allCases) { option in
-                                Text(L("sync_settings_timeout_seconds", option.rawValue))
-                                    .foregroundStyle(SettingsValueStyle.highlight)
-                                    .tag(option)
-                            }
-                        }
-                    } label: {
-                        SettingsOptionCapsuleLabel(title: timeoutLabel)
-                    }
-                }
+    private var serverSettingsSection: some View {
+        Section(L("sync_settings_section_server")) {
+            HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                Text(L("sync_settings_server_type"))
+                    .foregroundStyle(SettingsValueStyle.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                serverTypeMenu
             }
-            .amgiSettingsListRowSurface()
+
+            if syncMode == .official {
+                ankiWebSupportNoticeRow()
+            } else {
+                infoRow(title: L("sync_settings_server_type"), value: serverTypeLabel)
+            }
+            infoRow(title: L("sync_settings_current_server"), value: currentServerValue)
+            infoRow(title: L("sync_settings_account"), value: currentAccountValue)
+
+            if syncMode == .custom {
+                Button(L("sync_settings_change_server")) {
+                    showServerSetup = true
+                }
+                .foregroundStyle(SettingsValueStyle.highlight)
+            }
 
             if syncMode != .local {
-                Section {
-                    Button {
-                        showSyncSheet = true
-                    } label: {
-                        HStack {
-                            Label(L("sync_settings_sync_now"), systemImage: "arrow.triangle.2.circlepath")
-                                .foregroundStyle(SettingsValueStyle.primary)
-                            Spacer()
-                        }
-                        .amgiListRowTapTarget()
+                if KeychainHelper.loadHostKey() == nil {
+                    Button(L("login_btn_sign_in")) {
+                        showLogin = true
                     }
-                    .buttonStyle(.plain)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(L("sync_settings_sync_now_hint"))
-                            .amgiFont(.caption)
-                            .foregroundStyle(SettingsValueStyle.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .fixedSize(horizontal: false, vertical: true)
+                    .foregroundStyle(SettingsValueStyle.highlight)
+                } else {
+                    Button(L("sync_menu_logout"), role: .destructive) {
+                        showLogoutConfirm = true
                     }
-                    .padding(.vertical, 4)
                 }
-                .amgiSettingsListRowSurface()
+            }
+        }
+        .amgiSettingsListRowSurface()
+    }
+
+    private var syncOptionsSection: some View {
+        Section(L("sync_settings_section_options")) {
+            Toggle(L("sync_settings_sync_media"), isOn: $syncMediaEnabled)
+
+            Toggle(L("sync_settings_background_sync_enabled"), isOn: $backgroundSyncEnabled)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L("sync_settings_background_sync_hint"))
+                    .amgiFont(.caption)
+                    .foregroundStyle(SettingsValueStyle.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 4)
+
+            NavigationLink {
+                SettingsInfoView(
+                    title: L("sync_settings_background_refresh_info_title"),
+                    message: L("sync_settings_background_refresh_info_message"),
+                    showsResetCurrentUserButton: false
+                )
+            } label: {
+                HStack(alignment: .center, spacing: AmgiSpacing.md) {
+                    Text(L("sync_settings_background_refresh_info_title"))
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(AmgiFont.caption.font)
+                        .foregroundStyle(SettingsValueStyle.tertiary)
+                }
+                .amgiListRowTapTarget()
+            }
+            .buttonStyle(.plain)
+
+            HStack(alignment: .top, spacing: AmgiSpacing.md) {
+                Text(L("sync_settings_timeout"))
+                    .foregroundStyle(SettingsValueStyle.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                timeoutMenu
+            }
+        }
+        .amgiSettingsListRowSurface()
+    }
+
+    private var syncNowSection: some View {
+        Section {
+            Button {
+                showSyncSheet = true
+            } label: {
+                HStack {
+                    Label(L("sync_settings_sync_now"), systemImage: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(SettingsValueStyle.primary)
+                    Spacer()
+                }
+                .amgiListRowTapTarget()
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L("sync_settings_sync_now_hint"))
+                    .amgiFont(.caption)
+                    .foregroundStyle(SettingsValueStyle.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 4)
+        }
+        .amgiSettingsListRowSurface()
+    }
+
+    var body: some View {
+        List {
+            serverSettingsSection
+            syncOptionsSection
+
+            if syncMode != .local {
+                syncNowSection
             }
         }
         .scrollContentBackground(.hidden)
@@ -2061,6 +2066,20 @@ private struct SyncSettingsView: View {
             syncModeBinding.wrappedValue = mode
         } label: {
             if syncMode == mode {
+                Label(title, systemImage: "checkmark")
+            } else {
+                Text(title)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func timeoutMenuButton(_ option: SyncPreferences.Timeout) -> some View {
+        Button {
+            ioTimeoutSecs = option.rawValue
+        } label: {
+            let title = L("sync_settings_timeout_seconds", option.rawValue)
+            if timeout == option {
                 Label(title, systemImage: "checkmark")
             } else {
                 Text(title)
