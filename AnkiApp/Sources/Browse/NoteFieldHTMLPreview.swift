@@ -3,7 +3,7 @@ import WebKit
 
 struct NoteFieldHTMLPreview: View {
     @Environment(\.colorScheme) private var colorScheme
-    @State private var measuredHeight: CGFloat = 180
+    @State private var measuredHeight: CGFloat = 44
 
     let html: String
 
@@ -117,7 +117,7 @@ private struct NoteFieldHTMLPreviewWebView: UIViewRepresentable {
                 "Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)"
             ) { (result: Any?, _: Error?) in
                 guard let value = result as? NSNumber else { return }
-                let nextHeight = max(CGFloat(180), CGFloat(ceil(value.doubleValue)))
+                let nextHeight = max(CGFloat(44), CGFloat(ceil(value.doubleValue)))
                 guard abs(self.measuredHeight.wrappedValue - nextHeight) > 0.5 else { return }
                 self.measuredHeight.wrappedValue = nextHeight
             }

@@ -616,8 +616,6 @@
 "sync_settings_sync_media" = "同步音频和图片";
 "sync_settings_background_sync_enabled" = "允许后台同步检查与同步";
 "sync_settings_background_sync_hint" = "开启后，Amgi 可在未打开 app 时为当前账号检查同步状态，并尝试后台同步。实际是否执行仍取决于 iOS 的“后台 App 刷新”、网络、电量和系统调度。";
-"sync_settings_background_refresh_info_title" = "关于 iOS 后台 App 刷新";
-"sync_settings_background_refresh_info_message" = "若要允许后台同步，需要同时开启这里的开关和 iOS 的“后台 App 刷新”。可在“设置 > 通用 > 后台 App 刷新”中检查系统设置。即使都已开启，iOS 仍会根据网络、电量、低电量模式和系统调度决定何时运行后台任务，因此后台同步也不保证会立刻执行。";
 "sync_settings_sync_now" = "立即同步";
 "sync_settings_sync_now_hint" = "首次登录后，媒体同步通常不会立即完成。请保持 App 打开，并耐心等待同步完成。";
 "sync_settings_timeout" = "网络超时";

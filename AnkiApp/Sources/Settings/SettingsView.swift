@@ -1922,25 +1922,6 @@ private struct SyncSettingsView: View {
             }
             .padding(.vertical, 4)
 
-            NavigationLink {
-                SettingsInfoView(
-                    title: L("sync_settings_background_refresh_info_title"),
-                    message: L("sync_settings_background_refresh_info_message"),
-                    showsResetCurrentUserButton: false
-                )
-            } label: {
-                HStack(alignment: .center, spacing: AmgiSpacing.md) {
-                    Text(L("sync_settings_background_refresh_info_title"))
-                        .foregroundStyle(SettingsValueStyle.primary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(AmgiFont.caption.font)
-                        .foregroundStyle(SettingsValueStyle.tertiary)
-                }
-                .amgiListRowTapTarget()
-            }
-            .buttonStyle(.plain)
-
             HStack(alignment: .top, spacing: AmgiSpacing.md) {
                 Text(L("sync_settings_timeout"))
                     .foregroundStyle(SettingsValueStyle.primary)

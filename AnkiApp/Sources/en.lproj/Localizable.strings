@@ -616,8 +616,6 @@
 "sync_settings_sync_media" = "Sync audio and images";
 "sync_settings_background_sync_enabled" = "Allow background sync checks and sync";
 "sync_settings_background_sync_hint" = "When enabled, Amgi may check sync status and attempt background sync for the current account while the app is not open. Actual execution still depends on iOS Background App Refresh, network, power, and system scheduling.";
-"sync_settings_background_refresh_info_title" = "About iOS Background App Refresh";
-"sync_settings_background_refresh_info_message" = "To allow background sync, both this switch and iOS Background App Refresh must be enabled. You can check the system setting in Settings > General > Background App Refresh. Even when enabled, iOS decides when background tasks run based on network, power, Low Power Mode, and system scheduling, so background sync is not guaranteed to happen immediately.";
 "sync_settings_sync_now" = "Sync Now";
 "sync_settings_sync_now_hint" = "After signing in for the first time, media sync may take a while to finish. Keep the app open and wait for sync to complete.";
 "sync_settings_timeout" = "Network Timeout";

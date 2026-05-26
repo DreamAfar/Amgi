@@ -1460,6 +1460,7 @@ private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: 
 struct ReviewSelectionAISheetView: View {
     @Dependency(\.ankiBackend) private var backend
     @Binding var state: ReviewSelectionAIState
+    @State private var resultContentHeight: CGFloat = 0
     let presets: [ReviewSelectionAIPreset]
     let quickActions: [ReviewAIQuickAction]
     let isFavorited: Bool
@@ -1494,6 +1495,18 @@ struct ReviewSelectionAISheetView: View {
 
     private var resultPanelMinimumHeight: CGFloat {
         min(220, resultPanelMaximumHeight)
+    }
+
+    private var resultPanelMeasuredHeight: CGFloat {
+        resultContentHeight + 24
+    }
+
+    private var resultPanelHeight: CGFloat {
+        min(max(resultPanelMeasuredHeight, resultPanelMinimumHeight), resultPanelMaximumHeight)
+    }
+
+    private var resultPanelNeedsScroll: Bool {
+        resultPanelMeasuredHeight > resultPanelMaximumHeight
     }
 
     var body: some View {
@@ -1550,22 +1563,36 @@ struct ReviewSelectionAISheetView: View {
 
     private var presetPickerRow: some View {
         HStack(spacing: AmgiSpacing.sm) {
-            Picker(
-                selection: $state.activePresetID,
-                content: {
-                    ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
-                        Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
-                            .foregroundStyle(SettingsValueStyle.highlight)
-                            .tag(preset.id)
+            Menu {
+                ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
+                    let title = preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1)
+                    Button {
+                        state.activePresetID = preset.id
+                    } label: {
+                        if preset.id == state.activePresetID {
+                            Label(title, systemImage: "checkmark")
+                        } else {
+                            Text(title)
+                        }
                     }
-                },
-                label: {
-                    Label(selectedPresetTitle, systemImage: "sparkles")
-                        .lineLimit(1)
-                        .labelStyle(.titleAndIcon)
                 }
-            )
-            .pickerStyle(.menu)
+            } label: {
+                HStack(spacing: AmgiSpacing.xs) {
+                    Image(systemName: "sparkles")
+                        .font(AmgiFont.micro.font)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                    Text(selectedPresetTitle)
+                        .amgiFont(.body)
+                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(AmgiFont.micro.font)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                }
+                .amgiCapsuleControl(backgroundColor: Color.amgiMenuSurface)
+            }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
@@ -1612,19 +1639,42 @@ struct ReviewSelectionAISheetView: View {
                 .disabled(canCopyResponse == false)
             }
 
-            ScrollView(.vertical, showsIndicators: true) {
-                resultContent
-            }
+            resultPanelContent
             .padding(12)
             .frame(
                 maxWidth: .infinity,
-                minHeight: resultPanelMinimumHeight,
-                maxHeight: resultPanelMaximumHeight,
+                minHeight: resultPanelHeight,
+                maxHeight: resultPanelHeight,
                 alignment: .topLeading
             )
             .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var resultPanelContent: some View {
+        if resultPanelNeedsScroll {
+            ScrollView(.vertical, showsIndicators: true) {
+                measuredResultContent
+            }
+        } else {
+            measuredResultContent
+        }
+    }
+
+    private var measuredResultContent: some View {
+        resultContent
+            .background {
+                GeometryReader { geometry in
+                    Color.clear
+                        .preference(key: ReviewSelectionAIResultHeightPreferenceKey.self, value: geometry.size.height)
+                }
+            }
+            .onPreferenceChange(ReviewSelectionAIResultHeightPreferenceKey.self) { newHeight in
+                guard abs(resultContentHeight - newHeight) > 0.5 else { return }
+                resultContentHeight = newHeight
+            }
     }
 
     @ViewBuilder
@@ -1737,5 +1787,13 @@ extension String {
     var trimmedOrNil: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+private struct ReviewSelectionAIResultHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
