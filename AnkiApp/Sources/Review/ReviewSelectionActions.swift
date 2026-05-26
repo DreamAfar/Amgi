@@ -1460,7 +1460,6 @@ private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: 
 struct ReviewSelectionAISheetView: View {
     @Dependency(\.ankiBackend) private var backend
     @Binding var state: ReviewSelectionAIState
-    @State private var resultContentHeight: CGFloat = 0
     let presets: [ReviewSelectionAIPreset]
     let quickActions: [ReviewAIQuickAction]
     let isFavorited: Bool
@@ -1493,24 +1492,8 @@ struct ReviewSelectionAISheetView: View {
         min(max(UIScreen.main.bounds.height * 0.46, 280), 420)
     }
 
-    private var presetPickerMaximumWidth: CGFloat {
-        min(UIScreen.main.bounds.width * 0.68, 320)
-    }
-
     private var resultPanelMinimumHeight: CGFloat {
         min(220, resultPanelMaximumHeight)
-    }
-
-    private var resultPanelMeasuredHeight: CGFloat {
-        resultContentHeight + 24
-    }
-
-    private var resultPanelHeight: CGFloat {
-        min(max(resultPanelMeasuredHeight, resultPanelMinimumHeight), resultPanelMaximumHeight)
-    }
-
-    private var resultPanelNeedsScroll: Bool {
-        resultPanelMeasuredHeight > resultPanelMaximumHeight
     }
 
     var body: some View {
@@ -1567,39 +1550,23 @@ struct ReviewSelectionAISheetView: View {
 
     private var presetPickerRow: some View {
         HStack(spacing: AmgiSpacing.sm) {
-            Menu {
-                ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
-                    let title = preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1)
-                    Button {
-                        state.activePresetID = preset.id
-                    } label: {
-                        if preset.id == state.activePresetID {
-                            Label(title, systemImage: "checkmark")
-                        } else {
-                            Text(title)
-                        }
+            Picker(
+                selection: $state.activePresetID,
+                content: {
+                    ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
+                        Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
+                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .tag(preset.id)
                     }
-                }
-            } label: {
-                HStack(spacing: AmgiSpacing.xs) {
-                    Image(systemName: "sparkles")
-                        .font(AmgiFont.micro.font)
-                        .foregroundStyle(SettingsValueStyle.secondary)
-                    Text(selectedPresetTitle)
-                        .amgiFont(.body)
-                        .foregroundStyle(SettingsValueStyle.highlight)
+                },
+                label: {
+                    Label(selectedPresetTitle, systemImage: "sparkles")
                         .lineLimit(1)
-                        .truncationMode(.tail)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(AmgiFont.micro.font)
-                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .labelStyle(.titleAndIcon)
                 }
-                .amgiCapsuleControl(backgroundColor: Color.amgiMenuSurface)
-            }
-            .frame(maxWidth: presetPickerMaximumWidth, alignment: .leading)
-            .layoutPriority(1)
-
-            Spacer(minLength: 0)
+            )
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
                 onSubmit(nil)
@@ -1645,40 +1612,21 @@ struct ReviewSelectionAISheetView: View {
                 .disabled(canCopyResponse == false)
             }
 
-            resultPanelContent
+            ScrollView(.vertical) {
+                resultContent
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollIndicators(.automatic)
             .padding(12)
             .frame(
                 maxWidth: .infinity,
-                minHeight: resultPanelHeight,
-                maxHeight: resultPanelHeight,
+                minHeight: resultPanelMinimumHeight,
+                maxHeight: resultPanelMaximumHeight,
                 alignment: .topLeading
             )
             .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var resultPanelContent: some View {
-        ScrollView(.vertical, showsIndicators: resultPanelNeedsScroll) {
-            measuredResultContent
-        }
-        .scrollDisabled(resultPanelNeedsScroll == false)
-    }
-
-    private var measuredResultContent: some View {
-        resultContent
-            .fixedSize(horizontal: false, vertical: true)
-            .background {
-                GeometryReader { geometry in
-                    Color.clear
-                        .preference(key: ReviewSelectionAIResultHeightPreferenceKey.self, value: geometry.size.height)
-                }
-            }
-            .onPreferenceChange(ReviewSelectionAIResultHeightPreferenceKey.self) { newHeight in
-                guard abs(resultContentHeight - newHeight) > 0.5 else { return }
-                resultContentHeight = newHeight
-            }
     }
 
     @ViewBuilder
@@ -1791,13 +1739,5 @@ extension String {
     var trimmedOrNil: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
-    }
-}
-
-private struct ReviewSelectionAIResultHeightPreferenceKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
