@@ -243,12 +243,53 @@ private func fullSyncRequirement(from response: Anki_Sync_SyncCollectionResponse
     }
 }
 
+private func syncStatusRequirement(from required: Anki_Sync_SyncStatusResponse.Required) -> SyncStatusRequirement {
+    switch required {
+    case .noChanges:
+        return .noChanges
+    case .normalSync:
+        return .normalSync
+    case .fullSync:
+        return .fullSync
+    case .UNRECOGNIZED:
+        return .noChanges
+    }
+}
+
 extension SyncClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
         let syncBackend = backend
 
         return Self(
+            syncStatus: {
+                let hostKey = KeychainHelper.loadHostKey() ?? ""
+                guard !hostKey.isEmpty else { throw SyncError.authFailed }
+
+                var auth = configuredSyncAuth(hostKey: hostKey)
+
+                do {
+                    let response: Anki_Sync_SyncStatusResponse = try syncBackend.invoke(
+                        service: AnkiBackend.Service.sync,
+                        method: AnkiBackend.SyncMethod.syncStatus,
+                        request: auth
+                    )
+
+                    if response.hasNewEndpoint, !response.newEndpoint.isEmpty {
+                        auth.endpoint = response.newEndpoint
+                        try? KeychainHelper.saveCurrentEndpoint(response.newEndpoint)
+                    }
+
+                    let endpoint = auth.hasEndpoint ? auth.endpoint : nil
+                    return SyncStatus(
+                        requirement: syncStatusRequirement(from: response.required),
+                        endpoint: endpoint
+                    )
+                } catch let error as BackendError {
+                    if error.isSyncAuthError { throw SyncError.authFailed }
+                    throw SyncError(message: error.message)
+                }
+            },
             sync: {
                 let hostKey = KeychainHelper.loadHostKey() ?? ""
                 guard !hostKey.isEmpty else { throw SyncError.authFailed }

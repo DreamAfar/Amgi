@@ -69,6 +69,10 @@ struct ContentView: View {
     @State private var userSwitchError: String?
     @State private var showUserSwitchError = false
     @State private var showSyncBadge = false
+    @State private var pendingSyncAlert: AppPendingSyncAlert?
+    @State private var showPendingSyncAlert = false
+    @State private var isAutomaticSyncCheckRunning = false
+    @State private var lastAutomaticSyncCheckAt = Date.distantPast
     @State private var exportDecks: [DeckInfo] = []
     @State private var exportDraft = ExportPackageDraft()
     @State private var importDraft = ImportPackageDraft()
@@ -227,15 +231,19 @@ struct ContentView: View {
             .task {
                 reloadReaderTabPreference()
                 updateSyncBadge()
+                consumePendingSyncAlertIfNeeded()
                 if collectionState.isReady {
                     consumePendingIncomingImportURLIfNeeded()
                     runCheckDatabaseIfReady()
+                    runAutomaticSyncCheckIfReady()
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
                 updateSyncBadge()
+                consumePendingSyncAlertIfNeeded()
                 consumePendingIncomingImportURLIfNeeded()
                 runCheckDatabaseIfReady()
+                runAutomaticSyncCheckIfReady()
             }
             .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didResetNotification)) { _ in
                 Task { await reopenCurrentCollectionAfterReset() }
@@ -255,11 +263,16 @@ struct ContentView: View {
             .onReceive(syncCoordinator.$state) { _ in
                 updateSyncBadge()
             }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                consumePendingSyncAlertIfNeeded()
+            }
             .onChange(of: collectionState.isReady) { _, isReady in
                 guard isReady else { return }
                 consumePendingIncomingImportURLIfNeeded()
                 runCheckDatabaseIfReady()
                 updateSyncBadge()
+                consumePendingSyncAlertIfNeeded()
+                runAutomaticSyncCheckIfReady()
             }
             .onChange(of: isReaderTabEnabled) { _, isEnabled in
                 if !isEnabled, selectedTab == .reader {
@@ -348,6 +361,18 @@ struct ContentView: View {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {
                 Text(userSwitchError ?? L("common_unknown_error"))
+            }
+            .alert(
+                L("sync_background_alert_title"),
+                isPresented: $showPendingSyncAlert,
+                presenting: pendingSyncAlert
+            ) { _ in
+                Button(L("common_cancel"), role: .cancel) {}
+                Button(L("sync_background_alert_open")) {
+                    showSync = true
+                }
+            } message: { alert in
+                Text(syncAlertMessage(for: alert))
             }
     }
 
@@ -483,6 +508,12 @@ struct ContentView: View {
             showSyncBadge = false
             return
         }
+
+        if pendingSyncAlert != nil {
+            showSyncBadge = true
+            return
+        }
+
         let key = SyncPreferences.Keys.lastCollectionSyncedAtForCurrentUser()
         let ts = UserDefaults.standard.double(forKey: key)
         if ts == 0 {
@@ -512,6 +543,71 @@ struct ContentView: View {
         }
     }
 
+    private func consumePendingSyncAlertIfNeeded() {
+        guard let alert = AppBackgroundSyncManager.consumePendingAlert() else {
+            return
+        }
+
+        pendingSyncAlert = alert
+        showPendingSyncAlert = true
+        showSyncBadge = true
+    }
+
+    private func runAutomaticSyncCheckIfReady() {
+        guard collectionState.isReady else { return }
+        guard KeychainHelper.loadHostKey() != nil else { return }
+        guard isAutomaticSyncCheckRunning == false else { return }
+
+        let now = Date()
+        guard now.timeIntervalSince(lastAutomaticSyncCheckAt) > 5 else { return }
+        lastAutomaticSyncCheckAt = now
+        isAutomaticSyncCheckRunning = true
+
+        Task {
+            defer {
+                Task { @MainActor in
+                    isAutomaticSyncCheckRunning = false
+                }
+            }
+
+            do {
+                let status = try await syncClient.syncStatus()
+                await MainActor.run {
+                    if let alert = AppBackgroundSyncManager.automaticForegroundAlert(for: status) {
+                        pendingSyncAlert = alert
+                        showPendingSyncAlert = true
+                        showSyncBadge = true
+                    } else if status.hasChanges {
+                        showSyncBadge = true
+                    } else {
+                        updateSyncBadge()
+                    }
+                }
+            } catch {
+                backgroundSyncLogger.debug("Foreground sync status check failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func syncAlertMessage(for alert: AppPendingSyncAlert) -> String {
+        let body: String
+        switch alert.kind {
+        case .fullSyncRequired:
+            body = L("sync_background_alert_full_sync")
+        case .fullDownloadRequired:
+            body = L("sync_background_alert_full_download")
+        case .fullUploadRequired:
+            body = L("sync_background_alert_full_upload")
+        case .conflict:
+            body = L("sync_background_alert_conflict")
+        }
+
+        guard let serverMessage = alert.serverMessage?.nilIfBlank else {
+            return body
+        }
+        return body + "\n\n" + serverMessage
+    }
+
     private func createDeck() async {
         guard collectionState.isReady else { return }
         let name = newDeckName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -536,7 +632,7 @@ struct ContentView: View {
 
         do {
             collectionState.markOpening()
-            try reopenCollection(for: user)
+            try await reopenCollection(for: user)
 
             selectedUser = user
             AppUserStore.setSelectedUser(user)
@@ -554,7 +650,7 @@ struct ContentView: View {
     private func reopenCurrentCollectionAfterReset() async {
         do {
             collectionState.markOpening()
-            try reopenCollection(for: selectedUser)
+            try await reopenCollection(for: selectedUser)
             refreshID = UUID()
             collectionState.markReady()
         } catch {
@@ -564,23 +660,10 @@ struct ContentView: View {
         }
     }
 
-    private func reopenCollection(for user: String) throws {
-        let urls = AppUserStore.collectionURLs(for: user)
-        try? backend.closeCollection()
-
-        try FileManager.default.createDirectory(
-            at: urls.directory,
-            withIntermediateDirectories: true
-        )
-        try FileManager.default.createDirectory(
-            at: urls.mediaDirectory,
-            withIntermediateDirectories: true
-        )
-
-        try backend.openCollection(
-            collectionPath: urls.collection.path,
-            mediaFolderPath: urls.mediaDirectory.path,
-            mediaDbPath: urls.mediaDB.path
+    private func reopenCollection(for user: String) async throws {
+        _ = try await AppBackendRuntime.shared.reopenCollection(
+            preferredLangs: AppCollectionBootstrap.preferredBackendLangsFromDefaults(),
+            username: user
         )
 
         NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)

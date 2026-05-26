@@ -77,6 +77,30 @@ public struct MediaSyncSummary: Sendable, Equatable {
     }
 }
 
+public enum SyncStatusRequirement: Sendable, Equatable {
+    case noChanges
+    case normalSync
+    case fullSync
+}
+
+public struct SyncStatus: Sendable, Equatable {
+    public var requirement: SyncStatusRequirement
+    public var endpoint: String?
+
+    public init(requirement: SyncStatusRequirement, endpoint: String? = nil) {
+        self.requirement = requirement
+        self.endpoint = endpoint
+    }
+
+    public var hasChanges: Bool {
+        requirement != .noChanges
+    }
+
+    public var requiresFullSync: Bool {
+        requirement == .fullSync
+    }
+}
+
 /// Events emitted by SyncClient.syncWithProgress() as sync progresses through stages.
 public enum SyncProgressEvent: Sendable {
     case connecting

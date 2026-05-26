@@ -1774,6 +1774,7 @@ private struct ReaderOptionsView: View {
 private struct SyncSettingsView: View {
     @AppStorage(SyncPreferences.Keys.modeForCurrentUser()) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
     @AppStorage(SyncPreferences.Keys.syncMediaForCurrentUser()) private var syncMediaEnabled = true
+    @AppStorage(SyncPreferences.Keys.backgroundSyncEnabledForCurrentUser()) private var backgroundSyncEnabled = true
     @AppStorage(SyncPreferences.Keys.ioTimeoutSecsForCurrentUser()) private var ioTimeoutSecs = SyncPreferences.Timeout.defaultValue
 
     @State private var showServerSetup = false
@@ -1903,6 +1904,36 @@ private struct SyncSettingsView: View {
             Section(L("sync_settings_section_options")) {
                 Toggle(L("sync_settings_sync_media"), isOn: $syncMediaEnabled)
 
+                Toggle(L("sync_settings_background_sync_enabled"), isOn: $backgroundSyncEnabled)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("sync_settings_background_sync_hint"))
+                        .amgiFont(.caption)
+                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 4)
+
+                NavigationLink {
+                    SettingsInfoView(
+                        title: L("sync_settings_background_refresh_info_title"),
+                        message: L("sync_settings_background_refresh_info_message"),
+                        showsResetCurrentUserButton: false
+                    )
+                } label: {
+                    HStack(alignment: .center, spacing: AmgiSpacing.md) {
+                        Text(L("sync_settings_background_refresh_info_title"))
+                            .foregroundStyle(SettingsValueStyle.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(AmgiFont.caption.font)
+                            .foregroundStyle(SettingsValueStyle.tertiary)
+                    }
+                    .amgiListRowTapTarget()
+                }
+                .buttonStyle(.plain)
+
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("sync_settings_timeout"))
                         .foregroundStyle(SettingsValueStyle.primary)
@@ -1965,6 +1996,9 @@ private struct SyncSettingsView: View {
             SyncSheet(isPresented: $showSyncSheet)
                 .presentationDetents([.fraction(0.75), .large])
                 .presentationDragIndicator(.visible)
+        }
+        .onChange(of: backgroundSyncEnabled) { _, _ in
+            AppBackgroundSyncManager.scheduleBackgroundTasks()
         }
         .alert(L("settings_row_sync"), isPresented: $showSyncAlert) {
             Button(L("common_ok"), role: .cancel) {}

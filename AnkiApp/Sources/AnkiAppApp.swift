@@ -1,4 +1,5 @@
 import SwiftUI
+import BackgroundTasks
 import AnkiBackend
 import AnkiClients
 import AnkiReader
@@ -13,6 +14,7 @@ import UserNotifications
 
 @main
 struct AnkiAppApp: App {
+    @UIApplicationDelegateAdaptor(AppBackgroundSyncAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var onboardingCompleted = UserDefaults.standard.bool(forKey: "onboardingCompleted")
     @State private var startupPhase: StartupPhase = .loading
@@ -87,6 +89,7 @@ struct AnkiAppApp: App {
                     await syncDailyReminderIfNeeded()
                     await runAutomaticBackupIfNeeded()
                 }
+                AppBackgroundSyncManager.scheduleBackgroundTasks()
             }
             .onReceive(periodicBackupTimer) { _ in
                 Task { await runAutomaticBackupIfNeeded() }
@@ -95,8 +98,10 @@ struct AnkiAppApp: App {
                 switch newPhase {
                 case .active:
                     Task { await runAutomaticBackupIfNeeded() }
+                    AppBackgroundSyncManager.scheduleBackgroundTasks()
                 case .background:
                     Task { await syncDailyReminderIfNeeded() }
+                    AppBackgroundSyncManager.scheduleBackgroundTasks()
                 default:
                     break
                 }
@@ -148,12 +153,11 @@ struct AnkiAppApp: App {
         do {
             UNUserNotificationCenter.current().delegate = ReviewDailyReminderNotificationDelegate.shared
             let selectedUser = AppUserStore.loadSelectedUser()
-            let urls = AppUserStore.collectionURLs(for: selectedUser)
             let preferredBackendLangs = self.preferredBackendLangs
 
-            let backend = try await Task.detached(priority: .userInitiated) {
-                try AnkiBackend(preferredLangs: preferredBackendLangs)
-            }.value
+            let backend = try await AppBackendRuntime.shared.prepareBackend(
+                preferredLangs: preferredBackendLangs
+            )
 
             prepareDependencies {
                 $0.ankiBackend = backend
@@ -165,7 +169,10 @@ struct AnkiAppApp: App {
                 startupPhase = .ready
                 Task.detached(priority: .userInitiated) {
                     do {
-                        try Self.openCollection(using: backend, urls: urls)
+                        _ = try await AppBackendRuntime.shared.ensureCollectionOpen(
+                            preferredLangs: preferredBackendLangs,
+                            username: selectedUser
+                        )
                         await MainActor.run {
                             AppCollectionState.shared.markReady()
                             NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
@@ -180,9 +187,10 @@ struct AnkiAppApp: App {
                     }
                 }
             } else {
-                try await Task.detached(priority: .userInitiated) {
-                    try Self.openCollection(using: backend, urls: urls)
-                }.value
+                _ = try await AppBackendRuntime.shared.ensureCollectionOpen(
+                    preferredLangs: preferredBackendLangs,
+                    username: selectedUser
+                )
                 collectionState.markReady()
                 startupPhase = .ready
                 NotificationCenter.default.post(name: AppCollectionEvents.didOpenNotification, object: nil)
@@ -205,29 +213,6 @@ struct AnkiAppApp: App {
             backend: backend,
             username: AppUserStore.loadSelectedUser()
         )
-    }
-
-    private nonisolated static func openCollection(
-        using backend: AnkiBackend,
-        urls: (directory: URL, collection: URL, mediaDirectory: URL, mediaDB: URL)
-    ) throws {
-        try FileManager.default.createDirectory(
-            at: urls.directory,
-            withIntermediateDirectories: true
-        )
-        try FileManager.default.createDirectory(
-            at: urls.mediaDirectory,
-            withIntermediateDirectories: true
-        )
-
-        try backend.openCollection(
-            collectionPath: urls.collection.path,
-            mediaFolderPath: urls.mediaDirectory.path,
-            mediaDbPath: urls.mediaDB.path
-        )
-
-        ReaderProgressStore.migrateLegacyMediaIfNeeded()
-        try? DictionaryLookupConfigMigration.migrateLegacyMirroredConfigIfNeeded(backend: backend)
     }
 }
 

@@ -605,6 +605,10 @@
 "sync_settings_not_logged_in" = "未サインイン";
 "sync_settings_change_server" = "サーバーを変更";
 "sync_settings_sync_media" = "音声と画像を同期";
+"sync_settings_background_sync_enabled" = "バックグラウンドで同期確認と同期を許可";
+"sync_settings_background_sync_hint" = "有効にすると、Amgi はアプリを開いていない間も現在のアカウントの同期状態を確認し、バックグラウンド同期を試行できます。実際に実行されるかどうかは、iOS の「App のバックグラウンド更新」、ネットワーク、電源状態、システムのスケジューリングに依存します。";
+"sync_settings_background_refresh_info_title" = "iOS の App のバックグラウンド更新について";
+"sync_settings_background_refresh_info_message" = "バックグラウンド同期を許可するには、このスイッチと iOS の「App のバックグラウンド更新」の両方を有効にする必要があります。システム設定は「設定 > 一般 > App のバックグラウンド更新」で確認できます。有効になっていても、iOS はネットワーク、電源状態、低電力モード、システムのスケジューリングに基づいて実行タイミングを決めるため、バックグラウンド同期がすぐ実行されるとは限りません。";
 "sync_settings_sync_now" = "今すぐ同期";
 "sync_settings_sync_now_hint" = "初回ログイン後は、メディア同期の完了まで時間がかかる場合があります。アプリを閉じず、そのまま同期が完了するまでお待ちください。";
 "sync_settings_timeout" = "ネットワークタイムアウト";
@@ -637,6 +641,12 @@
 "sync_log_notes_removed" = "\u2193 %d 件のノートが削除されました";
 "sync_log_notes_stats_both" = "\u2191 %d 件追加、\u2193 %d 件削除";
 "sync_log_no_note_changes" = "ノートの変更なし";
+"sync_background_alert_title" = "同期の確認が必要です";
+"sync_background_alert_open" = "同期を開く";
+"sync_background_alert_full_sync" = "自動同期は停止しました。続行するには全量同期の方法を手動で選ぶ必要があります。";
+"sync_background_alert_full_download" = "自動同期は停止しました。続行するには先に全量ダウンロードが必要です。";
+"sync_background_alert_full_upload" = "自動同期は停止しました。続行するには先に全量アップロードが必要です。";
+"sync_background_alert_conflict" = "自動同期は停止しました。ローカルとサーバーのコレクションが競合しているため、手動確認が必要です。";
 
 // MARK: - SyncSheet server setup
 "sync_setup_title" = "同期を設定";

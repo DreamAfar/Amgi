@@ -448,6 +448,7 @@ enum SyncPreferences {
     enum Keys {
         static let modeBase = "syncMode"
         static let syncMediaBase = "sync_pref_sync_media"
+        static let backgroundSyncEnabledBase = "sync_pref_background_sync_enabled"
         static let ioTimeoutSecsBase = "sync_pref_io_timeout_secs"
         static let mediaLastLogBase = "sync_pref_media_last_log"
         static let mediaLastSyncedAtBase = "sync_pref_media_last_synced_at"
@@ -460,6 +461,10 @@ enum SyncPreferences {
 
         static func syncMediaForCurrentUser() -> String {
             scoped(syncMediaBase)
+        }
+
+        static func backgroundSyncEnabledForCurrentUser() -> String {
+            scoped(backgroundSyncEnabledBase)
         }
 
         static func ioTimeoutSecsForCurrentUser() -> String {

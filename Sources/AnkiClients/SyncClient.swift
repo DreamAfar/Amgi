@@ -5,6 +5,7 @@ public import Foundation
 
 @DependencyClient
 public struct SyncClient: Sendable {
+    public var syncStatus: @Sendable () async throws -> SyncStatus
     public var sync: @Sendable () async throws -> SyncSummary
     /// Streams sync progress events; final event is `.completed(SyncSummary)`.
     public var syncWithProgress: @Sendable () -> AsyncThrowingStream<SyncProgressEvent, any Error> = {

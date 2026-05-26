@@ -605,6 +605,10 @@
 "sync_settings_not_logged_in" = "未登录";
 "sync_settings_change_server" = "更改服务器";
 "sync_settings_sync_media" = "同步音频和图片";
+"sync_settings_background_sync_enabled" = "允许后台同步检查与同步";
+"sync_settings_background_sync_hint" = "开启后，Amgi 可在未打开 app 时为当前账号检查同步状态，并尝试后台同步。实际是否执行仍取决于 iOS 的“后台 App 刷新”、网络、电量和系统调度。";
+"sync_settings_background_refresh_info_title" = "关于 iOS 后台 App 刷新";
+"sync_settings_background_refresh_info_message" = "若要允许后台同步，需要同时开启这里的开关和 iOS 的“后台 App 刷新”。可在“设置 > 通用 > 后台 App 刷新”中检查系统设置。即使都已开启，iOS 仍会根据网络、电量、低电量模式和系统调度决定何时运行后台任务，因此后台同步也不保证会立刻执行。";
 "sync_settings_sync_now" = "立即同步";
 "sync_settings_sync_now_hint" = "首次登录后，媒体同步通常不会立即完成。请保持 App 打开，并耐心等待同步完成。";
 "sync_settings_timeout" = "网络超时";
@@ -637,6 +641,12 @@
 "sync_log_notes_removed" = "\u2193 已删除 %d 条笔记";
 "sync_log_notes_stats_both" = "\u2191 已添加 %d 条，\u2193 已删除 %d 条";
 "sync_log_no_note_changes" = "笔记无变动";
+"sync_background_alert_title" = "同步需要处理";
+"sync_background_alert_open" = "打开同步";
+"sync_background_alert_full_sync" = "自动同步已停止，当前卡牌集需要你手动确认全量同步方式。";
+"sync_background_alert_full_download" = "自动同步已停止，继续同步前需要先执行一次全量下载。";
+"sync_background_alert_full_upload" = "自动同步已停止，继续同步前需要先执行一次全量上传。";
+"sync_background_alert_conflict" = "自动同步已停止，本地与服务器的卡牌集发生冲突，需要你手动确认。";
 
 // MARK: - SyncSheet server setup
 "sync_setup_title" = "设置同步";

@@ -190,6 +190,7 @@ enum AppUserStore {
         return [
             SyncPreferences.Keys.modeBase,
             SyncPreferences.Keys.syncMediaBase,
+            SyncPreferences.Keys.backgroundSyncEnabledBase,
             SyncPreferences.Keys.ioTimeoutSecsBase,
             SyncPreferences.Keys.mediaLastLogBase,
             SyncPreferences.Keys.mediaLastSyncedAtBase,
@@ -247,6 +248,7 @@ enum AppUserStore {
         let scopedBases = [
             SyncPreferences.Keys.modeBase,
             SyncPreferences.Keys.syncMediaBase,
+            SyncPreferences.Keys.backgroundSyncEnabledBase,
             SyncPreferences.Keys.ioTimeoutSecsBase,
             SyncPreferences.Keys.mediaLastLogBase,
             SyncPreferences.Keys.mediaLastSyncedAtBase,
