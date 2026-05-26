@@ -1493,6 +1493,10 @@ struct ReviewSelectionAISheetView: View {
         min(max(UIScreen.main.bounds.height * 0.46, 280), 420)
     }
 
+    private var presetPickerMaximumWidth: CGFloat {
+        min(UIScreen.main.bounds.width * 0.68, 320)
+    }
+
     private var resultPanelMinimumHeight: CGFloat {
         min(220, resultPanelMaximumHeight)
     }
@@ -1586,14 +1590,16 @@ struct ReviewSelectionAISheetView: View {
                         .foregroundStyle(SettingsValueStyle.highlight)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                    Spacer(minLength: 0)
                     Image(systemName: "chevron.up.chevron.down")
                         .font(AmgiFont.micro.font)
                         .foregroundStyle(SettingsValueStyle.secondary)
                 }
                 .amgiCapsuleControl(backgroundColor: Color.amgiMenuSurface)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: presetPickerMaximumWidth, alignment: .leading)
+            .layoutPriority(1)
+
+            Spacer(minLength: 0)
 
             Button {
                 onSubmit(nil)
@@ -1648,6 +1654,7 @@ struct ReviewSelectionAISheetView: View {
                 alignment: .topLeading
             )
             .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1665,6 +1672,7 @@ struct ReviewSelectionAISheetView: View {
 
     private var measuredResultContent: some View {
         resultContent
+            .fixedSize(horizontal: false, vertical: true)
             .background {
                 GeometryReader { geometry in
                     Color.clear
