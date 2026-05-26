@@ -54,6 +54,18 @@ final class AppBackgroundSyncAppDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
+private final class BackgroundTaskCompletionBox: @unchecked Sendable {
+    private let task: BGTask
+
+    init(task: BGTask) {
+        self.task = task
+    }
+
+    func setCompleted(success: Bool) {
+        task.setTaskCompleted(success: success)
+    }
+}
+
 enum AppBackgroundSyncManager {
     static let appRefreshIdentifier = "com.ankiapp.AnkiApp.sync-refresh"
     static let processingIdentifier = "com.ankiapp.AnkiApp.sync-processing"
@@ -117,9 +129,11 @@ enum AppBackgroundSyncManager {
     private static func handleAppRefresh(_ task: BGAppRefreshTask) {
         scheduleAppRefresh()
 
-        let workTask = Task { @MainActor in
+        let completion = BackgroundTaskCompletionBox(task: task)
+
+        let workTask = Task {
             let success = await performBackgroundStatusCheck()
-            task.setTaskCompleted(success: success)
+            completion.setCompleted(success: success)
         }
 
         task.expirationHandler = {
@@ -130,9 +144,11 @@ enum AppBackgroundSyncManager {
     private static func handleProcessing(_ task: BGProcessingTask) {
         scheduleProcessing(after: refreshLeadTime)
 
-        let workTask = Task { @MainActor in
+        let completion = BackgroundTaskCompletionBox(task: task)
+
+        let workTask = Task {
             let success = await performBackgroundSyncAttempt()
-            task.setTaskCompleted(success: success)
+            completion.setCompleted(success: success)
         }
 
         task.expirationHandler = {
