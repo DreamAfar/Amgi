@@ -535,4 +535,8 @@ enum SyncPreferences {
         UserDefaults.standard.set(message, forKey: Keys.mediaLastLogForCurrentUser())
         UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Keys.mediaLastSyncedAtForCurrentUser())
     }
+
+    static func recordCollectionSync(date: Date = .now) {
+        UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Keys.lastCollectionSyncedAtForCurrentUser())
+    }
 }

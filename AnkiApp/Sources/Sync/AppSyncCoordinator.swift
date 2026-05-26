@@ -265,6 +265,7 @@ final class AppSyncCoordinator: ObservableObject {
             appendLog(Self.logMessage(for: event))
             state = .syncingMedia(total: mediaProgress.total, downloaded: mediaProgress.downloaded)
         case .completed(let summary):
+            SyncPreferences.recordCollectionSync()
             if syncMediaEnabled {
                 SyncPreferences.recordMediaSyncLog(L("sync_settings_media_log_success"))
             }
