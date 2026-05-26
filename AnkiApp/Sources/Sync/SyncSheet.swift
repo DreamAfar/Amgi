@@ -66,7 +66,7 @@ struct SyncSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(syncCoordinator.isRunning ? L("btn_cancel") : L("sync_btn_done")) {
+                    Button(L("btn_cancel")) {
                         if syncCoordinator.isRunning {
                             syncCoordinator.cancel()
                         }
@@ -74,7 +74,7 @@ struct SyncSheet: View {
                     }
                 }
                 if syncCoordinator.isRunning {
-                    ToolbarItem(placement: .confirmationAction) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             isPresented = false
                         } label: {
@@ -84,6 +84,11 @@ struct SyncSheet: View {
                                 .allowsTightening(true)
                         }
                         .amgiToolbarTextButton()
+                    }
+                } else {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(L("sync_btn_done")) { isPresented = false }
+                            .buttonStyle(.borderedProminent)
                     }
                 }
             }

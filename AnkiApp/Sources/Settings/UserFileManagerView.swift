@@ -428,8 +428,9 @@ private struct MediaFilePreviewView: View {
             .navigationTitle(entry.fileName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(L("common_done")) { dismiss() }
+                        .buttonStyle(.borderedProminent)
                 }
             }
         }

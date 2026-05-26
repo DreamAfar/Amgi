@@ -75,9 +75,6 @@ struct TagsView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(L("common_done")) { dismiss() }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAddTag = true }) {
                         Image(systemName: "plus")
@@ -95,6 +92,10 @@ struct TagsView: View {
                             Image(systemName: "ellipsis.circle")
                         }
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done")) { dismiss() }
+                        .buttonStyle(.borderedProminent)
                 }
             }
             .sheet(isPresented: $showAddTag) {

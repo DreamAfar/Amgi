@@ -779,9 +779,6 @@ struct ReviewView: View {
     @ToolbarContentBuilder
     private var reviewToolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Button(L("common_done")) { onDismiss() }
-        }
-        ToolbarItem(placement: .topBarTrailing) {
             Button {
                 Task { await performUndo() }
             } label: {
@@ -904,6 +901,10 @@ struct ReviewView: View {
                 Image(systemName: "ellipsis.circle")
             }
             .accessibilityLabel(L("review_more_actions"))
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button(L("common_done")) { onDismiss() }
+                .buttonStyle(.borderedProminent)
         }
     }
 

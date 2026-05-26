@@ -1502,11 +1502,6 @@ struct ReviewSelectionAISheetView: View {
             .navigationTitle(L("review_selection_ai_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L("common_done")) {
-                        onClose()
-                    }
-                }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         onAddNote()
@@ -1522,6 +1517,12 @@ struct ReviewSelectionAISheetView: View {
                         Image(systemName: isFavorited ? "star.fill" : "star")
                     }
                     .accessibilityLabel(isFavorited ? L("review_selection_ai_unfavorite") : L("review_selection_ai_favorite"))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("common_done")) {
+                        onClose()
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
             }
             .onAppear {
