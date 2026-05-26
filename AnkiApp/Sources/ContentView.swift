@@ -602,7 +602,8 @@ struct ContentView: View {
             body = L("sync_background_alert_conflict")
         }
 
-        guard let serverMessage = alert.serverMessage?.nilIfBlank else {
+        guard let serverMessage = alert.serverMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
+              serverMessage.isEmpty == false else {
             return body
         }
         return body + "\n\n" + serverMessage

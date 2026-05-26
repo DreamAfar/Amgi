@@ -1,6 +1,7 @@
 import BackgroundTasks
 import AnkiClients
 import AnkiKit
+import AnkiSync
 import Dependencies
 import Foundation
 import OSLog
@@ -21,7 +22,8 @@ struct AppPendingSyncAlert: Codable, Equatable, Sendable {
 
     init(kind: Kind, serverMessage: String? = nil) {
         self.kind = kind
-        self.serverMessage = serverMessage?.nilIfBlank
+        let trimmed = serverMessage?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.serverMessage = trimmed?.isEmpty == false ? trimmed : nil
     }
 
     init(status: SyncStatus) {
