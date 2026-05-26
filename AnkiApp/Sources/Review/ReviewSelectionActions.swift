@@ -1659,15 +1659,11 @@ struct ReviewSelectionAISheetView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
     private var resultPanelContent: some View {
-        if resultPanelNeedsScroll {
-            ScrollView(.vertical, showsIndicators: true) {
-                measuredResultContent
-            }
-        } else {
+        ScrollView(.vertical, showsIndicators: resultPanelNeedsScroll) {
             measuredResultContent
         }
+        .scrollDisabled(resultPanelNeedsScroll == false)
     }
 
     private var measuredResultContent: some View {
