@@ -11,6 +11,7 @@ enum SettingsValueStyle {
     static let highlight = Color.amgiAccent
     static let primary = Color.amgiTextPrimary
     static let secondary = Color.amgiTextSecondary
+    static let tertiary = Color.amgiTextTertiary
 }
 
 struct SettingsOptionCapsuleLabel: View {
