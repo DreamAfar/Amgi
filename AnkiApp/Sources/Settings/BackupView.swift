@@ -3,6 +3,15 @@ import AnkiBackend
 import Dependencies
 
 struct BackupView: View {
+    private enum CleanupWindow: Int, CaseIterable, Identifiable {
+        case seven = 7
+        case fifteen = 15
+        case thirty = 30
+
+        var id: Int { rawValue }
+        var days: Int { rawValue }
+    }
+
     let username: String
 
     @Dependency(\.ankiBackend) var backend
@@ -20,6 +29,9 @@ struct BackupView: View {
     @State private var backupToRestore: BackupFileEntry?
     @State private var showDeleteConfirm = false
     @State private var showRestoreConfirm = false
+    @State private var showCleanupOptions = false
+    @State private var cleanupWindow: CleanupWindow?
+    @State private var showCleanupConfirm = false
     @State private var minimumIntervalMins = CollectionBackupManager.defaultMinimumIntervalMins
     @State private var dailyBackups = CollectionBackupManager.defaultDailyBackups
     @State private var weeklyBackups = CollectionBackupManager.defaultWeeklyBackups
@@ -86,6 +98,14 @@ struct BackupView: View {
                     }
                 }
                 .disabled(isCreating || isRestoring)
+                .listRowBackground(Color.amgiSurfaceElevated)
+
+                Button {
+                    showCleanupOptions = true
+                } label: {
+                    Label(L("backup_cleanup_action"), systemImage: "trash")
+                }
+                .disabled(isCreating || isRestoring || backups.isEmpty)
                 .listRowBackground(Color.amgiSurfaceElevated)
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
@@ -183,6 +203,32 @@ struct BackupView: View {
         } message: {
             Text(L("backup_restore_confirm", backupToRestore?.url.lastPathComponent ?? ""))
         }
+        .confirmationDialog(
+            L("backup_cleanup_title"),
+            isPresented: $showCleanupOptions,
+            titleVisibility: .visible
+        ) {
+            ForEach(CleanupWindow.allCases) { option in
+                Button(L("backup_cleanup_option_days", option.days)) {
+                    prepareCleanup(option)
+                }
+            }
+            Button(L("common_cancel"), role: .cancel) {}
+        } message: {
+            Text(L("backup_cleanup_prompt"))
+        }
+        .alert(
+            L("backup_cleanup_confirm_title"),
+            isPresented: $showCleanupConfirm,
+            presenting: cleanupWindow
+        ) { option in
+            Button(L("common_cancel"), role: .cancel) {}
+            Button(L("common_delete"), role: .destructive) {
+                deleteHistoricalBackups(olderThanDays: option.days)
+            }
+        } message: { option in
+            Text(cleanupConfirmMessage(for: option))
+        }
         .alert(L("common_done"), isPresented: $showSuccess) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
@@ -229,6 +275,18 @@ struct BackupView: View {
     private func loadBackups() {
         backups = CollectionBackupManager.loadBackups(for: username)
         legacyBackupCount = CollectionBackupManager.legacyBackupCount(for: username)
+    }
+
+    private func prepareCleanup(_ option: CleanupWindow) {
+        let count = historicalBackupCount(olderThanDays: option.days)
+        guard count > 0 else {
+            successMessage = L("backup_cleanup_none_found", option.days)
+            showSuccess = true
+            return
+        }
+
+        cleanupWindow = option
+        showCleanupConfirm = true
     }
 
     private func createBackup() async {
@@ -347,5 +405,45 @@ struct BackupView: View {
     private func deleteBackup(_ entry: BackupFileEntry) {
         try? FileManager.default.removeItem(at: entry.url)
         loadBackups()
+    }
+
+    private func cleanupConfirmMessage(for option: CleanupWindow) -> String {
+        L(
+            "backup_cleanup_confirm",
+            option.days,
+            historicalBackupCount(olderThanDays: option.days)
+        )
+    }
+
+    private func historicalBackupCount(olderThanDays days: Int) -> Int {
+        backups.filter { $0.date < historicalBackupCutoffDate(olderThanDays: days) }.count
+    }
+
+    private func historicalBackupCutoffDate(olderThanDays days: Int) -> Date {
+        Calendar.current.date(byAdding: .day, value: -days, to: .now) ?? .distantPast
+    }
+
+    private func deleteHistoricalBackups(olderThanDays days: Int) {
+        let cutoff = historicalBackupCutoffDate(olderThanDays: days)
+        let candidates = backups.filter { $0.date < cutoff }
+
+        guard !candidates.isEmpty else {
+            successMessage = L("backup_cleanup_none_found", days)
+            showSuccess = true
+            return
+        }
+
+        do {
+            for entry in candidates {
+                try FileManager.default.removeItem(at: entry.url)
+            }
+            loadBackups()
+            successMessage = L("backup_cleanup_deleted", candidates.count, days)
+            showSuccess = true
+        } catch {
+            loadBackups()
+            errorMessage = L("backup_cleanup_failed", error.localizedDescription)
+            showError = true
+        }
     }
 }

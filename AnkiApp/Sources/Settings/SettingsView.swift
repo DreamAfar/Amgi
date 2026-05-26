@@ -933,15 +933,17 @@ private struct ReviewOptionsView: View {
         )
     }
 
-    private var rolloverHourBinding: Binding<Int> {
+    private var rolloverTimeBinding: Binding<Date> {
         Binding(
-            get: { rolloverHour },
-            set: { rolloverHour = $0 }
+            get: {
+                let components = DateComponents(hour: rolloverHour, minute: 0)
+                return Calendar.current.date(from: components) ?? Date()
+            },
+            set: { newValue in
+                let components = Calendar.current.dateComponents([.hour], from: newValue)
+                rolloverHour = components.hour ?? 4
+            }
         )
-    }
-
-    private var rolloverHourLabel: String {
-        String(format: L("settings_review_day_start_hour_value"), rolloverHour)
     }
 
     private var dailyReminderTimeBinding: Binding<Date> {
@@ -979,17 +981,12 @@ private struct ReviewOptionsView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Menu {
-                            Picker(L("settings_review_day_start"), selection: rolloverHourBinding) {
-                                ForEach(0..<24, id: \.self) { hour in
-                                    Text(String(format: L("settings_review_day_start_hour_value"), hour))
-                                        .foregroundStyle(SettingsValueStyle.highlight)
-                                        .tag(hour)
-                                }
-                            }
-                        } label: {
-                            SettingsOptionCapsuleLabel(title: rolloverHourLabel)
-                        }
+                        DatePicker(
+                            L("settings_review_day_start"),
+                            selection: rolloverTimeBinding,
+                            displayedComponents: [.hourAndMinute]
+                        )
+                        .labelsHidden()
                     }
 
                     Toggle(L("settings_review_daily_reminder_enabled"), isOn: $dailyReminderEnabled)
@@ -1846,6 +1843,25 @@ private struct SyncSettingsView: View {
         KeychainHelper.loadUsername() ?? L("sync_settings_not_logged_in")
     }
 
+    private var serverTypeMenu: some View {
+        Menu {
+            serverTypeMenuButton(
+                title: L("sync_settings_server_type_official"),
+                mode: .official
+            )
+            serverTypeMenuButton(
+                title: L("sync_settings_server_type_custom"),
+                mode: .custom
+            )
+            serverTypeMenuButton(
+                title: L("sync_settings_server_type_local"),
+                mode: .local
+            )
+        } label: {
+            SettingsOptionCapsuleLabel(title: serverTypeLabel)
+        }
+    }
+
     var body: some View {
         List {
             Section(L("sync_settings_section_server")) {
@@ -1854,21 +1870,7 @@ private struct SyncSettingsView: View {
                         .foregroundStyle(SettingsValueStyle.primary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Menu {
-                        Picker(L("sync_settings_server_type"), selection: syncModeBinding) {
-                            Text(L("sync_settings_server_type_official"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
-                                .tag(SyncPreferences.Mode.official)
-                            Text(L("sync_settings_server_type_custom"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
-                                .tag(SyncPreferences.Mode.custom)
-                            Text(L("sync_settings_server_type_local"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
-                                .tag(SyncPreferences.Mode.local)
-                        }
-                    } label: {
-                        SettingsOptionCapsuleLabel(title: serverTypeLabel)
-                    }
+                    serverTypeMenu
                 }
 
                 if syncMode == .official {
@@ -2049,6 +2051,19 @@ private struct SyncSettingsView: View {
                         .foregroundStyle(Color.amgiLink)
                     }
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func serverTypeMenuButton(title: String, mode: SyncPreferences.Mode) -> some View {
+        Button {
+            syncModeBinding.wrappedValue = mode
+        } label: {
+            if syncMode == mode {
+                Label(title, systemImage: "checkmark")
+            } else {
+                Text(title)
             }
         }
     }

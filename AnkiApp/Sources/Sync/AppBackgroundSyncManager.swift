@@ -117,7 +117,7 @@ enum AppBackgroundSyncManager {
     private static func handleAppRefresh(_ task: BGAppRefreshTask) {
         scheduleAppRefresh()
 
-        let workTask = Task {
+        let workTask = Task { @MainActor in
             let success = await performBackgroundStatusCheck()
             task.setTaskCompleted(success: success)
         }
@@ -130,7 +130,7 @@ enum AppBackgroundSyncManager {
     private static func handleProcessing(_ task: BGProcessingTask) {
         scheduleProcessing(after: refreshLeadTime)
 
-        let workTask = Task {
+        let workTask = Task { @MainActor in
             let success = await performBackgroundSyncAttempt()
             task.setTaskCompleted(success: success)
         }

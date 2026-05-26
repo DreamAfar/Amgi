@@ -542,6 +542,15 @@
 "backup_created_ok" = "Backup saved: %@";
 "backup_settings_load_failed" = "Could not load backup settings: %@";
 "backup_settings_save_failed" = "Could not save backup settings: %@";
+"backup_cleanup_action" = "Clean Old Backups";
+"backup_cleanup_title" = "Clean Old Backups";
+"backup_cleanup_prompt" = "Choose how old the backups must be before deleting them.";
+"backup_cleanup_option_days" = "%d days ago";
+"backup_cleanup_confirm_title" = "Confirm Cleanup";
+"backup_cleanup_confirm" = "Delete %2$d backups older than %1$d days? This cannot be undone.";
+"backup_cleanup_none_found" = "No backups older than %d days were found.";
+"backup_cleanup_deleted" = "Deleted %1$d backups older than %2$d days.";
+"backup_cleanup_failed" = "Could not clean old backups: %@";
 
 // MARK: - Empty Cards
 "empty_cards_title" = "Empty Cards";

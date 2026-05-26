@@ -542,6 +542,15 @@
 "backup_created_ok" = "バックアップを保存しました: %@";
 "backup_settings_load_failed" = "バックアップ設定の読み込みに失敗しました: %@";
 "backup_settings_save_failed" = "バックアップ設定の保存に失敗しました: %@";
+"backup_cleanup_action" = "古いバックアップを整理";
+"backup_cleanup_title" = "古いバックアップを整理";
+"backup_cleanup_prompt" = "削除するバックアップの経過日数を選んでください。";
+"backup_cleanup_option_days" = "%d日前";
+"backup_cleanup_confirm_title" = "整理を確認";
+"backup_cleanup_confirm" = "%1$d 日より古いバックアップを %2$d 件削除しますか？この操作は取り消せません。";
+"backup_cleanup_none_found" = "%d 日より古いバックアップはありません。";
+"backup_cleanup_deleted" = "%2$d 日より古いバックアップを %1$d 件削除しました。";
+"backup_cleanup_failed" = "古いバックアップの整理に失敗しました: %@";
 
 // MARK: - Empty Cards
 "empty_cards_title" = "空のカード";

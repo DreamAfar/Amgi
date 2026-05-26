@@ -542,6 +542,15 @@
 "backup_created_ok" = "备份已保存：%@";
 "backup_settings_load_failed" = "加载备份设置失败：%@";
 "backup_settings_save_failed" = "保存备份设置失败：%@";
+"backup_cleanup_action" = "清理历史备份";
+"backup_cleanup_title" = "清理历史备份";
+"backup_cleanup_prompt" = "选择要清理的备份时间范围。";
+"backup_cleanup_option_days" = "%d天前";
+"backup_cleanup_confirm_title" = "确认清理";
+"backup_cleanup_confirm" = "删除 %d 天前的 %d 个备份？此操作不可撤销。";
+"backup_cleanup_none_found" = "没有 %d 天前的备份可清理。";
+"backup_cleanup_deleted" = "已删除 %d 个 %d 天前的备份。";
+"backup_cleanup_failed" = "清理历史备份失败：%@";
 
 // MARK: - Empty Cards
 "empty_cards_title" = "空卡片";
