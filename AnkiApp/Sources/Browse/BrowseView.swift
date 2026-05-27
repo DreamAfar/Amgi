@@ -1205,21 +1205,25 @@ struct BrowseView: View {
             } label: {
                 Label(L("browse_batch_flag_label"), systemImage: "flag.fill")
             }
+            .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
 
             // 标签
             Button { showTagsActionSheet = true } label: {
                 Label(L("browse_batch_manage_tags_short"), systemImage: "tag")
             }
+            .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
 
             // 暂停
             Button { showSuspendConfirm = true } label: {
                 Label(L("browse_batch_suspend_toggle"), systemImage: "pause.circle")
             }
+            .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
 
             // 标记
             Button { Task { await batchToggleMark() } } label: {
                 Label(L("browse_batch_mark_short"), systemImage: "bookmark")
             }
+            .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
 
             // 立即评分
             Menu {
@@ -1238,6 +1242,7 @@ struct BrowseView: View {
             } label: {
                 Label(L("browse_batch_grade_now_short"), systemImage: "star.circle")
             }
+            .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
 
             // 更多
             Menu {
@@ -1267,8 +1272,8 @@ struct BrowseView: View {
             } label: {
                 Label(L("browse_more_accessibility"), systemImage: "ellipsis.circle")
             }
+            .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
         }
-        .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
     }
 
     private func browseFlagButton(_ value: UInt32, action: @escaping () -> Void) -> some View {
