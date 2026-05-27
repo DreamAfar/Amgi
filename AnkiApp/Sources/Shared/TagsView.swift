@@ -76,6 +76,17 @@ struct TagsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.secondary)
+                            .imageScale(.large)
+                    }
+                    .accessibilityLabel(L("common_done"))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAddTag = true }) {
                         Image(systemName: "plus")
                     }
@@ -92,10 +103,6 @@ struct TagsView: View {
                             Image(systemName: "ellipsis.circle")
                         }
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(L("common_done")) { dismiss() }
-                        .buttonStyle(.borderedProminent)
                 }
             }
             .sheet(isPresented: $showAddTag) {

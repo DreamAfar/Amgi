@@ -65,15 +65,13 @@ struct SyncSheet: View {
             .navigationTitle(L("sync_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L("btn_cancel")) {
-                        if syncCoordinator.isRunning {
-                            syncCoordinator.cancel()
-                        }
-                        isPresented = false
-                    }
-                }
                 if syncCoordinator.isRunning {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L("btn_cancel")) {
+                            syncCoordinator.cancel()
+                            isPresented = false
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             isPresented = false
