@@ -294,6 +294,7 @@ struct SettingsView: View {
         Section(L("settings_section_basic")) {
             NavigationLink {
                 UserManagementView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_account"), icon: "person.crop.circle")
             }
@@ -301,6 +302,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 SyncSettingsView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_sync"), icon: "arrow.triangle.2.circlepath")
             }
@@ -308,6 +310,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 CodeEditorSettingsView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_editing"), icon: "pencil.and.scribble")
             }
@@ -315,6 +318,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 ReviewOptionsView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_review"), icon: "rectangle.on.rectangle")
             }
@@ -322,6 +326,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 ReviewAISettingsHomeView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_review_ai_settings"), icon: "sparkles")
             }
@@ -329,6 +334,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 ReaderOptionsView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_reader"), icon: "book.closed")
             }
@@ -345,6 +351,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 DeckListHeatmapSettingsView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_home_heatmap"), icon: "chart.bar.xaxis")
             }
@@ -357,6 +364,7 @@ struct SettingsView: View {
         Section(L("settings_section_maintenance")) {
             NavigationLink {
                 BackupView(username: AppUserStore.loadSelectedUser())
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_backup"), icon: "externaldrive")
             }
@@ -364,6 +372,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 UserFileManagerView(username: AppUserStore.loadSelectedUser())
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_file_manager"), icon: "folder")
             }
@@ -371,6 +380,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 DeckTemplateListView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_deck_templates"), icon: "square.stack.3d.up")
             }
@@ -378,6 +388,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 NotetypeFieldManagerListView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_field_manager"), icon: "text.badge.plus")
             }
@@ -387,6 +398,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 MediaCheckResultView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_check_media"), icon: "photo.on.rectangle")
             }
@@ -394,6 +406,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 EmptyCardsView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_empty_cards"), icon: "rectangle.stack.badge.minus")
             }
@@ -401,6 +414,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 DebugView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("debug_nav_title"), icon: "ladybug")
             }
@@ -413,6 +427,7 @@ struct SettingsView: View {
         Section(L("settings_section_other")) {
             NavigationLink {
                 AboutView()
+                    .toolbarVisibility(.hidden, for: .tabBar)
             } label: {
                 settingsRowLabel(L("settings_row_about"), icon: "info.circle")
             }
@@ -430,6 +445,7 @@ struct SettingsView: View {
     private var themeSettingsNavigationRow: some View {
         NavigationLink {
             ThemeSettingsView(selectedTheme: selectedTheme)
+                .toolbarVisibility(.hidden, for: .tabBar)
         } label: {
             settingsRowLabel(L("settings_picker_theme"), icon: "circle.lefthalf.filled")
         }
@@ -439,6 +455,7 @@ struct SettingsView: View {
     private var languageSettingsNavigationRow: some View {
         NavigationLink {
             LanguageSettingsView(selectedLanguage: selectedLanguage)
+                .toolbarVisibility(.hidden, for: .tabBar)
         } label: {
             settingsRowLabel(L("settings_picker_language"), icon: "globe")
         }
@@ -448,6 +465,7 @@ struct SettingsView: View {
     private var checkDatabaseNavigationRow: some View {
         NavigationLink {
             DatabaseCheckView()
+                .toolbarVisibility(.hidden, for: .tabBar)
         } label: {
             settingsRowLabel(L("settings_row_check_database"), icon: "checkmark.seal")
         }
@@ -1082,6 +1100,7 @@ private struct ReviewOptionsView: View {
                 }
                 NavigationLink {
                     ReviewSelectionLookupLinkSettingsView()
+                        .toolbarVisibility(.hidden, for: .tabBar)
                 } label: {
                     reviewSettingsRowLabel(L("settings_review_lookup_settings"), icon: "link")
                 }
@@ -1091,6 +1110,7 @@ private struct ReviewOptionsView: View {
             Section(L("settings_review_section_input_mappings")) {
                 NavigationLink {
                     ReviewGestureOptionsView()
+                        .toolbarVisibility(.hidden, for: .tabBar)
                 } label: {
                     reviewSettingsRowLabel(L("settings_review_section_gestures"), icon: "hand.tap")
                 }

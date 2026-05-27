@@ -20,6 +20,7 @@ struct NoteEditingDestinationView: View {
                 }
             } else {
                 destinationBody
+                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
     }
