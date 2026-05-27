@@ -511,6 +511,7 @@ struct ReaderEpubReaderView: View {
 
     var body: some View {
         bodyContent
+        .toolbar(.hidden, for: .tabBar)
         .task {
             if self.session == nil {
                 do {

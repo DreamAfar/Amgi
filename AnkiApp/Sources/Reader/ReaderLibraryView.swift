@@ -1025,6 +1025,7 @@ private struct ReaderBookDetailView: View {
         .background(resolvedListBackground)
         .navigationTitle(book.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
