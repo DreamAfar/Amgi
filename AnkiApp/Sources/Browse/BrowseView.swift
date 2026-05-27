@@ -740,15 +740,13 @@ struct BrowseView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 browseToolbarContent
+                if isEditing {
+                    batchBottomToolbarContent
+                }
             }
             .safeAreaInset(edge: .top) {
                 if shouldShowQuickFilterToolbar {
                     deckFilterBar
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                if isEditing {
-                    batchBottomBar
                 }
             }
             .searchable(
@@ -1190,8 +1188,9 @@ struct BrowseView: View {
         .accessibilityLabel(L("browse_filter_accessibility"))
     }
 
-    private var batchBottomBar: some View {
-        HStack(spacing: 0) {
+    @ToolbarContentBuilder
+    private var batchBottomToolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
             // 旗标
             Menu {
                 browseFlagButton(1) { Task { await batchFlag(1) } }
@@ -1204,31 +1203,23 @@ struct BrowseView: View {
                 Divider()
                 browseFlagButton(0) { Task { await batchFlag(0) } }
             } label: {
-                batchBarIcon("flag.fill", L("browse_batch_flag_label"))
+                Label(L("browse_batch_flag_label"), systemImage: "flag.fill")
             }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
 
             // 标签
             Button { showTagsActionSheet = true } label: {
-                batchBarIcon("tag", L("browse_batch_manage_tags_short"))
+                Label(L("browse_batch_manage_tags_short"), systemImage: "tag")
             }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
 
             // 暂停
             Button { showSuspendConfirm = true } label: {
-                batchBarIcon("pause.circle", L("browse_batch_suspend_toggle"))
+                Label(L("browse_batch_suspend_toggle"), systemImage: "pause.circle")
             }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
 
             // 标记
             Button { Task { await batchToggleMark() } } label: {
-                batchBarIcon("bookmark", L("browse_batch_mark_short"))
+                Label(L("browse_batch_mark_short"), systemImage: "bookmark")
             }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
 
             // 立即评分
             Menu {
@@ -1245,10 +1236,8 @@ struct BrowseView: View {
                     Label(L("review_rating_easy"), systemImage: "4.circle")
                 }
             } label: {
-                batchBarIcon("star.circle", L("browse_batch_grade_now_short"))
+                Label(L("browse_batch_grade_now_short"), systemImage: "star.circle")
             }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
 
             // 更多
             Menu {
@@ -1276,29 +1265,10 @@ struct BrowseView: View {
                     Label(L("browse_find_replace_short"), systemImage: "magnifyingglass")
                 }
             } label: {
-                batchBarIcon("ellipsis.circle", L("browse_more_accessibility"))
+                Label(L("browse_more_accessibility"), systemImage: "ellipsis.circle")
             }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
-        .background(.bar)
-        .overlay(alignment: .top) { Divider() }
         .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
-    }
-
-    private func batchBarIcon(_ systemImage: String, _ title: String) -> some View {
-        VStack(spacing: 3) {
-            Image(systemName: systemImage)
-                .font(.title3)
-                .frame(height: 28)
-            Text(title)
-                .font(.caption2)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? Color.amgiTextTertiary : Color.amgiTextPrimary)
     }
 
     private func browseFlagButton(_ value: UInt32, action: @escaping () -> Void) -> some View {
@@ -2890,6 +2860,7 @@ struct BrowseFindDuplicatesSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var searchText: String
+    @State private var fieldFilterText = ""
     @State private var fieldNames: [String] = []
     @State private var selectedField = ""
     @State private var fieldIndexByNotetypeID: [Int64: [String: Int]] = [:]
@@ -2950,9 +2921,28 @@ struct BrowseFindDuplicatesSheet: View {
     private var content: some View {
         List {
             Section(L("browse_find_duplicates_search_section")) {
-                Picker(L("browse_find_duplicates_field"), selection: $selectedField) {
-                    ForEach(fieldNames, id: \.self) { fieldName in
-                        Text(fieldName).tag(fieldName)
+                TextField(L("browse_find_duplicates_field_filter"), text: $fieldFilterText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                if filteredFieldNames.isEmpty {
+                    Text(L("browse_find_duplicates_no_fields"))
+                        .foregroundStyle(Color.amgiTextSecondary)
+                } else {
+                    ForEach(filteredFieldNames, id: \.self) { fieldName in
+                        Button {
+                            selectedField = fieldName
+                        } label: {
+                            HStack {
+                                Text(fieldName)
+                                    .foregroundStyle(Color.amgiTextPrimary)
+                                Spacer()
+                                if selectedField == fieldName {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Color.amgiAccent)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -3020,6 +3010,12 @@ struct BrowseFindDuplicatesSheet: View {
 
     private var totalDuplicateNotes: Int {
         duplicateGroups.reduce(0) { $0 + $1.noteIDs.count }
+    }
+
+    private var filteredFieldNames: [String] {
+        let trimmed = fieldFilterText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return fieldNames }
+        return fieldNames.filter { $0.localizedCaseInsensitiveContains(trimmed) }
     }
 
     static func noteIDsQuery(_ noteIDs: [Int64]) -> String {
