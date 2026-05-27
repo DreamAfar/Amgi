@@ -379,6 +379,7 @@ struct BrowseView: View {
         } message: {
             Text(L("review_set_due_hint"))
         }
+    }
 
     private func browseStateObserverContent<Content: View>(_ content: Content) -> some View {
         let filterObserverContent = browseFilterObserverContent(content)
