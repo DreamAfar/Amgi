@@ -1951,6 +1951,8 @@ struct BrowseView: View {
             Task { await loadNoteStates() }
         }
     }
+
+    private func nextSearchGeneration() -> Int {
         searchGeneration += 1
         return searchGeneration
     }
