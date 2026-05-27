@@ -22,6 +22,7 @@ struct DeckListHeatmapCard: View {
     @State private var isTodayStatsCollapsed = false
     @State private var heatmapSectionHeight: CGFloat = 0
     @State private var todayStatsSectionHeight: CGFloat = 0
+    @State private var splitHeaderHeight: CGFloat = 0
     @State private var splitTodayStatsSectionHeight: CGFloat = 0
 
     private let todayStatsAnimation = Animation.easeInOut(duration: 0.24)
@@ -138,7 +139,8 @@ struct DeckListHeatmapCard: View {
     }
 
     private func splitLayout(for graphs: Anki_Stats_GraphsResponse) -> some View {
-        let splitMinHeight = max(resolvedHeatmapSectionHeight ?? 0, splitTodayStatsSectionHeight)
+        let splitContentHeight = max(resolvedHeatmapSectionHeight ?? 0, splitTodayStatsSectionHeight)
+        let splitMinHeight = splitContentHeight + splitHeaderHeight + splitLayoutSpacing
 
         return VStack(alignment: .leading, spacing: 18) {
             GeometryReader { proxy in
@@ -146,6 +148,7 @@ struct DeckListHeatmapCard: View {
 
                 VStack(alignment: .leading, spacing: splitLayoutSpacing) {
                     splitHeader(for: graphs, todayWidth: columnWidths.today)
+                        .background(heightReader($splitHeaderHeight))
 
                     HStack(alignment: .top, spacing: splitLayoutSpacing) {
                         HeatmapChart(

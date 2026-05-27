@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import AnkiKit
 import AnkiBackend
 import AnkiProto
@@ -740,13 +741,18 @@ struct BrowseView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 browseToolbarContent
-                if isEditing {
+                if isEditing && !usesWideBatchBottomBar {
                     batchBottomToolbarContent
                 }
             }
             .safeAreaInset(edge: .top) {
                 if shouldShowQuickFilterToolbar {
                     deckFilterBar
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if usesWideBatchBottomBar {
+                    wideBatchBottomBar
                 }
             }
             .searchable(
@@ -1273,6 +1279,335 @@ struct BrowseView: View {
                 Label(L("browse_more_accessibility"), systemImage: "ellipsis.circle")
             }
             .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
+        }
+    }
+
+    private var usesWideBatchBottomBar: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular && isEditing
+    }
+
+    private enum WideBatchBottomAction: CaseIterable, Identifiable {
+        case flag
+        case manageTags
+        case suspend
+        case mark
+        case gradeNow
+        case moveDeck
+        case changeNotetype
+        case export
+        case setDueDate
+        case bury
+        case findReplace
+        case resetNew
+
+        var id: Self { self }
+    }
+
+    private var wideBatchBottomBar: some View {
+        let isDisabled = selectedNoteIDs.isEmpty || isBatchWorking
+
+        return GeometryReader { proxy in
+            let layout = wideBatchBottomBarLayout(for: proxy.size.width)
+
+            HStack(spacing: 16) {
+                ForEach(layout.visible) { action in
+                    wideBatchBottomActionView(action, isDisabled: isDisabled)
+                }
+
+                if !layout.overflow.isEmpty {
+                    Menu {
+                        wideBatchOverflowMenuContent(layout.overflow)
+                    } label: {
+                        Text(L("browse_more_accessibility"))
+                            .lineLimit(1)
+                            .fixedSize()
+                            .amgiToolbarTextButton()
+                    }
+                    .disabled(isDisabled)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
+        .frame(height: 44)
+        .background(Color.amgiSurface)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.amgiBorder.opacity(0.28))
+                .frame(height: 1)
+        }
+    }
+
+    private func wideBatchBottomBarLayout(for availableWidth: CGFloat) -> (visible: [WideBatchBottomAction], overflow: [WideBatchBottomAction]) {
+        let actions = WideBatchBottomAction.allCases
+        let contentWidth = max(availableWidth - 32, 0)
+        let totalWidth = totalWideBatchActionsWidth(actions)
+
+        guard totalWidth > contentWidth else {
+            return (actions, [])
+        }
+
+        let moreWidth = estimatedWideBatchActionWidth(forTitle: L("browse_more_accessibility"), showsMenuIndicator: true)
+        var visible: [WideBatchBottomAction] = []
+        var usedWidth: CGFloat = 0
+
+        for (index, action) in actions.enumerated() {
+            let actionWidth = estimatedWideBatchActionWidth(for: action)
+            let spacingBefore = visible.isEmpty ? 0 : 16
+            let needsOverflowMenu = index < actions.count - 1
+            let reserveWidth = needsOverflowMenu ? 16 + moreWidth : 0
+
+            if usedWidth + spacingBefore + actionWidth + reserveWidth <= contentWidth {
+                visible.append(action)
+                usedWidth += spacingBefore + actionWidth
+            } else {
+                break
+            }
+        }
+
+        return (visible, Array(actions.dropFirst(visible.count)))
+    }
+
+    private func totalWideBatchActionsWidth(_ actions: [WideBatchBottomAction]) -> CGFloat {
+        guard !actions.isEmpty else { return 0 }
+
+        let widths = actions.map(estimatedWideBatchActionWidth(for:))
+        return widths.reduce(0, +) + CGFloat(actions.count - 1) * 16
+    }
+
+    private func estimatedWideBatchActionWidth(for action: WideBatchBottomAction) -> CGFloat {
+        estimatedWideBatchActionWidth(
+            forTitle: wideBatchActionTitle(action),
+            showsMenuIndicator: wideBatchActionShowsMenuIndicator(action)
+        )
+    }
+
+    private func estimatedWideBatchActionWidth(forTitle title: String, showsMenuIndicator: Bool) -> CGFloat {
+        let font = UIFont.preferredFont(forTextStyle: .body)
+        let textWidth = ceil((title as NSString).size(withAttributes: [.font: font]).width)
+        let indicatorWidth: CGFloat = showsMenuIndicator ? 18 : 0
+        return textWidth + indicatorWidth + 4
+    }
+
+    private func wideBatchActionShowsMenuIndicator(_ action: WideBatchBottomAction) -> Bool {
+        switch action {
+        case .flag, .gradeNow:
+            return true
+        case .manageTags, .suspend, .mark, .moveDeck, .changeNotetype, .export, .setDueDate, .bury, .findReplace, .resetNew:
+            return false
+        }
+    }
+
+    private func wideBatchActionTitle(_ action: WideBatchBottomAction) -> String {
+        switch action {
+        case .flag:
+            return L("browse_batch_flag_label")
+        case .manageTags:
+            return L("browse_batch_manage_tags_short")
+        case .suspend:
+            return L("browse_batch_suspend_toggle")
+        case .mark:
+            return L("browse_batch_mark_short")
+        case .gradeNow:
+            return L("browse_batch_grade_now_short")
+        case .moveDeck:
+            return L("browse_batch_move_deck_short")
+        case .changeNotetype:
+            return L("browse_batch_change_notetype_short")
+        case .export:
+            return L("browse_batch_export_short")
+        case .setDueDate:
+            return L("card_action_set_due_date")
+        case .bury:
+            return L("browse_batch_bury_short")
+        case .findReplace:
+            return L("browse_find_replace_short")
+        case .resetNew:
+            return L("browse_batch_reset_new")
+        }
+    }
+
+    @ViewBuilder
+    private func wideBatchBottomActionView(_ action: WideBatchBottomAction, isDisabled: Bool) -> some View {
+        switch action {
+        case .flag:
+            Menu {
+                browseFlagButton(1) { Task { await batchFlag(1) } }
+                browseFlagButton(2) { Task { await batchFlag(2) } }
+                browseFlagButton(3) { Task { await batchFlag(3) } }
+                browseFlagButton(4) { Task { await batchFlag(4) } }
+                browseFlagButton(5) { Task { await batchFlag(5) } }
+                browseFlagButton(6) { Task { await batchFlag(6) } }
+                browseFlagButton(7) { Task { await batchFlag(7) } }
+                Divider()
+                browseFlagButton(0) { Task { await batchFlag(0) } }
+            } label: {
+                Text(wideBatchActionTitle(action))
+                    .lineLimit(1)
+                    .fixedSize()
+                    .amgiToolbarTextButton()
+            }
+            .disabled(isDisabled)
+
+        case .manageTags:
+            Button(wideBatchActionTitle(action)) {
+                showTagsActionSheet = true
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .amgiToolbarTextButton()
+            .disabled(isDisabled)
+
+        case .suspend:
+            Button(wideBatchActionTitle(action)) {
+                showSuspendConfirm = true
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .amgiToolbarTextButton()
+            .disabled(isDisabled)
+
+        case .mark:
+            Button(wideBatchActionTitle(action)) {
+                Task { await batchToggleMark() }
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .amgiToolbarTextButton()
+            .disabled(isDisabled)
+
+        case .gradeNow:
+            Menu {
+                Button(L("review_rating_again")) { Task { await batchGradeNow(rating: .again) } }
+                Button(L("review_rating_hard")) { Task { await batchGradeNow(rating: .hard) } }
+                Button(L("review_rating_good")) { Task { await batchGradeNow(rating: .good) } }
+                Button(L("review_rating_easy")) { Task { await batchGradeNow(rating: .easy) } }
+            } label: {
+                Text(wideBatchActionTitle(action))
+                    .lineLimit(1)
+                    .fixedSize()
+                    .amgiToolbarTextButton()
+            }
+            .disabled(isDisabled)
+
+        case .moveDeck:
+            Button(wideBatchActionTitle(action)) {
+                showMoveToDeck = true
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .amgiToolbarTextButton()
+            .disabled(isDisabled)
+
+        case .changeNotetype:
+            Button(wideBatchActionTitle(action)) {
+                showChangeNotetype = true
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .amgiToolbarTextButton()
+            .disabled(isDisabled)
+
+        case .export:
+            Button(wideBatchActionTitle(action)) {
+                presentSelectedNotesExportOptions()
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .amgiToolbarTextButton()
+            .disabled(isDisabled)
+
+        case .setDueDate:
+            Button(wideBatchActionTitle(action)) {
+                showSetDueDate = true
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .amgiToolbarTextButton()
+            .disabled(isDisabled)
+
+        case .bury:
+            Button(wideBatchActionTitle(action)) {
+                Task { await batchToggleBury() }
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .amgiToolbarTextButton()
+            .disabled(isDisabled)
+
+        case .findReplace:
+            Button(wideBatchActionTitle(action)) {
+                showFindReplace = true
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .amgiToolbarTextButton()
+            .disabled(isDisabled)
+
+        case .resetNew:
+            Button(wideBatchActionTitle(action), role: .destructive) {
+                showResetNewConfirm = true
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .disabled(isDisabled)
+        }
+    }
+
+    @ViewBuilder
+    private func wideBatchOverflowMenuContent(_ actions: [WideBatchBottomAction]) -> some View {
+        ForEach(actions) { action in
+            wideBatchOverflowMenuItem(action)
+        }
+    }
+
+    @ViewBuilder
+    private func wideBatchOverflowMenuItem(_ action: WideBatchBottomAction) -> some View {
+        switch action {
+        case .flag:
+            Menu(wideBatchActionTitle(action)) {
+                browseFlagButton(1) { Task { await batchFlag(1) } }
+                browseFlagButton(2) { Task { await batchFlag(2) } }
+                browseFlagButton(3) { Task { await batchFlag(3) } }
+                browseFlagButton(4) { Task { await batchFlag(4) } }
+                browseFlagButton(5) { Task { await batchFlag(5) } }
+                browseFlagButton(6) { Task { await batchFlag(6) } }
+                browseFlagButton(7) { Task { await batchFlag(7) } }
+                Divider()
+                browseFlagButton(0) { Task { await batchFlag(0) } }
+            }
+
+        case .gradeNow:
+            Menu(wideBatchActionTitle(action)) {
+                Button(L("review_rating_again")) { Task { await batchGradeNow(rating: .again) } }
+                Button(L("review_rating_hard")) { Task { await batchGradeNow(rating: .hard) } }
+                Button(L("review_rating_good")) { Task { await batchGradeNow(rating: .good) } }
+                Button(L("review_rating_easy")) { Task { await batchGradeNow(rating: .easy) } }
+            }
+
+        case .manageTags:
+            Button(wideBatchActionTitle(action)) { showTagsActionSheet = true }
+        case .suspend:
+            Button(wideBatchActionTitle(action)) { showSuspendConfirm = true }
+        case .mark:
+            Button(wideBatchActionTitle(action)) { Task { await batchToggleMark() } }
+        case .moveDeck:
+            Button(wideBatchActionTitle(action)) { showMoveToDeck = true }
+        case .changeNotetype:
+            Button(wideBatchActionTitle(action)) { showChangeNotetype = true }
+        case .export:
+            Button(wideBatchActionTitle(action)) { presentSelectedNotesExportOptions() }
+        case .setDueDate:
+            Button(wideBatchActionTitle(action)) { showSetDueDate = true }
+        case .bury:
+            Button(wideBatchActionTitle(action)) { Task { await batchToggleBury() } }
+        case .findReplace:
+            Button(wideBatchActionTitle(action)) { showFindReplace = true }
+        case .resetNew:
+            Button(wideBatchActionTitle(action), role: .destructive) { showResetNewConfirm = true }
         }
     }
 
@@ -2612,6 +2947,7 @@ struct ChangeNotetypeSheet: View {
     @State private var notetypeNames: [(id: Int64, name: String)] = []
     @State private var isLoading = true
     @State private var isFetchingInfo = false
+    @State private var errorTitle = L("common_error")
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var mappingData: ChangeNotetypeMappingData?
@@ -2647,7 +2983,7 @@ struct ChangeNotetypeSheet: View {
                     Button(L("common_cancel")) { dismiss() }
                 }
             }
-            .alert(L("browse_batch_change_notetype_mixed_title"), isPresented: $showError) {
+            .alert(errorTitle, isPresented: $showError) {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {
                 Text(errorMessage ?? L("common_unknown_error"))
@@ -2691,8 +3027,10 @@ struct ChangeNotetypeSheet: View {
             }
 
             guard !notesByOldNotetype.isEmpty else {
-                errorMessage = L("browse_batch_change_notetype_same_msg")
-                showError = true
+                presentErrorAlert(
+                    title: L("browse_batch_change_notetype"),
+                    message: L("browse_batch_change_notetype_same_msg")
+                )
                 return
             }
 
@@ -2715,12 +3053,13 @@ struct ChangeNotetypeSheet: View {
             } else {
                 // Multiple old notetypes: reject with informative error (align with upstream Anki)
                 let count = notesByOldNotetype.count
-                errorMessage = String(format: L("browse_batch_change_notetype_mixed_msg"), count)
-                showError = true
+                presentErrorAlert(
+                    title: L("browse_batch_change_notetype_mixed_title"),
+                    message: String(format: L("browse_batch_change_notetype_mixed_msg"), count)
+                )
             }
         } catch {
-            errorMessage = error.localizedDescription
-            showError = true
+            presentErrorAlert(title: L("common_error"), message: error.localizedDescription)
         }
     }
 
@@ -2734,9 +3073,14 @@ struct ChangeNotetypeSheet: View {
             onComplete()
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
-            showError = true
+            presentErrorAlert(title: L("common_error"), message: error.localizedDescription)
         }
+    }
+
+    private func presentErrorAlert(title: String, message: String) {
+        errorTitle = title
+        errorMessage = message
+        showError = true
     }
 }
 
