@@ -1458,7 +1458,7 @@ struct BrowseView: View {
                 .font(.caption2.weight(.medium))
                 .lineLimit(1)
         }
-        .foregroundStyle(tone.toolbarForegroundColor)
+        .amgiToolbarTextButton(tone: tone)
         .frame(minWidth: estimatedWideBatchActionWidth(forTitle: title), minHeight: 46)
         .contentShape(Rectangle())
     }
