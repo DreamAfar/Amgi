@@ -1502,6 +1502,17 @@ struct ReviewSelectionAISheetView: View {
             .navigationTitle(L("review_selection_ai_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        onClose()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.secondary)
+                            .imageScale(.large)
+                    }
+                    .accessibilityLabel(L("common_done"))
+                }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         onAddNote()
@@ -1517,12 +1528,6 @@ struct ReviewSelectionAISheetView: View {
                         Image(systemName: isFavorited ? "star.fill" : "star")
                     }
                     .accessibilityLabel(isFavorited ? L("review_selection_ai_unfavorite") : L("review_selection_ai_favorite"))
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(L("common_done")) {
-                        onClose()
-                    }
-                    .buttonStyle(.borderedProminent)
                 }
             }
             .onAppear {

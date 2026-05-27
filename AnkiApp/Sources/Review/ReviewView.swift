@@ -780,6 +780,17 @@ struct ReviewView: View {
     private var reviewToolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.secondary)
+                    .imageScale(.large)
+            }
+            .accessibilityLabel(L("common_done"))
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
                 Task { await performUndo() }
             } label: {
                 Image(systemName: "arrow.uturn.backward")
@@ -901,10 +912,6 @@ struct ReviewView: View {
                 Image(systemName: "ellipsis.circle")
             }
             .accessibilityLabel(L("review_more_actions"))
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button(L("common_done")) { onDismiss() }
-                .buttonStyle(.borderedProminent)
         }
     }
 
