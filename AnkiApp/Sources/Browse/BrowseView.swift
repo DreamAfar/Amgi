@@ -2160,7 +2160,7 @@ struct BrowseView: View {
             req.cardIds = allCardIDs
             req.rating = rating
             let _: Anki_Collection_OpChanges = try backend.invoke(
-                service: .scheduler,
+                service: AnkiBackend.Service.scheduler,
                 method: AnkiBackend.SchedulerMethod.gradeNow,
                 request: req
             )
@@ -2189,7 +2189,7 @@ struct BrowseView: View {
             req.cardIds = allCardIDs
             req.days = days
             let _: Anki_Collection_OpChanges = try backend.invoke(
-                service: .scheduler,
+                service: AnkiBackend.Service.scheduler,
                 method: AnkiBackend.SchedulerMethod.setDueDate,
                 request: req
             )
@@ -2620,7 +2620,7 @@ struct MoveToDeckSheet: View {
 
 // MARK: - ChangeNotetypeSheet
 
-private struct ChangeNotetypeMappingData: Identifiable, Sendable {
+private struct ChangeNotetypeMappingData: Identifiable, Sendable, Hashable {
     let id = UUID()
     let info: Anki_Notetypes_ChangeNotetypeInfo
     let noteIDs: [Int64]
