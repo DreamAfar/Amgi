@@ -1356,9 +1356,9 @@ struct BrowseView: View {
 
         for (index, action) in actions.enumerated() {
             let actionWidth = estimatedWideBatchActionWidth(for: action)
-            let spacingBefore = visible.isEmpty ? 0 : 16
+            let spacingBefore: CGFloat = visible.isEmpty ? 0 : 16
             let needsOverflowMenu = index < actions.count - 1
-            let reserveWidth = needsOverflowMenu ? 16 + moreWidth : 0
+            let reserveWidth: CGFloat = needsOverflowMenu ? moreWidth + 16 : 0
 
             if usedWidth + spacingBefore + actionWidth + reserveWidth <= contentWidth {
                 visible.append(action)
