@@ -155,6 +155,7 @@
 "browse_batch_change_notetype_discard_warning" = "以下のフィールドは破棄されます：";
 "browse_batch_change_notetype_mixed_title" = "複数のノートタイプが選択されています";
 "browse_batch_change_notetype_mixed_msg" = "選択したノートには %d 種類の異なるノートタイプが含まれています。同一のノートタイプに絞り込んでから操作してください。";
+"browse_batch_change_notetype_same_msg" = "変更先のノートタイプが現在と同じです。変更の必要はありません。";
 "browse_batch_move_deck_short" = "デッキ変更";
 "browse_batch_change_notetype_short" = "ノートタイプ変更";
 "browse_batch_flag_label" = "フラグ";

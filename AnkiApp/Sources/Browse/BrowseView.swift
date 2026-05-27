@@ -2691,7 +2691,11 @@ struct ChangeNotetypeSheet: View {
                 }
             }
 
-            guard !notesByOldNotetype.isEmpty else { return }
+            guard !notesByOldNotetype.isEmpty else {
+                errorMessage = L("browse_batch_change_notetype_same_msg")
+                showError = true
+                return
+            }
 
             if notesByOldNotetype.count == 1,
                let (oldNotetypeId, groupNoteIDs) = notesByOldNotetype.first {

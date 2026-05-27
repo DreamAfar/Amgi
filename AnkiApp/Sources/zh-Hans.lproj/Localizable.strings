@@ -155,6 +155,7 @@
 "browse_batch_change_notetype_discard_warning" = "以下字段内容将被丢弃：";
 "browse_batch_change_notetype_mixed_title" = "选中了多个笔记模板";
 "browse_batch_change_notetype_mixed_msg" = "当前选中笔记包含 %d 种不同笔记模板，请先过滤到同一笔记模板再操作。";
+"browse_batch_change_notetype_same_msg" = "目标模板与当前模板相同，无需更改。";
 "browse_batch_move_deck_short" = "更改牌组";
 "browse_batch_change_notetype_short" = "更改笔记模板";
 "browse_batch_flag_label" = "旗标";

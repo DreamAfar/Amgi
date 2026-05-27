@@ -155,6 +155,7 @@
 "browse_batch_change_notetype_discard_warning" = "The following fields will be discarded:";
 "browse_batch_change_notetype_mixed_title" = "Multiple Note Types Selected";
 "browse_batch_change_notetype_mixed_msg" = "The selected notes contain %d different note types. Please filter to a single note type before changing.";
+"browse_batch_change_notetype_same_msg" = "The target note type is the same as the current one. No change needed.";
 "browse_batch_move_deck_short" = "Move Deck";
 "browse_batch_change_notetype_short" = "Change Type";
 "browse_batch_flag_label" = "Flag";
