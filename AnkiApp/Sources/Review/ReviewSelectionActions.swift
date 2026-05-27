@@ -1502,14 +1502,12 @@ struct ReviewSelectionAISheetView: View {
             .navigationTitle(L("review_selection_ai_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
                         onClose()
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(.secondary)
-                            .imageScale(.large)
+                        Image(systemName: "xmark")
+                            .font(.title3.weight(.semibold))
                     }
                     .accessibilityLabel(L("common_done"))
                 }

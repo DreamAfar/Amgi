@@ -75,23 +75,23 @@ struct TagsView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(.secondary)
-                            .imageScale(.large)
+                        Image(systemName: "xmark")
+                            .font(.title3.weight(.semibold))
                     }
                     .accessibilityLabel(L("common_done"))
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showAddTag = true }) {
-                        Image(systemName: "plus")
+                if !allTags.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: { showAddTag = true }) {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
-                if !isNoteMode {
+                if !isNoteMode && !allTags.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             Button(role: .destructive) {

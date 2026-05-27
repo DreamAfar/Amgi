@@ -782,10 +782,8 @@ struct ReviewView: View {
             Button {
                 onDismiss()
             } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.secondary)
-                    .imageScale(.large)
+                Image(systemName: "xmark")
+                    .font(.title3.weight(.semibold))
             }
             .accessibilityLabel(L("common_done"))
         }
