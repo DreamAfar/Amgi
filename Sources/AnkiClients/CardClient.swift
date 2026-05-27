@@ -12,6 +12,7 @@ public struct CardClient: Sendable {
     public var suspend: @Sendable (_ cardId: Int64) throws -> Void
     public var unsuspend: @Sendable (_ cardId: Int64) throws -> Void
     public var bury: @Sendable (_ cardId: Int64) throws -> Void
+    public var unbury: @Sendable (_ cardId: Int64) throws -> Void
     public var flag: @Sendable (_ cardId: Int64, _ flag: UInt32) throws -> Void
     public var moveToDeck: @Sendable (_ cardId: Int64, _ deckId: Int64) throws -> Void
     public var resetToNew: @Sendable (_ cardId: Int64) throws -> Void

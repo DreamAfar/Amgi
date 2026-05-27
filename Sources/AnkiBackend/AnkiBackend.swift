@@ -466,6 +466,8 @@ extension AnkiBackend {
         public static let scheduleCardsAsNew: UInt32 = 17
         // SetDueDate = proto index 16 + offset 3 = 19
         public static let setDueDate: UInt32 = 19
+        // GradeNow = proto index 17 + offset 3 = 20
+        public static let gradeNow: UInt32 = 20
         // CustomStudy = proto index 24 + offset 3 = 27
         public static let customStudy: UInt32 = 27
         // CustomStudyDefaults = proto index 25 + offset 3 = 28
@@ -484,6 +486,7 @@ extension AnkiBackend {
         public static let updateNotes: UInt32 = 5
         public static let getNote: UInt32 = 6
         public static let removeNotes: UInt32 = 7
+        public static let fieldNamesForNotes: UInt32 = 10
     }
 
     public enum DecksMethod {
@@ -528,6 +531,7 @@ extension AnkiBackend {
     public enum SearchMethod {
         public static let searchCards: UInt32 = 1
         public static let searchNotes: UInt32 = 2
+        public static let findAndReplace: UInt32 = 5
     }
 
     public enum CardsMethod {

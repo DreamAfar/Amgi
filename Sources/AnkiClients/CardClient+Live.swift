@@ -210,6 +210,21 @@ extension CardClient: DependencyKey {
                     throw error
                 }
             },
+            unbury: { cardId in
+                var req = Anki_Cards_CardIds()
+                req.cids = [cardId]
+                do {
+                    try backend.callVoid(
+                        service: AnkiBackend.Service.scheduler,
+                        method: AnkiBackend.SchedulerMethod.restoreBuriedAndSuspendedCards,
+                        request: req
+                    )
+                    logger.info("Card unburied: \(cardId)")
+                } catch {
+                    logger.error("Unbury failed for cardId=\(cardId): \(error)")
+                    throw error
+                }
+            },
             flag: { cardId, flag in
                 var req = Anki_Cards_SetFlagRequest()
                 req.cardIds = [cardId]
