@@ -84,14 +84,12 @@ struct TagsView: View {
                     }
                     .accessibilityLabel(L("common_done"))
                 }
-                if !allTags.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: { showAddTag = true }) {
-                            Image(systemName: "plus")
-                        }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { showAddTag = true }) {
+                        Image(systemName: "plus")
                     }
                 }
-                if !isNoteMode && !allTags.isEmpty {
+                if !isNoteMode {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             Button(role: .destructive) {
