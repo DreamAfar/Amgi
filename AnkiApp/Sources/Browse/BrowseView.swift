@@ -2680,14 +2680,13 @@ struct ChangeNotetypeSheet: View {
             for noteId in noteIDs {
                 var req = Anki_Notes_NoteId()
                 req.nid = noteId
-                if let note: Anki_Notes_Note = try? backend.invoke(
+                let note: Anki_Notes_Note = try backend.invoke(
                     service: AnkiBackend.Service.notes,
                     method: AnkiBackend.NotesMethod.getNote,
                     request: req
-                ) {
-                    if note.notetypeID != newNotetypeId {
-                        notesByOldNotetype[note.notetypeID, default: []].append(noteId)
-                    }
+                )
+                if note.notetypeID != newNotetypeId {
+                    notesByOldNotetype[note.notetypeID, default: []].append(noteId)
                 }
             }
 
