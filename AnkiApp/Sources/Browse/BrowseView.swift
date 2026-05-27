@@ -1309,7 +1309,7 @@ struct BrowseView: View {
         return GeometryReader { proxy in
             let layout = wideBatchBottomBarLayout(for: proxy.size.width)
 
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 ForEach(layout.visible) { action in
                     wideBatchBottomActionView(action, isDisabled: isDisabled)
                 }
@@ -1318,10 +1318,10 @@ struct BrowseView: View {
                     Menu {
                         wideBatchOverflowMenuContent(layout.overflow)
                     } label: {
-                        Text(L("browse_more_accessibility"))
-                            .lineLimit(1)
-                            .fixedSize()
-                            .amgiToolbarTextButton()
+                        wideBatchActionLabel(
+                            title: L("browse_more_accessibility"),
+                            systemImage: "ellipsis.circle"
+                        )
                     }
                     .disabled(isDisabled)
                 }
@@ -1329,10 +1329,10 @@ struct BrowseView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
-        .frame(height: 44)
+        .frame(height: 62)
         .background(Color.amgiSurface)
         .overlay(alignment: .top) {
             Rectangle()
@@ -1350,15 +1350,15 @@ struct BrowseView: View {
             return (actions, [])
         }
 
-        let moreWidth = estimatedWideBatchActionWidth(forTitle: L("browse_more_accessibility"), showsMenuIndicator: true)
+        let moreWidth = estimatedWideBatchActionWidth(forTitle: L("browse_more_accessibility"))
         var visible: [WideBatchBottomAction] = []
         var usedWidth: CGFloat = 0
 
         for (index, action) in actions.enumerated() {
             let actionWidth = estimatedWideBatchActionWidth(for: action)
-            let spacingBefore: CGFloat = visible.isEmpty ? 0 : 16
+            let spacingBefore: CGFloat = visible.isEmpty ? 0 : 12
             let needsOverflowMenu = index < actions.count - 1
-            let reserveWidth: CGFloat = needsOverflowMenu ? moreWidth + 16 : 0
+            let reserveWidth: CGFloat = needsOverflowMenu ? moreWidth + 12 : 0
 
             if usedWidth + spacingBefore + actionWidth + reserveWidth <= contentWidth {
                 visible.append(action)
@@ -1375,29 +1375,45 @@ struct BrowseView: View {
         guard !actions.isEmpty else { return 0 }
 
         let widths = actions.map(estimatedWideBatchActionWidth(for:))
-        return widths.reduce(0, +) + CGFloat(actions.count - 1) * 16
+        return widths.reduce(0, +) + CGFloat(actions.count - 1) * 12
     }
 
     private func estimatedWideBatchActionWidth(for action: WideBatchBottomAction) -> CGFloat {
-        estimatedWideBatchActionWidth(
-            forTitle: wideBatchActionTitle(action),
-            showsMenuIndicator: wideBatchActionShowsMenuIndicator(action)
-        )
+        estimatedWideBatchActionWidth(forTitle: wideBatchActionTitle(action))
     }
 
-    private func estimatedWideBatchActionWidth(forTitle title: String, showsMenuIndicator: Bool) -> CGFloat {
-        let font = UIFont.preferredFont(forTextStyle: .body)
+    private func estimatedWideBatchActionWidth(forTitle title: String) -> CGFloat {
+        let font = UIFont.preferredFont(forTextStyle: .caption1)
         let textWidth = ceil((title as NSString).size(withAttributes: [.font: font]).width)
-        let indicatorWidth: CGFloat = showsMenuIndicator ? 18 : 0
-        return textWidth + indicatorWidth + 4
+        return max(52, textWidth + 10)
     }
 
-    private func wideBatchActionShowsMenuIndicator(_ action: WideBatchBottomAction) -> Bool {
+    private func wideBatchActionIcon(_ action: WideBatchBottomAction) -> String {
         switch action {
-        case .flag, .gradeNow:
-            return true
-        case .manageTags, .suspend, .mark, .moveDeck, .changeNotetype, .export, .setDueDate, .bury, .findReplace, .resetNew:
-            return false
+        case .flag:
+            return "flag.fill"
+        case .manageTags:
+            return "tag"
+        case .suspend:
+            return "pause.circle"
+        case .mark:
+            return "bookmark"
+        case .gradeNow:
+            return "star.circle"
+        case .moveDeck:
+            return "rectangle.stack.badge.plus"
+        case .changeNotetype:
+            return "doc.badge.gearshape"
+        case .export:
+            return "square.and.arrow.up"
+        case .setDueDate:
+            return "calendar.badge.clock"
+        case .bury:
+            return "moon.zzz"
+        case .findReplace:
+            return "magnifyingglass"
+        case .resetNew:
+            return "arrow.counterclockwise"
         }
     }
 
@@ -1430,6 +1446,23 @@ struct BrowseView: View {
         }
     }
 
+    private func wideBatchActionLabel(
+        title: String,
+        systemImage: String,
+        tone: AmgiStatusTone = .neutral
+    ) -> some View {
+        VStack(spacing: 3) {
+            Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .semibold))
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .lineLimit(1)
+        }
+        .foregroundStyle(tone.toolbarForegroundColor)
+        .frame(minWidth: estimatedWideBatchActionWidth(forTitle: title), minHeight: 46)
+        .contentShape(Rectangle())
+    }
+
     @ViewBuilder
     private func wideBatchBottomActionView(_ action: WideBatchBottomAction, isDisabled: Bool) -> some View {
         switch action {
@@ -1445,38 +1478,44 @@ struct BrowseView: View {
                 Divider()
                 browseFlagButton(0) { Task { await batchFlag(0) } }
             } label: {
-                Text(wideBatchActionTitle(action))
-                    .lineLimit(1)
-                    .fixedSize()
-                    .amgiToolbarTextButton()
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
             .disabled(isDisabled)
 
         case .manageTags:
-            Button(wideBatchActionTitle(action)) {
+            Button {
                 showTagsActionSheet = true
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
-            .amgiToolbarTextButton()
             .disabled(isDisabled)
 
         case .suspend:
-            Button(wideBatchActionTitle(action)) {
+            Button {
                 showSuspendConfirm = true
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
-            .amgiToolbarTextButton()
             .disabled(isDisabled)
 
         case .mark:
-            Button(wideBatchActionTitle(action)) {
+            Button {
                 Task { await batchToggleMark() }
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
-            .amgiToolbarTextButton()
             .disabled(isDisabled)
 
         case .gradeNow:
@@ -1486,73 +1525,89 @@ struct BrowseView: View {
                 Button(L("review_rating_good")) { Task { await batchGradeNow(rating: .good) } }
                 Button(L("review_rating_easy")) { Task { await batchGradeNow(rating: .easy) } }
             } label: {
-                Text(wideBatchActionTitle(action))
-                    .lineLimit(1)
-                    .fixedSize()
-                    .amgiToolbarTextButton()
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
             .disabled(isDisabled)
 
         case .moveDeck:
-            Button(wideBatchActionTitle(action)) {
+            Button {
                 showMoveToDeck = true
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
-            .amgiToolbarTextButton()
             .disabled(isDisabled)
 
         case .changeNotetype:
-            Button(wideBatchActionTitle(action)) {
+            Button {
                 showChangeNotetype = true
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
-            .amgiToolbarTextButton()
             .disabled(isDisabled)
 
         case .export:
-            Button(wideBatchActionTitle(action)) {
+            Button {
                 presentSelectedNotesExportOptions()
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
-            .amgiToolbarTextButton()
             .disabled(isDisabled)
 
         case .setDueDate:
-            Button(wideBatchActionTitle(action)) {
+            Button {
                 showSetDueDate = true
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
-            .amgiToolbarTextButton()
             .disabled(isDisabled)
 
         case .bury:
-            Button(wideBatchActionTitle(action)) {
+            Button {
                 Task { await batchToggleBury() }
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
-            .amgiToolbarTextButton()
             .disabled(isDisabled)
 
         case .findReplace:
-            Button(wideBatchActionTitle(action)) {
+            Button {
                 showFindReplace = true
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action)
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
-            .amgiToolbarTextButton()
             .disabled(isDisabled)
 
         case .resetNew:
-            Button(wideBatchActionTitle(action), role: .destructive) {
+            Button(role: .destructive) {
                 showResetNewConfirm = true
+            } label: {
+                wideBatchActionLabel(
+                    title: wideBatchActionTitle(action),
+                    systemImage: wideBatchActionIcon(action),
+                    tone: .danger
+                )
             }
-            .lineLimit(1)
-            .fixedSize()
             .disabled(isDisabled)
         }
     }
@@ -3000,7 +3055,21 @@ struct ChangeNotetypeSheet: View {
     private func loadNotetypes() async {
         isLoading = true
         do {
-            notetypeNames = try loadStandardNotetypeEntries(backend: backend)
+            let allNotetypes = try loadStandardNotetypeEntries(backend: backend)
+            var currentNotetypeIDs = Set<Int64>()
+
+            for noteId in noteIDs {
+                var req = Anki_Notes_NoteId()
+                req.nid = noteId
+                let note: Anki_Notes_Note = try backend.invoke(
+                    service: AnkiBackend.Service.notes,
+                    method: AnkiBackend.NotesMethod.getNote,
+                    request: req
+                )
+                currentNotetypeIDs.insert(note.notetypeID)
+            }
+
+            notetypeNames = allNotetypes.filter { !currentNotetypeIDs.contains($0.id) }
         } catch {
             notetypeNames = []
         }
