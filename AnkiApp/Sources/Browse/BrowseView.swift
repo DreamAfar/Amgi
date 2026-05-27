@@ -66,6 +66,14 @@ struct BrowseView: View {
     @State private var showBatchSuccess = false
     @State private var showSuspendConfirm = false
     @State private var showResetNewConfirm = false
+    @State private var showBuryConfirm = false
+    @State private var isBuryingUnbury = false
+    @State private var showFindReplace = false
+    @State private var showSetDueDate = false
+    @State private var setDueDateDays = "0"
+    @State private var suspendedNoteIDs = Set<Int64>()
+    @State private var buriedNoteIDs = Set<Int64>()
+    @State private var flaggedNoteIDs: [Int: Set<Int64>] = [:]
     @State private var batchProgressDone = 0
     @State private var batchProgressTotal = 0
     @State private var showExportOptions = false
@@ -160,10 +168,14 @@ struct BrowseView: View {
                 }
             )
         }
-        .confirmationDialog(
+        .sheet(isPresented: $showFindReplace) {
+            BrowseFindReplaceSheet(noteIDs: Array(selectedNoteIDs)) {
+                scheduleSearch()
+            }
+        }
+        .alert(
             L("browse_batch_manage_tags"),
-            isPresented: $showTagsActionSheet,
-            titleVisibility: .visible
+            isPresented: $showTagsActionSheet
         ) {
             Button(L("browse_batch_tags_add")) {
                 presentBatchTagsManager(mode: .addToNotes)
@@ -343,7 +355,30 @@ struct BrowseView: View {
         } message: {
             Text(L("browse_batch_reset_confirm_msg", selectedNoteIDs.count))
         }
-    }
+        .alert(
+            isBuryingUnbury ? L("browse_batch_unbury_confirm_title") : L("browse_batch_bury_confirm_title"),
+            isPresented: $showBuryConfirm
+        ) {
+            Button(isBuryingUnbury ? L("browse_batch_unbury_confirm_action") : L("browse_batch_bury_confirm_action")) {
+                Task { await batchPerformBuryToggle() }
+            }
+            Button(L("common_cancel"), role: .cancel) {}
+        } message: {
+            Text(isBuryingUnbury
+                 ? String(format: L("browse_batch_unbury_confirm_msg"), selectedNoteIDs.count)
+                 : String(format: L("browse_batch_bury_confirm_msg"), selectedNoteIDs.count))
+        }
+        .alert(L("review_set_due_title"), isPresented: $showSetDueDate) {
+            TextField(L("review_set_due_placeholder"), text: $setDueDateDays)
+                .keyboardType(.numbersAndPunctuation)
+            Button(L("common_ok")) {
+                let days = setDueDateDays
+                Task { await batchSetDueDate(days: days) }
+            }
+            Button(L("common_cancel"), role: .cancel) { setDueDateDays = "0" }
+        } message: {
+            Text(L("review_set_due_hint"))
+        }
 
     private func browseStateObserverContent<Content: View>(_ content: Content) -> some View {
         let filterObserverContent = browseFilterObserverContent(content)
@@ -753,7 +788,7 @@ struct BrowseView: View {
             ForEach(notes, id: \.id) { note in
                 if isEditing {
                     NoteRowView(note: note, notetypeName: showNotetypeSubtitle ? notetypeNamesByID[note.mid] : nil)
-                        .listRowBackground(selectedNoteIDs.contains(note.id) ? Color.accentColor.opacity(0.10) : Color.clear)
+                        .listRowBackground(selectedNoteIDs.contains(note.id) ? Color.accentColor.opacity(0.10) : noteRowBgColor(note))
                         .onAppear {
                             if note.id == notes.last?.id {
                                 Task { await loadNextPage() }
@@ -769,6 +804,7 @@ struct BrowseView: View {
                                 }
                             }
                     }
+                    .listRowBackground(noteRowBgColor(note))
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
                             selectedNoteForDelete = note
@@ -1154,87 +1190,114 @@ struct BrowseView: View {
     }
 
     private var batchBottomBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 24) {
-                batchActionButton(systemImage: "rectangle.stack.badge.plus", title: L("browse_batch_move_deck_short")) {
-                    showMoveToDeck = true
-                }
-
-                batchActionButton(systemImage: "doc.badge.gearshape", title: L("browse_batch_change_notetype_short")) {
-                    showChangeNotetype = true
-                }
-
-                Menu {
-                    browseFlagButton(1) { Task { await batchFlag(1) } }
-                    browseFlagButton(2) { Task { await batchFlag(2) } }
-                    browseFlagButton(3) { Task { await batchFlag(3) } }
-                    browseFlagButton(4) { Task { await batchFlag(4) } }
-                    browseFlagButton(5) { Task { await batchFlag(5) } }
-                    browseFlagButton(6) { Task { await batchFlag(6) } }
-                    browseFlagButton(7) { Task { await batchFlag(7) } }
-                    Divider()
-                    browseFlagButton(0) { Task { await batchFlag(0) } }
-                } label: {
-                    batchActionLabel(systemImage: "flag.fill", title: L("browse_batch_flag_label"))
-                }
-                .buttonStyle(.plain)
-                .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
-
-                batchActionButton(systemImage: "tag", title: L("browse_batch_manage_tags_short")) {
-                    showTagsActionSheet = true
-                }
-
-                batchActionButton(systemImage: "square.and.arrow.up", title: L("browse_batch_export_short")) {
-                    presentSelectedNotesExportOptions()
-                }
-
-                batchActionButton(systemImage: "pause.circle", title: L("browse_batch_suspend_toggle")) {
-                    showSuspendConfirm = true
-                }
-
-                batchActionButton(systemImage: "arrow.counterclockwise", title: L("browse_batch_reset_new")) {
-                    showResetNewConfirm = true
-                }
+        HStack(spacing: 0) {
+            // 旗标
+            Menu {
+                browseFlagButton(1) { Task { await batchFlag(1) } }
+                browseFlagButton(2) { Task { await batchFlag(2) } }
+                browseFlagButton(3) { Task { await batchFlag(3) } }
+                browseFlagButton(4) { Task { await batchFlag(4) } }
+                browseFlagButton(5) { Task { await batchFlag(5) } }
+                browseFlagButton(6) { Task { await batchFlag(6) } }
+                browseFlagButton(7) { Task { await batchFlag(7) } }
+                Divider()
+                browseFlagButton(0) { Task { await batchFlag(0) } }
+            } label: {
+                batchBarIcon("flag.fill", L("browse_batch_flag_label"))
             }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+
+            // 标签
+            Button { showTagsActionSheet = true } label: {
+                batchBarIcon("tag", L("browse_batch_manage_tags_short"))
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+
+            // 暂停
+            Button { showSuspendConfirm = true } label: {
+                batchBarIcon("pause.circle", L("browse_batch_suspend_toggle"))
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+
+            // 标记
+            Button { Task { await batchToggleMark() } } label: {
+                batchBarIcon("bookmark", L("browse_batch_mark_short"))
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+
+            // 立即评分
+            Menu {
+                Button { Task { await batchGradeNow(rating: .again) } } label: {
+                    Label(L("review_rating_again"), systemImage: "1.circle")
+                }
+                Button { Task { await batchGradeNow(rating: .hard) } } label: {
+                    Label(L("review_rating_hard"), systemImage: "2.circle")
+                }
+                Button { Task { await batchGradeNow(rating: .good) } } label: {
+                    Label(L("review_rating_good"), systemImage: "3.circle")
+                }
+                Button { Task { await batchGradeNow(rating: .easy) } } label: {
+                    Label(L("review_rating_easy"), systemImage: "4.circle")
+                }
+            } label: {
+                batchBarIcon("star.circle", L("browse_batch_grade_now_short"))
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+
+            // 更多
+            Menu {
+                Button { showMoveToDeck = true } label: {
+                    Label(L("browse_batch_move_deck_short"), systemImage: "rectangle.stack.badge.plus")
+                }
+                Button { showChangeNotetype = true } label: {
+                    Label(L("browse_batch_change_notetype_short"), systemImage: "doc.badge.gearshape")
+                }
+                Button { presentSelectedNotesExportOptions() } label: {
+                    Label(L("browse_batch_export_short"), systemImage: "square.and.arrow.up")
+                }
+                Divider()
+                Button(role: .destructive) { showResetNewConfirm = true } label: {
+                    Label(L("browse_batch_reset_new"), systemImage: "arrow.counterclockwise")
+                }
+                Button { showSetDueDate = true } label: {
+                    Label(L("card_action_set_due_date"), systemImage: "calendar.badge.clock")
+                }
+                Button { Task { await batchToggleBury() } } label: {
+                    Label(L("browse_batch_bury_short"), systemImage: "moon.zzz")
+                }
+                Divider()
+                Button { showFindReplace = true } label: {
+                    Label(L("browse_find_replace_short"), systemImage: "magnifyingglass")
+                }
+            } label: {
+                batchBarIcon("ellipsis.circle", L("browse_more_accessibility"))
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
         .background(.bar)
-        .overlay(alignment: .top) {
-            Divider()
-        }
-    }
-
-    private func batchActionButton(systemImage: String, title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: AmgiSpacing.xs) {
-                Image(systemName: systemImage)
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-                    .background(Color.amgiSurface, in: Circle())
-                Text(title)
-                    .amgiFont(.caption)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
-            }
-            .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? Color.amgiTextTertiary : Color.amgiTextPrimary)
-        }
-        .buttonStyle(.plain)
+        .overlay(alignment: .top) { Divider() }
         .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
     }
 
-    private func batchActionLabel(systemImage: String, title: String) -> some View {
-        VStack(spacing: AmgiSpacing.xs) {
+    private func batchBarIcon(_ systemImage: String, _ title: String) -> some View {
+        VStack(spacing: 3) {
             Image(systemName: systemImage)
                 .font(.title3)
-                .frame(width: 44, height: 44)
-                .background(Color.amgiSurface, in: Circle())
+                .frame(height: 28)
             Text(title)
-                .amgiFont(.caption)
+                .font(.caption2)
                 .lineLimit(1)
-                .minimumScaleFactor(0.9)
+                .minimumScaleFactor(0.75)
         }
-            .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? Color.amgiTextTertiary : Color.amgiTextPrimary)
+        .foregroundStyle(selectedNoteIDs.isEmpty || isBatchWorking ? Color.amgiTextTertiary : Color.amgiTextPrimary)
     }
 
     private func browseFlagButton(_ value: UInt32, action: @escaping () -> Void) -> some View {
@@ -1749,6 +1812,79 @@ struct BrowseView: View {
         }
     }
 
+    // MARK: - Note Row State Colors
+
+    /// Background color for a note row based on its state (marked, flag, suspended, buried).
+    /// Priority mirrors upstream Anki: marked > flag > suspended > buried > default.
+    private func noteRowBgColor(_ note: NoteRecord) -> Color {
+        let tags = note.tags.split(separator: " ").map(String.init)
+        if tags.contains("marked") {
+            return Color.orange.opacity(0.15)
+        }
+        for flag in 1...7 {
+            if flaggedNoteIDs[flag]?.contains(note.id) == true {
+                return browseFlagColor(for: UInt32(flag)).opacity(0.12)
+            }
+        }
+        if suspendedNoteIDs.contains(note.id) {
+            return Color.gray.opacity(0.15)
+        }
+        if buriedNoteIDs.contains(note.id) {
+            return Color.teal.opacity(0.12)
+        }
+        return Color.clear
+    }
+
+    /// Concurrently search for notes in each special state and update the color dicts.
+    private func loadNoteStates() async {
+        let query = buildQuery()
+        let baseQuery = query.isEmpty ? "deck:*" : query
+        let client = noteClient
+
+        struct SR: Sendable { let key: String; let ids: [Int64] }
+
+        var newSuspended = Set<Int64>()
+        var newBuried = Set<Int64>()
+        var newFlagged: [Int: Set<Int64>] = [:]
+
+        await withTaskGroup(of: SR.self) { group in
+            let pairs: [(String, String)] = [
+                ("is:suspended", "\(baseQuery) is:suspended"),
+                ("is:buried",    "\(baseQuery) is:buried"),
+                ("flag:1", "\(baseQuery) flag:1"),
+                ("flag:2", "\(baseQuery) flag:2"),
+                ("flag:3", "\(baseQuery) flag:3"),
+                ("flag:4", "\(baseQuery) flag:4"),
+                ("flag:5", "\(baseQuery) flag:5"),
+                ("flag:6", "\(baseQuery) flag:6"),
+                ("flag:7", "\(baseQuery) flag:7"),
+            ]
+            for (key, q) in pairs {
+                group.addTask {
+                    SR(key: key, ids: (try? client.searchIds(q)) ?? [])
+                }
+            }
+            for await sr in group {
+                switch sr.key {
+                case "is:suspended": newSuspended = Set(sr.ids)
+                case "is:buried":    newBuried    = Set(sr.ids)
+                case "flag:1": newFlagged[1] = Set(sr.ids)
+                case "flag:2": newFlagged[2] = Set(sr.ids)
+                case "flag:3": newFlagged[3] = Set(sr.ids)
+                case "flag:4": newFlagged[4] = Set(sr.ids)
+                case "flag:5": newFlagged[5] = Set(sr.ids)
+                case "flag:6": newFlagged[6] = Set(sr.ids)
+                case "flag:7": newFlagged[7] = Set(sr.ids)
+                default: break
+                }
+            }
+        }
+
+        suspendedNoteIDs = newSuspended
+        buriedNoteIDs    = newBuried
+        flaggedNoteIDs   = newFlagged
+    }
+
     /// Cancel any in-flight search and start a new one.
     /// Pass `debounce: true` to delay 300 ms (for live search-text typing).
     private func scheduleSearch(debounce: Bool = false) {
@@ -1811,10 +1947,9 @@ struct BrowseView: View {
         }
         if generation == searchGeneration {
             isLoading = false
+            Task { await loadNoteStates() }
         }
     }
-
-    private func nextSearchGeneration() -> Int {
         searchGeneration += 1
         return searchGeneration
     }
@@ -1913,9 +2048,62 @@ struct BrowseView: View {
         }
     }
 
-    private func batchBury() async {
-        await performBatchAction { cardId in
-            try cardClient.bury(cardId)
+    private func batchToggleBury() async {
+        // Collect all cards; if all are buried (queue == -2 or -3), unbury; otherwise bury
+        var allCardIDs = [(id: Int64, buried: Bool)]()
+        do {
+            for noteId in selectedNoteIDs {
+                let cards = try cardClient.fetchByNote(noteId)
+                for card in cards {
+                    allCardIDs.append((id: card.id, buried: card.queue == -2 || card.queue == -3))
+                }
+            }
+        } catch { return }
+
+        isBuryingUnbury = !allCardIDs.isEmpty && allCardIDs.allSatisfy { $0.buried }
+        showBuryConfirm = true
+    }
+
+    private func batchPerformBuryToggle() async {
+        var allCardIDs = [(id: Int64, buried: Bool)]()
+        do {
+            for noteId in selectedNoteIDs {
+                let cards = try cardClient.fetchByNote(noteId)
+                for card in cards {
+                    allCardIDs.append((id: card.id, buried: card.queue == -2 || card.queue == -3))
+                }
+            }
+        } catch { return }
+
+        let allBuried = !allCardIDs.isEmpty && allCardIDs.allSatisfy { $0.buried }
+        if allBuried {
+            await performBatchAction { cardId in
+                try cardClient.unbury(cardId)
+            }
+        } else {
+            await performBatchAction { cardId in
+                try cardClient.bury(cardId)
+            }
+        }
+    }
+
+    private func batchToggleMark() async {
+        // Check if all selected notes have "marked" tag
+        let selectedIDs = selectedNoteIDs
+        let noteList = notes.filter { selectedIDs.contains($0.id) }
+        let allMarked = !noteList.isEmpty && noteList.allSatisfy { note in
+            note.tags.split(separator: " ").map(String.init).contains("marked")
+        }
+        do {
+            if allMarked {
+                try tagClient.removeTagFromNotes("marked", Array(selectedIDs))
+            } else {
+                try tagClient.addTagToNotes("marked", Array(selectedIDs))
+            }
+            scheduleSearch()
+        } catch {
+            batchErrorMessage = error.localizedDescription
+            showBatchError = true
         }
     }
 
@@ -1952,6 +2140,64 @@ struct BrowseView: View {
     private func batchResetToNew() async {
         await performBatchAction { cardId in
             try cardClient.resetToNew(cardId)
+        }
+    }
+
+    private func batchGradeNow(rating: Anki_Scheduler_CardAnswer.Rating) async {
+        guard !selectedNoteIDs.isEmpty else { return }
+        isBatchWorking = true
+        defer { isBatchWorking = false; batchProgressDone = 0; batchProgressTotal = 0 }
+        do {
+            var allCardIDs = [Int64]()
+            for noteId in selectedNoteIDs {
+                let cards = try cardClient.fetchByNote(noteId)
+                allCardIDs.append(contentsOf: cards.map(\.id))
+            }
+            var req = Anki_Scheduler_GradeNowRequest()
+            req.cardIds = allCardIDs
+            req.rating = rating
+            let _: Anki_Collection_OpChanges = try backend.invoke(
+                service: .scheduler,
+                method: AnkiBackend.SchedulerMethod.gradeNow,
+                request: req
+            )
+            let selectedCount = selectedNoteIDs.count
+            selectedNoteIDs.removeAll()
+            batchSuccessMessage = L("browse_batch_processed", allCardIDs.count, selectedCount)
+            showBatchSuccess = true
+            await performSearch()
+        } catch {
+            batchErrorMessage = error.localizedDescription
+            showBatchError = true
+        }
+    }
+
+    private func batchSetDueDate(days: String) async {
+        guard !selectedNoteIDs.isEmpty else { return }
+        isBatchWorking = true
+        defer { isBatchWorking = false; batchProgressDone = 0; batchProgressTotal = 0 }
+        do {
+            var allCardIDs = [Int64]()
+            for noteId in selectedNoteIDs {
+                let cards = try cardClient.fetchByNote(noteId)
+                allCardIDs.append(contentsOf: cards.map(\.id))
+            }
+            var req = Anki_Scheduler_SetDueDateRequest()
+            req.cardIds = allCardIDs
+            req.days = days
+            let _: Anki_Collection_OpChanges = try backend.invoke(
+                service: .scheduler,
+                method: AnkiBackend.SchedulerMethod.setDueDate,
+                request: req
+            )
+            let selectedCount = selectedNoteIDs.count
+            selectedNoteIDs.removeAll()
+            batchSuccessMessage = L("browse_batch_processed", allCardIDs.count, selectedCount)
+            showBatchSuccess = true
+            await performSearch()
+        } catch {
+            batchErrorMessage = error.localizedDescription
+            showBatchError = true
         }
     }
 
@@ -2371,6 +2617,13 @@ struct MoveToDeckSheet: View {
 
 // MARK: - ChangeNotetypeSheet
 
+private struct ChangeNotetypeMappingData: Identifiable, Sendable {
+    let id = UUID()
+    let info: Anki_Notetypes_ChangeNotetypeInfo
+    let noteIDs: [Int64]
+    let newNotetypeName: String
+}
+
 struct ChangeNotetypeSheet: View {
     let noteIDs: [Int64]
     let onComplete: () -> Void
@@ -2380,9 +2633,10 @@ struct ChangeNotetypeSheet: View {
 
     @State private var notetypeNames: [(id: Int64, name: String)] = []
     @State private var isLoading = true
-    @State private var isWorking = false
+    @State private var isFetchingInfo = false
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var mappingData: ChangeNotetypeMappingData?
 
     var body: some View {
         NavigationStack {
@@ -2392,18 +2646,18 @@ struct ChangeNotetypeSheet: View {
                 } else {
                     List(notetypeNames, id: \.id) { notetype in
                         Button {
-                            Task { await applyChangeNotetype(newNotetypeId: notetype.id) }
+                            Task { await prepareMappingInfo(newNotetypeId: notetype.id, newNotetypeName: notetype.name) }
                         } label: {
                             HStack {
                                 Text(notetype.name)
                                     .foregroundStyle(.primary)
                                 Spacer()
-                                if isWorking {
+                                if isFetchingInfo {
                                     ProgressView()
                                 }
                             }
                         }
-                        .disabled(isWorking)
+                        .disabled(isFetchingInfo)
                     }
                     .listStyle(.plain)
                 }
@@ -2415,12 +2669,17 @@ struct ChangeNotetypeSheet: View {
                     Button(L("common_cancel")) { dismiss() }
                 }
             }
-            .alert(L("browse_batch_failed_title"), isPresented: $showError) {
+            .alert(L("browse_batch_change_notetype_mixed_title"), isPresented: $showError) {
                 Button(L("common_ok"), role: .cancel) {}
             } message: {
                 Text(errorMessage ?? L("common_unknown_error"))
             }
             .task { await loadNotetypes() }
+            .navigationDestination(item: $mappingData) { data in
+                ChangeNotetypeFieldMappingView(data: data) { finalReq in
+                    Task { await applyFinalRequest(finalReq) }
+                }
+            }
         }
     }
 
@@ -2434,13 +2693,11 @@ struct ChangeNotetypeSheet: View {
         isLoading = false
     }
 
-    private func applyChangeNotetype(newNotetypeId: Int64) async {
-        isWorking = true
-        defer { isWorking = false }
+    private func prepareMappingInfo(newNotetypeId: Int64, newNotetypeName: String) async {
+        isFetchingInfo = true
+        defer { isFetchingInfo = false }
 
         do {
-            // Group note IDs by their current notetype (each note has only one notetype)
-            // For each distinct old notetype, get change info and apply
             var notesByOldNotetype: [Int64: [Int64]] = [:]
             for noteId in noteIDs {
                 var req = Anki_Notes_NoteId()
@@ -2450,14 +2707,17 @@ struct ChangeNotetypeSheet: View {
                     method: AnkiBackend.NotesMethod.getNote,
                     request: req
                 ) {
-                    notesByOldNotetype[note.notetypeID, default: []].append(noteId)
+                    if note.notetypeID != newNotetypeId {
+                        notesByOldNotetype[note.notetypeID, default: []].append(noteId)
+                    }
                 }
             }
 
-            for (oldNotetypeId, groupedNoteIDs) in notesByOldNotetype {
-                if oldNotetypeId == newNotetypeId { continue }
+            guard !notesByOldNotetype.isEmpty else { return }
 
-                // Get change info (default field/template mapping)
+            if notesByOldNotetype.count == 1,
+               let (oldNotetypeId, groupNoteIDs) = notesByOldNotetype.first {
+                // Single old notetype: show full field mapping UI
                 var infoReq = Anki_Notetypes_GetChangeNotetypeInfoRequest()
                 infoReq.oldNotetypeID = oldNotetypeId
                 infoReq.newNotetypeID = newNotetypeId
@@ -2466,22 +2726,146 @@ struct ChangeNotetypeSheet: View {
                     method: AnkiBackend.NotetypesMethod.getChangeNotetypeInfo,
                     request: infoReq
                 )
-
-                // Build change request using the default mapping from info.input
-                var changeReq = info.input
-                changeReq.noteIds = groupedNoteIDs
-                try backend.callVoid(
-                    service: AnkiBackend.Service.notetypes,
-                    method: AnkiBackend.NotetypesMethod.changeNotetype,
-                    request: changeReq
+                mappingData = ChangeNotetypeMappingData(
+                    info: info,
+                    noteIDs: groupNoteIDs,
+                    newNotetypeName: newNotetypeName
                 )
+            } else {
+                // Multiple old notetypes: reject with informative error (align with upstream Anki)
+                let count = notesByOldNotetype.count
+                errorMessage = String(format: L("browse_batch_change_notetype_mixed_msg"), count)
+                showError = true
             }
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
 
+    private func applyFinalRequest(_ req: Anki_Notetypes_ChangeNotetypeRequest) async {
+        do {
+            try backend.callVoid(
+                service: AnkiBackend.Service.notetypes,
+                method: AnkiBackend.NotetypesMethod.changeNotetype,
+                request: req
+            )
             onComplete()
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
             showError = true
+        }
+    }
+}
+
+// MARK: - ChangeNotetypeFieldMappingView
+
+private struct ChangeNotetypeFieldMappingView: View {
+    let data: ChangeNotetypeMappingData
+    let onApply: (Anki_Notetypes_ChangeNotetypeRequest) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    // field mapping: index = new field idx, value = old field idx (-1 = discard)
+    @State private var fieldMapping: [Int]
+    // template mapping: same semantics
+    @State private var templateMapping: [Int]
+
+    private var info: Anki_Notetypes_ChangeNotetypeInfo { data.info }
+
+    init(data: ChangeNotetypeMappingData, onApply: @escaping (Anki_Notetypes_ChangeNotetypeRequest) -> Void) {
+        self.data = data
+        self.onApply = onApply
+        _fieldMapping = State(initialValue: data.info.input.newFields.map { Int($0) })
+        _templateMapping = State(initialValue: data.info.input.newTemplates.map { Int($0) })
+    }
+
+    private var unmappedOldFields: [String] {
+        let usedIndices = Set(fieldMapping.filter { $0 >= 0 })
+        return info.oldFieldNames.enumerated()
+            .filter { !usedIndices.contains($0.offset) }
+            .map { $0.element }
+    }
+
+    var body: some View {
+        List {
+            // Info header
+            Section {
+                LabeledContent(L("browse_batch_change_notetype_from")) {
+                    Text(info.oldNotetypeName).foregroundStyle(.secondary)
+                }
+                LabeledContent(L("browse_batch_change_notetype_to")) {
+                    Text(data.newNotetypeName).foregroundStyle(.secondary)
+                }
+            }
+
+            // Discard warning
+            if !unmappedOldFields.isEmpty {
+                Section {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .padding(.top, 2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("browse_batch_change_notetype_discard_warning"))
+                                .font(.subheadline).fontWeight(.medium)
+                            ForEach(unmappedOldFields, id: \.self) { name in
+                                Text("· \(name)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+
+            // Field mapping
+            Section(L("browse_batch_change_notetype_fields")) {
+                ForEach(info.newFieldNames.indices, id: \.self) { newIdx in
+                    Picker(info.newFieldNames[newIdx], selection: $fieldMapping[newIdx]) {
+                        Text(L("browse_batch_change_notetype_nothing")).tag(-1)
+                        ForEach(info.oldFieldNames.indices, id: \.self) { oldIdx in
+                            Text(info.oldFieldNames[oldIdx]).tag(oldIdx)
+                        }
+                    }
+                }
+            }
+
+            // Template mapping (non-cloze only)
+            if !info.input.isCloze && !info.newTemplateNames.isEmpty {
+                Section(L("browse_batch_change_notetype_templates")) {
+                    ForEach(info.newTemplateNames.indices, id: \.self) { newIdx in
+                        let binding = Binding<Int>(
+                            get: { newIdx < templateMapping.count ? templateMapping[newIdx] : -1 },
+                            set: { if newIdx < templateMapping.count { templateMapping[newIdx] = $0 } }
+                        )
+                        Picker(info.newTemplateNames[newIdx], selection: binding) {
+                            Text(L("browse_batch_change_notetype_nothing")).tag(-1)
+                            ForEach(info.oldTemplateNames.indices, id: \.self) { oldIdx in
+                                Text(info.oldTemplateNames[oldIdx]).tag(oldIdx)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(L("browse_batch_change_notetype_field_mapping"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(L("common_save")) {
+                    var req = info.input
+                    req.noteIds = data.noteIDs
+                    req.newFields = fieldMapping.map { Int32($0) }
+                    if !info.input.isCloze {
+                        req.newTemplates = templateMapping.map { Int32($0) }
+                    }
+                    onApply(req)
+                }
+                .buttonStyle(.borderedProminent)
+            }
         }
     }
 }
