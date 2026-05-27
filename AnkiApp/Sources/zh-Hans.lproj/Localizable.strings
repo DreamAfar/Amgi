@@ -60,10 +60,10 @@
 "import_config_options" = "导入选项";
 "import_config_include_scheduling" = "导入学习进度";
 "import_config_include_deck_configs" = "导入牌组选项";
-"import_config_merge_notetypes" = "合并笔记类型";
+"import_config_merge_notetypes" = "合并笔记模板";
 "import_config_update_policy" = "更新策略";
 "import_config_update_notes" = "已有笔记";
-"import_config_update_notetypes" = "已有笔记类型";
+"import_config_update_notetypes" = "已有笔记模板";
 "import_config_update_if_newer" = "仅较新时更新";
 "import_config_update_always" = "始终更新";
 "import_config_update_never" = "从不更新";
@@ -155,13 +155,13 @@
 "browse_batch_change_notetype_discard_warning" = "以下字段内容将被丢弃：";
 "browse_batch_change_notetype_mixed_title" = "选中了多个笔记模板";
 "browse_batch_change_notetype_mixed_msg" = "当前选中笔记包含 %d 种不同笔记模板，请先过滤到同一笔记模板再操作。";
-"browse_batch_move_deck_short" = "牌组";
-"browse_batch_change_notetype_short" = "模板";
+"browse_batch_move_deck_short" = "更改牌组";
+"browse_batch_change_notetype_short" = "更改笔记模板";
 "browse_batch_flag_label" = "旗标";
 "browse_batch_suspend_toggle" = "暂停";
 "browse_batch_reset_new" = "重置卡片";
 "browse_batch_manage_tags_short" = "标签";
-"browse_batch_export_short" = "导出";
+"browse_batch_export_short" = "导出选中笔记";
 "browse_batch_suspend_confirm_title" = "暂停卡片？";
 "browse_batch_suspend_confirm_msg" = "确认暂停所选的 %d 张卡片？";
 "browse_batch_reset_confirm_title" = "重置卡片？";
@@ -169,17 +169,17 @@
 "browse_batch_reset_confirm_action" = "重置";
 "browse_batch_tags_add" = "添加标签";
 "browse_batch_tags_remove" = "删除标签";
-"browse_batch_bury_short" = "埋藏";
-"browse_batch_bury_confirm_title" = "埋藏卡片？";
-"browse_batch_bury_confirm_msg" = "埋藏 %d 张已选卡片？";
-"browse_batch_bury_confirm_action" = "埋藏";
-"browse_batch_unbury_confirm_title" = "取消埋藏？";
-"browse_batch_unbury_confirm_msg" = "取消埋藏 %d 张已选卡片？";
-"browse_batch_unbury_confirm_action" = "取消埋藏";
+"browse_batch_bury_short" = "搁置笔记";
+"browse_batch_bury_confirm_title" = "搁置卡片？";
+"browse_batch_bury_confirm_msg" = "搁置 %d 张已选卡片？";
+"browse_batch_bury_confirm_action" = "搁置";
+"browse_batch_unbury_confirm_title" = "取消搁置？";
+"browse_batch_unbury_confirm_msg" = "取消搁置 %d 张已选卡片？";
+"browse_batch_unbury_confirm_action" = "取消搁置";
 "browse_batch_mark_short" = "标记";
 "browse_batch_grade_now_short" = "立即评分";
 "browse_find_replace_title" = "查找并替换";
-"browse_find_replace_short" = "替换";
+"browse_find_replace_short" = "查找替换";
 "browse_find_replace_search" = "查找";
 "browse_find_replace_replace_with" = "替换为";
 "browse_find_replace_field" = "字段";
@@ -323,7 +323,7 @@
 "settings_reader_section_fields" = "字段映射";
 "settings_reader_section_appearance" = "外观";
 "settings_reader_deck" = "书籍牌组";
-"settings_reader_notetype" = "笔记类型";
+"settings_reader_notetype" = "笔记模板";
 "settings_reader_book_id_field" = "书籍标识字段";
 "settings_reader_book_title_field" = "书名字段";
 "settings_reader_book_cover_field" = "封面图字段";
@@ -366,7 +366,7 @@
 "settings_reader_note_template_deck" = "默认牌组";
 "settings_reader_note_template_notetype" = "默认笔记模板";
 "settings_reader_note_template_duplicate_check_field" = "重复检查字段";
-"settings_reader_note_template_duplicate_check_field_default" = "笔记类型首字段（%@）";
+"settings_reader_note_template_duplicate_check_field_default" = "笔记模板首字段（%@）";
 "settings_reader_note_template_fields" = "字段映射";
 "settings_reader_note_template_tags" = "标签";
 "settings_reader_note_template_term_field" = "单词字段";
@@ -454,7 +454,7 @@
 "settings_reader_open_library" = "打开阅读器";
 "settings_reader_not_set" = "未设置";
 "settings_reader_no_decks" = "暂无可选牌组";
-"settings_reader_no_notetypes" = "暂无可选笔记类型";
+"settings_reader_no_notetypes" = "暂无可选笔记模板";
 "settings_row_home_heatmap" = "首页热力图";
 "settings_toggle_follow_system" = "与系统保持一致";
 "settings_toggle_dark_mode" = "夜间模式";
@@ -759,7 +759,7 @@
 "common_error" = "错误";
 "common_unknown_error" = "未知错误";
 "common_completed" = "已完成";
-"common_failed_load_notetype" = "加载笔记类型失败";
+"common_failed_load_notetype" = "加载笔记模板失败";
 
 // MARK: - App Startup
 "app_unable_to_start" = "无法启动 AnkiApp";
@@ -919,6 +919,7 @@
 "browse_title" = "浏览";
 "browse_note_count" = "%d 条笔记";
 "browse_find_duplicates_search_section" = "重复查找";
+"browse_find_duplicates_field_filter" = "搜索字段...";
 "browse_find_duplicates_field" = "字段";
 "browse_find_duplicates_search_placeholder" = "可选搜索过滤条件";
 "browse_find_duplicates_run" = "开始查找";
@@ -989,7 +990,7 @@
 "io_nav_title" = "图片遮罩";
 "io_section_image" = "图片";
 "io_pick_image" = "选择图片";
-"io_add_flow_hint" = "新的图片遮罩笔记会保存到所选牌组，并使用固定的图片遮罩笔记类型。";
+"io_add_flow_hint" = "新的图片遮罩笔记会保存到所选牌组，并使用固定的图片遮罩笔记模板。";
 "io_section_masks" = "遮罩";
 "io_masks_hint" = "在图片上拖动以绘制遮罩矩形。";
 "io_shape_picker_label" = "形状";
@@ -1129,7 +1130,7 @@
 "deck_template_validation_title" = "模板需要修正";
 "deck_template_validation_no_front_field" = "模板“%@”的正面必须至少包含一个字段。";
 "deck_template_validation_no_such_field" = "模板“%@”引用了不存在的字段：%@。";
-"deck_template_validation_missing_cloze" = "这是 cloze 笔记类型，因此第一张模板的正反面都必须包含 {{cloze:...}}。";
+"deck_template_validation_missing_cloze" = "这是 cloze 笔记模板，因此第一张模板的正反面都必须包含 {{cloze:...}}。";
 "deck_template_preview_rendered" = "渲染预览";
 "card_template_preview_btn" = "预览";
 "card_template_fields_short" = "字段";
@@ -1143,17 +1144,17 @@
 "deck_template_preview_empty_card" = "当前预览样本不会为这个模板生成卡片。";
 "deck_template_sample_value" = "示例 %@";
 "deck_template_add_name_empty" = "名称不能为空。";
-"deck_template_add_notetype_title" = "新增笔记类型";
+"deck_template_add_notetype_title" = "新增笔记模板";
 "deck_template_add_notetype_source_title" = "添加笔记模板";
 "deck_template_add_notetype_source_message" = "选择一个预设笔记模板，或复制现有笔记模板后再命名。";
 "deck_template_add_notetype_source_presets" = "预设模板";
 "deck_template_add_notetype_source_existing" = "已有笔记模板";
 "deck_template_add_notetype_source_add" = "从预设添加";
 "deck_template_add_notetype_source_copy" = "复制现有模板";
-"deck_template_add_notetype_placeholder" = "笔记类型名称";
-"deck_template_add_notetype_duplicate" = "已存在同名笔记类型。";
+"deck_template_add_notetype_placeholder" = "笔记模板名称";
+"deck_template_add_notetype_duplicate" = "已存在同名笔记模板。";
 "deck_template_add_notetype_missing_source" = "请先选择一个笔记模板来源。";
-"deck_template_add_notetype_failed" = "新增笔记类型失败：%@";
+"deck_template_add_notetype_failed" = "新增笔记模板失败：%@";
 "deck_template_add_template_title" = "新增卡片模板";
 "deck_template_add_template_placeholder" = "卡片模板名称";
 "deck_template_add_template_duplicate" = "已存在同名卡片模板。";
@@ -1321,8 +1322,8 @@
 
 // MARK: - AddNoteView (extended)
 "add_note_title" = "添加笔记";
-"add_note_section_type" = "笔记类型";
-"add_note_type_label" = "笔记类型";
+"add_note_section_type" = "笔记模板";
+"add_note_type_label" = "笔记模板";
 "add_note_tags_placeholder" = "例如：语法、词汇";
 "add_note_button" = "添加笔记";
 "add_note_error_save" = "添加笔记失败：%@";
@@ -1599,7 +1600,7 @@
 "deck_config_section_auto_advance" = "自动翻卡";
 
 // MARK: - SettingsInfoView & AboutView
-"settings_info_editing" = "编辑选项目前通过笔记类型和牌组配置屏幕处理。";
+"settings_info_editing" = "编辑选项目前通过笔记模板和牌组配置屏幕处理。";
 "settings_info_review" = "复习行为通过牌组设置逐个配置。";
 "settings_review_section_audio" = "音频";
 "settings_review_section_plan_and_reminders" = "计划与提醒";
@@ -1651,7 +1652,7 @@
 "settings_review_ai_system_prompt" = "系统提示词";
 "settings_review_ai_system_prompt_placeholder" = "例如：用中文简洁解释选中文本，保留关键术语；若有歧义，请列出常见含义并给出短例句。";
 "settings_review_ai_glossary" = "术语约束";
-"settings_review_ai_glossary_placeholder" = "例如：market = 市场；マーケット 在商业语境优先解释为“市场”；note type 统一翻译为“笔记类型”。";
+"settings_review_ai_glossary_placeholder" = "例如：market = 市场；マーケット 在商业语境优先解释为“市场”；note type 统一翻译为“笔记模板”。";
 "settings_review_ai_settings_footer" = "控制复习页选中文本菜单中的 AI 按钮，并统一管理预设、快捷动作、收藏和添加笔记模板。";
 "settings_review_ai_presets" = "预设管理";
 "settings_review_ai_presets_subtitle" = "管理默认预设、模型与提示词";

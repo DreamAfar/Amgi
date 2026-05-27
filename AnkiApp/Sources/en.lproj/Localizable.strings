@@ -155,13 +155,13 @@
 "browse_batch_change_notetype_discard_warning" = "The following fields will be discarded:";
 "browse_batch_change_notetype_mixed_title" = "Multiple Note Types Selected";
 "browse_batch_change_notetype_mixed_msg" = "The selected notes contain %d different note types. Please filter to a single note type before changing.";
-"browse_batch_move_deck_short" = "Deck";
-"browse_batch_change_notetype_short" = "Type";
+"browse_batch_move_deck_short" = "Move Deck";
+"browse_batch_change_notetype_short" = "Change Type";
 "browse_batch_flag_label" = "Flag";
 "browse_batch_suspend_toggle" = "Suspend";
 "browse_batch_reset_new" = "Reset Card";
 "browse_batch_manage_tags_short" = "Tags";
-"browse_batch_export_short" = "Export";
+"browse_batch_export_short" = "Export Notes";
 "browse_batch_suspend_confirm_title" = "Suspend Cards?";
 "browse_batch_suspend_confirm_msg" = "Suspend %d selected card(s)?";
 "browse_batch_reset_confirm_title" = "Reset Cards?";
@@ -169,7 +169,7 @@
 "browse_batch_reset_confirm_action" = "Reset";
 "browse_batch_tags_add" = "Add Tags";
 "browse_batch_tags_remove" = "Remove Tags";
-"browse_batch_bury_short" = "Bury";
+"browse_batch_bury_short" = "Bury Notes";
 "browse_batch_bury_confirm_title" = "Bury Cards?";
 "browse_batch_bury_confirm_msg" = "Bury %d selected card(s)?";
 "browse_batch_bury_confirm_action" = "Bury";
@@ -179,7 +179,7 @@
 "browse_batch_mark_short" = "Mark";
 "browse_batch_grade_now_short" = "Grade Now";
 "browse_find_replace_title" = "Find & Replace";
-"browse_find_replace_short" = "Replace";
+"browse_find_replace_short" = "Find & Replace";
 "browse_find_replace_search" = "Find";
 "browse_find_replace_replace_with" = "Replace with";
 "browse_find_replace_field" = "Field";
@@ -919,6 +919,7 @@
 "browse_title" = "Browse";
 "browse_note_count" = "%d notes";
 "browse_find_duplicates_search_section" = "Duplicate Search";
+"browse_find_duplicates_field_filter" = "Search fields...";
 "browse_find_duplicates_field" = "Field";
 "browse_find_duplicates_search_placeholder" = "Optional search filter";
 "browse_find_duplicates_run" = "Search";

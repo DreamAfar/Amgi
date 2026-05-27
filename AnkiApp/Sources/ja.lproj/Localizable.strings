@@ -155,8 +155,8 @@
 "browse_batch_change_notetype_discard_warning" = "以下のフィールドは破棄されます：";
 "browse_batch_change_notetype_mixed_title" = "複数のノートタイプが選択されています";
 "browse_batch_change_notetype_mixed_msg" = "選択したノートには %d 種類の異なるノートタイプが含まれています。同一のノートタイプに絞り込んでから操作してください。";
-"browse_batch_move_deck_short" = "デッキ";
-"browse_batch_change_notetype_short" = "タイプ";
+"browse_batch_move_deck_short" = "デッキ変更";
+"browse_batch_change_notetype_short" = "ノートタイプ変更";
 "browse_batch_flag_label" = "フラグ";
 "browse_batch_suspend_toggle" = "休止";
 "browse_batch_reset_new" = "新規カードにリセット";
@@ -179,7 +179,7 @@
 "browse_batch_mark_short" = "マーク";
 "browse_batch_grade_now_short" = "今すぐ評価";
 "browse_find_replace_title" = "検索と置換";
-"browse_find_replace_short" = "置換";
+"browse_find_replace_short" = "検索と置換";
 "browse_find_replace_search" = "検索";
 "browse_find_replace_replace_with" = "置換内容";
 "browse_find_replace_field" = "フィールド";
@@ -919,6 +919,7 @@
 "browse_title" = "ブラウズ";
 "browse_note_count" = "%d 件のノート";
 "browse_find_duplicates_search_section" = "重複検索";
+"browse_find_duplicates_field_filter" = "フィールドを検索...";
 "browse_find_duplicates_field" = "フィールド";
 "browse_find_duplicates_search_placeholder" = "任意の検索フィルター";
 "browse_find_duplicates_run" = "検索";
