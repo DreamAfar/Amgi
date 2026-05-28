@@ -309,6 +309,10 @@ struct ReaderDisplaySettingsView: View {
         ReaderFontOption.resolved(selectedFont)
     }
 
+    private func fontTitle(_ font: ReaderFontOption) -> String {
+        font.id == "system" ? L("settings_reader_font_system") : font.title
+    }
+
     private var themeModeTitle: String {
         switch themeMode {
         case .system:
@@ -362,22 +366,45 @@ struct ReaderDisplaySettingsView: View {
                             L("settings_reader_font"),
                             selection: Binding(
                                 get: { selectedFontOption },
-                                set: { selectedFont = $0.rawValue }
+                                set: { selectedFont = $0.id }
                             )
                         ) {
-                            ForEach(ReaderFontOption.allCases) { font in
-                                Text(font.title)
+                            ForEach(ReaderFontOption.all) { font in
+                                Text(fontTitle(font))
                                     .foregroundStyle(SettingsValueStyle.highlight)
                                     .tag(font)
                             }
                         }
                     } label: {
                         SettingsOptionCapsuleLabel(
-                            title: selectedFontOption.title,
+                            title: fontTitle(selectedFontOption),
                             backgroundColor: menuCapsuleBackground
                         )
                     }
                 }
+
+                // Import custom font
+                FontImportButton(selectedFont: $selectedFont)
+
+                // Show imported fonts with delete action
+                ForEach(ReaderFontOption.all.filter { $0.id != "system" && !ReaderFontOption.builtIn.map(\.id).contains($0.id) }) { font in
+                    HStack {
+                        Text(font.title)
+                            .foregroundStyle(SettingsValueStyle.primary)
+                        Spacer()
+                    }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            FontImportManager.shared.removeFont(named: font.id)
+                            if selectedFont == font.id {
+                                selectedFont = ReaderFontOption.defaultValue
+                            }
+                        } label: {
+                            Label(L("common_delete"), systemImage: "trash")
+                        }
+                    }
+                }
+            }
 
                 HStack {
                     Text(L("settings_reader_text_orientation"))
@@ -943,6 +970,49 @@ struct ReaderAdvancedSettingsView: View {
             }
         }
     }
+
+// MARK: - Font Import Button
+
+private struct FontImportButton: View {
+    @Binding var selectedFont: String
+
+    @State private var showFilePicker = false
+    @State private var importError: String?
+
+    var body: some View {
+        Button {
+            showFilePicker = true
+        } label: {
+            Label(L("settings_reader_font_import"), systemImage: "plus.circle")
+                .amgiFont(.body)
+        }
+        .fileImporter(
+            isPresented: $showFilePicker,
+            allowedContentTypes: [.font, .init(filenameExtension: "ttf")!, .init(filenameExtension: "otf")!],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImport(result)
+        }
+        .alert(L("common_error"), isPresented: .constant(importError != nil)) {
+            Button(L("common_ok")) { importError = nil }
+        } message: {
+            Text(importError ?? "")
+        }
+    }
+
+    private func handleImport(_ result: Result<[URL], any Error>) {
+        Task { @MainActor in
+            do {
+                let urls = try result.get()
+                guard let url = urls.first else { return }
+                let postScriptName = try FontImportManager.shared.importFont(from: url)
+                selectedFont = postScriptName
+            } catch {
+                importError = error.localizedDescription
+            }
+        }
+    }
+}
 
     private func templateMappingBinding(for fieldName: String) -> Binding<String> {
         Binding(

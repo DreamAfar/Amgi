@@ -337,6 +337,7 @@
 "settings_reader_font_system" = "System";
 "settings_reader_font_size" = "Font Size";
 "settings_reader_font_size_value" = "%d pt";
+"settings_reader_font_import" = "Import Font";
 "settings_reader_manage_dictionaries" = "Manage Dictionaries";
 "settings_reader_show_tab" = "Show Reader Tab";
 "settings_reader_show_tab_description" = "When enabled, the Reader tab appears between Stats and Settings.";

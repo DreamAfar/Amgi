@@ -337,6 +337,7 @@
 "settings_reader_font_system" = "系统字体";
 "settings_reader_font_size" = "字号";
 "settings_reader_font_size_value" = "%d 点";
+"settings_reader_font_import" = "导入字体";
 "settings_reader_manage_dictionaries" = "管理词典";
 "settings_reader_show_tab" = "在标签栏显示阅读器";
 "settings_reader_show_tab_description" = "开启后，会在统计和设置之间显示阅读器标签页。";

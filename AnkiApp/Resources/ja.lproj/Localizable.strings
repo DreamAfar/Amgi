@@ -337,6 +337,7 @@
 "settings_reader_font_system" = "システム";
 "settings_reader_font_size" = "文字サイズ";
 "settings_reader_font_size_value" = "%d pt";
+"settings_reader_font_import" = "フォントをインポート";
 "settings_reader_manage_dictionaries" = "辞書を管理";
 "settings_reader_show_tab" = "リーダータブを表示";
 "settings_reader_show_tab_description" = "有効にすると、統計タブと設定タブの間にリーダータブが表示されます。";
