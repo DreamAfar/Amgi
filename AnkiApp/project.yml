@@ -39,6 +39,9 @@ targets:
       - path: Resources/mathjax
         buildPhase: resources
         type: folder
+      - path: Resources/Fonts
+        buildPhase: resources
+        type: folder
     dependencies:
       - package: AnkiBridge
         product: AnkiKit
