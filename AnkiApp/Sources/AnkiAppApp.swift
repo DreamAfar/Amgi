@@ -6,6 +6,7 @@ import AnkiReader
 import AnkiKit
 import AnkiProto
 import AnkiSync
+import AmgiTheme
 import Dependencies
 import Foundation
 import OSLog
@@ -21,7 +22,8 @@ struct AnkiAppApp: App {
     @State private var pendingImportURL: URL?
     @StateObject private var collectionState = AppCollectionState.shared
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
-    @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
+    @AppStorage("theme.appearance") private var themeAppearanceRaw: String = Appearance.system.rawValue
+    @AppStorage("theme.selection") private var themeSelectionRaw: String = Theme.vivid.rawValue
     private let periodicBackupTimer = Timer.publish(
         every: CollectionBackupManager.periodicCheckInterval,
         on: .main,
@@ -29,6 +31,11 @@ struct AnkiAppApp: App {
     ).autoconnect()
 
     init() {
+        if UserDefaults.standard.string(forKey: "theme.appearance") == nil,
+           let legacyTheme = UserDefaults.standard.string(forKey: "app_theme"),
+           Appearance(rawValue: legacyTheme) != nil {
+            UserDefaults.standard.set(legacyTheme, forKey: "theme.appearance")
+        }
         ReaderPreferences.migrateLegacyDefaultsIfNeeded(for: AppUserStore.loadSelectedUser())
     }
 
@@ -47,7 +54,7 @@ struct AnkiAppApp: App {
     }
 
     private var preferredColorScheme: ColorScheme? {
-        (AppTheme(rawValue: appThemeRaw) ?? .system).colorScheme
+        (Appearance(rawValue: themeAppearanceRaw) ?? .system).colorScheme
     }
 
     var body: some Scene {
@@ -83,6 +90,7 @@ struct AnkiAppApp: App {
             .task { await initializeBackend() }
             .environmentObject(collectionState)
             .environment(\.locale, currentLocale)
+            .modifier(AppPaletteModifier(selectedThemeRaw: themeSelectionRaw, forcedScheme: preferredColorScheme))
             .preferredColorScheme(preferredColorScheme)
             .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
                 Task {
@@ -213,6 +221,18 @@ struct AnkiAppApp: App {
             backend: backend,
             username: AppUserStore.loadSelectedUser()
         )
+    }
+}
+
+private struct AppPaletteModifier: ViewModifier {
+    @Environment(\.colorScheme) private var systemScheme
+    let selectedThemeRaw: String
+    let forcedScheme: ColorScheme?
+
+    func body(content: Content) -> some View {
+        let selectedTheme = Theme(rawValue: selectedThemeRaw) ?? .vivid
+        let resolvedScheme = forcedScheme ?? systemScheme
+        return content.environment(\.palette, Palette.resolve(theme: selectedTheme, scheme: resolvedScheme))
     }
 }
 

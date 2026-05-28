@@ -37,7 +37,4 @@ extension Color {
 }
 
 extension View {
-    func amgiShadow() -> some View {
-        shadow(color: Color.black.opacity(0.22), radius: 15, x: 3, y: 5)
-    }
 }

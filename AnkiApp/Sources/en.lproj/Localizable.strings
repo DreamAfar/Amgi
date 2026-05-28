@@ -463,6 +463,9 @@
 "settings_theme_system" = "Follow System";
 "settings_theme_light" = "Light";
 "settings_theme_dark" = "Dark";
+"settings_theme_style_vivid" = "Vivid";
+"settings_theme_style_muted" = "Muted";
+"settings_theme_style_legacy" = "Legacy (Old Amgi)";
 "settings_picker_language" = "Language";
 "settings_language_restart_hint" = "Language change will take full effect after restarting the app.";
 "settings_display_show_deck_heatmap" = "Show review heatmap above decks";

@@ -463,6 +463,9 @@
 "settings_theme_system" = "跟随系统";
 "settings_theme_light" = "浅色";
 "settings_theme_dark" = "深色";
+"settings_theme_style_vivid" = "鲜明";
+"settings_theme_style_muted" = "柔和";
+"settings_theme_style_legacy" = "经典（旧 Amgi）";
 "settings_picker_language" = "语言";
 "settings_language_restart_hint" = "语言切换将在重启 App 后完全生效。";
 "settings_display_show_deck_heatmap" = "在牌组上方显示复习热力图";

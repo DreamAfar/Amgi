@@ -1,4 +1,4 @@
-import CoreGraphics
+import SwiftUI
 
 enum AmgiSpacing {
     static let xxs: CGFloat = 2

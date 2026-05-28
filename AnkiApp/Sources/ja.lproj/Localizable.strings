@@ -463,6 +463,9 @@
 "settings_theme_system" = "システムに合わせる";
 "settings_theme_light" = "ライト";
 "settings_theme_dark" = "ダーク";
+"settings_theme_style_vivid" = "ビビッド";
+"settings_theme_style_muted" = "ミュート";
+"settings_theme_style_legacy" = "クラシック（旧 Amgi）";
 "settings_picker_language" = "言語";
 "settings_language_restart_hint" = "言語の変更はアプリ再起動後に完全に反映されます。";
 "settings_display_show_deck_heatmap" = "デッキ上部に復習ヒートマップを表示";

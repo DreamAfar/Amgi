@@ -12,6 +12,8 @@ settings:
 packages:
   AnkiBridge:
     path: ..
+  AmgiUI:
+    path: ../AmgiUI
 schemes:
   AnkiApp:
     build:
@@ -28,12 +30,16 @@ targets:
         excludes:
           - "**/*Tests.swift"
           - "mathjax/**"
+      - path: Assets.xcassets
+        buildPhase: resources
       - path: Sources/mathjax
         buildPhase: resources
         type: folder
     dependencies:
       - package: AnkiBridge
         product: AnkiKit
+      - package: AnkiBridge
+        product: AnkiServices
       - package: AnkiBridge
         product: AnkiReader
       - package: AnkiBridge
@@ -44,6 +50,8 @@ targets:
         product: AnkiBackend
       - package: AnkiBridge
         product: AnkiProto
+      - package: AmgiUI
+        product: AmgiTheme
     settings:
       base:
         INFOPLIST_FILE: Info.plist

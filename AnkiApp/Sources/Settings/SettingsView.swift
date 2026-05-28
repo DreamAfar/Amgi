@@ -4,6 +4,7 @@ import AnkiKit
 import AnkiClients
 import AnkiProto
 import AnkiSync
+import AmgiTheme
 import Dependencies
 import SwiftProtobuf
 
@@ -60,14 +61,10 @@ extension View {
     }
 }
 
-// MARK: - AppTheme
+// MARK: - Theme Types
 
-enum AppTheme: String, CaseIterable, Identifiable {
-    case system = "system"
-    case light  = "light"
-    case dark   = "dark"
-
-    var id: String { rawValue }
+extension Appearance: Identifiable {
+    public var id: String { rawValue }
 
     var displayName: String {
         switch self {
@@ -82,6 +79,18 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .system: return nil
         case .light:  return .light
         case .dark:   return .dark
+        }
+    }
+}
+
+extension Theme: Identifiable {
+    public var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .vivid: return L("settings_theme_style_vivid")
+        case .muted: return L("settings_theme_style_muted")
+        case .legacy: return L("settings_theme_style_legacy")
         }
     }
 }
@@ -134,17 +143,25 @@ struct SettingsView: View {
     @Dependency(\.ankiBackend) var backend
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    @AppStorage("app_theme") private var appThemeRaw: String = AppTheme.system.rawValue
+    @AppStorage("theme.appearance") private var appearanceRaw: String = Appearance.system.rawValue
+    @AppStorage("theme.selection") private var themeSelectionRaw: String = Theme.vivid.rawValue
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
 
     @State private var maintenanceMessage: String?
     @State private var showMaintenanceAlert = false
     @State private var selectedItem: SettingsSidebarItem? = .account
 
-    private var selectedTheme: Binding<AppTheme> {
+    private var selectedAppearance: Binding<Appearance> {
         Binding(
-            get: { AppTheme(rawValue: appThemeRaw) ?? .system },
-            set: { appThemeRaw = $0.rawValue }
+            get: { Appearance(rawValue: appearanceRaw) ?? .system },
+            set: { appearanceRaw = $0.rawValue }
+        )
+    }
+
+    private var selectedThemeStyle: Binding<Theme> {
+        Binding(
+            get: { Theme(rawValue: themeSelectionRaw) ?? .vivid },
+            set: { themeSelectionRaw = $0.rawValue }
         )
     }
 
@@ -234,7 +251,7 @@ struct SettingsView: View {
         case .reader:
             ReaderOptionsView()
         case .theme:
-            ThemeSettingsView(selectedTheme: selectedTheme)
+            ThemeSettingsView(selectedAppearance: selectedAppearance, selectedThemeStyle: selectedThemeStyle)
         case .language:
             LanguageSettingsView(selectedLanguage: selectedLanguage)
         case .homeHeatmap:
@@ -444,7 +461,7 @@ struct SettingsView: View {
 
     private var themeSettingsNavigationRow: some View {
         NavigationLink {
-            ThemeSettingsView(selectedTheme: selectedTheme)
+            ThemeSettingsView(selectedAppearance: selectedAppearance, selectedThemeStyle: selectedThemeStyle)
                 .toolbarVisibility(.hidden, for: .tabBar)
         } label: {
             settingsRowLabel(L("settings_picker_theme"), icon: "circle.lefthalf.filled")
@@ -822,21 +839,44 @@ private struct DatabaseCheckView: View {
 }
 
 private struct ThemeSettingsView: View {
-    @Binding var selectedTheme: AppTheme
+    @Binding var selectedAppearance: Appearance
+    @Binding var selectedThemeStyle: Theme
 
     var body: some View {
         List {
-            Section {
-                ForEach(AppTheme.allCases) { theme in
+            Section("Appearance") {
+                ForEach(Appearance.allCases) { appearance in
                     Button {
-                        selectedTheme = theme
+                        selectedAppearance = appearance
                     } label: {
                         HStack(spacing: 12) {
-                            Text(theme.displayName)
+                            Text(appearance.displayName)
                                 .amgiFont(.body)
                                 .foregroundStyle(Color.amgiTextPrimary)
                             Spacer()
-                            if selectedTheme == theme {
+                            if selectedAppearance == appearance {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                        .amgiListRowTapTarget()
+                    }
+                    .buttonStyle(.plain)
+                    .amgiSettingsListRowSurface()
+                }
+            }
+
+            Section("Theme") {
+                ForEach(Theme.allCases) { style in
+                    Button {
+                        selectedThemeStyle = style
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(style.displayName)
+                                .amgiFont(.body)
+                                .foregroundStyle(Color.amgiTextPrimary)
+                            Spacer()
+                            if selectedThemeStyle == style {
                                 Image(systemName: "checkmark")
                                     .foregroundStyle(Color.accentColor)
                             }
