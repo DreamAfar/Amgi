@@ -3,13 +3,11 @@ import SwiftUI
 
 /// Font family the chapter reader injects via CSS.
 /// Raw values are persisted in `ReaderPreferences.Keys.selectedFont`.
+/// Only system fonts are used (no bundled fonts).
 enum ReaderFontOption: String, CaseIterable, Identifiable, Sendable {
     case system
     case appleSDGothicNeo = "Apple SD Gothic Neo"
     case appleGothic = "AppleGothic"
-    case nanumMyeongjo = "NanumMyeongjo"
-    case nanumGothic = "NanumGothic"
-    case sarasaMonoK = "Sarasa Mono K"
     case hiraginoMincho = "Hiragino Mincho ProN"
     case hiraginoKakuGothic = "Hiragino Kaku Gothic ProN"
 
@@ -22,9 +20,6 @@ enum ReaderFontOption: String, CaseIterable, Identifiable, Sendable {
         case .system: return L("settings_reader_font_system")
         case .appleSDGothicNeo: return "Apple SD Gothic Neo"
         case .appleGothic: return "AppleGothic"
-        case .nanumMyeongjo: return "Nanum Myeongjo (serif)"
-        case .nanumGothic: return "Nanum Gothic"
-        case .sarasaMonoK: return "Sarasa Mono K (mono)"
         case .hiraginoMincho: return "Hiragino Mincho ProN"
         case .hiraginoKakuGothic: return "Hiragino Kaku Gothic ProN"
         }
@@ -36,12 +31,8 @@ enum ReaderFontOption: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .system:
             return "-apple-system, BlinkMacSystemFont, \(koreanFallback), sans-serif"
-        case .appleSDGothicNeo, .appleGothic, .nanumGothic:
+        case .appleSDGothicNeo, .appleGothic:
             return "\"\(rawValue)\", \(koreanFallback), sans-serif"
-        case .nanumMyeongjo:
-            return "\"\(rawValue)\", \(koreanFallback), serif"
-        case .sarasaMonoK:
-            return "\"\(rawValue)\", \(koreanFallback), monospace"
         case .hiraginoMincho:
             return "\"\(rawValue)\", \(koreanFallback), serif"
         case .hiraginoKakuGothic:
