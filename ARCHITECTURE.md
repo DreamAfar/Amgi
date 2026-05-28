@@ -164,7 +164,7 @@ anki-bridge-rs/
 
 ### XCFramework Packaging
 
-`scripts/build-xcframework.sh` compiles all three targets, creates fat simulator lib with `lipo`, then packages into `AnkiRustLib.xcframework` consumed by SPM as a binary target.
+`scripts/build-xcframework.sh` compiles all three targets, creates fat simulator lib with `lipo`, then packages into `AnkiRust.xcframework` consumed by SPM as a binary target.
 
 ### Protobuf Generation
 
