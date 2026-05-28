@@ -66,6 +66,11 @@ extension CardClient: DependencyKey {
                     throw error
                 }
             },
+            fetchByNote: { try cards.fetchByNote($0) },
+
+            save: { _ in
+                // Rust owns the DB; no direct writes needed
+            },
 
             answer: { cardId, rating, timeSpent in
                 var answer = Anki_Scheduler_CardAnswer()
@@ -86,12 +91,7 @@ extension CardClient: DependencyKey {
                 )
             },
 
-            save: { _ in
-                // Rust owns the DB; no direct writes needed
-            },
-
             // MARK: Delegated to CardsService
-            fetchByNote: { try cards.fetchByNote($0) },
             undo:          { try cards.undo() },
             suspend:       { try cards.suspend($0) },
             unsuspend:     { try cards.unsuspend($0) },

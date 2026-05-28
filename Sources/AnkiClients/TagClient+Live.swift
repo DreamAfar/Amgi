@@ -17,7 +17,6 @@ extension TagClient: DependencyKey {
         return Self(
             // MARK: Delegated to TagService (read-only)
             getAllTags:     { try tags.getAllTags() },
-            findNotesByTag: { try tags.findNotesByTag($0) },
 
             // MARK: Write operations (stay in Client)
             clearUnusedTags: {
@@ -144,7 +143,8 @@ extension TagClient: DependencyKey {
                     logger.error("renameTag failed: \(error)")
                     throw error
                 }
-            }
+            },
+            findNotesByTag: { try tags.findNotesByTag($0) }
         )
     }()
 }
