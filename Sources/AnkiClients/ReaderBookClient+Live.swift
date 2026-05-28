@@ -23,15 +23,8 @@ private func validatedDeckQuery(_ deckName: String) throws -> String {
     return "deck:\"\(escapedDeckName)\""
 }
 
-private func fetchNotetypeFieldNames(_ notetypeID: Int64, backend: AnkiBackend) throws -> [String] {
-    var request = Anki_Notetypes_NotetypeId()
-    request.ntid = notetypeID
-    let notetype: Anki_Notetypes_Notetype = try backend.invoke(
-        service: AnkiBackend.Service.notetypes,
-        method: AnkiBackend.NotetypesMethod.getNotetype,
-        request: request
-    )
-    return notetype.fields.map(\.name)
+private func fetchNotetypeFieldNames(_ notetypeID: Int64, notetypesClient: NotetypesClient) throws -> [String] {
+    try notetypesClient.getRaw(notetypeID).fields.map(\.name)
 }
 
 private func decodeFieldMap(note: NoteRecord, fieldNames: [String]) -> [String: String] {
@@ -191,7 +184,7 @@ private func chapterSort(lhs: ReaderChapter, rhs: ReaderChapter) -> Bool {
 private func buildBooks(
     from notes: [NoteRecord],
     configuration: ReaderLibraryConfiguration,
-    backend: AnkiBackend
+    notetypesClient: NotetypesClient
 ) throws -> [ReaderBook] {
     var fieldNamesByNotetypeID: [Int64: [String]] = [:]
     var chaptersByBookID: [String: [ReaderChapter]] = [:]
@@ -202,7 +195,7 @@ private func buildBooks(
         if let cachedFieldNames = fieldNamesByNotetypeID[note.mid] {
             fieldNames = cachedFieldNames
         } else {
-            let loadedFieldNames = try fetchNotetypeFieldNames(note.mid, backend: backend)
+            let loadedFieldNames = try fetchNotetypeFieldNames(note.mid, notetypesClient: notetypesClient)
             fieldNamesByNotetypeID[note.mid] = loadedFieldNames
             fieldNames = loadedFieldNames
         }
@@ -244,19 +237,19 @@ private func buildBooks(
 
 extension ReaderBookClient: DependencyKey {
     public static let liveValue: Self = {
-        @Dependency(\.ankiBackend) var backend
         @Dependency(\.noteClient) var noteClient
+        @Dependency(\.notetypesClient) var notetypesClient
 
         return Self(
             loadBooks: { configuration in
                 let notes = try fetchNotes(for: configuration, noteClient: noteClient)
-                return try buildBooks(from: notes, configuration: configuration, backend: backend)
+                return try buildBooks(from: notes, configuration: configuration, notetypesClient: notetypesClient)
             },
             loadBook: { bookID, configuration in
                 try buildBooks(
                     from: fetchNotes(for: configuration, noteClient: noteClient),
                     configuration: configuration,
-                    backend: backend
+                    notetypesClient: notetypesClient
                 )
                     .first(where: { $0.id == bookID })
             }

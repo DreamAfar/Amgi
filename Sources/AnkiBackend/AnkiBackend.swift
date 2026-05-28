@@ -487,6 +487,7 @@ extension AnkiBackend {
         public static let getNote: UInt32 = 6
         public static let removeNotes: UInt32 = 7
         public static let fieldNamesForNotes: UInt32 = 10
+        public static let getSingleNotetypeOfNotes: UInt32 = 13
     }
 
     public enum DecksMethod {

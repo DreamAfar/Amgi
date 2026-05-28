@@ -4,7 +4,6 @@ import UniformTypeIdentifiers
 import UIKit
 import AnkiKit
 import AnkiClients
-import AnkiBackend
 import AnkiProto
 import Dependencies
 import SwiftProtobuf
@@ -14,8 +13,8 @@ struct NoteEditorView: View {
     let onSave: () -> Void
 
     @Dependency(\.noteClient) var noteClient
-    @Dependency(\.ankiBackend) var backend
     @Dependency(\.mediaClient) var mediaClient
+    @Dependency(\.notetypesClient) var notetypesClient
 
     @State private var fieldValues: [String] = []
     @State private var fieldNames: [String] = []
@@ -614,12 +613,11 @@ struct NoteEditorView: View {
 
     private func loadNote() async {
         let noteData = note
-        let fetchedNotetype = await fetchNotetype(note.mid)
-
-        if let fetchedNotetype {
+        do {
+            let fetchedNotetype = try await loadRawNotetype(note.mid)
             notetype = fetchedNotetype
             fieldNames = fetchedNotetype.fields.map(\.name)
-        } else {
+        } catch {
             errorMessage = L("common_failed_load_notetype")
             showError = true
         }
@@ -636,22 +634,19 @@ struct NoteEditorView: View {
         hasLoadedOriginalState = true
     }
 
-    private func fetchNotetype(_ id: Int64) async -> Anki_Notetypes_Notetype? {
-        let backend = self.backend
-        return await Task.detached(priority: .userInitiated) {
-            var request = Anki_Notetypes_NotetypeId()
-            request.ntid = id
-            return try? backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetype,
-                request: request
-            ) as Anki_Notetypes_Notetype
+    private func loadRawNotetype(_ id: Int64) async throws -> Anki_Notetypes_Notetype {
+        let notetypesClient = self.notetypesClient
+        return try await Task.detached(priority: .userInitiated) {
+            try notetypesClient.getRaw(id)
         }.value
     }
 
     @MainActor
     private func refreshNotetypePreservingDrafts() async {
-        guard let refreshedNotetype = await fetchNotetype(note.mid) else {
+        let refreshedNotetype: Anki_Notetypes_Notetype
+        do {
+            refreshedNotetype = try await loadRawNotetype(note.mid)
+        } catch {
             errorMessage = L("common_failed_load_notetype")
             showError = true
             return

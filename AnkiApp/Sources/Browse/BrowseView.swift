@@ -4,6 +4,7 @@ import AnkiKit
 import AnkiBackend
 import AnkiProto
 import AnkiClients
+import AnkiServices
 import Dependencies
 
 func browseEscapedSearchTerm(_ text: String) -> String {
@@ -21,6 +22,8 @@ struct BrowseView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.cardClient) var cardClient
     @Dependency(\.tagClient) var tagClient
+    @Dependency(\.notetypesClient) var notetypesClient
+    @Dependency(\.notetypesService) var notetypesService
     @Dependency(\.ankiBackend) var backend
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -57,7 +60,7 @@ struct BrowseView: View {
     @State private var showTagsActionSheet = false
     @State private var showBatchDeleteConfirm = false
     @State private var showMoveToDeck = false
-    @State private var showChangeNotetype = false
+    @State private var changeNotetypeTarget: AnkiClients.ChangeNotetypeTarget?
     @State private var selectedNoteIDs = Set<Int64>()
     @State private var isMultiSelecting = false
     @State private var isBatchWorking = false
@@ -191,8 +194,11 @@ struct BrowseView: View {
                 Task { await batchMoveToDeck(deckId: targetDeck.id) }
             }
         }
-        .sheet(isPresented: $showChangeNotetype) {
-            ChangeNotetypeSheet(noteIDs: Array(selectedNoteIDs)) {
+        .sheet(item: $changeNotetypeTarget) { target in
+            ChangeNotetypeSheet(
+                noteIDs: target.noteIDs,
+                sourceNotetypeID: target.sourceNotetypeID
+            ) {
                 scheduleSearch()
             }
         }
@@ -1255,7 +1261,9 @@ struct BrowseView: View {
                 Button { showMoveToDeck = true } label: {
                     Label(L("browse_batch_move_deck_short"), systemImage: "rectangle.stack.badge.plus")
                 }
-                Button { showChangeNotetype = true } label: {
+                Button {
+                    Task { await openChangeNotetypeForSelection() }
+                } label: {
                     Label(L("browse_batch_change_notetype_short"), systemImage: "doc.badge.gearshape")
                 }
                 Button { presentSelectedNotesExportOptions() } label: {
@@ -1545,7 +1553,7 @@ struct BrowseView: View {
 
         case .changeNotetype:
             Button {
-                showChangeNotetype = true
+                Task { await openChangeNotetypeForSelection() }
             } label: {
                 wideBatchActionLabel(
                     title: wideBatchActionTitle(action),
@@ -1652,7 +1660,9 @@ struct BrowseView: View {
         case .moveDeck:
             Button(wideBatchActionTitle(action)) { showMoveToDeck = true }
         case .changeNotetype:
-            Button(wideBatchActionTitle(action)) { showChangeNotetype = true }
+            Button(wideBatchActionTitle(action)) {
+                Task { await openChangeNotetypeForSelection() }
+            }
         case .export:
             Button(wideBatchActionTitle(action)) { presentSelectedNotesExportOptions() }
         case .setDueDate:
@@ -2390,11 +2400,8 @@ struct BrowseView: View {
 
     private func loadNotetypeNames() async {
         do {
-            let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetypeNames
-            )
-            notetypeNamesByID = Dictionary(uniqueKeysWithValues: response.entries.map { ($0.id, $0.name) })
+            let entries = try notetypesService.getNotetypeNames()
+            notetypeNamesByID = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0.name) })
             if let activeNotetypeID, notetypeNamesByID[activeNotetypeID] == nil {
                 self.activeNotetypeID = nil
             }
@@ -2502,6 +2509,19 @@ struct BrowseView: View {
     private func batchMoveToDeck(deckId: Int64) async {
         await performBatchAction { cardId in
             try cardClient.moveToDeck(cardId, deckId)
+        }
+    }
+
+    @MainActor
+    private func openChangeNotetypeForSelection() async {
+        let noteIDs = Array(selectedNoteIDs)
+        guard !noteIDs.isEmpty else { return }
+
+        do {
+            changeNotetypeTarget = try notetypesClient.prepareChangeTarget(noteIDs)
+        } catch {
+            batchErrorMessage = error.localizedDescription
+            showBatchError = true
         }
     }
 
@@ -2983,20 +3003,13 @@ struct MoveToDeckSheet: View {
     }
 }
 
-// MARK: - ChangeNotetypeSheet
-
-private struct ChangeNotetypeMappingData: Identifiable, Sendable, Hashable {
-    let id = UUID()
-    let info: Anki_Notetypes_ChangeNotetypeInfo
-    let noteIDs: [Int64]
-    let newNotetypeName: String
-}
-
 struct ChangeNotetypeSheet: View {
     let noteIDs: [Int64]
+    let sourceNotetypeID: Int64
     let onComplete: () -> Void
 
-    @Dependency(\.ankiBackend) var backend
+    @Dependency(\.notetypesClient) var notetypesClient
+    @Dependency(\.notetypesService) var notetypesService
     @Environment(\.dismiss) private var dismiss
 
     @State private var notetypeNames: [(id: Int64, name: String)] = []
@@ -3005,7 +3018,7 @@ struct ChangeNotetypeSheet: View {
     @State private var errorTitle = L("common_error")
     @State private var errorMessage: String?
     @State private var showError = false
-    @State private var mappingData: ChangeNotetypeMappingData?
+    @State private var mappingData: AnkiClients.ChangeNotetypeMappingData?
 
     var body: some View {
         NavigationStack {
@@ -3055,21 +3068,8 @@ struct ChangeNotetypeSheet: View {
     private func loadNotetypes() async {
         isLoading = true
         do {
-            let allNotetypes = try loadStandardNotetypeEntries(backend: backend)
-            var currentNotetypeIDs = Set<Int64>()
-
-            for noteId in noteIDs {
-                var req = Anki_Notes_NoteId()
-                req.nid = noteId
-                let note: Anki_Notes_Note = try backend.invoke(
-                    service: AnkiBackend.Service.notes,
-                    method: AnkiBackend.NotesMethod.getNote,
-                    request: req
-                )
-                currentNotetypeIDs.insert(note.notetypeID)
-            }
-
-            notetypeNames = allNotetypes.filter { !currentNotetypeIDs.contains($0.id) }
+            notetypeNames = try notetypesService.getStandardNotetypeNames()
+                .filter { $0.id != sourceNotetypeID }
         } catch {
             notetypeNames = []
         }
@@ -3081,21 +3081,7 @@ struct ChangeNotetypeSheet: View {
         defer { isFetchingInfo = false }
 
         do {
-            var notesByOldNotetype: [Int64: [Int64]] = [:]
-            for noteId in noteIDs {
-                var req = Anki_Notes_NoteId()
-                req.nid = noteId
-                let note: Anki_Notes_Note = try backend.invoke(
-                    service: AnkiBackend.Service.notes,
-                    method: AnkiBackend.NotesMethod.getNote,
-                    request: req
-                )
-                if note.notetypeID != newNotetypeId {
-                    notesByOldNotetype[note.notetypeID, default: []].append(noteId)
-                }
-            }
-
-            guard !notesByOldNotetype.isEmpty else {
+            guard sourceNotetypeID != newNotetypeId else {
                 presentErrorAlert(
                     title: L("browse_batch_change_notetype"),
                     message: L("browse_batch_change_notetype_same_msg")
@@ -3103,30 +3089,12 @@ struct ChangeNotetypeSheet: View {
                 return
             }
 
-            if notesByOldNotetype.count == 1,
-               let (oldNotetypeId, groupNoteIDs) = notesByOldNotetype.first {
-                // Single old notetype: show full field mapping UI
-                var infoReq = Anki_Notetypes_GetChangeNotetypeInfoRequest()
-                infoReq.oldNotetypeID = oldNotetypeId
-                infoReq.newNotetypeID = newNotetypeId
-                let info: Anki_Notetypes_ChangeNotetypeInfo = try backend.invoke(
-                    service: AnkiBackend.Service.notetypes,
-                    method: AnkiBackend.NotetypesMethod.getChangeNotetypeInfo,
-                    request: infoReq
-                )
-                mappingData = ChangeNotetypeMappingData(
-                    info: info,
-                    noteIDs: groupNoteIDs,
-                    newNotetypeName: newNotetypeName
-                )
-            } else {
-                // Multiple old notetypes: reject with informative error (align with upstream Anki)
-                let count = notesByOldNotetype.count
-                presentErrorAlert(
-                    title: L("browse_batch_change_notetype_mixed_title"),
-                    message: String(format: L("browse_batch_change_notetype_mixed_msg"), count)
-                )
-            }
+            mappingData = try notetypesClient.getChangeNotetypeInfo(
+                noteIDs,
+                sourceNotetypeID,
+                newNotetypeId,
+                newNotetypeName
+            )
         } catch {
             presentErrorAlert(title: L("common_error"), message: error.localizedDescription)
         }
@@ -3134,11 +3102,7 @@ struct ChangeNotetypeSheet: View {
 
     private func applyFinalRequest(_ req: Anki_Notetypes_ChangeNotetypeRequest) async {
         do {
-            try backend.callVoid(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.changeNotetype,
-                request: req
-            )
+            try notetypesClient.changeNotetype(req)
             onComplete()
             dismiss()
         } catch {
@@ -3156,7 +3120,7 @@ struct ChangeNotetypeSheet: View {
 // MARK: - ChangeNotetypeFieldMappingView
 
 private struct ChangeNotetypeFieldMappingView: View {
-    let data: ChangeNotetypeMappingData
+    let data: AnkiClients.ChangeNotetypeMappingData
     let onApply: (Anki_Notetypes_ChangeNotetypeRequest) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -3168,7 +3132,7 @@ private struct ChangeNotetypeFieldMappingView: View {
 
     private var info: Anki_Notetypes_ChangeNotetypeInfo { data.info }
 
-    init(data: ChangeNotetypeMappingData, onApply: @escaping (Anki_Notetypes_ChangeNotetypeRequest) -> Void) {
+    init(data: AnkiClients.ChangeNotetypeMappingData, onApply: @escaping (Anki_Notetypes_ChangeNotetypeRequest) -> Void) {
         self.data = data
         self.onApply = onApply
         _fieldMapping = State(initialValue: data.info.input.newFields.map { Int($0) })
@@ -3277,6 +3241,7 @@ struct BrowseFindDuplicatesSheet: View {
 
     @Dependency(\.noteClient) var noteClient
     @Dependency(\.tagClient) var tagClient
+    @Dependency(\.notetypesService) var notetypesService
     @Dependency(\.ankiBackend) var backend
     @Environment(\.dismiss) private var dismiss
 
@@ -3450,24 +3415,20 @@ struct BrowseFindDuplicatesSheet: View {
         defer { isLoadingFields = false }
 
         do {
-            let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetypeNames
-            )
-
             var allFieldNames: [String] = []
             var seenFieldNames = Set<String>()
             var fieldMapByNotetypeID: [Int64: [String: Int]] = [:]
 
-            for entry in response.entries {
-                guard let notetype = try? fetchNotetype(backend: backend, id: entry.id) else {
+            for entry in try notetypesService.getNotetypeNames() {
+                let fields = try notetypesService.getNotetypeFields(entry.id)
+                guard !fields.isEmpty else {
                     continue
                 }
 
                 var fieldIndexMap: [String: Int] = [:]
-                for (index, field) in notetype.fields.enumerated() {
+                for field in fields {
                     let normalized = field.name.lowercased()
-                    fieldIndexMap[normalized] = index
+                    fieldIndexMap[normalized] = field.ordinal
                     if seenFieldNames.insert(normalized).inserted {
                         allFieldNames.append(field.name)
                     }

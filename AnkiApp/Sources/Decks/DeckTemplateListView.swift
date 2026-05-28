@@ -7,6 +7,7 @@ import Dependencies
 
 struct DeckTemplateListView: View {
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.notetypesClient) var notetypesClient
     @Environment(\.dismiss) private var dismiss
 
     let showsDoneButton: Bool
@@ -219,11 +220,7 @@ struct DeckTemplateListView: View {
         defer { isLoading = false }
 
         do {
-            let resp: Anki_Notetypes_NotetypeNames = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetypeNames
-            )
-            entries = sortDeckTemplateEntries(resp.entries)
+            entries = sortDeckTemplateEntries(try notetypesClient.listAll())
             errorMessage = nil
         } catch {
             entries = []
@@ -238,19 +235,9 @@ struct DeckTemplateListView: View {
         guard !newName.isEmpty, newName != renameTarget.name else { return }
 
         do {
-            var req = Anki_Notetypes_NotetypeId()
-            req.ntid = renameTarget.id
-            var notetype: Anki_Notetypes_Notetype = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetype,
-                request: req
-            )
+            var notetype = try notetypesClient.getRaw(renameTarget.id)
             notetype.name = newName
-            try backend.callVoid(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.updateNotetype,
-                request: notetype
-            )
+            try notetypesClient.update(notetype)
             await loadTemplates()
         } catch {
             actionError = L("deck_template_rename_failed", error.localizedDescription)
@@ -285,13 +272,7 @@ struct DeckTemplateListView: View {
     private func deleteNotetype(_ deleteTarget: Anki_Notetypes_NotetypeNameId) async {
 
         do {
-            var req = Anki_Notetypes_NotetypeId()
-            req.ntid = deleteTarget.id
-            try backend.callVoid(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.removeNotetype,
-                request: req
-            )
+            try notetypesClient.remove(deleteTarget.id)
             SchemaChangeFullSyncGuard.markPendingFullUpload()
             await loadTemplates()
         } catch {
@@ -338,18 +319,14 @@ struct DeckTemplateListView: View {
                 ])
             }
 
-            var addRequest = Anki_Generic_Json()
-            addRequest.json = try JSONSerialization.data(withJSONObject: jsonObject)
-            let response: Anki_Collection_OpChangesWithId = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: DeckTemplateBackendMethod.addNotetypeLegacy,
-                request: addRequest
+            let responseID = try notetypesClient.addLegacyNotetype(
+                JSONSerialization.data(withJSONObject: jsonObject)
             )
 
             await loadTemplates()
             addNotetypeText = ""
             self.pendingNotetypeCreationSource = nil
-            editorTarget = TemplateEditorTarget(id: response.id, initialTemplateIndex: 0)
+            editorTarget = TemplateEditorTarget(id: responseID, initialTemplateIndex: 0)
         } catch {
             actionError = L("deck_template_add_notetype_failed", error.localizedDescription)
             showActionError = true
@@ -372,28 +349,16 @@ struct DeckTemplateListView: View {
     }
 
     private func loadNotetypeCreationPayload(for source: NotetypeCreationSource) async throws -> [String: Any] {
-        let response: Anki_Generic_Json
+        let payload: Data
 
         switch source {
         case .stock(let kind, _):
-            var stockRequest = Anki_Notetypes_StockNotetype()
-            stockRequest.kind = kind
-            response = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: DeckTemplateBackendMethod.getStockNotetypeLegacy,
-                request: stockRequest
-            )
+            payload = try notetypesClient.getStockNotetypePayload(kind)
         case .existing(let id, _):
-            var request = Anki_Notetypes_NotetypeId()
-            request.ntid = id
-            response = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: DeckTemplateBackendMethod.getNotetypeLegacy,
-                request: request
-            )
+            payload = try notetypesClient.getLegacyNotetypePayload(id)
         }
 
-        guard let jsonObject = try JSONSerialization.jsonObject(with: response.json) as? [String: Any] else {
+        guard let jsonObject = try JSONSerialization.jsonObject(with: payload) as? [String: Any] else {
             throw NSError(domain: "DeckTemplateListView", code: 2, userInfo: [
                 NSLocalizedDescriptionKey: "Invalid notetype payload."
             ])
@@ -548,6 +513,7 @@ private enum TemplateEditorTab: CaseIterable {
 
 struct TemplateEditorView: View {
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.notetypesClient) var notetypesClient
     @Dependency(\.noteClient) var noteClient
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -1121,13 +1087,7 @@ struct TemplateEditorView: View {
         defer { isLoading = false }
 
         do {
-            var req = Anki_Notetypes_NotetypeId()
-            req.ntid = notetypeId
-            let fetched: Anki_Notetypes_Notetype = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetype,
-                request: req
-            )
+            let fetched = try notetypesClient.getRaw(notetypeId)
             var refreshed = fetched
             if preserveEditorDrafts {
                 refreshed.templates = notetype.templates
@@ -1160,11 +1120,7 @@ struct TemplateEditorView: View {
         defer { isSaving = false }
 
         do {
-            try backend.callVoid(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.updateNotetype,
-                request: notetype
-            )
+            try notetypesClient.update(notetype)
             if hasPendingSchemaMutation {
                 SchemaChangeFullSyncGuard.markPendingFullUpload()
             }
@@ -1390,12 +1346,6 @@ private enum TemplateSchemaAction {
     case copy(sourceIndex: Int, name: String)
     case delete(index: Int)
     case reorder(sourceIndex: Int, targetIndex: Int)
-}
-
-private enum DeckTemplateBackendMethod {
-    static let addNotetypeLegacy: UInt32 = 2
-    static let getStockNotetypeLegacy: UInt32 = 5
-    static let getNotetypeLegacy: UInt32 = 7
 }
 
 func sortDeckTemplateEntries(

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 import UIKit
 import AnkiKit
 import AnkiClients
+import AnkiServices
 import AnkiBackend
 import AnkiProto
 import Dependencies
@@ -15,6 +16,8 @@ struct AddNoteView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.mediaClient) var mediaClient
+    @Dependency(\.notetypesClient) var notetypesClient
+    @Dependency(\.notetypesService) var notetypesService
     @AppStorage("amgi.add_note.session") private var persistedSessionData = ""
 
     @State private var decks: [DeckInfo] = []
@@ -261,7 +264,7 @@ struct AddNoteView: View {
         }
 
         do {
-            notetypeNames = try loadStandardNotetypeEntries(backend: backend)
+            notetypeNames = try notetypesService.getStandardNotetypeNames()
             if let restoredSession {
                 if let restoredDeckID = restoredSession.selectedDeckId,
                    decks.contains(where: { $0.id == restoredDeckID }) {
@@ -298,7 +301,7 @@ struct AddNoteView: View {
     private func loadFields(applyingDraft: Bool) {
         guard selectedNotetypeId != 0 else { return }
         do {
-            let notetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
+            let notetype = try notetypesClient.getRaw(selectedNotetypeId)
             fieldNames = notetype.fields.map(\.name)
             if applyingDraft, let draft {
                 fieldValues = fieldNames.map { fieldName in
@@ -644,7 +647,7 @@ struct AddNoteView: View {
     private func showPreview() {
         guard selectedNotetypeId != 0 else { return }
         do {
-            let notetype = try fetchNotetype(backend: backend, id: selectedNotetypeId)
+            let notetype = try notetypesClient.getRaw(selectedNotetypeId)
             previewContext = AddNotePreviewContext(
                 notetype: notetype,
                 note: buildPreviewNote(notetype: notetype)

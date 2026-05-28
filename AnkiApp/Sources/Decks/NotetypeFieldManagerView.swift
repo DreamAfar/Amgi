@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AnkiClients
 import AnkiBackend
 import AnkiProto
 import Dependencies
@@ -7,6 +8,7 @@ import UniformTypeIdentifiers
 
 struct NotetypeFieldManagerListView: View {
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.notetypesClient) var notetypesClient
 
     @State private var entries: [Anki_Notetypes_NotetypeNameId] = []
     @State private var isLoading = true
@@ -83,11 +85,7 @@ struct NotetypeFieldManagerListView: View {
         defer { isLoading = false }
 
         do {
-            let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetypeNames
-            )
-            entries = sortDeckTemplateEntries(response.entries)
+            entries = sortDeckTemplateEntries(try notetypesClient.listAll())
             errorMessage = nil
         } catch {
             entries = []
@@ -98,6 +96,7 @@ struct NotetypeFieldManagerListView: View {
 
 struct NotetypeFieldManagerView: View {
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.notetypesClient) var notetypesClient
 
     let notetypeId: Int64
     var preferredName: String? = nil
@@ -204,13 +203,7 @@ struct NotetypeFieldManagerView: View {
         defer { isLoading = false }
 
         do {
-            var req = Anki_Notetypes_NotetypeId()
-            req.ntid = notetypeId
-            notetype = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetype,
-                request: req
-            )
+            notetype = try notetypesClient.getRaw(notetypeId)
         } catch {
             errorMessage = error.localizedDescription
             showError = true
@@ -287,11 +280,7 @@ struct NotetypeFieldManagerView: View {
         defer { isSaving = false }
 
         do {
-            try backend.callVoid(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.updateNotetype,
-                request: updated
-            )
+            try notetypesClient.update(updated)
             notetype = updated
             if markSchemaChange {
                 SchemaChangeFullSyncGuard.markPendingFullUpload()
@@ -314,6 +303,7 @@ struct NotetypeFieldManagerView: View {
 
 struct NotetypeFieldEditorView: View {
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.notetypesClient) var notetypesClient
     @Environment(\.dismiss) private var dismiss
 
     let notetypeId: Int64
@@ -572,13 +562,7 @@ struct NotetypeFieldEditorView: View {
         defer { isLoading = false }
 
         do {
-            var req = Anki_Notetypes_NotetypeId()
-            req.ntid = notetypeId
-            notetype = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetype,
-                request: req
-            )
+            notetype = try notetypesClient.getRaw(notetypeId)
             syncDraftsFromNotetype()
             if let pendingFocusIndex, fieldNameDrafts.indices.contains(pendingFocusIndex) {
                 let focusIndex = pendingFocusIndex
@@ -850,11 +834,7 @@ struct NotetypeFieldEditorView: View {
         defer { isSaving = false }
 
         do {
-            try backend.callVoid(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.updateNotetype,
-                request: updated
-            )
+            try notetypesClient.update(updated)
             notetype = updated
             if markSchemaChange {
                 SchemaChangeFullSyncGuard.markPendingFullUpload()

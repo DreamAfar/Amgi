@@ -19,10 +19,14 @@ let package = Package(
         .library(name: "AnkiProto", targets: ["AnkiProto"]),
         .library(name: "AnkiBackend", targets: ["AnkiBackend"]),
         .library(name: "AnkiClients", targets: ["AnkiClients"]),
+        .library(name: "AnkiServices", targets: ["AnkiServices"]),
         .library(name: "AnkiReader", targets: ["AnkiReader"]),
         .library(name: "AnkiSync", targets: ["AnkiSync"]),
     ],
     dependencies: [
+        .package(path: "AmgiDomain"),
+        .package(path: "AmgiUI"),
+        .package(path: "AmgiReader"),
         .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.0"),
@@ -79,6 +83,17 @@ let package = Package(
                 "ReaderBookClient+Live.swift",
                 "DictionaryLookupClient.swift",
                 "DictionaryLookupClient+Live.swift",
+            ],
+            swiftSettings: sharedSwiftSettings
+        ),
+        .target(
+            name: "AnkiServices",
+            dependencies: [
+                "AnkiKit",
+                "AnkiBackend",
+                "AnkiProto",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "DependenciesMacros", package: "swift-dependencies"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
