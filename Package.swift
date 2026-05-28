@@ -70,6 +70,7 @@ let package = Package(
                 "AnkiKit",
                 "AnkiBackend",
                 "AnkiProto",
+                "AnkiServices",
                 "AnkiSync",
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
