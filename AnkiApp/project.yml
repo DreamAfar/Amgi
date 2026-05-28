@@ -49,6 +49,8 @@ targets:
       - package: AnkiBridge
         product: AnkiClients
       - package: AnkiBridge
+        product: AmgiCardWeb
+      - package: AnkiBridge
         product: AnkiSync
       - package: AnkiBridge
         product: AnkiBackend

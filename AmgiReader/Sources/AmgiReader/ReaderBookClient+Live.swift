@@ -2,6 +2,7 @@ import AnkiKit
 import AnkiBackend
 import AnkiClients
 import AnkiProto
+import AnkiServices
 public import Dependencies
 import DependenciesMacros
 import Foundation
@@ -23,8 +24,8 @@ private func validatedDeckQuery(_ deckName: String) throws -> String {
     return "deck:\"\(escapedDeckName)\""
 }
 
-private func fetchNotetypeFieldNames(_ notetypeID: Int64, notetypesClient: NotetypesClient) throws -> [String] {
-    try notetypesClient.getRaw(notetypeID).fields.map(\.name)
+private func fetchNotetypeFieldNames(_ notetypeID: Int64, notetypesService: NotetypesService) throws -> [String] {
+    try notetypesService.getNotetype(notetypeID).fieldNames
 }
 
 private func decodeFieldMap(note: NoteRecord, fieldNames: [String]) -> [String: String] {
@@ -184,7 +185,7 @@ private func chapterSort(lhs: ReaderChapter, rhs: ReaderChapter) -> Bool {
 private func buildBooks(
     from notes: [NoteRecord],
     configuration: ReaderLibraryConfiguration,
-    notetypesClient: NotetypesClient
+    notetypesService: NotetypesService
 ) throws -> [ReaderBook] {
     var fieldNamesByNotetypeID: [Int64: [String]] = [:]
     var chaptersByBookID: [String: [ReaderChapter]] = [:]
@@ -195,7 +196,7 @@ private func buildBooks(
         if let cachedFieldNames = fieldNamesByNotetypeID[note.mid] {
             fieldNames = cachedFieldNames
         } else {
-            let loadedFieldNames = try fetchNotetypeFieldNames(note.mid, notetypesClient: notetypesClient)
+            let loadedFieldNames = try fetchNotetypeFieldNames(note.mid, notetypesService: notetypesService)
             fieldNamesByNotetypeID[note.mid] = loadedFieldNames
             fieldNames = loadedFieldNames
         }
@@ -238,18 +239,18 @@ private func buildBooks(
 extension ReaderBookClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.noteClient) var noteClient
-        @Dependency(\.notetypesClient) var notetypesClient
+        @Dependency(\.notetypesService) var notetypesService
 
         return Self(
             loadBooks: { configuration in
                 let notes = try fetchNotes(for: configuration, noteClient: noteClient)
-                return try buildBooks(from: notes, configuration: configuration, notetypesClient: notetypesClient)
+                return try buildBooks(from: notes, configuration: configuration, notetypesService: notetypesService)
             },
             loadBook: { bookID, configuration in
                 try buildBooks(
                     from: fetchNotes(for: configuration, noteClient: noteClient),
                     configuration: configuration,
-                    notetypesClient: notetypesClient
+                    notetypesService: notetypesService
                 )
                     .first(where: { $0.id == bookID })
             }

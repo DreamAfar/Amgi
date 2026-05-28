@@ -1,6 +1,7 @@
 import AnkiKit
 import AnkiBackend
 import AnkiProto
+import AnkiServices
 import SwiftProtobuf
 public import Dependencies
 import DependenciesMacros
@@ -8,84 +9,19 @@ import DependenciesMacros
 extension NoteClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
-
-        @Sendable func noteRecordFromProto(_ note: Anki_Notes_Note) -> NoteRecord {
-            NoteRecord(
-                id: note.id, guid: note.guid, mid: note.notetypeID,
-                mod: Int64(note.mtimeSecs), usn: note.usn,
-                tags: note.tags.joined(separator: " "),
-                flds: note.fields.joined(separator: "\u{1f}"),
-                sfld: note.fields.first ?? "", csum: 0,
-                flags: 0
-            )
-        }
-
-        @Sendable func backendSearchNoteIds(
-            _ query: String,
-            sortColumn: String? = nil,
-            reverse: Bool = false
-        ) throws -> [Int64] {
-            var req = Anki_Search_SearchRequest()
-            req.search = query.isEmpty ? "deck:*" : query
-            if let sortColumn, !sortColumn.isEmpty {
-                var builtin = Anki_Search_SortOrder.Builtin()
-                builtin.column = sortColumn
-                builtin.reverse = reverse
-
-                var order = Anki_Search_SortOrder()
-                order.value = .builtin(builtin)
-                req.order = order
-            }
-            let response: Anki_Search_SearchResponse = try backend.invoke(
-                service: AnkiBackend.Service.search,
-                method: AnkiBackend.SearchMethod.searchNotes,
-                request: req
-            )
-            return response.ids
-        }
-
-        @Sendable func backendFetchBatch(_ ids: [Int64]) -> [NoteRecord] {
-            guard !ids.isEmpty else { return [] }
-            guard let notePayloads = try? backend.getNotesBatch(noteIds: ids) else {
-                return []
-            }
-            var results: [NoteRecord] = []
-            results.reserveCapacity(notePayloads.count)
-            for payload in notePayloads {
-                if let note = try? Anki_Notes_Note(serializedBytes: payload) {
-                    results.append(noteRecordFromProto(note))
-                }
-            }
-            return results
-        }
+        @Dependency(\.noteService) var notes
 
         return Self(
-            fetch: { noteId in
-                var req = Anki_Notes_NoteId()
-                req.nid = noteId
-                let note: Anki_Notes_Note = try backend.invoke(
-                    service: AnkiBackend.Service.notes,
-                    method: AnkiBackend.NotesMethod.getNote,
-                    request: req
-                )
-                return noteRecordFromProto(note)
-            },
-            search: { query, limit in
-                let ids = try backendSearchNoteIds(query)
-                return backendFetchBatch(Array(ids.prefix(limit ?? 5000)))
-            },
-            searchIds: { query in
-                try backendSearchNoteIds(query)
-            },
-            searchIdsSorted: { query, column, reverse in
-                try backendSearchNoteIds(query, sortColumn: column, reverse: reverse)
-            },
-            fetchBatch: { ids in
-                backendFetchBatch(ids)
-            },
+            // MARK: Delegated to NoteService (read-only)
+            fetch:           { try notes.fetch($0) },
+            search:          { try notes.search($0, $1) },
+            searchIds:       { try notes.searchIds($0) },
+            searchIdsSorted: { try notes.searchIdsSorted($0, $1, $2) },
+            fetchBatch:      { try notes.fetchBatch($0) },
+
+            // MARK: Write operations (stay in Client)
             save: { note in
                 let protoNote = NoteProtoFactory.makeNote(from: note)
-
                 var req = Anki_Notes_UpdateNotesRequest()
                 req.notes = [protoNote]
                 try backend.callVoid(

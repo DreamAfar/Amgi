@@ -21,6 +21,7 @@ let package = Package(
         .library(name: "AnkiClients", targets: ["AnkiClients"]),
         .library(name: "AnkiServices", targets: ["AnkiServices"]),
         .library(name: "AnkiSync", targets: ["AnkiSync"]),
+        .library(name: "AmgiCardWeb", targets: ["AmgiCardWeb"]),
     ],
     dependencies: [
         .package(path: "AmgiDomain"),
@@ -91,6 +92,7 @@ let package = Package(
                 "AnkiProto",
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
+                .product(name: "Logging", package: "swift-log"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
@@ -103,6 +105,10 @@ let package = Package(
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
                 .product(name: "Logging", package: "swift-log"),
             ],
+            swiftSettings: sharedSwiftSettings
+        ),
+        .target(
+            name: "AmgiCardWeb",
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

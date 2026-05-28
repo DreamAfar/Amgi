@@ -1,6 +1,7 @@
 import AnkiKit
 import AnkiBackend
 import AnkiProto
+import AnkiServices
 import Foundation
 public import Dependencies
 import DependenciesMacros
@@ -11,38 +12,14 @@ private let logger = Logger(label: "com.ankiapp.tag.client")
 extension TagClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
+        @Dependency(\.tagService) var tags
 
         return Self(
-            getAllTags: {
-                // Get all tags using the tags service
-                do {
-                    let response: Anki_Tags_TagTreeNode = try backend.invoke(
-                        service: AnkiBackend.Service.tags,
-                        method: AnkiBackend.TagsMethod.tagTree,
-                        request: Anki_Generic_Empty()
-                    )
-                    
-                    // Flatten the tree to get all tag names with full paths
-                    var tags: [String] = []
-                    func flatten(_ node: Anki_Tags_TagTreeNode, parentPath: String) {
-                        let fullPath = parentPath.isEmpty ? node.name : "\(parentPath)::\(node.name)"
-                        tags.append(fullPath)
-                        for child in node.children {
-                            flatten(child, parentPath: fullPath)
-                        }
-                    }
-                    
-                    for child in response.children {
-                        flatten(child, parentPath: "")
-                    }
-                    
-                    logger.info("Retrieved \(tags.count) tags")
-                    return tags
-                } catch {
-                    logger.error("getAllTags failed: \(error)")
-                    throw error
-                }
-            },
+            // MARK: Delegated to TagService (read-only)
+            getAllTags:     { try tags.getAllTags() },
+            findNotesByTag: { try tags.findNotesByTag($0) },
+
+            // MARK: Write operations (stay in Client)
             clearUnusedTags: {
                 do {
                     let response: Anki_Collection_OpChangesWithCount = try backend.invoke(
@@ -165,25 +142,6 @@ extension TagClient: DependencyKey {
                     logger.info("Tag renamed: '\(oldName)' → '\(newName)'")
                 } catch {
                     logger.error("renameTag failed: \(error)")
-                    throw error
-                }
-            },
-            findNotesByTag: { tag in
-                // Search for notes with the given tag
-                do {
-                    var req = Anki_Search_SearchRequest()
-                    req.search = "tag:\(tag)"
-                    
-                    let response: Anki_Search_SearchResponse = try backend.invoke(
-                        service: AnkiBackend.Service.search,
-                        method: AnkiBackend.SearchMethod.searchNotes,
-                        request: req
-                    )
-                    
-                    logger.info("Found \(response.ids.count) notes with tag '\(tag)'")
-                    return response.ids
-                } catch {
-                    logger.error("findNotesByTag failed for '\(tag)': \(error)")
                     throw error
                 }
             }

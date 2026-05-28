@@ -1,18 +1,18 @@
-import Foundation
+public import Foundation
 import UniformTypeIdentifiers
 
-enum CardAssetPath {
-    static let scheme = "amgi-asset"
-    static let cardBaseURL = URL(string: "amgi-asset://card/")!
-    static let mediaBaseURL = URL(string: "amgi-asset://media/")!
-    static let mathJaxConfigScriptURLString = "amgi-asset://assets/mathjax/mathjax.js"
-    static let mathJaxCoreScriptURLString = "amgi-asset://assets/mathjax/vendor/tex-chtml-full.js"
+public enum CardAssetPath {
+    public static let scheme = "amgi-asset"
+    public static let cardBaseURL = URL(string: "amgi-asset://card/")!
+    public static let mediaBaseURL = URL(string: "amgi-asset://media/")!
+    public static let mathJaxConfigScriptURLString = "amgi-asset://assets/mathjax/mathjax.js"
+    public static let mathJaxCoreScriptURLString = "amgi-asset://assets/mathjax/vendor/tex-chtml-full.js"
 
-    static func mediaBaseTag() -> String {
+    public static func mediaBaseTag() -> String {
         #"<base href="amgi-asset://media/">"#
     }
 
-    static func resolve(url: URL, mediaRoot: URL?, bundleRoot: URL?) -> URL? {
+    public static func resolve(url: URL, mediaRoot: URL?, bundleRoot: URL?) -> URL? {
         guard url.scheme?.lowercased() == scheme,
               let host = url.host?.lowercased() else {
             return nil
@@ -31,7 +31,7 @@ enum CardAssetPath {
         }
     }
 
-    static func mimeType(for fileURL: URL) -> String {
+    public static func mimeType(for fileURL: URL) -> String {
         if let type = UTType(filenameExtension: fileURL.pathExtension),
            let mimeType = type.preferredMIMEType {
             return mimeType

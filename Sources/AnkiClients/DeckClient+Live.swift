@@ -1,6 +1,7 @@
 import AnkiKit
 import AnkiBackend
 import AnkiProto
+import AnkiServices
 public import Dependencies
 import DependenciesMacros
 import Foundation
@@ -12,112 +13,25 @@ private let logger = Logger(label: "com.ankiapp.deck.client")
 extension DeckClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
+        @Dependency(\.deckService) var decks
 
         return Self(
-            fetchAll: {
-                // Try getDeckTree WITH timestamp for accurate counts
-                var treeReq = Anki_Decks_DeckTreeRequest()
-                treeReq.now = Int64(Date().timeIntervalSince1970)
+            // MARK: Delegated to DeckService (read-only)
+            fetchAll:                { try decks.fetchAll() },
+            fetchNamesOnly:          { try decks.fetchNamesOnly() },
+            fetchDeck:               { try decks.fetchDeck($0) },
+            fetchCurrentDeck:        { try decks.fetchCurrentDeck() },
+            fetchTree:               { try decks.fetchTree() },
+            countsForDeck:           { try decks.countsForDeck($0) },
+            fetchCustomStudyDefaults: { try decks.fetchCustomStudyDefaults($0) },
+            fetchDeckConfigContext:   { try decks.fetchDeckConfigContext($0) },
+            getDeckConfig:            { try decks.getDeckConfig($0) },
+            getRetentionWorkload:     { try decks.getRetentionWorkload($0, $1) },
+            computeFsrsParams:        { try decks.computeFsrsParams($0) },
+            simulateFsrsReview:       { try decks.simulateFsrsReview($0) },
+            simulateFsrsWorkload:     { try decks.simulateFsrsWorkload($0) },
 
-                do {
-                    let tree: Anki_Decks_DeckTreeNode = try backend.invoke(
-                        service: AnkiBackend.Service.decks,
-                        method: AnkiBackend.DecksMethod.getDeckTree,
-                        request: treeReq
-                    )
-                    let decks = flattenDeckTree(tree)
-                    logger.info("DeckTree with counts: \(decks.count) decks")
-                    for d in decks {
-                        if d.counts.total > 0 {
-                            logger.info("  [\(d.id)] \(d.name) — new:\(d.counts.newCount) learn:\(d.counts.learnCount) review:\(d.counts.reviewCount)")
-                        }
-                    }
-                    return decks.sorted(by: { $0.name < $1.name })
-                } catch {
-                    // Fallback to getDeckNames without counts
-                    logger.warning("getDeckTree failed (\(error)), falling back to getDeckNames")
-                    let namesReq = Anki_Decks_GetDeckNamesRequest()
-                    let namesResp: Anki_Decks_DeckNames = try backend.invoke(
-                        service: AnkiBackend.Service.decks,
-                        method: AnkiBackend.DecksMethod.getDeckNames,
-                        request: namesReq
-                    )
-                    return namesResp.entries.map { entry in
-                        DeckInfo(id: entry.id, name: entry.name, counts: .zero)
-                    }.sorted(by: { $0.name < $1.name })
-                }
-            },
-            fetchNamesOnly: {
-                let req = Anki_Decks_GetDeckNamesRequest()
-                let resp: Anki_Decks_DeckNames = try backend.invoke(
-                    service: AnkiBackend.Service.decks,
-                    method: AnkiBackend.DecksMethod.getDeckNames,
-                    request: req
-                )
-                return resp.entries.map { DeckInfo(id: $0.id, name: $0.name, counts: .zero) }
-                    .sorted(by: { $0.name < $1.name })
-            },
-            fetchDeck: { deckId in
-                var req = Anki_Decks_DeckId()
-                req.did = deckId
-                return try backend.invoke(
-                    service: AnkiBackend.Service.decks,
-                    method: AnkiBackend.DecksMethod.getDeck,
-                    request: req
-                )
-            },
-            fetchCurrentDeck: {
-                try backend.invoke(
-                    service: AnkiBackend.Service.decks,
-                    method: AnkiBackend.DecksMethod.getCurrentDeck,
-                    request: Anki_Generic_Empty()
-                )
-            },
-            fetchTree: {
-                var req = Anki_Decks_DeckTreeRequest()
-                req.now = Int64(Date().timeIntervalSince1970)
-                let tree: Anki_Decks_DeckTreeNode = try backend.invoke(
-                    service: AnkiBackend.Service.decks,
-                    method: AnkiBackend.DecksMethod.getDeckTree,
-                    request: req
-                )
-                return tree.children.map { mapDeckTreeNode($0) }
-            },
-            countsForDeck: { deckId in
-                // Use getDeckTree with timestamp — it calculates counts accurately
-                var treeReq = Anki_Decks_DeckTreeRequest()
-                treeReq.now = Int64(Date().timeIntervalSince1970)
-
-                do {
-                    let tree: Anki_Decks_DeckTreeNode = try backend.invoke(
-                        service: AnkiBackend.Service.decks,
-                        method: AnkiBackend.DecksMethod.getDeckTree,
-                        request: treeReq
-                    )
-                    // Find the deck in the tree
-                    if let node = findNode(in: tree, deckId: deckId) {
-                        let counts = DeckCounts(
-                            newCount: Int(node.newCount),
-                            learnCount: Int(node.learnCount),
-                            reviewCount: Int(node.reviewCount)
-                        )
-                        logger.info("Counts for deck \(deckId): new=\(counts.newCount), learn=\(counts.learnCount), review=\(counts.reviewCount)")
-                        return counts
-                    }
-                } catch {
-                    logger.error("getDeckTree for counts failed: \(error)")
-                }
-                return .zero
-            },
-            fetchCustomStudyDefaults: { deckId in
-                var req = Anki_Scheduler_CustomStudyDefaultsRequest()
-                req.deckID = deckId
-                return try backend.invoke(
-                    service: AnkiBackend.Service.scheduler,
-                    method: AnkiBackend.SchedulerMethod.customStudyDefaults,
-                    request: req
-                )
-            },
+            // MARK: Write operations (stay in Client)
             customStudy: { request in
                 try backend.callVoid(
                     service: AnkiBackend.Service.scheduler,
@@ -169,10 +83,8 @@ extension DeckClient: DependencyKey {
                 }
             },
             delete: { deckId in
-                // Delete a deck using RemoveDecks
                 var req = Anki_Decks_DeckIds()
                 req.dids.append(deckId)
-                
                 do {
                     try backend.callVoid(
                         service: AnkiBackend.Service.decks,
@@ -185,96 +97,7 @@ extension DeckClient: DependencyKey {
                     throw error
                 }
             },
-            fetchDeckConfigContext: { deckId in
-                var req = Anki_Decks_DeckId()
-                req.did = deckId
 
-                return try backend.invoke(
-                    service: AnkiBackend.Service.deckConfig,
-                    method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
-                    request: req
-                )
-            },
-            getDeckConfig: { deckId in
-                var req = Anki_Decks_DeckId()
-                req.did = deckId
-
-                logger.info("Loading deck config for deckId=\(deckId)")
-
-                do {
-                    let response: Anki_DeckConfig_DeckConfigsForUpdate = try backend.invoke(
-                        service: AnkiBackend.Service.deckConfig,
-                        method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
-                        request: req
-                    )
-
-                    logger.info("Got response with \(response.allConfig.count) configs, currentDeck=\(response.currentDeck.name), configID=\(response.currentDeck.configID), fsrs=\(response.fsrs)")
-
-                    let currentConfigId = response.currentDeck.configID
-                    if currentConfigId != 0,
-                       let matched = response.allConfig.first(where: { $0.config.id == currentConfigId })?.config {
-                        logger.info("Retrieved deck config from allConfig for deckId=\(deckId): configID=\(matched.id), name=\(matched.name)")
-                        return matched
-                    }
-
-                    if currentConfigId != 0 {
-                        var configReq = Anki_DeckConfig_DeckConfigId()
-                        configReq.dcid = currentConfigId
-                        let config: Anki_DeckConfig_DeckConfig = try backend.invoke(
-                            service: AnkiBackend.Service.deckConfig,
-                            method: AnkiBackend.DeckConfigMethod.getDeckConfig,
-                            request: configReq
-                        )
-                        logger.info("Loaded deck config directly for deckId=\(deckId): configID=\(config.id), name=\(config.name)")
-                        return config
-                    }
-
-                    if response.hasDefaults {
-                        logger.warning("Deck \(deckId) has configID=0; using response.defaults as fallback")
-                        return response.defaults
-                    }
-
-                    throw BackendError(
-                        kind: .invalidInput,
-                        message: "Deck \(deckId) has no valid config id and no defaults returned"
-                    )
-                } catch {
-                    let primaryError = error
-                    logger.warning("GetDeckConfigsForUpdate failed for deckId=\(deckId), falling back to direct deck lookup: \(primaryError)")
-
-                    do {
-                        let deck: Anki_Decks_Deck = try backend.invoke(
-                            service: AnkiBackend.Service.decks,
-                            method: AnkiBackend.DecksMethod.getDeck,
-                            request: req
-                        )
-
-                        guard case .normal(let normalDeck)? = deck.kind else {
-                            throw BackendError(
-                                kind: .invalidInput,
-                                message: "Study options are only available for normal decks."
-                            )
-                        }
-
-                        var configReq = Anki_DeckConfig_DeckConfigId()
-                        configReq.dcid = normalDeck.configID
-                        let config: Anki_DeckConfig_DeckConfig = try backend.invoke(
-                            service: AnkiBackend.Service.deckConfig,
-                            method: AnkiBackend.DeckConfigMethod.getDeckConfig,
-                            request: configReq
-                        )
-                        logger.info("Loaded deck config via direct deck lookup for deckId=\(deckId): configID=\(config.id), name=\(config.name)")
-                        return config
-                    } catch {
-                        let fallbackError = error
-                        logger.error("getDeckConfig failed for deckId=\(deckId): primary=\(primaryError), fallback=\(fallbackError)")
-                        throw BackendError(
-                            kind: .invalidInput,
-                            message: "Failed to load study options for deck \(deckId). Primary error: \(primaryError.localizedDescription). Fallback error: \(fallbackError.localizedDescription)"
-                        )
-                    }
-                }
-            },
             selectDeckPreset: { deckId, config, applyToChildren in
                 let context = try deckConfigContext(backend: backend, deckId: deckId)
                 let req = makeDeckConfigUpdateRequest(
@@ -352,7 +175,6 @@ extension DeckClient: DependencyKey {
                     mode: applyToChildren ? .applyToChildren : .normal,
                     fsrsEnabled: fsrsEnabled
                 )
-                
                 do {
                     try backend.callVoid(
                         service: AnkiBackend.Service.deckConfig,
@@ -365,39 +187,7 @@ extension DeckClient: DependencyKey {
                     throw error
                 }
             },
-            getRetentionWorkload: { weights, search in
-                var req = Anki_DeckConfig_GetRetentionWorkloadRequest()
-                req.w = weights
-                req.search = search
 
-                let response: Anki_DeckConfig_GetRetentionWorkloadResponse = try backend.invoke(
-                    service: AnkiBackend.Service.deckConfig,
-                    method: AnkiBackend.DeckConfigMethod.getRetentionWorkload,
-                    request: req
-                )
-                return response.costs
-            },
-            computeFsrsParams: { request in
-                try backend.invoke(
-                    service: AnkiBackend.Service.scheduler,
-                    method: AnkiBackend.SchedulerMethod.computeFsrsParams,
-                    request: request
-                )
-            },
-            simulateFsrsReview: { request in
-                try backend.invoke(
-                    service: AnkiBackend.Service.scheduler,
-                    method: AnkiBackend.SchedulerMethod.simulateFsrsReview,
-                    request: request
-                )
-            },
-            simulateFsrsWorkload: { request in
-                try backend.invoke(
-                    service: AnkiBackend.Service.scheduler,
-                    method: AnkiBackend.SchedulerMethod.simulateFsrsWorkload,
-                    request: request
-                )
-            },
             optimizeFsrsPresets: { deckId, selectedConfig in
                 let context = try deckConfigContext(backend: backend, deckId: deckId)
                 let req = makeDeckConfigUpdateRequest(
@@ -408,7 +198,6 @@ extension DeckClient: DependencyKey {
                     mode: .computeAllParams,
                     fsrsEnabled: true
                 )
-
                 try backend.callVoid(
                     service: AnkiBackend.Service.deckConfig,
                     method: AnkiBackend.DeckConfigMethod.updateDeckConfigs,
@@ -417,83 +206,4 @@ extension DeckClient: DependencyKey {
             }
         )
     }()
-}
-
-private func deckConfigContext(
-    backend: AnkiBackend,
-    deckId: Int64
-) throws -> Anki_DeckConfig_DeckConfigsForUpdate {
-    var req = Anki_Decks_DeckId()
-    req.did = deckId
-
-    return try backend.invoke(
-        service: AnkiBackend.Service.deckConfig,
-        method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
-        request: req
-    )
-}
-
-private func makeDeckConfigUpdateRequest(
-    deckId: Int64,
-    context: Anki_DeckConfig_DeckConfigsForUpdate,
-    configs: [Anki_DeckConfig_DeckConfig],
-    removedConfigIds: [Int64],
-    mode: Anki_DeckConfig_UpdateDeckConfigsMode,
-    fsrsEnabled: Bool
-) -> Anki_DeckConfig_UpdateDeckConfigsRequest {
-    var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
-    req.targetDeckID = deckId
-    req.configs = configs
-    req.removedConfigIds = removedConfigIds
-    req.mode = mode
-    req.cardStateCustomizer = context.cardStateCustomizer
-    req.newCardsIgnoreReviewLimit = context.newCardsIgnoreReviewLimit
-    req.applyAllParentLimits = context.applyAllParentLimits
-    req.fsrsHealthCheck = context.fsrsHealthCheck
-    req.fsrs = fsrsEnabled
-    if context.currentDeck.hasLimits {
-        req.limits = context.currentDeck.limits
-    }
-    return req
-}
-
-private func flattenDeckTree(_ node: Anki_Decks_DeckTreeNode, parentPath: String = "") -> [DeckInfo] {
-    var result: [DeckInfo] = []
-    for child in node.children {
-        let fullPath = parentPath.isEmpty ? child.name : "\(parentPath)::\(child.name)"
-        result.append(DeckInfo(
-            id: child.deckID,
-            name: fullPath,
-            counts: DeckCounts(
-                newCount: Int(child.newCount),
-                learnCount: Int(child.learnCount),
-                reviewCount: Int(child.reviewCount)
-            )
-        ))
-        result.append(contentsOf: flattenDeckTree(child, parentPath: fullPath))
-    }
-    return result
-}
-
-private func findNode(in node: Anki_Decks_DeckTreeNode, deckId: Int64) -> Anki_Decks_DeckTreeNode? {
-    if node.deckID == deckId { return node }
-    for child in node.children {
-        if let found = findNode(in: child, deckId: deckId) { return found }
-    }
-    return nil
-}
-
-private func mapDeckTreeNode(_ node: Anki_Decks_DeckTreeNode, parentPath: String = "") -> DeckTreeNode {
-    let fullPath = parentPath.isEmpty ? node.name : "\(parentPath)::\(node.name)"
-    return DeckTreeNode(
-        id: node.deckID,
-        name: node.name,
-        fullName: fullPath,
-        counts: DeckCounts(
-            newCount: Int(node.newCount),
-            learnCount: Int(node.learnCount),
-            reviewCount: Int(node.reviewCount)
-        ),
-        children: node.children.map { mapDeckTreeNode($0, parentPath: fullPath) }
-    )
 }

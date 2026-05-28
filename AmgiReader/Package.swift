@@ -31,6 +31,7 @@ let package = Package(
                 .product(name: "AnkiKit", package: "Amgi"),
                 .product(name: "AnkiBackend", package: "Amgi"),
                 .product(name: "AnkiClients", package: "Amgi"),
+                .product(name: "AnkiServices", package: "Amgi"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
                 .product(name: "EPUBKit", package: "EPUBKit"),
