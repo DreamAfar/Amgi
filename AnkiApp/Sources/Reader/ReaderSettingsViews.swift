@@ -1,7 +1,7 @@
 import SwiftUI
 import AnkiBackend
 import AnkiKit
-import AnkiReader
+import AmgiReader
 import AnkiClients
 import AnkiServices
 import Dependencies

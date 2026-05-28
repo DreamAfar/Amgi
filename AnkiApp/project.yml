@@ -14,6 +14,8 @@ packages:
     path: ..
   AmgiUI:
     path: ../AmgiUI
+  AmgiReader:
+    path: ../AmgiReader
 schemes:
   AnkiApp:
     build:
@@ -40,8 +42,8 @@ targets:
         product: AnkiKit
       - package: AnkiBridge
         product: AnkiServices
-      - package: AnkiBridge
-        product: AnkiReader
+      - package: AmgiReader
+        product: AmgiReader
       - package: AnkiBridge
         product: AnkiClients
       - package: AnkiBridge

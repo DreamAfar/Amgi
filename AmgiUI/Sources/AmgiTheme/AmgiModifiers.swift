@@ -65,7 +65,7 @@ public enum AmgiStatusTone {
 public struct AmgiCardModifier: ViewModifier {
     let elevated: Bool
 
-    func body(content: Content) -> some View {
+    public func body(content: Content) -> some View {
         content
             .padding(AmgiSpacing.lg)
             .background(
@@ -93,7 +93,7 @@ private struct ConditionalShadow: ViewModifier {
 }
 
 public struct AmgiPrimaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
+    public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .amgiFont(.bodyEmphasis)
             .foregroundStyle(Color.white)
@@ -105,7 +105,7 @@ public struct AmgiPrimaryButtonStyle: ButtonStyle {
 }
 
 public struct AmgiSecondaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
+    public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .amgiFont(.bodyEmphasis)
             .foregroundStyle(Color.amgiAccent)
@@ -125,7 +125,7 @@ public struct AmgiStatusMessageView: View {
     let systemImage: String
     let tone: AmgiStatusTone
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: AmgiSpacing.md) {
             Label(title, systemImage: systemImage)
                 .amgiStatusText(tone, font: .bodyEmphasis)

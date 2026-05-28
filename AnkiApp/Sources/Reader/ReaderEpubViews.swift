@@ -2,7 +2,7 @@ import SwiftUI
 import WebKit
 import UniformTypeIdentifiers
 import AnkiKit
-import AnkiReader
+import AmgiReader
 import AnkiClients
 import AnkiServices
 import Dependencies

@@ -18,18 +18,26 @@ let package = Package(
         .library(name: "AmgiReader", targets: ["AmgiReader"]),
     ],
     dependencies: [
+        .package(path: ".."),
         .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
         .package(path: "../Libraries/EPUBKit"),
+        .package(url: "https://github.com/Manhhao/hoshidicts.git", revision: "e70589d33b6b346663278383b422e41f1ed05f3c"),
     ],
     targets: [
         .target(
             name: "AmgiReader",
             dependencies: [
+                .product(name: "AnkiKit", package: "Amgi"),
+                .product(name: "AnkiBackend", package: "Amgi"),
+                .product(name: "AnkiClients", package: "Amgi"),
+                .product(name: "CHoshiDicts", package: "hoshidicts"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
                 .product(name: "EPUBKit", package: "EPUBKit"),
             ],
-            swiftSettings: sharedSwiftSettings
+            swiftSettings: sharedSwiftSettings + [
+                .interoperabilityMode(.Cxx),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

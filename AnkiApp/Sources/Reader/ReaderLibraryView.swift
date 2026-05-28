@@ -3,7 +3,7 @@ import WebKit
 import AVFAudio
 import UniformTypeIdentifiers
 import AnkiKit
-import AnkiReader
+import AmgiReader
 import AnkiClients
 import AnkiServices
 import Dependencies

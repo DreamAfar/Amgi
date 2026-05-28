@@ -20,18 +20,15 @@ let package = Package(
         .library(name: "AnkiBackend", targets: ["AnkiBackend"]),
         .library(name: "AnkiClients", targets: ["AnkiClients"]),
         .library(name: "AnkiServices", targets: ["AnkiServices"]),
-        .library(name: "AnkiReader", targets: ["AnkiReader"]),
         .library(name: "AnkiSync", targets: ["AnkiSync"]),
     ],
     dependencies: [
         .package(path: "AmgiDomain"),
         .package(path: "AmgiUI"),
-        .package(path: "AmgiReader"),
         .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.0"),
         .package(path: "Libraries/EPUBKit"),
-        .package(url: "https://github.com/Manhhao/hoshidicts.git", revision: "e70589d33b6b346663278383b422e41f1ed05f3c"),
     ],
     targets: [
         // MARK: - Rust Bridge
@@ -96,39 +93,6 @@ let package = Package(
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
             ],
             swiftSettings: sharedSwiftSettings
-        ),
-        .target(
-            name: "AnkiReader",
-            dependencies: [
-                "AnkiClients",
-                "AnkiKit",
-                "AnkiBackend",
-                "AnkiProto",
-                .product(name: "EPUBKit", package: "EPUBKit"),
-                .product(name: "CHoshiDicts", package: "hoshidicts"),
-                .product(name: "Dependencies", package: "swift-dependencies"),
-                .product(name: "DependenciesMacros", package: "swift-dependencies"),
-            ],
-            path: "Sources",
-            sources: [
-                "AnkiKit/ReaderTypes.swift",
-                "AnkiKit/DictionaryTypes.swift",
-                "AnkiKit/AppDictionaryTypes.swift",
-                "AnkiClients/ReaderBookClient.swift",
-                "AnkiClients/ReaderBookClient+Live.swift",
-                "AnkiClients/DictionaryLookupClient.swift",
-                "AnkiClients/DictionaryLookupClient+Live.swift",
-                "AnkiReader/HoshiBookModels.swift",
-                "AnkiReader/HoshiBookStorage.swift",
-                "AnkiReader/HoshiBookProcessor.swift",
-                "AnkiReader/HoshiReaderExtensions.swift",
-                "AnkiReader/ReaderEpubLibraryClient.swift",
-                "AnkiReader/ReaderEpubLibraryClient+Live.swift",
-                "AnkiReader/ReaderEpubSession.swift",
-            ],
-            swiftSettings: sharedSwiftSettings + [
-                .interoperabilityMode(.Cxx),
-            ]
         ),
         .target(
             name: "AnkiSync",

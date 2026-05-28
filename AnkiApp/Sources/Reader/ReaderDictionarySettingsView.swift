@@ -1,6 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
-import AnkiReader
+import AmgiReader
 import Dependencies
 
 struct ReaderDictionarySettingsView: View {

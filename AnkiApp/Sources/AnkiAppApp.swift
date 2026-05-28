@@ -2,7 +2,7 @@ import SwiftUI
 import BackgroundTasks
 import AnkiBackend
 import AnkiClients
-import AnkiReader
+import AmgiReader
 import AnkiKit
 import AnkiProto
 import AnkiSync

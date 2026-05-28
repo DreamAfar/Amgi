@@ -4,7 +4,7 @@ import AnkiClients
 import AnkiBackend
 import AnkiKit
 import AnkiProto
-import AnkiReader
+import AmgiReader
 import Dependencies
 import Foundation
 import OSLog
