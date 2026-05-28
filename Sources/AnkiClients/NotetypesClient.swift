@@ -1,7 +1,7 @@
 public import AnkiProto
 public import Dependencies
 import DependenciesMacros
-import Foundation
+public import Foundation
 
 public struct ChangeNotetypeTarget: Identifiable, Sendable, Hashable {
     public let id = UUID()
