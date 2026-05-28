@@ -54,6 +54,12 @@
     </array>
     <key>UIFileSharingEnabled</key>
     <true/>
+    <key>UIAppFonts</key>
+    <array>
+        <string>SarasaMonoK-Regular.ttf</string>
+        <string>NanumMyeongjo-Regular.ttf</string>
+        <string>NanumGothic-Regular.ttf</string>
+    </array>
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>
