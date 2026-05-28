@@ -73,7 +73,7 @@ extension NotetypesClient: DependencyKey {
                     method: AnkiBackend.NotesMethod.getSingleNotetypeOfNotes,
                     request: request
                 )
-                ChangeNotetypeTarget(
+                return ChangeNotetypeTarget(
                     noteIDs: noteIDs,
                     sourceNotetypeID: response.ntid
                 )
