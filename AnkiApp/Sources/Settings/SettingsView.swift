@@ -947,6 +947,7 @@ private struct ReviewOptionsView: View {
         }
     }
 
+    @Dependency(\.ankiBackend) var backend
     @Dependency(\.collectionService) var collection
 
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var playAudioInSilentMode = false
