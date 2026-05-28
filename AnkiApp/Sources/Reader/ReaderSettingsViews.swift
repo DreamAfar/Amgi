@@ -3,6 +3,7 @@ import AnkiBackend
 import AnkiKit
 import AnkiReader
 import AnkiClients
+import AnkiServices
 import Dependencies
 import UIKit
 
@@ -100,6 +101,7 @@ struct ReaderSettingsHomeView: View {
 struct ReaderSourceSettingsView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.notetypesService) var notetypesService
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
@@ -244,7 +246,7 @@ struct ReaderSourceSettingsView: View {
         decks = (try? deckClient.fetchNamesOnly()) ?? []
 
         do {
-            notetypeNames = try loadStandardNotetypeEntries(backend: backend)
+            notetypeNames = try notetypesService.getStandardNotetypeNames()
         } catch {
             notetypeNames = []
         }
@@ -269,8 +271,9 @@ struct ReaderSourceSettingsView: View {
         }
 
         do {
-            let notetype = try fetchNotetype(backend: backend, id: Int64(selectedNotetypeID))
-            availableFields = notetype.fields.map(\.name)
+            availableFields = try notetypesService.getNotetypeFields(Int64(selectedNotetypeID))
+                .sorted { $0.ordinal < $1.ordinal }
+                .map(\.name)
             clearInvalidFieldSelections(validFields: availableFields)
         } catch {
             availableFields = []
@@ -629,6 +632,7 @@ struct ReaderAdvancedSettingsView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
+    @Dependency(\.notetypesService) var notetypesService
 
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
     @AppStorage(ReaderPreferences.Keys.popupDebugInfoEnabled) private var popupDebugInfoEnabled = false
@@ -1009,7 +1013,7 @@ struct ReaderAdvancedSettingsView: View {
         }
 
         do {
-            notetypeNames = try loadStandardNotetypeEntries(backend: backend)
+            notetypeNames = try notetypesService.getStandardNotetypeNames()
         } catch {
             notetypeNames = []
         }
@@ -1040,8 +1044,9 @@ struct ReaderAdvancedSettingsView: View {
         }
 
         do {
-            let notetype = try fetchNotetype(backend: backend, id: notetypeID)
-            availableFields = notetype.fields.map(\.name)
+            availableFields = try notetypesService.getNotetypeFields(notetypeID)
+                .sorted { $0.ordinal < $1.ordinal }
+                .map(\.name)
             updateTemplate { template in
                 template.clearInvalidFields(validFields: availableFields)
             }

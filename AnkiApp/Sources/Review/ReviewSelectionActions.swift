@@ -4,6 +4,7 @@ import AnkiSync
 import AnkiBackend
 import AnkiKit
 import AnkiClients
+import AnkiServices
 import Dependencies
 import UIKit
 
@@ -1091,6 +1092,7 @@ private struct ReviewAIFavoriteDetailView: View {
 private struct ReviewAINoteTemplateSettingsView: View {
     @Dependency(\.ankiBackend) private var backend
     @Dependency(\.deckClient) private var deckClient
+    @Dependency(\.notetypesService) private var notetypesService
 
     @State private var store = ReviewAINoteTemplateStore.load()
     @State private var decks: [DeckInfo] = []
@@ -1310,7 +1312,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
     private func loadData() async {
         decks = (try? deckClient.fetchNamesOnly()) ?? []
         do {
-            notetypeNames = try loadStandardNotetypeEntries(backend: backend)
+            notetypeNames = try notetypesService.getStandardNotetypeNames()
         } catch {
             notetypeNames = []
         }
@@ -1325,8 +1327,9 @@ private struct ReviewAINoteTemplateSettingsView: View {
         }
 
         do {
-            let notetype = try fetchNotetype(backend: backend, id: notetypeID)
-            availableFields = notetype.fields.map(\.name)
+            availableFields = try notetypesService.getNotetypeFields(notetypeID)
+                .sorted { $0.ordinal < $1.ordinal }
+                .map(\.name)
             store.template.clearInvalidFields(validFields: availableFields)
         } catch {
             availableFields = []

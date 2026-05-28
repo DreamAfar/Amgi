@@ -1,6 +1,7 @@
 import SwiftUI
 import AnkiKit
 import AnkiClients
+import AnkiServices
 import AnkiBackend
 import AnkiProto
 import Dependencies
@@ -14,6 +15,7 @@ final class ReviewSession {
     @ObservationIgnored @Dependency(\.deckClient) var deckClient
     @ObservationIgnored @Dependency(\.cardClient) var cardClient
     @ObservationIgnored @Dependency(\.noteClient) var noteClient
+    @ObservationIgnored @Dependency(\.notetypesService) var notetypesService
     @ObservationIgnored @Dependency(\.ankiBackend) var backend
 
     private(set) var frontHTML: String = ""
@@ -660,19 +662,12 @@ final class ReviewSession {
                 )
             }
 
-            var req = Anki_Notetypes_NotetypeId()
-            req.ntid = note.mid
-            let notetype: Anki_Notetypes_Notetype = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetype,
-                request: req
-            )
-
-            guard let field = notetype.fields.first(where: { $0.name == placeholder.fieldName }) else {
+            let fields = try notetypesService.getNotetypeFields(note.mid)
+            guard let field = fields.first(where: { $0.name == placeholder.fieldName }) else {
                 return nil
             }
 
-            let fieldIndex = Int(field.ord.val)
+            let fieldIndex = field.ordinal
             let fieldValues = note.flds.components(separatedBy: "\u{1f}")
             guard fieldValues.indices.contains(fieldIndex) else {
                 return nil
@@ -694,8 +689,8 @@ final class ReviewSession {
             return TypedAnswerState(
                 placeholder: placeholder.rawToken,
                 expected: expected,
-                fontName: field.config.fontName.isEmpty ? "-apple-system" : field.config.fontName,
-                fontSize: field.config.fontSize == 0 ? 18 : field.config.fontSize,
+                fontName: field.fontName,
+                fontSize: field.fontSize,
                 combining: placeholder.combining
             )
         } catch {

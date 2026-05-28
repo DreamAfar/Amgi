@@ -4,6 +4,7 @@ import AVFAudio
 import AnkiBackend
 import AnkiKit
 import AnkiClients
+import AnkiServices
 import AnkiReader
 import AnkiProto
 import SwiftProtobuf
@@ -22,6 +23,8 @@ struct ReviewView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.cardClient) var cardClient
     @Dependency(\.tagClient) var tagClient
+    @Dependency(\.notetypesClient) var notetypesClient
+    @Dependency(\.notetypesService) var notetypesService
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
 
@@ -38,8 +41,7 @@ struct ReviewView: View {
     @State private var templateEditorTarget: ReviewTemplateEditorTarget?
     @State private var showMoveToDeck = false
     @State private var availableDecks: [DeckInfo] = []
-    @State private var showChangeNotetype = false
-    @State private var noteIDsForNotetypeChange: [Int64] = []
+    @State private var changeNotetypeTarget: AnkiClients.ChangeNotetypeTarget?
     @State private var fieldManagerTarget: ReviewFieldManagerTarget?
     @State private var toolbarErrorMessage: String?
     @State private var showToolbarError = false
@@ -533,8 +535,11 @@ struct ReviewView: View {
                 Task { await moveCurrentCard(to: targetDeck) }
             }
         }
-        .sheet(isPresented: $showChangeNotetype) {
-            ChangeNotetypeSheet(noteIDs: noteIDsForNotetypeChange) {
+        .sheet(item: $changeNotetypeTarget) { target in
+            ChangeNotetypeSheet(
+                noteIDs: target.noteIDs,
+                sourceNotetypeID: target.sourceNotetypeID
+            ) {
                 Task { await session.refreshAfterCardMutation() }
             }
         }
@@ -849,7 +854,7 @@ struct ReviewView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    openChangeCurrentCardNotetype()
+                    Task { await openChangeCurrentCardNotetype() }
                 } label: {
                     Image(systemName: "doc.badge.gearshape")
                 }
@@ -884,7 +889,7 @@ struct ReviewView: View {
                     .disabled(!hasCurrentCard)
 
                     Button {
-                        openChangeCurrentCardNotetype()
+                        Task { await openChangeCurrentCardNotetype() }
                     } label: {
                         Label(L("browse_batch_change_notetype"), systemImage: "doc.badge.gearshape")
                     }
@@ -1281,14 +1286,9 @@ struct ReviewView: View {
     }
 
     private func fetchNotetypeFieldNames(_ notetypeID: Int64) throws -> [String] {
-        var request = Anki_Notetypes_NotetypeId()
-        request.ntid = notetypeID
-        let notetype: Anki_Notetypes_Notetype = try backend.invoke(
-            service: AnkiBackend.Service.notetypes,
-            method: AnkiBackend.NotetypesMethod.getNotetype,
-            request: request
-        )
-        return notetype.fields.map(\.name)
+        try notetypesService.getNotetypeFields(notetypeID)
+            .sorted { $0.ordinal < $1.ordinal }
+            .map(\.name)
     }
 
     private func splitAnkiJSFields(_ raw: String) -> [String] {
@@ -1918,7 +1918,7 @@ struct ReviewView: View {
         case .moveToDeck:
             Task { await openMoveCurrentCardToDeck() }
         case .changeNotetype:
-            openChangeCurrentCardNotetype()
+            Task { await openChangeCurrentCardNotetype() }
         case .setDueDate:
             openSetDueDateForCurrentCard()
         case .suspendCard:
@@ -2175,10 +2175,15 @@ struct ReviewView: View {
         }
     }
 
-    private func openChangeCurrentCardNotetype() {
+    @MainActor
+    private func openChangeCurrentCardNotetype() async {
         guard let noteId = session.currentCard?.card.noteID else { return }
-        noteIDsForNotetypeChange = [noteId]
-        showChangeNotetype = true
+        do {
+            changeNotetypeTarget = try notetypesClient.prepareChangeTarget([noteId])
+        } catch {
+            toolbarErrorMessage = error.localizedDescription
+            showToolbarError = true
+        }
     }
 
     private func openSetDueDateForCurrentCard() {
@@ -2196,19 +2201,7 @@ struct ReviewView: View {
             showToolbarError = true
             return
         }
-        let notetypeName: String
-        do {
-            var request = Anki_Notetypes_NotetypeId()
-            request.ntid = note.mid
-            let notetype: Anki_Notetypes_Notetype = try backend.invoke(
-                service: AnkiBackend.Service.notetypes,
-                method: AnkiBackend.NotetypesMethod.getNotetype,
-                request: request
-            )
-            notetypeName = notetype.name
-        } catch {
-            notetypeName = ""
-        }
+        let notetypeName = (try? notetypesService.getNotetype(note.mid).name) ?? ""
         fieldManagerTarget = ReviewFieldManagerTarget(notetypeId: note.mid, notetypeName: notetypeName)
     }
 

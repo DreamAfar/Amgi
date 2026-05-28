@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 import AnkiKit
 import AnkiReader
 import AnkiClients
+import AnkiServices
 import Dependencies
 import EPUBKit
 import UIKit
@@ -354,6 +355,7 @@ struct ReaderEpubReaderView: View {
     @Dependency(\.mediaClient) private var mediaClient
     @Dependency(\.noteClient) private var noteClient
     @Dependency(\.ankiBackend) private var backend
+    @Dependency(\.notetypesService) private var notetypesService
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
@@ -1545,10 +1547,10 @@ struct ReaderEpubReaderView: View {
         }
 
         let lookupTemplate = lookupNoteTemplate
-        guard let notetype = try? fetchNotetype(backend: backend, id: notetypeID) else {
+        guard let notetype = try? notetypesService.getNotetype(notetypeID) else {
             return false
         }
-        let validFieldNames = notetype.fields.map(\.name)
+        let validFieldNames = notetype.fieldNames
         let targetFieldName = lookupTemplate.duplicateCheckFieldName ?? validFieldNames.first
         let draft = await makeLookupDraft(from: content, session: session, sentence: sentence)
         guard let duplicateCheckValue = duplicateCheckValue(from: draft, targetFieldName: targetFieldName) else {

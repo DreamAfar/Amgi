@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 import AnkiKit
 import AnkiReader
 import AnkiClients
+import AnkiServices
 import Dependencies
 import UIKit
 
@@ -1041,6 +1042,7 @@ private struct ReaderChapterView: View {
     @Dependency(\.mediaClient) var mediaClient
     @Dependency(\.noteClient) var noteClient
     @Dependency(\.ankiBackend) var backend
+    @Dependency(\.notetypesService) var notetypesService
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
@@ -1919,10 +1921,10 @@ private struct ReaderChapterView: View {
         }
 
         let lookupTemplate = lookupNoteTemplate
-        guard let notetype = try? fetchNotetype(backend: backend, id: notetypeID) else {
+        guard let notetype = try? notetypesService.getNotetype(notetypeID) else {
             return false
         }
-        let validFieldNames = notetype.fields.map(\.name)
+        let validFieldNames = notetype.fieldNames
         let targetFieldName = lookupTemplate.duplicateCheckFieldName ?? validFieldNames.first
 
         let draft = await makeLookupDraft(from: content, sentence: sentence)
