@@ -21,6 +21,7 @@ schemes:
     build:
       targets:
         AnkiApp: all
+        AmgiWidget: all
     run:
       config: Debug
 targets:
@@ -31,6 +32,7 @@ targets:
       - path: Sources
         excludes:
           - "**/*Tests.swift"
+          - "Widgets"
       - path: Resources
         excludes:
           - "mathjax/**"
@@ -63,8 +65,31 @@ targets:
         product: AnkiProto
       - package: AmgiUI
         product: AmgiTheme
+      - sdk: WidgetKit.framework
+      - target: AmgiWidget
+        embed: true
     settings:
       base:
         INFOPLIST_FILE: Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.ankiapp.AnkiApp
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  AmgiWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Sources/Widgets
+      - path: Sources/Shared/WidgetSnapshot.swift
+      - path: Sources/Shared/WidgetSnapshotStore.swift
+    dependencies:
+      - package: AnkiBridge
+        product: AnkiKit
+      - package: AmgiUI
+        product: AmgiTheme
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ankiapp.AnkiApp.widget
+        INFOPLIST_FILE: Sources/Widgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AmgiWidget.entitlements
