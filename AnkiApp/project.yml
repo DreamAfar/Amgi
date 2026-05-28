@@ -72,6 +72,7 @@ targets:
       base:
         INFOPLIST_FILE: Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.ankiapp.AnkiApp
+        CODE_SIGN_ENTITLEMENTS: AmgiApp.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   AmgiWidget:
