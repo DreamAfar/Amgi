@@ -61,6 +61,7 @@ struct ReaderFontOption: Identifiable, Hashable, Sendable {
 
     // MARK: - All options (dynamic)
 
+    @MainActor
     static var all: [ReaderFontOption] {
         var options = builtIn
         let imported = FontImportManager.shared.importedFontNames
@@ -73,6 +74,7 @@ struct ReaderFontOption: Identifiable, Hashable, Sendable {
 
     // MARK: - Resolution
 
+    @MainActor
     static func resolved(_ id: String) -> ReaderFontOption {
         // Check built-in first
         if let builtIn = builtIn.first(where: { $0.id == id }) {

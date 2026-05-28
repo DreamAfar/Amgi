@@ -621,6 +621,49 @@ private extension Color {
     }
 }
 
+// MARK: - Font Import Button
+
+private struct FontImportButton: View {
+    @Binding var selectedFont: String
+
+    @State private var showFilePicker = false
+    @State private var importError: String?
+
+    var body: some View {
+        Button {
+            showFilePicker = true
+        } label: {
+            Label(L("settings_reader_font_import"), systemImage: "plus.circle")
+                .amgiFont(.body)
+        }
+        .fileImporter(
+            isPresented: $showFilePicker,
+            allowedContentTypes: [.font, .init(filenameExtension: "ttf")!, .init(filenameExtension: "otf")!],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImport(result)
+        }
+        .alert(L("common_error"), isPresented: .constant(importError != nil)) {
+            Button(L("common_ok")) { importError = nil }
+        } message: {
+            Text(importError ?? "")
+        }
+    }
+
+    private func handleImport(_ result: Result<[URL], any Error>) {
+        Task { @MainActor in
+            do {
+                let urls = try result.get()
+                guard let url = urls.first else { return }
+                let postScriptName = try FontImportManager.shared.importFont(from: url)
+                selectedFont = postScriptName
+            } catch {
+                importError = error.localizedDescription
+            }
+        }
+    }
+}
+
 struct ReaderAdvancedSettingsView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.ankiBackend) var backend
@@ -969,49 +1012,6 @@ struct ReaderAdvancedSettingsView: View {
             }
         }
     }
-
-// MARK: - Font Import Button
-
-private struct FontImportButton: View {
-    @Binding var selectedFont: String
-
-    @State private var showFilePicker = false
-    @State private var importError: String?
-
-    var body: some View {
-        Button {
-            showFilePicker = true
-        } label: {
-            Label(L("settings_reader_font_import"), systemImage: "plus.circle")
-                .amgiFont(.body)
-        }
-        .fileImporter(
-            isPresented: $showFilePicker,
-            allowedContentTypes: [.font, .init(filenameExtension: "ttf")!, .init(filenameExtension: "otf")!],
-            allowsMultipleSelection: false
-        ) { result in
-            handleImport(result)
-        }
-        .alert(L("common_error"), isPresented: .constant(importError != nil)) {
-            Button(L("common_ok")) { importError = nil }
-        } message: {
-            Text(importError ?? "")
-        }
-    }
-
-    private func handleImport(_ result: Result<[URL], any Error>) {
-        Task { @MainActor in
-            do {
-                let urls = try result.get()
-                guard let url = urls.first else { return }
-                let postScriptName = try FontImportManager.shared.importFont(from: url)
-                selectedFont = postScriptName
-            } catch {
-                importError = error.localizedDescription
-            }
-        }
-    }
-}
 
     private func templateMappingBinding(for fieldName: String) -> Binding<String> {
         Binding(
