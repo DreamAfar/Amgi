@@ -404,7 +404,6 @@ struct ReaderDisplaySettingsView: View {
                         }
                     }
                 }
-            }
 
                 HStack {
                     Text(L("settings_reader_text_orientation"))
