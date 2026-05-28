@@ -22,8 +22,8 @@ struct AnkiAppApp: App {
     @State private var pendingImportURL: URL?
     @StateObject private var collectionState = AppCollectionState.shared
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
-    @AppStorage("theme.appearance") private var themeAppearanceRaw: String = Appearance.system.rawValue
-    @AppStorage("theme.selection") private var themeSelectionRaw: String = Theme.vivid.rawValue
+    @AppStorage("theme.appearance", store: .amgiAppGroup) private var themeAppearanceRaw: String = Appearance.system.rawValue
+    @AppStorage("theme.selection", store: .amgiAppGroup) private var themeSelectionRaw: String = Theme.vivid.rawValue
     private let periodicBackupTimer = Timer.publish(
         every: CollectionBackupManager.periodicCheckInterval,
         on: .main,

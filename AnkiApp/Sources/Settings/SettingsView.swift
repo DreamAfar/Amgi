@@ -143,8 +143,8 @@ struct SettingsView: View {
     @Dependency(\.ankiBackend) var backend
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    @AppStorage("theme.appearance") private var appearanceRaw: String = Appearance.system.rawValue
-    @AppStorage("theme.selection") private var themeSelectionRaw: String = Theme.vivid.rawValue
+    @AppStorage("theme.appearance", store: .amgiAppGroup) private var appearanceRaw: String = Appearance.system.rawValue
+    @AppStorage("theme.selection", store: .amgiAppGroup) private var themeSelectionRaw: String = Theme.vivid.rawValue
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
 
     @State private var maintenanceMessage: String?
