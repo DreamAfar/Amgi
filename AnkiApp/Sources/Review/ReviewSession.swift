@@ -657,7 +657,7 @@ final class ReviewSession {
                     placeholder: placeholder.rawToken,
                     expected: "",
                     fontName: "-apple-system",
-                    fontSize: 18,
+                    fontSize: 18 as UInt32,
                     combining: true
                 )
             }
@@ -690,7 +690,7 @@ final class ReviewSession {
                 placeholder: placeholder.rawToken,
                 expected: expected,
                 fontName: field.fontName,
-                fontSize: field.fontSize,
+                fontSize: UInt32(field.fontSize),
                 combining: placeholder.combining
             )
         } catch {
