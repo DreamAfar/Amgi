@@ -730,6 +730,7 @@ private struct SettingsInfoView: View {
 }
 
 private struct DatabaseCheckView: View {
+    @Dependency(\.ankiBackend) private var backend
     @Dependency(\.collectionService) private var collection
     @Environment(\.dismiss) private var dismiss
     @State private var isChecking = true
