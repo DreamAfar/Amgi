@@ -730,7 +730,7 @@ private struct SettingsInfoView: View {
 }
 
 private struct DatabaseCheckView: View {
-    @Dependency(\.ankiBackend) private var backend
+    @Dependency(\.collectionService) private var collection
     @Environment(\.dismiss) private var dismiss
     @State private var isChecking = true
     @State private var resultMessage = ""
@@ -807,14 +807,11 @@ private struct DatabaseCheckView: View {
         loadErrorMessage = nil
 
         do {
-            let response: Anki_Collection_CheckDatabaseResponse = try backend.invoke(
-                service: AnkiBackend.Service.collection,
-                method: AnkiBackend.CheckDatabaseMethod.checkDatabase
-            )
-            if response.problems.isEmpty {
+            let problems = try collection.checkDatabase()
+            if problems.isEmpty {
                 resultMessage = L("settings_check_database_no_issues")
             } else {
-                resultMessage = response.problems.joined(separator: "\n")
+                resultMessage = problems.joined(separator: "\n")
             }
         } catch {
             loadErrorMessage = L("debug_check_db_error", error.localizedDescription)
@@ -950,7 +947,7 @@ private struct ReviewOptionsView: View {
         }
     }
 
-    @Dependency(\.ankiBackend) var backend
+    @Dependency(\.collectionService) var collection
 
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var playAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var showContextMenuButton = true
@@ -1217,7 +1214,7 @@ private struct ReviewOptionsView: View {
         defer { isLoadingFsrsOptions = false }
 
         do {
-            let preferences = try backend.getPreferences()
+            let preferences = try collection.getPreferences()
             suppressFsrsOptionSync = true
             rolloverHour = Int(preferences.scheduling.rollover)
             persistedDayStartHour = rolloverHour
