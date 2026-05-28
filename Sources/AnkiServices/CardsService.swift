@@ -26,7 +26,7 @@ package func mapCardRecord(from proto: Anki_Cards_Card) -> CardRecord {
 }
 
 @Sendable
-package func mapCardRecord(from queued: Anki_Scheduler_QueuedCard) -> CardRecord? {
+package func mapCardRecord(from queued: Anki_Scheduler_QueuedCards.QueuedCard) -> CardRecord? {
     guard queued.hasCard else { return nil }
     return mapCardRecord(from: queued.card)
 }
