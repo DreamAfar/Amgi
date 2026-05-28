@@ -69,8 +69,8 @@ final class FontImportManager: ObservableObject, Sendable {
         }
         if let error = error?.takeRetainedValue() {
             // If already registered, that's fine
-            if (error as NSError).domain == kCTFontManagerErrorDomain as String,
-               CTFontManagerError(rawValue: (error as NSError).code) == .alreadyRegistered {
+            if CFErrorGetDomain(error) == kCTFontManagerErrorDomain,
+               CTFontManagerError(rawValue: CFErrorGetCode(error)) == .alreadyRegistered {
                 return true
             }
             logger.error("CTFontManager error: \(error)")
