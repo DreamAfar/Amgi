@@ -2,7 +2,7 @@ import AnkiServices
 import AnkiBackend
 public import Dependencies
 import DependenciesMacros
-import Foundation
+public import Foundation
 
 extension ImportExportClient: DependencyKey {
     public static let liveValue: Self = {

@@ -10,13 +10,53 @@ import SwiftProtobuf
 
 private let logger = Logger(label: "com.ankiapp.deck.client")
 
+// MARK: - Shared helpers (used by write operations below)
+
+private func deckConfigContext(
+    backend: AnkiBackend,
+    deckId: Int64
+) throws -> Anki_DeckConfig_DeckConfigsForUpdate {
+    var req = Anki_Decks_DeckId()
+    req.did = deckId
+    return try backend.invoke(
+        service: AnkiBackend.Service.deckConfig,
+        method: AnkiBackend.DeckConfigMethod.getDeckConfigsForUpdate,
+        request: req
+    )
+}
+
+private func makeDeckConfigUpdateRequest(
+    deckId: Int64,
+    context: Anki_DeckConfig_DeckConfigsForUpdate,
+    configs: [Anki_DeckConfig_DeckConfig],
+    removedConfigIds: [Int64],
+    mode: Anki_DeckConfig_UpdateDeckConfigsMode,
+    fsrsEnabled: Bool
+) -> Anki_DeckConfig_UpdateDeckConfigsRequest {
+    var req = Anki_DeckConfig_UpdateDeckConfigsRequest()
+    req.targetDeckID = deckId
+    req.configs = configs
+    req.removedConfigIds = removedConfigIds
+    req.mode = mode
+    req.cardStateCustomizer = context.cardStateCustomizer
+    req.newCardsIgnoreReviewLimit = context.newCardsIgnoreReviewLimit
+    req.applyAllParentLimits = context.applyAllParentLimits
+    req.fsrsHealthCheck = context.fsrsHealthCheck
+    req.fsrs = fsrsEnabled
+    if context.currentDeck.hasLimits {
+        req.limits = context.currentDeck.limits
+    }
+    return req
+}
+
+// MARK: - Live Implementation
+
 extension DeckClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
         @Dependency(\.deckService) var decks
 
         return Self(
-            // MARK: Delegated to DeckService (read-only)
             fetchAll:                { try decks.fetchAll() },
             fetchNamesOnly:          { try decks.fetchNamesOnly() },
             fetchDeck:               { try decks.fetchDeck($0) },
@@ -24,14 +64,6 @@ extension DeckClient: DependencyKey {
             fetchTree:               { try decks.fetchTree() },
             countsForDeck:           { try decks.countsForDeck($0) },
             fetchCustomStudyDefaults: { try decks.fetchCustomStudyDefaults($0) },
-            fetchDeckConfigContext:   { try decks.fetchDeckConfigContext($0) },
-            getDeckConfig:            { try decks.getDeckConfig($0) },
-            getRetentionWorkload:     { try decks.getRetentionWorkload($0, $1) },
-            computeFsrsParams:        { try decks.computeFsrsParams($0) },
-            simulateFsrsReview:       { try decks.simulateFsrsReview($0) },
-            simulateFsrsWorkload:     { try decks.simulateFsrsWorkload($0) },
-
-            // MARK: Write operations (stay in Client)
             customStudy: { request in
                 try backend.callVoid(
                     service: AnkiBackend.Service.scheduler,
@@ -97,7 +129,8 @@ extension DeckClient: DependencyKey {
                     throw error
                 }
             },
-
+            fetchDeckConfigContext:  { try decks.fetchDeckConfigContext($0) },
+            getDeckConfig:           { try decks.getDeckConfig($0) },
             selectDeckPreset: { deckId, config, applyToChildren in
                 let context = try deckConfigContext(backend: backend, deckId: deckId)
                 let req = makeDeckConfigUpdateRequest(
@@ -187,7 +220,10 @@ extension DeckClient: DependencyKey {
                     throw error
                 }
             },
-
+            getRetentionWorkload:  { try decks.getRetentionWorkload($0, $1) },
+            computeFsrsParams:     { try decks.computeFsrsParams($0) },
+            simulateFsrsReview:    { try decks.simulateFsrsReview($0) },
+            simulateFsrsWorkload:  { try decks.simulateFsrsWorkload($0) },
             optimizeFsrsPresets: { deckId, selectedConfig in
                 let context = try deckConfigContext(backend: backend, deckId: deckId)
                 let req = makeDeckConfigUpdateRequest(
