@@ -8,40 +8,6 @@ import AnkiServices
 import Dependencies
 import UIKit
 
-enum ReaderFontOption: String, CaseIterable, Identifiable {
-    case hiraginoMincho = "Hiragino Mincho ProN"
-    case hiraginoKakuGothic = "Hiragino Kaku Gothic ProN"
-    case system = "system"
-
-    static let defaultValue = ReaderFontOption.hiraginoMincho.rawValue
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .hiraginoMincho:
-            return "Hiragino Mincho ProN"
-        case .hiraginoKakuGothic:
-            return "Hiragino Kaku Gothic ProN"
-        case .system:
-            return L("settings_reader_font_system")
-        }
-    }
-
-    var cssFontFamily: String {
-        switch self {
-        case .hiraginoMincho, .hiraginoKakuGothic:
-            return "\"\(rawValue)\", serif"
-        case .system:
-            return "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", sans-serif"
-        }
-    }
-
-    static func resolved(_ rawValue: String) -> ReaderFontOption {
-        ReaderFontOption(rawValue: rawValue) ?? .hiraginoMincho
-    }
-}
-
 struct ReaderSettingsHomeView: View {
     @AppStorage(ReaderPreferences.Keys.showTab) private var isReaderTabEnabled = false
 
