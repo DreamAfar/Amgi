@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import AmgiReader
+import AmgiReaderDictionary
 import Dependencies
 
 struct ReaderDictionarySettingsView: View {

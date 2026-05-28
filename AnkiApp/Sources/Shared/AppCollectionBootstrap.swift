@@ -1,6 +1,7 @@
 import AnkiBackend
 import AnkiClients
 import AmgiReader
+import AmgiReaderDictionary
 import Foundation
 
 enum AppCollectionBootstrap {

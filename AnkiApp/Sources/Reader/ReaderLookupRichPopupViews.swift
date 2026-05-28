@@ -2,6 +2,7 @@ import SwiftUI
 import WebKit
 import AnkiKit
 import AmgiReader
+import AmgiReaderDictionary
 import AnkiClients
 import Dependencies
 import UIKit

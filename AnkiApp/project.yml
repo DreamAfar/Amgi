@@ -44,6 +44,8 @@ targets:
         product: AnkiServices
       - package: AmgiReader
         product: AmgiReader
+      - package: AmgiReader
+        product: AmgiReaderDictionary
       - package: AnkiBridge
         product: AnkiClients
       - package: AnkiBridge

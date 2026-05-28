@@ -6,6 +6,7 @@ import AnkiKit
 import AnkiClients
 import AnkiServices
 import AmgiReader
+import AmgiReaderDictionary
 import AnkiProto
 import SwiftProtobuf
 import Dependencies

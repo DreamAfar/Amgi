@@ -1,4 +1,5 @@
 public import Foundation
+public import AmgiReader
 public import Dependencies
 import DependenciesMacros
 

@@ -2,6 +2,7 @@ import SwiftUI
 import AnkiBackend
 import AnkiKit
 import AmgiReader
+import AmgiReaderDictionary
 import AnkiClients
 import AnkiServices
 import Dependencies

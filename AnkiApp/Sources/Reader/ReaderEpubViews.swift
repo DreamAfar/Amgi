@@ -3,6 +3,7 @@ import WebKit
 import UniformTypeIdentifiers
 import AnkiKit
 import AmgiReader
+import AmgiReaderDictionary
 import AnkiClients
 import AnkiServices
 import Dependencies

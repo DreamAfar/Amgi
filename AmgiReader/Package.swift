@@ -16,6 +16,7 @@ let package = Package(
     platforms: [.iOS(.v18), .macOS(.v15)],
     products: [
         .library(name: "AmgiReader", targets: ["AmgiReader"]),
+        .library(name: "AmgiReaderDictionary", targets: ["AmgiReaderDictionary"]),
     ],
     dependencies: [
         .package(path: ".."),
@@ -30,11 +31,26 @@ let package = Package(
                 .product(name: "AnkiKit", package: "Amgi"),
                 .product(name: "AnkiBackend", package: "Amgi"),
                 .product(name: "AnkiClients", package: "Amgi"),
-                .product(name: "CHoshiDicts", package: "hoshidicts"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
                 .product(name: "EPUBKit", package: "EPUBKit"),
             ],
+            exclude: [
+                "DictionaryLookupClient.swift",
+                "DictionaryLookupClient+Live.swift",
+            ],
+            swiftSettings: sharedSwiftSettings
+        ),
+        .target(
+            name: "AmgiReaderDictionary",
+            dependencies: [
+                "AmgiReader",
+                .product(name: "AnkiBackend", package: "Amgi"),
+                .product(name: "CHoshiDicts", package: "hoshidicts"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "DependenciesMacros", package: "swift-dependencies"),
+            ],
+            path: "Sources/AmgiReaderDictionary",
             swiftSettings: sharedSwiftSettings + [
                 .interoperabilityMode(.Cxx),
             ]
