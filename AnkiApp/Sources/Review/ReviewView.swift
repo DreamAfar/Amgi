@@ -485,6 +485,7 @@ struct ReviewView: View {
             finishedCelebrationHideTask?.cancel()
             controllerMonitor.stop()
             keyboardMonitor.stop()
+            Task { await writeWidgetSnapshot() }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             isKeyboardVisible = true

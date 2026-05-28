@@ -106,6 +106,7 @@ struct AnkiAppApp: App {
                 switch newPhase {
                 case .active:
                     Task { await runAutomaticBackupIfNeeded() }
+                    Task { await writeWidgetSnapshot() }
                     AppBackgroundSyncManager.scheduleBackgroundTasks()
                 case .background:
                     Task { await syncDailyReminderIfNeeded() }
