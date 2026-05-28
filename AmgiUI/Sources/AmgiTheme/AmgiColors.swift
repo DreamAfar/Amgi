@@ -1,5 +1,5 @@
-import SwiftUI
-import UIKit
+public import SwiftUI
+public import UIKit
 
 extension Color {
     public static let amgiBackground = Color(light: .systemGroupedBackground, dark: .black)

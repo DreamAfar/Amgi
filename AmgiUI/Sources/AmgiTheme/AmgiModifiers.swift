@@ -1,4 +1,5 @@
-import SwiftUI
+public import SwiftUI
+public import CoreGraphics
 
 public enum AmgiStatusTone {
     case accent

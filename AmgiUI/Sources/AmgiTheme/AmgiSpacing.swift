@@ -1,4 +1,4 @@
-import CoreGraphics
+public import CoreGraphics
 
 public enum AmgiSpacing {
     public static let xxs: CGFloat = 2
