@@ -31,6 +31,9 @@ targets:
       - path: Sources
         excludes:
           - "**/*Tests.swift"
+      - path: Resources
+        excludes:
+          - "mathjax/**"
       - path: Assets.xcassets
         buildPhase: resources
       - path: Resources/mathjax
