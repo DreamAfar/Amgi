@@ -790,7 +790,8 @@ final class ReviewSession {
     }
 
     private func queuedClozeOrdinal() -> UInt32 {
-        (currentQueuedCard?.card.templateIdx ?? 0) + 1
+        let templateIdx = currentQueuedCard?.card.templateIdx ?? 0
+        return UInt32(templateIdx) + 1
     }
 
     private struct TypedAnswerPlaceholder {
