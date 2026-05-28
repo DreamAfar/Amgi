@@ -47,10 +47,11 @@ struct SettingsOptionCapsuleLabel: View {
 extension View {
     func amgiSettingsListRowSurface() -> some View {
         listRowBackground(
-            Color(
-                light: .systemBackground,
-                dark: UIColor(red: 0.09, green: 0.10, blue: 0.12, alpha: 1.0)
-            )
+            Color(uiColor: UIColor { traits in
+                traits.userInterfaceStyle == .dark
+                    ? UIColor(red: 0.09, green: 0.10, blue: 0.12, alpha: 1.0)
+                    : .systemBackground
+            })
         )
     }
 
