@@ -16,7 +16,7 @@ extension NotetypesService: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
 
-        func loadRawNotetype(_ id: Int64) throws -> Anki_Notetypes_Notetype {
+        @Sendable func loadRawNotetype(_ id: Int64) throws -> Anki_Notetypes_Notetype {
             var request = Anki_Notetypes_NotetypeId()
             request.ntid = id
             return try backend.invoke(
@@ -26,7 +26,7 @@ extension NotetypesService: DependencyKey {
             )
         }
 
-        func loadNotetypeNames() throws -> [Anki_Notetypes_NotetypeNameId] {
+        @Sendable func loadNotetypeNames() throws -> [Anki_Notetypes_NotetypeNameId] {
             let response: Anki_Notetypes_NotetypeNames = try backend.invoke(
                 service: AnkiBackend.Service.notetypes,
                 method: AnkiBackend.NotetypesMethod.getNotetypeNames

@@ -16,7 +16,7 @@ extension NotetypesClient: DependencyKey {
     public static let liveValue: Self = {
         @Dependency(\.ankiBackend) var backend
 
-        func loadRawNotetype(_ id: Int64) throws -> Anki_Notetypes_Notetype {
+        @Sendable func loadRawNotetype(_ id: Int64) throws -> Anki_Notetypes_Notetype {
             var request = Anki_Notetypes_NotetypeId()
             request.ntid = id
             return try backend.invoke(
