@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AmgiTheme
 
 struct TemplateSourceEditor: UIViewRepresentable {
     enum SearchNavigationDirection {
@@ -21,7 +22,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
     var fontSize: Double = 14.0
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, onSearchResultChanged: onSearchResultChanged)
+        Coordinator(text: $text, onSearchResultChanged: onSearchResultChanged, palette: palette)
     }
 
     func makeUIView(context: Context) -> UITextView {
@@ -66,6 +67,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
         // runs only once, so without this the coordinator keeps writing to the original
         // (front) binding regardless of which tab is shown.
         context.coordinator.updateBinding($text)
+        context.coordinator.updatePalette(palette)
 
         // Apply font size change
         if uiView.font?.pointSize != CGFloat(fontSize) {
@@ -97,6 +99,7 @@ struct TemplateSourceEditor: UIViewRepresentable {
 
     final class Coordinator: NSObject, UITextViewDelegate {
         @Binding var text: String
+        private var palette: Palette
 
         weak var textView: UITextView?
         var lastValue: String = ""
@@ -115,10 +118,12 @@ struct TemplateSourceEditor: UIViewRepresentable {
 
         init(
             text: Binding<String>,
-            onSearchResultChanged: @escaping (Int, Int) -> Void
+            onSearchResultChanged: @escaping (Int, Int) -> Void,
+            palette: Palette
         ) {
             self._text = text
             self.onSearchResultChanged = onSearchResultChanged
+            self.palette = palette
         }
 
         func attach(textView: UITextView) {
@@ -129,6 +134,10 @@ struct TemplateSourceEditor: UIViewRepresentable {
         /// pointing to the currently active tab (front / back / css).
         func updateBinding(_ binding: Binding<String>) {
             _text = binding
+        }
+
+        func updatePalette(_ palette: Palette) {
+            self.palette = palette
         }
 
         func textViewDidChange(_ textView: UITextView) {
