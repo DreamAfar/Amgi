@@ -274,8 +274,8 @@ struct CardWebView: UIViewRepresentable {
             context.coordinator.stopTTS()
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
-                webView.evaluateJavaScript(showCardScript, completionHandler: nil)
-                webView.evaluateJavaScript(Self.themeUpdateScript(isDarkMode: isDarkMode), completionHandler: nil)
+                let combinedScript = showCardScript + "\n" + Self.themeUpdateScript(isDarkMode: isDarkMode)
+                webView.evaluateJavaScript(combinedScript, completionHandler: nil)
             } else {
                 context.coordinator.pendingUpdateScript = showCardScript + "\n" + Self.themeUpdateScript(isDarkMode: isDarkMode)
             }

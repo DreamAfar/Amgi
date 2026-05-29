@@ -141,12 +141,12 @@ struct ContentView: View {
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             userMenu
+                                .tint(palette.textPrimary)
                         }
-                        .tint(palette.textPrimary)
                         ToolbarItem(placement: .topBarTrailing) {
                             trailingActions
+                                .tint(palette.textPrimary)
                         }
-                        .tint(palette.textPrimary)
                     }
             }
         }
