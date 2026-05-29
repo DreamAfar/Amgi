@@ -45,7 +45,7 @@ struct SettingsOptionCapsuleLabel: View {
                 .font(AmgiFont.micro.font)
                 .foregroundStyle(resolvedIndicatorColor)
         }
-        .amgiCapsuleControl(backgroundColor: resolvedBackgroundColor)
+        .amgiCapsuleControl()
         .frame(maxWidth: maxWidth, alignment: .trailing)
     }
 }

@@ -1693,7 +1693,7 @@ struct ReviewSelectionAISheetView: View {
                             onSubmit(action)
                         }
                         .foregroundStyle(palette.textSecondary)
-                        .amgiCapsuleControl(backgroundColor: palette.surfaceElevated, horizontalPadding: 10, verticalPadding: 6)
+                        .amgiCapsuleControl(horizontalPadding: 10, verticalPadding: 6)
                     }
                 }
             }
