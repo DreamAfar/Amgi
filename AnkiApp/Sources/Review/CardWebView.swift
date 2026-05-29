@@ -212,9 +212,9 @@ struct CardWebView: UIViewRepresentable {
         let cardPaddingBottom = hasTypedAnswerInput ? 96 : 0
         let alignTop = hasTypedAnswerInput || contentAlignment == .top
         let bodyClass = Self.bodyClasses(cardOrdinal: cardOrdinal, isDarkMode: isDarkMode)
-        let pageSignature = "\(isDarkMode)"
+        let pageSignature = "card"
         let cssSignature = "\(cardCSS.hashValue)"
-        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(lookupPopupEnabled)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(cssSignature)|\(processedHTML.hashValue)|\(processedPrefetchHTML?.hashValue ?? 0)"
+        let contentSignature = "\(autoplayEnabled)|\(isAnswerSide)|\(lookupPopupEnabled)|\(replayMode.rawValue)|\(cardOrdinal)|\(alignTop)|\(bodyPaddingBottom)|\(cardPaddingBottom)|\(cssSignature)|\(processedHTML.hashValue)|\(processedPrefetchHTML?.hashValue ?? 0)|\(isDarkMode)"
         context.coordinator.openLinksExternally = openLinksExternally
         context.coordinator.playAudioInSilentMode = playAudioInSilentMode
         context.coordinator.currentWebView = webView
@@ -256,8 +256,7 @@ struct CardWebView: UIViewRepresentable {
             let missingAudioIconHTML = Self.missingMediaIconHTML(systemName: "speaker.badge.exclamationmark", alt: "Missing audio", isDarkMode: isDarkMode)
             let baseTag = CardAssetPath.mediaBaseTag()
             // Stash the show-card call so we can run it once the page finishes loading.
-            context.coordinator.pendingUpdateScript = showCardScript
-
+            context.coordinator.pendingUpdateScript = showCardScript + "\n" + Self.themeUpdateScript(isDarkMode: isDarkMode)
             let styledHTML = Self.buildFrameHTML(
                 htmlClass: htmlClass,
                 isDarkMode: isDarkMode,
@@ -276,8 +275,9 @@ struct CardWebView: UIViewRepresentable {
             context.coordinator.lastContentSignature = contentSignature
             if context.coordinator.isPageLoaded {
                 webView.evaluateJavaScript(showCardScript, completionHandler: nil)
+                webView.evaluateJavaScript(Self.themeUpdateScript(isDarkMode: isDarkMode), completionHandler: nil)
             } else {
-                context.coordinator.pendingUpdateScript = showCardScript
+                context.coordinator.pendingUpdateScript = showCardScript + "\n" + Self.themeUpdateScript(isDarkMode: isDarkMode)
             }
         }
         if replayRequestID != context.coordinator.lastReplayRequestID {
@@ -2445,6 +2445,41 @@ struct CardWebView: UIViewRepresentable {
     private static let audioFileExtensions: Set<String> = [
         "3gp", "flac", "m4a", "mp3", "oga", "ogg", "opus", "spx", "wav"
     ]
+
+    /// JavaScript to update the frame-level theme (CSS variables, classes, color-scheme)
+    /// without reloading the entire page. Called when only the color scheme changes.
+    private static func themeUpdateScript(isDarkMode: Bool) -> String {
+        let theme = isDarkMode ? "dark" : "light"
+        let textColor = isDarkMode ? "#f5f5f5" : "#1a1a1a"
+        let hrColor = isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"
+        let typeBorderColor = isDarkMode ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)"
+        let typeBgColor = isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.9)"
+        let typeFocusBorder = isDarkMode ? "rgba(143,184,255,0.9)" : "rgba(0,122,255,0.9)"
+        let typeFocusShadow = isDarkMode ? "rgba(143,184,255,0.18)" : "rgba(0,122,255,0.15)"
+        let typeCodeBg = isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"
+        return """
+        (function(){
+            var d = document.documentElement;
+            d.setAttribute('data-bs-theme','\(theme)');
+            d.style.colorScheme = '\(theme)';
+            d.style.setProperty('--amgi-default-card-fg','\(textColor)');
+            var s = document.getElementById('amgi-theme-style');
+            if (!s) { s = document.createElement('style'); s.id = 'amgi-theme-style'; d.appendChild(s); }
+            s.textContent = [
+                ':root{color-scheme:\(theme);--amgi-default-card-fg:\(textColor);}',
+                'hr{border:none;border-top:1px solid \(hrColor);}',
+                '#typeans{border:1px solid \(typeBorderColor);background:\(typeBgColor);}',
+                '#typeans:focus{border-color:\(typeFocusBorder);box-shadow:0 0 0 3px \(typeFocusShadow);}',
+                'code{background:\(typeCodeBg);}'
+            ].join('\\n');
+            // Toggle night mode classes on html and body
+            d.classList.toggle('nightMode',\(isDarkMode));
+            d.classList.toggle('night_mode',\(isDarkMode));
+            document.body.classList.toggle('nightMode',\(isDarkMode));
+            document.body.classList.toggle('night_mode',\(isDarkMode));
+        })();
+        """
+    }
 
     private static func processReviewHTML(
         _ html: String,

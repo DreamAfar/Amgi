@@ -855,6 +855,7 @@ struct BrowseView: View {
         }
         .environment(\.editMode, editModeBinding)
         .listStyle(.plain)
+        .tint(palette.accent) // Accent color for multi-selection highlights and swipe actions
         .navigationDestination(for: NoteRecord.self) { note in
             NoteEditingDestinationView(note: note) {
                 scheduleSearch()

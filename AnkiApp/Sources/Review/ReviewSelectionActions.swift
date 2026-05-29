@@ -512,6 +512,7 @@ struct ReviewSelectionLookupLinkSettingsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
+        .tint(palette.accent) // Apply accent color to list elements like disclosure indicators and buttons
         .navigationTitle(L("settings_review_lookup_settings"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -659,6 +660,7 @@ struct ReviewAISettingsHomeView: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
+        .tint(palette.accent) // Apply accent color to list elements like disclosure indicators and buttons
         .navigationTitle(L("settings_review_ai_settings"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {

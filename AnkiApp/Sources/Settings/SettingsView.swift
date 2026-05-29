@@ -245,6 +245,7 @@ struct SettingsView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(palette.background)
+        .tint(palette.accent)// Notice：Apply accent color to list elements like disclosure indicators
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 

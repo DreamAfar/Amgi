@@ -70,6 +70,7 @@ struct DebugView: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
+        .tint(palette.accent) // Apply accent color to list elements like disclosure indicators and buttons
         .navigationTitle(L("debug_nav_title"))
         .confirmationDialog(L("debug_reset_all_confirm_msg"), isPresented: $showResetAllConfirm, titleVisibility: .visible) {
             Button(L("debug_reset_confirm_button"), role: .destructive) {

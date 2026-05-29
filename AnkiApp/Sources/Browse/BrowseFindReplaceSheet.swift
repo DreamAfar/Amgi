@@ -83,6 +83,7 @@ struct BrowseFindReplaceSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(palette.background)
+            .tint(palette.accent) // Apply accent color to form elements like toggles and picker
             .navigationTitle(L("browse_find_replace_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

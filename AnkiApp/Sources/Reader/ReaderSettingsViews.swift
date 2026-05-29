@@ -61,6 +61,7 @@ struct ReaderSettingsHomeView: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
+        .tint(palette.accent) // Apply accent color to list elements like disclosure indicators
         .navigationTitle(L("settings_row_reader"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -472,7 +473,7 @@ struct ReaderDisplaySettingsView: View {
                                 .foregroundStyle(palette.accent)
                         }
                         Slider(value: $lineHeight, in: 1.0...2.5, step: 0.05)
-                            .tint(palette.accent)
+                            .tint(palette.accent) // Accent color for the slider thumb and track
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -484,7 +485,7 @@ struct ReaderDisplaySettingsView: View {
                                 .foregroundStyle(palette.accent)
                         }
                         Slider(value: $characterSpacing, in: -10...10, step: 1)
-                            .tint(palette.accent)
+                            .tint(palette.accent) // Accent color for the slider thumb and track
                     }
                 }
             }
@@ -565,7 +566,7 @@ struct ReaderDisplaySettingsView: View {
                         in: 240...420,
                         step: 10
                     )
-                    .tint(palette.accent)
+                    .tint(palette.accent) // Accent color for the slider thumb and track
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -594,6 +595,7 @@ struct ReaderDisplaySettingsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
+        .tint(palette.accent) // Apply accent color to list elements like disclosure indicators
         .navigationTitle(L("settings_reader_display_settings"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -981,6 +983,7 @@ struct ReaderAdvancedSettingsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
+        .tint(palette.accent) // Apply accent color to list elements like disclosure indicators
         .navigationTitle(L("settings_reader_advanced_settings"))
         .navigationBarTitleDisplayMode(.large)
         .task {

@@ -123,6 +123,7 @@ struct ExportOptionsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
+        .tint(palette.accent)// Apply accent color to form elements like toggles and pickers
         .navigationTitle(L("menu_export_deck"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -294,6 +295,7 @@ struct ImportOptionsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
+        .tint(palette.accent) // Apply accent color to form elements like toggles and pickers
         .navigationTitle(L("alert_import_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
