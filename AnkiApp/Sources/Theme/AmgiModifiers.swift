@@ -174,22 +174,12 @@ extension View {
         modifier(AmgiToolbarIconButtonModifier(size: size))
     }
 
-    func amgiToolbarTextButton(tone: AmgiStatusTone = .neutral) -> some View {
+    func amgiToolbarTextButton(tone: AmgiStatusTone = .accent) -> some View {
         modifier(AmgiToolbarTextButtonModifier(tone: tone))
     }
 
-    func amgiCapsuleControl(
-        backgroundColor: Color = .amgiSurfaceElevated,
-        horizontalPadding: CGFloat = 10,
-        verticalPadding: CGFloat = 6
-    ) -> some View {
-        modifier(
-            AmgiCapsuleControlModifier(
-                backgroundColor: backgroundColor,
-                horizontalPadding: horizontalPadding,
-                verticalPadding: verticalPadding
-            )
-        )
+    func amgiCapsuleControl(horizontalPadding: CGFloat = 10, verticalPadding: CGFloat = 6) -> some View {
+        modifier(AmgiCapsuleControlModifier(horizontalPadding: horizontalPadding, verticalPadding: verticalPadding))
     }
 
     func amgiStatusBadge(_ tone: AmgiStatusTone, horizontalPadding: CGFloat = 8, verticalPadding: CGFloat = 4) -> some View {
@@ -237,14 +227,13 @@ private struct AmgiToolbarTextButtonModifier: ViewModifier {
 
 private struct AmgiCapsuleControlModifier: ViewModifier {
     @Environment(\.palette) private var palette
-    let backgroundColor: Color
     let horizontalPadding: CGFloat
     let verticalPadding: CGFloat
     func body(content: Content) -> some View {
         content
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
-            .background(backgroundColor)
+            .background(palette.surfaceElevated)
             .overlay(
                 Capsule().stroke(palette.border.opacity(0.28), lineWidth: 1)
             )
@@ -290,7 +279,18 @@ private struct AmgiStatusPanelModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(tone.borderColor(palette), lineWidth: 1)
             )
-            .modifier(ConditionalShadow(enabled: elevated))
+            .modifier(_ConditionalShadow(enabled: elevated))
+    }
+}
+
+private struct _ConditionalShadow: ViewModifier {
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled {
+            content.amgiShadow()
+        } else {
+            content
+        }
     }
 }
 

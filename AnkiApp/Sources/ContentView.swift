@@ -471,7 +471,7 @@ struct ContentView: View {
                         .padding(.trailing, 3)
                     if showSyncBadge {
                         Circle()
-                            .fill(palette.positive)
+                            .fill(palette.danger)  // red badge
                             .frame(width: 7, height: 7)
                     }
                 }
