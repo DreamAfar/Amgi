@@ -4,6 +4,7 @@ import AnkiBackend
 import AnkiProto
 import Dependencies
 import UIKit
+import AmgiTheme
 
 /// Context menu for card operations (suspend, bury, flag, undo)
 @MainActor
@@ -420,7 +421,7 @@ private let markedTag = "marked"
     VStack(spacing: 20) {
         Text("Tap the menu button below")
             .amgiFont(.bodyEmphasis)
-            .foregroundStyle(palette.textPrimary)
+            .foregroundStyle(.primary)
         
         Spacer()
         

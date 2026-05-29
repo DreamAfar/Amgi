@@ -36,10 +36,6 @@ let package = Package(
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
                 .product(name: "EPUBKit", package: "EPUBKit"),
             ],
-            exclude: [
-                "DictionaryLookupClient.swift",
-                "DictionaryLookupClient+Live.swift",
-            ],
             swiftSettings: sharedSwiftSettings
         ),
         .target(
