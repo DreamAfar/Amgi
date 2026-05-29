@@ -219,6 +219,10 @@ struct SettingsView: View {
                 splitSettingsSidebarSections
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(palette.background)
+            .toolbarBackground(palette.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .navigationTitle(L("settings_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 360)

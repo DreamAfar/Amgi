@@ -233,6 +233,9 @@ struct ContentView: View {
         .toolbarBackground(palette.background, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         .toolbarColorScheme(colorScheme, for: .tabBar)
+        .toolbarBackground(palette.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .background(TabBarSidebarBackground(color: palette.background))
     }
 
     private func contentObserverShell<Content: View>(_ content: Content) -> some View {
@@ -907,6 +910,49 @@ struct ContentView: View {
         showImportOptions = false
     }
 }
+
+// MARK: - Tab Bar Sidebar Background (UIKit introspection)
+
+/// Sets the `UITabBarController` view background color so the sidebar's
+/// entire page background uses the theme's palette background color.
+private struct TabBarSidebarBackground: UIViewRepresentable {
+    let color: Color
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isHidden = true
+        applyBackground(to: view)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        applyBackground(to: uiView)
+    }
+
+    private func applyBackground(to uiView: UIView) {
+        DispatchQueue.main.async {
+            guard let window = uiView.window,
+                  let tabBarController = window.rootViewController?.findTabBarController()
+            else { return }
+            tabBarController.view.backgroundColor = UIColor(color)
+        }
+    }
+}
+
+private extension UIViewController {
+    func findTabBarController() -> UITabBarController? {
+        if let tbc = self as? UITabBarController { return tbc }
+        // Traverse the presented and child hierarchy recursively.
+        if let presented = presentedViewController,
+           let found = presented.findTabBarController() { return found }
+        for child in children {
+            if let found = child.findTabBarController() { return found }
+        }
+        return parent?.findTabBarController()
+    }
+}
+
+// MARK: - CollectionPreparingView
 
 private struct CollectionPreparingView: View {
     @Environment(\.palette) private var palette
