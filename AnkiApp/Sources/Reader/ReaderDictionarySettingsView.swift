@@ -220,7 +220,6 @@ struct ReaderDictionarySettingsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
-        .tint(palette.accent) // Apply accent color to list elements like disclosure indicators and buttons
         .navigationTitle(L("settings_reader_dictionary_settings"))
         .navigationBarTitleDisplayMode(.large)
         .disabled(isBusy)

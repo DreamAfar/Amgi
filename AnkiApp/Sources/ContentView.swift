@@ -142,12 +142,13 @@ struct ContentView: View {
                         ToolbarItem(placement: .topBarLeading) {
                             userMenu
                         }
+                        .tint(palette.textPrimary)
                         ToolbarItem(placement: .topBarTrailing) {
                             trailingActions
                         }
+                        .tint(palette.textPrimary)
                     }
             }
-            .tint(palette.textPrimary)
         }
     }
 
@@ -169,7 +170,6 @@ struct ContentView: View {
         if collectionState.isReady {
             BrowseView(isActive: selectedTab == .browse)
                 .id(refreshID)
-                .tint(palette.textPrimary)
         } else {
             CollectionPreparingView()
         }
@@ -186,7 +186,6 @@ struct ContentView: View {
                     CollectionPreparingView()
                 }
             }
-            .tint(palette.textPrimary)
         }
     }
 
@@ -202,7 +201,6 @@ struct ContentView: View {
                         CollectionPreparingView()
                     }
                 }
-                .tint(palette.textPrimary)
             }
         }
     }
@@ -211,7 +209,6 @@ struct ContentView: View {
         Tab(L("tab_settings"), systemImage: "gearshape", value: RootTab.settings) {
             SettingsView()
                 .id(refreshID)
-                .tint(palette.textPrimary)
         }
     }
 

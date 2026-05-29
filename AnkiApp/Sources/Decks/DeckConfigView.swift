@@ -135,7 +135,6 @@ struct DeckConfigView: View {
                     }
                     .scrollContentBackground(.hidden)
                     .background(palette.background)
-                    .tint(palette.accent)// Apply accent color to form elements like toggles and pickers
                 }
             }
             .background(palette.background)
@@ -987,7 +986,6 @@ struct DeckConfigView: View {
                 }
             }
             .navigationTitle(L("deck_config_fsrs_simulator_section"))
-            .tint(palette.accent) // Apply accent color to form elements like toggles and pickers
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

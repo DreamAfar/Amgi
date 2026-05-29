@@ -131,7 +131,6 @@ struct CardCountsChart: View {
         Toggle(L("stats_card_counts_separate_inactive"), isOn: $separateInactive)
             .amgiFont(.caption)
             .foregroundStyle(palette.textSecondary)
-            .tint(palette.accent) // Apply accent color to toggle
     }
 
     private var defaultLayout: some View {
