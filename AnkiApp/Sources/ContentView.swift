@@ -235,6 +235,7 @@ struct ContentView: View {
         .toolbarColorScheme(colorScheme, for: .tabBar)
         .toolbarBackground(palette.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(colorScheme, for: .navigationBar)
         .background(TabBarSidebarBackground(color: palette.background))
     }
 

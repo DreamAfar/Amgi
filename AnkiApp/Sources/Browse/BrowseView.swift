@@ -1934,7 +1934,7 @@ struct BrowseView: View {
                 }
             }
         }
-        .background(palette.surfaceElevated)
+        .background(palette.background)
     }
 
     @ViewBuilder
@@ -2214,7 +2214,7 @@ struct BrowseView: View {
         if buriedNoteIDs.contains(note.id) {
             return Color.teal.opacity(0.12)
         }
-        return Color.clear
+        return palette.surfaceElevated
     }
 
     /// Concurrently search for notes in each special state and update the color dicts.
