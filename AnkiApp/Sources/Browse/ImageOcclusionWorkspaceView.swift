@@ -1016,7 +1016,7 @@ struct ZoomableOcclusionCanvasView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> ZoomableOcclusionCanvasContainer {
-        let view = ZoomableOcclusionCanvasContainer(image: image, backgroundColor: palette.surfaceElevated)
+        let view = ZoomableOcclusionCanvasContainer(image: image, backgroundColor: UIColor(palette.surfaceElevated))
         view.canvasView.coordinator = context.coordinator
         return view
     }
@@ -1064,7 +1064,7 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
         bouncesZoom = true
         minimumZoomScale = 1
         maximumZoomScale = 5
-        backgroundColor = backgroundColor
+        self.backgroundColor = backgroundColor
         layer.cornerRadius = 24
         canvasView.imageInset = canvasSelectionPadding
         updateCanvasRenderingScale()
