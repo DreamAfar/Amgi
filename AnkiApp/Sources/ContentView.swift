@@ -5,6 +5,7 @@ import AnkiBackend
 import AnkiKit
 import AnkiProto
 import AmgiReader
+import AmgiTheme
 import Dependencies
 import Foundation
 import OSLog
@@ -15,6 +16,7 @@ private let logger = Logger(subsystem: "amgi", category: "startup")
 
 struct ContentView: View {
     @Binding var incomingImportURL: URL?
+    @Environment(\.palette) private var palette
 
     private enum RootTab: Hashable {
         case decks
@@ -389,19 +391,19 @@ struct ContentView: View {
                     .controlSize(.large)
                 Text(L(operation.titleKey))
                     .amgiFont(.bodyEmphasis)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text(L("import_export_progress_detail"))
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
             .frame(maxWidth: 300)
-            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.amgiBorder.opacity(0.22), lineWidth: 1)
+                    .stroke(palette.border.opacity(0.22), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.12), radius: 18, y: 8)
         }
@@ -422,7 +424,7 @@ struct ContentView: View {
                 .layoutPriority(1)
                 Image(systemName: "chevron.down")
                     .font(AmgiFont.micro.font)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
             .fixedSize(horizontal: true, vertical: false)
             .amgiCapsuleControl()
@@ -453,7 +455,7 @@ struct ContentView: View {
                         .controlSize(.small)
                     Text(L("sync_syncing"))
                         .amgiFont(.captionBold)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                 }
             } else {
                 ZStack(alignment: .topTrailing) {
@@ -462,7 +464,7 @@ struct ContentView: View {
                         .padding(.trailing, 3)
                     if showSyncBadge {
                         Circle()
-                            .fill(Color.amgiDanger)
+                            .fill(palette.positive)
                             .frame(width: 7, height: 7)
                     }
                 }
@@ -900,12 +902,14 @@ struct ContentView: View {
 }
 
 private struct CollectionPreparingView: View {
+    @Environment(\.palette) private var palette
+
     var body: some View {
         ContentUnavailableView(
             L("deck_list_nav_title"),
             systemImage: "externaldrive",
             description: Text(L("collection_preparing"))
         )
-        .background(Color.amgiBackground)
+        .background(palette.background)
     }
 }

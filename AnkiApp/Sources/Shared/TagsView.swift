@@ -1,5 +1,6 @@
 import SwiftUI
 import AnkiClients
+import AmgiTheme
 import Dependencies
 
 /// View for managing tags in the collection.
@@ -20,6 +21,7 @@ struct TagsView: View {
     enum NoteMode { case manage, addToNotes, removeFromNotes }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @State private var allTags: [String] = []
     @State private var isLoading = true
@@ -71,7 +73,7 @@ struct TagsView: View {
                     tagListContent
                 }
             }
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -193,13 +195,13 @@ struct TagsView: View {
                 Section {
                     Label(L("tags_apply_hint", targetNoteIDs.count), systemImage: "doc.text")
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             } else if canBrowseTagNotes {
                 Section {
                     Label(L("tags_browse_hint"), systemImage: "line.3.horizontal.decrease.circle")
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
 
@@ -210,7 +212,7 @@ struct TagsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .listStyle(.insetGrouped)
     }
 
@@ -221,7 +223,7 @@ struct TagsView: View {
                     Section(L("tags_target_notes")) {
                         Text(L("tags_new_tag_will_apply", targetNoteIDs.count))
                             .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
                 Section(L("tags_new_tag_name_section")) {
@@ -236,7 +238,7 @@ struct TagsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("tags_add_tag_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -253,7 +255,7 @@ struct TagsView: View {
     private func tagRow(_ tag: String) -> some View {
         HStack {
             Label(tag, systemImage: "tag.fill")
-                .foregroundStyle(Color.amgiAccent)
+                .foregroundStyle(palette.accent)
             Spacer()
             if isApplying && tagActionTag == tag {
                 ProgressView()
@@ -262,7 +264,7 @@ struct TagsView: View {
                 if isNoteMode || canBrowseTagNotes {
                     Image(systemName: "chevron.right")
                         .font(AmgiFont.caption.font)
-                        .foregroundStyle(Color.amgiTextTertiary)
+                        .foregroundStyle(palette.textTertiary)
                 }
             }
         }
@@ -291,14 +293,14 @@ struct TagsView: View {
                 } label: {
                     Label(L("tags_remove_swipe"), systemImage: "tag.slash")
                 }
-                .tint(Color.amgiWarning)
+                .tint(palette.warning)
 
                 Button {
                     Task { await applyTag(tag) }
                 } label: {
                     Label(L("tags_apply_swipe"), systemImage: "tag")
                 }
-                .tint(Color.amgiAccent)
+                .tint(palette.accent)
             } else {
                 Button(role: .destructive) {
                     selectedTag = tag
@@ -314,7 +316,7 @@ struct TagsView: View {
                 } label: {
                     Label(L("tags_rename_swipe"), systemImage: "pencil")
                 }
-                .tint(Color.amgiAccent)
+                .tint(palette.accent)
             }
         }
     }

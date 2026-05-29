@@ -13,6 +13,7 @@ import Dependencies
 struct DeckConfigView: View {
     let deckId: Int64
     let onDismiss: () -> Void
+    @Environment(\.palette) private var palette
     
     @Dependency(\.deckClient) var deckClient
     
@@ -133,10 +134,10 @@ struct DeckConfigView: View {
                         easyDaysSection
                     }
                     .scrollContentBackground(.hidden)
-                    .background(Color.amgiBackground)
+                    .background(palette.background)
                 }
             }
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("deck_config_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -162,7 +163,7 @@ struct DeckConfigView: View {
                         } label: {
                             Text(L("common_save"))
                                 .bold()
-                                .foregroundStyle(Color.amgiAccent)
+                                .foregroundStyle(palette.accent)
                         } primaryAction: {
                             saveConfig(applyToChildren: false)
                         }
@@ -388,7 +389,7 @@ struct DeckConfigView: View {
     ) -> some View {
         HStack(alignment: .top, spacing: AmgiSpacing.md) {
             Text(title)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             content()
@@ -419,23 +420,23 @@ struct DeckConfigView: View {
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .font(.monospaced(.body)())
-                .foregroundStyle(Color.amgiAccent)
+                .foregroundStyle(palette.accent)
                 .lineLimit(1)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.amgiSurfaceElevated)
+                        .fill(palette.surfaceElevated)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
+                        .stroke(palette.accent.opacity(0.28), lineWidth: 1)
                 )
                 .frame(width: adaptiveValueFieldWidth(for: "\(boundedValue.wrappedValue)", min: 56, maxWidth: 108))
 
             if let unitFormatKey {
                 Text(unitLabel(from: unitFormatKey))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .fixedSize(horizontal: true, vertical: false)
             }
         }
@@ -450,10 +451,10 @@ struct DeckConfigView: View {
 
     private func inputChrome() -> some View {
         RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .fill(Color.amgiSurfaceElevated)
+            .fill(palette.surfaceElevated)
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.amgiAccent.opacity(0.28), lineWidth: 1)
+                    .stroke(palette.accent.opacity(0.28), lineWidth: 1)
             )
     }
 
@@ -492,7 +493,7 @@ struct DeckConfigView: View {
                     }
                 } label: {
                     Text("\(intValue.wrappedValue)%")
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                         .monospacedDigit()
                         .contentShape(Rectangle())
                 }
@@ -535,7 +536,7 @@ struct DeckConfigView: View {
                     Picker(L("deck_config_preset"), selection: presetSelectionBinding) {
                         ForEach(presetOptions, id: \.config.id) { option in
                             Text(option.config.name)
-                                .foregroundStyle(Color.amgiAccent)
+                                .foregroundStyle(palette.accent)
                                 .tag(option.config.id)
                         }
                     }
@@ -580,7 +581,7 @@ struct DeckConfigView: View {
                         .disabled(!canDeleteSelectedPreset)
                     } label: {
                         Image(systemName: "ellipsis.circle")
-                            .foregroundStyle(Color.amgiAccent)
+                            .foregroundStyle(palette.accent)
                     }
                 }
             }
@@ -593,12 +594,12 @@ struct DeckConfigView: View {
             }
             settingRow(L("deck_config_preset_usage")) {
                 Text(L("deck_config_preset_used_by", Int(presetUseCount)))
-                    .foregroundStyle(Color.amgiAccent)
+                    .foregroundStyle(palette.accent)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var dailyLimitsSection: some View {
@@ -615,7 +616,7 @@ struct DeckConfigView: View {
             singleLineToggle(L("deck_config_new_cards_ignore_review_limit"), isOn: $newCardsIgnoreReviewLimit)
             singleLineToggle(L("deck_config_apply_all_parent_limits"), isOn: $applyAllParentLimits)
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var newCardsSection: some View {
@@ -624,7 +625,7 @@ struct DeckConfigView: View {
                 TextField(L("deck_config_learn_steps_hint"), text: $learningStepsText)
                     .multilineTextAlignment(.trailing)
                     .font(.monospaced(.body)())
-                    .foregroundStyle(Color.amgiAccent)
+                    .foregroundStyle(palette.accent)
                     .lineLimit(1)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -640,15 +641,15 @@ struct DeckConfigView: View {
             settingRow(L("deck_config_insert_order")) {
                 Menu {
                     Picker(L("deck_config_insert_order"), selection: $newCardInsertOrder) {
-                        Text(L("deck_config_order_due")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
-                        Text(L("deck_config_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
+                        Text(L("deck_config_order_due")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.due)
+                        Text(L("deck_config_order_random")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardInsertOrder.random)
                     }
                 } label: {
                     optionCapsule(newCardInsertOrderLabel)
                 }
             }
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var lapsesSection: some View {
@@ -657,7 +658,7 @@ struct DeckConfigView: View {
                 TextField(L("deck_config_relearn_steps_hint"), text: $relearningStepsText)
                     .multilineTextAlignment(.trailing)
                     .font(.monospaced(.body)())
-                    .foregroundStyle(Color.amgiAccent)
+                    .foregroundStyle(palette.accent)
                     .lineLimit(1)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -670,15 +671,15 @@ struct DeckConfigView: View {
             settingRow(L("deck_config_leech_action")) {
                 Menu {
                     Picker(L("deck_config_leech_action"), selection: $leechAction) {
-                        Text(L("deck_config_leech_suspend")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
-                        Text(L("deck_config_leech_tag_only")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
+                        Text(L("deck_config_leech_suspend")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.suspend)
+                        Text(L("deck_config_leech_tag_only")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.LeechAction.tagOnly)
                     }
                 } label: {
                     optionCapsule(leechActionLabel)
                 }
             }
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var orderSection: some View {
@@ -686,12 +687,12 @@ struct DeckConfigView: View {
             settingRow(L("deck_config_new_gather_priority")) {
                 Menu {
                     Picker(L("deck_config_new_gather_priority"), selection: $newCardGatherPriority) {
-                        Text(L("deck_config_new_gather_priority_deck")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deck)
-                        Text(L("deck_config_new_gather_priority_deck_then_random_notes")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deckThenRandomNotes)
-                        Text(L("deck_config_new_gather_priority_position_lowest_first")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.lowestPosition)
-                        Text(L("deck_config_new_gather_priority_position_highest_first")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.highestPosition)
-                        Text(L("deck_config_new_gather_priority_random_notes")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.randomNotes)
-                        Text(L("deck_config_new_gather_priority_random_cards")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.randomCards)
+                        Text(L("deck_config_new_gather_priority_deck")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deck)
+                        Text(L("deck_config_new_gather_priority_deck_then_random_notes")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.deckThenRandomNotes)
+                        Text(L("deck_config_new_gather_priority_position_lowest_first")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.lowestPosition)
+                        Text(L("deck_config_new_gather_priority_position_highest_first")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.highestPosition)
+                        Text(L("deck_config_new_gather_priority_random_notes")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.randomNotes)
+                        Text(L("deck_config_new_gather_priority_random_cards")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardGatherPriority.randomCards)
                     }
                 } label: {
                     optionCapsule(newCardGatherPriorityLabel)
@@ -700,11 +701,11 @@ struct DeckConfigView: View {
             settingRow(L("deck_config_new_card_sort_order")) {
                 Menu {
                     Picker(L("deck_config_new_card_sort_order"), selection: $newCardSortOrder) {
-                        Text(L("deck_config_sort_order_template_then_gather")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.template)
-                        Text(L("deck_config_sort_order_gather")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.noSort)
-                        Text(L("deck_config_sort_order_card_template_then_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.templateThenRandom)
-                        Text(L("deck_config_sort_order_random_note_then_template")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.randomNoteThenTemplate)
-                        Text(L("deck_config_sort_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.randomCard)
+                        Text(L("deck_config_sort_order_template_then_gather")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.template)
+                        Text(L("deck_config_sort_order_gather")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.noSort)
+                        Text(L("deck_config_sort_order_card_template_then_random")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.templateThenRandom)
+                        Text(L("deck_config_sort_order_random_note_then_template")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.randomNoteThenTemplate)
+                        Text(L("deck_config_sort_order_random")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.NewCardSortOrder.randomCard)
                     }
                 } label: {
                     optionCapsule(newCardSortOrderLabel)
@@ -713,9 +714,9 @@ struct DeckConfigView: View {
             settingRow(L("deck_config_new_mix")) {
                 Menu {
                     Picker(L("deck_config_new_mix"), selection: $newMix) {
-                        Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                        Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                        Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+                        Text(L("deck_config_mix_with_reviews")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                        Text(L("deck_config_mix_after_reviews")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                        Text(L("deck_config_mix_before_reviews")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
                     }
                 } label: {
                     optionCapsule(newMixLabel)
@@ -724,18 +725,18 @@ struct DeckConfigView: View {
             settingRow(L("deck_config_review_order")) {
                 Menu {
                     Picker(L("deck_config_review_order"), selection: $reviewOrder) {
-                        Text(L("deck_config_review_order_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
-                        Text(L("deck_config_review_order_day_then_deck")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.dayThenDeck)
-                        Text(L("deck_config_review_order_deck_then_day")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.deckThenDay)
-                        Text(L("deck_config_review_order_asc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
-                        Text(L("deck_config_review_order_desc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
-                        Text(L("deck_config_review_order_ease_asc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.easeAscending)
-                        Text(L("deck_config_review_order_ease_desc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.easeDescending)
-                        Text(L("deck_config_review_order_retrievability_asc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.retrievabilityAscending)
-                        Text(L("deck_config_review_order_retrievability_desc")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.retrievabilityDescending)
-                        Text(L("deck_config_order_random")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
-                        Text(L("deck_config_review_order_added")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.added)
-                        Text(L("deck_config_review_order_reverse_added")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.reverseAdded)
+                        Text(L("deck_config_review_order_day")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.day)
+                        Text(L("deck_config_review_order_day_then_deck")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.dayThenDeck)
+                        Text(L("deck_config_review_order_deck_then_day")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.deckThenDay)
+                        Text(L("deck_config_review_order_asc")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsAscending)
+                        Text(L("deck_config_review_order_desc")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.intervalsDescending)
+                        Text(L("deck_config_review_order_ease_asc")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.easeAscending)
+                        Text(L("deck_config_review_order_ease_desc")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.easeDescending)
+                        Text(L("deck_config_review_order_retrievability_asc")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.retrievabilityAscending)
+                        Text(L("deck_config_review_order_retrievability_desc")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.retrievabilityDescending)
+                        Text(L("deck_config_order_random")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.random)
+                        Text(L("deck_config_review_order_added")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.added)
+                        Text(L("deck_config_review_order_reverse_added")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewCardOrder.reverseAdded)
                     }
                 } label: {
                     optionCapsule(reviewOrderLabel)
@@ -744,16 +745,16 @@ struct DeckConfigView: View {
             settingRow(L("deck_config_interday_mix")) {
                 Menu {
                     Picker(L("deck_config_interday_mix"), selection: $interdayLearningMix) {
-                        Text(L("deck_config_mix_with_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
-                        Text(L("deck_config_mix_after_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
-                        Text(L("deck_config_mix_before_reviews")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
+                        Text(L("deck_config_mix_with_reviews")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.mixWithReviews)
+                        Text(L("deck_config_mix_after_reviews")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.afterReviews)
+                        Text(L("deck_config_mix_before_reviews")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.ReviewMix.beforeReviews)
                     }
                 } label: {
                     optionCapsule(interdayLearningMixLabel)
                 }
             }
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var fsrsSection: some View {
@@ -766,10 +767,10 @@ struct DeckConfigView: View {
                         .truncationMode(.tail)
                     Spacer()
                     Text("\(Int(desiredRetentionPercent))%")
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                 }
                 Slider(value: $desiredRetentionPercent, in: 70...97, step: 1)
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -778,10 +779,10 @@ struct DeckConfigView: View {
                         .truncationMode(.tail)
                     Spacer()
                     Text("\(Int(historicalRetentionPercent))%")
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                 }
                 Slider(value: $historicalRetentionPercent, in: 70...100, step: 1)
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
             }
             if fsrsEnabled {
                 VStack(alignment: .leading, spacing: 6) {
@@ -790,7 +791,7 @@ struct DeckConfigView: View {
                     TextField(L("deck_config_fsrs_weights_hint"), text: $fsrsWeights, axis: .vertical)
                         .lineLimit(2...6)
                         .font(.monospaced(.caption)())
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                 }
@@ -798,7 +799,7 @@ struct DeckConfigView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(L("deck_config_fsrs_simulator_section"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
 
                     Button {
                         openFsrsSimulator(.workload)
@@ -806,7 +807,7 @@ struct DeckConfigView: View {
                         Text(L("deck_config_fsrs_help_decide"))
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
 
                     Button {
                         openFsrsSimulator(.review)
@@ -814,7 +815,7 @@ struct DeckConfigView: View {
                         Text(L("deck_config_fsrs_simulator_open"))
                     }
                     .buttonStyle(.bordered)
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
                 }
 
                 Button {
@@ -829,7 +830,7 @@ struct DeckConfigView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color.amgiAccent)
+                .tint(palette.accent)
                 .disabled(isOptimizingFsrs)
 
                 singleLineToggle(L("deck_config_fsrs_health_check"), isOn: $fsrsHealthCheck)
@@ -846,11 +847,11 @@ struct DeckConfigView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color.amgiAccent)
+                .tint(palette.accent)
                 .disabled(isOptimizingFsrs)
             }
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var fsrsSimulatorSheet: some View {
@@ -885,10 +886,10 @@ struct DeckConfigView: View {
                                     .truncationMode(.tail)
                                 Spacer()
                                 Text("\(Int(fsrsSimulatorRetentionPercent))%")
-                                    .foregroundStyle(Color.amgiAccent)
+                                    .foregroundStyle(palette.accent)
                             }
                             Slider(value: $fsrsSimulatorRetentionPercent, in: 70...99, step: 1)
-                                .tint(Color.amgiAccent)
+                                .tint(palette.accent)
                         }
                     }
 
@@ -944,7 +945,7 @@ struct DeckConfigView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(Color.amgiAccent)
+                        .tint(palette.accent)
                         .disabled(isSimulatingFsrs)
 
                         Button(L("deck_config_fsrs_simulator_clear")) {
@@ -973,14 +974,14 @@ struct DeckConfigView: View {
                                     Text(row.1)
                                     Spacer()
                                     Text(row.2)
-                                        .foregroundStyle(Color.amgiTextSecondary)
+                                        .foregroundStyle(palette.textSecondary)
                                 }
                                 .amgiFont(.caption)
                             }
                         }
                     } else {
                         Text(L("deck_config_fsrs_simulator_empty"))
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
             }
@@ -1002,7 +1003,7 @@ struct DeckConfigView: View {
             singleLineToggle(L("deck_config_bury_reviews"), isOn: $buryReviews)
             singleLineToggle(L("deck_config_bury_interday"), isOn: $buryInterdayLearning)
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var timerSection: some View {
@@ -1013,7 +1014,7 @@ struct DeckConfigView: View {
             }
             singleLineToggle(L("deck_config_stop_timer_on_answer"), isOn: $stopTimerOnAnswer)
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var autoAdvanceSection: some View {
@@ -1025,10 +1026,10 @@ struct DeckConfigView: View {
                         .truncationMode(.tail)
                     Spacer()
                     Text(String(format: "%.1f s", secondsToShowQuestion))
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                 }
                 Slider(value: $secondsToShowQuestion, in: 0...60, step: 0.5)
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -1037,16 +1038,16 @@ struct DeckConfigView: View {
                         .truncationMode(.tail)
                     Spacer()
                     Text(String(format: "%.1f s", secondsToShowAnswer))
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                 }
                 Slider(value: $secondsToShowAnswer, in: 0...60, step: 0.5)
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
             }
             settingRow(L("deck_config_after_question")) {
                 Menu {
                     Picker(L("deck_config_after_question"), selection: $questionAction) {
-                        Text(L("deck_config_action_show_answer")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
-                        Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
+                        Text(L("deck_config_action_show_answer")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showAnswer)
+                        Text(L("deck_config_action_show_reminder")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.QuestionAction.showReminder)
                     }
                 } label: {
                     optionCapsule(questionActionLabel)
@@ -1055,18 +1056,18 @@ struct DeckConfigView: View {
             settingRow(L("deck_config_after_answer")) {
                 Menu {
                     Picker(L("deck_config_after_answer"), selection: $answerAction) {
-                        Text(L("deck_config_action_bury")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
-                        Text(L("deck_config_action_again")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
-                        Text(L("deck_config_action_hard")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
-                        Text(L("deck_config_action_good")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
-                        Text(L("deck_config_action_show_reminder")).foregroundStyle(Color.amgiAccent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
+                        Text(L("deck_config_action_bury")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.buryCard)
+                        Text(L("deck_config_action_again")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerAgain)
+                        Text(L("deck_config_action_hard")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerHard)
+                        Text(L("deck_config_action_good")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.answerGood)
+                        Text(L("deck_config_action_show_reminder")).foregroundStyle(palette.accent).tag(Anki_DeckConfig_DeckConfig.Config.AnswerAction.showReminder)
                     }
                 } label: {
                     optionCapsule(answerActionLabel)
                 }
             }
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var advancedSection: some View {
@@ -1086,7 +1087,7 @@ struct DeckConfigView: View {
             percentWheelPicker(id: "hardMultiplier", L("deck_config_hard_mult"), value: $hardMultiplierPercent, in: 80...200)
             percentWheelPicker(id: "easyMultiplier", L("deck_config_easy_mult"), value: $easyMultiplierPercent, in: 100...300)
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private var easyDaysSection: some View {
@@ -1104,7 +1105,7 @@ struct DeckConfigView: View {
                 .padding(.vertical, 2)
             }
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
     
     private func loadConfig() async {

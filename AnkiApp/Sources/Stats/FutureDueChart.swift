@@ -2,6 +2,8 @@ import SwiftUI
 import Charts
 import AnkiProto
 struct FutureDueChart: View {
+    @Environment(\.palette) private var palette
+
     let futureDue: Anki_Stats_GraphsResponse.FutureDue
     @State private var period: StatsPeriod = .month
     @State private var includeBacklog = false
@@ -274,11 +276,11 @@ struct FutureDueChart: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_future_due_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             Text(L("stats_future_due_subtitle"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
 
             Picker("", selection: $period) {
                 Text(L("stats_period_month")).tag(StatsPeriod.month)
@@ -293,7 +295,7 @@ struct FutureDueChart: View {
             if filteredData.isEmpty {
                 Text(L("stats_future_due_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 futureDueChart
@@ -364,7 +366,7 @@ struct FutureDueChart: View {
                 x: .value("Day", point.startDay),
                 y: .value("Cumulative", plottedCumulative(point.cumulative))
             )
-            .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+            .foregroundStyle(palette.textSecondary.opacity(0.08))
             .interpolationMethod(.monotone)
 
             LineMark(
@@ -372,7 +374,7 @@ struct FutureDueChart: View {
                 y: .value("Cumulative", plottedCumulative(point.cumulative)),
                 series: .value("Series", "cumulative")
             )
-            .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
+            .foregroundStyle(palette.textSecondary.opacity(0.45))
             .lineStyle(StrokeStyle(lineWidth: 1.5))
             .interpolationMethod(.monotone)
         }
@@ -386,7 +388,7 @@ struct FutureDueChart: View {
             let countLabel = L("stats_card_count")
             let cumulativeLabel = L("stats_reviews_cumulative")
             RuleMark(x: .value("Selected Day", selectedDay))
-                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .foregroundStyle(palette.accent.opacity(0.35))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
@@ -493,7 +495,7 @@ struct FutureDueChart: View {
     private func futureDueChartXAxis() -> some AxisContent {
         AxisMarks(values: xAxisTickValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
             if let day = value.as(Int.self) {
                 AxisValueLabel {
                     Text(xAxisLabel(for: day))
@@ -501,7 +503,7 @@ struct FutureDueChart: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .allowsTightening(true)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -511,26 +513,26 @@ struct FutureDueChart: View {
     private func futureDueChartYAxis() -> some AxisContent {
         AxisMarks(position: .leading, values: leftAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(axisLabel(for: raw, in: leftAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
 
         AxisMarks(position: .trailing, values: rightAxisValues) { value in
             AxisTick()
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+                .foregroundStyle(palette.textTertiary.opacity(0.35))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(axisLabel(for: raw, in: rightAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -541,10 +543,10 @@ struct FutureDueChart: View {
             Text(value)
                 .amgiFont(.captionBold)
                 .monospacedDigit()
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text(label)
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
         }
         .frame(maxWidth: .infinity)
     }

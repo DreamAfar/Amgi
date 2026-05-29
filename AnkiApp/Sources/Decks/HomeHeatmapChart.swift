@@ -2,6 +2,7 @@ import SwiftUI
 import AnkiProto
 
 struct HomeHeatmapChart: View {
+    @Environment(\.palette) private var palette
     let reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes
     let preferredHeight: CGFloat
 
@@ -33,12 +34,12 @@ struct HomeHeatmapChart: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(L("deck_list_heatmap_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             if dayCountMap.isEmpty {
                 Text(L("stats_heatmap_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: max(84, preferredHeight - 52))
             } else {
                 GeometryReader { proxy in
@@ -56,10 +57,10 @@ struct HomeHeatmapChart: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.amgiBorder.opacity(0.22), lineWidth: 1)
+            .stroke(palette.border.opacity(0.22), lineWidth: 1)
         )
     }
 
@@ -70,7 +71,7 @@ struct HomeHeatmapChart: View {
             ForEach(Array(layout.weeks.indices), id: \.self) { weekIndex in
                 Text(labelLookup[weekIndex] ?? "")
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .lineLimit(1)
                     .frame(width: layout.cellSize, alignment: .leading)
             }
@@ -92,7 +93,7 @@ struct HomeHeatmapChart: View {
                             .overlay {
                                 if isFuture {
                                     RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                        .stroke(Color.amgiBorder, lineWidth: 0.5)
+                                        .stroke(palette.border, lineWidth: 0.5)
                                         .opacity(0.25)
                                 }
                             }
@@ -109,11 +110,11 @@ struct HomeHeatmapChart: View {
             Spacer()
             Text(L("stats_heatmap_less"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
             ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
                     .fill(
-                        Color.amgiPositive.opacity(
+                        palette.positive.opacity(
                             HeatmapColorScale.opacity(forNormalizedValue: intensity)
                         )
                     )
@@ -121,7 +122,7 @@ struct HomeHeatmapChart: View {
             }
             Text(L("stats_heatmap_more"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -183,8 +184,8 @@ struct HomeHeatmapChart: View {
 
     private func heatColor(count: Int) -> Color {
         if count == 0 {
-            return Color.amgiSurface
+            return palette.surface
         }
-        return Color.amgiPositive.opacity(HeatmapColorScale.opacity(for: count, maxCount: maxCount))
+        return palette.positive.opacity(HeatmapColorScale.opacity(for: count, maxCount: maxCount))
     }
 }

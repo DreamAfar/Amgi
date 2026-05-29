@@ -9,6 +9,7 @@ import UniformTypeIdentifiers
 struct NotetypeFieldManagerListView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.notetypesClient) var notetypesClient
+    @Environment(\.palette) private var palette
 
     @State private var entries: [Anki_Notetypes_NotetypeNameId] = []
     @State private var isLoading = true
@@ -50,27 +51,27 @@ struct NotetypeFieldManagerListView: View {
                             } label: {
                                 HStack(spacing: 12) {
                                     Image(systemName: "text.badge.plus")
-                                        .foregroundStyle(Color.amgiAccent)
+                                        .foregroundStyle(palette.accent)
                                     VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                                         Text(entry.name)
                                             .amgiFont(.body)
-                                            .foregroundStyle(Color.amgiTextPrimary)
+                                            .foregroundStyle(palette.textPrimary)
                                         Text("ID: \(entry.id)")
                                             .amgiFont(.caption)
-                                            .foregroundStyle(Color.amgiTextSecondary)
+                                            .foregroundStyle(palette.textSecondary)
                                     }
                                 }
                             }
-                            .listRowBackground(Color.amgiSurfaceElevated)
+                            .listRowBackground(palette.surfaceElevated)
                         }
                     }
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
-                .background(Color.amgiBackground)
+                .background(palette.background)
             }
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_row_field_manager"))
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: L("notetype_field_search"))
@@ -97,6 +98,7 @@ struct NotetypeFieldManagerListView: View {
 struct NotetypeFieldManagerView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.notetypesClient) var notetypesClient
+    @Environment(\.palette) private var palette
 
     let notetypeId: Int64
     var preferredName: String? = nil
@@ -124,10 +126,10 @@ struct NotetypeFieldManagerView: View {
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
-                .background(Color.amgiBackground)
+                .background(palette.background)
             }
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_row_field_manager"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -190,11 +192,11 @@ struct NotetypeFieldManagerView: View {
             HStack {
                 Text(field.name)
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Spacer()
             }
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     @MainActor
@@ -305,6 +307,7 @@ struct NotetypeFieldEditorView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.notetypesClient) var notetypesClient
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     let notetypeId: Int64
     var preferredName: String? = nil
@@ -356,10 +359,10 @@ struct NotetypeFieldEditorView: View {
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
-                .background(Color.amgiBackground)
+                .background(palette.background)
             }
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .safeAreaInset(edge: .top, spacing: 12) {
             if !isLoading {
                 fieldEditorHintCard
@@ -451,25 +454,25 @@ struct NotetypeFieldEditorView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(L("notetype_field_editor_hint_title"))
                 .amgiFont(.captionBold)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text(L("notetype_field_editor_footer"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.amgiBorder.opacity(0.55), lineWidth: 1)
+                .stroke(palette.border.opacity(0.55), lineWidth: 1)
         }
     }
 
     private func editableFieldRow(_ field: Anki_Notetypes_Notetype.Field, at index: Int) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "line.3.horizontal")
-                .foregroundStyle(Color.amgiTextTertiary)
+                .foregroundStyle(palette.textTertiary)
             VStack(alignment: .leading, spacing: 6) {
                 TextField(
                     L("notetype_field_name_placeholder"),
@@ -485,11 +488,11 @@ struct NotetypeFieldEditorView: View {
                 HStack(spacing: 8) {
                     Text(L("notetype_field_position", index + 1))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                     if Int(notetype.config.sortFieldIdx) == index {
                         Text(L("notetype_field_sort_badge"))
                             .amgiFont(.captionBold)
-                            .foregroundStyle(Color.amgiAccent)
+                            .foregroundStyle(palette.accent)
                     }
                 }
             }
@@ -540,7 +543,7 @@ struct NotetypeFieldEditorView: View {
                 }
             )
         )
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private func bindingForFieldName(at index: Int) -> Binding<String> {

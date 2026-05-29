@@ -1,11 +1,13 @@
 import SwiftUI
 import AnkiBackend
 import AnkiProto
+import AmgiTheme
 import Dependencies
 
 struct UncommittedCardPreviewSheet: View {
     @Dependency(\.ankiBackend) var backend
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     let title: String
     let emptyMessage: String
@@ -70,10 +72,10 @@ struct UncommittedCardPreviewSheet: View {
                                     } label: {
                                         if selectedTemplateIndex == index {
                                             Label(template.name, systemImage: "checkmark")
-                                                .foregroundStyle(Color.amgiAccent)
+                                                .foregroundStyle(palette.accent)
                                         } else {
                                             Text(template.name)
-                                                .foregroundStyle(Color.amgiAccent)
+                                                .foregroundStyle(palette.accent)
                                         }
                                     }
                                 }
@@ -101,10 +103,10 @@ struct UncommittedCardPreviewSheet: View {
                         VStack(spacing: AmgiSpacing.sm) {
                             Image(systemName: "exclamationmark.triangle")
                                 .font(.title2)
-                                .foregroundStyle(Color.amgiWarning)
+                                .foregroundStyle(palette.warning)
                             Text(errorMessage)
                                 .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -113,10 +115,10 @@ struct UncommittedCardPreviewSheet: View {
                         VStack(spacing: AmgiSpacing.sm) {
                             Image(systemName: "rectangle.slash")
                                 .font(.title2)
-                                .foregroundStyle(Color.amgiTextTertiary)
+                                .foregroundStyle(palette.textTertiary)
                             Text(emptyMessage)
                                 .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -134,10 +136,10 @@ struct UncommittedCardPreviewSheet: View {
                 }
                 .overlay {
                     RoundedRectangle(cornerRadius: 1, style: .continuous)
-                        .stroke(Color.amgiBorder.opacity(0.8), lineWidth: 1)
+                        .stroke(palette.border.opacity(0.8), lineWidth: 1)
                 }
             }
-            .background(Color.amgiSurfaceElevated)
+            .background(palette.surfaceElevated)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

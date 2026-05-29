@@ -2,10 +2,12 @@ import SwiftUI
 import UniformTypeIdentifiers
 import AmgiReader
 import AmgiReaderDictionary
+import AmgiTheme
 import Dependencies
 
 struct ReaderDictionarySettingsView: View {
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
+    @Environment(\.palette) private var palette
     @AppStorage(ReaderPreferences.Keys.dictionaryMaxResults) private var maxResults = 16
     @AppStorage(ReaderPreferences.Keys.dictionaryScanLength) private var scanLength = 16
     @AppStorage(ReaderPreferences.Keys.popupCollapseDictionaries) private var collapseDictionaries = false
@@ -26,7 +28,10 @@ struct ReaderDictionarySettingsView: View {
     @State private var isReorderingDictionaries = false
 
     private static let zipArchiveType = UTType(filenameExtension: "zip") ?? .data
-    private let menuCapsuleBackground = Color.amgiMenuSurface
+
+    private var menuCapsuleBackground: Color {
+        palette.surface
+    }
 
     private var selectedDictionaries: [AppDictionaryInfo] {
         switch selectedDictionaryKind {
@@ -88,47 +93,47 @@ struct ReaderDictionarySettingsView: View {
             } footer: {
                 Text(L("settings_reader_dictionary_recommended_description"))
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
 
             Section(L("settings_reader_dictionary_section_settings")) {
                 HStack {
                     Text(L("settings_reader_dictionary_max_results"))
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Text("\(maxResults)")
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                     Stepper("", value: $maxResults, in: 1...50)
                         .labelsHidden()
                 }
 
                 HStack {
                     Text(L("settings_reader_dictionary_scan_length"))
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Text("\(scanLength)")
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                     Stepper("", value: $scanLength, in: 1...64)
                         .labelsHidden()
                 }
 
                 Toggle(L("settings_reader_dictionary_collapse_dictionaries"), isOn: $collapseDictionaries)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
 
                 Toggle(L("settings_reader_dictionary_compact_glossaries"), isOn: $compactGlossaries)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
 
             Section(L("settings_reader_dictionary_section_audio")) {
                 Toggle(L("settings_reader_dictionary_local_audio"), isOn: $localAudioEnabled)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
 
                 Toggle(L("settings_reader_dictionary_audio_autoplay"), isOn: $audioAutoplay)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
 
                 HStack {
                     Text(L("settings_reader_dictionary_audio_playback_mode"))
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Menu {
                         Picker(
@@ -140,7 +145,7 @@ struct ReaderDictionarySettingsView: View {
                         ) {
                             ForEach(ReaderLookupAudioPlaybackMode.allCases) { mode in
                                 Text(title(for: mode))
-                                    .foregroundStyle(Color.amgiAccent)
+                                        .foregroundStyle(palette.accent)
                                     .tag(mode)
                             }
                         }
@@ -155,7 +160,7 @@ struct ReaderDictionarySettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(L("settings_reader_dictionary_audio_source_preset"))
-                            .foregroundStyle(Color.amgiTextPrimary)
+                            .foregroundStyle(palette.textPrimary)
                         Spacer()
                         Menu {
                             Picker(
@@ -167,7 +172,7 @@ struct ReaderDictionarySettingsView: View {
                             ) {
                                 ForEach(ReaderLookupRemoteAudioPreset.allCases) { preset in
                                     Text(title(for: preset))
-                                        .foregroundStyle(Color.amgiAccent)
+                                        .foregroundStyle(palette.accent)
                                         .tag(preset)
                                 }
                             }
@@ -180,7 +185,7 @@ struct ReaderDictionarySettingsView: View {
                     }
 
                     Text(L("settings_reader_dictionary_audio_source_template"))
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
 
                     if selectedAudioSourcePreset == .custom {
                         TextField("", text: $audioSourceTemplate, prompt: Text(ReaderLookupAudioDefaults.defaultTemplate))
@@ -190,11 +195,11 @@ struct ReaderDictionarySettingsView: View {
                     } else {
                         Text(audioSourceSummary(for: selectedAudioSourcePreset))
                             .font(.footnote)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
 
             Section {
                 Picker("", selection: $selectedDictionaryKind) {
@@ -204,7 +209,7 @@ struct ReaderDictionarySettingsView: View {
                 }
                 .pickerStyle(.segmented)
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
 
             dictionarySection(
                 title: title(for: selectedDictionaryKind),
@@ -214,7 +219,7 @@ struct ReaderDictionarySettingsView: View {
             )
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_reader_dictionary_settings"))
         .navigationBarTitleDisplayMode(.large)
         .disabled(isBusy)
@@ -267,7 +272,7 @@ struct ReaderDictionarySettingsView: View {
                         ProgressView()
                         Text(L("settings_reader_dictionary_busy"))
                             .font(.footnote)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                     .padding(20)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -315,7 +320,7 @@ struct ReaderDictionarySettingsView: View {
         Section(title) {
             if dictionaries.isEmpty {
                 Text(L("settings_reader_dictionary_empty"))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             } else {
                 ForEach(dictionaries) { dictionary in
                     Toggle(
@@ -330,11 +335,11 @@ struct ReaderDictionarySettingsView: View {
                     ) {
                         VStack(alignment: .leading, spacing: 4) {
                             Label(dictionary.title, systemImage: icon)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             if !dictionary.index.revision.isEmpty {
                                 Text(L("settings_reader_dictionary_revision", dictionary.index.revision))
                                     .font(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                         }
                     }
@@ -349,7 +354,7 @@ struct ReaderDictionarySettingsView: View {
                 }
             }
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
     }
 
     private func importButton(title: String, systemImage: String, kind: AppDictionaryKind) -> some View {

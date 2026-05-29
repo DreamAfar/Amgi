@@ -8,6 +8,7 @@ struct DeckDetailView: View {
     let deck: DeckInfo
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
+    @Environment(\.palette) private var palette
     @ObservedObject private var collectionState = AppCollectionState.shared
     @State private var counts: DeckCounts = .zero
     @State private var childDecks: [DeckTreeNode] = []
@@ -58,7 +59,7 @@ struct DeckDetailView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(shortTitle)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -273,7 +274,7 @@ struct DeckDetailView: View {
                 VStack(alignment: .leading) {
                     Text(L("deck_detail_count_new"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                     Text("\(counts.newCount)")
                         .amgiStatusText(.accent, font: .sectionHeading)
                 }
@@ -281,7 +282,7 @@ struct DeckDetailView: View {
                 VStack(alignment: .leading) {
                     Text(L("deck_detail_count_learning"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                     Text("\(counts.learnCount)")
                         .amgiStatusText(.warning, font: .sectionHeading)
                 }
@@ -289,13 +290,13 @@ struct DeckDetailView: View {
                 VStack(alignment: .leading) {
                     Text(L("deck_detail_count_review"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                     Text("\(counts.reviewCount)")
                         .amgiStatusText(.positive, font: .sectionHeading)
                 }
             }
             .padding(.vertical, 8)
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
         }
     }
 
@@ -308,9 +309,9 @@ struct DeckDetailView: View {
                     .frame(maxWidth: .infinity)
                     .amgiFont(.bodyEmphasis)
             }
-            .foregroundStyle(Color.amgiAccent)
+            .foregroundStyle(palette.accent)
             .disabled(!collectionState.isReady || counts.total == 0)
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
         }
     }
 
@@ -323,9 +324,9 @@ struct DeckDetailView: View {
                     .frame(maxWidth: .infinity)
                     .amgiFont(.bodyEmphasis)
             }
-            .foregroundStyle(Color.amgiTextPrimary)
+            .foregroundStyle(palette.textPrimary)
             .disabled(!collectionState.isReady)
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
         }
     }
 
@@ -336,19 +337,19 @@ struct DeckDetailView: View {
                     HStack {
                         Text(child.name)
                             .amgiFont(.body)
-                            .foregroundStyle(Color.amgiTextPrimary)
+                            .foregroundStyle(palette.textPrimary)
                         Spacer()
                         DeckCountsView(counts: child.counts)
                     }
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button {
                         Task { await exportDeck(child) }
                     } label: {
                         Label(L("deck_row_export"), systemImage: "square.and.arrow.up")
                     }
-                    .tint(Color.amgiPositive)
+                    .tint(palette.positive)
                     .disabled(!collectionState.isReady)
 
                     Button {
@@ -358,7 +359,7 @@ struct DeckDetailView: View {
                     } label: {
                         Label(L("deck_row_rename"), systemImage: "pencil")
                     }
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
                     .disabled(!collectionState.isReady)
 
                     Button(role: .destructive) {

@@ -1,9 +1,11 @@
 import SwiftUI
 import AnkiClients
 import AnkiSync
+import AmgiTheme
 
 struct LoginSheet: View {
     @Binding var isPresented: Bool
+    @Environment(\.palette) private var palette
     let onSuccess: () -> Void
 
     @State private var username = ""
@@ -34,7 +36,7 @@ struct LoginSheet: View {
                             isPasswordVisible.toggle()
                         } label: {
                             Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(L(isPasswordVisible ? "login_hide_password" : "login_show_password"))
@@ -56,12 +58,12 @@ struct LoginSheet: View {
                             Text(L("login_btn_sign_in")).frame(maxWidth: .infinity)
                         }
                     }
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
                     .disabled(username.isEmpty || password.isEmpty || isLoading)
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("login_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

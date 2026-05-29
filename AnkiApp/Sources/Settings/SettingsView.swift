@@ -8,57 +8,65 @@ import AmgiTheme
 import Dependencies
 import SwiftProtobuf
 
-enum SettingsValueStyle {
-    static let highlight = Color.amgiAccent
-    static let primary = Color.amgiTextPrimary
-    static let secondary = Color.amgiTextSecondary
-    static let tertiary = Color.amgiTextTertiary
-}
-
 struct SettingsOptionCapsuleLabel: View {
     let title: String
     var icon: String? = nil
-    var titleColor: Color = SettingsValueStyle.highlight
-    var indicatorColor: Color = SettingsValueStyle.secondary
-    var backgroundColor: Color = .amgiMenuSurface
+    var titleColor: Color? = nil
+    var indicatorColor: Color? = nil
+    var backgroundColor: Color? = nil
     var maxWidth: CGFloat = 220
+    @Environment(\.palette) private var palette
+
+    private var resolvedTitleColor: Color {
+        titleColor ?? palette.accent
+    }
+
+    private var resolvedIndicatorColor: Color {
+        indicatorColor ?? palette.textSecondary
+    }
+
+    private var resolvedBackgroundColor: Color {
+        backgroundColor ?? palette.surface
+    }
 
     var body: some View {
         HStack(spacing: AmgiSpacing.xs) {
             if let icon {
                 Image(systemName: icon)
                     .font(AmgiFont.micro.font)
-                    .foregroundStyle(indicatorColor)
+                    .foregroundStyle(resolvedIndicatorColor)
             }
             Text(title)
                 .amgiFont(.body)
-                .foregroundStyle(titleColor)
+                .foregroundStyle(resolvedTitleColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
             Image(systemName: "chevron.up.chevron.down")
                 .font(AmgiFont.micro.font)
-                .foregroundStyle(indicatorColor)
+                .foregroundStyle(resolvedIndicatorColor)
         }
-        .amgiCapsuleControl(backgroundColor: backgroundColor)
+        .amgiCapsuleControl(backgroundColor: resolvedBackgroundColor)
         .frame(maxWidth: maxWidth, alignment: .trailing)
     }
 }
 
 extension View {
     func amgiSettingsListRowSurface() -> some View {
-        listRowBackground(
-            Color(uiColor: UIColor { traits in
-                traits.userInterfaceStyle == .dark
-                    ? UIColor(red: 0.09, green: 0.10, blue: 0.12, alpha: 1.0)
-                    : .systemBackground
-            })
-        )
+        modifier(AmgiSettingsListRowSurfaceModifier())
     }
 
     func amgiListRowTapTarget(alignment: Alignment = .leading) -> some View {
         frame(maxWidth: .infinity, alignment: alignment)
             .background(Color.black.opacity(0.001))
             .contentShape(Rectangle())
+    }
+}
+
+private struct AmgiSettingsListRowSurfaceModifier: ViewModifier {
+    @Environment(\.palette) private var palette
+
+    func body(content: Content) -> some View {
+        content.listRowBackground(palette.surfaceElevated)
     }
 }
 
@@ -143,9 +151,9 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 struct SettingsView: View {
     @Dependency(\.ankiBackend) var backend
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.palette) private var palette
+    @State private var themeManager = ThemeManager.shared
 
-    @AppStorage("theme.appearance", store: .amgiAppGroup) private var appearanceRaw: String = Appearance.system.rawValue
-    @AppStorage("theme.selection", store: .amgiAppGroup) private var themeSelectionRaw: String = Theme.vivid.rawValue
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
 
     @State private var maintenanceMessage: String?
@@ -154,15 +162,15 @@ struct SettingsView: View {
 
     private var selectedAppearance: Binding<Appearance> {
         Binding(
-            get: { Appearance(rawValue: appearanceRaw) ?? .system },
-            set: { appearanceRaw = $0.rawValue }
+            get: { themeManager.appearance },
+            set: { themeManager.appearance = $0 }
         )
     }
 
     private var selectedThemeStyle: Binding<Theme> {
         Binding(
-            get: { Theme(rawValue: themeSelectionRaw) ?? .vivid },
-            set: { themeSelectionRaw = $0.rawValue }
+            get: { themeManager.theme },
+            set: { themeManager.theme = $0 }
         )
     }
 
@@ -189,7 +197,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .alert(L("common_done"), isPresented: $showMaintenanceAlert) {
             Button(L("common_ok"), role: .cancel) {}
         } message: {
@@ -232,7 +240,7 @@ struct SettingsView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
@@ -456,7 +464,7 @@ struct SettingsView: View {
     private func settingsRowLabel(_ title: String, icon: String) -> some View {
         Label(title, systemImage: icon)
             .amgiFont(.body)
-            .foregroundStyle(SettingsValueStyle.primary)
+            .foregroundStyle(palette.textPrimary)
             .amgiListRowTapTarget()
     }
 
@@ -660,6 +668,7 @@ private struct SettingsInfoView: View {
     let showsResetCurrentUserButton: Bool
     @Dependency(\.ankiBackend) private var backend
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     @State private var showResetConfirm = false
     @State private var showResetComplete = false
     @State private var showResetError = false
@@ -670,10 +679,10 @@ private struct SettingsInfoView: View {
             Section {
                 Text(message)
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 4)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
             }
 
             if showsResetCurrentUserButton {
@@ -681,14 +690,14 @@ private struct SettingsInfoView: View {
                     Button(L("debug_reset_button"), role: .destructive) {
                         showResetConfirm = true
                     }
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
                 } footer: {
                     Text(L("debug_reset_confirm_msg"))
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -734,6 +743,7 @@ private struct DatabaseCheckView: View {
     @Dependency(\.ankiBackend) private var backend
     @Dependency(\.collectionService) private var collection
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     @State private var isChecking = true
     @State private var resultMessage = ""
     @State private var loadErrorMessage: String?
@@ -753,14 +763,14 @@ private struct DatabaseCheckView: View {
                         Spacer()
                     }
                     .padding(.vertical, 24)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
                 } else {
                     Text(loadErrorMessage ?? resultMessage)
                         .amgiFont(.body)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 4)
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                 }
             }
 
@@ -769,14 +779,14 @@ private struct DatabaseCheckView: View {
                     Button(L("debug_reset_button"), role: .destructive) {
                         showResetConfirm = true
                     }
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
                 } footer: {
                     Text(L("debug_reset_confirm_msg"))
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_row_check_database"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -840,6 +850,7 @@ private struct DatabaseCheckView: View {
 private struct ThemeSettingsView: View {
     @Binding var selectedAppearance: Appearance
     @Binding var selectedThemeStyle: Theme
+    @Environment(\.palette) private var palette
 
     var body: some View {
         List {
@@ -851,11 +862,11 @@ private struct ThemeSettingsView: View {
                         HStack(spacing: 12) {
                             Text(appearance.displayName)
                                 .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             Spacer()
                             if selectedAppearance == appearance {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(palette.accent)
                             }
                         }
                         .amgiListRowTapTarget()
@@ -873,11 +884,11 @@ private struct ThemeSettingsView: View {
                         HStack(spacing: 12) {
                             Text(style.displayName)
                                 .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             Spacer()
                             if selectedThemeStyle == style {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(palette.accent)
                             }
                         }
                         .amgiListRowTapTarget()
@@ -889,7 +900,7 @@ private struct ThemeSettingsView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_picker_theme"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -897,6 +908,7 @@ private struct ThemeSettingsView: View {
 
 private struct LanguageSettingsView: View {
     @Binding var selectedLanguage: AppLanguage
+    @Environment(\.palette) private var palette
 
     var body: some View {
         List {
@@ -908,11 +920,11 @@ private struct LanguageSettingsView: View {
                         HStack(spacing: 12) {
                             Text(language.displayName)
                                 .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             Spacer()
                             if selectedLanguage == language {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(palette.accent)
                             }
                         }
                         .amgiListRowTapTarget()
@@ -928,7 +940,7 @@ private struct LanguageSettingsView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_picker_language"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -951,6 +963,7 @@ private struct ReviewOptionsView: View {
 
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.collectionService) var collection
+    @Environment(\.palette) private var palette
 
     @AppStorage(ReviewPreferences.Keys.playAudioInSilentMode) private var playAudioInSilentMode = false
     @AppStorage(ReviewPreferences.Keys.showContextMenuButton) private var showContextMenuButton = true
@@ -1025,7 +1038,7 @@ private struct ReviewOptionsView: View {
                 if isLoadingFsrsOptions {
                     HStack {
                         Text(L("settings_review_loading"))
-                            .foregroundStyle(SettingsValueStyle.secondary)
+                            .foregroundStyle(palette.textSecondary)
                         Spacer()
                         ProgressView()
                     }
@@ -1033,10 +1046,10 @@ private struct ReviewOptionsView: View {
                     HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(L("settings_review_day_start"))
-                                .foregroundStyle(SettingsValueStyle.primary)
+                                .foregroundStyle(palette.textPrimary)
                             Text(L("settings_review_day_start_hint"))
                                 .amgiFont(.caption)
-                                .foregroundStyle(SettingsValueStyle.secondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1054,10 +1067,10 @@ private struct ReviewOptionsView: View {
                         HStack(alignment: .top, spacing: AmgiSpacing.md) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(L("settings_review_daily_reminder_time"))
-                                    .foregroundStyle(SettingsValueStyle.primary)
+                                    .foregroundStyle(palette.textPrimary)
                                 Text(L("settings_review_daily_reminder_hint"))
                                     .amgiFont(.caption)
-                                    .foregroundStyle(SettingsValueStyle.secondary)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1073,7 +1086,7 @@ private struct ReviewOptionsView: View {
                     Toggle(L("settings_review_load_balancer_enabled"), isOn: $loadBalancerEnabled)
                     Text(L("settings_review_load_balancer_enabled_hint"))
                         .amgiFont(.caption)
-                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .foregroundStyle(palette.textSecondary)
 
                     Toggle(
                         L("settings_review_fsrs_short_term_with_steps_enabled"),
@@ -1081,7 +1094,7 @@ private struct ReviewOptionsView: View {
                     )
                     Text(L("settings_review_fsrs_short_term_with_steps_enabled_hint"))
                         .amgiFont(.caption)
-                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
             .amgiSettingsListRowSurface()
@@ -1095,14 +1108,14 @@ private struct ReviewOptionsView: View {
             Section(L("settings_review_section_page_display")) {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_card_alignment"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_review_card_alignment"), selection: cardAlignment) {
                             ForEach(CardAlignment.allCases) { alignment in
                                 Text(alignment.title)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(alignment)
                             }
                         }
@@ -1170,7 +1183,7 @@ private struct ReviewOptionsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_row_review"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -1208,7 +1221,7 @@ private struct ReviewOptionsView: View {
     private func reviewSettingsRowLabel(_ title: String, icon: String) -> some View {
         Label(title, systemImage: icon)
             .amgiFont(.body)
-            .foregroundStyle(SettingsValueStyle.primary)
+            .foregroundStyle(palette.textPrimary)
     }
 
     @MainActor
@@ -1328,6 +1341,7 @@ private struct ReviewOptionsView: View {
 
 private struct DeckListHeatmapSettingsView: View {
     @Dependency(\.deckClient) var deckClient
+    @Environment(\.palette) private var palette
 
     @AppStorage(DeckListHeatmapSettings.showKey) private var showDeckListHeatmap = true
     @AppStorage(DeckListHeatmapSettings.heightKey) private var deckListHeatmapHeight = DeckListHeatmapSettings.defaultHeight
@@ -1370,16 +1384,16 @@ private struct DeckListHeatmapSettingsView: View {
                 if showDeckListHeatmap {
                     HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         Text(L("settings_display_heatmap_scope"))
-                            .foregroundStyle(SettingsValueStyle.primary)
+                            .foregroundStyle(palette.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
                             Picker(L("settings_display_heatmap_scope"), selection: heatmapScope) {
                                 Text(L("settings_display_heatmap_scope_all"))
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(DeckListHeatmapScope.allDecks)
                                 Text(L("settings_display_heatmap_scope_selected"))
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(DeckListHeatmapScope.selectedDeck)
                             }
                         } label: {
@@ -1399,12 +1413,12 @@ private struct DeckListHeatmapSettingsView: View {
                                 ) {
                                     if decks.isEmpty {
                                         Text(L("settings_display_heatmap_selected_deck_none"))
-                                            .foregroundStyle(SettingsValueStyle.highlight)
+                                            .foregroundStyle(palette.accent)
                                             .tag(DeckListHeatmapSettings.defaultSelectedDeckID)
                                     } else {
                                         ForEach(decks) { deck in
                                             Text(deck.name)
-                                                .foregroundStyle(SettingsValueStyle.highlight)
+                                                .foregroundStyle(palette.accent)
                                                 .tag(Int(deck.id))
                                         }
                                     }
@@ -1419,10 +1433,10 @@ private struct DeckListHeatmapSettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Label(L("settings_display_deck_heatmap_height"), systemImage: "arrow.up.and.down")
-                                .foregroundStyle(SettingsValueStyle.primary)
+                                .foregroundStyle(palette.textPrimary)
                             Spacer()
                             Text(L("settings_display_deck_heatmap_height_value", Int(deckListHeatmapHeight)))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                         }
 
                         Slider(value: $deckListHeatmapHeight, in: 136...220, step: 4)
@@ -1430,14 +1444,14 @@ private struct DeckListHeatmapSettingsView: View {
 
                     HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         Label(L("settings_heatmap_initial_range"), systemImage: "calendar")
-                            .foregroundStyle(SettingsValueStyle.primary)
+                            .foregroundStyle(palette.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
                             Picker(L("settings_heatmap_initial_range"), selection: $initialDaysRaw) {
                                 ForEach(HeatmapInitialDays.allCases) { option in
                                     Text(option.localizedLabel)
-                                        .foregroundStyle(SettingsValueStyle.highlight)
+                                        .foregroundStyle(palette.accent)
                                         .tag(option.rawValue)
                                 }
                             }
@@ -1450,7 +1464,7 @@ private struct DeckListHeatmapSettingsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_row_home_heatmap"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -1482,6 +1496,7 @@ private struct DeckListHeatmapSettingsView: View {
 }
 
 private struct ReviewGestureOptionsView: View {
+    @Environment(\.palette) private var palette
     @AppStorage(ReviewPreferences.Keys.tapGestureLayout) private var tapGestureLayoutRaw = ReviewPreferences.TapGestureLayout.threeRows.rawValue
     @AppStorage(ReviewPreferences.Keys.frontTapGestureAction) private var frontTapGestureActionRaw = ReviewPreferences.GestureAction.showAnswer.rawValue
     @AppStorage(ReviewPreferences.Keys.frontSwipeLeftGestureAction) private var frontSwipeLeftGestureActionRaw = ReviewPreferences.GestureAction.none.rawValue
@@ -1499,14 +1514,14 @@ private struct ReviewGestureOptionsView: View {
             Section {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_tap_layout"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_review_tap_layout"), selection: $tapGestureLayoutRaw) {
                             ForEach(ReviewPreferences.TapGestureLayout.allCases) { layout in
                                 Text(layout.title)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(layout.rawValue)
                             }
                         }
@@ -1542,7 +1557,7 @@ private struct ReviewGestureOptionsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_review_section_gestures"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1580,6 +1595,8 @@ private struct ReviewGestureOptionsView: View {
 }
 
 private struct ReviewControllerOptionsView: View {
+    @Environment(\.palette) private var palette
+
     var body: some View {
         List {
             Section {
@@ -1593,7 +1610,7 @@ private struct ReviewControllerOptionsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_review_section_controller"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1611,6 +1628,8 @@ private struct ReviewControllerOptionsView: View {
 }
 
 private struct ReviewKeyboardOptionsView: View {
+    @Environment(\.palette) private var palette
+
     var body: some View {
         List {
             Section {
@@ -1624,7 +1643,7 @@ private struct ReviewKeyboardOptionsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_review_section_keyboard"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1643,19 +1662,20 @@ private struct ReviewKeyboardOptionsView: View {
 
 private struct ReviewInputActionRow: View {
     let title: String
+    @Environment(\.palette) private var palette
     @Binding var selection: ReviewPreferences.GestureAction
 
     var body: some View {
         HStack(alignment: .top, spacing: AmgiSpacing.md) {
             Text(title)
-                .foregroundStyle(SettingsValueStyle.primary)
+                .foregroundStyle(palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Menu {
                 Picker(title, selection: $selection) {
                     ForEach(ReviewPreferences.GestureAction.allCases) { action in
                         Text(action.title)
-                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .foregroundStyle(palette.accent)
                             .tag(action)
                     }
                 }
@@ -1830,6 +1850,7 @@ private struct ReaderOptionsView: View {
 }
 
 private struct SyncSettingsView: View {
+    @Environment(\.palette) private var palette
     @AppStorage(SyncPreferences.Keys.modeForCurrentUser()) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
     @AppStorage(SyncPreferences.Keys.syncMediaForCurrentUser()) private var syncMediaEnabled = true
     @AppStorage(SyncPreferences.Keys.backgroundSyncEnabledForCurrentUser()) private var backgroundSyncEnabled = true
@@ -1930,7 +1951,7 @@ private struct SyncSettingsView: View {
         Section(L("sync_settings_section_server")) {
             HStack(alignment: .top, spacing: AmgiSpacing.md) {
                 Text(L("sync_settings_server_type"))
-                    .foregroundStyle(SettingsValueStyle.primary)
+                    .foregroundStyle(palette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 serverTypeMenu
@@ -1948,7 +1969,7 @@ private struct SyncSettingsView: View {
                 Button(L("sync_settings_change_server")) {
                     showServerSetup = true
                 }
-                .foregroundStyle(SettingsValueStyle.highlight)
+                .foregroundStyle(palette.accent)
             }
 
             if syncMode != .local {
@@ -1956,7 +1977,7 @@ private struct SyncSettingsView: View {
                     Button(L("login_btn_sign_in")) {
                         showLogin = true
                     }
-                    .foregroundStyle(SettingsValueStyle.highlight)
+                    .foregroundStyle(palette.accent)
                 } else {
                     Button(L("sync_menu_logout"), role: .destructive) {
                         showLogoutConfirm = true
@@ -1976,7 +1997,7 @@ private struct SyncSettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(L("sync_settings_background_sync_hint"))
                     .amgiFont(.caption)
-                    .foregroundStyle(SettingsValueStyle.secondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -1984,7 +2005,7 @@ private struct SyncSettingsView: View {
 
             HStack(alignment: .top, spacing: AmgiSpacing.md) {
                 Text(L("sync_settings_timeout"))
-                    .foregroundStyle(SettingsValueStyle.primary)
+                    .foregroundStyle(palette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 timeoutMenu
@@ -2000,7 +2021,7 @@ private struct SyncSettingsView: View {
             } label: {
                 HStack {
                     Label(L("sync_settings_sync_now"), systemImage: "arrow.triangle.2.circlepath")
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                 }
                 .amgiListRowTapTarget()
@@ -2010,7 +2031,7 @@ private struct SyncSettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(L("sync_settings_sync_now_hint"))
                     .amgiFont(.caption)
-                    .foregroundStyle(SettingsValueStyle.secondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -2029,7 +2050,7 @@ private struct SyncSettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_row_sync"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showServerSetup) {
@@ -2068,11 +2089,11 @@ private struct SyncSettingsView: View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
                 .amgiFont(.body)
-                .foregroundStyle(SettingsValueStyle.primary)
+                .foregroundStyle(palette.textPrimary)
             Spacer()
             Text(value)
                 .amgiFont(.body)
-                .foregroundStyle(SettingsValueStyle.highlight)
+                .foregroundStyle(palette.accent)
                 .multilineTextAlignment(.trailing)
         }
     }
@@ -2081,13 +2102,13 @@ private struct SyncSettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(L("ankiweb_support_notice"))
                 .amgiFont(.caption)
-                .foregroundStyle(SettingsValueStyle.secondary)
+                .foregroundStyle(palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let url = URL(string: "https://apps.apple.com/us/app/ankimobile-flashcards/id373493387") {
                 HStack(spacing: 4) {
                     Text(L("common_view"))
                         .amgiFont(.caption)
-                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .foregroundStyle(palette.textSecondary)
                     Link(destination: url) {
                         HStack(spacing: 4) {
                             Text("AnkiMobile")
@@ -2095,7 +2116,7 @@ private struct SyncSettingsView: View {
                             Image(systemName: "arrow.up.right")
                                 .font(AmgiFont.caption.font)
                         }
-                        .foregroundStyle(Color.amgiLink)
+                        .foregroundStyle(palette.link)
                     }
                 }
             }
@@ -2138,6 +2159,7 @@ private struct SyncSettingsView: View {
 
 private struct SyncServerSetupSheet: View {
     @Binding var isPresented: Bool
+    @Environment(\.palette) private var palette
     @State private var serverURL: String = KeychainHelper.loadEndpoint() ?? ""
 
     var body: some View {
@@ -2153,7 +2175,7 @@ private struct SyncServerSetupSheet: View {
                 } footer: {
                     Text(L("onboarding_footer"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 Section {
@@ -2164,7 +2186,7 @@ private struct SyncServerSetupSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("sync_menu_change_server"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -2190,28 +2212,30 @@ private struct SyncServerSetupSheet: View {
 }
 
 private struct AboutView: View {
+    @Environment(\.palette) private var palette
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AmgiSpacing.xl) {
                 VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
                     Text("Amgi")
                         .amgiFont(.displayHero)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Text(L("about_summary_text"))
                         .amgiFont(.body)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 aboutSection(title: L("about_section_project")) {
                     Text(L("about_project_text"))
                         .amgiFont(.body)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                 }
 
                 aboutSection(title: L("about_section_architecture")) {
                     Text(L("about_architecture_text"))
                         .amgiFont(.body)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                 }
 
                 aboutSection(title: L("about_section_tech_stack")) {
@@ -2277,14 +2301,14 @@ private struct AboutView: View {
                 aboutSection(title: L("about_section_license")) {
                     Text(L("about_license_text"))
                         .amgiFont(.body)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, AmgiSpacing.lg)
             .padding(.vertical, AmgiSpacing.xl)
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("about_nav_title"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -2293,7 +2317,7 @@ private struct AboutView: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(title)
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             content()
         }
     }
@@ -2302,10 +2326,10 @@ private struct AboutView: View {
         HStack(alignment: .top, spacing: AmgiSpacing.xs) {
             Text("•")
                 .amgiFont(.body)
-                .foregroundStyle(Color.amgiAccent)
+                .foregroundStyle(palette.accent)
             Text(text)
                 .amgiFont(.body)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
         }
     }
 
@@ -2318,10 +2342,10 @@ private struct AboutView: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
             Text(title)
                 .amgiFont(.bodyEmphasis)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text(description)
                 .amgiFont(.body)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
             aboutLinkRow(title: linkTitle ?? urlString, urlString: urlString)
         }
     }
@@ -2336,7 +2360,7 @@ private struct AboutView: View {
                         Image(systemName: "arrow.up.right")
                             .font(AmgiFont.caption.font)
                     }
-                    .foregroundStyle(Color.amgiLink)
+                    .foregroundStyle(palette.link)
                 }
             }
         }

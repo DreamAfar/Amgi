@@ -16,6 +16,7 @@ import GameController
 struct ReviewView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.palette) private var palette
 
     let deckId: Int64
     let onDismiss: () -> Void
@@ -60,7 +61,7 @@ struct ReviewView: View {
     @State private var userActionRequestID = 0
     @State private var pendingUserActionIndex: Int?
     @State private var isKeyboardVisible = false
-    @State private var cardChromeUIColor: UIColor = .systemBackground
+    @State private var cardChromeUIColor: UIColor?
     @State private var cardChromeIsDark = false
     @State private var autoAdvanceDeadline: Date?
     @State private var lookupStack: [ReaderLookupPopupState] = []
@@ -296,7 +297,7 @@ struct ReviewView: View {
     }
 
     private var resolvedCardChromeUIColor: UIColor {
-        prefAutoMatchCardBackground ? cardChromeUIColor : .systemBackground
+        prefAutoMatchCardBackground ? (cardChromeUIColor ?? UIColor(palette.surface)) : UIColor(palette.surface)
     }
 
     private var resolvedCardChromeIsDark: Bool {
@@ -727,7 +728,7 @@ struct ReviewView: View {
             if let symbol = answerFeedbackSymbol {
                 Text(symbol)
                     .font(.system(size: 72, weight: .bold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(palette.textPrimary)
                     .padding(24)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .transition(.opacity)
@@ -752,7 +753,7 @@ struct ReviewView: View {
                     currentCardFlagView
                     Text(L("review_reviewed_count", session.sessionStats.reviewed))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
@@ -1718,7 +1719,7 @@ struct ReviewView: View {
                let seconds = session.nextIntervalSeconds[rating] {
                 Text(formatNextReviewTime(seconds))
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
             Text(ratingLabel(rating))
                 .font(reviewRatingTitleFont)
@@ -1766,10 +1767,10 @@ struct ReviewView: View {
             Label(L("review_finished_title"), systemImage: "checkmark.circle.fill")
                 .amgiStatusText(.positive, font: .sectionHeading)
             Text(L("review_finished_count", session.sessionStats.reviewed))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
             if session.sessionStats.reviewed > 0 {
                 Text(L("review_finished_accuracy", Int(session.sessionStats.accuracy * 100)))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
             Spacer()
             GeometryReader { geometry in
@@ -2476,7 +2477,7 @@ private struct AnkiJSToastView: View {
     var body: some View {
         Text(message)
             .font(.subheadline)
-            .foregroundStyle(.primary)
+            .foregroundStyle(palette.textPrimary)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -2646,7 +2647,7 @@ private struct ReviewSetDueDateSheet: View {
                 Section {
                     Text(L("review_set_due_prompt"))
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
 
                     TextField(L("review_set_due_placeholder"), text: $dueDays)
                         .textInputAutocapitalization(.never)
@@ -2699,7 +2700,7 @@ private struct ReviewAutoAdvanceTimerView: View {
             Image(systemName: "timer")
         }
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(palette.textSecondary)
     }
 
     private func formattedSeconds(_ seconds: Double) -> String {
@@ -2748,7 +2749,7 @@ private struct ReviewCardStatsSheet: View {
                     Section {
                         Text(statsError)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
 
@@ -2886,7 +2887,7 @@ private struct ReviewCardStatsSheet: View {
 
             Text(L("card_info_curve_target", Int((targetRetention * 100.0).rounded())))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -2934,7 +2935,7 @@ private struct ReviewCardStatsSheet: View {
                 .frame(width: 78, alignment: .trailing)
         }
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(palette.textSecondary)
     }
 
     private func historyRow(_ entry: Anki_Stats_CardStatsResponse.StatsRevlogEntry) -> some View {
@@ -2942,7 +2943,7 @@ private struct ReviewCardStatsSheet: View {
             Text(absoluteDateFlexible(entry.time))
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("\(entry.buttonChosen)")
-                .foregroundStyle(entry.buttonChosen == 1 ? .red : .primary)
+                .foregroundStyle(entry.buttonChosen == 1 ? AnyShapeStyle(Color.red) : AnyShapeStyle(palette.textPrimary))
                 .frame(width: 44, alignment: .center)
             Text(formatIntervalSeconds(Int(entry.interval)))
                 .frame(width: 78, alignment: .trailing)
@@ -2955,7 +2956,7 @@ private struct ReviewCardStatsSheet: View {
     private func row(_ title: String, _ value: String) -> some View {
         LabeledContent(title) {
             Text(value)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
                 .textSelection(.enabled)
         }
     }
@@ -3086,7 +3087,7 @@ private struct ReviewCardInfoSheet: View {
                     Section {
                         Text(statsError)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
 
@@ -3261,7 +3262,7 @@ private struct ReviewCardInfoSheet: View {
 
             Text(L("card_info_curve_target", Int((targetRetention * 100.0).rounded())))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -3310,7 +3311,7 @@ private struct ReviewCardInfoSheet: View {
                 .frame(width: 78, alignment: .trailing)
         }
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(palette.textSecondary)
     }
 
     private func historyRow(_ entry: Anki_Stats_CardStatsResponse.StatsRevlogEntry) -> some View {
@@ -3318,7 +3319,7 @@ private struct ReviewCardInfoSheet: View {
             Text(absoluteDateFlexible(entry.time))
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("\(entry.buttonChosen)")
-                .foregroundStyle(entry.buttonChosen == 1 ? .red : .primary)
+                .foregroundStyle(entry.buttonChosen == 1 ? AnyShapeStyle(Color.red) : AnyShapeStyle(palette.textPrimary))
                 .frame(width: 44, alignment: .center)
             Text(formatIntervalSeconds(Int(entry.interval)))
                 .frame(width: 78, alignment: .trailing)
@@ -3331,7 +3332,7 @@ private struct ReviewCardInfoSheet: View {
     private func row(_ title: String, _ value: String) -> some View {
         LabeledContent(title) {
             Text(value)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
                 .textSelection(.enabled)
         }
     }

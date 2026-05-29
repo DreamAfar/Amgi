@@ -3,6 +3,7 @@ import AnkiBackend
 import AnkiKit
 import AnkiClients
 import AnkiProto
+import AmgiTheme
 import Dependencies
 import SwiftProtobuf
 
@@ -12,6 +13,7 @@ struct EmptyCardsView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.noteClient) var noteClient
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @State private var isLoading = true
     @State private var report: String = ""
@@ -38,7 +40,7 @@ struct EmptyCardsView: View {
                 if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.amgiBackground)
+                        .background(palette.background)
                 } else {
                     resultsList
                 }
@@ -122,7 +124,7 @@ struct EmptyCardsView: View {
                         .amgiStatusText(.positive)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 8)
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                 }
             } else {
                 Section {
@@ -131,15 +133,15 @@ struct EmptyCardsView: View {
                         systemImage: "rectangle.stack.badge.minus"
                     )
                     .amgiStatusText(.warning)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
 
                     if !report.isEmpty {
                         DisclosureGroup(L("empty_cards_report")) {
                             Text(report)
                                 .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                     }
                 }
 
@@ -152,13 +154,13 @@ struct EmptyCardsView: View {
                                 VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                                     Text(L("empty_cards_note_id", entry.id))
                                         .font(.subheadline.monospacedDigit())
-                                        .foregroundStyle(Color.amgiTextPrimary)
+                                        .foregroundStyle(palette.textPrimary)
                                     Text(L("empty_cards_note_summary", entry.totalCards, entry.emptyCards))
                                         .amgiFont(.caption)
-                                        .foregroundStyle(Color.amgiTextSecondary)
+                                        .foregroundStyle(palette.textSecondary)
                                     Text(L("empty_cards_note_deck", entry.deckName))
                                         .amgiFont(.caption)
-                                        .foregroundStyle(Color.amgiTextSecondary)
+                                        .foregroundStyle(palette.textSecondary)
                                     if entry.willDeleteNote {
                                         Text(L("empty_cards_will_delete_note"))
                                             .amgiStatusText(.danger, font: .caption)
@@ -166,12 +168,12 @@ struct EmptyCardsView: View {
                                 }
                                 Spacer(minLength: 8)
                                 Image(systemName: "square.and.pencil")
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                         }
                         .buttonStyle(.plain)
                         .contentShape(Rectangle())
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                     }
                 }
 
@@ -190,12 +192,12 @@ struct EmptyCardsView: View {
                         }
                     }
                     .disabled(isDeletingAll)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
     }
 
     private func loadEmptyCards() async {

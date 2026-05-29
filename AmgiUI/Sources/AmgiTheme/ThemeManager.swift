@@ -1,6 +1,10 @@
 public import Foundation
 public import SwiftUI
 
+/// Single source of truth for app theme selection and persistence.
+///
+/// Settings screens should mutate `ThemeManager.shared` instead of creating a
+/// separate `AppStorage`-driven theme state in feature code.
 @Observable
 public final class ThemeManager: @unchecked Sendable {
     nonisolated(unsafe) public static let shared = ThemeManager()

@@ -1,5 +1,6 @@
 import SwiftUI
 import AnkiBackend
+import AmgiTheme
 import Dependencies
 
 struct BackupView: View {
@@ -15,6 +16,7 @@ struct BackupView: View {
     let username: String
 
     @Dependency(\.ankiBackend) var backend
+    @Environment(\.palette) private var palette
 
     @State private var backups: [BackupFileEntry] = []
     @State private var isCreating = false
@@ -80,7 +82,7 @@ struct BackupView: View {
                     Text(L("backup_media_notice"))
                 }
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
             }
 
             Section {
@@ -98,7 +100,7 @@ struct BackupView: View {
                     }
                 }
                 .disabled(isCreating || isRestoring)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
 
                 Button {
                     showCleanupOptions = true
@@ -106,7 +108,7 @@ struct BackupView: View {
                     Label(L("backup_cleanup_action"), systemImage: "trash")
                 }
                 .disabled(isCreating || isRestoring || backups.isEmpty)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("backup_storage_hint"))
@@ -115,17 +117,17 @@ struct BackupView: View {
                     }
                 }
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
             }
 
             if backups.isEmpty {
                 Section {
                     Text(L("backup_empty"))
                         .amgiFont(.body)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 8)
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                 }
             } else {
                 Section(L("backup_section_list")) {
@@ -134,15 +136,15 @@ struct BackupView: View {
                             VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                                 Text(entry.formattedDate)
                                     .amgiFont(.body)
-                                    .foregroundStyle(Color.amgiTextPrimary)
+                                    .foregroundStyle(palette.textPrimary)
                                 Text(entry.fileSize)
                                     .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                             Spacer()
                             ShareLink(item: entry.url) {
                                 Image(systemName: "square.and.arrow.up")
-                                    .foregroundStyle(Color.amgiAccent)
+                                    .foregroundStyle(palette.accent)
                             }
                             .buttonStyle(.plain)
 
@@ -152,7 +154,7 @@ struct BackupView: View {
                                     showRestoreConfirm = true
                                 } label: {
                                     Image(systemName: "arrow.counterclockwise")
-                                        .foregroundStyle(Color.amgiAccent)
+                                        .foregroundStyle(palette.accent)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -180,7 +182,7 @@ struct BackupView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("backup_nav_title"))
         .navigationBarTitleDisplayMode(.inline)
         .alert(L("backup_delete_title"), isPresented: $showDeleteConfirm) {
@@ -264,10 +266,10 @@ struct BackupView: View {
     private func backupSettingRow(title: String, value: String) -> some View {
         HStack(alignment: .top, spacing: AmgiSpacing.md) {
             Text(title)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(value)
-                .foregroundStyle(Color.amgiAccent)
+                .foregroundStyle(palette.accent)
                 .monospacedDigit()
         }
     }

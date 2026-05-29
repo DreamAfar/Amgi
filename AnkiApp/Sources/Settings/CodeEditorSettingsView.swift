@@ -30,6 +30,7 @@ struct CodeEditorSettingsView: View {
     @AppStorage(CodeEditorPreferences.fontSizeKey) private var fontSize: Double = 14.0
     @AppStorage(CodeEditorPreferences.fontFamilyKey) private var fontFamilyRaw: String = "monospace"
     @AppStorage(CodeEditorPreferences.templateInsertTokensKey) private var templateInsertTokensRaw = ""
+    @Environment(\.palette) private var palette
 
     private let minFontSize: Double = 10
     private let maxFontSize: Double = 32
@@ -61,7 +62,7 @@ struct CodeEditorSettingsView: View {
                     } label: {
                         Image(systemName: "minus")
                             .frame(width: 28, height: 28)
-                            .background(Color.amgiSurface)
+                            .background(palette.surface)
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -76,28 +77,28 @@ struct CodeEditorSettingsView: View {
                     } label: {
                         Image(systemName: "plus")
                             .frame(width: 28, height: 28)
-                            .background(Color.amgiSurface)
+                            .background(palette.surface)
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
                     .disabled(fontSize >= maxFontSize)
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
 
                 // 代码预览
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L("code_editor_preview_label"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
 
                     Text("{{Front}}")
                         .font(.system(size: fontSize, design: .monospaced))
                         .padding(8)
-                        .background(Color.amgiSurface)
+                        .background(palette.surface)
                         .cornerRadius(4)
                 }
                 .padding(.vertical, 4)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
 
                 // 字体选择
                 Picker(L("code_editor_font_family"), selection: Binding(
@@ -110,7 +111,7 @@ struct CodeEditorSettingsView: View {
                             .tag(family.rawValue)
                     }
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             }
 
             Section(header: Text(L("code_editor_section_keyboard_toolbar"))) {
@@ -124,14 +125,14 @@ struct CodeEditorSettingsView: View {
                         )
                         Text(templateInsertSummary)
                             .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_row_editing"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -150,6 +151,7 @@ enum CodeFontFamily: String, CaseIterable, Identifiable {
 
 private struct CardTemplateInsertToolbarSettingsView: View {
     @AppStorage(CodeEditorPreferences.templateInsertTokensKey) private var templateInsertTokensRaw = ""
+    @Environment(\.palette) private var palette
 
     private var parsedTokens: [String] {
         CodeEditorPreferences.parsedTemplateInsertTokens(from: templateInsertTokensRaw)
@@ -161,13 +163,13 @@ private struct CardTemplateInsertToolbarSettingsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(L("code_editor_template_insert_description"))
                         .amgiFont(.body)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
 
                     ZStack(alignment: .topLeading) {
                         if templateInsertTokensRaw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             Text(L("code_editor_template_insert_placeholder"))
                                 .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextTertiary)
+                                .foregroundStyle(palette.textTertiary)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 10)
                                 .allowsHitTesting(false)
@@ -182,18 +184,18 @@ private struct CardTemplateInsertToolbarSettingsView: View {
                             .font(.system(size: 15, design: .monospaced))
                     }
                     .padding(8)
-                    .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .padding(.vertical, 4)
             } footer: {
                 Text(L("code_editor_template_insert_hint"))
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
 
             Section(L("code_editor_template_insert_preview")) {
                 if parsedTokens.isEmpty {
                     Text(L("code_editor_template_insert_default_summary"))
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 } else {
                     ForEach(parsedTokens, id: \.self) { token in
                         Text(token)
@@ -201,10 +203,10 @@ private struct CardTemplateInsertToolbarSettingsView: View {
                     }
                 }
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("code_editor_template_insert_settings"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

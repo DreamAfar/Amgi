@@ -87,6 +87,7 @@ struct DeckCustomStudySheet: View {
 
     @Dependency(\.deckClient) var deckClient
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @State private var defaults: Anki_Scheduler_CustomStudyDefaultsResponse?
     @State private var mode: DeckCustomStudyMode = .newLimit
@@ -106,17 +107,17 @@ struct DeckCustomStudySheet: View {
                     ProgressView()
                     Text(L("deck_custom_study_loading"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.amgiBackground)
+                .background(palette.background)
             } else if defaults == nil {
                 ContentUnavailableView(
                     L("deck_custom_study_title"),
                     systemImage: "exclamationmark.triangle",
                     description: Text(errorMessage ?? L("common_unknown_error"))
                 )
-                .background(Color.amgiBackground)
+                .background(palette.background)
             } else {
                 formContent
             }
@@ -162,11 +163,11 @@ struct DeckCustomStudySheet: View {
                     } label: {
                         HStack(spacing: 12) {
                             Label(candidate.title, systemImage: candidate.icon)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             Spacer()
                             if mode == candidate {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.amgiAccent)
+                                    .foregroundStyle(palette.accent)
                             }
                         }
                     }
@@ -178,13 +179,13 @@ struct DeckCustomStudySheet: View {
                 if let descriptionText {
                     Text(descriptionText)
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 HStack(spacing: 12) {
                     Text(amountPrompt)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer(minLength: 12)
                     TextField("", text: $amountText)
                         .keyboardType(allowsNegativeInput ? .numbersAndPunctuation : .numberPad)
@@ -193,7 +194,7 @@ struct DeckCustomStudySheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     Text(amountUnit)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 if mode == .cram {
@@ -215,7 +216,7 @@ struct DeckCustomStudySheet: View {
                             Text(L("deck_custom_study_include_tags"))
                             Spacer()
                             Text(tagSummary(includeTags))
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     }
 
@@ -231,14 +232,14 @@ struct DeckCustomStudySheet: View {
                             Text(L("deck_custom_study_exclude_tags"))
                             Spacer()
                             Text(tagSummary(excludeTags))
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     }
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .disabled(isWorking)
         .overlay {
             if isWorking {
@@ -247,7 +248,7 @@ struct DeckCustomStudySheet: View {
                         .ignoresSafeArea()
                     ProgressView()
                         .padding(20)
-                        .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             }
         }
@@ -438,6 +439,7 @@ private struct DeckCustomStudyTagPickerView: View {
     let allTags: [String]
     @Binding var selectedTags: Set<String>
     @Binding var oppositeTags: Set<String>
+    @Environment(\.palette) private var palette
 
     @State private var searchText = ""
 
@@ -462,11 +464,11 @@ private struct DeckCustomStudyTagPickerView: View {
                     } label: {
                         HStack {
                             Text(tag)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             Spacer()
                             if selectedTags.contains(tag) {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.amgiAccent)
+                                    .foregroundStyle(palette.accent)
                             }
                         }
                     }
@@ -474,7 +476,7 @@ private struct DeckCustomStudyTagPickerView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                .background(Color.amgiBackground)
+                .background(palette.background)
                 .searchable(text: $searchText, prompt: L("deck_custom_study_search_tags"))
             }
         }

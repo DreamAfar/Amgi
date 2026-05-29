@@ -2,6 +2,8 @@ import SwiftUI
 import Charts
 import AnkiProto
 struct RetrievabilityChart: View {
+    @Environment(\.palette) private var palette
+
     let retrievability: Anki_Stats_GraphsResponse.Retrievability
 
     @State private var selectedBucketStart: Int?
@@ -82,18 +84,18 @@ struct RetrievabilityChart: View {
                 VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                     Text(L("stats_retrievability_title"))
                         .amgiFont(.sectionHeading)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
 
                     Text(L("stats_retrievability_subtitle"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
 
             if chartData.allSatisfy({ $0.count == 0 }) {
                 Text(L("stats_retrievability_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 retrievabilityChart
@@ -149,7 +151,7 @@ struct RetrievabilityChart: View {
            selectedBucket.start == item.start {
             let countLabel = L("stats_card_count")
             RuleMark(x: .value("Selected Retrievability", selectedBucket.center))
-                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .foregroundStyle(palette.accent.opacity(0.35))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
@@ -250,12 +252,12 @@ struct RetrievabilityChart: View {
     private func retrievabilityChartXAxis() -> some AxisContent {
         AxisMarks(values: [0, 25, 50, 75, 100]) { value in
             AxisGridLine()
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
             if let v = value.as(Int.self) {
                 AxisValueLabel {
                     Text("\(v)%")
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -265,13 +267,13 @@ struct RetrievabilityChart: View {
     private func retrievabilityChartYAxis() -> some AxisContent {
         AxisMarks(position: .leading, values: yAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: yAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -286,11 +288,11 @@ struct RetrievabilityChart: View {
         HStack(alignment: .firstTextBaseline, spacing: AmgiSpacing.xs) {
             Text("\(label)：")
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
             Text(value)
                 .amgiFont(.captionBold)
                 .monospacedDigit()
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
             Spacer(minLength: 0)

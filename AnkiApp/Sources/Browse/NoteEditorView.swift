@@ -40,6 +40,7 @@ struct NoteEditorView: View {
     @State private var notetype: Anki_Notetypes_Notetype?
     @FocusState private var isTagEditorFocused: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     private var trimmedTags: String {
         tagList.joined(separator: " ")
@@ -106,13 +107,13 @@ struct NoteEditorView: View {
                 }
                 .padding(.horizontal, AmgiSpacing.md)
                 .padding(.vertical, AmgiSpacing.xs)
-                .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 .listRowBackground(Color.clear)
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         // The embedded fields editor is one tall WKWebView row; letting Form apply
         // keyboard avoidance makes it overshoot based on the row height instead of
         // the active caret position.
@@ -259,7 +260,7 @@ struct NoteEditorView: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("add_note_section_tags"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
 
             ZStack(alignment: .topLeading) {
                 // TextField is always in the hierarchy so @FocusState binding is always active.
@@ -283,7 +284,7 @@ struct NoteEditorView: View {
                         if tagList.isEmpty {
                             Text(L("tags_add_placeholder"))
                                 .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                                 // Empty state: tap anywhere → enter edit mode
                                 .contentShape(Rectangle())
                                 .onTapGesture {
@@ -311,10 +312,10 @@ struct NoteEditorView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.amgiAccent.opacity(0.12), lineWidth: 1)
+                    .stroke(palette.accent.opacity(0.12), lineWidth: 1)
             )
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             // Background tap (outside any pill) → enter edit mode
@@ -330,11 +331,11 @@ struct NoteEditorView: View {
         ZStack(alignment: .topTrailing) {
             Text(tag)
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiAccent)
+                .foregroundStyle(palette.accent)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(Color.amgiAccent.opacity(0.14), in: Capsule())
+                .background(palette.accent.opacity(0.14), in: Capsule())
 
             Button {
                 pendingTagRemoval = tag

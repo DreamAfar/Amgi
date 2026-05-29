@@ -210,6 +210,7 @@ struct AddImageOcclusionNoteView: View {
     @State private var imageURL: URL?
     @State private var showOcclusionEditor = false
     @State private var showTextOnlyWarning = false
+    @Environment(\.palette) private var palette
 
     let onSave: () -> Void
     let preselectedDeckId: Int64?
@@ -233,13 +234,13 @@ struct AddImageOcclusionNoteView: View {
 
                 Section {
                     Text(L("browse_add_image_occlusion"))
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                 } header: {
                     Text(L("add_note_section_type"))
                 } footer: {
                     Text(L("io_add_flow_hint"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 Section {
@@ -273,7 +274,7 @@ struct AddImageOcclusionNoteView: View {
                     } footer: {
                         Text(L("io_masks_hint"))
                             .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
 
@@ -289,7 +290,7 @@ struct AddImageOcclusionNoteView: View {
                 } footer: {
                     Text(L("io_tags_hint"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 // MARK: Error
@@ -301,7 +302,7 @@ struct AddImageOcclusionNoteView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .toolbar(.hidden, for: .tabBar)
             .navigationTitle(L("io_nav_title"))
             .navigationBarTitleDisplayMode(.inline)

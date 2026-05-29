@@ -1,8 +1,10 @@
 import SwiftUI
 import AnkiSync
+import AmgiTheme
 
 struct OnboardingView: View {
     @Binding var isCompleted: Bool
+    @Environment(\.palette) private var palette
     @State private var showServerSetup = false
     @State private var serverURL = ""
 
@@ -12,15 +14,15 @@ struct OnboardingView: View {
 
             Image(systemName: "rectangle.stack.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(Color.amgiAccent)
+                .foregroundStyle(palette.accent)
 
             Text(L("onboarding_welcome"))
                 .amgiFont(.displayHero)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             Text(L("onboarding_subtitle"))
                 .amgiFont(.body)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
 
             VStack(spacing: 12) {
                 if showServerSetup {
@@ -36,13 +38,13 @@ struct OnboardingView: View {
                             saveAndContinue()
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(Color.amgiAccent)
+                        .tint(palette.accent)
                         .disabled(serverURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                         Button(L("onboarding_btn_back")) {
                             showServerSetup = false
                         }
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                     }
                 } else {
                     Button {
@@ -52,7 +54,7 @@ struct OnboardingView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
                     .controlSize(.large)
 
                     Button {
@@ -67,7 +69,7 @@ struct OnboardingView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
                     .controlSize(.large)
                 }
             }
@@ -75,11 +77,11 @@ struct OnboardingView: View {
 
             Text(L("onboarding_footer"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
 
             Spacer()
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
     }
 
     private func saveAndContinue() {

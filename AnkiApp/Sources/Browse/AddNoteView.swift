@@ -7,12 +7,14 @@ import AnkiClients
 import AnkiServices
 import AnkiBackend
 import AnkiProto
+import AmgiTheme
 import Dependencies
 import SwiftProtobuf
 
 struct AddNoteView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.palette) private var palette
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.mediaClient) var mediaClient
@@ -121,7 +123,7 @@ struct AddNoteView: View {
                     }
                     .padding(.horizontal, AmgiSpacing.md)
                     .padding(.vertical, AmgiSpacing.xs)
-                    .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .listRowBackground(Color.clear)
                 }
@@ -140,7 +142,7 @@ struct AddNoteView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             // The embedded fields editor is one tall WKWebView row; letting Form apply
             // keyboard avoidance makes it overshoot based on the row height instead of
             // the active caret position.

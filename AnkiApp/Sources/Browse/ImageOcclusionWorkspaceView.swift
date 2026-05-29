@@ -92,6 +92,7 @@ struct ImageOcclusionMaskSummaryCard: View {
     let image: UIImage
     let masks: [IOMask]
     let action: () -> Void
+    @Environment(\.palette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -108,7 +109,7 @@ struct ImageOcclusionMaskSummaryCard: View {
             HStack(spacing: 12) {
                 Text(masks.isEmpty ? L("io_no_masks") : L("io_mask_count", masks.count))
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                 Spacer()
                 Button(action: action) {
                     Text(L("io_edit_action"))
@@ -118,13 +119,14 @@ struct ImageOcclusionMaskSummaryCard: View {
             }
         }
         .padding(12)
-        .background(Color.amgiSurface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(palette.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
 struct ImageOcclusionWorkspaceView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.palette) private var palette
 
     let title: String
     let image: UIImage
@@ -185,7 +187,7 @@ struct ImageOcclusionWorkspaceView: View {
             )
             .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.amgiBackground)
+            .background(palette.background)
         }
         .toolbar(.hidden, for: .tabBar)
         .navigationTitle(title)
@@ -299,7 +301,7 @@ struct ImageOcclusionWorkspaceView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
-        .background(Color.amgiSurface)
+        .background(palette.surface)
     }
 
     private var bottomToolbars: some View {
@@ -384,7 +386,7 @@ struct ImageOcclusionWorkspaceView: View {
         }
         .padding(.top, 10)
         .padding(.bottom, 10)
-        .background(Color.amgiSurface)
+        .background(palette.surface)
         .overlay(alignment: .top) {
             Divider()
         }
@@ -403,7 +405,7 @@ struct ImageOcclusionWorkspaceView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(textEditorTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -431,7 +433,7 @@ struct ImageOcclusionWorkspaceView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("io_fill_custom"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -488,7 +490,7 @@ struct ImageOcclusionWorkspaceView: View {
         .foregroundStyle(isSelected ? Color.white : Color.primary)
         .frame(maxWidth: .infinity, minHeight: 42)
         .padding(.horizontal, 2)
-        .background(isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(isSelected ? palette.accent : palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     @ViewBuilder
@@ -982,6 +984,8 @@ struct ImageOcclusionWorkspaceView: View {
 }
 
 struct ZoomableOcclusionCanvasView: UIViewRepresentable {
+    @Environment(\.palette) private var palette
+
     let image: UIImage
     @Binding var masks: [IOMask]
     @Binding var selectedMaskIndex: Int?
@@ -1012,7 +1016,7 @@ struct ZoomableOcclusionCanvasView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> ZoomableOcclusionCanvasContainer {
-        let view = ZoomableOcclusionCanvasContainer(image: image)
+        let view = ZoomableOcclusionCanvasContainer(image: image, backgroundColor: palette.surfaceElevated)
         view.canvasView.coordinator = context.coordinator
         return view
     }
@@ -1049,7 +1053,7 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
     private var lastBoundsSize: CGSize = .zero
     private var imageSize: CGSize
 
-    init(image: UIImage) {
+    init(image: UIImage, backgroundColor: UIColor) {
         self.canvasView = OcclusionCanvasUIView(image: image)
         self.imageSize = image.size
         super.init(frame: .zero)
@@ -1060,7 +1064,7 @@ final class ZoomableOcclusionCanvasContainer: UIScrollView, UIScrollViewDelegate
         bouncesZoom = true
         minimumZoomScale = 1
         maximumZoomScale = 5
-        backgroundColor = UIColor(Color.amgiSurfaceElevated)
+        backgroundColor = backgroundColor
         layer.cornerRadius = 24
         canvasView.imageInset = canvasSelectionPadding
         updateCanvasRenderingScale()

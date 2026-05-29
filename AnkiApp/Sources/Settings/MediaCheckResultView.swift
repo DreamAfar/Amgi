@@ -1,6 +1,7 @@
 import SwiftUI
 import AnkiBackend
 import AnkiProto
+import AmgiTheme
 import Dependencies
 import SwiftProtobuf
 
@@ -29,6 +30,7 @@ private func fetchLatestMediaCheckResult(using backend: AnkiBackend) throws -> M
 struct MediaCheckResultView: View {
     @State private var currentResult: MediaCheckResult?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @Dependency(\.ankiBackend) var backend
     @State private var isLoading = true
@@ -53,10 +55,10 @@ struct MediaCheckResultView: View {
                         ProgressView()
                         Text(L("media_check_running"))
                             .amgiFont(.body)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.amgiBackground)
+                    .background(palette.background)
                 } else if let currentResult {
                     List {
                         summarySection(currentResult)
@@ -65,9 +67,9 @@ struct MediaCheckResultView: View {
                         if currentResult.haveTrash || !currentResult.unused.isEmpty { trashSection(currentResult) }
                     }
                     .scrollContentBackground(.hidden)
-                    .background(Color.amgiBackground)
+                    .background(palette.background)
                 } else {
-                    Color.amgiBackground
+                    palette.background
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -103,22 +105,22 @@ struct MediaCheckResultView: View {
                 systemImage: "exclamationmark.triangle"
             )
             .amgiStatusText(currentResult.missing.isEmpty ? .neutral : .danger)
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
 
             Label(
                 L("media_check_unused_count", currentResult.unused.count),
                 systemImage: "archivebox"
             )
             .amgiStatusText(currentResult.unused.isEmpty ? .neutral : .warning)
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
 
             if !currentResult.report.isEmpty {
                 DisclosureGroup(L("media_check_full_report")) {
                     Text(currentResult.report)
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             }
         }
     }
@@ -128,13 +130,13 @@ struct MediaCheckResultView: View {
             ForEach(currentResult.missing.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "questionmark.circle")
                     .amgiStatusText(.danger, font: .caption)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
             }
             if currentResult.missing.count > 200 {
                 Text(L("media_check_and_more", currentResult.missing.count - 200))
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .foregroundStyle(palette.textSecondary)
+                    .listRowBackground(palette.surfaceElevated)
             }
         }
     }
@@ -144,13 +146,13 @@ struct MediaCheckResultView: View {
             ForEach(currentResult.unused.prefix(200), id: \.self) { file in
                 Label(file, systemImage: "tray")
                     .amgiStatusText(.warning, font: .caption)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
             }
             if currentResult.unused.count > 200 {
                 Text(L("media_check_and_more", currentResult.unused.count - 200))
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .foregroundStyle(palette.textSecondary)
+                    .listRowBackground(palette.surfaceElevated)
             }
         }
     }
@@ -172,7 +174,7 @@ struct MediaCheckResultView: View {
                     }
                 }
                 .disabled(isTrashingUnused)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             }
 
             if currentResult.haveTrash {
@@ -190,7 +192,7 @@ struct MediaCheckResultView: View {
                     }
                 }
                 .disabled(isDeletingTrash)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
 
                 Button {
                     restoreTrash()
@@ -206,7 +208,7 @@ struct MediaCheckResultView: View {
                     }
                 }
                 .disabled(isRestoringTrash)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             }
         }
     }

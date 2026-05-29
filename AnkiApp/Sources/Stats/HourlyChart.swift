@@ -2,6 +2,8 @@ import SwiftUI
 import Charts
 import AnkiProto
 struct HourlyChart: View {
+    @Environment(\.palette) private var palette
+
     let hours: Anki_Stats_GraphsResponse.Hours
     let revlogRange: RevlogRange
     @State private var period: StatsPeriod = .year
@@ -92,11 +94,11 @@ struct HourlyChart: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_hourly_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             Text(L("stats_hourly_subtitle"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
 
             Picker("", selection: $period) {
                 ForEach(revlogRange.allowedStatsPeriods, id: \.self) { allowedPeriod in
@@ -116,7 +118,7 @@ struct HourlyChart: View {
             if isEmpty {
                 Text(L("stats_hourly_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 hourlyChart
@@ -177,7 +179,7 @@ struct HourlyChart: View {
                 x: .value("Hour", entry.hour),
                 y: .value(L("stats_hourly_correct_pct"), plottedCorrectPct(entry.correctPct))
             )
-            .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+            .foregroundStyle(palette.textSecondary.opacity(0.08))
             .interpolationMethod(.catmullRom)
 
             LineMark(
@@ -195,7 +197,7 @@ struct HourlyChart: View {
     private func selectedHourlyRuleMark() -> some ChartContent {
         if let selectedEntry {
             RuleMark(x: .value("Selected Hour", selectedEntry.hour))
-                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .foregroundStyle(palette.accent.opacity(0.35))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
@@ -304,11 +306,11 @@ struct HourlyChart: View {
     private func hourlyChartXAxis() -> some AxisContent {
         AxisMarks(values: Array(stride(from: 0, through: 22, by: 2))) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.2))
+                .foregroundStyle(palette.textTertiary.opacity(0.2))
             if let hourValue = value.as(Int.self) {
                 AxisValueLabel(formatHour(hourValue))
                     .font(AmgiFont.micro.font)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
         }
     }
@@ -317,26 +319,26 @@ struct HourlyChart: View {
     private func hourlyChartYAxis() -> some AxisContent {
         AxisMarks(position: .leading, values: leftAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: leftAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
 
         AxisMarks(position: .trailing, values: rightAxisValues) { value in
             AxisTick()
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+                .foregroundStyle(palette.textTertiary.opacity(0.35))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: rightAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }

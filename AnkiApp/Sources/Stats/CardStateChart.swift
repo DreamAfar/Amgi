@@ -3,6 +3,8 @@ import Charts
 import AnkiKit
 
 struct CardStateChart: View {
+    @Environment(\.palette) private var palette
+
     let breakdown: CardStateBreakdown
 
     private var chartData: [(String, Int, Color)] {
@@ -18,12 +20,12 @@ struct CardStateChart: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_card_states_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             if chartData.isEmpty {
                 Text(L("stats_card_states_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 150)
             } else {
                 Chart(chartData, id: \.0) { item in
@@ -38,7 +40,7 @@ struct CardStateChart: View {
                             Circle().fill(item.2).frame(width: 8, height: 8)
                             Text("\(item.0): \(item.1)")
                                 .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     }
                 }

@@ -26,6 +26,7 @@ struct BrowseView: View {
     @Dependency(\.notetypesService) var notetypesService
     @Dependency(\.ankiBackend) var backend
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.palette) private var palette
 
     @State private var searchText = ""
     @State private var allNoteIDs: [Int64] = []
@@ -487,19 +488,19 @@ struct BrowseView: View {
                 VStack(spacing: 1) {
                     Text(L("browse_nav_title"))
                         .amgiFont(.cardTitle)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Text(L("browse_selected_count", selectedNoteIDs.count))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             } else {
                 VStack(spacing: 1) {
                     Text(L("browse_nav_title"))
                         .amgiFont(.cardTitle)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Text(L("browse_total_count", allNoteIDs.count))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -777,7 +778,7 @@ struct BrowseView: View {
                     .controlSize(.large)
                 Text(L("browse_loading"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .transition(.opacity.animation(.easeInOut(duration: 0.2)))
@@ -799,7 +800,7 @@ struct BrowseView: View {
             ForEach(notes, id: \.id) { note in
                 if isEditing {
                     NoteRowView(note: note, notetypeName: showNotetypeSubtitle ? notetypeNamesByID[note.mid] : nil)
-                        .listRowBackground(selectedNoteIDs.contains(note.id) ? Color.accentColor.opacity(0.10) : noteRowBgColor(note))
+                        .listRowBackground(selectedNoteIDs.contains(note.id) ? palette.accent.opacity(0.10) : noteRowBgColor(note))
                         .onAppear {
                             if note.id == notes.last?.id {
                                 Task { await loadNextPage() }
@@ -885,7 +886,7 @@ struct BrowseView: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
-        .background(Color(.secondarySystemBackground))
+        .background(palette.background)
     }
 
     private var browseSidebarDeckChips: some View {
@@ -1019,12 +1020,12 @@ struct BrowseView: View {
                     .frame(width: 10, height: 10)
                 Text(title)
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Spacer()
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(isSelected ? Color.amgiAccent.opacity(0.12) : Color.clear)
+            .background(isSelected ? palette.accent.opacity(0.12) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -1048,11 +1049,11 @@ struct BrowseView: View {
                 .frame(maxWidth: 160)
             Text("\(batchProgressDone)/\(batchProgressTotal)")
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
         }
         .padding(.horizontal, AmgiSpacing.md)
         .padding(.vertical, AmgiSpacing.xs)
-        .background(Color.amgiSurface)
+        .background(palette.surface)
         .clipShape(Capsule())
     }
 
@@ -1066,16 +1067,16 @@ struct BrowseView: View {
                     .controlSize(.large)
                 Text(L("import_export_progress_exporting"))
                     .amgiFont(.sectionHeading)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text(L("import_export_progress_detail"))
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, AmgiSpacing.xl)
             .padding(.vertical, AmgiSpacing.lg)
             .frame(maxWidth: 300)
-            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .amgiShadow()
         }
     }
@@ -1341,10 +1342,10 @@ struct BrowseView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .frame(height: 62)
-        .background(Color.amgiSurface)
+        .background(palette.surface)
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(Color.amgiBorder.opacity(0.28))
+            .fill(palette.border.opacity(0.28))
                 .frame(height: 1)
         }
     }
@@ -1944,8 +1945,8 @@ struct BrowseView: View {
                 .font(small ? AmgiFont.caption.font : AmgiFont.body.font)
                 .padding(.horizontal, small ? 10 : 12)
                 .padding(.vertical, small ? 4 : 6)
-                .background(isSelected ? Color.amgiAccent : Color.amgiSurface)
-                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.amgiTextPrimary))
+                .background(isSelected ? palette.accent : palette.surface)
+                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(palette.textPrimary))
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -2685,6 +2686,7 @@ private struct BrowseFilterQuickPickerSheet: View {
     let onSelect: (String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     private let columns = [GridItem(.adaptive(minimum: 110), spacing: 10)]
 
@@ -2705,7 +2707,7 @@ private struct BrowseFilterQuickPickerSheet: View {
             }
             .padding()
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -2722,8 +2724,8 @@ private struct BrowseFilterQuickPickerSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated)
-                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.amgiTextPrimary))
+                .background(isSelected ? palette.accent : palette.surfaceElevated)
+                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(palette.textPrimary))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -2893,6 +2895,7 @@ enum BrowseSortField: String, CaseIterable {
 struct NoteRowView: View {
     let note: NoteRecord
     let notetypeName: String?
+    @Environment(\.palette) private var palette
 
     private var tagList: [String] {
         note.tags
@@ -2946,8 +2949,8 @@ struct NoteRowView: View {
                                 .font(.system(size: 10))
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
-                                .background(Color.accentColor.opacity(0.12))
-                                .foregroundStyle(Color.accentColor)
+                                .background(palette.accent.opacity(0.12))
+                                .foregroundStyle(palette.accent)
                                 .clipShape(Capsule())
                         }
                         if extra > 0 {
@@ -2955,8 +2958,8 @@ struct NoteRowView: View {
                                 .font(.system(size: 10))
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
-                                .background(Color(.secondarySystemFill))
-                                .foregroundStyle(Color(.secondaryLabel))
+                                .background(palette.surfaceElevated)
+                                .foregroundStyle(palette.textSecondary)
                                 .clipShape(Capsule())
                         }
                     }
@@ -2979,6 +2982,7 @@ struct MoveToDeckSheet: View {
     let onSelect: (DeckInfo) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     var body: some View {
         NavigationStack {
@@ -2988,7 +2992,7 @@ struct MoveToDeckSheet: View {
                     dismiss()
                 } label: {
                     Text(deck.name)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(palette.textPrimary)
                 }
             }
             .listStyle(.plain)
@@ -3011,6 +3015,7 @@ struct ChangeNotetypeSheet: View {
     @Dependency(\.notetypesClient) var notetypesClient
     @Dependency(\.notetypesService) var notetypesService
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @State private var notetypeNames: [(id: Int64, name: String)] = []
     @State private var isLoading = true
@@ -3032,7 +3037,7 @@ struct ChangeNotetypeSheet: View {
                         } label: {
                             HStack {
                                 Text(notetype.name)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(palette.textPrimary)
                                 Spacer()
                                 if isFetchingInfo {
                                     ProgressView()
@@ -3124,6 +3129,7 @@ private struct ChangeNotetypeFieldMappingView: View {
     let onApply: (Anki_Notetypes_ChangeNotetypeRequest) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     // field mapping: index = new field idx, value = old field idx (-1 = discard)
     @State private var fieldMapping: [Int]
@@ -3151,10 +3157,10 @@ private struct ChangeNotetypeFieldMappingView: View {
             // Info header
             Section {
                 LabeledContent(L("browse_batch_change_notetype_from")) {
-                    Text(info.oldNotetypeName).foregroundStyle(.secondary)
+                    Text(info.oldNotetypeName).foregroundStyle(palette.textSecondary)
                 }
                 LabeledContent(L("browse_batch_change_notetype_to")) {
-                    Text(data.newNotetypeName).foregroundStyle(.secondary)
+                    Text(data.newNotetypeName).foregroundStyle(palette.textSecondary)
                 }
             }
 
@@ -3171,7 +3177,7 @@ private struct ChangeNotetypeFieldMappingView: View {
                             ForEach(unmappedOldFields, id: \.self) { name in
                                 Text("· \(name)")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                         }
                     }
@@ -3244,6 +3250,7 @@ struct BrowseFindDuplicatesSheet: View {
     @Dependency(\.notetypesService) var notetypesService
     @Dependency(\.ankiBackend) var backend
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @State private var searchText: String
     @State private var fieldFilterText = ""
@@ -3313,7 +3320,7 @@ struct BrowseFindDuplicatesSheet: View {
 
                 if filteredFieldNames.isEmpty {
                     Text(L("browse_find_duplicates_no_fields"))
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 } else {
                     ForEach(filteredFieldNames, id: \.self) { fieldName in
                         Button {
@@ -3321,11 +3328,11 @@ struct BrowseFindDuplicatesSheet: View {
                         } label: {
                             HStack {
                                 Text(fieldName)
-                                    .foregroundStyle(Color.amgiTextPrimary)
+                                    .foregroundStyle(palette.textPrimary)
                                 Spacer()
                                 if selectedField == fieldName {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(Color.amgiAccent)
+                                        .foregroundStyle(palette.accent)
                                 }
                             }
                         }
@@ -3354,10 +3361,10 @@ struct BrowseFindDuplicatesSheet: View {
                 Section {
                     if duplicateGroups.isEmpty {
                         Text(L("browse_find_duplicates_none"))
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     } else {
                         Text(L("browse_find_duplicates_summary", duplicateGroups.count, totalDuplicateNotes))
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
 
                         Button {
                             Task { await tagDuplicates() }
@@ -3377,11 +3384,11 @@ struct BrowseFindDuplicatesSheet: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(group.value)
-                                        .foregroundStyle(Color.amgiTextPrimary)
+                                        .foregroundStyle(palette.textPrimary)
                                         .lineLimit(2)
                                     Text(L("browse_note_count", group.noteIDs.count))
                                         .amgiFont(.caption)
-                                        .foregroundStyle(Color.amgiTextSecondary)
+                                        .foregroundStyle(palette.textSecondary)
                                 }
                             }
                         }
@@ -3390,7 +3397,7 @@ struct BrowseFindDuplicatesSheet: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .listStyle(.insetGrouped)
     }
 

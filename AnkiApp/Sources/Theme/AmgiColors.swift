@@ -7,6 +7,14 @@ import AmgiTheme
 /// Dynamic colors that respect both the current Theme (vivid/muted/legacy)
 /// and the system color scheme (light/dark).
 ///
+/// This file is an app-side alias layer for the current repository, not the
+/// upstream theme token source of truth. When adjusting vivid/muted/legacy base
+/// colors, update `Palette.swift` first.
+///
+/// Feature pages should prefer these aliases for self-drawn surfaces and text
+/// instead of `Color.primary`, `Color.secondary`, `Color.accentColor`, or raw
+/// system background fills.
+///
 /// Uses `UIColor` dynamic provider so that colors auto-update when
 /// the user switches themes or the system toggles Dark Mode.
 extension Color {

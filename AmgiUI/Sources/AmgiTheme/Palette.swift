@@ -1,5 +1,9 @@
 public import SwiftUI
 
+/// Theme token source of truth.
+///
+/// Add or adjust vivid/muted/legacy colors here first, then consume them through
+/// `@Environment(\.palette)` in feature code.
 public struct Palette: Sendable, Equatable {
     public let background: Color
     public let surface: Color

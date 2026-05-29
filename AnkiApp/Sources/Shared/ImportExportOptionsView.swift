@@ -1,6 +1,7 @@
 import SwiftUI
 import AnkiKit
 import AnkiClients
+import AmgiTheme
 import Dependencies
 
 struct ExportPackageDraft: Sendable {
@@ -33,6 +34,7 @@ struct ExportPackageDraft: Sendable {
 
 struct ExportOptionsView: View {
     @Dependency(\.deckClient) private var deckClient
+    @Environment(\.palette) private var palette
 
     @Binding var draft: ExportPackageDraft
     let availableKinds: [ExportPackageDraft.Kind]
@@ -78,12 +80,12 @@ struct ExportOptionsView: View {
                                 .controlSize(.small)
                             Text(L("sync_syncing"))
                                 .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     } else if resolvedDecks.isEmpty {
                         Text(L("review_no_decks_available"))
                             .amgiFont(.caption)
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     } else {
                         Picker(
                             L("export_config_deck"),
@@ -102,10 +104,10 @@ struct ExportOptionsView: View {
                 if draft.kind == .selectedNotesPackage, let selectedNotesCount {
                     Text(L("export_config_selected_notes_count", selectedNotesCount))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
 
             Section(L("export_config_options")) {
                 Toggle(L("export_config_include_media"), isOn: $draft.includeMedia)
@@ -117,10 +119,10 @@ struct ExportOptionsView: View {
 
                 Toggle(L("export_config_legacy_support"), isOn: $draft.legacySupport)
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("menu_export_deck"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -240,6 +242,7 @@ struct ImportPackageDraft: Sendable {
 struct ImportOptionsView: View {
     let fileName: String
     let fileExtension: String
+    @Environment(\.palette) private var palette
     @Binding var draft: ImportPackageDraft
     let onCancel: () -> Void
     let onImport: () -> Void
@@ -254,24 +257,24 @@ struct ImportOptionsView: View {
                 Text(fileName)
                 Text(L(isCollectionPackage ? "import_config_file_type_collection" : "import_config_file_type_apkg"))
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
 
             if isCollectionPackage {
                 Section(L("import_config_collection_title")) {
                     Text(L("import_config_collection_message"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             } else {
                 Section(L("import_config_options")) {
                     Toggle(L("import_config_include_scheduling"), isOn: $draft.includeScheduling)
                     Toggle(L("import_config_include_deck_configs"), isOn: $draft.includeDeckConfigs)
                     Toggle(L("import_config_merge_notetypes"), isOn: $draft.mergeNotetypes)
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
 
                 Section(L("import_config_update_policy")) {
                     Picker(L("import_config_update_notes"), selection: $draft.updateNotes) {
@@ -286,11 +289,11 @@ struct ImportOptionsView: View {
                         }
                     }
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("alert_import_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -24,6 +24,7 @@ struct NoteImageOptimizationSheet: View {
     let request: NoteImageOptimizationRequest
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     @AppStorage("image_optimizer_custom_max_dimension") private var storedCustomMaxDimension = 640
 
     @State private var cropAspect: CropAspectPreset = .original
@@ -65,7 +66,7 @@ struct NoteImageOptimizationSheet: View {
                 }
                 .padding(12)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(palette.background)
             .navigationTitle(L("image_optimizer_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -140,8 +141,8 @@ struct NoteImageOptimizationSheet: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color(.secondarySystemBackground),
-                                    Color(.systemBackground),
+                                    palette.surface,
+                                    palette.surfaceElevated,
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -195,7 +196,7 @@ struct NoteImageOptimizationSheet: View {
             .frame(height: 260)
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(palette.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private var infoSection: some View {
@@ -206,13 +207,13 @@ struct NoteImageOptimizationSheet: View {
 
                 Image(systemName: "arrow.right")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
 
                 Text("\(L("image_optimizer_output_title"))：\(pixelSizeText(outputPreview?.pixelSize ?? originalPixelSize))")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Color.amgiTextPrimary)
+            .foregroundStyle(palette.textPrimary)
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(ByteCountFormatter.string(fromByteCount: Int64(request.originalByteCount), countStyle: .file))
@@ -225,7 +226,7 @@ struct NoteImageOptimizationSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .font(.caption)
-            .foregroundStyle(Color.amgiTextSecondary)
+            .foregroundStyle(palette.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 4)
@@ -253,11 +254,11 @@ struct NoteImageOptimizationSheet: View {
                                     .padding(.vertical, 8)
                                     .background(
                                         cropAspect == preset
-                                            ? Color.accentColor
-                                            : Color(.tertiarySystemFill),
+                                            ? palette.accent
+                                            : palette.surfaceElevated,
                                         in: Capsule()
                                     )
-                                    .foregroundStyle(cropAspect == preset ? .white : .primary)
+                                    .foregroundStyle(cropAspect == preset ? AnyShapeStyle(Color.white) : AnyShapeStyle(palette.textPrimary))
                             }
                             .buttonStyle(.plain)
                         }
@@ -271,10 +272,10 @@ struct NoteImageOptimizationSheet: View {
                         .font(.subheadline.weight(.semibold))
                     Text(L("image_optimizer_resolution_original_longest_fmt", originalLongestSide))
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                     Text(L("image_optimizer_resolution_no_upscale_hint"))
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 LazyVGrid(
@@ -296,13 +297,13 @@ struct NoteImageOptimizationSheet: View {
                     Spacer()
                     Text("\(Int(compressionQuality * 100))%")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 Slider(value: $compressionQuality, in: 0.45...0.95, step: 0.05)
             }
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(palette.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private func maxDimensionLabel(for value: Int) -> String {
@@ -354,7 +355,7 @@ struct NoteImageOptimizationSheet: View {
                         .foregroundStyle(Color.white.opacity(0.92))
                 }
             }
-            .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(palette.textPrimary))
             .lineLimit(1)
             .frame(maxWidth: .infinity, minHeight: 32)
             .padding(.horizontal, 8)
@@ -367,16 +368,16 @@ struct NoteImageOptimizationSheet: View {
 
     private func resolutionButtonBackground(isSelected: Bool, isEnabled: Bool) -> Color {
         if isSelected {
-            return .accentColor
+            return palette.accent
         }
-        return isEnabled ? Color(.tertiarySystemFill) : Color(.quaternarySystemFill)
+        return isEnabled ? palette.surfaceElevated : palette.surfaceElevated.opacity(0.6)
     }
 
     private func resolutionButtonTextColor(isSelected: Bool, isEnabled: Bool) -> Color {
         if isSelected {
             return .white
         }
-        return isEnabled ? .primary : .secondary
+        return isEnabled ? palette.textPrimary : palette.textSecondary
     }
 
     private func isResolutionOptionEnabled(_ option: ResolutionOption) -> Bool {

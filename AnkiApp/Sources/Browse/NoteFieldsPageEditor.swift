@@ -202,6 +202,7 @@ struct NoteFieldsPageEditor: View {
 
 private struct NoteFieldsPageWebView: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.palette) private var palette
 
     let fieldNames: [String]
     @Binding var fieldValues: [String]
@@ -1852,7 +1853,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
     private func makeInputToolbar(for webView: WKWebView, coordinator: Coordinator) -> UIView {
         let container = NoteFieldsToolbarContainerView(frame: CGRect(x: 0, y: 0, width: 0, height: 68))
-        container.backgroundColor = .secondarySystemBackground
+        container.backgroundColor = UIColor(palette.background)
         container.clipsToBounds = false
 
         let divider = UIView()
@@ -1862,7 +1863,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
 
         let bubble = UIView()
         bubble.translatesAutoresizingMaskIntoConstraints = false
-        bubble.backgroundColor = .systemBackground
+        bubble.backgroundColor = UIColor(palette.surface)
         bubble.layer.cornerRadius = 18
         bubble.layer.shadowColor = UIColor.black.withAlphaComponent(0.16).cgColor
         bubble.layer.shadowOpacity = 1
@@ -2369,7 +2370,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = tintColor
-        button.backgroundColor = .tertiarySystemFill
+        button.backgroundColor = UIColor(palette.surfaceElevated)
         button.layer.cornerRadius = 16
         button.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         var configuration = UIButton.Configuration.plain()
@@ -2393,7 +2394,7 @@ private struct NoteFieldsPageWebView: UIViewRepresentable {
             let badge = UIImageView(image: UIImage(systemName: badgeSystemName))
             badge.translatesAutoresizingMaskIntoConstraints = false
             badge.tintColor = tintColor
-            badge.backgroundColor = .systemBackground
+            badge.backgroundColor = UIColor(palette.surface)
             badge.layer.cornerRadius = 6
             badge.clipsToBounds = true
             button.addSubview(badge)

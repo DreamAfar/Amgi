@@ -9,6 +9,7 @@ import UIKit
 /// In source mode, it preserves the raw stored HTML.
 struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
     @Binding var htmlText: String
+    @Environment(\.palette) private var palette
     var preservesSourceHTML = false
     var onInsertPhoto: (() -> Void)?
     var onInsertCameraPhoto: (() -> Void)?
@@ -60,7 +61,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
         textView.layer.cornerRadius = 0
         textView.textContainer.lineFragmentPadding = 0
         textView.textContainerInset = UIEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
-        textView.textColor = .label
+        textView.textColor = UIColor(palette.textPrimary)
         context.coordinator.attach(textView: textView)
         textView.inputAccessoryView = makeInputToolbar(for: textView, coordinator: context.coordinator)
         context.coordinator.render(html: htmlText, in: textView)
@@ -109,7 +110,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
 
     private func makeInputToolbar(for textView: UITextView, coordinator: Coordinator) -> UIView {
         let container = ToolbarContainerView(frame: CGRect(x: 0, y: 0, width: 0, height: 68))
-        container.backgroundColor = .secondarySystemBackground
+        container.backgroundColor = UIColor(palette.background)
         container.clipsToBounds = false
 
         let divider = UIView()
@@ -119,7 +120,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
 
         let bubble = UIView()
         bubble.translatesAutoresizingMaskIntoConstraints = false
-        bubble.backgroundColor = .systemBackground
+        bubble.backgroundColor = UIColor(palette.surface)
         bubble.layer.cornerRadius = 18
         bubble.layer.shadowColor = UIColor.black.withAlphaComponent(0.16).cgColor
         bubble.layer.shadowOpacity = 1
@@ -623,7 +624,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
         button.layer.borderColor = UIColor.separator.cgColor
         if color == .clear {
             button.setImage(UIImage(systemName: "slash.circle"), for: .normal)
-            button.tintColor = .secondaryLabel
+            button.tintColor = UIColor(palette.textSecondary)
         }
         button.widthAnchor.constraint(equalToConstant: 32).isActive = true
         button.heightAnchor.constraint(equalToConstant: 32).isActive = true
@@ -640,7 +641,7 @@ struct LegacyRichNoteFieldTextEditor: UIViewRepresentable {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = tintColor
-        button.backgroundColor = .tertiarySystemFill
+        button.backgroundColor = UIColor(palette.surfaceElevated)
         button.layer.cornerRadius = 16
         button.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         if let title {

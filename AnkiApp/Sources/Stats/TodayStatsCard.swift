@@ -2,6 +2,8 @@ import SwiftUI
 import AnkiProto
 
 struct TodayStatsCard: View {
+    @Environment(\.palette) private var palette
+
     enum LayoutStyle {
         case standard
         case sidebar
@@ -41,7 +43,7 @@ struct TodayStatsCard: View {
             if !embedded {
                 Text(L("stats_today_title"))
                     .amgiFont(.sectionHeading)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
             }
 
             metricsContent
@@ -63,8 +65,8 @@ struct TodayStatsCard: View {
         case .standard:
             VStack(spacing: compactText ? 10 : 12) {
                 HStack(spacing: compactText ? 10 : 12) {
-                    statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
-                    statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: Color.amgiTextPrimary)
+                    statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: palette.textPrimary)
+                    statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: palette.textPrimary)
                     statItem(title: L("stats_today_correct"), value: accuracy, color: .green)
                     statItem(title: L("stats_today_mature"), value: matureAccuracy, color: .purple)
                 }
@@ -84,8 +86,8 @@ struct TodayStatsCard: View {
             ]
 
             LazyVGrid(columns: columns, alignment: .center, spacing: compactText ? 12 : 14) {
-                statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: Color.amgiTextPrimary)
-                statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: Color.amgiTextPrimary)
+                statItem(title: L("stats_today_reviewed"), value: "\(today.answerCount)", color: palette.textPrimary)
+                statItem(title: L("stats_today_time"), value: formatTime(today.answerMillis), color: palette.textPrimary)
                 statItem(title: L("stats_today_correct"), value: accuracy, color: .green)
                 statItem(title: L("stats_today_mature"), value: matureAccuracy, color: .purple)
                 statBadge(L("stats_card_learn"), count: today.learnCount, color: .cyan)
@@ -106,7 +108,7 @@ struct TodayStatsCard: View {
                 .frame(maxWidth: .infinity, alignment: .center)
             Text(title)
                 .amgiFont(compactText ? .micro : .caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
@@ -122,7 +124,7 @@ struct TodayStatsCard: View {
                 .frame(maxWidth: .infinity, alignment: .center)
             Text(title)
                 .amgiFont(.micro)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .center)
         }

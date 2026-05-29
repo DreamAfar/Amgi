@@ -6,6 +6,7 @@ import Dependencies
 
 struct EditImageOcclusionNoteView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     @Dependency(\.imageOcclusionClient) private var client
 
     let noteId: Int64
@@ -69,7 +70,7 @@ struct EditImageOcclusionNoteView: View {
                             } footer: {
                                 Text(L("io_masks_hint"))
                                     .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                         }
 
@@ -86,7 +87,7 @@ struct EditImageOcclusionNoteView: View {
                         } footer: {
                             Text(L("io_tags_hint"))
                                 .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
 
                         if let err = saveError {
@@ -97,7 +98,7 @@ struct EditImageOcclusionNoteView: View {
                         }
                     }
                     .scrollContentBackground(.hidden)
-                    .background(Color.amgiBackground)
+                    .background(palette.background)
                 }
             }
         }

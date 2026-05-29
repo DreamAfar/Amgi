@@ -446,6 +446,7 @@ private enum ReviewSelectionAIError: LocalizedError {
 }
 
 struct ReviewSelectionLookupLinkSettingsView: View {
+    @Environment(\.palette) private var palette
     @AppStorage(ReviewPreferences.Keys.selectionMenuLookupEnabled) private var selectionMenuLookupEnabled = false
     @State private var store = ReviewSelectionLookupPresetStore.load()
 
@@ -491,7 +492,8 @@ struct ReviewSelectionLookupLinkSettingsView: View {
                             title: presetTitle(preset, index: index),
                             subtitle: preset.template.trimmedOrNil ?? L("common_none"),
                             isSelected: preset.id == store.selectedPresetID,
-                            icon: "link"
+                            icon: "link",
+                            palette: palette
                         )
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -508,7 +510,7 @@ struct ReviewSelectionLookupLinkSettingsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_review_lookup_settings"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -559,6 +561,7 @@ struct ReviewSelectionLookupLinkSettingsView: View {
 private struct ReviewSelectionLookupLinkPresetEditorView: View {
     @Binding var preset: ReviewSelectionLookupPreset
     let title: String
+    @Environment(\.palette) private var palette
 
     var body: some View {
         List {
@@ -585,13 +588,14 @@ private struct ReviewSelectionLookupLinkPresetEditorView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 struct ReviewAISettingsHomeView: View {
+    @Environment(\.palette) private var palette
     @AppStorage(ReviewPreferences.Keys.selectionMenuAIEnabled) private var selectionMenuAIEnabled = false
     @State private var favoriteStore = ReviewAIFavoriteStore.load()
     @State private var quickActionStore = ReviewAIQuickActionStore.load()
@@ -649,7 +653,7 @@ struct ReviewAISettingsHomeView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_review_ai_settings"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -668,6 +672,7 @@ struct ReviewAISettingsHomeView: View {
 }
 
 private struct ReviewAIPresetManagementView: View {
+    @Environment(\.palette) private var palette
     @State private var store = ReviewSelectionAIPresetStore.load()
 
     var body: some View {
@@ -705,7 +710,8 @@ private struct ReviewAIPresetManagementView: View {
                             title: presetTitle(preset, index: index),
                             subtitle: preset.endpoint.trimmedOrNil ?? L("common_none"),
                             isSelected: preset.id == store.selectedPresetID,
-                            icon: "sparkles"
+                            icon: "sparkles",
+                            palette: palette
                         )
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -722,7 +728,7 @@ private struct ReviewAIPresetManagementView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_review_ai_presets"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -773,6 +779,7 @@ private struct ReviewAIPresetManagementView: View {
 private struct ReviewAIPresetEditorView: View {
     @Binding var preset: ReviewSelectionAIPreset
     let title: String
+    @Environment(\.palette) private var palette
     @State private var apiKey: String
 
     init(preset: Binding<ReviewSelectionAIPreset>, title: String) {
@@ -824,7 +831,7 @@ private struct ReviewAIPresetEditorView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear {
@@ -863,6 +870,7 @@ private func placeholderTextEditor(
 }
 
 private struct ReviewAIFavoritesView: View {
+    @Environment(\.palette) private var palette
     @State private var store = ReviewAIFavoriteStore.load()
 
     var body: some View {
@@ -906,7 +914,7 @@ private struct ReviewAIFavoritesView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_review_ai_favorites"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -916,6 +924,7 @@ private struct ReviewAIFavoritesView: View {
 }
 
 private struct ReviewAIQuickActionsView: View {
+    @Environment(\.palette) private var palette
     @State private var store = ReviewAIQuickActionStore.load()
 
     var body: some View {
@@ -954,7 +963,7 @@ private struct ReviewAIQuickActionsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_review_ai_quick_actions"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -1013,7 +1022,7 @@ private struct ReviewAIQuickActionEditorView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1021,6 +1030,7 @@ private struct ReviewAIQuickActionEditorView: View {
 
 private struct ReviewAIFavoriteDetailView: View {
     let item: ReviewAIFavoriteItem
+    @Environment(\.palette) private var palette
     @State private var pendingAddNoteDraft: ReviewAIAddNoteSheetDraft?
 
     var body: some View {
@@ -1054,7 +1064,7 @@ private struct ReviewAIFavoriteDetailView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(item.presetName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -1093,6 +1103,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
     @Dependency(\.ankiBackend) private var backend
     @Dependency(\.deckClient) private var deckClient
     @Dependency(\.notetypesService) private var notetypesService
+    @Environment(\.palette) private var palette
 
     @State private var store = ReviewAINoteTemplateStore.load()
     @State private var decks: [DeckInfo] = []
@@ -1150,7 +1161,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
                 VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
                     Text(L("settings_review_ai_note_template_selection_format"))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
 
                     ReviewAISelectionFormatFlowLayout(horizontalSpacing: 8, verticalSpacing: 8) {
                         ForEach(ReviewAINoteSelectionFormat.allCases) { format in
@@ -1174,7 +1185,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(fieldName)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                         HStack {
                             TextField(L("common_none"), text: templateMappingBinding(for: fieldName))
                                 .submitLabel(.done)
@@ -1191,7 +1202,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
                             } label: {
                                 Image(systemName: "chevron.up.chevron.down")
                             }
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                         }
                     }
                 }
@@ -1199,7 +1210,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L("io_section_tags"))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                     TextField(L("common_none"), text: tagsBinding)
                         .submitLabel(.done)
                 }
@@ -1211,7 +1222,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_review_ai_note_template"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -1354,13 +1365,13 @@ private struct ReviewAISelectionFormatCapsule: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(
-            isSelected ? Color.amgiAccent : Color.amgiSurfaceElevated,
+            isSelected ? palette.accent : palette.surfaceElevated,
             in: Capsule()
         )
         .overlay(
             Capsule()
                 .stroke(
-                    isSelected ? Color.amgiAccent.opacity(0.16) : Color.amgiBorder.opacity(0.28),
+                    isSelected ? palette.accent.opacity(0.16) : palette.border.opacity(0.28),
                     lineWidth: 1
                 )
         )
@@ -1433,7 +1444,7 @@ private func settingsDestinationRow(title: String, subtitle: String, icon: Strin
 }
 
 @MainActor
-private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: String) -> some View {
+private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: String, palette: Palette) -> some View {
     HStack(spacing: AmgiSpacing.sm) {
         Image(systemName: icon)
             .foregroundStyle(SettingsValueStyle.secondary)
@@ -1453,7 +1464,7 @@ private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: 
 
         if isSelected {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(Color.amgiAccent)
+                .foregroundStyle(palette.accent)
         }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1501,7 +1512,7 @@ struct ReviewSelectionAISheetView: View {
 
     var body: some View {
         contentView
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("review_selection_ai_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1597,7 +1608,7 @@ struct ReviewSelectionAISheetView: View {
                 .frame(minHeight: 92)
                 .padding(8)
                 .scrollContentBackground(.hidden)
-                .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1631,7 +1642,7 @@ struct ReviewSelectionAISheetView: View {
                 maxHeight: resultPanelMaximumHeight,
                 alignment: .topLeading
             )
-            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1670,7 +1681,7 @@ struct ReviewSelectionAISheetView: View {
                             onSubmit(action)
                         }
                         .foregroundStyle(SettingsValueStyle.secondary)
-                        .amgiCapsuleControl(backgroundColor: Color.amgiMenuSurface, horizontalPadding: 10, verticalPadding: 6)
+                        .amgiCapsuleControl(backgroundColor: palette.surfaceElevated, horizontalPadding: 10, verticalPadding: 6)
                     }
                 }
             }
@@ -1705,7 +1716,7 @@ struct ReviewSelectionAISheetView: View {
                 .padding(.top, AmgiSpacing.xs)
             }
             .padding(12)
-            .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

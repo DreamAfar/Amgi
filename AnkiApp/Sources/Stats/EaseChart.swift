@@ -2,6 +2,8 @@ import SwiftUI
 import Charts
 import AnkiProto
 struct EaseChart: View {
+    @Environment(\.palette) private var palette
+
     let eases: Anki_Stats_GraphsResponse.Eases
     let difficulty: Anki_Stats_GraphsResponse.Eases
     let isFSRS: Bool
@@ -145,24 +147,24 @@ struct EaseChart: View {
                 VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                     Text(isFSRS ? L("stats_difficulty_title") : L("stats_ease_title"))
                         .amgiFont(.sectionHeading)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
 
                     Text(isFSRS ? L("stats_difficulty_subtitle") : L("stats_ease_subtitle"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 if !isFSRS {
                     Spacer()
                     Text(L("stats_ease_median_fmt", averageEase))
                         .amgiFont(.captionBold)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
 
             if chartData.isEmpty {
                 Text(L("stats_ease_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 easeChart()
@@ -170,7 +172,7 @@ struct EaseChart: View {
                     Text(difficultyMedianText)
                         .amgiFont(.captionBold)
                         .monospacedDigit()
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .multilineTextAlignment(.center)
                 }
@@ -296,12 +298,12 @@ struct EaseChart: View {
     private func easeChartXAxis() -> some AxisContent {
         AxisMarks(values: xAxisValues) { value in
             AxisGridLine()
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
             if let axisValue = value.as(Int.self) {
                 AxisValueLabel {
                     Text("\(axisValue)%")
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -311,13 +313,13 @@ struct EaseChart: View {
     private func easeChartYAxis() -> some AxisContent {
         AxisMarks(position: .leading, values: yAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(yAxisLabel(for: raw))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -340,7 +342,7 @@ struct EaseChart: View {
         if let selectedItem {
             let countLabel = L("stats_card_count")
             RuleMark(x: .value("Selected Ease", selectedItem.ease))
-                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .foregroundStyle(palette.accent.opacity(0.35))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(

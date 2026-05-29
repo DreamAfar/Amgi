@@ -2,6 +2,8 @@ import SwiftUI
 import Charts
 import AnkiProto
 struct ButtonsChart: View {
+    @Environment(\.palette) private var palette
+
     let buttons: Anki_Stats_GraphsResponse.Buttons
     let revlogRange: RevlogRange
     @State private var period: StatsPeriod = .year
@@ -113,11 +115,11 @@ struct ButtonsChart: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_buttons_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             Text(L("stats_buttons_subtitle"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
 
             Picker("", selection: $period) {
                 ForEach(revlogRange.allowedStatsPeriods, id: \.self) { allowedPeriod in
@@ -137,7 +139,7 @@ struct ButtonsChart: View {
             if entries.isEmpty {
                 Text(L("stats_buttons_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 buttonsChart
@@ -238,13 +240,13 @@ struct ButtonsChart: View {
     private func buttonsChartYAxis() -> some AxisContent {
         AxisMarks(position: .leading, values: yAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: yAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }

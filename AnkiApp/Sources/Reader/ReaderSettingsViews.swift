@@ -10,6 +10,7 @@ import UIKit
 
 struct ReaderSettingsHomeView: View {
     @AppStorage(ReaderPreferences.Keys.showTab) private var isReaderTabEnabled = false
+    @Environment(\.palette) private var palette
 
     var body: some View {
         List {
@@ -59,7 +60,7 @@ struct ReaderSettingsHomeView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_row_reader"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -69,6 +70,7 @@ struct ReaderSourceSettingsView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.notetypesService) var notetypesService
+    @Environment(\.palette) private var palette
 
     @AppStorage(ReaderPreferences.Keys.deckID) private var selectedDeckID = 0
     @AppStorage(ReaderPreferences.Keys.notetypeID) private var selectedNotetypeID = 0
@@ -173,7 +175,7 @@ struct ReaderSourceSettingsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_reader_section_source"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -274,7 +276,7 @@ struct ReaderSourceSettingsView: View {
 }
 
 struct ReaderDisplaySettingsView: View {
-    private let menuCapsuleBackground = Color.amgiMenuSurface
+    @Environment(\.palette) private var palette
 
     @AppStorage(ReaderPreferences.Keys.verticalLayout) private var verticalLayout = false
     @AppStorage(ReaderPreferences.Keys.selectedFont) private var selectedFont = ReaderFontOption.defaultValue
@@ -466,7 +468,7 @@ struct ReaderDisplaySettingsView: View {
                                 .foregroundStyle(SettingsValueStyle.highlight)
                         }
                         Slider(value: $lineHeight, in: 1.0...2.5, step: 0.05)
-                            .tint(Color.amgiAccent)
+                            .tint(palette.accent)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -478,7 +480,7 @@ struct ReaderDisplaySettingsView: View {
                                 .foregroundStyle(SettingsValueStyle.highlight)
                         }
                         Slider(value: $characterSpacing, in: -10...10, step: 1)
-                            .tint(Color.amgiAccent)
+                            .tint(palette.accent)
                     }
                 }
             }
@@ -513,7 +515,7 @@ struct ReaderDisplaySettingsView: View {
                     } label: {
                         SettingsOptionCapsuleLabel(
                             title: themeModeTitle,
-                            backgroundColor: menuCapsuleBackground
+                            backgroundColor: palette.menuSurface
                         )
                     }
                 }
@@ -559,7 +561,7 @@ struct ReaderDisplaySettingsView: View {
                         in: 240...420,
                         step: 10
                     )
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -578,7 +580,7 @@ struct ReaderDisplaySettingsView: View {
                         in: 180...420,
                         step: 10
                     )
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
                 }
 
                 Toggle(L("settings_reader_popup_full_width"), isOn: $popupFullWidth)
@@ -587,7 +589,7 @@ struct ReaderDisplaySettingsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_reader_display_settings"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -669,6 +671,7 @@ struct ReaderAdvancedSettingsView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
     @Dependency(\.notetypesService) var notetypesService
+    @Environment(\.palette) private var palette
 
     @AppStorage(ReaderPreferences.Keys.tapLookup) private var tapLookupEnabled = true
     @AppStorage(ReaderPreferences.Keys.popupDebugInfoEnabled) private var popupDebugInfoEnabled = false
@@ -850,7 +853,7 @@ struct ReaderAdvancedSettingsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L("settings_reader_note_template_language"))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
 
                     HStack {
                         TextField(L("settings_reader_note_template_language_placeholder"), text: $selectedTemplateLanguageKey)
@@ -868,7 +871,7 @@ struct ReaderAdvancedSettingsView: View {
                         } label: {
                             Image(systemName: "chevron.up.chevron.down")
                         }
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                     }
                 }
 
@@ -960,7 +963,7 @@ struct ReaderAdvancedSettingsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L("settings_reader_note_template_tags"))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
 
                     TextField(L("common_none"), text: templateTagsBinding)
                         .submitLabel(.done)
@@ -973,7 +976,7 @@ struct ReaderAdvancedSettingsView: View {
             .amgiSettingsListRowSurface()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_reader_advanced_settings"))
         .navigationBarTitleDisplayMode(.large)
         .task {
@@ -989,7 +992,7 @@ struct ReaderAdvancedSettingsView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(fieldName)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
 
             HStack {
                 TextField(L("common_none"), text: selection)
@@ -1008,7 +1011,7 @@ struct ReaderAdvancedSettingsView: View {
                 } label: {
                     Image(systemName: "chevron.up.chevron.down")
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
             }
         }
     }

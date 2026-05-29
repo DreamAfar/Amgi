@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct StatsChartTooltip: View {
+    @Environment(\.palette) private var palette
+
     let title: String
     let lines: [String]
 
@@ -8,20 +10,20 @@ struct StatsChartTooltip: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
             Text(title)
                 .amgiFont(.captionBold)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             ForEach(lines, id: \.self) { line in
                 Text(line)
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
         }
         .padding(.horizontal, AmgiSpacing.sm)
         .padding(.vertical, AmgiSpacing.xs)
-        .background(Color.amgiSurfaceElevated)
+        .background(palette.surfaceElevated)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.amgiBorder.opacity(0.3), lineWidth: 1)
+                .stroke(palette.border.opacity(0.3), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.12), radius: 12, y: 6)

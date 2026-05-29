@@ -106,6 +106,7 @@ private struct StatsChartRow: Identifiable {
 struct StatsDashboardView: View {
     @Dependency(\.statsClient) var statsClient
     @Dependency(\.deckClient) var deckClient
+    @Environment(\.palette) private var palette
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var graphs: Anki_Stats_GraphsResponse?
@@ -269,10 +270,10 @@ struct StatsDashboardView: View {
             Button { selectedDeck = nil } label: {
                 if selectedDeck == nil {
                     Label(L("stats_whole_collection"), systemImage: "checkmark")
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                 } else {
                     Text(L("stats_whole_collection"))
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                 }
             }
             Divider()
@@ -280,10 +281,10 @@ struct StatsDashboardView: View {
                 Button { selectedDeck = deck } label: {
                     if selectedDeck?.id == deck.id {
                         Label(deck.name, systemImage: "checkmark")
-                            .foregroundStyle(Color.amgiAccent)
+                            .foregroundStyle(palette.accent)
                     } else {
                         Text(deck.name)
-                            .foregroundStyle(Color.amgiAccent)
+                            .foregroundStyle(palette.accent)
                     }
                 }
             }
@@ -611,6 +612,7 @@ private struct StatsChartOrderSheet: View {
     let onReset: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     var body: some View {
         List {
@@ -618,9 +620,9 @@ private struct StatsChartOrderSheet: View {
                 ForEach(sections) { section in
                     HStack(spacing: 12) {
                         Image(systemName: "line.3.horizontal")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                         Text(section.title)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(palette.textPrimary)
                     }
                 }
                 .onMove(perform: onMove)

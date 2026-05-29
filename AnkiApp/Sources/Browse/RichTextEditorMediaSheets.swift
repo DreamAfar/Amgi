@@ -88,13 +88,14 @@ struct AudioRecordingSheet: View {
     let onFinishRecording: (URL) -> Void
 
     @StateObject private var recorder = AudioRecorderController()
+    @Environment(\.palette) private var palette
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
                 Text(recorder.statusText)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
 
                 Text(recorder.elapsedText)

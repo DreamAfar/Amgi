@@ -2,6 +2,7 @@ import SwiftUI
 import AnkiKit
 import AnkiClients
 import AnkiSync
+import AmgiTheme
 import Dependencies
 
 struct SyncSheet: View {
@@ -21,6 +22,7 @@ struct SyncSheet: View {
 
     @Binding var isPresented: Bool
     @Dependency(\.syncClient) var syncClient
+    @Environment(\.palette) private var palette
     @ObservedObject private var syncCoordinator = AppSyncCoordinator.shared
 
     @AppStorage(SyncPreferences.Keys.modeForCurrentUser()) private var syncModeRaw = SyncPreferences.Mode.local.rawValue
@@ -61,7 +63,7 @@ struct SyncSheet: View {
             .padding(.horizontal, 20)
             .padding(.top, 24)
             .padding(.bottom, 12)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("sync_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -123,7 +125,7 @@ struct SyncSheet: View {
             if let detail = syncStageDetail(for: message) {
                 Text(detail)
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             syncLogView(height: syncLogHeight)
@@ -145,7 +147,7 @@ struct SyncSheet: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(L("sync_log_section_title"))
                 .amgiFont(.micro)
-                .foregroundStyle(Color.amgiTextTertiary)
+                .foregroundStyle(palette.textTertiary)
                 .padding(.horizontal, 4)
 
             ScrollViewReader { proxy in
@@ -155,11 +157,11 @@ struct SyncSheet: View {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text(Self.logTimestampFormatter.string(from: entry.date))
                                     .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                    .foregroundStyle(Color.amgiTextTertiary)
+                                    .foregroundStyle(palette.textTertiary)
                                     .fixedSize()
                                 Text(entry.message)
                                     .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                                     .lineLimit(nil)
                                     .multilineTextAlignment(.leading)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -174,7 +176,7 @@ struct SyncSheet: View {
                 }
                 .frame(height: height)
                 .background(
-                    Color.amgiSurface,
+                    palette.surface,
                     in: RoundedRectangle(cornerRadius: 10)
                 )
                 .onChange(of: syncCoordinator.logEntries.count) { _, _ in
@@ -203,28 +205,28 @@ struct SyncSheet: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(L("sync_media_size_info", downloaded, total))
                                 .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                         Spacer()
                     }
 
                     ProgressView(value: Double(downloaded), total: Double(total))
-                        .tint(Color.amgiAccent)
+                        .tint(palette.accent)
 
                     HStack {
                         Text("\(downloaded) / \(total)")
                             .font(.system(size: 11, weight: .regular, design: .monospaced))
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                         Spacer()
                         let percentage = total > 0 ? Int(Double(downloaded) * 100 / Double(total)) : 0
                         Text("\(percentage)%")
                             .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(Color.amgiAccent)
+                            .foregroundStyle(palette.accent)
                     }
                 }
                 .padding()
                 .background(
-                    Color.amgiSurfaceElevated,
+                    palette.surfaceElevated,
                     in: RoundedRectangle(cornerRadius: 12)
                 )
             }
@@ -241,10 +243,10 @@ struct SyncSheet: View {
             HStack(spacing: 8) {
                 Text(L("sync_settings_server_type"))
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                 Text(serverTypeLabel)
                     .font(.system(size: 13, weight: .regular, design: .default))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: 8)
@@ -306,15 +308,15 @@ struct SyncSheet: View {
         VStack(spacing: 20) {
             Image(systemName: "icloud.and.arrow.up.and.arrow.down")
                 .font(.system(size: 48))
-                .foregroundStyle(Color.amgiAccent)
+                .foregroundStyle(palette.accent)
 
             Text(L("sync_setup_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             Text(L("sync_setup_subtitle"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
 
             VStack(spacing: 10) {
@@ -330,19 +332,19 @@ struct SyncSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AnkiWeb")
                                 .amgiFont(.bodyEmphasis)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             Text(L("sync_setup_ankiweb_desc"))
                                 .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(AmgiFont.caption.font)
-                            .foregroundStyle(Color.amgiTextTertiary)
+                            .foregroundStyle(palette.textTertiary)
                     }
                     .padding()
                     .background(
-                        Color.amgiSurfaceElevated,
+                        palette.surfaceElevated,
                         in: RoundedRectangle(cornerRadius: 12)
                     )
                 }
@@ -356,19 +358,19 @@ struct SyncSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(L("sync_settings_server_type_custom"))
                                 .amgiFont(.bodyEmphasis)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             Text(L("sync_setup_self_hosted_desc"))
                                 .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(AmgiFont.caption.font)
-                            .foregroundStyle(Color.amgiTextTertiary)
+                            .foregroundStyle(palette.textTertiary)
                     }
                     .padding()
                     .background(
-                        Color.amgiSurfaceElevated,
+                        palette.surfaceElevated,
                         in: RoundedRectangle(cornerRadius: 12)
                     )
                 }
@@ -379,7 +381,7 @@ struct SyncSheet: View {
                 isPresented = false
             }
             .amgiFont(.caption)
-            .foregroundStyle(Color.amgiTextSecondary)
+            .foregroundStyle(palette.textSecondary)
         }
         .padding(.horizontal)
     }
@@ -392,7 +394,7 @@ struct SyncSheet: View {
             statusHeader(title: L("sync_complete_title"), tone: .positive) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(AmgiFont.sectionHeading.font)
-                    .foregroundStyle(Color.amgiPositive)
+                    .foregroundStyle(palette.positive)
             }
             VStack(alignment: .leading, spacing: 4) {
                 if summary.cardsPulled > 0 { Text(L("sync_cards_received", summary.cardsPulled)) }
@@ -404,13 +406,13 @@ struct SyncSheet: View {
                 }
             }
             .amgiFont(.caption)
-            .foregroundStyle(Color.amgiTextSecondary)
+            .foregroundStyle(palette.textSecondary)
 
             if !syncCoordinator.logEntries.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L("sync_log_section_title"))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextTertiary)
+                        .foregroundStyle(palette.textTertiary)
                         .padding(.horizontal, 4)
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 3) {
@@ -418,11 +420,11 @@ struct SyncSheet: View {
                                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                                     Text(Self.logTimestampFormatter.string(from: entry.date))
                                         .font(.system(size: 11, weight: .regular, design: .monospaced))
-                                        .foregroundStyle(Color.amgiTextTertiary)
+                                        .foregroundStyle(palette.textTertiary)
                                         .fixedSize()
                                     Text(entry.message)
                                         .amgiFont(.caption)
-                                        .foregroundStyle(Color.amgiTextSecondary)
+                                        .foregroundStyle(palette.textSecondary)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                                 .padding(.horizontal, 8)
@@ -432,7 +434,7 @@ struct SyncSheet: View {
                     }
                     .frame(height: syncLogHeight)
                     .background(
-                        Color.amgiSurface,
+                        palette.surface,
                         in: RoundedRectangle(cornerRadius: 10)
                     )
                 }
@@ -448,17 +450,17 @@ struct SyncSheet: View {
         VStack(spacing: 12) {
             statusHeader(title: L("sync_failed_title"), tone: .warning) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Color.amgiWarning)
+                    .foregroundStyle(palette.warning)
             }
             Text(message)
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
             Button(L("btn_retry")) {
                 Task { await startSync() }
             }
             .buttonStyle(BorderedProminentButtonStyle())
-            .tint(Color.amgiAccent)
+            .tint(palette.accent)
         }
     }
 
@@ -480,7 +482,7 @@ struct SyncSheet: View {
 
             Text(fullSyncDescription(for: requirement))
                 .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -523,7 +525,7 @@ struct SyncSheet: View {
                serverMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
                 Text(serverMessage)
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextTertiary)
+                    .foregroundStyle(palette.textTertiary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
                     .lineLimit(2)
@@ -589,7 +591,7 @@ struct SyncSheet: View {
         case .primary:
             Text(title)
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
         case .positive:
             Text(title)
                 .amgiStatusText(.positive, font: .sectionHeading)
@@ -603,13 +605,13 @@ struct SyncSheet: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(L("ankiweb_support_notice"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let url = URL(string: "https://apps.apple.com/us/app/ankimobile-flashcards/id373493387") {
                 HStack(spacing: 4) {
                     Text(L("common_view"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                     Link(destination: url) {
                         HStack(spacing: 4) {
                             Text("AnkiMobile")
@@ -617,7 +619,7 @@ struct SyncSheet: View {
                             Image(systemName: "arrow.up.right")
                                 .font(AmgiFont.caption.font)
                         }
-                        .foregroundStyle(Color.amgiLink)
+                        .foregroundStyle(palette.link)
                     }
                 }
             }
@@ -632,6 +634,7 @@ private struct FullSyncActionButtonStyle: ButtonStyle {
     }
 
     let kind: Kind
+    @Environment(\.palette) private var palette
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -651,16 +654,16 @@ private struct FullSyncActionButtonStyle: ButtonStyle {
         case .primary:
             return .white
         case .secondary:
-            return Color.amgiAccent
+            return palette.accent
         }
     }
 
     private var backgroundColor: Color {
         switch kind {
         case .primary:
-            return Color.amgiAccent
+            return palette.accent
         case .secondary:
-            return Color.amgiAccent.opacity(0.16)
+            return palette.accent.opacity(0.16)
         }
     }
 }
@@ -669,6 +672,7 @@ private struct FullSyncActionButtonStyle: ButtonStyle {
 
 private struct ServerSetupSheet: View {
     @Binding var isPresented: Bool
+    @Environment(\.palette) private var palette
     let onComplete: () -> Void
 
     @State private var serverURL: String = KeychainHelper.loadEndpoint() ?? ""
@@ -686,7 +690,7 @@ private struct ServerSetupSheet: View {
                 } footer: {
                     Text(L("onboarding_footer"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 Section {
@@ -697,7 +701,7 @@ private struct ServerSetupSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("sync_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

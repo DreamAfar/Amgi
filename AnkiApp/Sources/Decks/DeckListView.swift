@@ -7,6 +7,7 @@ import Dependencies
 struct DeckListView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.deckClient) var deckClient
+    @Environment(\.palette) private var palette
     @ObservedObject private var collectionState = AppCollectionState.shared
     @AppStorage(DeckListHeatmapSettings.showKey) private var showDeckListHeatmap = true
 
@@ -85,7 +86,7 @@ struct DeckListView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
-                .background(Color.amgiBackground)
+                .background(palette.background)
                 .listStyle(.insetGrouped)
                 .navigationDestination(for: DeckInfo.self) { deck in
                     DeckDetailView(deck: deck)
@@ -96,7 +97,7 @@ struct DeckListView: View {
                 }
             }
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("deck_list_nav_title"))
         .onReceive(NotificationCenter.default.publisher(for: AppUserStore.didChangeNotification)) { _ in
             Task {
@@ -297,6 +298,7 @@ struct DeckListView: View {
 
 private struct DeckRowView: View {
     @Dependency(\.deckClient) var deckClient
+    @Environment(\.palette) private var palette
     let node: DeckTreeNode
     let depth: Int
     let isCollectionReady: Bool
@@ -317,7 +319,7 @@ private struct DeckRowView: View {
 
     var body: some View {
         deckContent
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
         .alert(L("deck_rename_alert_title"), isPresented: $showRenamePrompt) {
             TextField(L("deck_rename_alert_placeholder"), text: $renameText)
             Button(L("btn_cancel"), role: .cancel) {}
@@ -383,7 +385,7 @@ private struct DeckRowView: View {
             .overlay(alignment: .leading) {
                 if showsDropTarget {
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.amgiAccent, lineWidth: 2)
+                        .stroke(palette.accent, lineWidth: 2)
                         .padding(.vertical, 2)
                 }
             }
@@ -434,7 +436,7 @@ private struct DeckRowView: View {
         HStack {
             Text(node.name)
                 .amgiFont(.body)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Spacer()
             DeckCountsView(counts: node.counts)
         }
@@ -464,7 +466,7 @@ private struct DeckRowView: View {
         } label: {
             Label(L("deck_row_export"), systemImage: "square.and.arrow.up")
         }
-        .tint(Color.amgiPositive)
+        .tint(palette.positive)
         .disabled(!isCollectionReady)
 
         Button {
@@ -473,7 +475,7 @@ private struct DeckRowView: View {
         } label: {
             Label(L("deck_row_rename"), systemImage: "pencil")
         }
-        .tint(Color.amgiAccent)
+        .tint(palette.accent)
         .disabled(!isCollectionReady)
 
         Button(role: .destructive) {

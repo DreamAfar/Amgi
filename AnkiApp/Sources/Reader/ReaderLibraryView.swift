@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 import AnkiKit
 import AmgiReader
 import AmgiReaderDictionary
+import AmgiTheme
 import AnkiClients
 import AnkiServices
 import Dependencies
@@ -80,6 +81,7 @@ struct ReaderLibraryView: View {
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.readerBookClient) var readerBookClient
     @Dependency(\.readerEpubLibraryClient) var readerEpubLibraryClient
+    @Environment(\.palette) private var palette
 
     fileprivate static let bookCoverAspectRatio: CGFloat = 100 / 136
     fileprivate static let bookGridSpacing: CGFloat = 12
@@ -270,7 +272,7 @@ struct ReaderLibraryView: View {
                             if isSelecting {
                                 Text(L("reader_library_selected_count", selectedBookIDs.count))
                                     .font(.footnote)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                                     .padding(.horizontal, 2)
                             }
 
@@ -308,7 +310,7 @@ struct ReaderLibraryView: View {
 
     private func readerLibraryChromeContent<Content: View>(_ content: Content) -> some View {
         content
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(selectedSidebarBook?.title ?? L("reader_library_title"))
         .navigationBarTitleDisplayMode(selectedSidebarBook == nil ? .large : .inline)
         .toolbar {
@@ -707,6 +709,7 @@ private struct ReaderBookCard: View {
     let item: ReaderLibraryBookItem
     var isSelecting = false
     var isSelected = false
+    @Environment(\.palette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -723,7 +726,7 @@ private struct ReaderBookCard: View {
 
             Text(item.title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: 34, alignment: .topLeading)
@@ -741,6 +744,7 @@ private struct ReaderBookCoverView: View {
     var isSelected = false
 
     @State private var image: UIImage?
+    @Environment(\.palette) private var palette
 
     private let innerCornerRadius: CGFloat = 18
     private let outerCornerRadius: CGFloat = 20
@@ -761,7 +765,7 @@ private struct ReaderBookCoverView: View {
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
-                            .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
+                            .stroke(palette.border.opacity(0.18), lineWidth: 1)
                     }
                     .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
             }
@@ -786,7 +790,7 @@ private struct ReaderBookCoverView: View {
                     if isSelecting {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                             .font(.title3)
-                            .foregroundStyle(isSelected ? Color.amgiAccent : Color.amgiTextSecondary)
+                            .foregroundStyle(isSelected ? palette.accent : palette.textSecondary)
                             .padding(10)
                     }
                 }
@@ -801,7 +805,7 @@ private struct ReaderBookCoverView: View {
 
                 Text(progressLabel)
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .monospacedDigit()
                     .lineLimit(1)
             }
@@ -814,7 +818,7 @@ private struct ReaderBookCoverView: View {
         RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
             .fill(
                 LinearGradient(
-                    colors: [Color.amgiAccent.opacity(0.18), Color.amgiSurfaceElevated],
+                    colors: [palette.accent.opacity(0.18), palette.surfaceElevated],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -828,7 +832,7 @@ private struct ReaderBookCoverView: View {
                     } placeholder: {
                         Image(systemName: "book.closed")
                             .font(.system(size: 36, weight: .semibold))
-                            .foregroundStyle(Color.amgiAccent)
+                            .foregroundStyle(palette.accent)
                     }
                 } else if let image {
                     Image(uiImage: image)
@@ -837,7 +841,7 @@ private struct ReaderBookCoverView: View {
                 } else {
                     Image(systemName: "books.vertical.fill")
                         .font(.system(size: 36, weight: .semibold))
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous))
@@ -846,6 +850,7 @@ private struct ReaderBookCoverView: View {
 
 private struct ReaderBookSourceBadge: View {
     let source: ReaderLibraryBookItem.Source
+    @Environment(\.palette) private var palette
 
     var body: some View {
         Text(source.badgeTitle)
@@ -853,7 +858,7 @@ private struct ReaderBookSourceBadge: View {
             .foregroundStyle(Color.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(source == .epub ? Color.amgiAccent : Color.amgiTextSecondary.opacity(0.88), in: Capsule())
+            .background(source == .epub ? palette.accent : palette.textSecondary.opacity(0.88), in: Capsule())
     }
 }
 
@@ -910,13 +915,14 @@ private struct ReaderBookDetailView: View {
     @AppStorage(ReaderPreferences.Keys.customTextColor) private var customTextColorHex = "#17212F"
     @AppStorage(ReaderPreferences.Keys.customHintColor) private var customHintColorHex = "#7F7F7F"
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.palette) private var palette
 
     private var themeMode: ReaderThemeMode {
         ReaderThemeMode(rawValue: themeModeRawValue) ?? .system
     }
 
     private var systemListBackground: Color {
-        .amgiBackground
+        palette.background
     }
 
     private var resolvedListBackground: Color {
@@ -958,12 +964,12 @@ private struct ReaderBookDetailView: View {
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.headline.weight(.semibold))
-                            .foregroundStyle(Color.amgiTextSecondary.opacity(0.62))
+                            .foregroundStyle(palette.textSecondary.opacity(0.62))
                     }
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 16)
-                    .background(Color.amgiSurfaceElevated.opacity(0.72), in: Capsule())
+                    .background(palette.surfaceElevated.opacity(0.72), in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -971,7 +977,7 @@ private struct ReaderBookDetailView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(L("reader_book_chapters", book.chapters.count))
                         .font(.title2.weight(.semibold))
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                         .padding(.leading, 4)
 
                     VStack(spacing: 0) {
@@ -982,25 +988,25 @@ private struct ReaderBookDetailView: View {
                                 HStack(spacing: 12) {
                                     Text("\(index + 1)")
                                         .font(.caption.weight(.semibold))
-                                        .foregroundStyle(Color.amgiAccent)
+                                        .foregroundStyle(palette.accent)
                                         .frame(width: 24, height: 24)
-                                        .background(Color.amgiAccent.opacity(0.12), in: Circle())
+                                        .background(palette.accent.opacity(0.12), in: Circle())
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(chapter.title)
                                             .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(Color.amgiTextPrimary)
+                                            .foregroundStyle(palette.textPrimary)
                                             .lineLimit(1)
                                         if let order = chapter.order {
                                             Text(order)
                                                 .font(.caption2)
-                                                .foregroundStyle(Color.amgiTextSecondary)
+                                                .foregroundStyle(palette.textSecondary)
                                                 .lineLimit(1)
                                         }
                                     }
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(Color.amgiTextSecondary.opacity(0.62))
+                                        .foregroundStyle(palette.textSecondary.opacity(0.62))
                                 }
                                 .padding(.horizontal, 24)
                                 .padding(.vertical, 12)
@@ -1011,13 +1017,13 @@ private struct ReaderBookDetailView: View {
                                 Divider()
                                     .padding(.leading, 60)
                                     .padding(.trailing, 24)
-                                    .overlay(Color.amgiBorder.opacity(0.24))
+                                    .overlay(palette.border.opacity(0.24))
                             }
                         }
                     }
                     .background(
                         RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(Color.amgiSurfaceElevated.opacity(0.72))
+                            .fill(palette.surfaceElevated.opacity(0.72))
                     )
                 }
             }
@@ -1996,6 +2002,7 @@ struct ReaderLookupPopupState: Identifiable, Hashable {
 
 struct ReaderLookupPopup: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.palette) private var palette
 
     let query: String
     let result: DictionaryLookupResult?
@@ -2032,8 +2039,8 @@ struct ReaderLookupPopup: View {
 
     private var popupBackgroundFill: Color {
         colorScheme == .dark
-            ? Color(.secondarySystemBackground).opacity(0.96)
-            : Color(.systemBackground).opacity(0.96)
+            ? palette.surfaceElevated.opacity(0.96)
+            : palette.surface.opacity(0.96)
     }
 
     private var contentScale: CGFloat {
@@ -2123,7 +2130,7 @@ struct ReaderLookupPopup: View {
             ForEach(Array(debugItems.enumerated()), id: \.offset) { _, item in
                 Text("\(item.0): \(item.1)")
                     .font(.system(size: debugFont, design: .monospaced))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -2131,7 +2138,7 @@ struct ReaderLookupPopup: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.amgiSurfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
+        .background(palette.surfaceElevated.opacity(colorScheme == .dark ? 0.42 : 0.72))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
@@ -2142,17 +2149,17 @@ struct ReaderLookupPopup: View {
                 ProgressView()
                 Text(L("reader_lookup_loading"))
                     .font(.system(size: loadingFont))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if let result, result.isPlaceholder {
             VStack(alignment: .leading, spacing: 12) {
                 Text(L("reader_lookup_placeholder"))
                     .font(.system(size: emptyFont))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                 Text(L("reader_lookup_missing_source"))
                     .font(.system(size: sectionDictionaryFont))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if let result, result.entries.isEmpty == false {
@@ -2176,7 +2183,7 @@ struct ReaderLookupPopup: View {
         } else {
             Text(L("reader_lookup_empty"))
                 .font(.system(size: emptyFont))
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
@@ -2186,6 +2193,7 @@ private struct ReaderChapterListSheet: View {
     let book: ReaderBook
     let currentChapterID: Int64
     let onSelect: (ReaderChapter) -> Void
+    @Environment(\.palette) private var palette
 
     var body: some View {
         List {
@@ -2196,18 +2204,18 @@ private struct ReaderChapterListSheet: View {
                     HStack(spacing: 12) {
                         Text("\(index + 1)")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color.amgiAccent)
+                            .foregroundStyle(palette.accent)
                             .frame(width: 28, height: 28)
-                            .background(Color.amgiAccent.opacity(0.12), in: Circle())
+                            .background(palette.accent.opacity(0.12), in: Circle())
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(chapter.title)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                                 .multilineTextAlignment(.leading)
                             if let order = chapter.order {
                                 Text(order)
                                     .font(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                                     .lineLimit(1)
                                     .amgiCapsuleControl(horizontalPadding: 8, verticalPadding: 3)
                             }
@@ -2217,7 +2225,7 @@ private struct ReaderChapterListSheet: View {
 
                         if chapter.id == currentChapterID {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.amgiAccent)
+                                .foregroundStyle(palette.accent)
                         }
                     }
                 }
@@ -2225,7 +2233,7 @@ private struct ReaderChapterListSheet: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("reader_reader_menu_chapters"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -2235,13 +2243,14 @@ private struct ReaderChapterInfoOverlay: View {
     let title: String?
     let progressLabel: String?
     let background: Color
+    @Environment(\.palette) private var palette
 
     var body: some View {
         VStack {
             if let title, !title.isEmpty {
                 Text(title)
                     .font(.subheadline)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .padding(.horizontal, 30)
                     .lineLimit(1)
             }
@@ -2249,7 +2258,7 @@ private struct ReaderChapterInfoOverlay: View {
             if let progressLabel, !progressLabel.isEmpty {
                 Text(progressLabel)
                     .font(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .monospacedDigit()
                     .tracking(-0.4)
             }
@@ -2259,11 +2268,12 @@ private struct ReaderChapterInfoOverlay: View {
 
 private struct ReaderChapterBottomProgressOverlay: View {
     let progressLabel: String
+    @Environment(\.palette) private var palette
 
     var body: some View {
         Text(progressLabel)
             .font(.caption)
-            .foregroundStyle(Color.amgiTextSecondary)
+            .foregroundStyle(palette.textSecondary)
             .monospacedDigit()
             .tracking(-0.4)
     }
@@ -2271,11 +2281,12 @@ private struct ReaderChapterBottomProgressOverlay: View {
 
 private struct ReaderChromeIconLabel: View {
     let systemName: String
+    @Environment(\.palette) private var palette
 
     var body: some View {
         Image(systemName: systemName)
             .font(.headline.weight(.semibold))
-            .foregroundStyle(Color.amgiTextPrimary)
+            .foregroundStyle(palette.textPrimary)
             .frame(width: 40, height: 40)
             .background(.ultraThinMaterial, in: Circle())
     }
@@ -3666,23 +3677,24 @@ private struct ReaderLookupSectionView: View {
     let readingFontSize: CGFloat
     let definitionFontSize: CGFloat
     let pitchFontSize: CGFloat
+    @Environment(\.palette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let dictionaryName = section.dictionaryName {
                 Text(dictionaryName)
                     .font(.system(size: dictionaryFontSize, weight: .medium))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(section.term)
                     .font(.system(size: termFontSize, weight: .bold))
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 if let reading = section.reading {
                     Text(reading)
                         .font(.system(size: readingFontSize))
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
 
@@ -3690,7 +3702,7 @@ private struct ReaderLookupSectionView: View {
                 ForEach(section.definitions, id: \.self) { definition in
                     Text(definition)
                         .font(.system(size: definitionFontSize))
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -3698,7 +3710,7 @@ private struct ReaderLookupSectionView: View {
             if let pitch = section.pitch {
                 Text(pitch)
                     .font(.system(size: pitchFontSize))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -3737,6 +3749,7 @@ private struct ReaderLookupBadge: Identifiable {
 private struct ReaderLookupFrequencyBadge: View {
     let badge: ReaderLookupBadge
     let fontSize: CGFloat
+    @Environment(\.palette) private var palette
 
     private var horizontalPadding: CGFloat {
         max(6, fontSize * 0.62)
@@ -3757,22 +3770,22 @@ private struct ReaderLookupFrequencyBadge: View {
                 .foregroundStyle(Color.white)
                 .padding(.horizontal, horizontalPadding)
                 .padding(.vertical, verticalPadding)
-                .background(Color.amgiAccent)
+                .background(palette.accent)
 
             if badge.value.isEmpty == false {
                 Text(badge.value)
                     .font(.system(size: fontSize, weight: .medium))
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .padding(.horizontal, horizontalPadding)
                     .padding(.vertical, verticalPadding)
-                    .background(Color(.systemBackground).opacity(0.9))
+                    .background(palette.surface.opacity(0.9))
             }
         }
         .fixedSize(horizontal: true, vertical: true)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(Color.amgiAccent.opacity(0.45), lineWidth: 1)
+                .stroke(palette.accent.opacity(0.45), lineWidth: 1)
         }
     }
 }

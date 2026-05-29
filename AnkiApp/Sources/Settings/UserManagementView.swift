@@ -1,9 +1,11 @@
 import SwiftUI
 import AnkiBackend
+import AmgiTheme
 import Dependencies
 
 struct UserManagementView: View {
     @Dependency(\.ankiBackend) var backend
+    @Environment(\.palette) private var palette
     @State private var users: [String] = AppUserStore.loadUsers()
     @State private var selectedUser: String = AppUserStore.loadSelectedUser()
     @State private var showAddPrompt = false
@@ -26,7 +28,7 @@ struct UserManagementView: View {
                         HStack {
                             Text(user)
                                 .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             Spacer()
                             if selectedUser == user {
                                 Label(L("common_selected"), systemImage: "checkmark.circle.fill")
@@ -34,7 +36,7 @@ struct UserManagementView: View {
                                     .amgiStatusBadge(.positive)
                             }
                         }
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             selectedUser = user
@@ -48,7 +50,7 @@ struct UserManagementView: View {
                             } label: {
                                 Label(L("user_mgmt_rename"), systemImage: "pencil")
                             }
-                            .tint(Color.amgiAccent)
+                            .tint(palette.accent)
 
                             Button(role: .destructive) {
                                 deleteTarget = user
@@ -61,7 +63,7 @@ struct UserManagementView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("user_mgmt_title"))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

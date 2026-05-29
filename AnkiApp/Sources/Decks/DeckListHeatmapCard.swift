@@ -8,6 +8,7 @@ struct DeckListHeatmapCard: View {
     @Dependency(\.statsClient) var statsClient
     @Dependency(\.deckClient) var deckClient
     @Dependency(\.syncClient) var syncClient
+    @Environment(\.palette) private var palette
     @ObservedObject private var collectionState = AppCollectionState.shared
     @AppStorage(DeckListHeatmapSettings.heightKey) private var deckListHeatmapHeight = DeckListHeatmapSettings.defaultHeight
     @AppStorage(DeckListHeatmapSettings.scopeKey) private var heatmapScopeRaw = DeckListHeatmapScope.allDecks.rawValue
@@ -56,11 +57,11 @@ struct DeckListHeatmapCard: View {
                 .padding(16)
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color.amgiSurfaceElevated)
+                        .fill(palette.surfaceElevated)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.amgiBorder.opacity(0.32), lineWidth: 1)
+                        .stroke(palette.border.opacity(0.32), lineWidth: 1)
                 )
                 .shadow(color: Color.black.opacity(0.08), radius: 12, y: 4)
                 .frame(maxWidth: .infinity)
@@ -183,7 +184,7 @@ struct DeckListHeatmapCard: View {
         HStack(alignment: .center, spacing: 16) {
             Text(L("deck_list_schedule_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             Spacer()
 
@@ -197,7 +198,7 @@ struct DeckListHeatmapCard: View {
 
             Text(L("stats_today_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .frame(width: todayWidth, alignment: .center)
         }
     }

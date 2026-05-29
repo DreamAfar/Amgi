@@ -1,6 +1,7 @@
 import SwiftUI
 import AnkiBackend
 import AnkiProto
+import AmgiTheme
 import Dependencies
 
 /// Sheet for batch find-and-replace in note fields or tags.
@@ -13,6 +14,7 @@ struct BrowseFindReplaceSheet: View {
 
     @Dependency(\.ankiBackend) var backend
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @State private var searchText = ""
     @State private var replaceText = ""
@@ -51,7 +53,7 @@ struct BrowseFindReplaceSheet: View {
                         HStack {
                             ProgressView()
                             Text(L("common_loading"))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     } else {
                         Picker(L("browse_find_replace_field"), selection: $selectedFieldIndex) {
@@ -75,12 +77,12 @@ struct BrowseFindReplaceSheet: View {
                             systemImage: "doc.text.magnifyingglass"
                         )
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                     }
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("browse_find_replace_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

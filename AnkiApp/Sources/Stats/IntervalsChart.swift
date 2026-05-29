@@ -2,6 +2,8 @@ import SwiftUI
 import Charts
 import AnkiProto
 struct IntervalsChart: View {
+    @Environment(\.palette) private var palette
+
     enum ChartKind {
         case intervals
         case stability
@@ -219,11 +221,11 @@ struct IntervalsChart: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L(kind.titleKey))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             Text(L(kind.subtitleKey))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
 
             Picker("", selection: $range) {
                 ForEach(IntervalRange.allCases) { r in
@@ -238,7 +240,7 @@ struct IntervalsChart: View {
             if bins.isEmpty {
                 Text(L("stats_intervals_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 intervalsChart(bins: bins, xMax: xMax, binSize: binSize)
@@ -247,7 +249,7 @@ struct IntervalsChart: View {
             Text(medianSummaryText)
                 .amgiFont(.captionBold)
                 .monospacedDigit()
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .multilineTextAlignment(.center)
         }
@@ -302,7 +304,7 @@ struct IntervalsChart: View {
                 x: .value(L("stats_intervals_days"), point.x),
                 y: .value("Cumulative", plottedCumulative(point.cumulative, state: state))
             )
-            .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+            .foregroundStyle(palette.textSecondary.opacity(0.08))
             .interpolationMethod(.monotone)
 
             LineMark(
@@ -310,7 +312,7 @@ struct IntervalsChart: View {
                 y: .value("Cumulative", plottedCumulative(point.cumulative, state: state)),
                 series: .value("Series", "cumulative")
             )
-            .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
+            .foregroundStyle(palette.textSecondary.opacity(0.45))
             .lineStyle(StrokeStyle(lineWidth: 1.5))
             .interpolationMethod(.monotone)
         }
@@ -328,7 +330,7 @@ struct IntervalsChart: View {
                 Double(selectedPoint.cumulative) / Double(state.total) * 100
             )
             RuleMark(x: .value(L("stats_intervals_days"), selectedBin.x))
-                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .foregroundStyle(palette.accent.opacity(0.35))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
@@ -435,10 +437,10 @@ struct IntervalsChart: View {
     private func intervalsChartXAxis(state: IntervalChartState) -> some AxisContent {
         AxisMarks(values: .automatic(desiredCount: state.xAxisDesiredCount)) { _ in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
             AxisValueLabel()
                 .font(AmgiFont.micro.font)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -446,26 +448,26 @@ struct IntervalsChart: View {
     private func intervalsChartYAxis(state: IntervalChartState) -> some AxisContent {
         AxisMarks(position: .leading, values: state.leadingTickValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: state.leadingTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
 
         AxisMarks(position: .trailing, values: state.trailingTickValues) { value in
             AxisTick()
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+                .foregroundStyle(palette.textTertiary.opacity(0.35))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: state.trailingTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }

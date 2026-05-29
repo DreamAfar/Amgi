@@ -1,9 +1,11 @@
 import SwiftUI
 import AVKit
 import UIKit
+import AmgiTheme
 
 struct UserFileManagerView: View {
     let username: String
+    @Environment(\.palette) private var palette
     private let pageSize = 200
 
     private static let summarySizeFormatter: ByteCountFormatter = {
@@ -70,7 +72,7 @@ struct UserFileManagerView: View {
             mediaSection
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("settings_row_file_manager"))
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: Text(L("file_mgmt_search_placeholder")))
@@ -118,15 +120,15 @@ struct UserFileManagerView: View {
     private var summarySection: some View {
         Section {
             LabeledContent(L("file_mgmt_user"), value: username)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             LabeledContent(L("file_mgmt_media_count"), value: "\(mediaFiles.count)")
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             LabeledContent(L("file_mgmt_media_size"), value: totalMediaSizeText)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             LabeledContent(L("file_mgmt_collection_size"), value: collectionDBSizeText)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             LabeledContent(L("file_mgmt_media_db_size"), value: mediaDBSizeText)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
         } header: {
             Text(L("file_mgmt_section_summary"))
         }
@@ -141,7 +143,7 @@ struct UserFileManagerView: View {
         } footer: {
             Text(L("file_mgmt_footer_hint"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -153,14 +155,14 @@ struct UserFileManagerView: View {
                 ProgressView()
                 Spacer()
             }
-            .listRowBackground(Color.amgiSurfaceElevated)
+            .listRowBackground(palette.surfaceElevated)
         } else if filteredFiles.isEmpty {
             Text(L(searchText.isEmpty ? "file_mgmt_empty" : "file_mgmt_no_search_result"))
                 .amgiFont(.body)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 8)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
         } else {
             ForEach(visibleFiles) { entry in
                 mediaRow(for: entry)
@@ -171,12 +173,12 @@ struct UserFileManagerView: View {
                     displayLimit += pageSize
                 } label: {
                     Text(L("file_mgmt_load_more", min(pageSize, remainingFileCount)))
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .padding(.vertical, 6)
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             }
         }
     }
@@ -188,15 +190,15 @@ struct UserFileManagerView: View {
             VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                 Text(entry.fileName)
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
                 Text(entry.subtitle)
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
             Spacer()
         }
-        .listRowBackground(Color.amgiSurfaceElevated)
+        .listRowBackground(palette.surfaceElevated)
         .contentShape(Rectangle())
         .onTapGesture {
             previewTarget = entry
@@ -209,7 +211,7 @@ struct UserFileManagerView: View {
             } label: {
                 Label(L("user_mgmt_rename"), systemImage: "pencil")
             }
-            .tint(Color.amgiAccent)
+            .tint(palette.accent)
         }
     }
 

@@ -5,6 +5,10 @@ public extension EnvironmentValues {
 }
 
 public extension View {
+    /// Root-only theme injection point.
+    ///
+    /// Apply once at the app root. Feature views should read `palette` from the
+    /// environment instead of reinjecting or recomputing theme state locally.
     /// Apply at the app's root view. Reads `ThemeManager` and writes the resolved
     /// `Palette` into the environment plus applies `.preferredColorScheme(...)`
     /// when the user has overridden the system appearance.

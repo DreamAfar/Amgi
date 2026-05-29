@@ -2,6 +2,8 @@ import SwiftUI
 import AnkiProto
 
 struct RetentionChart: View {
+    @Environment(\.palette) private var palette
+
     let trueRetention: Anki_Stats_GraphsResponse.TrueRetentionStats
     let revlogRange: RevlogRange
 
@@ -68,11 +70,11 @@ struct RetentionChart: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("stats_retention_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             Text(L("stats_retention_subtitle"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
 
             Picker("", selection: $mode) {
                 ForEach(DisplayMode.allCases) { m in
@@ -87,15 +89,15 @@ struct RetentionChart: View {
             Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
                 GridRow {
                     Text(L("stats_retention_period"))
-                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
+                        .amgiFont(.micro).foregroundStyle(palette.textSecondary)
                     Text(L("stats_retention_passed"))
-                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
+                        .amgiFont(.micro).foregroundStyle(palette.textSecondary)
                     Text(L("stats_retention_failed"))
-                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
+                        .amgiFont(.micro).foregroundStyle(palette.textSecondary)
                     Text(L("stats_retention_rate"))
-                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
+                        .amgiFont(.micro).foregroundStyle(palette.textSecondary)
                     Text(L("stats_total"))
-                        .amgiFont(.micro).foregroundStyle(Color.amgiTextSecondary)
+                        .amgiFont(.micro).foregroundStyle(palette.textSecondary)
                 }
                 Divider()
                 ForEach(rows) { row in
@@ -106,7 +108,7 @@ struct RetentionChart: View {
                         retentionBadge(row.rate)
                         Text("\(row.total)")
                             .font(AmgiFont.caption.font.monospacedDigit())
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
             }

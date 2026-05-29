@@ -8,6 +8,7 @@ private enum CardCountsPreferences {
 struct CardCountsChart: View {
     let cardCounts: Anki_Stats_GraphsResponse.CardCounts
     let prefersWideSingleColumnLayout: Bool
+    @Environment(\.palette) private var palette
     @AppStorage(CardCountsPreferences.separateInactiveKey) private var separateInactive = true
     @State private var containerWidth: CGFloat = 390
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -55,17 +56,17 @@ struct CardCountsChart: View {
             HStack {
                 Text(L("stats_card_counts_title"))
                     .amgiFont(.sectionHeading)
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Spacer()
                 Text(L("stats_total_count", total))
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             if chartData.isEmpty {
                 Text(L("stats_card_counts_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 if prefersWideSingleColumnLayout {
@@ -101,7 +102,7 @@ struct CardCountsChart: View {
                     .frame(width: 10, height: 10)
                 Text(item.name)
                     .amgiFont(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
@@ -110,13 +111,13 @@ struct CardCountsChart: View {
                     Text("\(item.count)")
                         .amgiFont(.captionBold)
                         .monospacedDigit()
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                     Text(formattedPercentage)
                         .amgiFont(.captionBold)
                         .monospacedDigit()
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                 }
@@ -129,7 +130,7 @@ struct CardCountsChart: View {
     private var separateInactiveToggle: some View {
         Toggle(L("stats_card_counts_separate_inactive"), isOn: $separateInactive)
             .amgiFont(.caption)
-            .foregroundStyle(Color.amgiTextSecondary)
+            .foregroundStyle(palette.textSecondary)
     }
 
     private var defaultLayout: some View {

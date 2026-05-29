@@ -19,6 +19,7 @@ struct CardContextMenu: View {
     @Dependency(\.noteClient) var noteClient
     @Dependency(\.tagClient) var tagClient
     @Dependency(\.ankiBackend) var backend
+    @Environment(\.palette) private var palette
     
     @State private var errorMessage: String?
     @State private var showError = false
@@ -419,7 +420,7 @@ private let markedTag = "marked"
     VStack(spacing: 20) {
         Text("Tap the menu button below")
             .amgiFont(.bodyEmphasis)
-            .foregroundStyle(Color.amgiTextPrimary)
+            .foregroundStyle(palette.textPrimary)
         
         Spacer()
         

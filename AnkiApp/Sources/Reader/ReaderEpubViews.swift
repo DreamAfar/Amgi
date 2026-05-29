@@ -40,6 +40,7 @@ private enum ReaderEpubLayout {
 
 struct ReaderEpubLibraryView: View {
     @Dependency(\.readerEpubLibraryClient) private var readerEpubLibraryClient
+    @Environment(\.palette) private var palette
 
     @AppStorage(ReaderPreferences.Keys.bookshelfColumns) private var bookshelfColumns = 3
 
@@ -93,7 +94,7 @@ struct ReaderEpubLibraryView: View {
                         if isSelecting {
                             Text(L("reader_library_selected_count", selectedBookIDs.count))
                                 .font(.footnote)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                                 .padding(.horizontal, 2)
                         }
 
@@ -130,7 +131,7 @@ struct ReaderEpubLibraryView: View {
                 .scrollIndicators(.hidden)
             }
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("reader_library_title"))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -289,13 +290,14 @@ private struct ReaderEpubBookCard: View {
     let progress: Double
     var isSelecting = false
     var isSelected = false
+    @Environment(\.palette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.amgiAccent.opacity(0.18), Color.amgiSurfaceElevated],
+                        colors: [palette.accent.opacity(0.18), palette.surfaceElevated],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -309,39 +311,39 @@ private struct ReaderEpubBookCard: View {
                         } placeholder: {
                             Image(systemName: "book.closed")
                                 .font(.system(size: 32, weight: .medium))
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     } else {
                         Image(systemName: "book.closed")
                             .font(.system(size: 32, weight: .medium))
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
                 .overlay(alignment: .topTrailing) {
                     if isSelecting {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                             .font(.title3)
-                            .foregroundStyle(isSelected ? Color.amgiAccent : Color.amgiTextSecondary)
+                            .foregroundStyle(isSelected ? palette.accent : palette.textSecondary)
                             .padding(10)
                     }
                 }
                 .overlay {
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.amgiBorder.opacity(0.18), lineWidth: 1)
+                        .stroke(palette.border.opacity(0.18), lineWidth: 1)
                 }
                 .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(book.title ?? "")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.amgiTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: 34, alignment: .topLeading)
 
                 ProgressView(value: progress)
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
             }
             .frame(height: 46, alignment: .top)
         }
@@ -352,6 +354,7 @@ private struct ReaderEpubBookCard: View {
 struct ReaderEpubReaderView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.palette) private var palette
     @Dependency(\.dictionaryLookupClient) private var dictionaryLookupClient
     @Dependency(\.mediaClient) private var mediaClient
     @Dependency(\.noteClient) private var noteClient
@@ -737,7 +740,7 @@ struct ReaderEpubReaderView: View {
                             if showTitle, let title = session.document.title, title.isEmpty == false {
                                 Text(title)
                                     .font(.subheadline)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                                     .padding(.horizontal, 30)
                                     .lineLimit(1)
                             }
@@ -745,7 +748,7 @@ struct ReaderEpubReaderView: View {
                             if showProgressTop, progressLabel.isEmpty == false {
                                 Text(progressLabel)
                                     .font(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                                     .monospacedDigit()
                                     .tracking(-0.4)
                             }
@@ -756,7 +759,7 @@ struct ReaderEpubReaderView: View {
                         if showProgressTop == false {
                             Text(progressLabel)
                                 .font(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                                 .monospacedDigit()
                                 .tracking(-0.4)
                         }
@@ -917,11 +920,11 @@ struct ReaderEpubReaderView: View {
                     description: Text(loadingErrorMessage)
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.amgiBackground)
+                .background(palette.background)
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.amgiBackground)
+                    .background(palette.background)
             }
         }
     }
@@ -1085,7 +1088,7 @@ struct ReaderEpubReaderView: View {
                 if showTitle, let title = session.document.title, title.isEmpty == false {
                     Text(title)
                         .font(.subheadline)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                         .padding(.horizontal, 30)
                         .lineLimit(1)
                 }
@@ -1093,7 +1096,7 @@ struct ReaderEpubReaderView: View {
                 if showProgressTop, progressLabel.isEmpty == false {
                     Text(progressLabel)
                         .font(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                         .monospacedDigit()
                         .tracking(-0.4)
                 }
@@ -1104,7 +1107,7 @@ struct ReaderEpubReaderView: View {
             if showProgressTop == false {
                 Text(progressLabel)
                     .font(.caption)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .monospacedDigit()
                     .tracking(-0.4)
             }
@@ -1631,6 +1634,7 @@ private struct ReaderEpubChapterListSheet: View {
     let onSelect: (ReaderEpubNavigationAction) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @State private var rows: [ReaderEpubChapterRow] = []
 
@@ -1659,7 +1663,7 @@ private struct ReaderEpubChapterListSheet: View {
                                 : 0
                             Text("\(session.currentCharacter) / \(session.bookInfo.characterCount) (\(String(format: "%.1f%%", percent)))")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     }
                 }
@@ -1679,14 +1683,14 @@ private struct ReaderEpubChapterListSheet: View {
                         if let count = row.characterCount {
                             Text("\(count)")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     }
                     .padding(.leading, CGFloat(row.indentLevel) * 16)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .listRowBackground(row.isCurrent ? Color(uiColor: .systemGray5) : nil)
+                .listRowBackground(row.isCurrent ? palette.accent.opacity(0.10) : nil)
             }
         }
         .navigationTitle(L("reader_reader_menu_chapters"))
@@ -3386,6 +3390,7 @@ private enum NavigationDirection {
 
 private struct ReaderEpubStatisticsView: View {
     @Bindable var session: ReaderEpubSession
+    @Environment(\.palette) private var palette
 
     var body: some View {
         List {
@@ -3416,7 +3421,7 @@ private struct ReaderEpubStatisticsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("reader_statistics_title"))
         .navigationBarTitleDisplayMode(.inline)
     }

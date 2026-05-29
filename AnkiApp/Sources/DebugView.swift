@@ -1,11 +1,13 @@
 import SwiftUI
 import AnkiBackend
 import AnkiProto
+import AmgiTheme
 import Dependencies
 import SwiftProtobuf
 
 struct DebugView: View {
     @Dependency(\.ankiBackend) var backend
+    @Environment(\.palette) private var palette
     @AppStorage(DebugPreferences.Keys.cardRenderDiagnosticsEnabled) private var cardRenderDiagnosticsEnabled = false
     @AppStorage(DebugPreferences.Keys.cardRenderForceFrameReload) private var cardRenderForceFrameReload = true
     @AppStorage(DebugPreferences.Keys.cardRenderUseNilBaseURL) private var cardRenderUseNilBaseURL = true
@@ -20,9 +22,9 @@ struct DebugView: View {
                 Section(L("debug_section_status")) {
                     Text(statusMessage)
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                 }
             }
 
@@ -30,28 +32,28 @@ struct DebugView: View {
                 Button(L("debug_dump_deck_tree")) {
                     dumpDeckTree()
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             }
 
             Section(L("debug_section_card_render")) {
                 Toggle(L("debug_card_render_enable"), isOn: $cardRenderDiagnosticsEnabled)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
 
                 if cardRenderDiagnosticsEnabled {
                     Toggle(L("debug_card_render_force_reload"), isOn: $cardRenderForceFrameReload)
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                     Toggle(L("debug_card_render_nil_base_url"), isOn: $cardRenderUseNilBaseURL)
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                     Toggle(L("debug_card_render_red_frame"), isOn: $cardRenderRedFrameBackground)
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                     Toggle(L("debug_card_render_js_error_overlay"), isOn: $cardRenderShowJSErrorOverlay)
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
 
                     Text(L("debug_card_render_hint"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .listRowBackground(Color.amgiSurfaceElevated)
+                        .listRowBackground(palette.surfaceElevated)
                 }
             }
 
@@ -59,7 +61,7 @@ struct DebugView: View {
                 Button(L("debug_reset_all_button"), role: .destructive) {
                     showResetAllConfirm = true
                 }
-                .listRowBackground(Color.amgiSurfaceElevated)
+                .listRowBackground(palette.surfaceElevated)
             } header: {
                 Text(L("debug_section_danger"))
             } footer: {
@@ -67,7 +69,7 @@ struct DebugView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .navigationTitle(L("debug_nav_title"))
         .confirmationDialog(L("debug_reset_all_confirm_msg"), isPresented: $showResetAllConfirm, titleVisibility: .visible) {
             Button(L("debug_reset_confirm_button"), role: .destructive) {

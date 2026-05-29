@@ -17,13 +17,13 @@ import UserNotifications
 struct AnkiAppApp: App {
     @UIApplicationDelegateAdaptor(AppBackgroundSyncAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.palette) private var palette
     @State private var onboardingCompleted = UserDefaults.standard.bool(forKey: "onboardingCompleted")
     @State private var startupPhase: StartupPhase = .loading
     @State private var pendingImportURL: URL?
+    @State private var themeManager = ThemeManager.shared
     @StateObject private var collectionState = AppCollectionState.shared
     @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
-    @AppStorage("theme.appearance", store: .amgiAppGroup) private var themeAppearanceRaw: String = Appearance.system.rawValue
-    @AppStorage("theme.selection", store: .amgiAppGroup) private var themeSelectionRaw: String = Theme.vivid.rawValue
     private let periodicBackupTimer = Timer.publish(
         every: CollectionBackupManager.periodicCheckInterval,
         on: .main,
@@ -31,11 +31,19 @@ struct AnkiAppApp: App {
     ).autoconnect()
 
     init() {
-        if UserDefaults.standard.string(forKey: "theme.appearance") == nil,
+        let appDefaults = UserDefaults.amgiAppGroup
+
+        if appDefaults.string(forKey: "theme.appearance") == nil,
            let legacyTheme = UserDefaults.standard.string(forKey: "app_theme"),
            Appearance(rawValue: legacyTheme) != nil {
-            UserDefaults.standard.set(legacyTheme, forKey: "theme.appearance")
+            appDefaults.set(legacyTheme, forKey: "theme.appearance")
         }
+
+        ThemeManager.shared.appearance = appDefaults.string(forKey: "theme.appearance")
+            .flatMap(Appearance.init(rawValue:)) ?? .system
+        ThemeManager.shared.theme = appDefaults.string(forKey: "theme.selection")
+            .flatMap(Theme.init(rawValue:)) ?? .vivid
+
         ReaderPreferences.migrateLegacyDefaultsIfNeeded(for: AppUserStore.loadSelectedUser())
     }
 
@@ -54,7 +62,7 @@ struct AnkiAppApp: App {
     }
 
     private var preferredColorScheme: ColorScheme? {
-        (Appearance(rawValue: themeAppearanceRaw) ?? .system).colorScheme
+        themeManager.appearance.colorScheme
     }
 
     var body: some Scene {
@@ -65,7 +73,7 @@ struct AnkiAppApp: App {
                     startupLoadingView
                 case .failed(let message):
                     ZStack {
-                        Color.amgiBackground
+                        palette.background
                             .ignoresSafeArea()
 
                         VStack(spacing: AmgiSpacing.md) {
@@ -73,7 +81,7 @@ struct AnkiAppApp: App {
                                 .amgiStatusText(.warning, font: .sectionHeading)
                             Text(message)
                                 .amgiFont(.caption)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: 360)
@@ -90,8 +98,8 @@ struct AnkiAppApp: App {
             .task { await initializeBackend() }
             .environmentObject(collectionState)
             .environment(\.locale, currentLocale)
-            .modifier(AppPaletteModifier(selectedThemeRaw: themeSelectionRaw, forcedScheme: preferredColorScheme))
-            .preferredColorScheme(preferredColorScheme)
+            .themedRoot(manager: themeManager)
+            .tint(palette.accent)
             .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
                 Task {
                     await syncDailyReminderIfNeeded()
@@ -133,7 +141,7 @@ struct AnkiAppApp: App {
         if onboardingCompleted, !cachedTree.isEmpty {
             StartupDeckSnapshotView(tree: cachedTree, heatmapReviews: cachedHeatmapReviews)
         } else {
-            Color.amgiBackground
+            palette.background
                 .ignoresSafeArea()
                 .overlay {
                     VStack(spacing: AmgiSpacing.lg) {
@@ -146,9 +154,9 @@ struct AnkiAppApp: App {
                         }
                         Text("Amgi")
                             .amgiFont(.displayHero)
-                            .foregroundStyle(Color.amgiTextPrimary)
+                            .foregroundStyle(palette.textPrimary)
                         ProgressView()
-                            .tint(Color.amgiAccent)
+                            .tint(palette.accent)
                             .padding(.top, AmgiSpacing.xs)
                     }
                     .amgiCard(elevated: true)
@@ -225,19 +233,9 @@ struct AnkiAppApp: App {
     }
 }
 
-private struct AppPaletteModifier: ViewModifier {
-    @Environment(\.colorScheme) private var systemScheme
-    let selectedThemeRaw: String
-    let forcedScheme: ColorScheme?
-
-    func body(content: Content) -> some View {
-        let selectedTheme = Theme(rawValue: selectedThemeRaw) ?? .vivid
-        let resolvedScheme = forcedScheme ?? systemScheme
-        return content.environment(\.palette, Palette.resolve(theme: selectedTheme, scheme: resolvedScheme))
-    }
-}
-
 private struct StartupDeckSnapshotView: View {
+    @Environment(\.palette) private var palette
+
     let tree: [DeckTreeNode]
     let heatmapReviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes?
 
@@ -259,16 +257,16 @@ private struct StartupDeckSnapshotView: View {
                     ForEach(flattenedTree) { item in
                         HStack(spacing: AmgiSpacing.md) {
                             Image(systemName: item.node.children.isEmpty ? "rectangle.stack" : "folder")
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                             Text(item.node.name)
                                 .amgiFont(.body)
-                                .foregroundStyle(Color.amgiTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                                 .lineLimit(1)
                             Spacer()
                             if item.node.counts.total > 0 {
                                 Text("\(item.node.counts.total)")
                                     .font(.caption.monospacedDigit())
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                         }
                         .padding(.leading, CGFloat(item.depth) * 14)
@@ -277,20 +275,20 @@ private struct StartupDeckSnapshotView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .disabled(true)
             .overlay(alignment: .top) {
                 ProgressView()
-                    .tint(Color.amgiAccent)
+                    .tint(palette.accent)
                     .padding(.horizontal, AmgiSpacing.md)
                     .padding(.vertical, AmgiSpacing.sm)
                     .background(
                         Capsule()
-                            .fill(Color.amgiSurfaceElevated)
+                            .fill(palette.surfaceElevated)
                     )
                     .overlay(
                         Capsule()
-                            .stroke(Color.amgiBorder.opacity(0.28), lineWidth: 1)
+                            .stroke(palette.border.opacity(0.28), lineWidth: 1)
                     )
                     .padding(.top, AmgiSpacing.sm)
             }

@@ -9,6 +9,7 @@ struct DeckTemplateListView: View {
     @Dependency(\.ankiBackend) var backend
     @Dependency(\.notetypesClient) var notetypesClient
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     let showsDoneButton: Bool
 
@@ -42,7 +43,7 @@ struct DeckTemplateListView: View {
 
     var body: some View {
         mainContent
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(L("deck_template_nav_title"))
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: L("deck_template_search"))
@@ -165,24 +166,24 @@ struct DeckTemplateListView: View {
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: "square.stack.3d.up")
-                                .foregroundStyle(Color.amgiAccent)
+                                .foregroundStyle(palette.accent)
                             VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                                 Text(entry.name)
                                     .amgiFont(.body)
-                                    .foregroundStyle(Color.amgiTextPrimary)
+                                    .foregroundStyle(palette.textPrimary)
                                 Text("ID: \(entry.id)")
                                     .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(AmgiFont.caption.font)
-                                .foregroundStyle(Color.amgiTextTertiary)
+                                .foregroundStyle(palette.textTertiary)
                         }
                     }
                     .buttonStyle(.plain)
                     .padding(.vertical, 2)
-                    .listRowBackground(Color.amgiSurfaceElevated)
+                    .listRowBackground(palette.surfaceElevated)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
                             deleteTarget = entry
@@ -198,7 +199,7 @@ struct DeckTemplateListView: View {
                         } label: {
                             Label(L("user_mgmt_rename"), systemImage: "pencil")
                         }
-                        .tint(Color.amgiAccent)
+                        .tint(palette.accent)
 
                         Button {
                             beginNotetypeCreation(from: .existing(id: entry.id, name: entry.name))
@@ -211,7 +212,7 @@ struct DeckTemplateListView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.amgiBackground)
+        .background(palette.background)
         .listStyle(.insetGrouped)
     }
 
@@ -377,6 +378,7 @@ private struct NotetypeCreationSourcePickerView: View {
     @Binding var selection: NotetypeCreationSource?
     let onCancel: () -> Void
     let onConfirm: () -> Void
+    @Environment(\.palette) private var palette
 
     private var stockSources: [NotetypeCreationSource] {
         [
@@ -394,7 +396,7 @@ private struct NotetypeCreationSourcePickerView: View {
             Section {
                 Text(L("deck_template_add_notetype_source_message"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .padding(.vertical, 4)
             }
 
@@ -438,15 +440,15 @@ private struct NotetypeCreationSourcePickerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .amgiFont(.body)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Text(subtitle)
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 Spacer()
                 if selection == source {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.amgiAccent)
+                        .foregroundStyle(palette.accent)
                 }
             }
         }
@@ -517,6 +519,7 @@ struct TemplateEditorView: View {
     @Dependency(\.noteClient) var noteClient
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.palette) private var palette
 
     let notetypeId: Int64
     let previewNoteId: Int64?
@@ -608,8 +611,8 @@ struct TemplateEditorView: View {
 
     private var separatorBorderColor: Color {
         colorScheme == .light
-            ? Color.amgiBorder.opacity(0.8)
-            : Color.amgiBorder.opacity(0.5)
+            ? palette.border.opacity(0.8)
+            : palette.border.opacity(0.5)
     }
 
     private var currentTemplateName: String {
@@ -635,7 +638,7 @@ struct TemplateEditorView: View {
                     editorContent
                 }
             }
-            .background(Color.amgiBackground)
+            .background(palette.background)
             .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .interactiveDismissDisabled(hasUnsavedChanges)
@@ -786,7 +789,7 @@ struct TemplateEditorView: View {
                     }
                 }
                 .padding(16)
-                .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .stroke(separatorBorderColor, lineWidth: 1)
@@ -818,7 +821,7 @@ struct TemplateEditorView: View {
                 )
                 .padding(16)
                 .frame(minHeight: 420)
-                .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 30, style: .continuous)
                         .stroke(separatorBorderColor, lineWidth: 1)
@@ -827,11 +830,11 @@ struct TemplateEditorView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(L("card_template_search_title"))
                         .amgiFont(.captionBold)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
 
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
-                            .foregroundStyle(Color.amgiTextSecondary)
+                            .foregroundStyle(palette.textSecondary)
                         TextField(L("card_template_search_placeholder"), text: $editorSearchText)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -840,7 +843,7 @@ struct TemplateEditorView: View {
                             HStack(spacing: 4) {
                                 Text("\(editorSearchCurrentMatch)/\(editorSearchTotalMatches)")
                                     .amgiFont(.caption)
-                                    .foregroundStyle(Color.amgiTextSecondary)
+                                    .foregroundStyle(palette.textSecondary)
                                     .monospacedDigit()
                                     .frame(minWidth: 40, alignment: .trailing)
 
@@ -853,7 +856,7 @@ struct TemplateEditorView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(editorSearchTotalMatches == 0)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                                 .frame(width: 28, height: 28)
 
                                 Button {
@@ -865,14 +868,14 @@ struct TemplateEditorView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(editorSearchTotalMatches == 0)
-                                .foregroundStyle(Color.amgiTextSecondary)
+                                .foregroundStyle(palette.textSecondary)
                                 .frame(width: 28, height: 28)
                             }
                         }
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(Color.amgiSurfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(palette.surfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .stroke(separatorBorderColor, lineWidth: 1)
@@ -881,7 +884,7 @@ struct TemplateEditorView: View {
             }
             .padding(20)
         }
-        .background(Color.amgiBackground)
+        .background(palette.background)
     }
 
     private var previewSheet: some View {
@@ -942,18 +945,18 @@ struct TemplateEditorView: View {
         HStack(spacing: 6) {
             Text(currentTemplateName)
                 .amgiFont(.bodyEmphasis)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(1)
 
             if showsIndicator {
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(.tertiarySystemFill), in: Capsule())
+        .background(palette.surfaceElevated, in: Capsule())
     }
 
     private var templateActionMenu: some View {
@@ -1001,7 +1004,7 @@ struct TemplateEditorView: View {
         } label: {
             Image(systemName: "ellipsis.circle")
                 .font(.title3.weight(.medium))
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
         }
         .accessibilityLabel(L("deck_template_menu_more"))
     }

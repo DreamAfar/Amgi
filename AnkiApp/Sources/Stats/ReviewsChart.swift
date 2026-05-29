@@ -2,6 +2,8 @@ import SwiftUI
 import Charts
 import AnkiProto
 struct ReviewsChart: View {
+    @Environment(\.palette) private var palette
+
     let reviews: Anki_Stats_GraphsResponse.ReviewCountsAndTimes
     let revlogRange: RevlogRange
     @State private var period: StatsPeriod = .month
@@ -237,11 +239,11 @@ struct ReviewsChart: View {
                 VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
                     Text(L("stats_reviews_title"))
                         .amgiFont(.sectionHeading)
-                        .foregroundStyle(Color.amgiTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
 
                     Text(showTime ? L("stats_reviews_time_subtitle") : L("stats_reviews_count_subtitle"))
                         .amgiFont(.caption)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 Spacer()
                 Toggle(L("stats_reviews_show_time"), isOn: $showTime)
@@ -271,7 +273,7 @@ struct ReviewsChart: View {
             if entries.isEmpty {
                 Text(L("stats_reviews_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 reviewChart
@@ -342,7 +344,7 @@ struct ReviewsChart: View {
                 x: .value("Day", point.bucket),
                 y: .value(L("stats_reviews_cumulative"), plottedCumulative(point.cumulative))
             )
-            .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+            .foregroundStyle(palette.textSecondary.opacity(0.08))
             .interpolationMethod(.monotone)
 
             LineMark(
@@ -363,7 +365,7 @@ struct ReviewsChart: View {
            let selectedCumulativePoint,
            !selectedBucketEntries.isEmpty {
             RuleMark(x: .value("Selected Day", selectedBucket))
-                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .foregroundStyle(palette.accent.opacity(0.35))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
@@ -493,10 +495,10 @@ struct ReviewsChart: View {
     private func reviewChartXAxis() -> some AxisContent {
         AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { _ in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
             AxisValueLabel()
                 .font(AmgiFont.micro.font)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -504,26 +506,26 @@ struct ReviewsChart: View {
     private func reviewChartYAxis() -> some AxisContent {
         AxisMarks(position: .leading, values: leftAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: leftAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
 
         AxisMarks(position: .trailing, values: rightAxisValues) { value in
             AxisTick()
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+                .foregroundStyle(palette.textTertiary.opacity(0.35))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: rightAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -534,10 +536,10 @@ struct ReviewsChart: View {
             Text(value)
                 .amgiFont(.captionBold)
                 .monospacedDigit()
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text(label)
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
         }
         .frame(maxWidth: .infinity)
     }

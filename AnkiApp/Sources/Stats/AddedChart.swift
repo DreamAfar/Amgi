@@ -2,6 +2,8 @@
 import Charts
 import AnkiProto
 struct AddedChart: View {
+    @Environment(\.palette) private var palette
+
     let added: Anki_Stats_GraphsResponse.Added
     @State private var period: StatsPeriod = .month
     @State private var selectedDay: Int?
@@ -136,11 +138,11 @@ struct AddedChart: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
             Text(L("stats_added_title"))
                 .amgiFont(.sectionHeading)
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
 
             Text(L("stats_added_subtitle"))
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
 
             Picker("", selection: $period) {
                 Text(L("stats_period_month")).tag(StatsPeriod.month)
@@ -154,7 +156,7 @@ struct AddedChart: View {
             if filteredData.isEmpty {
                 Text(L("stats_added_empty"))
                     .amgiFont(.body)
-                    .foregroundStyle(Color.amgiTextSecondary)
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 180)
             } else {
                 addedChart()
@@ -204,7 +206,7 @@ struct AddedChart: View {
                 y: .value("Cards", item.count),
                 width: barWidth
             )
-            .foregroundStyle(Color.amgiInfo.gradient)
+            .foregroundStyle(palette.info.gradient)
         }
     }
 
@@ -217,7 +219,7 @@ struct AddedChart: View {
                 x: .value("Day", point.day),
                 y: .value("Cumulative", plottedValue)
             )
-            .foregroundStyle(Color.amgiTextSecondary.opacity(0.08))
+            .foregroundStyle(palette.textSecondary.opacity(0.08))
             .interpolationMethod(.monotone)
 
             LineMark(
@@ -225,7 +227,7 @@ struct AddedChart: View {
                 y: .value("Cumulative", plottedValue),
                 series: .value("Series", "cumulative")
             )
-            .foregroundStyle(Color.amgiTextSecondary.opacity(0.45))
+            .foregroundStyle(palette.textSecondary.opacity(0.45))
             .lineStyle(StrokeStyle(lineWidth: 1.5))
             .interpolationMethod(.monotone)
         }
@@ -239,7 +241,7 @@ struct AddedChart: View {
             let countLabel = L("stats_card_count")
             let cumulativeLabel = L("stats_reviews_cumulative")
             RuleMark(x: .value("Selected Day", selectedDay))
-                .foregroundStyle(Color.amgiAccent.opacity(0.35))
+                .foregroundStyle(palette.accent.opacity(0.35))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
                     StatsChartTooltip(
@@ -344,12 +346,12 @@ struct AddedChart: View {
     private func addedChartXAxis() -> some AxisContent {
         AxisMarks(values: .automatic(desiredCount: xAxisDesiredTickCount)) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
             if let day = value.as(Int.self) {
                 AxisValueLabel {
                     Text("\(day)")
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -359,26 +361,26 @@ struct AddedChart: View {
     private func addedChartYAxis() -> some AxisContent {
         AxisMarks(position: .leading, values: leftAxisValues) { value in
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.25))
+                .foregroundStyle(palette.textTertiary.opacity(0.25))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: leftAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
 
         AxisMarks(position: .trailing, values: rightAxisValues) { value in
             AxisTick()
-                .foregroundStyle(Color.amgiTextTertiary.opacity(0.35))
+                .foregroundStyle(palette.textTertiary.opacity(0.35))
 
             AxisValueLabel {
                 if let raw = value.as(Double.self) {
                     Text(StatsDualAxisSupport.label(for: raw, in: rightAxisTicks))
                         .amgiFont(.micro)
-                        .foregroundStyle(Color.amgiTextSecondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
         }
@@ -389,10 +391,10 @@ struct AddedChart: View {
             Text(value)
                 .amgiFont(.captionBold)
                 .monospacedDigit()
-                .foregroundStyle(Color.amgiTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text(label)
                 .amgiFont(.caption)
-                .foregroundStyle(Color.amgiTextSecondary)
+                .foregroundStyle(palette.textSecondary)
         }
         .frame(maxWidth: .infinity)
     }

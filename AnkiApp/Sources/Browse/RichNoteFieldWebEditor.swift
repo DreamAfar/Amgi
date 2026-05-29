@@ -41,6 +41,7 @@ struct RichNoteFieldEditor: View {
 
 private struct RenderedHTMLFieldEditor: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.palette) private var palette
     @Binding var htmlText: String
     @Binding var measuredHeight: CGFloat
     var onInsertPhoto: (() -> Void)?
@@ -302,7 +303,7 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
 
     private func makeInputToolbar(for webView: WKWebView, coordinator: Coordinator) -> UIView {
         let container = WebToolbarContainerView(frame: CGRect(x: 0, y: 0, width: 0, height: 68))
-        container.backgroundColor = .secondarySystemBackground
+        container.backgroundColor = UIColor(palette.background)
         container.clipsToBounds = false
 
         let divider = UIView()
@@ -312,7 +313,7 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
 
         let bubble = UIView()
         bubble.translatesAutoresizingMaskIntoConstraints = false
-        bubble.backgroundColor = .systemBackground
+        bubble.backgroundColor = UIColor(palette.surface)
         bubble.layer.cornerRadius = 18
         bubble.layer.shadowColor = UIColor.black.withAlphaComponent(0.16).cgColor
         bubble.layer.shadowOpacity = 1
@@ -674,7 +675,7 @@ private struct RenderedHTMLFieldEditor: UIViewRepresentable {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = tintColor
-        button.backgroundColor = .tertiarySystemFill
+        button.backgroundColor = UIColor(palette.surfaceElevated)
         button.layer.cornerRadius = 16
         button.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         if let title {
