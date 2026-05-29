@@ -2473,6 +2473,7 @@ private struct AnkiJSSearchCallbackResult: Encodable, Equatable {
 
 private struct AnkiJSToastView: View {
     let message: String
+    @Environment(\.palette) private var palette
 
     var body: some View {
         Text(message)
@@ -2636,6 +2637,7 @@ private struct ReviewSetDueDateSheet: View {
     let onSave: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     private var trimmedDueDays: String {
         dueDays.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2679,6 +2681,7 @@ private struct ReviewSetDueDateSheet: View {
 private struct ReviewAutoAdvanceTimerView: View {
     let deadline: Date?
     let fallbackSeconds: Double
+    @Environment(\.palette) private var palette
 
     var body: some View {
         Group {
@@ -2715,6 +2718,7 @@ private struct ReviewCardStatsSheet: View {
     let queuedCard: Anki_Scheduler_QueuedCards.QueuedCard
     @Dependency(\.statsClient) var statsClient
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @State private var cardStats: Anki_Stats_CardStatsResponse?
     @State private var isLoadingStats = true
@@ -3053,6 +3057,7 @@ private struct ReviewCardInfoSheet: View {
     let queuedCard: Anki_Scheduler_QueuedCards.QueuedCard
     @Dependency(\.statsClient) var statsClient
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     @State private var cardStats: Anki_Stats_CardStatsResponse?
     @State private var isLoadingStats = true

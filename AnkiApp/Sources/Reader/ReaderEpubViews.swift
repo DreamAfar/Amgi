@@ -3429,10 +3429,10 @@ private struct ReaderEpubStatisticsView: View {
     private func statisticsRow(title: String, value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: AmgiSpacing.md) {
             Text(title)
-                .foregroundStyle(SettingsValueStyle.primary)
+                .foregroundStyle(palette.textPrimary)
             Spacer(minLength: 12)
             Text(value)
-                .foregroundStyle(SettingsValueStyle.secondary)
+                .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
         }

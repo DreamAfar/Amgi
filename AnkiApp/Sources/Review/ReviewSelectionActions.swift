@@ -463,14 +463,14 @@ struct ReviewSelectionLookupLinkSettingsView: View {
             Section(L("settings_review_preset_section_current")) {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_preset_active"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_review_preset_active"), selection: selectedPresetBinding) {
                             ForEach(Array(store.presets.enumerated()), id: \.element.id) { index, preset in
                                 Text(presetTitle(preset, index: index))
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(preset.id)
                             }
                         }
@@ -617,7 +617,8 @@ struct ReviewAISettingsHomeView: View {
                     settingsDestinationRow(
                         title: L("settings_review_ai_presets"),
                         subtitle: L("settings_review_ai_presets_subtitle"),
-                        icon: "slider.horizontal.3"
+                        icon: "slider.horizontal.3",
+                        palette: palette
                     )
                 }
 
@@ -627,7 +628,8 @@ struct ReviewAISettingsHomeView: View {
                     settingsDestinationRow(
                         title: L("settings_review_ai_favorites"),
                         subtitle: favoriteCountLabel,
-                        icon: "star"
+                        icon: "star",
+                        palette: palette
                     )
                 }
 
@@ -637,7 +639,8 @@ struct ReviewAISettingsHomeView: View {
                     settingsDestinationRow(
                         title: L("settings_review_ai_note_template"),
                         subtitle: L("settings_review_ai_note_template_subtitle"),
-                        icon: "note.text.badge.plus"
+                        icon: "note.text.badge.plus",
+                        palette: palette
                     )
                 }
 
@@ -647,7 +650,8 @@ struct ReviewAISettingsHomeView: View {
                     settingsDestinationRow(
                         title: L("settings_review_ai_quick_actions"),
                         subtitle: quickActionCountLabel,
-                        icon: "bolt"
+                        icon: "bolt",
+                        palette: palette
                     )
                 }
             }
@@ -681,14 +685,14 @@ private struct ReviewAIPresetManagementView: View {
             Section(L("settings_review_preset_section_current")) {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_preset_active"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_review_preset_active"), selection: selectedPresetBinding) {
                             ForEach(Array(store.presets.enumerated()), id: \.element.id) { index, preset in
                                 Text(presetTitle(preset, index: index))
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(preset.id)
                             }
                         }
@@ -859,7 +863,7 @@ private func placeholderTextEditor(
     ZStack(alignment: .topLeading) {
         if text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Text(placeholder)
-                .foregroundStyle(SettingsValueStyle.secondary)
+                .foregroundStyle(palette.textSecondary)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 8)
                 .allowsHitTesting(false)
@@ -879,7 +883,7 @@ private struct ReviewAIFavoritesView: View {
             if store.items.isEmpty {
                 Section {
                     Text(L("settings_review_ai_favorites_empty"))
-                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 .amgiSettingsListRowSurface()
             } else {
@@ -891,11 +895,11 @@ private struct ReviewAIFavoritesView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(item.queryText)
                                     .amgiFont(.body)
-                                    .foregroundStyle(SettingsValueStyle.primary)
+                                    .foregroundStyle(palette.textPrimary)
                                     .lineLimit(1)
                                 Text(item.summary)
                                     .amgiFont(.caption)
-                                    .foregroundStyle(SettingsValueStyle.secondary)
+                                    .foregroundStyle(palette.textSecondary)
                                     .lineLimit(2)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -933,7 +937,7 @@ private struct ReviewAIQuickActionsView: View {
             if store.actions.isEmpty {
                 Section {
                     Text(L("settings_review_ai_quick_actions_empty"))
-                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 .amgiSettingsListRowSurface()
             } else {
@@ -948,7 +952,8 @@ private struct ReviewAIQuickActionsView: View {
                             settingsDestinationRow(
                                 title: actionTitle(action, index: index),
                                 subtitle: action.promptInstruction.trimmedOrNil ?? L("common_none"),
-                                icon: "bolt"
+                                icon: "bolt",
+                                palette: palette
                             )
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -1004,6 +1009,7 @@ private struct ReviewAIQuickActionsView: View {
 private struct ReviewAIQuickActionEditorView: View {
     @Binding var action: ReviewAIQuickAction
     let title: String
+    @Environment(\.palette) private var palette
 
     var body: some View {
         List {
@@ -1116,16 +1122,16 @@ private struct ReviewAINoteTemplateSettingsView: View {
             Section {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("add_note_section_deck"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("add_note_section_deck"), selection: selectedDeckBinding) {
                             Text(L("settings_reader_not_set"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(0)
                             ForEach(decks) { deck in
                                 Text(deck.name)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(Int(deck.id))
                             }
                         }
@@ -1136,16 +1142,16 @@ private struct ReviewAINoteTemplateSettingsView: View {
 
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("add_note_type_label"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("add_note_type_label"), selection: selectedNotetypeBinding) {
                             Text(L("settings_reader_not_set"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(0)
                             ForEach(notetypeNames, id: \.id) { item in
                                 Text(item.name)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(Int(item.id))
                             }
                         }
@@ -1353,6 +1359,7 @@ private struct ReviewAINoteTemplateSettingsView: View {
 private struct ReviewAISelectionFormatCapsule: View {
     let title: String
     let isSelected: Bool
+    @Environment(\.palette) private var palette
 
     var body: some View {
         HStack(spacing: 6) {
@@ -1362,7 +1369,7 @@ private struct ReviewAISelectionFormatCapsule: View {
                 .amgiFont(.captionBold)
                 .lineLimit(1)
         }
-        .foregroundStyle(isSelected ? Color.white : SettingsValueStyle.primary)
+        .foregroundStyle(isSelected ? Color.white : palette.textPrimary)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(
@@ -1424,19 +1431,19 @@ private struct ReviewAISelectionFormatFlowLayout: Layout {
 }
 
 @MainActor
-private func settingsDestinationRow(title: String, subtitle: String, icon: String) -> some View {
+private func settingsDestinationRow(title: String, subtitle: String, icon: String, palette: Palette) -> some View {
     HStack(spacing: AmgiSpacing.sm) {
         Image(systemName: icon)
-            .foregroundStyle(SettingsValueStyle.secondary)
+            .foregroundStyle(palette.textSecondary)
             .frame(width: 18)
 
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .amgiFont(.body)
-                .foregroundStyle(SettingsValueStyle.primary)
+                .foregroundStyle(palette.textPrimary)
             Text(subtitle)
                 .amgiFont(.caption)
-                .foregroundStyle(SettingsValueStyle.secondary)
+                .foregroundStyle(palette.textSecondary)
                 .lineLimit(1)
         }
     }
@@ -1448,16 +1455,16 @@ private func settingsDestinationRow(title: String, subtitle: String, icon: Strin
 private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: String, palette: Palette) -> some View {
     HStack(spacing: AmgiSpacing.sm) {
         Image(systemName: icon)
-            .foregroundStyle(SettingsValueStyle.secondary)
+            .foregroundStyle(palette.textSecondary)
             .frame(width: 18)
 
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .amgiFont(.body)
-                .foregroundStyle(SettingsValueStyle.primary)
+                .foregroundStyle(palette.textPrimary)
             Text(subtitle)
                 .amgiFont(.caption)
-                .foregroundStyle(SettingsValueStyle.secondary)
+                .foregroundStyle(palette.textSecondary)
                 .lineLimit(1)
         }
 
@@ -1474,6 +1481,7 @@ private func presetRow(title: String, subtitle: String, isSelected: Bool, icon: 
 
 struct ReviewSelectionAISheetView: View {
     @Dependency(\.ankiBackend) private var backend
+    @Environment(\.palette) private var palette
     @Binding var state: ReviewSelectionAIState
     let presets: [ReviewSelectionAIPreset]
     let quickActions: [ReviewAIQuickAction]
@@ -1574,7 +1582,7 @@ struct ReviewSelectionAISheetView: View {
                 content: {
                     ForEach(Array(presets.enumerated()), id: \.element.id) { index, preset in
                         Text(preset.name.trimmedOrNil ?? L("settings_review_preset_name_fallback", index + 1))
-                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .foregroundStyle(palette.accent)
                             .tag(preset.id)
                     }
                 },
@@ -1604,7 +1612,7 @@ struct ReviewSelectionAISheetView: View {
         VStack(alignment: .leading, spacing: AmgiSpacing.xs) {
             Text(L("review_selection_ai_selected_text"))
                 .amgiFont(.bodyEmphasis)
-                .foregroundStyle(SettingsValueStyle.primary)
+                .foregroundStyle(palette.textPrimary)
             TextEditor(text: $state.draftSelection)
                 .frame(minHeight: 92)
                 .padding(8)
@@ -1619,7 +1627,7 @@ struct ReviewSelectionAISheetView: View {
             HStack(spacing: AmgiSpacing.sm) {
                 Text(L("review_selection_ai_result"))
                     .amgiFont(.bodyEmphasis)
-                    .foregroundStyle(SettingsValueStyle.primary)
+                    .foregroundStyle(palette.textPrimary)
 
                 Spacer(minLength: 0)
 
@@ -1654,7 +1662,7 @@ struct ReviewSelectionAISheetView: View {
             HStack(spacing: 12) {
                 ProgressView()
                 Text(L("review_selection_ai_loading"))
-                    .foregroundStyle(SettingsValueStyle.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let errorMessage = state.errorMessage?.trimmedOrNil {
@@ -1681,7 +1689,7 @@ struct ReviewSelectionAISheetView: View {
                         Button(action.title) {
                             onSubmit(action)
                         }
-                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .foregroundStyle(palette.textSecondary)
                         .amgiCapsuleControl(backgroundColor: palette.surfaceElevated, horizontalPadding: 10, verticalPadding: 6)
                     }
                 }
@@ -1699,7 +1707,7 @@ struct ReviewSelectionAISheetView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(L("review_selection_ai_sentence"))
                                 .amgiFont(.caption)
-                                .foregroundStyle(SettingsValueStyle.secondary)
+                                .foregroundStyle(palette.textSecondary)
                             Text(sentence)
                                 .textSelection(.enabled)
                         }
@@ -1708,7 +1716,7 @@ struct ReviewSelectionAISheetView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(L("review_selection_ai_source"))
                                 .amgiFont(.caption)
-                                .foregroundStyle(SettingsValueStyle.secondary)
+                                .foregroundStyle(palette.textSecondary)
                             Text(source)
                                 .textSelection(.enabled)
                         }

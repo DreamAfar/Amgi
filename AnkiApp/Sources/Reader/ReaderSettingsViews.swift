@@ -17,7 +17,7 @@ struct ReaderSettingsHomeView: View {
             Section {
                 Toggle(isOn: $isReaderTabEnabled) {
                     Label(L("settings_reader_show_tab"), systemImage: "square.bottomthird.inset.filled")
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                 }
             } footer: {
                 Text(L("settings_reader_show_tab_description"))
@@ -30,7 +30,7 @@ struct ReaderSettingsHomeView: View {
                 } label: {
                     Label(L("settings_reader_section_source"), systemImage: "tray.full")
                         .amgiFont(.body)
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                 }
 
                 NavigationLink {
@@ -38,7 +38,7 @@ struct ReaderSettingsHomeView: View {
                 } label: {
                     Label(L("settings_reader_manage_dictionaries"), systemImage: "character.book.closed")
                         .amgiFont(.body)
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                 }
 
                 NavigationLink {
@@ -46,7 +46,7 @@ struct ReaderSettingsHomeView: View {
                 } label: {
                     Label(L("settings_reader_display_settings"), systemImage: "paintbrush")
                         .amgiFont(.body)
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                 }
 
                 NavigationLink {
@@ -54,7 +54,7 @@ struct ReaderSettingsHomeView: View {
                 } label: {
                     Label(L("settings_reader_advanced_settings"), systemImage: "gearshape.2")
                         .amgiFont(.body)
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                 }
             }
             .amgiSettingsListRowSurface()
@@ -111,17 +111,17 @@ struct ReaderSourceSettingsView: View {
             Section(L("settings_reader_section_source")) {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_deck"), systemImage: "books.vertical")
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_reader_deck"), selection: $selectedDeckID) {
                             Text(L("settings_reader_not_set"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(0)
                             ForEach(decks) { deck in
                                 Text(deck.name)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(Int(deck.id))
                             }
                         }
@@ -133,17 +133,17 @@ struct ReaderSourceSettingsView: View {
 
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_notetype"), systemImage: "square.text.square")
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_reader_notetype"), selection: $selectedNotetypeID) {
                             Text(L("settings_reader_not_set"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(0)
                             ForEach(notetypeNames, id: \.0) { id, name in
                                 Text(name)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(Int(id))
                             }
                         }
@@ -155,11 +155,11 @@ struct ReaderSourceSettingsView: View {
 
                 Text(L("settings_reader_source_mixed_description"))
                     .font(.footnote)
-                    .foregroundStyle(SettingsValueStyle.secondary)
+                    .foregroundStyle(palette.textSecondary)
 
                     Text(L("settings_reader_epub_source_description"))
                         .font(.footnote)
-                        .foregroundStyle(SettingsValueStyle.secondary)
+                        .foregroundStyle(palette.textSecondary)
             }
             .amgiSettingsListRowSurface()
 
@@ -190,17 +190,17 @@ struct ReaderSourceSettingsView: View {
     private func readerFieldRow(title: String, selection: Binding<String>) -> some View {
         HStack(alignment: .top, spacing: AmgiSpacing.md) {
             Text(title)
-                .foregroundStyle(SettingsValueStyle.primary)
+                .foregroundStyle(palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Menu {
                 Picker(title, selection: selection) {
                     Text(L("settings_reader_not_set"))
-                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .foregroundStyle(palette.accent)
                         .tag("")
                     ForEach(availableFields, id: \.self) { fieldName in
                         Text(fieldName)
-                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .foregroundStyle(palette.accent)
                             .tag(fieldName)
                     }
                 }
@@ -302,6 +302,10 @@ struct ReaderDisplaySettingsView: View {
     @AppStorage(ReaderPreferences.Keys.popupFullWidth) private var popupFullWidth = false
     @AppStorage(ReaderPreferences.Keys.popupSwipeToDismiss) private var popupSwipeToDismiss = false
 
+    private var menuCapsuleBackground: Color {
+        palette.surface
+    }
+
     private var themeMode: ReaderThemeMode {
         get { ReaderThemeMode(rawValue: themeModeRawValue) ?? .system }
         set { themeModeRawValue = newValue.rawValue }
@@ -361,7 +365,7 @@ struct ReaderDisplaySettingsView: View {
             Section(L("settings_reader_display_section_text")) {
                 HStack {
                     Text(L("settings_reader_font"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Menu {
                         Picker(
@@ -373,7 +377,7 @@ struct ReaderDisplaySettingsView: View {
                         ) {
                             ForEach(ReaderFontOption.all) { font in
                                 Text(fontTitle(font))
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(font)
                             }
                         }
@@ -392,7 +396,7 @@ struct ReaderDisplaySettingsView: View {
                 ForEach(ReaderFontOption.all.filter { $0.id != "system" && !ReaderFontOption.builtIn.map(\.id).contains($0.id) }) { font in
                     HStack {
                         Text(font.title)
-                            .foregroundStyle(SettingsValueStyle.primary)
+                            .foregroundStyle(palette.textPrimary)
                         Spacer()
                     }
                     .swipeActions(edge: .trailing) {
@@ -409,7 +413,7 @@ struct ReaderDisplaySettingsView: View {
 
                 HStack {
                     Text(L("settings_reader_text_orientation"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Picker("", selection: $verticalLayout) {
                         Text(L("settings_reader_text_orientation_vertical")).tag(true)
@@ -421,10 +425,10 @@ struct ReaderDisplaySettingsView: View {
 
                 HStack {
                     Text(L("settings_reader_font_size"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Text(L("settings_reader_font_size_value", readerFontSize))
-                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .foregroundStyle(palette.accent)
                     Stepper("", value: $readerFontSize, in: 16...40)
                         .labelsHidden()
                 }
@@ -436,20 +440,20 @@ struct ReaderDisplaySettingsView: View {
             Section(L("settings_reader_display_section_layout")) {
                 HStack {
                     Text(L("settings_reader_horizontal_padding"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Text(L("settings_reader_padding_value", horizontalPadding))
-                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .foregroundStyle(palette.accent)
                     Stepper("", value: $horizontalPadding, in: 0...20)
                         .labelsHidden()
                 }
 
                 HStack {
                     Text(L("settings_reader_vertical_padding"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Text(L("settings_reader_padding_value", verticalPadding))
-                        .foregroundStyle(SettingsValueStyle.highlight)
+                        .foregroundStyle(palette.accent)
                     Stepper("", value: $verticalPadding, in: 0...20)
                         .labelsHidden()
                 }
@@ -462,10 +466,10 @@ struct ReaderDisplaySettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(L("settings_reader_line_height"))
-                                .foregroundStyle(SettingsValueStyle.primary)
+                                .foregroundStyle(palette.textPrimary)
                             Spacer()
                             Text(L("settings_reader_line_height_value", lineHeight))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                         }
                         Slider(value: $lineHeight, in: 1.0...2.5, step: 0.05)
                             .tint(palette.accent)
@@ -474,10 +478,10 @@ struct ReaderDisplaySettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(L("settings_reader_character_spacing"))
-                                .foregroundStyle(SettingsValueStyle.primary)
+                                .foregroundStyle(palette.textPrimary)
                             Spacer()
                             Text(L("settings_reader_character_spacing_value", Int(characterSpacing)))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                         }
                         Slider(value: $characterSpacing, in: -10...10, step: 1)
                             .tint(palette.accent)
@@ -489,7 +493,7 @@ struct ReaderDisplaySettingsView: View {
             Section(L("settings_reader_display_section_display")) {
                 HStack {
                     Text(L("settings_reader_theme_mode"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Menu {
                         Picker(
@@ -500,16 +504,16 @@ struct ReaderDisplaySettingsView: View {
                             )
                         ) {
                             Text(L("settings_reader_theme_mode_system"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(ReaderThemeMode.system)
                             Text(L("settings_reader_theme_mode_eye_care"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(ReaderThemeMode.eyeCare)
                             Text(L("settings_reader_theme_mode_sepia"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(ReaderThemeMode.sepia)
                             Text(L("settings_reader_theme_mode_custom"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(ReaderThemeMode.custom)
                         }
                     } label: {
@@ -532,7 +536,7 @@ struct ReaderDisplaySettingsView: View {
 
                 HStack {
                     Text(L("settings_reader_display_progress_position"))
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                     Spacer()
                     Picker("", selection: $showProgressTop) {
                         Text(L("settings_reader_display_progress_position_top")).tag(true)
@@ -548,10 +552,10 @@ struct ReaderDisplaySettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(L("settings_reader_popup_width"))
-                            .foregroundStyle(SettingsValueStyle.primary)
+                            .foregroundStyle(palette.textPrimary)
                         Spacer()
                         Text("\(popupWidth)")
-                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .foregroundStyle(palette.accent)
                     }
                     Slider(
                         value: Binding(
@@ -567,10 +571,10 @@ struct ReaderDisplaySettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(L("settings_reader_popup_height"))
-                            .foregroundStyle(SettingsValueStyle.primary)
+                            .foregroundStyle(palette.textPrimary)
                         Spacer()
                         Text("\(popupHeight)")
-                            .foregroundStyle(SettingsValueStyle.highlight)
+                            .foregroundStyle(palette.accent)
                     }
                     Slider(
                         value: Binding(
@@ -810,10 +814,10 @@ struct ReaderAdvancedSettingsView: View {
         List {
             Section {
                 Toggle(L("settings_reader_tap_lookup"), isOn: $tapLookupEnabled)
-                    .foregroundStyle(SettingsValueStyle.primary)
+                    .foregroundStyle(palette.textPrimary)
 
                 Toggle(L("settings_reader_dictionary_popup_debug_info"), isOn: $popupDebugInfoEnabled)
-                    .foregroundStyle(SettingsValueStyle.primary)
+                    .foregroundStyle(palette.textPrimary)
             } footer: {
                 Text(L("settings_reader_tap_lookup_description"))
             }
@@ -821,12 +825,12 @@ struct ReaderAdvancedSettingsView: View {
 
             Section {
                 Toggle(L("settings_reader_statistics_enable"), isOn: $enableStatistics)
-                    .foregroundStyle(SettingsValueStyle.primary)
+                    .foregroundStyle(palette.textPrimary)
 
                 if enableStatistics {
                     HStack(alignment: .top, spacing: AmgiSpacing.md) {
                         Text(L("settings_reader_statistics_autostart"))
-                            .foregroundStyle(SettingsValueStyle.primary)
+                            .foregroundStyle(palette.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Menu {
@@ -877,17 +881,17 @@ struct ReaderAdvancedSettingsView: View {
 
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_note_template_deck"), systemImage: "rectangle.stack")
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_reader_note_template_deck"), selection: templateDeckSelection) {
                             Text(L("settings_reader_not_set"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(0)
                             ForEach(decks) { deck in
                                 Text(deck.name)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(Int(deck.id))
                             }
                         }
@@ -899,17 +903,17 @@ struct ReaderAdvancedSettingsView: View {
 
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_note_template_notetype"), systemImage: "square.text.square")
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
                         Picker(L("settings_reader_note_template_notetype"), selection: templateNotetypeSelection) {
                             Text(L("settings_reader_not_set"))
-                                .foregroundStyle(SettingsValueStyle.highlight)
+                                .foregroundStyle(palette.accent)
                                 .tag(0)
                             ForEach(notetypeNames, id: \.0) { id, name in
                                 Text(name)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(Int(id))
                             }
                         }
@@ -921,7 +925,7 @@ struct ReaderAdvancedSettingsView: View {
 
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Label(L("settings_reader_note_template_duplicate_check_field"), systemImage: "checkmark.circle")
-                        .foregroundStyle(SettingsValueStyle.primary)
+                        .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Menu {
@@ -931,12 +935,12 @@ struct ReaderAdvancedSettingsView: View {
                         ) {
                             if let firstFieldName = availableFields.first {
                                 Text(L("settings_reader_note_template_duplicate_check_field_default", firstFieldName))
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag("")
                             }
                             ForEach(availableFields, id: \.self) { fieldName in
                                 Text(fieldName)
-                                    .foregroundStyle(SettingsValueStyle.highlight)
+                                    .foregroundStyle(palette.accent)
                                     .tag(fieldName)
                             }
                         }
