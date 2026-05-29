@@ -89,7 +89,7 @@ struct BrowseFindReplaceSheet: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button(L("browse_find_replace_action")) {
                         Task { await applyFindReplace() }
                     }

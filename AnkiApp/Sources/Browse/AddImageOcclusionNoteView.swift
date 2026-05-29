@@ -313,7 +313,7 @@ struct AddImageOcclusionNoteView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(L("common_cancel")) { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button(L("common_save")) {
                         Task { await save() }
                     }

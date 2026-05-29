@@ -99,7 +99,6 @@ struct AnkiAppApp: App {
             .environmentObject(collectionState)
             .environment(\.locale, currentLocale)
             .themedRoot(manager: themeManager)
-            .tint(palette.accent)
             .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
                 Task {
                     await syncDailyReminderIfNeeded()

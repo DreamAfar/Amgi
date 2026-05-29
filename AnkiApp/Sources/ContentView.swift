@@ -130,6 +130,7 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Tabs
     private var decksTab: some TabContent<RootTab> {
         Tab(L("tab_decks"), systemImage: "rectangle.stack", value: RootTab.decks) {
             NavigationStack {
@@ -146,6 +147,7 @@ struct ContentView: View {
                         }
                     }
             }
+            .tint(palette.textPrimary)
         }
     }
 
@@ -167,11 +169,13 @@ struct ContentView: View {
         if collectionState.isReady {
             BrowseView(isActive: selectedTab == .browse)
                 .id(refreshID)
+                .tint(palette.textPrimary)
         } else {
             CollectionPreparingView()
         }
     }
 
+    // MARK: - Stats Tab
     private var statsTab: some TabContent<RootTab> {
         Tab(L("tab_stats"), systemImage: "chart.bar", value: RootTab.stats) {
             NavigationStack {
@@ -182,6 +186,7 @@ struct ContentView: View {
                     CollectionPreparingView()
                 }
             }
+            .tint(palette.textPrimary)
         }
     }
 
@@ -197,14 +202,16 @@ struct ContentView: View {
                         CollectionPreparingView()
                     }
                 }
+                .tint(palette.textPrimary)
             }
         }
     }
-
+    // MARK: - Settings Tab
     private var settingsTab: some TabContent<RootTab> {
         Tab(L("tab_settings"), systemImage: "gearshape", value: RootTab.settings) {
             SettingsView()
                 .id(refreshID)
+                .tint(palette.textPrimary)
         }
     }
 
@@ -225,11 +232,13 @@ struct ContentView: View {
         }
     }
 
+    // The root TabView with sidebar style for iPad and default style for iPhone.
     private var rootTabView: some View {
         TabView(selection: $selectedTab) {
             rootTabs
         }
         .tabViewStyle(.sidebarAdaptable)
+        .tint(palette.accent) // Set accent color for TabView (tab bar)
         .toolbarBackground(palette.background, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         .toolbarColorScheme(colorScheme, for: .tabBar)

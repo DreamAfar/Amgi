@@ -347,6 +347,7 @@ struct ReaderLibraryView: View {
                     } label: {
                         Image(systemName: "trash")
                     }
+                    .tint(palette.danger)
                     .disabled(selectedEpubBookIDs.isEmpty)
                 }
 

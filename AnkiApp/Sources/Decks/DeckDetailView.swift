@@ -187,7 +187,7 @@ struct DeckDetailView: View {
             NavigationStack {
                 StatsDashboardView(initialDeckID: deck.id)
                     .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
+                        ToolbarItem(placement: .confirmationAction) {
                             Button(L("common_done")) { showStats = false }
                         }
                     }

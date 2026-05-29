@@ -913,6 +913,7 @@ struct ReviewView: View {
                 } label: {
                     Label(L("browse_batch_delete_notes"), systemImage: "trash")
                 }
+                .tint(palette.danger)
                 .disabled(!hasCurrentCard)
             } label: {
                 Image(systemName: "ellipsis.circle")

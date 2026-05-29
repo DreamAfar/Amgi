@@ -196,7 +196,7 @@ struct ImageOcclusionWorkspaceView: View {
             ToolbarItem(placement: .topBarLeading) {
                 Button(L("common_cancel")) { requestDismiss() }
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .confirmationAction) {
                 Button(L("common_save")) { saveWorkspace() }
                 .amgiToolbarTextButton()
             }
@@ -414,7 +414,7 @@ struct ImageOcclusionWorkspaceView: View {
                         closeTextEditor()
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button(L("common_save")) {
                         insertOrUpdateTextMask()
                     }
@@ -442,7 +442,7 @@ struct ImageOcclusionWorkspaceView: View {
                         showFillEditor = false
                     }
                 }
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .confirmationAction) {
                     Button(L("rich_text_color_default")) {
                         showFillEditor = false
                         applyFill(nil)
