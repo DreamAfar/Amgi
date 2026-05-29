@@ -17,6 +17,7 @@ private let logger = Logger(subsystem: "amgi", category: "startup")
 struct ContentView: View {
     @Binding var incomingImportURL: URL?
     @Environment(\.palette) private var palette
+    @Environment(\.colorScheme) private var colorScheme
 
     private enum RootTab: Hashable {
         case decks
@@ -229,9 +230,9 @@ struct ContentView: View {
             rootTabs
         }
         .tabViewStyle(.sidebarAdaptable)
-        .toolbarBackground(palette.background, for: .tabBar, .sidebar)
-        .toolbarBackground(.visible, for: .tabBar, .sidebar)
-        .toolbarColorScheme(themeManager.appearance.colorScheme, for: .tabBar, .sidebar)
+        .toolbarBackground(palette.background, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbarColorScheme(colorScheme, for: .tabBar)
     }
 
     private func contentObserverShell<Content: View>(_ content: Content) -> some View {
