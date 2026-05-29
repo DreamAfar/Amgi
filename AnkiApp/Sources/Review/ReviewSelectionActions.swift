@@ -821,7 +821,8 @@ private struct ReviewAIPresetEditorView: View {
                 placeholderTextEditor(
                     text: $preset.systemPrompt,
                     placeholder: L("settings_review_ai_system_prompt_placeholder"),
-                    minHeight: 120
+                    minHeight: 120,
+                    palette: palette
                 )
             }
             .amgiSettingsListRowSurface()
@@ -830,7 +831,8 @@ private struct ReviewAIPresetEditorView: View {
                 placeholderTextEditor(
                     text: $preset.glossary,
                     placeholder: L("settings_review_ai_glossary_placeholder"),
-                    minHeight: 120
+                    minHeight: 120,
+                    palette: palette
                 )
             }
             .amgiSettingsListRowSurface()
@@ -858,7 +860,8 @@ private struct ReviewAIPresetEditorView: View {
 private func placeholderTextEditor(
     text: Binding<String>,
     placeholder: String,
-    minHeight: CGFloat
+    minHeight: CGFloat,
+    palette: Palette
 ) -> some View {
     ZStack(alignment: .topLeading) {
         if text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

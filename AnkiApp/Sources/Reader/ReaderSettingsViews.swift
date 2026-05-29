@@ -517,11 +517,11 @@ struct ReaderDisplaySettingsView: View {
                                 .tag(ReaderThemeMode.custom)
                         }
                     } label: {
-                        SettingsOptionCapsuleLabel(
-                            title: themeModeTitle,
-                            backgroundColor: palette.menuSurface
-                        )
-                    }
+                    SettingsOptionCapsuleLabel(
+                        title: themeModeTitle,
+                        backgroundColor: palette.surface
+                    )
+                }
                 }
 
                 if themeMode == .custom {
