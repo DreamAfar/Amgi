@@ -738,14 +738,19 @@ struct BrowseView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .background(palette.background.ignoresSafeArea())
     }
 
     private func browseNavigationScaffold<Content: View>(
         @ViewBuilder content: () -> Content
     ) -> some View {
         content()
+            .scrollContentBackground(.hidden)
+            .background(palette.background)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(palette.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 browseToolbarContent
                 if isEditing && !usesWideBatchBottomBar {
@@ -1929,7 +1934,7 @@ struct BrowseView: View {
                 }
             }
         }
-        .background(.bar)
+        .background(palette.surfaceElevated)
     }
 
     @ViewBuilder

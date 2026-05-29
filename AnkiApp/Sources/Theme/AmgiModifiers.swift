@@ -174,7 +174,7 @@ extension View {
         modifier(AmgiToolbarIconButtonModifier(size: size))
     }
 
-    func amgiToolbarTextButton(tone: AmgiStatusTone = .accent) -> some View {
+    func amgiToolbarTextButton(tone: AmgiStatusTone = .neutral) -> some View {
         modifier(AmgiToolbarTextButtonModifier(tone: tone))
     }
 

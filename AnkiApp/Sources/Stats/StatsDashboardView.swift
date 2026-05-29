@@ -133,114 +133,119 @@ struct StatsDashboardView: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
-                    if isLoading {
-                        ProgressView(L("stats_loading"))
-                            .padding(.top, 40)
-                    } else if let error = errorMessage {
-                        ContentUnavailableView(
-                            L("stats_load_failed_title"),
-                            systemImage: "exclamationmark.triangle",
-                            description: Text(error)
-                        )
-                    } else if let graphs {
-                        Section {
-                            Color.clear
-                                .frame(height: 1)
-                                .id(StatsGroup.overview)
-                            TodayStatsCard(today: graphs.today)
-                                .id(StatsGroup.today)
-                            orderedChartContent(graphs: graphs)
-                                .id("stats-layout-\(chartLayoutRaw)-\(chartOrderRaw)")
-                        } header: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 8) {
-                                    deckMenu
-                                    Spacer()
-                                    revlogRangePicker
+        ZStack {
+            palette.background
+                .ignoresSafeArea()
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
+                        if isLoading {
+                            ProgressView(L("stats_loading"))
+                                .padding(.top, 40)
+                        } else if let error = errorMessage {
+                            ContentUnavailableView(
+                                L("stats_load_failed_title"),
+                                systemImage: "exclamationmark.triangle",
+                                description: Text(error)
+                            )
+                        } else if let graphs {
+                            Section {
+                                Color.clear
+                                    .frame(height: 1)
+                                    .id(StatsGroup.overview)
+                                TodayStatsCard(today: graphs.today)
+                                    .id(StatsGroup.today)
+                                orderedChartContent(graphs: graphs)
+                                    .id("stats-layout-\(chartLayoutRaw)-\(chartOrderRaw)")
+                            } header: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 8) {
+                                        deckMenu
+                                        Spacer()
+                                        revlogRangePicker
+                                    }
                                 }
+                                .padding(.vertical, 4)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.clear)
                             }
-                            .padding(.vertical, 4)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.clear)
                         }
                     }
+                    .padding()
                 }
-                .padding()
-            }
-            .navigationTitle(L("stats_nav_title"))
-            .toolbar {
-                if supportsChartLayoutToggle {
+                .navigationTitle(L("stats_nav_title"))
+                .toolbar {
+                    if supportsChartLayoutToggle {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                toggleChartLayout()
+                            } label: {
+                                Image(systemName: usesDoubleColumnLayout ? "rectangle.grid.1x2" : "square.grid.2x2")
+                            }
+                            .accessibilityLabel(
+                                usesDoubleColumnLayout
+                                ? L("stats_chart_layout_single")
+                                : L("stats_chart_layout_double")
+                            )
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            toggleChartLayout()
+                            showChartOrderSheet = true
                         } label: {
-                            Image(systemName: usesDoubleColumnLayout ? "rectangle.grid.1x2" : "square.grid.2x2")
+                            Image(systemName: "arrow.up.arrow.down.circle")
                         }
-                        .accessibilityLabel(
-                            usesDoubleColumnLayout
-                            ? L("stats_chart_layout_single")
-                            : L("stats_chart_layout_double")
-                        )
+                        .accessibilityLabel(L("stats_chart_order_button"))
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showChartOrderSheet = true
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down.circle")
-                    }
-                    .accessibilityLabel(L("stats_chart_order_button"))
-                }
-            }
-            .task(id: isActive) {
-                guard isActive, !hasLoadedInitialData else { return }
-                hasLoadedInitialData = true
-                async let decksLoad: Void = loadDecks()
-                async let statsLoad: Void = loadStats()
-                _ = await (decksLoad, statsLoad)
-                scrollToSelectedGroup(with: proxy, animated: false)
-            }
-            .sheet(isPresented: $showChartOrderSheet) {
-                NavigationStack {
-                    StatsChartOrderSheet(
-                        sections: orderedChartSections(for: graphs),
-                        onMove: moveChartSection,
-                        onReset: resetChartOrder
-                    )
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
-                guard isActive else { return }
-                Task {
+                .task(id: isActive) {
+                    guard isActive, !hasLoadedInitialData else { return }
+                    hasLoadedInitialData = true
                     async let decksLoad: Void = loadDecks()
                     async let statsLoad: Void = loadStats()
                     _ = await (decksLoad, statsLoad)
                     scrollToSelectedGroup(with: proxy, animated: false)
                 }
-            }
-            .refreshable { await loadStats() }
-            .onAppear {
-                scrollToSelectedGroup(with: proxy, animated: false)
-            }
-            .onChange(of: selectedDeck) {
-                Task { await loadStats() }
-            }
-            .onChange(of: revlogRange) {
-                Task { await loadStats() }
-            }
-            .onChange(of: selectedGroup) {
-                scrollToSelectedGroup(with: proxy, animated: true)
-            }
-            .onChange(of: chartLayoutRaw) { _, _ in
-                doubleColumnRowHeights = [:]
-                scrollToSelectedGroup(with: proxy, animated: false)
-            }
-            .onChange(of: isLoading) { _, loading in
-                guard !loading else { return }
-                scrollToSelectedGroup(with: proxy, animated: false)
+                .sheet(isPresented: $showChartOrderSheet) {
+                    NavigationStack {
+                        StatsChartOrderSheet(
+                            sections: orderedChartSections(for: graphs),
+                            onMove: moveChartSection,
+                            onReset: resetChartOrder
+                        )
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: AppCollectionEvents.didOpenNotification)) { _ in
+                    guard isActive else { return }
+                    Task {
+                        async let decksLoad: Void = loadDecks()
+                        async let statsLoad: Void = loadStats()
+                        _ = await (decksLoad, statsLoad)
+                        scrollToSelectedGroup(with: proxy, animated: false)
+                    }
+                }
+                .refreshable { await loadStats() }
+                .onAppear {
+                    scrollToSelectedGroup(with: proxy, animated: false)
+                }
+                .onChange(of: selectedDeck) {
+                    Task { await loadStats() }
+                }
+                .onChange(of: revlogRange) {
+                    Task { await loadStats() }
+                }
+                .onChange(of: selectedGroup) {
+                    scrollToSelectedGroup(with: proxy, animated: true)
+                }
+                .onChange(of: chartLayoutRaw) { _, _ in
+                    doubleColumnRowHeights = [:]
+                    scrollToSelectedGroup(with: proxy, animated: false)
+                }
+                .onChange(of: isLoading) { _, loading in
+                    guard !loading else { return }
+                    scrollToSelectedGroup(with: proxy, animated: false)
+                }
             }
         }
     }

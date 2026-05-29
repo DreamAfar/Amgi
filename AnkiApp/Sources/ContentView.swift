@@ -102,6 +102,9 @@ struct ContentView: View {
 
     private var contentRootView: some View {
         ZStack {
+            palette.background
+                .ignoresSafeArea()
+
             rootTabView
                 .disabled(isImportExportInProgress)
 
@@ -226,6 +229,9 @@ struct ContentView: View {
             rootTabs
         }
         .tabViewStyle(.sidebarAdaptable)
+        .toolbarBackground(palette.background, for: .tabBar, .sidebar)
+        .toolbarBackground(.visible, for: .tabBar, .sidebar)
+        .toolbarColorScheme(themeManager.appearance.colorScheme, for: .tabBar, .sidebar)
     }
 
     private func contentObserverShell<Content: View>(_ content: Content) -> some View {
