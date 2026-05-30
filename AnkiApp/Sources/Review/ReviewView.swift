@@ -913,7 +913,6 @@ struct ReviewView: View {
                 } label: {
                     Label(L("browse_batch_delete_notes"), systemImage: "trash")
                 }
-                .tint(palette.danger)
                 .disabled(!hasCurrentCard)
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -1052,7 +1051,6 @@ struct ReviewView: View {
                                     .padding(.vertical, 8)
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(palette.accent) // Use accent color for the primary "Show Answer" button to make it stand out, matching the design of the answer buttons on the back side.
                             .controlSize(.small)
                             .clipShape(Capsule())
 
@@ -1073,7 +1071,6 @@ struct ReviewView: View {
                             }
                             .frame(maxWidth: reviewPrimaryButtonMaxWidth ?? .infinity)
                             .buttonStyle(.borderedProminent)
-                            .tint(palette.accent) // Use accent color for the primary "Show Answer" button to make it stand out, matching the design of the answer buttons on the back side.
                             .controlSize(reviewButtonControlSize)
                             .clipShape(Capsule())
 
@@ -1793,7 +1790,6 @@ struct ReviewView: View {
                     }
                     .frame(width: buttonWidth)
                     .buttonStyle(.borderedProminent)
-                    .tint(palette.accent) // Use accent color for the "Done" button to make it more prominent
                     .clipShape(Capsule())
                     Spacer()
                 }

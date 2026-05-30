@@ -532,7 +532,6 @@ struct BrowseView: View {
                 } label: {
                     Image(systemName: "trash")
                 }
-                .tint(palette.danger)
                 .accessibilityLabel(L("browse_batch_delete_notes"))
                 .disabled(selectedNoteIDs.isEmpty || isBatchWorking)
             }
@@ -1280,7 +1279,6 @@ struct BrowseView: View {
                 Button(role: .destructive) { showResetNewConfirm = true } label: {
                     Label(L("browse_batch_reset_new"), systemImage: "arrow.counterclockwise")
                 }
-                .tint(palette.danger)
                 Button { showSetDueDate = true } label: {
                     Label(L("card_action_set_due_date"), systemImage: "calendar.badge.clock")
                 }
@@ -1624,7 +1622,6 @@ struct BrowseView: View {
                     tone: .danger
                 )
             }
-            .tint(palette.danger)
             .disabled(isDisabled)
         }
     }
@@ -1682,7 +1679,6 @@ struct BrowseView: View {
             Button(wideBatchActionTitle(action)) { showFindReplace = true }
         case .resetNew:
             Button(wideBatchActionTitle(action), role: .destructive) { showResetNewConfirm = true }
-                .tint(palette.danger)
         }
     }
 
