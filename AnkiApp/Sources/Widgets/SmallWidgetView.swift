@@ -16,7 +16,7 @@ struct SmallWidgetView: View {
                 Text("\(snapshot.streak)")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(palette.warning)
-                Text(WL("widget_day_streak_label"))
+                Text("day streak")
                     .font(.system(size: 11))
                     .foregroundStyle(palette.textTertiary)
             }
@@ -31,7 +31,7 @@ struct SmallWidgetView: View {
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
                     .kerning(-2)
-                Text(WL("widget_cards_due"))
+                Text("cards due")
                     .font(.system(size: 12))
                     .foregroundStyle(palette.textSecondary)
             }
@@ -54,5 +54,5 @@ struct SmallWidgetView: View {
 #Preview(as: .systemSmall) {
     AmgiWidget()
 } timeline: {
-    WidgetEntry(date: Date(), snapshot: widgetPlaceholderSnapshot())
+    WidgetEntry(date: Date(), snapshot: .placeholder)
 }

@@ -40,7 +40,7 @@ struct LargeWidgetView: View {
                     .font(.system(size: 52, weight: .bold))
                     .foregroundStyle(palette.textPrimary)
                     .kerning(-2.5)
-                Text(WL("widget_cards_due"))
+                Text("cards due")
                     .font(.system(size: 14))
                     .foregroundStyle(palette.textSecondary)
             }
@@ -60,7 +60,7 @@ struct LargeWidgetView: View {
                 }
                 .frame(height: 4)
 
-                Text(WL("widget_reviewed_today_remaining_fmt", snapshot.reviewedToday, totalDue))
+                Text("\(snapshot.reviewedToday) reviewed today · \(totalDue) remaining")
                     .font(.system(size: 11))
                     .foregroundStyle(palette.textTertiary)
             }
@@ -71,11 +71,11 @@ struct LargeWidgetView: View {
 
             // 3-column breakdown
             HStack(spacing: 0) {
-                breakdownColumn(color: .blue, label: WL("widget_count_new"), count: snapshot.newCount)
+                breakdownColumn(color: .blue, label: "New", count: snapshot.newCount)
                 Divider()
-                breakdownColumn(color: .orange, label: WL("widget_count_learn"), count: snapshot.learnCount)
+                breakdownColumn(color: .orange, label: "Learn", count: snapshot.learnCount)
                 Divider()
-                breakdownColumn(color: .green, label: WL("widget_count_review"), count: snapshot.reviewCount)
+                breakdownColumn(color: .green, label: "Review", count: snapshot.reviewCount)
             }
             .frame(maxWidth: .infinity)
             .padding(.bottom, 12)
@@ -85,7 +85,7 @@ struct LargeWidgetView: View {
 
             // 7-day bar chart
             VStack(alignment: .leading, spacing: 6) {
-                Text(WL("widget_last_7_days"))
+                Text("Last 7 Days")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(palette.textTertiary)
                     .textCase(.uppercase)
@@ -123,7 +123,7 @@ struct LargeWidgetView: View {
         HStack(spacing: 4) {
             Text("🔥")
                 .font(.system(size: 13))
-            Text(WL("stats_heatmap_streak", snapshot.streak))
+            Text("\(snapshot.streak) day streak")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(palette.warning)
         }
@@ -151,13 +151,7 @@ struct LargeWidgetView: View {
     }
 
     private var weekdayLabels: [String] {
-        let formatter = DateFormatter()
-        formatter.locale = WidgetLocalization.bundle.preferredLocalizations.first.map(Locale.init(identifier:)) ?? .current
-        let symbols = formatter.veryShortStandaloneWeekdaySymbols ?? []
-        guard symbols.count == 7 else {
-            return ["M", "T", "W", "T", "F", "S", "S"]
-        }
-        return Array(symbols[1...6]) + [symbols[0]]
+        ["M", "T", "W", "T", "F", "S", "S"]
     }
 
     private func dayLabel(_ index: Int) -> String {
@@ -172,5 +166,5 @@ struct LargeWidgetView: View {
 #Preview(as: .systemLarge) {
     AmgiWidget()
 } timeline: {
-    WidgetEntry(date: Date(), snapshot: widgetPlaceholderSnapshot())
+    WidgetEntry(date: Date(), snapshot: .placeholder)
 }

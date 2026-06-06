@@ -38,7 +38,7 @@ struct DeckEntityQuery: EntityQuery {
         if let first = snapshots.first {
             return DeckEntity(id: String(first.deckId), name: first.deckName)
         }
-        return DeckEntity(id: "0", name: WL("widget_all_decks"))
+        return DeckEntity(id: "0", name: "All Decks")
     }
 }
 
