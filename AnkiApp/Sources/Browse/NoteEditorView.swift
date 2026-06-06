@@ -118,6 +118,7 @@ struct NoteEditorView: View {
         // keyboard avoidance makes it overshoot based on the row height instead of
         // the active caret position.
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .toolbar(.hidden, for: .tabBar)
         .navigationTitle(L("note_editor_title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)

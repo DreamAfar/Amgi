@@ -1684,7 +1684,7 @@
 "review_selection_ai_note_token_source" = "来源";
 "review_selection_ai_note_token_answer" = "AI 回答";
 "review_selection_menu_lookup" = "查词";
-"review_selection_menu_ai" = "AI";
+"review_selection_menu_ai" = "询问AI";
 "review_selection_ai_title" = "AI";
 "review_selection_ai_loading" = "正在生成回答…";
 "review_selection_ai_result" = "回答";

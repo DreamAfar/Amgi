@@ -1686,7 +1686,7 @@
 "review_selection_ai_note_token_source" = "出典";
 "review_selection_ai_note_token_answer" = "AI 回答";
 "review_selection_menu_lookup" = "検索";
-"review_selection_menu_ai" = "AI";
+"review_selection_menu_ai" = "AIに聞く";
 "review_selection_ai_title" = "AI";
 "review_selection_ai_loading" = "回答を生成中…";
 "review_selection_ai_result" = "回答";

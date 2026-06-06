@@ -1676,7 +1676,7 @@
 "review_selection_ai_note_token_source" = "Source";
 "review_selection_ai_note_token_answer" = "AI Answer";
 "review_selection_menu_lookup" = "Lookup";
-"review_selection_menu_ai" = "AI";
+"review_selection_menu_ai" = "Ask AI";
 "review_selection_ai_title" = "AI";
 "review_selection_ai_loading" = "Generating answer...";
 "review_selection_ai_result" = "Answer";

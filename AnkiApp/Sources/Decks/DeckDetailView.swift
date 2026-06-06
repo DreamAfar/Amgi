@@ -28,6 +28,7 @@ struct DeckDetailView: View {
     @State private var showActionError = false
     @State private var showStats = false
     @State private var showBrowse = false
+    @State private var showSync = false
     @State private var showAddSubdeck = false
     @State private var newSubdeckName = ""
     @State private var isExportingDeck = false
@@ -63,6 +64,14 @@ struct DeckDetailView: View {
         .navigationTitle(shortTitle)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    showSync = true
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                }
+                .accessibilityLabel(L("settings_row_sync"))
+                .disabled(!collectionState.isReady)
+
                 Button {
                     showBrowse = true
                 } label: {
@@ -167,20 +176,26 @@ struct DeckDetailView: View {
                 DeckTemplateListView(showsDoneButton: true)
             }
         }
-        .fullScreenCover(isPresented: $showReview) {
+        .fullScreenCover(isPresented: $showReview, onDismiss: {
+            Task {
+                await loadDeckState()
+                await loadCounts()
+                await loadChildren()
+            }
+        }) {
             ReviewView(deckId: deck.id) {
                 showReview = false
-                Task { await loadCounts() }
             }
         }
-        .fullScreenCover(item: $reviewTargetDeck) { target in
+        .fullScreenCover(item: $reviewTargetDeck, onDismiss: {
+            Task {
+                await loadDeckState()
+                await loadCounts()
+                await loadChildren()
+            }
+        }) { target in
             ReviewView(deckId: target.id) {
                 reviewTargetDeck = nil
-                Task {
-                    await loadDeckState()
-                    await loadCounts()
-                    await loadChildren()
-                }
             }
         }
         .sheet(isPresented: $showStats) {
@@ -193,6 +208,9 @@ struct DeckDetailView: View {
                     }
             }
         }
+            .sheet(isPresented: $showSync) {
+                SyncSheet(isPresented: $showSync)
+            }
         .sheet(isPresented: $showBrowse) {
             NavigationStack {
                 BrowseView(preselectedDeck: deck)

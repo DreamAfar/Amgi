@@ -20,9 +20,9 @@ struct NoteEditingDestinationView: View {
                 }
             } else {
                 destinationBody
-                    .toolbarVisibility(.hidden, for: .tabBar)
             }
         }
+        .toolbarVisibility(.hidden, for: .tabBar)
     }
 
     @ViewBuilder
@@ -31,7 +31,8 @@ struct NoteEditingDestinationView: View {
             EditImageOcclusionNoteView(
                 noteId: note.id,
                 onSave: onSave,
-                embedInNavigationStack: false
+                embedInNavigationStack: false,
+                showsCancelButton: embedInNavigationStack
             )
         } else {
             NoteEditorView(note: note, onSave: onSave)

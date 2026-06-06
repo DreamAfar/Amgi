@@ -12,6 +12,7 @@ struct EditImageOcclusionNoteView: View {
     let noteId: Int64
     let onSave: () -> Void
     let embedInNavigationStack: Bool
+    let showsCancelButton: Bool
 
     @State private var isLoading = true
     @State private var loadError: String?
@@ -25,10 +26,16 @@ struct EditImageOcclusionNoteView: View {
     @State private var showOcclusionEditor = false
     @State private var showTextOnlyWarning = false
 
-    init(noteId: Int64, onSave: @escaping () -> Void, embedInNavigationStack: Bool = true) {
+    init(
+        noteId: Int64,
+        onSave: @escaping () -> Void,
+        embedInNavigationStack: Bool = true,
+        showsCancelButton: Bool = true
+    ) {
         self.noteId = noteId
         self.onSave = onSave
         self.embedInNavigationStack = embedInNavigationStack
+        self.showsCancelButton = showsCancelButton
     }
 
     var body: some View {
@@ -106,8 +113,10 @@ struct EditImageOcclusionNoteView: View {
         .navigationTitle(L("io_edit_nav_title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(L("common_cancel")) { dismiss() }
+            if showsCancelButton {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L("common_cancel")) { dismiss() }
+                }
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button(L("common_save")) {

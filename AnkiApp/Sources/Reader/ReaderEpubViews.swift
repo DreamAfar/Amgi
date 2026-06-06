@@ -860,7 +860,7 @@ struct ReaderEpubReaderView: View {
                 }) { state in
                     NavigationStack {
                         ReviewSelectionAISheetView(
-                            state: aiSheetBinding(for: state.id),
+                            state: aiSheetBinding(for: state),
                             presets: ReviewSelectionAIPresetStore.load().presets,
                             quickActions: ReviewAIQuickActionStore.load().actions,
                             isFavorited: isCurrentAIResponseFavorited,
@@ -1342,20 +1342,16 @@ struct ReaderEpubReaderView: View {
         return parts.joined(separator: " / ")
     }
 
-    private func aiSheetBinding(for id: UUID) -> Binding<ReviewSelectionAIState> {
+    private func aiSheetBinding(for fallbackState: ReviewSelectionAIState) -> Binding<ReviewSelectionAIState> {
         Binding(
             get: {
-                guard let selectionAIState, selectionAIState.id == id else {
-                    return ReviewSelectionAIState(
-                        selection: "",
-                        context: ReviewAIQueryContext(selectedText: ""),
-                        activePresetID: ReviewSelectionAIPresetStore.load().selectedPresetID
-                    )
+                guard let selectionAIState, selectionAIState.id == fallbackState.id else {
+                    return fallbackState
                 }
                 return selectionAIState
             },
             set: { newValue in
-                guard selectionAIState?.id == id else { return }
+                guard selectionAIState?.id == fallbackState.id else { return }
                 selectionAIState = newValue
             }
         )
