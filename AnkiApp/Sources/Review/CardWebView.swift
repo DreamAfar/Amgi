@@ -529,6 +529,7 @@ struct CardWebView: UIViewRepresentable {
         var amgiPreloadDoc = document.implementation.createHTMLDocument('');
         var amgiFontURLPattern = /url\\s*\\(\\s*(["']?)(\\S.*?)\\1\\s*\\)/g;
         var amgiCachedFonts = new Set();
+        \(innerTextCompatibilityBootstrapScript())
         \(AnkiJSInjectedScript.source(handlerName: AnkiJSBridge.messageHandlerName))
 
         // ── Card state ──────────────────────────────────────────────────────
@@ -2815,6 +2816,45 @@ struct CardWebView: UIViewRepresentable {
             return fallback
         }
         return string
+    }
+
+    static func innerTextCompatibilityBootstrapScript() -> String {
+        """
+        (function() {
+            if (window.__amgiInnerTextPatched) return;
+            var proto = window.HTMLElement && window.HTMLElement.prototype;
+            if (!proto) return;
+            var descriptor = Object.getOwnPropertyDescriptor(proto, 'innerText');
+            if (!descriptor || typeof descriptor.get !== 'function' || typeof descriptor.set !== 'function') return;
+
+            function isDisplayNone(node) {
+                var current = node;
+                while (current && current.nodeType === Node.ELEMENT_NODE) {
+                    try {
+                        var style = window.getComputedStyle(current);
+                        if (style && style.display === 'none') return true;
+                    } catch (error) {}
+                    current = current.parentElement;
+                }
+                return false;
+            }
+
+            Object.defineProperty(proto, 'innerText', {
+                configurable: descriptor.configurable,
+                enumerable: descriptor.enumerable,
+                get: function() {
+                    var value = descriptor.get.call(this);
+                    if (value || !isDisplayNone(this)) return value;
+                    return this.textContent || '';
+                },
+                set: function(value) {
+                    return descriptor.set.call(this, value);
+                }
+            });
+
+            window.__amgiInnerTextPatched = true;
+        })();
+        """
     }
 
     private static func rewriteRelativeMediaURLs(in css: String) -> String {

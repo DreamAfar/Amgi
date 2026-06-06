@@ -1,6 +1,7 @@
 import XCTest
 @testable import AnkiApp
 import AnkiProto
+import WebKit
 
 final class CardWebViewTests: XCTestCase {
     func testExpandTTSTagsCreatesReplayButtonMarkup() {
@@ -146,5 +147,52 @@ final class CardWebViewTests: XCTestCase {
         XCTAssertTrue(tags.contains("data-amgi-mathjax=\"config\""))
         XCTAssertTrue(tags.contains("data-amgi-mathjax=\"core\""))
         XCTAssertTrue(tags.contains("onload=\"this.dataset.amgiLoaded='1'\""))
+    }
+
+    func testInnerTextCompatibilityBootstrapFallsBackForDisplayNone() {
+        let script = CardWebView.innerTextCompatibilityBootstrapScript()
+
+        XCTAssertTrue(script.contains("__amgiInnerTextPatched"))
+        XCTAssertTrue(script.contains("style.display === 'none'"))
+        XCTAssertTrue(script.contains("return this.textContent || ''"))
+    }
+
+    @MainActor
+    func testInnerTextCompatibilityBootstrapWorksInWKWebView() async throws {
+        let delegate = TestNavigationDelegate()
+        let configuration = WKWebViewConfiguration()
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = delegate
+
+        let loaded = expectation(description: "webview-loaded")
+        delegate.didFinish = {
+            loaded.fulfill()
+        }
+
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <body>
+            <div id="options" style="display: none">A***B***C</div>
+            <script>
+            \(CardWebView.innerTextCompatibilityBootstrapScript())
+            </script>
+        </body>
+        </html>
+        """
+
+        webView.loadHTMLString(html, baseURL: nil)
+        await fulfillment(of: [loaded], timeout: 2.0)
+
+        let value = try await webView.evaluateJavaScript("document.getElementById('options').innerText") as? String
+        XCTAssertEqual(value, "A***B***C")
+    }
+}
+
+private final class TestNavigationDelegate: NSObject, WKNavigationDelegate {
+    var didFinish: (() -> Void)?
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        didFinish?()
     }
 }

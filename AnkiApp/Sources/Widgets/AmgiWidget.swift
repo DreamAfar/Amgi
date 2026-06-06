@@ -56,8 +56,6 @@ struct AmgiWidgetEntryView: View {
 }
 
 enum WidgetLocalization {
-    private static let sharedDefaults = UserDefaults.amgiAppGroup
-
     static let hostAppBundle: Bundle = {
         let bundleURL = Bundle.main.bundleURL
         let hostAppURL = bundleURL.deletingLastPathComponent().deletingLastPathComponent()
@@ -67,7 +65,7 @@ enum WidgetLocalization {
     static let bundle: Bundle = {
         let base = hostAppBundle
 
-        if let raw = sharedDefaults.string(forKey: "app_language"),
+        if let raw = UserDefaults.amgiAppGroup.string(forKey: "app_language"),
            raw != "system",
            let path = base.path(forResource: raw, ofType: "lproj"),
            let bundle = Bundle(path: path) {
