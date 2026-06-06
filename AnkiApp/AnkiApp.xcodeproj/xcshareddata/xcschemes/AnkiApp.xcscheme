@@ -21,6 +21,20 @@
                ReferencedContainer = "container:AnkiApp.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A60000000000000000000001"
+               BuildableName = "AmgiWidget.appex"
+               BlueprintName = "AmgiWidget"
+               ReferencedContainer = "container:AnkiApp.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction

@@ -50,7 +50,45 @@
 		EAECFA940DF7C1BE67D4CEF0 /* AnkiSync in Frameworks */ = {isa = PBXBuildFile; productRef = C1FB39E184F1D59D3852C237 /* AnkiSync */; };
 		EC2D4C0F3C3D395543F872AC /* AnkiClients in Frameworks */ = {isa = PBXBuildFile; productRef = 3DC58FD1047F3655CAD017EF /* AnkiClients */; };
 		FF9018AA92EE17F25742AEFA /* CardCountsChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C6ECECC378ADE1569F1BF4 /* CardCountsChart.swift */; };
+		A10000000000000000000001 /* WriteWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* WriteWidgetSnapshot.swift */; };
+		A10000000000000000000002 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* WidgetSnapshot.swift */; };
+		A10000000000000000000003 /* WidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* WidgetSnapshotStore.swift */; };
+		A10000000000000000000004 /* AmgiWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* AmgiWidget.appex */; };
+		A10000000000000000000005 /* AmgiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* AmgiWidget.swift */; };
+		A10000000000000000000006 /* AmgiWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* AmgiWidgetBundle.swift */; };
+		A10000000000000000000007 /* LargeWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* LargeWidgetView.swift */; };
+		A10000000000000000000008 /* MediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* MediumWidgetView.swift */; };
+		A10000000000000000000009 /* SmallWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* SmallWidgetView.swift */; };
+		A1000000000000000000000A /* WidgetConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* WidgetConfiguration.swift */; };
+		A1000000000000000000000B /* WidgetTimelineProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* WidgetTimelineProvider.swift */; };
+		A1000000000000000000000C /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* WidgetSnapshot.swift */; };
+		A1000000000000000000000D /* WidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* WidgetSnapshotStore.swift */; };
+		AC0000000000000000000001 /* AmgiTheme in Frameworks */ = {isa = PBXBuildFile; productRef = AC1000000000000000000001 /* AmgiTheme */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A70000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E108C4E7E69BA5DC46A79CD4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A60000000000000000000001;
+			remoteInfo = AmgiWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A40000000000000000000001 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000000000000000000004 /* AmgiWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		01211EB9379465873F13DCAA /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -93,6 +131,18 @@
 		E3704B3ECDE0A58442E5D6BA /* LoginSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginSheet.swift; sourceTree = "<group>"; };
 		FCCF84F3C0C5A8DF76270AFE /* ReviewSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSession.swift; sourceTree = "<group>"; };
 		FEC27CF316570498B21761C2 /* ImportHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportHelper.swift; sourceTree = "<group>"; };
+		A20000000000000000000001 /* WriteWidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriteWidgetSnapshot.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* WidgetSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotStore.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* AmgiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmgiWidget.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* WidgetTimelineProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTimelineProvider.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* WidgetConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetConfiguration.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* SmallWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmallWidgetView.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* MediumWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediumWidgetView.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* LargeWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeWidgetView.swift; sourceTree = "<group>"; };
+		A2000000000000000000000A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A2000000000000000000000B /* AmgiWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmgiWidgetBundle.swift; sourceTree = "<group>"; };
+		A2000000000000000000000C /* AmgiWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AmgiWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +158,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A50000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0000000000000000000001 /* AmgiTheme in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -115,6 +173,7 @@
 			isa = PBXGroup;
 			children = (
 				4D7C701FDA13BC3F8BCD91DD /* AnkiApp.app */,
+				A2000000000000000000000C /* AmgiWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -133,6 +192,8 @@
 				66E7A34445EB73ECD4264D02 /* DeckCountsView.swift */,
 				FEC27CF316570498B21761C2 /* ImportHelper.swift */,
 				4ABAF4CA3BA61D9717114258 /* ShareSheet.swift */,
+				A20000000000000000000002 /* WidgetSnapshot.swift */,
+				A20000000000000000000003 /* WidgetSnapshotStore.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -186,14 +247,31 @@
 				ABCDDFA021DD13A69966F14F /* AnkiAppApp.swift */,
 				01211EB9379465873F13DCAA /* ContentView.swift */,
 				B9B09B3F0AFE20F9E7D8B62A /* DebugView.swift */,
+				A20000000000000000000001 /* WriteWidgetSnapshot.swift */,
 				8856B169CCAAB64DDC1808E4 /* Browse */,
 				FB6E3697C132E4FD6BF11BED /* Decks */,
 				AEDB60314935470BD7A14666 /* Review */,
 				40A9ADD2C59740CDF63FB17C /* Shared */,
 				EB548090A3E360969D9873BE /* Stats */,
 				6AD7B63316340DEE9DDF5A80 /* Sync */,
+				A30000000000000000000001 /* Widgets */,
 			);
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000001 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000004 /* AmgiWidget.swift */,
+				A2000000000000000000000B /* AmgiWidgetBundle.swift */,
+				A20000000000000000000009 /* LargeWidgetView.swift */,
+				A20000000000000000000008 /* MediumWidgetView.swift */,
+				A20000000000000000000007 /* SmallWidgetView.swift */,
+				A20000000000000000000006 /* WidgetConfiguration.swift */,
+				A20000000000000000000005 /* WidgetTimelineProvider.swift */,
+				A2000000000000000000000A /* Info.plist */,
+			);
+			path = Widgets;
 			sourceTree = "<group>";
 		};
 		EB548090A3E360969D9873BE /* Stats */ = {
@@ -235,10 +313,12 @@
 			buildPhases = (
 				359762348A02CDD6A94037F7 /* Sources */,
 				DA5AB638269CA8AE18A34B15 /* Frameworks */,
+				A40000000000000000000001 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A80000000000000000000001 /* PBXTargetDependency */,
 			);
 			name = AnkiApp;
 			packageProductDependencies = (
@@ -251,6 +331,25 @@
 			productName = AnkiApp;
 			productReference = 4D7C701FDA13BC3F8BCD91DD /* AnkiApp.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A60000000000000000000001 /* AmgiWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB0000000000000000000001 /* Build configuration list for PBXNativeTarget "AmgiWidget" */;
+			buildPhases = (
+				A90000000000000000000001 /* Sources */,
+				A50000000000000000000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AmgiWidget;
+			packageProductDependencies = (
+				AC1000000000000000000001 /* AmgiTheme */,
+			);
+			productName = AmgiWidget;
+			productReference = A2000000000000000000000C /* AmgiWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -273,12 +372,14 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				3E0DDBA1C2F9FD1B552FE887 /* XCLocalSwiftPackageReference ".." */,
+				AC2000000000000000000001 /* XCLocalSwiftPackageReference "../AmgiUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				A22BC4C37C07C06A71DC8F9D /* AnkiApp */,
+				A60000000000000000000001 /* AmgiWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -326,16 +427,44 @@
 				E6C29707CC2654B3EEC0A399 /* StatsDashboardView.swift in Sources */,
 				5CB5330671793E2400099624 /* SyncSheet.swift in Sources */,
 				34F00C71BBA07AE73683E392 /* TodayStatsCard.swift in Sources */,
+				A10000000000000000000001 /* WriteWidgetSnapshot.swift in Sources */,
+				A10000000000000000000002 /* WidgetSnapshot.swift in Sources */,
+				A10000000000000000000003 /* WidgetSnapshotStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A90000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000005 /* AmgiWidget.swift in Sources */,
+				A10000000000000000000006 /* AmgiWidgetBundle.swift in Sources */,
+				A10000000000000000000007 /* LargeWidgetView.swift in Sources */,
+				A10000000000000000000008 /* MediumWidgetView.swift in Sources */,
+				A10000000000000000000009 /* SmallWidgetView.swift in Sources */,
+				A1000000000000000000000A /* WidgetConfiguration.swift in Sources */,
+				A1000000000000000000000B /* WidgetTimelineProvider.swift in Sources */,
+				A1000000000000000000000C /* WidgetSnapshot.swift in Sources */,
+				A1000000000000000000000D /* WidgetSnapshotStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A80000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A60000000000000000000001 /* AmgiWidget */;
+			targetProxy = A70000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0FD83CEDE5E8EFEFB54B015F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AmgiApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -409,6 +538,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AmgiApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -420,6 +550,46 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
+		};
+		AA0000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = AmgiWidget.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Sources/Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ankiapp.AnkiApp.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA0000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = AmgiWidget.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = Sources/Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ankiapp.AnkiApp.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
 		};
 		C0043623219948E3C037B3CC /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -497,6 +667,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		AB0000000000000000000001 /* Build configuration list for PBXNativeTarget "AmgiWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000000000000000000001 /* Debug */,
+				AA0000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		E5B05EDDDE33C5F6EA374BE1 /* Build configuration list for PBXProject "AnkiApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -512,6 +691,10 @@
 		3E0DDBA1C2F9FD1B552FE887 /* XCLocalSwiftPackageReference ".." */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ..;
+		};
+		AC2000000000000000000001 /* XCLocalSwiftPackageReference "../AmgiUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../AmgiUI;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -531,6 +714,11 @@
 		9813BDC860FD726F5F3741AE /* AnkiProto */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AnkiProto;
+		};
+		AC1000000000000000000001 /* AmgiTheme */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AC2000000000000000000001 /* XCLocalSwiftPackageReference "../AmgiUI" */;
+			productName = AmgiTheme;
 		};
 		C1FB39E184F1D59D3852C237 /* AnkiSync */ = {
 			isa = XCSwiftPackageProductDependency;
