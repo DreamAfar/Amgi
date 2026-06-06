@@ -12,12 +12,12 @@ struct WidgetTimelineProvider: AppIntentTimelineProvider {
     typealias Entry = WidgetEntry
 
     func placeholder(in context: Context) -> WidgetEntry {
-        WidgetEntry(date: Date(), snapshot: .placeholder)
+        WidgetEntry(date: Date(), snapshot: widgetPlaceholderSnapshot())
     }
 
     func snapshot(for configuration: AmgiWidgetIntent, in context: Context) async -> WidgetEntry {
         let deckId = Int64(configuration.deck?.id ?? "0") ?? 0
-        let snapshot = WidgetSnapshotStore.read(deckId: deckId) ?? .placeholder
+        let snapshot = WidgetSnapshotStore.read(deckId: deckId) ?? widgetPlaceholderSnapshot()
         return WidgetEntry(date: Date(), snapshot: snapshot)
     }
 
@@ -27,7 +27,7 @@ struct WidgetTimelineProvider: AppIntentTimelineProvider {
         // Freshness / reload policy must be based on the real snapshot date, not
         // the placeholder's Date() which would always look like "today".
         let maybeSnapshot = WidgetSnapshotStore.read(deckId: deckId)
-        let snapshot = maybeSnapshot ?? .placeholder
+        let snapshot = maybeSnapshot ?? widgetPlaceholderSnapshot()
         let cal = Calendar.current
         let now = Date()
 

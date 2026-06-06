@@ -1583,6 +1583,23 @@
 "debug_export_ready" = "Export ready: %@";
 "debug_export_error" = "Export error: %@";
 "debug_check_db" = "Check Database";
+
+// MARK: - Widgets
+"widget_all_decks" = "All Decks";
+"widget_day_streak_label" = "day streak";
+"widget_cards_due" = "cards due";
+"widget_count_new" = "New";
+"widget_count_learn" = "Learn";
+"widget_count_review" = "Review";
+"widget_done_today" = "Done today";
+"widget_reviewed_today_remaining_fmt" = "%d reviewed today · %d remaining";
+"widget_last_7_days" = "Last 7 Days";
+"widget_display_name" = "Amgi";
+"widget_display_description" = "See your cards due today.";
+"widget_intent_deck_type" = "Deck";
+"widget_intent_choose_deck" = "Choose Deck";
+"widget_intent_choose_deck_description" = "Select which deck to display.";
+"widget_intent_deck_parameter" = "Deck";
 "debug_check_db_ok" = "CheckDatabase OK (%d bytes)";
 "debug_check_db_error" = "CheckDatabase error: %@";
 "settings_check_database_no_issues" = "Database check completed. No issues found.";

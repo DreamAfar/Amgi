@@ -12,6 +12,7 @@ import Foundation
 import OSLog
 import UIKit
 import UserNotifications
+import WidgetKit
 
 @main
 struct AnkiAppApp: App {
@@ -32,6 +33,10 @@ struct AnkiAppApp: App {
 
     init() {
         let appDefaults = UserDefaults.amgiAppGroup
+        appDefaults.set(
+            UserDefaults.standard.string(forKey: "app_language") ?? AppLanguage.system.rawValue,
+            forKey: "app_language"
+        )
 
         if appDefaults.string(forKey: "theme.appearance") == nil,
            let legacyTheme = UserDefaults.standard.string(forKey: "app_theme"),
@@ -124,7 +129,9 @@ struct AnkiAppApp: App {
             }
             .onChange(of: appLanguageRaw) { _, newValue in
                 let lang = AppLanguage(rawValue: newValue) ?? .system
+                UserDefaults.amgiAppGroup.set(lang.rawValue, forKey: "app_language")
                 LanguageManager.shared.apply(lang)
+                WidgetCenter.shared.reloadAllTimelines()
             }
             .onOpenURL { url in
                 pendingImportURL = url

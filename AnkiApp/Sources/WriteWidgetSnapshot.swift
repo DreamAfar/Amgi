@@ -25,70 +25,104 @@ func writeWidgetSnapshot() async {
     @Dependency(\.statsClient) var statsClient
 
     do {
-        // 1. Fetch deck list
-        let decks: [DeckInfo] = try deckClient.fetchAll()
+        struct WidgetStudyStats {
+            let reviewedToday: Int
+            let streak: Int
+            let lastSevenDays: [Int]
 
-        // 2. Fetch 28-day stats graph for streak + daily counts
-        let graphData: Data = try statsClient.fetchGraphs("", 28)
-        let graphs = try Anki_Stats_GraphsResponse(serializedBytes: graphData)
+            static let zero = WidgetStudyStats(
+                reviewedToday: 0,
+                streak: 0,
+                lastSevenDays: Array(repeating: 0, count: 7)
+            )
+        }
 
-        // Helper to total all review types for a day
         func dayTotal(_ rev: Anki_Stats_GraphsResponse.ReviewCountsAndTimes.Reviews) -> Int {
             Int(rev.learn) + Int(rev.relearn) + Int(rev.young) + Int(rev.mature) + Int(rev.filtered)
         }
 
-        // 3. Calculate streak: count consecutive days backward from today
-        // Start from today; if today is empty, start from yesterday (may still review later)
-        let todayTotal = graphs.reviews.count[Int32(0)].map { dayTotal($0) } ?? 0
-        let startOffset = todayTotal > 0 ? Int32(0) : Int32(-1)
+        func makeStudyStats(from graphs: Anki_Stats_GraphsResponse) -> WidgetStudyStats {
+            let todayTotal = graphs.reviews.count[Int32(0)].map { dayTotal($0) } ?? 0
+            let startOffset = todayTotal > 0 ? Int32(0) : Int32(-1)
 
-        var streak = 0
-        for offset in stride(from: startOffset, through: Int32(-27), by: -1) {
-            guard let rev = graphs.reviews.count[offset] else { break }
-            guard dayTotal(rev) > 0 else { break }
-            streak += 1
+            var streak = 0
+            for offset in stride(from: startOffset, through: Int32(-27), by: -1) {
+                guard let rev = graphs.reviews.count[offset] else { break }
+                guard dayTotal(rev) > 0 else { break }
+                streak += 1
+            }
+
+            let lastSevenDays: [Int] = (-6 ... 0).map { offset in
+                guard let rev = graphs.reviews.count[Int32(offset)] else { return 0 }
+                return dayTotal(rev)
+            }
+
+            return WidgetStudyStats(
+                reviewedToday: Int(graphs.today.answerCount),
+                streak: streak,
+                lastSevenDays: lastSevenDays
+            )
         }
 
-        // 4. Build last-7-days array (index 0 = 6 days ago, index 6 = today)
-        let lastSevenDays: [Int] = (-6 ... 0).map { offset in
-            guard let rev = graphs.reviews.count[Int32(offset)] else { return 0 }
-            return dayTotal(rev)
+        func deckStatsSearch(for deckName: String) -> String {
+            let escaped = deckName
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+            return "deck:\"\(escaped)\""
         }
 
-        let reviewedToday = Int(graphs.today.answerCount)
+        func fetchStudyStats(search: String) throws -> WidgetStudyStats {
+            let graphData = try statsClient.fetchGraphs(search, 28)
+            let graphs = try Anki_Stats_GraphsResponse(serializedBytes: graphData)
+            return makeStudyStats(from: graphs)
+        }
+
+        // 1. Fetch deck list
+        let decks: [DeckInfo] = try deckClient.fetchAll()
+
+        // 2. Fetch all-decks stats once; per-deck widgets need their own queries.
+        let allDeckStats = try fetchStudyStats(search: "")
         let now = Date()
 
-        // 5. Write all-decks aggregate snapshot (deckId = 0)
+        // 3. Write all-decks aggregate snapshot (deckId = 0)
         let allDecksSnapshot = WidgetSnapshot(
             deckId: 0,
-            deckName: "All Decks",
+            deckName: L("widget_all_decks"),
             newCount: decks.reduce(0) { $0 + $1.counts.newCount },
             learnCount: decks.reduce(0) { $0 + $1.counts.learnCount },
             reviewCount: decks.reduce(0) { $0 + $1.counts.reviewCount },
-            reviewedToday: reviewedToday,
-            streak: streak,
-            lastSevenDays: lastSevenDays,
+            reviewedToday: allDeckStats.reviewedToday,
+            streak: allDeckStats.streak,
+            lastSevenDays: allDeckStats.lastSevenDays,
             snapshotDate: now
         )
         try WidgetSnapshotStore.write(allDecksSnapshot)
 
-        // 6. Write per-deck snapshots
+        // 4. Write per-deck snapshots using per-deck stats queries.
         for deck in decks {
+            let deckStats: WidgetStudyStats
+            do {
+                deckStats = try fetchStudyStats(search: deckStatsSearch(for: deck.name))
+            } catch {
+                print("[writeWidgetSnapshot] Deck stats failed for \(deck.name): \(error)")
+                deckStats = .zero
+            }
+
             let snapshot = WidgetSnapshot(
                 deckId: deck.id,
                 deckName: deck.name,
                 newCount: deck.counts.newCount,
                 learnCount: deck.counts.learnCount,
                 reviewCount: deck.counts.reviewCount,
-                reviewedToday: reviewedToday,
-                streak: streak,
-                lastSevenDays: lastSevenDays,
+                reviewedToday: deckStats.reviewedToday,
+                streak: deckStats.streak,
+                lastSevenDays: deckStats.lastSevenDays,
                 snapshotDate: now
             )
             try WidgetSnapshotStore.write(snapshot)
         }
 
-        // 7. Tell WidgetKit to reload all widget timelines
+        // 5. Tell WidgetKit to reload all widget timelines
         WidgetCenter.shared.reloadAllTimelines()
     } catch {
         print("[writeWidgetSnapshot] Failed: \(error)")

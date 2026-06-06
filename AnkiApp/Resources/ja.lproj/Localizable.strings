@@ -1585,6 +1585,23 @@
 "debug_export_ready" = "エクスポート準備完了：%@";
 "debug_export_error" = "エクスポートエラー：%@";
 "debug_check_db" = "データベースをチェック";
+
+// MARK: - Widgets
+"widget_all_decks" = "すべてのデッキ";
+"widget_day_streak_label" = "日連続";
+"widget_cards_due" = "期限あり";
+"widget_count_new" = "新規";
+"widget_count_learn" = "学習";
+"widget_count_review" = "復習";
+"widget_done_today" = "今日の完了";
+"widget_reviewed_today_remaining_fmt" = "今日 %d 枚復習 · 残り %d 枚";
+"widget_last_7_days" = "直近7日";
+"widget_display_name" = "Amgi";
+"widget_display_description" = "今日の期限カードを表示します。";
+"widget_intent_deck_type" = "デッキ";
+"widget_intent_choose_deck" = "デッキを選択";
+"widget_intent_choose_deck_description" = "表示するデッキを選択します。";
+"widget_intent_deck_parameter" = "デッキ";
 "debug_check_db_ok" = "DBチェック正常（%d バイト）";
 "debug_check_db_error" = "DBチェックエラー：%@";
 "settings_check_database_no_issues" = "データベースチェックが完了しました。問題は見つかりませんでした。";

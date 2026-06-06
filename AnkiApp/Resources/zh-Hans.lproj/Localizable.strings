@@ -1583,6 +1583,23 @@
 "debug_export_ready" = "导出就绪：%@";
 "debug_export_error" = "导出错误：%@";
 "debug_check_db" = "检查数据库";
+
+// MARK: - Widgets
+"widget_all_decks" = "全部牌组";
+"widget_day_streak_label" = "连续天数";
+"widget_cards_due" = "待复习";
+"widget_count_new" = "新卡";
+"widget_count_learn" = "学习";
+"widget_count_review" = "复习";
+"widget_done_today" = "今日完成";
+"widget_reviewed_today_remaining_fmt" = "今天已复习 %d 张 · 剩余 %d 张";
+"widget_last_7_days" = "最近 7 天";
+"widget_display_name" = "Amgi";
+"widget_display_description" = "查看今天待复习的卡片。";
+"widget_intent_deck_type" = "牌组";
+"widget_intent_choose_deck" = "选择牌组";
+"widget_intent_choose_deck_description" = "选择要显示的牌组。";
+"widget_intent_deck_parameter" = "牌组";
 "debug_check_db_ok" = "数据库检查正常（%d 字节）";
 "debug_check_db_error" = "数据库检查错误：%@";
 "settings_check_database_no_issues" = "数据库检查完成，未发现问题。";

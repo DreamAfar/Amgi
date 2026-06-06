@@ -7,7 +7,13 @@ struct DeckEntity: AppEntity {
     var id: String        // String(deckId) — Int64 doesn't conform to EntityIdentifier
     var name: String
 
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Deck"
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(
+        name: LocalizedStringResource(
+            "widget_intent_deck_type",
+            defaultValue: "Deck",
+            bundle: WidgetLocalization.bundle
+        )
+    )
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(name)")
     }
@@ -38,14 +44,31 @@ struct DeckEntityQuery: EntityQuery {
         if let first = snapshots.first {
             return DeckEntity(id: String(first.deckId), name: first.deckName)
         }
-        return DeckEntity(id: "0", name: "All Decks")
+        return DeckEntity(id: "0", name: WL("widget_all_decks"))
     }
 }
 
 struct AmgiWidgetIntent: WidgetConfigurationIntent {
-    static let title: LocalizedStringResource = "Choose Deck"
-    static let description = IntentDescription("Select which deck to display.")
+    static let title = LocalizedStringResource(
+        "widget_intent_choose_deck",
+        defaultValue: "Choose Deck",
+        bundle: WidgetLocalization.bundle
+    )
 
-    @Parameter(title: "Deck")
+    static let description = IntentDescription(
+        LocalizedStringResource(
+            "widget_intent_choose_deck_description",
+            defaultValue: "Select which deck to display.",
+            bundle: WidgetLocalization.bundle
+        )
+    )
+
+    @Parameter(
+        title: LocalizedStringResource(
+            "widget_intent_deck_parameter",
+            defaultValue: "Deck",
+            bundle: WidgetLocalization.bundle
+        )
+    )
     var deck: DeckEntity?
 }
