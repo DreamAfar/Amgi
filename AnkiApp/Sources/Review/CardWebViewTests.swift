@@ -157,6 +157,43 @@ final class CardWebViewTests: XCTestCase {
         XCTAssertTrue(script.contains("return this.textContent || ''"))
     }
 
+    func testNormalizeCardStylingSeparatesInlineScriptsFromCSS() {
+        let styling = """
+        <style>
+        .description { color: #9980fd; }
+        </style>
+        <script>
+        if (!window.gData) {
+          window.gData = { total: 0 }
+        }
+        </script>
+        """
+
+        let normalized = CardWebView.normalizeCardStyling(styling)
+
+        XCTAssertEqual(normalized.scripts.count, 1)
+        XCTAssertTrue(normalized.scripts[0].contains("window.gData"))
+        XCTAssertTrue(normalized.css.contains(".description"))
+        XCTAssertFalse(normalized.css.contains("<script"))
+        XCTAssertFalse(normalized.css.contains("window.gData"))
+    }
+
+    func testInlineCardStylingHTMLRestoresStyleAndScriptNodes() {
+        let styling = """
+        <style>
+        .description { color: #9980fd; }
+        </style>
+        <script>
+        window.gData = { total: 0 }
+        </script>
+        """
+
+        let html = CardWebView.inlineCardStylingHTML(styling)
+
+        XCTAssertTrue(html.contains("<style>.description { color: #9980fd; }</style>"))
+        XCTAssertTrue(html.contains("<script>window.gData = { total: 0 }</script>"))
+    }
+
     @MainActor
     func testInnerTextCompatibilityBootstrapWorksInWKWebView() async throws {
         let delegate = TestNavigationDelegate()

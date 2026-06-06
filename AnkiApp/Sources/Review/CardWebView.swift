@@ -2406,21 +2406,21 @@ struct CardWebView: UIViewRepresentable {
         questionAVTags: [Anki_CardRendering_AVTag],
         answerAVTags: [Anki_CardRendering_AVTag]
     ) -> String {
-        let htmlLit = jsStringLiteral(processedHTML)
-        let cssLit = jsStringLiteral(normalizeCardCSS(cardCSS))
+        let stylingHTML = inlineCardStylingHTML(cardCSS)
+        let htmlLit = jsStringLiteral(stylingHTML + processedHTML)
         let autoplay = autoplayEnabled ? "true" : "false"
         let lookupEnabled = lookupPopupEnabled ? "true" : "false"
         let alignTopStr = alignTop ? "true" : "false"
-        let applyCSS = "amgiSetCardCSS(\(cssLit));"
+        let applyStyling = "amgiSetCardCSS('');"
         let questionTagsLit = jsObjectLiteral(managedAVTagDescriptors(questionAVTags, side: "q"), fallback: "[]")
         let answerTagsLit = jsObjectLiteral(managedAVTagDescriptors(answerAVTags, side: "a"), fallback: "[]")
         let applyAVTags = "window.__amgiQuestionAVTags = \(questionTagsLit);window.__amgiAnswerAVTags = \(answerTagsLit);"
 
         if isAnswerSide {
-            return applyCSS + applyAVTags + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
+            return applyStyling + applyAVTags + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         } else {
-            let prefetchLit = jsStringLiteral(prefetchHTML ?? "")
-            return applyCSS + applyAVTags + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
+            let prefetchLit = jsStringLiteral(prefetchHTML.map { stylingHTML + $0 } ?? "")
+            return applyStyling + applyAVTags + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         }
     }
 
@@ -2893,8 +2893,26 @@ struct CardWebView: UIViewRepresentable {
         return rewritten
     }
 
+    private struct NormalizedCardStyling {
+        let css: String
+        let scripts: [String]
+    }
+
+    static func normalizeCardStyling(_ styling: String) -> NormalizedCardStyling {
+        let scripts = extractCardStylingScripts(from: styling)
+        let css = rewriteRelativeMediaURLs(in: sanitizeCardCSS(styling))
+        return NormalizedCardStyling(css: css, scripts: scripts)
+    }
+
+    static func inlineCardStylingHTML(_ styling: String) -> String {
+        let normalized = normalizeCardStyling(styling)
+        let styleHTML = normalized.css.isEmpty ? "" : "<style>\(normalized.css)</style>"
+        let scriptsHTML = normalized.scripts.map { "<script>\($0)</script>" }.joined()
+        return styleHTML + scriptsHTML
+    }
+
     private static func normalizeCardCSS(_ css: String) -> String {
-        rewriteRelativeMediaURLs(in: sanitizeCardCSS(css))
+        normalizeCardStyling(css).css
     }
 
     private static func sanitizeCardCSS(_ css: String) -> String {
@@ -2905,6 +2923,17 @@ struct CardWebView: UIViewRepresentable {
             options: [.caseInsensitive]
         ) {
             sanitized = styleTagRegex.stringByReplacingMatches(
+                in: sanitized,
+                range: NSRange(sanitized.startIndex..., in: sanitized),
+                withTemplate: ""
+            )
+        }
+
+        if let scriptTagRegex = try? NSRegularExpression(
+            pattern: #"<script\b[^>]*>[\s\S]*?</script>"#,
+            options: [.caseInsensitive]
+        ) {
+            sanitized = scriptTagRegex.stringByReplacingMatches(
                 in: sanitized,
                 range: NSRange(sanitized.startIndex..., in: sanitized),
                 withTemplate: ""
@@ -2923,6 +2952,24 @@ struct CardWebView: UIViewRepresentable {
         }
 
         return sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func extractCardStylingScripts(from styling: String) -> [String] {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"<script\b[^>]*>([\s\S]*?)</script>"#,
+            options: [.caseInsensitive]
+        ) else {
+            return []
+        }
+
+        let range = NSRange(styling.startIndex..., in: styling)
+        return regex.matches(in: styling, range: range).compactMap { match in
+            guard let scriptRange = Range(match.range(at: 1), in: styling) else {
+                return nil
+            }
+            let script = String(styling[scriptRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            return script.isEmpty ? nil : script
+        }
     }
 
     private static func shouldRewriteMediaURL(_ rawURL: String) -> Bool {
