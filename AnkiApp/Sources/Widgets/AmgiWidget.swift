@@ -6,18 +6,6 @@ import AmgiTheme
 struct AmgiWidget: Widget {
     let kind = "AmgiWidget"
 
-    private static let displayNameResource = LocalizedStringResource(
-        "widget_display_name",
-        defaultValue: "Amgi",
-        bundle: WidgetLocalization.bundle
-    )
-
-    private static let descriptionResource = LocalizedStringResource(
-        "widget_display_description",
-        defaultValue: "See your cards due today.",
-        bundle: WidgetLocalization.bundle
-    )
-
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: kind,
@@ -27,8 +15,8 @@ struct AmgiWidget: Widget {
             AmgiWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName(Self.displayNameResource)
-        .description(Self.descriptionResource)
+        .configurationDisplayName("Amgi")
+        .description("See your cards due today.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
