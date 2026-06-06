@@ -2893,7 +2893,7 @@ struct CardWebView: UIViewRepresentable {
         return rewritten
     }
 
-    private struct NormalizedCardStyling {
+    struct NormalizedCardStyling {
         let css: String
         let scripts: [String]
     }
