@@ -153,7 +153,7 @@ struct LargeWidgetView: View {
     private var weekdayLabels: [String] {
         let formatter = DateFormatter()
         formatter.locale = WidgetLocalization.bundle.preferredLocalizations.first.map(Locale.init(identifier:)) ?? .current
-        let symbols = formatter.veryShortStandaloneWeekdaySymbols
+        let symbols = formatter.veryShortStandaloneWeekdaySymbols ?? []
         guard symbols.count == 7 else {
             return ["M", "T", "W", "T", "F", "S", "S"]
         }
