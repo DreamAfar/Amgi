@@ -197,7 +197,7 @@ enum AppBackgroundSyncManager {
         }
 
         // 前台正在同步时跳过，避免争用 Rust backend 的 collection 锁
-        guard !AppSyncCoordinator.shared.isRunning else {
+        guard !(await AppSyncCoordinator.shared.isRunning) else {
             backgroundSyncLogger.debug("Skipping background sync: foreground sync in progress")
             return true
         }
