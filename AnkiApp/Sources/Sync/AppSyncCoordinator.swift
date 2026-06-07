@@ -226,7 +226,9 @@ final class AppSyncCoordinator: ObservableObject {
 
         backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "com.ankiapp.sync") { [weak self] in
             Task { @MainActor in
-                self?.cancel()
+                // 不主动取消同步 — iOS 可能仍允许继续运行。
+                // 若网络被中断，Rust 后端会返回错误，自然进入 error 状态。
+                self?.backgroundTaskID = .invalid
             }
         }
     }

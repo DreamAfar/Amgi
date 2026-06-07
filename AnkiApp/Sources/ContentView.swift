@@ -273,7 +273,9 @@ struct ContentView: View {
                 updateSyncBadge()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                updateSyncBadge()
                 consumePendingSyncAlertIfNeeded()
+                runAutomaticSyncCheckIfReady()
             }
             .onChange(of: collectionState.isReady) { _, isReady in
                 guard isReady else { return }
