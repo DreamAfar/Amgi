@@ -2064,8 +2064,7 @@ private struct SyncSettingsView: View {
         }
         .sheet(isPresented: $showLogin) {
             LoginSheet(isPresented: $showLogin) {
-                syncMessage = L("common_done")
-                showSyncAlert = true
+                showSyncSheet = true
             }
         }
         .sheet(isPresented: $showSyncSheet) {

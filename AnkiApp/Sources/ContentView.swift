@@ -426,6 +426,7 @@ struct ContentView: View {
                     currentUserDisplayName,
                     systemImage: isSwitchingUser ? "arrow.triangle.2.circlepath.circle" : "person.crop.circle"
                 )
+                .amgiFont(.body)
                 .labelStyle(.titleAndIcon)
                 .lineLimit(1)
                 .layoutPriority(1)
