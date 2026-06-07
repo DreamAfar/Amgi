@@ -463,6 +463,7 @@ struct ReviewSelectionLookupLinkSettingsView: View {
             Section(L("settings_review_preset_section_current")) {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_preset_active"))
+                        .amgiFont(.body)
                         .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -685,6 +686,7 @@ private struct ReviewAIPresetManagementView: View {
             Section(L("settings_review_preset_section_current")) {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_preset_active"))
+                        .amgiFont(.body)
                         .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)

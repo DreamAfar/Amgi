@@ -1518,6 +1518,7 @@ private struct ReviewGestureOptionsView: View {
             Section {
                 HStack(alignment: .top, spacing: AmgiSpacing.md) {
                     Text(L("settings_review_tap_layout"))
+                        .amgiFont(.body)
                         .foregroundStyle(palette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1672,6 +1673,7 @@ private struct ReviewInputActionRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: AmgiSpacing.md) {
             Text(title)
+                .amgiFont(.body)
                 .foregroundStyle(palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
