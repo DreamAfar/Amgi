@@ -17,7 +17,7 @@ struct MediumWidgetView: View {
                     Text("\(snapshot.streak)")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(palette.warning)
-                    Text("day streak")
+                    Text(WL("widget_day_streak_label"))
                         .font(.system(size: 11))
                         .foregroundStyle(palette.textTertiary)
                 }
@@ -31,7 +31,7 @@ struct MediumWidgetView: View {
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
                         .kerning(-2)
-                    Text("cards due")
+                    Text(WL("widget_cards_due"))
                         .font(.system(size: 11))
                         .foregroundStyle(palette.textSecondary)
                 }
@@ -53,16 +53,16 @@ struct MediumWidgetView: View {
 
             // Right: category breakdown + done today
             VStack(alignment: .leading, spacing: 9) {
-                countRow(dot: .blue, label: "New", count: snapshot.newCount)
-                countRow(dot: .orange, label: "Learn", count: snapshot.learnCount)
-                countRow(dot: .green, label: "Review", count: snapshot.reviewCount)
+                countRow(dot: .blue, label: WL("widget_count_new"), count: snapshot.newCount)
+                countRow(dot: .orange, label: WL("widget_count_learn"), count: snapshot.learnCount)
+                countRow(dot: .green, label: WL("widget_count_review"), count: snapshot.reviewCount)
 
                 Rectangle()
                     .fill(.separator)
                     .frame(height: 1)
 
                 HStack {
-                    Text("Done today")
+                    Text(WL("widget_done_today"))
                         .font(.system(size: 11))
                         .foregroundStyle(palette.textTertiary)
                     Spacer()
@@ -97,5 +97,5 @@ struct MediumWidgetView: View {
 #Preview(as: .systemMedium) {
     AmgiWidget()
 } timeline: {
-    WidgetEntry(date: Date(), snapshot: .placeholder)
+    WidgetEntry(date: Date(), snapshot: widgetPlaceholderSnapshot())
 }
