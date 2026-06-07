@@ -29,7 +29,8 @@ enum AppCollectionBootstrap {
         )
 
         ReaderProgressStore.migrateLegacyMediaIfNeeded()
-        try? DictionaryLookupConfigMigration.migrateLegacyMirroredConfigIfNeeded(backend: backend)
+        // FIXME(diag): 临时注释以排查 108↑ 重复同步根因
+        // try? DictionaryLookupConfigMigration.migrateLegacyMirroredConfigIfNeeded(backend: backend)
     }
 
     static func ensureCollectionOpen(using backend: AnkiBackend, username: String) throws {
