@@ -118,9 +118,15 @@ func writeWidgetSnapshot() async {
     }
 
     // ── Step 2: Enrich with study stats (best-effort) ─────────────────
-    async let allDeckStats = Result { try fetchStudyStats(search: "") }
 
-    // Per-deck: fire all queries concurrently
+    // All-decks stats — single sequential call, no concurrency needed.
+    if let stats = try? fetchStudyStats(search: "") {
+        updateSnapshot(deckId: 0, stats: stats)
+    }
+
+    // Per-deck: fire all queries concurrently with explicit capture list
+    // to satisfy Swift 6 StrictConcurrency (local function fetchStudyStats
+    // cannot be passed to a concurrent context).
     let decks: [DeckInfo]
     do {
         decks = try deckClient.fetchAll()
@@ -133,12 +139,15 @@ func writeWidgetSnapshot() async {
         of: (Int64, WidgetStudyStats).self
     ) { group in
         for deck in decks {
-            group.addTask {
-                let search = deckStatsSearch(for: deck.name)
-                if let stats = try? fetchStudyStats(search: search) {
-                    return (deck.id, stats)
+            let search = deckStatsSearch(for: deck.name)
+            let deckId = deck.id
+            group.addTask { [statsClient] in
+                if let graphData = try? statsClient.fetchGraphs(search, 28),
+                   let graphs = try? Anki_Stats_GraphsResponse(serializedBytes: graphData) {
+                    let stats = makeStudyStats(from: graphs)
+                    return (deckId, stats)
                 }
-                return (deck.id, .zero)
+                return (deckId, .zero)
             }
         }
         var results: [(Int64, WidgetStudyStats)] = []
@@ -149,11 +158,6 @@ func writeWidgetSnapshot() async {
     }
 
     let perDeckMap = Dictionary(uniqueKeysWithValues: perDeckResults)
-
-    // Update all-decks snapshot with stats
-    if case .success(let stats) = await allDeckStats {
-        updateSnapshot(deckId: 0, stats: stats)
-    }
 
     // Update per-deck snapshots with stats
     for deck in decks {
