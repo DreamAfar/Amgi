@@ -65,6 +65,12 @@ struct DebugView: View {
                             Text(v).amgiFont(.caption).foregroundStyle(palette.textSecondary)
                         }
                     }
+                    if let snapshots = syncDiag["snapshots"], !snapshots.isEmpty {
+                        Text("快照: \(snapshots)")
+                            .amgiFont(.caption2)
+                            .foregroundStyle(palette.textTertiary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     Button("清空诊断", role: .destructive) {
                         SyncDiagnostics.clear()
                         syncDiagRefresh = UUID()

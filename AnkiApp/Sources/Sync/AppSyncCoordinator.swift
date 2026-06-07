@@ -29,7 +29,18 @@ enum SyncDiagnostics {
         d["lastProgress"] = now
         d["lastAdded"] = added
         d["lastRemoved"] = removed
+        // Track cumulative snapshots (最多保留最后 5 条)
+        let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let snapshots = Self.loadSnapshots()
+        let entry = "\(ts) ↑\(added) ↓\(removed)"
+        let updated = (snapshots + [entry]).suffix(5)
+        d["snapshots"] = updated.joined(separator: " | ")
         UserDefaults.standard.set(d, forKey: "\(prefix)store")
+    }
+
+    private static func loadSnapshots() -> [String] {
+        let raw = UserDefaults.standard.dictionary(forKey: "\(prefix)store")?["snapshots"] as? String ?? ""
+        return raw.isEmpty ? [] : raw.components(separatedBy: " | ")
     }
 
     static func recordSyncComplete() {
