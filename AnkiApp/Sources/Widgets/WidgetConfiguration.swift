@@ -23,7 +23,7 @@ struct DeckEntity: AppEntity {
 
 struct DeckEntityQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [DeckEntity] {
-        let entities = WidgetSnapshotStore.allSnapshots().compactMap { snapshot in
+        let entities: [DeckEntity] = WidgetSnapshotStore.allSnapshots().compactMap { snapshot in
             guard identifiers.contains(String(snapshot.deckId)) else { return nil }
             return DeckEntity(id: String(snapshot.deckId), name: snapshot.deckName)
         }
