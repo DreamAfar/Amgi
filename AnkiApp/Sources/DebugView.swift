@@ -15,6 +15,12 @@ struct DebugView: View {
     @AppStorage(DebugPreferences.Keys.cardRenderShowJSErrorOverlay) private var cardRenderShowJSErrorOverlay = true
     @State private var statusMessage = ""
     @State private var showResetAllConfirm = false
+    @State private var syncDiagRefresh = UUID()
+
+    private var syncDiag: [String: String] {
+        _ = syncDiagRefresh // force re-read when pulled
+        return SyncDiagnostics.dict
+    }
 
     var body: some View {
         List {
@@ -28,11 +34,51 @@ struct DebugView: View {
                 }
             }
 
+            // ── Sync Diagnostics ──────────────────────────────────────
+            if !syncDiag.isEmpty {
+                Section("Sync Diagnostics") {
+                    if let v = syncDiag["lastStart"] {
+                        HStack {
+                            Text("开始").amgiFont(.caption).foregroundStyle(palette.textTertiary)
+                            Spacer()
+                            Text(v).amgiFont(.caption).foregroundStyle(palette.textSecondary)
+                        }
+                    }
+                    if let v = syncDiag["lastAdded"], !v.isEmpty {
+                        HStack {
+                            Text("上传").amgiFont(.caption).foregroundStyle(palette.textTertiary)
+                            Spacer()
+                            Text("↑ \(v)").amgiFont(.caption).foregroundStyle(palette.warning)
+                        }
+                    }
+                    if let v = syncDiag["lastRemoved"], !v.isEmpty {
+                        HStack {
+                            Text("下载").amgiFont(.caption).foregroundStyle(palette.textTertiary)
+                            Spacer()
+                            Text("↓ \(v)").amgiFont(.caption).foregroundStyle(palette.warning)
+                        }
+                    }
+                    if let v = syncDiag["lastComplete"] {
+                        HStack {
+                            Text("完成").amgiFont(.caption).foregroundStyle(palette.textTertiary)
+                            Spacer()
+                            Text(v).amgiFont(.caption).foregroundStyle(palette.textSecondary)
+                        }
+                    }
+                    Button("清空诊断", role: .destructive) {
+                        SyncDiagnostics.clear()
+                        syncDiagRefresh = UUID()
+                    }
+                    .amgiFont(.caption)
+                }
+            }
+
             Section(L("debug_section_collection_info")) {
                 Button(L("debug_dump_deck_tree")) {
                     dumpDeckTree()
                 }
                 .listRowBackground(palette.surfaceElevated)
+
             }
 
             Section(L("debug_section_card_render")) {

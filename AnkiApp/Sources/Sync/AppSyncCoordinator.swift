@@ -3,6 +3,47 @@ import AnkiKit
 import AnkiClients
 import UIKit
 
+// MARK: - Sync Diagnostics (stored in UserDefaults, visible in DebugView)
+
+enum SyncDiagnostics {
+    private static let prefix = "amgi.sync.diag."
+
+    static var dict: [String: String] {
+        UserDefaults.standard.dictionary(forKey: "\(prefix)store") as? [String: String] ?? [:]
+    }
+
+    static func recordSyncStart() {
+        let now = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .medium)
+        var d = dict
+        d["lastStart"] = now
+        d["lastProgress"] = ""
+        d["lastAdded"] = ""
+        d["lastRemoved"] = ""
+        d["lastComplete"] = ""
+        UserDefaults.standard.set(d, forKey: "\(prefix)store")
+    }
+
+    static func recordSyncProgress(added: String, removed: String) {
+        let now = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        var d = dict
+        d["lastProgress"] = now
+        d["lastAdded"] = added
+        d["lastRemoved"] = removed
+        UserDefaults.standard.set(d, forKey: "\(prefix)store")
+    }
+
+    static func recordSyncComplete() {
+        let now = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .medium)
+        var d = dict
+        d["lastComplete"] = now
+        UserDefaults.standard.set(d, forKey: "\(prefix)store")
+    }
+
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: "\(prefix)store")
+    }
+}
+
 struct AppSyncLogEntry: Identifiable {
     enum Kind {
         case general
@@ -97,6 +138,7 @@ final class AppSyncCoordinator: ObservableObject {
     func startSync(syncClient: SyncClient, syncMediaEnabled: Bool) {
         guard activeTask == nil else { return }
 
+        SyncDiagnostics.recordSyncStart()
         logEntries.removeAll()
         mediaProgress = (0, 0)
         requiresLogin = false
@@ -246,7 +288,8 @@ final class AppSyncCoordinator: ObservableObject {
                 appendLog(message)
             }
             state = .needsFullSync(requirement)
-        case .normalSyncProgress(let stage, _, _):
+        case .normalSyncProgress(let stage, let added, let removed):
+            SyncDiagnostics.recordSyncProgress(added: added, removed: removed)
             let stageMessage = stage.nilIfBlank ?? L("sync_log_syncing_changes")
             let logMessage = Self.logMessage(for: event)
             if logMessage.isEmpty == false {
@@ -268,6 +311,7 @@ final class AppSyncCoordinator: ObservableObject {
             state = .syncingMedia(total: mediaProgress.total, downloaded: mediaProgress.downloaded)
         case .completed(let summary):
             SyncPreferences.recordCollectionSync()
+            SyncDiagnostics.recordSyncComplete()
             if syncMediaEnabled {
                 SyncPreferences.recordMediaSyncLog(L("sync_settings_media_log_success"))
             }
