@@ -108,6 +108,7 @@ struct AnkiAppApp: App {
                 Task {
                     await syncDailyReminderIfNeeded()
                     await runAutomaticBackupIfNeeded()
+                    await writeWidgetSnapshot()
                 }
                 AppBackgroundSyncManager.scheduleBackgroundTasks()
             }

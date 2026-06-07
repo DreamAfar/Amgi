@@ -204,7 +204,12 @@ enum AppBackgroundSyncManager {
 
         do {
             let outcome = try await withBackgroundSyncClient { syncClient in
-                try await performSafeSync(using: syncClient)
+                let result = try await performSafeSync(using: syncClient)
+                // 同步成功后写入 Widget 快照，让后台更新也能刷新小组件数据
+                if case .completed = result {
+                    await writeWidgetSnapshot()
+                }
+                return result
             }
 
             switch outcome {
