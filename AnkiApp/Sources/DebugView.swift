@@ -67,7 +67,7 @@ struct DebugView: View {
                     }
                     if let snapshots = syncDiag["snapshots"], !snapshots.isEmpty {
                         Text("快照: \(snapshots)")
-                            .amgiFont(.caption2)
+                            .amgiFont(.micro)
                             .foregroundStyle(palette.textTertiary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
