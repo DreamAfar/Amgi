@@ -2406,8 +2406,13 @@ struct CardWebView: UIViewRepresentable {
         questionAVTags: [Anki_CardRendering_AVTag],
         answerAVTags: [Anki_CardRendering_AVTag]
     ) -> String {
-        let stylingHTML = inlineCardStylingHTML(cardCSS)
-        let htmlLit = jsStringLiteral(stylingHTML + processedHTML)
+        let normalized = normalizeCardStyling(cardCSS)
+        // CSS is applied independently via amgiSetCardCSS (updates #amgi-card-css in <head>)
+        // to avoid hoisting <style> out of #qa on every flip (which causes a repaint flicker).
+        // Only styling-block scripts are inlined into the card HTML.
+        let applyStyling = "amgiSetCardCSS(\(jsStringLiteral(normalized.css)));"
+        let scriptsHTML = normalized.scripts.map { "<script>\($0)</script>" }.joined()
+        let htmlLit = jsStringLiteral(scriptsHTML + processedHTML)
         let autoplay = autoplayEnabled ? "true" : "false"
         let lookupEnabled = lookupPopupEnabled ? "true" : "false"
         let alignTopStr = alignTop ? "true" : "false"
@@ -2416,10 +2421,10 @@ struct CardWebView: UIViewRepresentable {
         let applyAVTags = "window.__amgiQuestionAVTags = \(questionTagsLit);window.__amgiAnswerAVTags = \(answerTagsLit);"
 
         if isAnswerSide {
-            return applyAVTags + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
+            return applyStyling + applyAVTags + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         } else {
-            let prefetchLit = jsStringLiteral(prefetchHTML.map { stylingHTML + $0 } ?? "")
-            return applyAVTags + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
+            let prefetchLit = jsStringLiteral(prefetchHTML.map { scriptsHTML + $0 } ?? "")
+            return applyStyling + applyAVTags + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         }
     }
 
