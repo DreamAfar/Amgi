@@ -2411,16 +2411,15 @@ struct CardWebView: UIViewRepresentable {
         let autoplay = autoplayEnabled ? "true" : "false"
         let lookupEnabled = lookupPopupEnabled ? "true" : "false"
         let alignTopStr = alignTop ? "true" : "false"
-        let applyStyling = "amgiSetCardCSS('');"
         let questionTagsLit = jsObjectLiteral(managedAVTagDescriptors(questionAVTags, side: "q"), fallback: "[]")
         let answerTagsLit = jsObjectLiteral(managedAVTagDescriptors(answerAVTags, side: "a"), fallback: "[]")
         let applyAVTags = "window.__amgiQuestionAVTags = \(questionTagsLit);window.__amgiAnswerAVTags = \(answerTagsLit);"
 
         if isAnswerSide {
-            return applyStyling + applyAVTags + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
+            return applyAVTags + "_showAnswer(\(htmlLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         } else {
             let prefetchLit = jsStringLiteral(prefetchHTML.map { stylingHTML + $0 } ?? "")
-            return applyStyling + applyAVTags + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
+            return applyAVTags + "_showQuestion(\(htmlLit),\(prefetchLit),\(jsStringLiteral(bodyClass)),\(autoplay),\(jsStringLiteral(replayMode)),\(alignTopStr),\(bodyPaddingBottom),\(cardPaddingBottom),\(lookupEnabled)" + ");"
         }
     }
 
