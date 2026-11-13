@@ -133,6 +133,9 @@ struct ReviewContent: View {
                 NavigationStack {
                     TemplateEditorView(
                         notetypeId: target.notetypeId,
+                        // Preview the card being reviewed, not an arbitrary
+                        // note of the same type.
+                        previewNoteId: session.currentNote?.id,
                         initialTemplateIndex: target.ordinal,
                         mode: .currentCard,
                         onSaved: { await session.refreshAfterEdit() }

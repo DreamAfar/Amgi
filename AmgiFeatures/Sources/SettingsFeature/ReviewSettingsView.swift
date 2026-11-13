@@ -28,6 +28,12 @@ struct ReviewSettingsView: View {
     @Shared(.appStorage(ReviewPreferences.Keys.showNextReviewTime))
     private var showNextReviewTime: Bool = true
 
+    @Shared(.appStorage(ReviewPreferences.Keys.answerButtonStyle))
+    private var answerButtonStyle: String = AnswerButtonStyle.cards.rawValue
+
+    @Shared(.appStorage(ReviewPreferences.Keys.hideHardAndEasyButtons))
+    private var hideHardAndEasyButtons: Bool = false
+
     @Shared(.appStorage(ReviewPreferences.Keys.playAudioInSilentMode))
     private var playAudioInSilentMode: Bool = false
 
@@ -88,6 +94,23 @@ struct ReviewSettingsView: View {
                     systemImage: "clock",
                     tone: .info,
                     isOn: Binding($showNextReviewTime)
+                )
+                SettingsSeparator()
+                SettingsPickerRow(
+                    title: String(localized: "Button style", bundle: .module),
+                    systemImage: "rectangle.grid.1x2",
+                    tone: .accent,
+                    selection: Binding($answerButtonStyle)
+                ) {
+                    Text("Cards", bundle: .module).tag(AnswerButtonStyle.cards.rawValue)
+                    Text("Filled", bundle: .module).tag(AnswerButtonStyle.filled.rawValue)
+                }
+                SettingsSeparator()
+                SettingsToggleRow(
+                    title: String(localized: "Only Again and Good", bundle: .module),
+                    systemImage: "rectangle.split.2x1",
+                    tone: .learning,
+                    isOn: Binding($hideHardAndEasyButtons)
                 )
             }
         }

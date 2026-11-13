@@ -170,6 +170,7 @@ public struct RootView: View {
         }
         .environment(\.lookupPopup, ReaderLookupPopup())
         .environment(\.dictionarySettings, ReaderDictionarySettings())
+        .environment(\.cardPreview, ReviewCardPreview())
     }
 }
 
