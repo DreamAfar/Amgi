@@ -68,6 +68,7 @@ let project = AmgiModule.project(
             package: "AmgiFeatures",
             dependencies: [
                 .target(name: "AppCore"),
+                .target(name: "AppShared"),
                 .project(target: "AnkiKit", path: .relativeToRoot(".")),
                 .project(target: "AnkiClients", path: .relativeToRoot(".")),
                 .project(target: "AnkiServices", path: .relativeToRoot(".")),

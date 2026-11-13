@@ -6,32 +6,24 @@
 //
 
 import SwiftUI
+import AppShared
 import Theme
 import UI
-import AnkiClients
 import AnkiKit
-import AnkiServices
-import Dependencies
 
-/// Preview sheet for uncommitted (unsaved) card templates, using CardRenderingService.
+/// Preview sheet for uncommitted (unsaved) card templates. The backend
+/// renders the edited template against a real note; the card is then drawn
+/// by the reviewer's own card view, supplied through `\.cardPreview`, so the
+/// preview matches what a review shows — HTML, card CSS, media and night mode.
 struct TemplatePreviewSheet: View {
-    @Dependency(\.cardRenderingService) var cardRenderingService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.palette) private var palette
 
     let title: String
     let emptyMessage: String
-    let notetype: Notetype
-    let loadSampleFields: () async throws -> [String]
 
-    @State private var selectedTemplateIndex: Int
-    @State private var previewSide: CardPreviewSide = .front
-    @State private var sampleFields: [String]?
-    @State private var renderedFrontHTML = ""
-    @State private var renderedBackHTML = ""
-    @State private var isLoading = false
-    @State private var isEmptyCard = false
-    @State private var errorMessage: String?
+    @State private var model: TemplatePreviewModel
+    @State private var side: CardPreviewSide = .front
 
     init(
         title: String,
@@ -42,116 +34,39 @@ struct TemplatePreviewSheet: View {
     ) {
         self.title = title
         self.emptyMessage = emptyMessage
-        self.notetype = notetype
-        self.loadSampleFields = loadSampleFields
-        let normalized = notetype.templates.indices.contains(initialTemplateIndex) ? initialTemplateIndex : 0
-        _selectedTemplateIndex = State(initialValue: normalized)
-    }
-
-    private var currentTemplateName: String {
-        guard notetype.templates.indices.contains(selectedTemplateIndex) else {
-            return String(localized: "No template selected.", bundle: .module)
-        }
-        return notetype.templates[selectedTemplateIndex].name
-    }
-
-    private var currentHTML: String {
-        previewSide == .front ? renderedFrontHTML : renderedBackHTML
+        _model = State(initialValue: TemplatePreviewModel(
+            notetype: notetype,
+            templateIndex: initialTemplateIndex,
+            loadSampleFields: loadSampleFields
+        ))
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 TemplatePreviewHeader(
-                    currentTemplateName: currentTemplateName,
-                    previewSide: $previewSide
+                    templateName: model.templateName,
+                    templates: model.notetype.templates.map(\.name),
+                    templateIndex: $model.templateIndex,
+                    side: $side
                 )
                 TemplatePreviewBody(
-                    isLoading: isLoading,
-                    errorMessage: errorMessage,
-                    isEmptyCard: isEmptyCard,
-                    emptyMessage: emptyMessage,
-                    html: currentHTML
+                    state: model.state,
+                    side: side,
+                    cardOrdinal: model.cardOrdinal,
+                    emptyMessage: emptyMessage
                 )
             }
-            .background(palette.surfaceElevated)
+            .background(palette.background)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { toolbarContent }
-            .task { await loadAndRenderPreview() }
-            .onChange(of: selectedTemplateIndex) {
-                Task { await renderPreview() }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "Done", bundle: .module)) { dismiss() }
+                        .amgiToolbarTextButton()
+                }
             }
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .confirmationAction) {
-            Button(String(localized: "Done", bundle: .module)) { dismiss() }
-                .amgiToolbarTextButton()
-        }
-    }
-
-}
-
-private extension TemplatePreviewSheet {
-    @MainActor
-    func loadAndRenderPreview() async {
-        do {
-            sampleFields = try await loadSampleFields()
-            await renderPreview()
-        } catch {
-            isLoading = false
-            isEmptyCard = false
-            renderedFrontHTML = ""
-            renderedBackHTML = ""
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    func renderPreview() async {
-        guard notetype.templates.indices.contains(selectedTemplateIndex) else {
-            isLoading = false
-            isEmptyCard = false
-            errorMessage = String(localized: "No template selected.", bundle: .module)
-            renderedFrontHTML = ""
-            renderedBackHTML = ""
-            return
-        }
-
-        guard let fields = sampleFields else {
-            await loadAndRenderPreview()
-            return
-        }
-
-        isLoading = true
-        defer { isLoading = false }
-
-        let cardRenderingService = self.cardRenderingService
-        let notetype = self.notetype
-        let templateIndex = selectedTemplateIndex
-
-        do {
-            let rendered = try await Task.detached(priority: .userInitiated) {
-                try cardRenderingService.renderUncommittedCard(
-                    notetype,
-                    templateIndex,
-                    fields
-                )
-            }.value
-
-            renderedFrontHTML = rendered.frontHTML
-            renderedBackHTML = rendered.backHTML
-            isEmptyCard = rendered.frontHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                && rendered.backHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            errorMessage = nil
-        } catch {
-            isEmptyCard = false
-            renderedFrontHTML = ""
-            renderedBackHTML = ""
-            errorMessage = error.localizedDescription
+            .task(id: model.templateIndex) { await model.render() }
         }
     }
 }
@@ -162,25 +77,38 @@ enum CardPreviewSide: CaseIterable {
 
     var label: String {
         switch self {
-        case .front: return String(localized: "Front", bundle: .module)
-        case .back: return String(localized: "Back", bundle: .module)
+        case .front: String(localized: "Front", bundle: .module)
+        case .back: String(localized: "Back", bundle: .module)
         }
     }
 }
 
 struct TemplatePreviewHeader: View {
-    let currentTemplateName: String
-    @Binding var previewSide: CardPreviewSide
+    let templateName: String
+    let templates: [String]
+    @Binding var templateIndex: Int
+    @Binding var side: CardPreviewSide
 
     @Environment(\.palette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
-            Text(currentTemplateName)
-                .amgiFont(.bodyEmphasis)
-                .foregroundStyle(palette.textSecondary)
+            if templates.count > 1 {
+                // A notetype with several card types (Basic and reversed,
+                // cloze-free multi-card types) previews each one in place.
+                Picker(String(localized: "Card type", bundle: .module), selection: $templateIndex) {
+                    ForEach(templates.indices, id: \.self) { index in
+                        Text(templates[index]).tag(index)
+                    }
+                }
+                .pickerStyle(.menu)
+            } else {
+                Text(templateName)
+                    .amgiFont(.bodyEmphasis)
+                    .foregroundStyle(palette.textSecondary)
+            }
 
-            Picker(String(localized: "Side", bundle: .module), selection: $previewSide) {
+            Picker(String(localized: "Side", bundle: .module), selection: $side) {
                 ForEach(CardPreviewSide.allCases, id: \.self) { side in
                     Text(side.label).tag(side)
                 }
@@ -188,40 +116,49 @@ struct TemplatePreviewHeader: View {
             .pickerStyle(.segmented)
             .controlSize(.small)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
     }
 }
 
 struct TemplatePreviewBody: View {
-    let isLoading: Bool
-    let errorMessage: String?
-    let isEmptyCard: Bool
+    let state: TemplatePreviewModel.State
+    let side: CardPreviewSide
+    let cardOrdinal: UInt32
     let emptyMessage: String
-    let html: String
 
     @Environment(\.palette) private var palette
+    @Environment(\.cardPreview) private var cardPreview
 
     var body: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage {
-                placeholder(systemImage: "exclamationmark.triangle", text: errorMessage, tint: palette.warning)
-            } else if isEmptyCard {
-                placeholder(systemImage: "rectangle.slash", text: emptyMessage, tint: palette.textTertiary)
+        switch state {
+        case .loading:
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failed(let message):
+            placeholder(systemImage: "exclamationmark.triangle", text: message, tint: palette.warning)
+        case .empty:
+            placeholder(systemImage: "rectangle.slash", text: emptyMessage, tint: palette.textTertiary)
+        case .rendered(let front, let back, let css):
+            if let cardPreview {
+                cardPreview.preview(CardPreviewContent(
+                    html: side == .front ? front : back,
+                    css: css,
+                    isAnswerSide: side == .back,
+                    cardOrdinal: cardOrdinal
+                ))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    Text(html).padding()
-                }
+                placeholder(
+                    systemImage: "rectangle.on.rectangle.slash",
+                    text: String(localized: "Card preview isn't available here.", bundle: .module),
+                    tint: palette.textTertiary
+                )
             }
         }
     }
 
-}
-
-private extension TemplatePreviewBody {
-    func placeholder(systemImage: String, text: String, tint: Color) -> some View {
+    private func placeholder(systemImage: String, text: String, tint: Color) -> some View {
         VStack(spacing: AmgiSpacing.sm) {
             Image(systemName: systemImage)
                 .amgiFont(.sectionHeading)
