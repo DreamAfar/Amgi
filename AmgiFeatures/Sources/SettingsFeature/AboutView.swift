@@ -21,39 +21,39 @@ struct AboutView: View {
             SettingsSectionHeader(title: "Amgi")
             SettingsGroup {
                 SettingsValueRow(
-                    title: "Version",
+                    title: String(localized: "Version", bundle: .module),
                     value: appVersion,
                     systemImage: "number",
                     tone: .info
                 )
                 SettingsSeparator()
                 SettingsValueRow(
-                    title: "Korean origin",
-                    value: "암기 — memorization",
+                    title: String(localized: "Korean origin", bundle: .module),
+                    value: String(localized: "암기 — memorization", bundle: .module),
                     systemImage: "character.book.closed",
                     tone: .mature
                 )
             }
 
-            SettingsSectionHeader(title: "Acknowledgements")
+            SettingsSectionHeader(title: String(localized: "Acknowledgements", bundle: .module))
             SettingsGroup {
                 SettingsValueRow(
-                    title: "Anki engine",
+                    title: String(localized: "Anki engine", bundle: .module),
                     value: "ankitects/anki",
                     systemImage: "shippingbox",
                     tone: .accent
                 )
                 SettingsSeparator()
                 SettingsValueRow(
-                    title: "Community",
-                    value: "DreamAfar — fork contributor",
+                    title: String(localized: "Community", bundle: .module),
+                    value: String(localized: "DreamAfar — fork contributor", bundle: .module),
                     systemImage: "person.2",
                     tone: .learning
                 )
             }
-            SettingsFootnote("Amgi uses the official Anki Rust backend. The backend code is licensed under AGPL-3.0 and remains the work of its authors.")
+            SettingsFootnote(String(localized: "Amgi uses the official Anki Rust backend. The backend code is licensed under AGPL-3.0 and remains the work of its authors.", bundle: .module))
         }
-        .navigationTitle("About")
+        .navigationTitle(String(localized: "About", bundle: .module))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

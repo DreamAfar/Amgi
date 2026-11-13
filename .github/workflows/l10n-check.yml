@@ -1,0 +1,133 @@
+# TEMPORARY — localization branch only, removed before the upstream PR.
+# Builds the app and the watch app for the simulator with compiler string
+# extraction on, then uploads the extracted keys and the build logs so the
+# String Catalogs can be checked against what the compiler actually emits.
+name: Localization Check (temporary)
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NIGHTLY_TOOLCHAIN: nightly-2026-08-17
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - name: Select Xcode 26.3
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: '26.3'
+
+      - name: Checkout repository with submodules
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: "1.95"
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Install Rust nightly with rust-src
+        run: rustup toolchain install "$NIGHTLY_TOOLCHAIN" --profile minimal --component rust-src
+
+      - name: Cache Rust build artifacts
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            anki-bridge-rs/target
+            anki-upstream/out
+          key: ${{ runner.os }}-rust-1.95-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-rust-1.95-
+
+      - name: Install Homebrew dependencies
+        run: brew install protobuf swift-protobuf
+
+      - name: Install mise tools
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+
+      - name: Build Rust XCFramework
+        run: |
+          chmod +x ./scripts/build-xcframework.sh
+          ./scripts/build-xcframework.sh
+
+      - name: Generate Swift protobuf types
+        run: |
+          chmod +x ./scripts/generate-protos.sh
+          ./scripts/generate-protos.sh
+
+      - name: Generate Xcode project
+        run: |
+          tuist install
+          tuist generate --path AmgiApp --no-open
+
+      - name: Build iOS app for the simulator
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/out"
+          xcodebuild build \
+            -workspace AmgiApp/AmgiApp.xcworkspace \
+            -scheme AmgiApp \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/DD" \
+            -disableAutomaticPackageResolution \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            SWIFT_EMIT_LOC_STRINGS=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$RUNNER_TEMP/out/ios-build.log"
+
+      - name: Build watch app for the simulator
+        if: always()
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace AmgiApp/AmgiApp.xcworkspace \
+            -scheme AmgiWatchApp \
+            -configuration Debug \
+            -destination 'generic/platform=watchOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/DD-watch" \
+            -disableAutomaticPackageResolution \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            SWIFT_EMIT_LOC_STRINGS=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$RUNNER_TEMP/out/watch-build.log"
+
+      - name: Collect extracted strings and errors
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP"
+          mkdir -p out/stringsdata
+          find DD DD-watch -name '*.stringsdata' 2>/dev/null | while read -r f; do
+            mod=$(echo "$f" | sed -E 's#.*/([^/]+)\.build/.*#\1#')
+            mkdir -p "out/stringsdata/$mod"
+            cp "$f" "out/stringsdata/$mod/"
+          done
+          find DD DD-watch -path '*.bundle/*.lproj' -maxdepth 12 -type d 2>/dev/null | sed 's#.*/Build/Products/##' | sort -u > out/lproj-dirs.txt || true
+          grep -hE "error:|warning: .*(xcstrings|[Ss]tring [Cc]atalog|Localiz)" out/*.log | sort -u > out/errors.txt || true
+          { echo '## Errors and catalog warnings'; echo '```'; head -200 out/errors.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: l10n-check
+          path: ${{ runner.temp }}/out
+          retention-days: 7
