@@ -72,6 +72,17 @@ private extension SyncToastController {
     }
 }
 
+/// The overlay sits on the root, above the `TabView`, so the bottom safe
+/// area doesn't include the tab bar. Lift the toast by the bar's height —
+/// the iOS 26 floating pill is taller than the classic bar.
+private let syncToastTabBarClearance: CGFloat = {
+    #if os(iOS)
+    if #available(iOS 26, *) { return 64 } else { return 50 }
+    #else
+    return 0
+    #endif
+}()
+
 extension View {
     /// Pins the sync toast to the bottom edge with the standard transition
     /// and animation. Lifted out of `RootView`'s body so the host keeps
@@ -84,6 +95,7 @@ extension View {
                 }
                 .buttonStyle(.pressScale)
                 .accessibilityHint(String(localized: "Dismisses this message", bundle: .module))
+                .padding(.bottom, syncToastTabBarClearance)
                 .transition(AmgiMotion.slide(from: .bottom))
             }
         }
