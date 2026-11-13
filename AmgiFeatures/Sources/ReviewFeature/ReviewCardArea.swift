@@ -41,6 +41,10 @@ struct ReviewCardArea: View {
     @Environment(\.palette) private var palette
     @Shared(.appStorage(ReaderPreferences.Keys.dictionaryScanLength))
     private var dictionaryScanLength: Int = 16
+    @Shared(.appStorage(ReviewPreferences.Keys.answerButtonStyle))
+    private var answerButtonStyle: String = AnswerButtonStyle.cards.rawValue
+    @Shared(.appStorage(ReviewPreferences.Keys.hideHardAndEasyButtons))
+    private var hideHardAndEasyButtons: Bool = false
     @State private var showRenderModeSheet = false
     @State private var nativeAudioPlayer = NativeCardAudioPlayer()
 
@@ -222,6 +226,8 @@ struct ReviewCardArea: View {
             showIntervals: showNextReviewTime,
             isDisabled: session.isAdvancing,
             shortcutsEnabled: keyboardActive,
+            style: AnswerButtonStyle(rawValue: answerButtonStyle) ?? .cards,
+            showsHardAndEasy: !hideHardAndEasyButtons,
             onRate: { rating in session.answer(rating: rating) }
         )
     }

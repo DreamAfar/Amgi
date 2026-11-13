@@ -33,6 +33,8 @@ public enum ReviewPreferences {
         public static let cardContentAlignment = "review_pref_card_content_alignment"
         public static let glassAnswerButtons = "review_pref_glass_answer_buttons"
         public static let autoMatchCardBackground = "review_pref_auto_match_card_background"
+        public static let answerButtonStyle = "review_pref_answer_button_style"
+        public static let hideHardAndEasyButtons = "review_pref_hide_hard_and_easy_buttons"
     }
 }
 
