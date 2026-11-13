@@ -1,6 +1,146 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "A field name can't contain : \" { or }." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールド名に : \" { } は使えません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드 이름에는 : \" { }를 쓸 수 없습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字段名不能包含 : \" { 或 }。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欄位名不能包含 : \" { 或 }。"
+          }
+        }
+      }
+    },
+    "A field name can't start with #, / or ^." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールド名を #、/、^ で始めることはできません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드 이름은 #, /, ^로 시작할 수 없습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字段名不能以 #、/ 或 ^ 开头。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欄位名不能以 #、/ 或 ^ 開頭。"
+          }
+        }
+      }
+    },
+    "Add" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追加"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "추가"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增"
+          }
+        }
+      }
+    },
+    "Add Field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールドを追加"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드 추가"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增欄位"
+          }
+        }
+      }
+    },
+    "Adding, removing or reordering fields, or changing the sort field, changes the collection's structure. The next sync will have to upload or download the whole collection, and changes made on other devices since the last sync may be lost." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールドの追加・削除・並べ替え、または並べ替えフィールドの変更は、コレクションの構造を変更します。次回の同期ではコレクション全体をアップロードまたはダウンロードする必要があり、前回の同期以降にほかの端末で行った変更は失われる可能性があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드를 추가·삭제하거나 순서를 바꾸거나 정렬 필드를 바꾸면 컬렉션 구조가 바뀝니다. 다음 동기화 때 컬렉션 전체를 업로드하거나 다운로드해야 하며, 마지막 동기화 이후 다른 기기에서 한 변경 사항은 사라질 수 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加、删除字段、调整字段顺序或更改排序字段，都会改变集合的结构。下次同步时必须上传或下载整个集合，其他设备上自上次同步以来的更改可能会丢失。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增、刪除欄位、調整欄位順序或更改排序欄位，都會改變集合的結構。下次同步時必須上傳或下載整個集合，其他裝置上自上次同步以來的更改可能會丟失。"
+          }
+        }
+      }
+    },
     "An unknown error occurred." : {
       "localizations" : {
         "ja" : {
@@ -85,6 +225,34 @@
         }
       }
     },
+    "Browse shows and sorts notes of this type by this field." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ブラウズでは、このタイプのノートをこのフィールドで表示・並べ替えします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탐색에서 이 유형의 노트를 이 필드로 표시하고 정렬합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“浏览”会用这个字段显示和排序此类型的笔记。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「瀏覽」會用這個欄位顯示和排序此型別的筆記。"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "ja" : {
@@ -141,6 +309,34 @@
         }
       }
     },
+    "Collapse by default" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "デフォルトで折りたたむ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본적으로 접기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认折叠"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預設摺疊"
+          }
+        }
+      }
+    },
     "Could not load templates" : {
       "localizations" : {
         "ja" : {
@@ -165,6 +361,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法載入模板"
+          }
+        }
+      }
+    },
+    "Couldn't Load Fields" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールドを読み込めませんでした"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드를 불러올 수 없습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入欄位"
           }
         }
       }
@@ -253,6 +477,34 @@
         }
       }
     },
+    "Delete Field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールドを削除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드 삭제"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除欄位"
+          }
+        }
+      }
+    },
     "Delete failed: %@" : {
       "localizations" : {
         "ja" : {
@@ -309,6 +561,62 @@
         }
       }
     },
+    "Delete “%@”?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」を削除しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "'%@'을(를) 삭제할까요?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除“%@”？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除「%@」？"
+          }
+        }
+      }
+    },
+    "Description" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "説明"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설명"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "描述"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "描述"
+          }
+        }
+      }
+    },
     "Discard" : {
       "localizations" : {
         "ja" : {
@@ -333,6 +641,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "放棄"
+          }
+        }
+      }
+    },
+    "Discard changes?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "変更を破棄しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "변경 사항을 버릴까요?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放弃更改？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放棄更改？"
           }
         }
       }
@@ -365,6 +701,34 @@
         }
       }
     },
+    "Drag to reorder with Edit. The order is the order fields appear in when you edit a note." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「編集」をタップするとドラッグで並べ替えられます。ノートを編集するときのフィールドの順序になります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "편집을 누르면 드래그해서 순서를 바꿀 수 있습니다. 노트를 편집할 때 필드가 이 순서로 나타납니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点“编辑”后可拖动调整顺序。编辑笔记时字段按此顺序排列。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點「編輯」後可拖動調整順序。編輯筆記時欄位按此順序排列。"
+          }
+        }
+      }
+    },
     "Edit template" : {
       "localizations" : {
         "ja" : {
@@ -389,6 +753,118 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "編輯模板"
+          }
+        }
+      }
+    },
+    "Editing" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編集"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "편집"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編輯"
+          }
+        }
+      }
+    },
+    "Editor Font" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エディタのフォント"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "편집기 글꼴"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑器字体"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編輯器字型"
+          }
+        }
+      }
+    },
+    "Enter a field name." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールド名を入力してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드 이름을 입력하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入字段名。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請輸入欄位名。"
+          }
+        }
+      }
+    },
+    "Exclude from unqualified searches" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールド指定なしの検索から除外"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드를 지정하지 않은 검색에서 제외"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不参与未指定字段的搜索"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不參與未指定欄位的搜尋"
           }
         }
       }
@@ -449,6 +925,34 @@
         }
       }
     },
+    "Field name" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールド名"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드 이름"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字段名"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欄位名"
+          }
+        }
+      }
+    },
     "Fields" : {
       "localizations" : {
         "ja" : {
@@ -473,6 +977,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "欄位"
+          }
+        }
+      }
+    },
+    "Fields…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールド…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字段…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欄位…"
+          }
+        }
+      }
+    },
+    "Font" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォント"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "글꼴"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字体"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字型"
           }
         }
       }
@@ -585,6 +1145,90 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "插入欄位"
+          }
+        }
+      }
+    },
+    "Invalid field name" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無効なフィールド名"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "잘못된 필드 이름"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字段名无效"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欄位名無效"
+          }
+        }
+      }
+    },
+    "Its content is removed from every note of this type when you save." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存すると、このタイプのすべてのノートからこのフィールドの内容が削除されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "저장하면 이 유형의 모든 노트에서 이 필드의 내용이 삭제됩니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存后，此类型所有笔记中这个字段的内容都会被删除。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "儲存後，此型別所有筆記中這個欄位的內容都會被刪除。"
+          }
+        }
+      }
+    },
+    "New" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新規"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새 필드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新"
           }
         }
       }
@@ -757,6 +1401,34 @@
         }
       }
     },
+    "Remember last input when adding" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追加時に前回の入力を保持"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "추가할 때 마지막 입력 기억"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加时记住上次输入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增時記住上次輸入"
+          }
+        }
+      }
+    },
     "Rename" : {
       "localizations" : {
         "ja" : {
@@ -781,6 +1453,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重新命名"
+          }
+        }
+      }
+    },
+    "Rename Field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールド名を変更"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드 이름 변경"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重命名字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新命名欄位"
           }
         }
       }
@@ -841,6 +1541,34 @@
         }
       }
     },
+    "Rename…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名前を変更…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이름 변경…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重命名…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新命名…"
+          }
+        }
+      }
+    },
     "Rendered preview" : {
       "localizations" : {
         "ja" : {
@@ -869,6 +1597,62 @@
         }
       }
     },
+    "Required by this notetype" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このノートタイプに必須"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 노트 유형에 필요한 필드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此笔记模板必需的字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此筆記類型必需的欄位"
+          }
+        }
+      }
+    },
+    "Right-to-left text" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右から左に書く"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오른쪽에서 왼쪽으로 쓰기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从右到左书写"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從右到左書寫"
+          }
+        }
+      }
+    },
     "Save" : {
       "localizations" : {
         "ja" : {
@@ -893,6 +1677,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "儲存"
+          }
+        }
+      }
+    },
+    "Save Failed" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存に失敗しました"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "저장 실패"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存失败"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "儲存失敗"
+          }
+        }
+      }
+    },
+    "Save and require a full sync?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存して完全同期を必要としますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "저장하고 전체 동기화를 진행할까요?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存并需要完整同步？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "儲存並需要完整同步？"
           }
         }
       }
@@ -981,6 +1821,34 @@
         }
       }
     },
+    "Shown in the empty field while editing" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編集中に空のフィールドに表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "편집 중 빈 필드에 표시"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑时显示在空字段中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編輯時顯示在空欄位中"
+          }
+        }
+      }
+    },
     "Side" : {
       "localizations" : {
         "ja" : {
@@ -1005,6 +1873,118 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "面"
+          }
+        }
+      }
+    },
+    "Size: %lld" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サイズ: %lld"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "크기: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字号：%lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字級：%lld"
+          }
+        }
+      }
+    },
+    "Sort" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "並べ替え"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "정렬"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序"
+          }
+        }
+      }
+    },
+    "Sort Field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "並べ替えフィールド"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "정렬 필드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序欄位"
+          }
+        }
+      }
+    },
+    "Sort by" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "並べ替えの基準"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "정렬 기준"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序依据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序依據"
           }
         }
       }
@@ -1149,6 +2129,34 @@
         }
       }
     },
+    "This notetype already has a field with that name." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このノートタイプには同じ名前のフィールドがすでにあります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 노트 유형에 같은 이름의 필드가 이미 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此笔记模板中已有同名字段。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此筆記類型中已有同名欄位。"
+          }
+        }
+      }
+    },
     "This template needs a {{cloze:...}} field." : {
       "localizations" : {
         "ja" : {
@@ -1205,6 +2213,34 @@
         }
       }
     },
+    "Unqualified searches are ones that don't name a field, like a plain word typed into Browse." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールド指定なしの検索とは、ブラウズに単語だけを入力した場合のように、フィールド名を含まない検索のことです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드를 지정하지 않은 검색이란 탐색에 단어만 입력하는 것처럼 필드 이름이 없는 검색을 말합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未指定字段的搜索，是指没有写明字段名的搜索，比如在“浏览”中直接输入一个词。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未指定欄位的搜尋，是指沒有寫明欄位名的搜尋，比如在「瀏覽」中直接輸入一個詞。"
+          }
+        }
+      }
+    },
     "Unsaved changes" : {
       "localizations" : {
         "ja" : {
@@ -1229,6 +2265,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未儲存的更改"
+          }
+        }
+      }
+    },
+    "Use the HTML editor by default" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "デフォルトで HTML エディタを使う"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본적으로 HTML 편집기 사용"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认使用 HTML 编辑器"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預設使用 HTML 編輯器"
+          }
+        }
+      }
+    },
+    "Used by Anki's note editor on desktop. It doesn't change how cards look; that's the card template's styling." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anki デスクトップ版のノートエディタで使われます。カードの見た目は変わりません（カードテンプレートのスタイルで決まります）。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anki 데스크톱의 노트 편집기에서 사용됩니다. 카드 모양은 바뀌지 않으며, 카드 모양은 카드 템플릿 스타일이 정합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用于 Anki 桌面版的笔记编辑器，不会改变卡片外观；卡片外观由卡片模板的样式决定。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用於 Anki 桌面版的筆記編輯器，不會改變卡片外觀；卡片外觀由卡片模板的樣式決定。"
           }
         }
       }

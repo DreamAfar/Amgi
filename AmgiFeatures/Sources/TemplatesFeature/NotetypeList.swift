@@ -9,10 +9,12 @@ import SwiftUI
 import Theme
 import AnkiKit
 
-/// Plain list of notetypes with swipe actions for rename / delete.
+/// Plain list of notetypes with swipe actions and a context menu for
+/// fields / rename / delete.
 struct NotetypeList: View {
     let entries: [NotetypeNameId]
     let onSelect: (NotetypeNameId) -> Void
+    let onRequestFields: (NotetypeNameId) -> Void
     let onRequestDelete: (NotetypeNameId) -> Void
     let onRequestRename: (NotetypeNameId) -> Void
 
@@ -29,6 +31,21 @@ struct NotetypeList: View {
                         Label(String(localized: "Rename", bundle: .module), systemImage: "pencil")
                     }
                     .tint(palette.accent)
+                    Button { onRequestFields(entry) } label: {
+                        Label(String(localized: "Fields", bundle: .module), systemImage: "list.bullet.rectangle")
+                    }
+                    .tint(palette.info)
+                }
+                .contextMenu {
+                    Button(String(localized: "Fields…", bundle: .module), systemImage: "list.bullet.rectangle") {
+                        onRequestFields(entry)
+                    }
+                    Button(String(localized: "Rename…", bundle: .module), systemImage: "pencil") {
+                        onRequestRename(entry)
+                    }
+                    Button(String(localized: "Delete", bundle: .module), systemImage: "trash", role: .destructive) {
+                        onRequestDelete(entry)
+                    }
                 }
         }
         .scrollContentBackground(.hidden)

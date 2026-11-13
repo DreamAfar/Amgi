@@ -23,6 +23,7 @@ package struct DeckTemplateListView: View {
 
     @State private var searchText = ""
     @State private var editorTarget: TemplateEditorTarget?
+    @State private var fieldsTarget: NotetypeNameId?
     @State private var renameTarget: NotetypeNameId?
     @State private var renameText = ""
     @State private var showRenamePrompt = false
@@ -48,6 +49,15 @@ package struct DeckTemplateListView: View {
                     mode: .manager,
                     onSaved: { await model.loadTemplates() }
                 )
+            }
+            .sheet(item: $fieldsTarget) { target in
+                NavigationStack {
+                    NotetypeFieldManagerView(
+                        notetypeId: target.id,
+                        preferredName: target.name,
+                        onSaved: { await model.loadTemplates() }
+                    )
+                }
             }
             .modifier(DeckTemplateListAlerts(
                 showRenamePrompt: $showRenamePrompt,
@@ -88,6 +98,9 @@ package struct DeckTemplateListView: View {
                 entries: filteredEntries,
                 onSelect: { entry in
                     editorTarget = TemplateEditorTarget(id: entry.id, initialTemplateIndex: 0)
+                },
+                onRequestFields: { entry in
+                    fieldsTarget = entry
                 },
                 onRequestDelete: { entry in
                     deleteTarget = entry
