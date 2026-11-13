@@ -84,6 +84,16 @@ let project = AmgiModule.project(
             ]
         ),
         AmgiModule.target(
+            "TemplatesFeatureTests",
+            package: "AmgiFeatures",
+            dependencies: [
+                .target(name: "TemplatesFeature"),
+                .project(target: "AnkiKit", path: .relativeToRoot(".")),
+                .project(target: "AnkiClients", path: .relativeToRoot(".")),
+            ],
+            tests: true
+        ),
+        AmgiModule.target(
             "StatsFeature",
             package: "AmgiFeatures",
             dependencies: [
