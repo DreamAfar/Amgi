@@ -183,6 +183,12 @@ package struct BrowseView: View {
                 runOnSelection { await model.moveSelected($0, to: deck.id) }
             }
         }
+        .sheet(isPresented: $destination.changeNotetype) {
+            ChangeNotetypeView(noteIDs: Array(selectionState.selectedNoteIDs)) {
+                selectionState.exitSelectMode()
+                Task { await model.performSearch() }
+            }
+        }
         .sheet(isPresented: $destination.batchTag) {
             BatchTagSheet(noteIDs: selectionState.selectedNoteIDs) {
                 Task {
@@ -368,6 +374,9 @@ package struct BrowseView: View {
                 }
                 Button(String(localized: "Unmark", bundle: .module), systemImage: "star.slash") {
                     runOnSelection(exit: false) { await model.setMarked(false, for: $0) }
+                }
+                Button(String(localized: "Change Note Type…", bundle: .module), systemImage: "square.stack.3d.up") {
+                    destination = .changeNotetype
                 }
                 Button(String(localized: "Find & Replace…", bundle: .module), systemImage: "text.magnifyingglass") {
                     destination = .findReplaceSelected
