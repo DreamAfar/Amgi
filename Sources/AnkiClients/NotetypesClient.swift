@@ -23,6 +23,13 @@ public struct NotetypesClient: Sendable {
 
     /// Removes a notetype (and all cards using it) from the collection.
     public var remove: @Sendable (_ id: NotetypeID) async throws -> Void
+
+    /// Names on both sides and the backend's suggested mapping for moving
+    /// notes from one notetype to another.
+    public var changeNotetypeInfo: @Sendable (_ from: NotetypeID, _ to: NotetypeID) async throws -> ChangeNotetypeInfo
+
+    /// Moves notes to another notetype. Forces a full sync.
+    public var changeNotetype: @Sendable (_ input: ChangeNotetypeInput) async throws -> Void
 }
 
 extension NotetypesClient: TestDependencyKey {

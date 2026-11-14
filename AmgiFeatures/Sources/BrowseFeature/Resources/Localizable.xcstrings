@@ -261,6 +261,34 @@
         }
       }
     },
+    "(Nothing)" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "（なし）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(없음)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "（无）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "（無）"
+          }
+        }
+      }
+    },
     "0 = today, 1 = tomorrow, 3-7 = a random day in that range. Add ! to also set the interval, e.g. 7!." : {
       "localizations" : {
         "ja" : {
@@ -1137,6 +1165,34 @@
         }
       }
     },
+    "Cards" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カード"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片"
+          }
+        }
+      }
+    },
     "Center horizontally" : {
       "localizations" : {
         "ja" : {
@@ -1193,6 +1249,34 @@
         }
       }
     },
+    "Change" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "変更"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "변경"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改"
+          }
+        }
+      }
+    },
     "Change Deck" : {
       "localizations" : {
         "ja" : {
@@ -1217,6 +1301,90 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更改牌組"
+          }
+        }
+      }
+    },
+    "Change Note Type" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ノートタイプを変更"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노트 유형 변경"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改笔记类型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改筆記類型"
+          }
+        }
+      }
+    },
+    "Change Note Type…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ノートタイプを変更…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노트 유형 변경…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改笔记类型…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改筆記類型…"
+          }
+        }
+      }
+    },
+    "Change the note type of %lld notes?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 件のノートのノートタイプを変更しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노트 %lld개의 노트 유형을 변경할까요?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改 %lld 条笔记的笔记类型？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改 %lld 則筆記的筆記類型？"
           }
         }
       }
@@ -1361,6 +1529,34 @@
         }
       }
     },
+    "Cloze cards follow the cloze numbers in the text, so there are no cards to map." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "穴埋めカードは本文の穴埋め番号から作られるため、対応付けは不要です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빈칸 카드는 본문의 빈칸 번호를 따르므로 대응시킬 카드가 없습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "填空卡片按文本中的填空编号生成，不需要对应卡片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "填空卡片按文字中的填空編號產生，不需要對應卡片。"
+          }
+        }
+      }
+    },
     "Content" : {
       "localizations" : {
         "ja" : {
@@ -1389,6 +1585,34 @@
         }
       }
     },
+    "Content of these fields will be lost: %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次のフィールドの内容は失われます：%@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 필드의 내용이 사라집니다: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些字段的内容将会丢失：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這些欄位的內容將會遺失：%@"
+          }
+        }
+      }
+    },
     "Couldn't Check for Duplicates" : {
       "localizations" : {
         "ja" : {
@@ -1413,6 +1637,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法檢查重複項"
+          }
+        }
+      }
+    },
+    "Couldn't change the note type" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ノートタイプを変更できませんでした"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노트 유형을 변경할 수 없습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法更改笔记类型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法更改筆記類型"
           }
         }
       }
@@ -1525,6 +1777,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法為 %lld 個專案設定旗標：%@"
+          }
+        }
+      }
+    },
+    "Couldn't load the notes" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ノートを読み込めませんでした"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노트를 불러올 수 없습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取笔记"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法讀取筆記"
           }
         }
       }
@@ -1721,6 +2001,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "建立標籤"
+          }
+        }
+      }
+    },
+    "Current" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前"
           }
         }
       }
@@ -2075,6 +2383,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "取消全選"
+          }
+        }
+      }
+    },
+    "Different note types" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ノートタイプが異なります"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노트 유형이 다릅니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "笔记类型不同"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筆記類型不同"
           }
         }
       }
@@ -3587,6 +3923,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新名稱"
+          }
+        }
+      }
+    },
+    "New note type" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新しいノートタイプ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새 노트 유형"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新笔记类型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新筆記類型"
           }
         }
       }
@@ -5707,6 +6071,62 @@
         }
       }
     },
+    "The selected notes couldn't be read." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択したノートを読み込めませんでした。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 노트를 읽을 수 없습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取所选笔记。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法讀取所選筆記。"
+          }
+        }
+      }
+    },
+    "The selected notes use %@. Select notes of one note type to change it." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択したノートは %@ を使っています。1 種類のノートタイプのノートだけを選択してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 노트는 %@ 유형을 사용합니다. 한 가지 노트 유형의 노트만 선택하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选笔记使用了 %@。请只选择同一种笔记类型的笔记。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所選筆記使用了 %@。請只選擇同一種筆記類型的筆記。"
+          }
+        }
+      }
+    },
     "Their cards go back to the new queue. Review history is kept." : {
       "localizations" : {
         "ja" : {
@@ -5731,6 +6151,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "它們的卡片會回到新卡片佇列，複習記錄會保留。"
+          }
+        }
+      }
+    },
+    "These cards will be deleted, with their review history: %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次のカードは復習履歴とともに削除されます：%@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 카드는 복습 기록과 함께 삭제됩니다: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些卡片及其复习记录将被删除：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這些卡片及其複習記錄將被刪除：%@"
           }
         }
       }
@@ -5843,6 +6291,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "這會修改所選 %lld 條筆記中匹配的筆記。之後可以復原。"
+          }
+        }
+      }
+    },
+    "This changes the collection's structure, so the next sync must upload or download the whole collection." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コレクションの構造が変わるため、次回の同期ではコレクション全体のアップロードまたはダウンロードが必要です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컬렉션 구조가 바뀌므로 다음 동기화 때 컬렉션 전체를 업로드하거나 다운로드해야 합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这会改变集合结构，下次同步需要上传或下载整个集合。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這會改變集合結構，下次同步需要上傳或下載整個集合。"
           }
         }
       }
