@@ -21,8 +21,18 @@ extension ImageOcclusionClient: DependencyKey {
                     // 1. Ensure the notetype exists.
                     try backend.invoke(.addImageOcclusionNotetype)
 
-                    // 2. IO note creation saves into the backend's current deck.
+                    // 2. IO note creation saves into the backend's current deck,
+                    //    so point it at the target deck for the add and put the
+                    //    user's current deck back afterwards. Leaving it moved
+                    //    changed which deck the rest of the app (and a synced
+                    //    desktop) treated as current.
+                    let previousDeckID = try? backend.invoke(.getCurrentDeck).id
                     try backend.invoke(.setCurrentDeck(deckId: deckID))
+                    defer {
+                        if let previousDeckID, previousDeckID != deckID {
+                            try? backend.invoke(.setCurrentDeck(deckId: previousDeckID))
+                        }
+                    }
 
                     // 3. Let the backend import the selected source file into media.
                     try backend.invoke(.addImageOcclusionNote(
