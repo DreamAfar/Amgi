@@ -51,14 +51,14 @@ public struct WatchLoginView: View {
     }
     private var loginFieldsView: some View {
         VStack {
-            TextField("Server URL", text: $endpoint)
+            TextField(String(localized: "Server URL", bundle: .module), text: $endpoint)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
-            TextField("Username", text: $username)
+            TextField(String(localized: "Username", bundle: .module), text: $username)
                 .textContentType(.username)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
-            SecureField("Password", text: $password)
+            SecureField(String(localized: "Password", bundle: .module), text: $password)
                 .textContentType(.password)
             if case .failed(let error) = submission {
                 Text(error)
@@ -72,7 +72,7 @@ public struct WatchLoginView: View {
                 if isSubmitting {
                     ProgressView()
                 } else {
-                    Text("Sign In")
+                    Text("Sign In", bundle: .module)
                 }
             }
             .buttonStyle(.borderedProminent)
@@ -95,7 +95,7 @@ public struct WatchLoginView: View {
             onLoginSuccess()
         } catch {
             logger.error("Login failed: \(error)")
-            submission = .failed("Login failed. Check your credentials.")
+            submission = .failed(String(localized: "Login failed. Check your credentials.", bundle: .module))
         }
     }
 }
