@@ -32,7 +32,7 @@ struct ReviewCardArea: View {
     let session: ReviewSession
     let openLinksExternally: Bool
     let cardContentAlignment: String
-    let tapLookup: Bool
+    let lookup: ReviewLookupSides
     let showNextReviewTime: Bool
     let lookupHighlight: LookupHighlight
     let shortcutsEnabled: Bool
@@ -189,7 +189,7 @@ struct ReviewCardArea: View {
                     replayRequestID: session.replayRequestID,
                     stopAudioRequestID: session.stopAudioRequestID,
                     openLinksExternally: openLinksExternally,
-                    lookupPopupEnabled: tapLookup && !session.requiresTypedAnswerInput,
+                    lookupPopupEnabled: lookup.isEnabled(onBack: isBack) && !session.requiresTypedAnswerInput,
                     dictionaryScanLength: dictionaryScanLength,
                     lookupHighlight: lookupHighlight,
                     contentAlignment: CardWebViewContentAlignment(rawValue: cardContentAlignment) ?? .center,
@@ -199,7 +199,7 @@ struct ReviewCardArea: View {
                     },
                     // No tap-lookup while the typed-answer input is up — the
                     // dictionary would hand over the answer to be typed.
-                    onLookupRequested: tapLookup && !session.requiresTypedAnswerInput ? { text, _, _ in
+                    onLookupRequested: lookup.isEnabled(onBack: isBack) && !session.requiresTypedAnswerInput ? { text, _, _ in
                         if let text, !text.isEmpty { lookupQuery = text }
                     } : nil,
                     onShowAnswerRequested: { session.revealAnswer() }

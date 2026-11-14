@@ -32,7 +32,7 @@ struct ReviewContent: View {
     let autoMatchCardBackground: Bool
     let openLinksExternally: Bool
     let cardContentAlignment: String
-    let tapLookup: Bool
+    let lookup: ReviewLookupSides
     let showNextReviewTime: Bool
     @Binding var destination: ReviewDestination?
     let onDismiss: () -> Void
@@ -69,7 +69,7 @@ struct ReviewContent: View {
                         session: session,
                         openLinksExternally: openLinksExternally,
                         cardContentAlignment: cardContentAlignment,
-                        tapLookup: tapLookup,
+                        lookup: lookup,
                         showNextReviewTime: showNextReviewTime,
                         lookupHighlight: lookupHighlight,
                         shortcutsEnabled: keyboardActive,
@@ -520,7 +520,7 @@ private struct ReviewFinishedView: View {
         autoMatchCardBackground: false,
         openLinksExternally: true,
         cardContentAlignment: CardWebViewContentAlignment.center.rawValue,
-        tapLookup: true,
+        lookup: .both,
         showNextReviewTime: true,
         destination: .constant(nil),
         onDismiss: {}
@@ -534,7 +534,7 @@ private struct ReviewFinishedView: View {
         autoMatchCardBackground: false,
         openLinksExternally: true,
         cardContentAlignment: CardWebViewContentAlignment.center.rawValue,
-        tapLookup: true,
+        lookup: .both,
         showNextReviewTime: true,
         destination: .constant(nil),
         onDismiss: {}
@@ -548,7 +548,7 @@ private struct ReviewFinishedView: View {
         autoMatchCardBackground: false,
         openLinksExternally: true,
         cardContentAlignment: CardWebViewContentAlignment.center.rawValue,
-        tapLookup: true,
+        lookup: .both,
         showNextReviewTime: true,
         destination: .constant(nil),
         onDismiss: {}
