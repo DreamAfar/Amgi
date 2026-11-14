@@ -45,8 +45,14 @@ package struct ReviewView: View {
     @Shared(.appStorage(ReviewPreferences.Keys.showNextReviewTime))
     private var showNextReviewTime: Bool = true
 
-    @Shared(.appStorage(ReaderPreferences.Keys.tapLookup))
-    private var tapLookup: Bool = true
+    @Shared(.appStorage(ReviewPreferences.Keys.lookupPopupEnabled))
+    private var lookupEnabled: Bool = ReviewPreferences.lookupPopupDefault
+
+    @Shared(.appStorage(ReviewPreferences.Keys.lookupPopupFrontEnabled))
+    private var lookupOnFront: Bool = true
+
+    @Shared(.appStorage(ReviewPreferences.Keys.lookupPopupBackEnabled))
+    private var lookupOnBack: Bool = true
 
     @Shared(.appStorage(ReviewPreferences.Keys.playAudioInSilentMode))
     private var playAudioInSilentMode: Bool = false
@@ -67,7 +73,10 @@ package struct ReviewView: View {
             autoMatchCardBackground: autoMatchCardBackground,
             openLinksExternally: openLinksExternally,
             cardContentAlignment: cardContentAlignment,
-            tapLookup: tapLookup,
+            lookup: ReviewLookupSides(
+                front: lookupEnabled && lookupOnFront,
+                back: lookupEnabled && lookupOnBack
+            ),
             showNextReviewTime: showNextReviewTime,
             destination: $destination,
             onDismiss: onDismiss
@@ -125,4 +134,14 @@ private struct ReviewSessionErrorAlert: ViewModifier {
                 Text(session[keyPath: channel] ?? "")
             }
     }
+}
+
+/// Which sides of a review card answer a tap with a dictionary lookup.
+struct ReviewLookupSides: Equatable {
+    var front: Bool
+    var back: Bool
+
+    static let both = ReviewLookupSides(front: true, back: true)
+
+    func isEnabled(onBack: Bool) -> Bool { onBack ? back : front }
 }

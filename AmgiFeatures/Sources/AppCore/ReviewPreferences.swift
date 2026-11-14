@@ -6,6 +6,7 @@
 //
 
 import AnkiKit
+import Foundation
 public import Foundation
 
 public enum ReaderThemeMode: String, CaseIterable, Identifiable {
@@ -18,6 +19,13 @@ public enum ReaderThemeMode: String, CaseIterable, Identifiable {
 }
 
 public enum ReviewPreferences {
+    /// Review lookup used to follow the reader's "Tap word to look up"
+    /// switch. Until the review switch has been set, start from that value
+    /// so anyone who turned lookup off doesn't find it back on.
+    public static var lookupPopupDefault: Bool {
+        UserDefaults.standard.object(forKey: ReaderPreferences.Keys.tapLookup) as? Bool ?? true
+    }
+
     public enum Keys {
         public static let playAudioInSilentMode = "review_pref_play_audio_in_silent_mode"
         public static let showCorrectnessSymbols = "review_pref_show_correctness_symbols"
