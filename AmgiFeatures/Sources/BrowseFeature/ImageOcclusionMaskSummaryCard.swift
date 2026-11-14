@@ -25,25 +25,23 @@ func imageOcclusionPreviewHeight(for image: UIImage, width: CGFloat) -> CGFloat 
 struct ImageOcclusionMaskSummaryCard: View {
     @Environment(\.palette) private var palette
     let image: UIImage
-    let masks: [IOMask]
+    let shapes: [IOShape]
     let action: () -> Void
     @State private var canvasWidth: CGFloat = 0
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            OcclusionCanvasView(
-                image: image,
-                masks: .constant(masks),
-                selectedMaskIndex: .constant(nil),
-                shapeType: .select
-            )
-            .frame(height: imageOcclusionPreviewHeight(for: image, width: canvasWidth))
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { canvasWidth = $0 }
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .allowsHitTesting(false)
+    private var cardCount: Int { IOCloze.cardCount(shapes) }
 
-            HStack(spacing: 12) {
-                Text(masks.isEmpty ? "No masks yet" : "\(masks.count) masks", bundle: .module)
+    var body: some View {
+        VStack(alignment: .leading, spacing: AmgiSpacing.md) {
+            IOPreview(image: image, shapes: shapes)
+                .frame(height: imageOcclusionPreviewHeight(for: image, width: canvasWidth))
+                .frame(maxWidth: .infinity)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { canvasWidth = $0 }
+                .clipShape(RoundedRectangle(cornerRadius: AmgiRadius.inset, style: .continuous))
+                .allowsHitTesting(false)
+
+            HStack(spacing: AmgiSpacing.md) {
+                Text(cardCount == 0 ? "No masks yet" : "\(cardCount) masks", bundle: .module)
                     .amgiFont(.caption)
                     .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -54,8 +52,22 @@ struct ImageOcclusionMaskSummaryCard: View {
                 .controlSize(.small)
             }
         }
-        .padding(12)
+        .padding(AmgiSpacing.md)
         .background(palette.surface, in: RoundedRectangle(cornerRadius: AmgiRadius.pill, style: .continuous))
+    }
+}
+
+private struct IOPreview: UIViewRepresentable {
+    let image: UIImage
+    let shapes: [IOShape]
+
+    func makeUIView(context: Context) -> IOPreviewUIView {
+        IOPreviewUIView(frame: .zero)
+    }
+
+    func updateUIView(_ view: IOPreviewUIView, context: Context) {
+        view.image = image
+        view.shapes = shapes
     }
 }
 #endif

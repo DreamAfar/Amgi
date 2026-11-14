@@ -50,30 +50,6 @@ struct DesignConformanceTests {
             "Radius literals with no AmgiRadius equivalent; changing them would be a layout change " +
             "(R29 is no-layout). The heatmap cell's cornerRadius: 2 (grid squares + legend swatches) " +
             "is not a card and must stay 2, not round to AmgiRadius.control (10).",
-        // The four below carry what used to be exempted as a single
-        // BrowseFeature/ImageOcclusionWorkspaceView.swift entry, before that file was
-        // split up.
-        "BrowseFeature/ImageOcclusionWorkspaceView.swift":
-            "Selected tool-palette chip labels are Color.white on palette.accent. " +
-            "Palette has no on-accent text role, so there is no token to use here; " +
-            "drop this entry once one exists.",
-        "BrowseFeature/OcclusionCanvasView.swift":
-            "ImageOcclusion UIKit canvas: mask/handle fills are drawing state, not app chrome. " +
-            "Chrome radii were fixed; canvas fills are the exempt part.",
-        "BrowseFeature/OcclusionCanvasUIView.swift":
-            "ImageOcclusion UIKit canvas: mask/handle fills are drawing state, not app chrome. " +
-            "Chrome radii were fixed; canvas fills are the exempt part.",
-        "BrowseFeature/OcclusionCanvasUIView+Drawing.swift":
-            "ImageOcclusion UIKit canvas: mask/handle fills are drawing state, not app chrome. " +
-            "Chrome radii were fixed; canvas fills are the exempt part.",
-        "BrowseFeature/OcclusionCanvasUIView+Geometry.swift":
-            "ImageOcclusion UIKit canvas: mask/handle fills are drawing state, not app chrome. " +
-            "Chrome radii were fixed; canvas fills are the exempt part.",
-        "BrowseFeature/ZoomableOcclusionCanvasView.swift":
-            "ImageOcclusion canvas scroll container: the neutral backing colour is set from a " +
-            "UIKit init where the SwiftUI palette isn't reachable.",
-        "BrowseFeature/ImageOcclusionMaskSummaryCard.swift":
-            "Preview thumbnail clip radius matches the canvas it mirrors, not a card radius.",
         "SettingsFeature/AppearanceSettingsView.swift":
             "Radius literals with no AmgiRadius equivalent; changing them would be a layout change (R29 is no-layout).",
         "SettingsFeature/CodeEditorSettingsView.swift":

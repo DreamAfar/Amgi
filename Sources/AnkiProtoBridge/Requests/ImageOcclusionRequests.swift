@@ -100,31 +100,25 @@ extension Request where Response == ImageOcclusionNoteData {
                 return ImageOcclusionNoteData(
                     imageData: note.imageData,
                     imageName: note.imageFileName,
-                    occlusions: occlusionsString(note.occlusions),
+                    occlusions: note.occlusions.map { occlusion in
+                        ImageOcclusionData(
+                            ordinal: Int(occlusion.ordinal),
+                            shapes: occlusion.shapes.map { shape in
+                                ImageOcclusionShapeData(
+                                    kind: shape.shape,
+                                    properties: shape.properties.map {
+                                        ImageOcclusionProperty(name: $0.name, value: $0.value)
+                                    }
+                                )
+                            }
+                        )
+                    },
                     header: note.header,
                     backExtra: note.backExtra,
-                    tags: note.tags
+                    tags: note.tags,
+                    occludeInactive: note.occludeInactive
                 )
             }
         )
     }
-}
-
-/// Reconstructs the cloze-syntax occlusion string from the proto's
-/// structured shape list, matching the format the editor produces:
-/// `{{cN::image-occlusion:<shape>[:k=v:...]}}` per shape, joined with
-/// newlines. A group is one occlusion holding several shapes, so every
-/// shape gets its own line under the shared ordinal. Taking only the
-/// first shape dropped the rest of each group, and saving the note then
-/// deleted them for good.
-private func occlusionsString(_ occlusions: [Anki_ImageOcclusion_GetImageOcclusionNoteResponse.ImageOcclusion]) -> String {
-    occlusions.enumerated().flatMap { (i, occ) -> [String] in
-        let n = occ.ordinal > 0 ? Int(occ.ordinal) : (i + 1)
-        return occ.shapes.map { shape in
-            let propertyTokens = shape.properties.map { "\($0.name)=\($0.value)" }.joined(separator: ":")
-            let suffix = propertyTokens.isEmpty ? "" : ":\(propertyTokens)"
-            return "{{c\(n)::image-occlusion:\(shape.shape)\(suffix)}}"
-        }
-    }
-    .joined(separator: "\n")
 }
