@@ -14,17 +14,47 @@ import Sharing
 import SwiftUI
 import WebKit
 
-/// Renders Yomitan-format structured glossaries via a self-sizing
-/// WKWebView that hosts the bundled `popup.js` renderer. The web layer
-/// owns the visual shape (lists, tables, links, pitch diagrams,
-/// dictionary-bundled images) — this Swift wrapper just feeds it the
-/// glossary JSON, mediates tap-to-lookup, and resolves `image://` media
-/// URLs back to `dictionaryLookupClient.mediaFile`.
-struct LookupStructuredContentView: UIViewRepresentable {
+/// Renders Yomitan-format structured glossaries via a WKWebView that hosts
+/// the bundled `popup.js` renderer. The web layer owns the visual shape
+/// (lists, tables, links, pitch diagrams, dictionary-bundled images) — the
+/// Swift side feeds it the glossary JSON, mediates tap-to-lookup, resolves
+/// `image://` media URLs back to `dictionaryLookupClient.mediaFile`, and
+/// sizes the view to the rendered height.
+///
+/// The height lives in SwiftUI state and is applied with `.frame(height:)`.
+/// It used to be the web view's `intrinsicContentSize`, which a `List` row
+/// doesn't re-measure when it changes: rows kept their first height, so
+/// glossaries spilled over the next entry's header and buttons, or left
+/// tall blank gaps when the first measurement was taken at zero width.
+struct LookupStructuredContentView: View {
     let dictionary: String
     let glossaries: [DictionaryLookupGlossary]
     let dictionaryStyle: String
     let onLookupRequested: ((String) -> Void)?
+
+    @State private var contentHeight: CGFloat = 44
+
+    var body: some View {
+        StructuredGlossaryWebView(
+            dictionary: dictionary,
+            glossaries: glossaries,
+            dictionaryStyle: dictionaryStyle,
+            onLookupRequested: onLookupRequested,
+            onHeightChange: { height in
+                let resolved = max(1, ceil(height))
+                if abs(resolved - contentHeight) > 0.5 { contentHeight = resolved }
+            }
+        )
+        .frame(height: contentHeight)
+    }
+}
+
+private struct StructuredGlossaryWebView: UIViewRepresentable {
+    let dictionary: String
+    let glossaries: [DictionaryLookupGlossary]
+    let dictionaryStyle: String
+    let onLookupRequested: ((String) -> Void)?
+    let onHeightChange: (CGFloat) -> Void
 
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
     @Shared(.appStorage(ReaderPreferences.Keys.dictionaryScanLength))
@@ -37,6 +67,7 @@ struct LookupStructuredContentView: UIViewRepresentable {
             dictionaryStyle: dictionaryStyle,
             scanLength: scanLength,
             onLookupRequested: onLookupRequested,
+            onHeightChange: onHeightChange,
             loadMediaData: { dict, mediaPath in
                 try await dictionaryLookupClient.mediaFile(dict, mediaPath)
             }
@@ -51,7 +82,10 @@ struct LookupStructuredContentView: UIViewRepresentable {
         configuration.userContentController.add(context.coordinator, name: "lookupText")
         configuration.userContentController.add(context.coordinator, name: "contentHeight")
 
-        let webView = SizingWebView(frame: .zero, configuration: configuration)
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        // Never draw past the frame SwiftUI gave us, even for the moment
+        // before a new height arrives.
+        webView.clipsToBounds = true
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.isScrollEnabled = false
@@ -63,6 +97,7 @@ struct LookupStructuredContentView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.onHeightChange = onHeightChange
         context.coordinator.update(
             dictionary: dictionary,
             glossaries: glossaries,
@@ -88,6 +123,11 @@ struct LookupStructuredContentView: UIViewRepresentable {
         private var dictionaryStyle: String
         private var scanLength: Int
         private let onLookupRequested: ((String) -> Void)?
+        fileprivate var onHeightChange: (CGFloat) -> Void
+        /// One CSP nonce for the coordinator's life. A fresh nonce per
+        /// `makeHTML` made every `update` see "new" HTML and reload the page
+        /// on each SwiftUI pass, resetting its height each time.
+        private let nonce = UUID().uuidString
         private let loadMediaData: @Sendable (String, String) async throws -> Data
         /// In-flight `image://` scheme tasks, keyed by task identity, so they
         /// can be cancelled when WebKit stops them or the page goes away.
@@ -99,6 +139,7 @@ struct LookupStructuredContentView: UIViewRepresentable {
             dictionaryStyle: String,
             scanLength: Int,
             onLookupRequested: ((String) -> Void)?,
+            onHeightChange: @escaping (CGFloat) -> Void,
             loadMediaData: @escaping @Sendable (String, String) async throws -> Data
         ) {
             self.dictionary = dictionary
@@ -106,13 +147,15 @@ struct LookupStructuredContentView: UIViewRepresentable {
             self.dictionaryStyle = dictionaryStyle
             self.scanLength = scanLength
             self.onLookupRequested = onLookupRequested
+            self.onHeightChange = onHeightChange
             self.loadMediaData = loadMediaData
             super.init()
             html = Self.makeHTML(
                 dictionary: dictionary,
                 glossaries: glossaries,
                 dictionaryStyle: dictionaryStyle,
-                scanLength: scanLength
+                scanLength: scanLength,
+                nonce: nonce
             )
         }
 
@@ -126,7 +169,8 @@ struct LookupStructuredContentView: UIViewRepresentable {
                 dictionary: dictionary,
                 glossaries: glossaries,
                 dictionaryStyle: dictionaryStyle,
-                scanLength: scanLength
+                scanLength: scanLength,
+                nonce: nonce
             )
             guard next != html else { return }
             self.dictionary = dictionary
@@ -183,9 +227,8 @@ struct LookupStructuredContentView: UIViewRepresentable {
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
             switch message.name {
             case "contentHeight":
-                guard let height = (message.body as? NSNumber).map({ CGFloat(truncating: $0) }),
-                      let sizing = webView as? SizingWebView else { return }
-                sizing.setContentHeight(height)
+                guard let height = (message.body as? NSNumber).map({ CGFloat(truncating: $0) }) else { return }
+                reportHeight(height)
             case "lookupText":
                 guard let payload = message.body as? [String: Any],
                       let text = (payload["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -255,16 +298,23 @@ struct LookupStructuredContentView: UIViewRepresentable {
     }
 }
 
-private extension LookupStructuredContentView.Coordinator {
+private extension StructuredGlossaryWebView.Coordinator {
     func updateContentHeight(for webView: WKWebView) {
         let script = """
         Math.ceil(document.getElementById('content')?.getBoundingClientRect().height || 0)
         """
-        webView.evaluateJavaScript(script) { value, _ in
-            guard let n = value as? NSNumber,
-                  let sizing = webView as? SizingWebView else { return }
-            sizing.setContentHeight(CGFloat(truncating: n))
+        webView.evaluateJavaScript(script) { [weak self] value, _ in
+            guard let n = value as? NSNumber else { return }
+            self?.reportHeight(CGFloat(truncating: n))
         }
+    }
+
+    /// Forwards a measured height unless the page hasn't been laid out at
+    /// a real width yet: at zero width every character wraps onto its own
+    /// line, and that height is what left the large blank gaps.
+    func reportHeight(_ height: CGFloat) {
+        guard let webView, webView.bounds.width > 1, height > 0 else { return }
+        onHeightChange(height)
     }
 
     // MARK: HTML
@@ -279,13 +329,12 @@ private extension LookupStructuredContentView.Coordinator {
         dictionary: String,
         glossaries: [DictionaryLookupGlossary],
         dictionaryStyle: String,
-        scanLength: Int
+        scanLength: Int,
+        nonce: String
     ) -> String {
         let dictionaryData = scriptLiteral(glossaries, fallback: "[]")
         let dictionaryName = scriptLiteral(dictionary, fallback: "\"\"")
         let dictionaryCSS = scriptLiteral(dictionaryStyle, fallback: "\"\"")
-        let nonce = UUID().uuidString
-
         return """
         <!doctype html>
         <html>
@@ -377,26 +426,6 @@ private extension LookupStructuredContentView.Coordinator {
         case "svg": return "image/svg+xml"
         default: return "application/octet-stream"
         }
-    }
-}
-
-/// Self-sizing WKWebView. WebKit doesn't report its own intrinsic size,
-/// so we poll content height after navigation and republish as
-/// `intrinsicContentSize` — SwiftUI's layout then sizes the View to
-/// match without forcing the user to scroll a nested scroll view.
-private final class SizingWebView: WKWebView {
-    private var contentHeight: CGFloat = 44 {
-        didSet { invalidateIntrinsicContentSize() }
-    }
-
-    func setContentHeight(_ height: CGFloat) {
-        let resolved = max(44, ceil(height))
-        guard abs(resolved - contentHeight) > 0.5 else { return }
-        contentHeight = resolved
-    }
-
-    override var intrinsicContentSize: CGSize {
-        CGSize(width: UIView.noIntrinsicMetric, height: max(44, contentHeight))
     }
 }
 
