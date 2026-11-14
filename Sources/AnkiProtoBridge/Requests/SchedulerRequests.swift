@@ -148,6 +148,41 @@ extension Request where Response == Void {
     }
 }
 
+// MARK: - restore / grade now
+
+extension Request where Response == Void {
+    /// Unsuspends and unburies the given cards, putting them back in their
+    /// normal queues (Browse › Toggle Suspend / Toggle Bury when on).
+    public static func restoreBuriedAndSuspendedCards(cardIds: [CardID]) -> Self {
+        Self(
+            serviceId: ServiceID.scheduler,
+            methodId: SchedulerMethod.restoreBuriedAndSuspendedCards,
+            encode: {
+                var proto = Anki_Cards_CardIds()
+                proto.cids = cardIds.map(\.rawValue)
+                return try proto.serializedData()
+            },
+            decode: { _ in () }
+        )
+    }
+
+    /// Answers the given cards with `rating` right now, outside a review
+    /// session (Browse › Grade Now).
+    public static func gradeNow(cardIds: [CardID], rating: Rating) -> Self {
+        Self(
+            serviceId: ServiceID.scheduler,
+            methodId: SchedulerMethod.gradeNow,
+            encode: {
+                var proto = Anki_Scheduler_GradeNowRequest()
+                proto.cardIds = cardIds.map(\.rawValue)
+                proto.rating = protoRating(rating)
+                return try proto.serializedData()
+            },
+            decode: { _ in () }
+        )
+    }
+}
+
 // MARK: - rebuildFilteredDeck
 
 extension Request where Response == Int {

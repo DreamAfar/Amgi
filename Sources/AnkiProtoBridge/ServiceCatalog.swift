@@ -44,6 +44,7 @@ enum CollectionOpsMethod {
 enum CardsMethod {
     static let getCard: UInt32 = 0
     static let removeCards: UInt32 = 2
+    static let setDeck: UInt32 = 3
     static let setFlag: UInt32 = 4
 }
 
@@ -67,11 +68,13 @@ enum SchedulerMethod {
     static let getQueuedCards: UInt32 = 3
     static let answerCard: UInt32 = 4
     static let extendLimits: UInt32 = 9
+    static let restoreBuriedAndSuspendedCards: UInt32 = 12
     static let buryOrSuspendCards: UInt32 = 14
     static let emptyFilteredDeck: UInt32 = 15
     static let rebuildFilteredDeck: UInt32 = 16
     static let scheduleCardsAsNew: UInt32 = 17
     static let setDueDate: UInt32 = 19
+    static let gradeNow: UInt32 = 20
     static let computeFsrsParams: UInt32 = 30
     static let simulateFsrsReview: UInt32 = 33
     static let simulateFsrsWorkload: UInt32 = 34
