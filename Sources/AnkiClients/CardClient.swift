@@ -22,6 +22,19 @@ public struct CardClient: Sendable {
     public var getCardFlags: @Sendable (_ cardId: CardID) async throws -> UInt32
     public var hasUndoableAction: @Sendable () async throws -> Bool
     public var removeCards: @Sendable (_ cardIds: [CardID]) async throws -> Void
+
+    // MARK: Batch (Browse) — one backend call, one undo step, for many cards
+
+    /// Card ids of every card belonging to `noteIds`.
+    public var cardIDsOfNotes: @Sendable (_ noteIds: [NoteID]) async throws -> [CardID]
+    public var setDeckForCards: @Sendable (_ cardIds: [CardID], _ deckId: DeckID) async throws -> Void
+    public var suspendCards: @Sendable (_ cardIds: [CardID]) async throws -> Void
+    public var buryCards: @Sendable (_ cardIds: [CardID]) async throws -> Void
+    /// Unsuspends and unburies.
+    public var restoreCards: @Sendable (_ cardIds: [CardID]) async throws -> Void
+    public var resetCardsToNew: @Sendable (_ cardIds: [CardID]) async throws -> Void
+    public var setDueDateForCards: @Sendable (_ cardIds: [CardID], _ days: String) async throws -> Void
+    public var gradeCardsNow: @Sendable (_ cardIds: [CardID], _ rating: Rating) async throws -> Void
 }
 
 extension CardClient: TestDependencyKey {

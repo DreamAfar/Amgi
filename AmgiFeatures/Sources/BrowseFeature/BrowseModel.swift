@@ -245,6 +245,76 @@ final class BrowseModel {
         store.apply(CollectionChanges(card: true, note: true))
     }
 
+    // MARK: - Card batch actions
+
+    /// Every note in the current results, loaded or not — Browse › Select All
+    /// covers the whole search, as in Anki.
+    var allResultNoteIDs: Set<NoteID> { Set(allNotes.map(\.id)) }
+
+    func moveSelected(_ noteIDs: Set<NoteID>, to deck: DeckID) async {
+        await runCardBatch("move", noteIDs) { try await self.cardClient.setDeckForCards($0, deck) }
+    }
+
+    func burySelected(_ noteIDs: Set<NoteID>) async {
+        await runCardBatch("bury", noteIDs) { try await self.cardClient.buryCards($0) }
+    }
+
+    func suspendAllSelected(_ noteIDs: Set<NoteID>) async {
+        await runCardBatch("suspend", noteIDs) { try await self.cardClient.suspendCards($0) }
+    }
+
+    /// Unsuspends and unburies.
+    func restoreSelected(_ noteIDs: Set<NoteID>) async {
+        await runCardBatch("restore", noteIDs) { try await self.cardClient.restoreCards($0) }
+    }
+
+    func resetSelectedToNew(_ noteIDs: Set<NoteID>) async {
+        await runCardBatch("reset", noteIDs) { try await self.cardClient.resetCardsToNew($0) }
+    }
+
+    func setDueDate(_ noteIDs: Set<NoteID>, days: String) async {
+        await runCardBatch("due", noteIDs) { try await self.cardClient.setDueDateForCards($0, days) }
+    }
+
+    func gradeSelectedNow(_ noteIDs: Set<NoteID>, rating: Rating) async {
+        await runCardBatch("grade", noteIDs) { try await self.cardClient.gradeCardsNow($0, rating) }
+    }
+
+    /// Anki's "marked" tag.
+    func setMarked(_ marked: Bool, for noteIDs: Set<NoteID>) async {
+        do {
+            if marked {
+                try await tagClient.addTagToNotes("marked", Array(noteIDs))
+            } else {
+                try await tagClient.removeTagFromNotes("marked", Array(noteIDs))
+            }
+            store.apply(CollectionChanges(note: true))
+        } catch {
+            errorMessage = Self.batchFailureMessage("mark", failures: noteIDs.count, reason: error.localizedDescription)
+        }
+        await performSearch()
+    }
+
+    /// Resolves the notes' cards once and runs a single backend operation on
+    /// all of them, so the change is one undo step and either applies or
+    /// fails as a whole.
+    private func runCardBatch(
+        _ verb: String,
+        _ noteIDs: Set<NoteID>,
+        _ work: ([CardID]) async throws -> Void
+    ) async {
+        do {
+            let cardIDs = try await cardClient.cardIDsOfNotes(Array(noteIDs))
+            guard !cardIDs.isEmpty else { return }
+            try await work(cardIDs)
+            store.apply(CollectionChanges(card: true, deck: true, studyQueues: true))
+        } catch {
+            Log.browse.error("Batch \(verb) failed: \(error)")
+            errorMessage = Self.batchFailureMessage(verb, failures: noteIDs.count, reason: error.localizedDescription)
+        }
+        await performSearch()
+    }
+
     /// Applies `work` to every id, counting failures rather than discarding
     /// them. These were `try?` per item, so in a multi-select batch an
     /// arbitrary subset could fail with zero feedback — the user believed

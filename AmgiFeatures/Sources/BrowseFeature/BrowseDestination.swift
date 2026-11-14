@@ -30,4 +30,7 @@ enum BrowseDestination {
     case findReplaceAll
     case deleteSelected
     case deleteNote(NoteRecord)
+    case moveToDeck
+    case setDueDate
+    case resetToNew
 }
