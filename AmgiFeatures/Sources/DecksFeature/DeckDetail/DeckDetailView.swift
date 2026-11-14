@@ -135,6 +135,15 @@ struct DeckDetailView: View {
                     } label: {
                         Label(String(localized: "Add Note…", bundle: .module), systemImage: "square.and.pencil")
                     }
+                    #if canImport(UIKit)
+                    if !deck.isFiltered {
+                        Button {
+                            destination = .sheet(.addImageOcclusion)
+                        } label: {
+                            Label(String(localized: "Add Image Occlusion…", bundle: .module), systemImage: "rectangle.on.rectangle")
+                        }
+                    }
+                    #endif
                     if !deck.isFiltered {
                         Button {
                             newSubdeckName = ""
@@ -208,6 +217,12 @@ private extension DeckDetailView {
         switch sheet {
         case .addNote:
             AddNoteView(preselectedDeckId: deck.id) {}
+        case .addImageOcclusion:
+            #if canImport(UIKit)
+            AddImageOcclusionNoteView(onSave: {}, preselectedDeckId: deck.id)
+            #else
+            EmptyView()
+            #endif
         case .showDeckOptions:
             NavigationStack {
                 DeckConfigView(deckId: deck.id, deckName: deck.name) {

@@ -121,9 +121,16 @@ final class ImageOcclusionWorkspaceModel {
         masks != initialMasks
     }
 
+    /// True when the selection holds a mask that shares its ordinal with
+    /// another mask. A lone mask with an ordinal is just a loaded card, not
+    /// a group: offering Ungroup there would renumber it and orphan its
+    /// review history.
     var canUngroup: Bool {
-        let indices = activeSelectionIndices
-        return !indices.isEmpty && indices.contains(where: { masks[$0].serializationOrdinal != nil })
+        let counts = Dictionary(masks.compactMap(\.serializationOrdinal).map { ($0, 1) }, uniquingKeysWith: +)
+        return activeSelectionIndices.contains { index in
+            guard let ordinal = masks[index].serializationOrdinal else { return false }
+            return counts[ordinal, default: 0] > 1
+        }
     }
 
     // MARK: Selection
@@ -354,8 +361,14 @@ final class ImageOcclusionWorkspaceModel {
     func ungroupSelection() {
         let indices = activeSelectionIndices
         guard !indices.isEmpty else { return }
+        // The first member of each group keeps the ordinal, so the card it
+        // already has (and its review history) stays with that mask; the
+        // rest get fresh ordinals when the note is saved.
         var updatedMasks = masks
-        for index in indices {
+        var kept = Set<Int>()
+        for index in indices.sorted() {
+            guard let ordinal = masks[index].serializationOrdinal else { continue }
+            if kept.insert(ordinal).inserted { continue }
             updatedMasks[index] = updatedMasks[index].applyingSerializationOrdinal(nil)
         }
         commitSnapshot(

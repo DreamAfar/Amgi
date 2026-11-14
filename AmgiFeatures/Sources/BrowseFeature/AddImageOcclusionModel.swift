@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import AnkiBackend
+import AppShared
 import AnkiKit
 import AnkiClients
 import AnkiServices
@@ -36,6 +37,7 @@ final class AddImageOcclusionModel {
     @ObservationIgnored @Dependency(\.deckClient) private var deckClient
     @ObservationIgnored @Dependency(\.decksService) private var decksService
     @ObservationIgnored @Dependency(\.imageOcclusionClient) private var client
+    @ObservationIgnored @Dependency(\.collectionStore) private var store
     @ObservationIgnored private let preselectedDeckId: DeckID?
 
     init(preselectedDeckId: DeckID? = nil) {
@@ -138,13 +140,14 @@ final class AddImageOcclusionModel {
         errorMessage = nil
         defer { isSaving = false }
 
-        let occlusions = masks.enumerated().map { idx, mask in
-            mask.occlusionText(index: idx)
-        }.joined(separator: "\n")
+        let occlusions = IOMask.occlusionsText(masks)
         let tags = tagsText.split(separator: " ").map(String.init).filter { !$0.isEmpty }
 
         do {
             try await client.addNote(url, occlusions, header, backExtra, tags, selectedDeckId, NotetypeID(0))
+            // Like AddNoteModel: the new cards change deck counts and queues.
+            store.apply(CollectionChanges(card: true, note: true, studyQueues: true))
+            try? FileManager.default.removeItem(at: url)
             return true
         } catch {
             errorMessage = error.localizedDescription

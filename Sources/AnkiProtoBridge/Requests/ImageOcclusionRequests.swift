@@ -112,16 +112,19 @@ extension Request where Response == ImageOcclusionNoteData {
 
 /// Reconstructs the cloze-syntax occlusion string from the proto's
 /// structured shape list, matching the format the editor produces:
-/// `{{cN::image-occlusion:<shape>[:k=v:...]}}` per occlusion, joined
-/// with newlines.
+/// `{{cN::image-occlusion:<shape>[:k=v:...]}}` per shape, joined with
+/// newlines. A group is one occlusion holding several shapes, so every
+/// shape gets its own line under the shared ordinal. Taking only the
+/// first shape dropped the rest of each group, and saving the note then
+/// deleted them for good.
 private func occlusionsString(_ occlusions: [Anki_ImageOcclusion_GetImageOcclusionNoteResponse.ImageOcclusion]) -> String {
-    occlusions.enumerated().map { (i, occ) -> String in
+    occlusions.enumerated().flatMap { (i, occ) -> [String] in
         let n = occ.ordinal > 0 ? Int(occ.ordinal) : (i + 1)
-        guard let shape = occ.shapes.first else { return "" }
-        let propertyTokens = shape.properties.map { "\($0.name)=\($0.value)" }.joined(separator: ":")
-        let suffix = propertyTokens.isEmpty ? "" : ":\(propertyTokens)"
-        return "{{c\(n)::image-occlusion:\(shape.shape)\(suffix)}}"
+        return occ.shapes.map { shape in
+            let propertyTokens = shape.properties.map { "\($0.name)=\($0.value)" }.joined(separator: ":")
+            let suffix = propertyTokens.isEmpty ? "" : ":\(propertyTokens)"
+            return "{{c\(n)::image-occlusion:\(shape.shape)\(suffix)}}"
+        }
     }
-    .filter { !$0.isEmpty }
     .joined(separator: "\n")
 }

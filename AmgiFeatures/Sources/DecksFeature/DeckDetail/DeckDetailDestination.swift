@@ -21,6 +21,7 @@ enum DeckDetailDestination {
 @CasePathable
 enum DeckDetailSheet: Identifiable {
     case addNote
+    case addImageOcclusion
     case showDeckOptions
     case exportFile(URL)
     case createSubdeck
@@ -29,6 +30,7 @@ enum DeckDetailSheet: Identifiable {
     var id: String {
         switch self {
         case .addNote: "addNote"
+        case .addImageOcclusion: "addImageOcclusion"
         case .showDeckOptions: "showDeckOptions"
         case .exportFile(let url): "exportFile-\(url.absoluteString)"
         case .createSubdeck: "createSubdeck"
