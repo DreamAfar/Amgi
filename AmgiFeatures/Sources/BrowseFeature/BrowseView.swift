@@ -35,6 +35,7 @@ package struct BrowseView: View {
     @State private var selectionState = BrowseSelectionState()
     @State private var destination: BrowseDestination?
     @State private var pendingTool: BrowseTool?
+    @State private var dueDateInput = ""
     @FocusState private var searchFocused: Bool
 
     package init() {
@@ -67,7 +68,9 @@ package struct BrowseView: View {
 
     private var decoratedContent: some View {
         dialogContent
-            .navigationTitle(String(localized: "Browse", bundle: .module))
+            .navigationTitle(selectionState.isSelectMode
+                ? String(localized: "\(selectionState.count) Selected", bundle: .module)
+                : String(localized: "Browse", bundle: .module))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .toolbarVisibility(selectionState.isSelectMode ? .hidden : .automatic, for: .tabBar)
@@ -102,6 +105,31 @@ package struct BrowseView: View {
                 Button(String(localized: "Cancel", bundle: .module), role: .cancel) {}
             } message: {
                 Text("This action cannot be undone.", bundle: .module)
+            }
+            .confirmationDialog(
+                String(localized: "Reset \(selectionState.count) notes to new?", bundle: .module),
+                isPresented: Binding($destination.resetToNew),
+                titleVisibility: .visible
+            ) {
+                Button(String(localized: "Reset to New", bundle: .module), role: .destructive) {
+                    runOnSelection { await model.resetSelectedToNew($0) }
+                }
+                Button(String(localized: "Cancel", bundle: .module), role: .cancel) {}
+            } message: {
+                Text("Their cards go back to the new queue. Review history is kept.", bundle: .module)
+            }
+            .alert(String(localized: "Set Due Date", bundle: .module), isPresented: Binding($destination.setDueDate)) {
+                TextField(String(localized: "Days", bundle: .module), text: $dueDateInput)
+                    .keyboardType(.numbersAndPunctuation)
+                    .autocorrectionDisabled()
+                Button(String(localized: "Set", bundle: .module)) {
+                    let days = dueDateInput.trimmingCharacters(in: .whitespaces)
+                    guard !days.isEmpty else { return }
+                    runOnSelection { await model.setDueDate($0, days: days) }
+                }
+                Button(String(localized: "Cancel", bundle: .module), role: .cancel) {}
+            } message: {
+                Text("0 = today, 1 = tomorrow, 3-7 = a random day in that range. Add ! to also set the interval, e.g. 7!.", bundle: .module)
             }
     }
 
@@ -147,6 +175,14 @@ package struct BrowseView: View {
                 Task { await model.performSearch() }
             }
         }
+        .sheet(isPresented: $destination.moveToDeck) {
+            DeckPickerSheet(
+                title: String(localized: "Change Deck", bundle: .module),
+                decks: model.allDecks
+            ) { deck in
+                runOnSelection { await model.moveSelected($0, to: deck.id) }
+            }
+        }
         .sheet(isPresented: $destination.batchTag) {
             BatchTagSheet(noteIDs: selectionState.selectedNoteIDs) {
                 Task {
@@ -162,6 +198,9 @@ package struct BrowseView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         if selectionState.isSelectMode {
+            ToolbarItem(placement: .topBarLeading) {
+                selectAllButton
+            }
             ToolbarItem(placement: .confirmationAction) {
                 Button(String(localized: "Done", bundle: .module)) {
                     selectionState.exitSelectMode()
@@ -218,32 +257,28 @@ package struct BrowseView: View {
         }
     }
 
+    /// Select All covers every note in the results, not just the rows
+    /// loaded so far; once everything is selected it turns into Deselect All.
+    private var selectAllButton: some View {
+        let all = model.allResultNoteIDs
+        let everything = !all.isEmpty && all.isSubset(of: selectionState.selectedNoteIDs)
+        return Button(everything
+            ? String(localized: "Deselect All", bundle: .module)
+            : String(localized: "Select All", bundle: .module)
+        ) {
+            selectionState.selectedNoteIDs = everything ? [] : all
+        }
+    }
+
+    /// Five slots, the most an iPhone bottom bar holds without crowding:
+    /// the three batch edits people reach for most (flag, tags, deck) get
+    /// their own buttons, everything else is grouped by what it acts on
+    /// under More, and Delete sits apart at the trailing edge — the layout
+    /// Mail and Files use for their selection bars.
     @ToolbarContentBuilder
     private var selectionToolbar: some ToolbarContent {
         ToolbarItem(placement: .bottomBar) {
-            Button {
-                suspendSelected()
-            } label: {
-                Label(String(localized: "Suspend", bundle: .module), systemImage: "pause.circle")
-            }
-            .disabled(selectionState.isEmpty)
-        }
-        ToolbarItem(placement: .bottomBar) { Spacer() }
-        ToolbarItem(placement: .bottomBar) {
-            Menu {
-                Button { applyFlag(1) } label: { Label(String(localized: "Red flag", bundle: .module),       systemImage: "flag.fill") }
-                Button { applyFlag(2) } label: { Label(String(localized: "Orange flag", bundle: .module),    systemImage: "flag.fill") }
-                Button { applyFlag(3) } label: { Label(String(localized: "Green flag", bundle: .module),     systemImage: "flag.fill") }
-                Button { applyFlag(4) } label: { Label(String(localized: "Blue flag", bundle: .module),      systemImage: "flag.fill") }
-                Button { applyFlag(5) } label: { Label(String(localized: "Pink flag", bundle: .module),      systemImage: "flag.fill") }
-                Button { applyFlag(6) } label: { Label(String(localized: "Turquoise flag", bundle: .module), systemImage: "flag.fill") }
-                Button { applyFlag(7) } label: { Label(String(localized: "Purple flag", bundle: .module),    systemImage: "flag.fill") }
-                Divider()
-                Button { applyFlag(0) } label: { Label(String(localized: "Clear flag", bundle: .module),     systemImage: "flag.slash") }
-            } label: {
-                Label(String(localized: "Flag", bundle: .module), systemImage: "flag")
-            }
-            .disabled(selectionState.isEmpty)
+            flagMenu.disabled(selectionState.isEmpty)
         }
         ToolbarItem(placement: .bottomBar) { Spacer() }
         ToolbarItem(placement: .bottomBar) {
@@ -257,11 +292,15 @@ package struct BrowseView: View {
         ToolbarItem(placement: .bottomBar) { Spacer() }
         ToolbarItem(placement: .bottomBar) {
             Button {
-                destination = .findReplaceSelected
+                destination = .moveToDeck
             } label: {
-                Label(String(localized: "Find & Replace", bundle: .module), systemImage: "text.magnifyingglass")
+                Label(String(localized: "Change Deck", bundle: .module), systemImage: "folder")
             }
             .disabled(selectionState.isEmpty)
+        }
+        ToolbarItem(placement: .bottomBar) { Spacer() }
+        ToolbarItem(placement: .bottomBar) {
+            moreMenu.disabled(selectionState.isEmpty)
         }
         ToolbarItem(placement: .bottomBar) { Spacer() }
         ToolbarItem(placement: .bottomBar) {
@@ -274,14 +313,81 @@ package struct BrowseView: View {
         }
     }
 
+    private var flagMenu: some View {
+        Menu {
+            Button { applyFlag(1) } label: { Label(String(localized: "Red flag", bundle: .module),       systemImage: "flag.fill") }
+            Button { applyFlag(2) } label: { Label(String(localized: "Orange flag", bundle: .module),    systemImage: "flag.fill") }
+            Button { applyFlag(3) } label: { Label(String(localized: "Green flag", bundle: .module),     systemImage: "flag.fill") }
+            Button { applyFlag(4) } label: { Label(String(localized: "Blue flag", bundle: .module),      systemImage: "flag.fill") }
+            Button { applyFlag(5) } label: { Label(String(localized: "Pink flag", bundle: .module),      systemImage: "flag.fill") }
+            Button { applyFlag(6) } label: { Label(String(localized: "Turquoise flag", bundle: .module), systemImage: "flag.fill") }
+            Button { applyFlag(7) } label: { Label(String(localized: "Purple flag", bundle: .module),    systemImage: "flag.fill") }
+            Divider()
+            Button { applyFlag(0) } label: { Label(String(localized: "Clear flag", bundle: .module),     systemImage: "flag.slash") }
+        } label: {
+            Label(String(localized: "Flag", bundle: .module), systemImage: "flag")
+        }
+    }
+
+    /// Grouped the way Anki's Browse menus are: scheduling (Cards), queue
+    /// state, then note-level edits.
+    private var moreMenu: some View {
+        Menu {
+            Section(String(localized: "Scheduling", bundle: .module)) {
+                Button(String(localized: "Set Due Date…", bundle: .module), systemImage: "calendar") {
+                    dueDateInput = ""
+                    destination = .setDueDate
+                }
+                Menu {
+                    ForEach(Rating.allCases, id: \.self) { rating in
+                        Button(rating.browseTitle) {
+                            runOnSelection { await model.gradeSelectedNow($0, rating: rating) }
+                        }
+                    }
+                } label: {
+                    Label(String(localized: "Grade Now", bundle: .module), systemImage: "checkmark.seal")
+                }
+                Button(String(localized: "Reset to New…", bundle: .module), systemImage: "arrow.counterclockwise") {
+                    destination = .resetToNew
+                }
+            }
+            Section(String(localized: "Queue", bundle: .module)) {
+                Button(String(localized: "Suspend", bundle: .module), systemImage: "pause.circle") {
+                    runOnSelection { await model.suspendAllSelected($0) }
+                }
+                Button(String(localized: "Bury", bundle: .module), systemImage: "moon.zzz") {
+                    runOnSelection { await model.burySelected($0) }
+                }
+                Button(String(localized: "Unsuspend & Unbury", bundle: .module), systemImage: "play.circle") {
+                    runOnSelection { await model.restoreSelected($0) }
+                }
+            }
+            Section(String(localized: "Note", bundle: .module)) {
+                Button(String(localized: "Mark", bundle: .module), systemImage: "star") {
+                    runOnSelection(exit: false) { await model.setMarked(true, for: $0) }
+                }
+                Button(String(localized: "Unmark", bundle: .module), systemImage: "star.slash") {
+                    runOnSelection(exit: false) { await model.setMarked(false, for: $0) }
+                }
+                Button(String(localized: "Find & Replace…", bundle: .module), systemImage: "text.magnifyingglass") {
+                    destination = .findReplaceSelected
+                }
+            }
+        } label: {
+            Label(String(localized: "More", bundle: .module), systemImage: "ellipsis.circle")
+        }
+    }
+
     // MARK: - Selection actions
 
-    /// Capture the current selection, drop out of select mode for snappy
-    /// feedback, then run the batch mutation on the model.
-    private func suspendSelected() {
+    /// Captures the current selection, leaves select mode for snappy
+    /// feedback (unless the action keeps it, like marking), then runs the
+    /// batch on the model.
+    private func runOnSelection(exit: Bool = true, _ work: @escaping (Set<NoteID>) async -> Void) {
         let ids = selectionState.selectedNoteIDs
-        selectionState.exitSelectMode()
-        Task { await model.suspendSelected(ids) }
+        guard !ids.isEmpty else { return }
+        if exit { selectionState.exitSelectMode() }
+        Task { await work(ids) }
     }
 
     private func applyFlag(_ value: UInt32) {
@@ -294,6 +400,18 @@ package struct BrowseView: View {
         let ids = selectionState.selectedNoteIDs
         selectionState.exitSelectMode()
         Task { await model.deleteSelected(ids) }
+    }
+}
+
+extension Rating {
+    /// Answer-button names for Browse › Grade Now.
+    var browseTitle: String {
+        switch self {
+        case .again: String(localized: "Again", bundle: .module)
+        case .hard: String(localized: "Hard", bundle: .module)
+        case .good: String(localized: "Good", bundle: .module)
+        case .easy: String(localized: "Easy", bundle: .module)
+        }
     }
 }
 

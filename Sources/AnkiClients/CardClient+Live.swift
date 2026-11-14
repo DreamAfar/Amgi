@@ -86,6 +86,34 @@ extension CardClient: DependencyKey {
             removeCards: { cardIds in
                 try await backend.invoke(.removeCards(cardIds: cardIds))
                 logger.info("Removed \(cardIds.count) cards")
+            },
+            cardIDsOfNotes: { noteIds in
+                var result: [CardID] = []
+                for noteId in noteIds {
+                    result += try await backend.invoke(.cardIDsOfNote(id: noteId))
+                }
+                return result
+            },
+            setDeckForCards: { cardIds, deckId in
+                try await backend.invoke(.setDeck(cardIds: cardIds, deckId: deckId))
+            },
+            suspendCards: { cardIds in
+                try await backend.invoke(.suspendCards(cardIds: cardIds))
+            },
+            buryCards: { cardIds in
+                try await backend.invoke(.buryCards(cardIds: cardIds))
+            },
+            restoreCards: { cardIds in
+                try await backend.invoke(.restoreBuriedAndSuspendedCards(cardIds: cardIds))
+            },
+            resetCardsToNew: { cardIds in
+                try await backend.invoke(.scheduleCardsAsNew(cardIds: cardIds, log: true))
+            },
+            setDueDateForCards: { cardIds, days in
+                try await backend.invoke(.setDueDate(cardIds: cardIds, days: days))
+            },
+            gradeCardsNow: { cardIds, rating in
+                try await backend.invoke(.gradeNow(cardIds: cardIds, rating: rating))
             }
         )
     }()

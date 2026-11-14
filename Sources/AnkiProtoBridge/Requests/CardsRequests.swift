@@ -63,3 +63,22 @@ extension Request where Response == Void {
         )
     }
 }
+
+// MARK: - setDeck
+
+extension Request where Response == Void {
+    /// Moves the given cards to another deck (Browse › Change Deck).
+    public static func setDeck(cardIds: [CardID], deckId: DeckID) -> Self {
+        Self(
+            serviceId: ServiceID.cards,
+            methodId: CardsMethod.setDeck,
+            encode: {
+                var proto = Anki_Cards_SetDeckRequest()
+                proto.cardIds = cardIds.map(\.rawValue)
+                proto.deckID = deckId.rawValue
+                return try proto.serializedData()
+            },
+            decode: { _ in () }
+        )
+    }
+}
