@@ -17,6 +17,7 @@ package struct NoteEditorView: View {
     let onSave: () -> Void
 
     @State private var showSavedConfirmation = false
+    @State private var showPreview = false
     @State private var savedToastTask: Task<Void, Never>?
     @Environment(\.scenePhase) private var scenePhase
     #if canImport(UIKit)
@@ -33,6 +34,12 @@ package struct NoteEditorView: View {
             .navigationTitle(String(localized: "Edit Note", bundle: .module))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(String(localized: "Preview", bundle: .module), systemImage: "eye") {
+                        showPreview = true
+                    }
+                    .disabled(model.fieldNames.isEmpty)
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "Save", bundle: .module)) {
                         finishRecording()
@@ -54,6 +61,9 @@ package struct NoteEditorView: View {
                 }
             }
             .overlay { savedToast }
+            .sheet(isPresented: $showPreview) {
+                NoteCardPreviewSheet(notetypeID: model.notetypeID, fields: model.fieldValues)
+            }
             .task { await model.loadNote() }
             .onChange(of: scenePhase) {
                 if scenePhase != .active { finishRecording() }

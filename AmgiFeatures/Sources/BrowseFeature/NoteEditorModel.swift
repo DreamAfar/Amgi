@@ -39,6 +39,9 @@ final class NoteEditorModel {
         self.note = note
     }
 
+    /// For the card preview, which renders the fields as they stand now.
+    var notetypeID: NotetypeID { note.mid }
+
     /// Positional projection into `fieldValues`, read through `@Bindable` as
     /// `$model[fieldAt: index]`. A subscript rather than a
     /// `Binding(get:set:)`-returning method so the field editors get a stable

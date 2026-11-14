@@ -37,7 +37,8 @@ extension Request where Response == RenderedCard {
         notetypeId: NotetypeID,
         template: Notetype.Template,
         cardOrd: UInt32,
-        sampleFields: [String]
+        sampleFields: [String],
+        fillEmpty: Bool = true
     ) -> Self {
         .decoded(
             serviceId: ServiceID.cardRendering,
@@ -52,7 +53,7 @@ extension Request where Response == RenderedCard {
                 proto.note = note
                 proto.cardOrd = cardOrd
                 proto.template = template.toProto()
-                proto.fillEmpty = true
+                proto.fillEmpty = fillEmpty
                 proto.partialRender = false
                 return try proto.serializedData()
             }
