@@ -26,7 +26,9 @@ final class AddImageOcclusionModel {
     var decks: [DeckInfo] = []
     var selectedDeckId: DeckID
     var selectedImage: UIImage?
-    var masks: [IOMask] = []
+    var shapes: [IOShape] = []
+    /// Anki starts new notes on "Hide all, guess one".
+    var occludeInactive = true
     var header: String = ""
     var backExtra: String = ""
     var tagsText: String = ""
@@ -48,11 +50,11 @@ final class AddImageOcclusionModel {
     /// In Anki's IO notetype, occlusions are the first required field; header
     /// is a later optional field.
     var canSave: Bool {
-        selectedDeckId.rawValue != 0 && selectedImage != nil && imageURL != nil && !masks.isEmpty
+        selectedDeckId.rawValue != 0 && selectedImage != nil && imageURL != nil && IOCloze.cardCount(shapes) > 0
     }
 
     var hasUnsavedChanges: Bool {
-        selectedImage != nil || !masks.isEmpty
+        selectedImage != nil || !shapes.isEmpty
             || !header.isEmpty || !backExtra.isEmpty || !tagsText.isEmpty
     }
 
@@ -92,7 +94,7 @@ final class AddImageOcclusionModel {
 
     func loadImage(from item: PhotosPickerItem?) async {
         guard let item else { return }
-        masks = []
+        shapes = []
 
         // Load as UIImage
         if let data = try? await item.loadTransferable(type: Data.self),
@@ -132,7 +134,7 @@ final class AddImageOcclusionModel {
             errorMessage = String(localized: "Image is missing.", bundle: .module)
             return false
         }
-        guard !masks.isEmpty else {
+        guard IOCloze.cardCount(shapes) > 0 else {
             errorMessage = String(localized: "Add at least one mask before saving.", bundle: .module)
             return false
         }
@@ -140,7 +142,7 @@ final class AddImageOcclusionModel {
         errorMessage = nil
         defer { isSaving = false }
 
-        let occlusions = IOMask.occlusionsText(masks)
+        let occlusions = IOCloze.occlusions(shapes, occludeInactive: occludeInactive)
         let tags = tagsText.split(separator: " ").map(String.init).filter { !$0.isEmpty }
 
         do {

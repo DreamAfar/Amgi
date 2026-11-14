@@ -84,12 +84,13 @@ package struct AddImageOcclusionNoteView: View {
             .fullScreenCover(isPresented: $showOcclusionEditor) {
                 if let selectedImage = model.selectedImage {
                     NavigationStack {
-                        ImageOcclusionWorkspaceView(
-                            title: String(localized: "Edit", bundle: .module),
+                        ImageOcclusionEditorView(
                             image: selectedImage,
-                            initialMasks: model.masks
-                        ) { updatedMasks in
-                            model.masks = updatedMasks
+                            shapes: model.shapes,
+                            occludeInactive: model.occludeInactive
+                        ) { shapes, occludeInactive in
+                            model.shapes = shapes
+                            model.occludeInactive = occludeInactive
                         }
                     }
                 }
@@ -155,7 +156,7 @@ struct AddImageOcclusionContent: View {
 
             if let uiImage = model.selectedImage {
                 Section {
-                    ImageOcclusionMaskSummaryCard(image: uiImage, masks: model.masks) {
+                    ImageOcclusionMaskSummaryCard(image: uiImage, shapes: model.shapes) {
                         onEditMasks()
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
