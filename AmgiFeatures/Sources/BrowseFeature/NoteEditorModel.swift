@@ -25,8 +25,13 @@ final class NoteEditorModel {
     var fieldValues: [String] = []
     var tags: String = ""
     var isSaving = false
+    /// New recordings per field, still in the temporary directory. They are
+    /// copied into the media folder and referenced as `[sound:…]` only when
+    /// the note is saved, the same as on Add Note.
+    var fieldAudio: [[URL]] = []
 
     @ObservationIgnored @Dependency(\.noteClient) private var noteClient
+    @ObservationIgnored @Dependency(\.mediaClient) private var mediaClient
     @ObservationIgnored @Dependency(\.notetypesService) private var notetypesService
     @ObservationIgnored private let note: NoteRecord
 
@@ -57,13 +62,75 @@ final class NoteEditorModel {
             .split(separator: "\u{1f}", omittingEmptySubsequences: false)
             .map(String.init)
         while fieldValues.count < fieldNames.count { fieldValues.append("") }
+        fieldAudio = fieldValues.map { _ in [] }
         tags = note.tags.trimmingCharacters(in: .whitespaces)
+    }
+
+    // MARK: - Audio
+
+    func attachAudio(_ url: URL, toField index: Int) {
+        guard !isSaving, fieldAudio.indices.contains(index) else {
+            try? FileManager.default.removeItem(at: url)
+            return
+        }
+        fieldAudio[index].append(url)
+    }
+
+    func removeAudio(_ url: URL, fromField index: Int) {
+        guard !isSaving, fieldAudio.indices.contains(index) else { return }
+        fieldAudio[index].removeAll { $0 == url }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    /// Drops recordings that were never saved.
+    func discardAudio() {
+        for url in fieldAudio.flatMap({ $0 }) {
+            try? FileManager.default.removeItem(at: url)
+        }
+        fieldAudio = fieldAudio.map { _ in [] }
+    }
+
+    /// Where a `[sound:…]` file the field references lives, for preview.
+    func mediaURL(for filename: String) -> URL? {
+        guard let url = mediaClient.localURL(filename),
+              FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url
+    }
+
+    /// Copies pending recordings into the media folder and returns the fields
+    /// with a `[sound:…]` reference appended for each. On failure the files
+    /// already written are removed again.
+    private func fieldsWithAudio() async throws -> [String] {
+        var fields = fieldValues
+        var written: [String] = []
+        do {
+            for (index, clips) in fieldAudio.enumerated() where fields.indices.contains(index) {
+                for url in clips {
+                    let data = try await backendOffload { try Data(contentsOf: url) }
+                    try await mediaClient.save(data, url.lastPathComponent)
+                    written.append(url.lastPathComponent)
+                    fields[index] = NoteSoundTags.appending(url.lastPathComponent, to: fields[index])
+                }
+            }
+        } catch {
+            for name in written { try? await mediaClient.delete(name) }
+            throw error
+        }
+        return fields
     }
 
     /// Persist the edited fields/tags. Returns whether the write succeeded.
     func save() async -> Bool {
         isSaving = true
         defer { isSaving = false }
+
+        let fieldValues: [String]
+        do {
+            fieldValues = try await fieldsWithAudio()
+        } catch {
+            Log.browse.error("Error saving recordings: \(error)")
+            return false
+        }
 
         let newFlds = fieldValues.joined(separator: "\u{1f}")
         let newSfld = fieldValues.first ?? ""
@@ -77,9 +144,16 @@ final class NoteEditorModel {
 
         do {
             try await noteClient.save(updatedNote)
+            // The recordings are now referenced in the field text; show them
+            // there and let go of the temporary copies.
+            self.fieldValues = fieldValues
+            discardAudio()
             Task { await WordSpotlightController.shared.refresh() }
             return true
         } catch {
+            for name in fieldAudio.flatMap({ $0 }).map(\.lastPathComponent) {
+                try? await mediaClient.delete(name)
+            }
             return false
         }
     }
