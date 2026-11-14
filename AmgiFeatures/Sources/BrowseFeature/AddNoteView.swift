@@ -19,6 +19,7 @@ package struct AddNoteView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model: AddNoteModel
     @State private var showDiscardConfirm = false
+    @State private var showPreview = false
     @Environment(\.scenePhase) private var scenePhase
     #if canImport(UIKit)
     @State private var recorder = VoiceRecorder()
@@ -68,6 +69,12 @@ package struct AddNoteView: View {
                         }
                         .disabled(model.isSaving)
                     }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(String(localized: "Preview", bundle: .module), systemImage: "eye") {
+                            showPreview = true
+                        }
+                        .disabled(model.fieldNames.isEmpty || model.selectedNotetypeId.rawValue == 0)
+                    }
                     ToolbarItem(placement: .confirmationAction) {
                         Button(String(localized: "Add", bundle: .module)) {
                             finishRecording()
@@ -80,6 +87,9 @@ package struct AddNoteView: View {
                         }
                         .disabled(model.isSaving || (!model.canAdd && !recordingActive) || recordingStarting)
                     }
+                }
+                .sheet(isPresented: $showPreview) {
+                    NoteCardPreviewSheet(notetypeID: model.selectedNotetypeId, fields: model.fieldValues)
                 }
                 .task { await model.loadData() }
                 .onChange(of: scenePhase) {

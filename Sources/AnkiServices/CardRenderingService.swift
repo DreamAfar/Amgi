@@ -25,6 +25,17 @@ public struct CardRenderingService: Sendable {
         _ sampleFields: [String]
     ) throws -> RenderedCard
 
+    /// Renders a note's current (possibly unsaved) field values as the card
+    /// `cardOrdinal` would show them, using template `templateIndex`. Unlike
+    /// the template preview, empty fields stay empty. For cloze notetypes the
+    /// template is always 0 and the ordinal is the cloze number minus one.
+    public var renderNoteCard: @Sendable (
+        _ notetype: Notetype,
+        _ templateIndex: Int,
+        _ cardOrdinal: UInt32,
+        _ fields: [String]
+    ) throws -> RenderedCard
+
     /// Compares the expected answer text against the user-provided typed answer
     /// and returns colored diff HTML (correct chars green, incorrect red).
     /// `combining` controls Unicode combining-character handling.
@@ -61,6 +72,18 @@ extension CardRenderingService: DependencyKey {
                     template: template,
                     cardOrd: UInt32(clamping: template.ord ?? 0),
                     sampleFields: sampleFields
+                ))
+            },
+            renderNoteCard: { notetype, templateIndex, cardOrdinal, fields in
+                guard notetype.templates.indices.contains(templateIndex) else {
+                    return RenderedCard(frontHTML: "", backHTML: "", cardCSS: "")
+                }
+                return try backend.invoke(.renderUncommittedCard(
+                    notetypeId: notetype.id,
+                    template: notetype.templates[templateIndex],
+                    cardOrd: cardOrdinal,
+                    sampleFields: fields,
+                    fillEmpty: false
                 ))
             },
             compareAnswer: { expected, provided, combining in
