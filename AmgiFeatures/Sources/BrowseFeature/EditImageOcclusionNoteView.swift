@@ -134,9 +134,12 @@ struct EditImageOcclusionContent: View {
                 }
             }
 
+            // Header and Back Extra are HTML fields like any other; edit them
+            // with the note editor's field editor so stored markup shows as
+            // text instead of raw source.
             Section(String(localized: "Content", bundle: .module)) {
-                TextField(String(localized: "Header", bundle: .module), text: $model.header)
-                TextField(String(localized: "Extra info shown on the back", bundle: .module), text: $model.backExtra)
+                ioField(String(localized: "Header", bundle: .module), text: $model.header)
+                ioField(String(localized: "Extra info shown on the back", bundle: .module), text: $model.backExtra)
             }
 
             Section {
@@ -158,6 +161,17 @@ struct EditImageOcclusionContent: View {
         }
         .scrollContentBackground(.hidden)
         .background(palette.background)
+    }
+}
+
+extension EditImageOcclusionContent {
+    fileprivate func ioField(_ title: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .amgiFont(.caption)
+                .foregroundStyle(palette.textSecondary)
+            RichNoteFieldEditor(htmlText: text)
+        }
     }
 }
 
