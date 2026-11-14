@@ -18,6 +18,10 @@ package struct NoteEditorView: View {
 
     @State private var showSavedConfirmation = false
     @State private var savedToastTask: Task<Void, Never>?
+    @Environment(\.scenePhase) private var scenePhase
+    #if canImport(UIKit)
+    @State private var recorder = VoiceRecorder()
+    #endif
 
     package init(note: NoteRecord, onSave: @escaping () -> Void) {
         _model = State(initialValue: NoteEditorModel(note: note))
@@ -25,12 +29,13 @@ package struct NoteEditorView: View {
     }
 
     package var body: some View {
-        NoteEditorContent(model: model)
+        content
             .navigationTitle(String(localized: "Edit Note", bundle: .module))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "Save", bundle: .module)) {
+                        finishRecording()
                         savedToastTask = Task {
                             if await model.save() {
                                 withAnimation(AmgiMotion.momentum) { showSavedConfirmation = true }
@@ -50,6 +55,38 @@ package struct NoteEditorView: View {
             }
             .overlay { savedToast }
             .task { await model.loadNote() }
+            .onChange(of: scenePhase) {
+                if scenePhase != .active { finishRecording() }
+            }
+            .onDisappear {
+                // Leaving without saving drops new recordings, as Add Note does.
+                #if canImport(UIKit)
+                recorder.cancel()
+                #endif
+                model.discardAudio()
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        #if canImport(UIKit)
+        NoteEditorContent(model: model, recorder: recorder)
+            .modifier(VoiceRecorderAlerts(recorder: recorder))
+            .onAppear {
+                recorder.onEndedEarly = { model.attachAudio($0.url, toField: $0.fieldIndex) }
+            }
+        #else
+        NoteEditorContent(model: model)
+        #endif
+    }
+
+    private func finishRecording() {
+        #if canImport(UIKit)
+        if let clip = recorder.stop() {
+            model.attachAudio(clip.url, toField: clip.fieldIndex)
+        }
+        recorder.stopPlayback()
+        #endif
     }
 
     @ViewBuilder
@@ -81,16 +118,46 @@ package struct NoteEditorView: View {
 struct NoteEditorContent: View {
     @Environment(\.palette) private var palette
     @Bindable var model: NoteEditorModel
+    #if canImport(UIKit)
+    var recorder: VoiceRecorder? = nil
+    #endif
 
     var body: some View {
         Form {
             Section(String(localized: "Fields", bundle: .module)) {
                 ForEach(Array(model.fieldNames.enumerated()), id: \.element) { index, name in
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(name)
-                            .amgiFont(.caption)
-                            .foregroundStyle(palette.textSecondary)
+                        HStack {
+                            Text(name)
+                                .amgiFont(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                            Spacer()
+                            #if canImport(UIKit)
+                            if let recorder {
+                                NoteVoiceRecordButton(recorder: recorder, fieldIndex: index) { url in
+                                    model.attachAudio(url, toField: index)
+                                }
+                                .disabled(model.isSaving)
+                            }
+                            #endif
+                        }
                         RichNoteFieldEditor(htmlText: $model[fieldAt: index])
+                        #if canImport(UIKit)
+                        if let recorder {
+                            NoteFieldAudioBar(
+                                soundFiles: NoteSoundTags.filenames(in: model[fieldAt: index]),
+                                pendingClips: model.fieldAudio.indices.contains(index) ? model.fieldAudio[index] : [],
+                                playingURL: recorder.playingURL,
+                                resolve: { model.mediaURL(for: $0) },
+                                onTogglePlayback: { recorder.togglePlayback($0) },
+                                onDeletePending: { url in
+                                    if recorder.playingURL == url { recorder.stopPlayback() }
+                                    model.removeAudio(url, fromField: index)
+                                }
+                            )
+                            .disabled(model.isSaving || recorder.isRecording || recorder.isStarting)
+                        }
+                        #endif
                     }
                 }
             }

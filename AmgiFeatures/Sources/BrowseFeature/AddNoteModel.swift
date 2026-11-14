@@ -73,6 +73,13 @@ final class AddNoteModel {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// Where a `[sound:…]` file the field already references lives, for preview.
+    func mediaURL(for filename: String) -> URL? {
+        guard let url = mediaClient.localURL(filename),
+              FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url
+    }
+
     func discardAudio() {
         for url in fieldAudio.flatMap({ $0 }) {
             try? FileManager.default.removeItem(at: url)

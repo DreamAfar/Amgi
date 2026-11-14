@@ -103,35 +103,7 @@ extension AddNoteView {
     private var content: some View {
         #if canImport(UIKit)
         AddNoteContent(model: model, recorder: recorder)
-            .alert(String(localized: "Microphone access is off", bundle: .module), isPresented: Binding(
-                get: { recorder.failure == .permissionDenied },
-                set: { if !$0 { recorder.failure = nil } }
-            )) {
-                Button(String(localized: "Open Settings", bundle: .module)) {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                }
-                Button(String(localized: "Cancel", bundle: .module), role: .cancel) {}
-            } message: {
-                Text("Allow microphone access in Settings to record audio onto cards.", bundle: .module)
-            }
-            .alert(String(localized: "Recording could not start", bundle: .module), isPresented: Binding(
-                get: { recorder.failure == .couldNotStart },
-                set: { if !$0 { recorder.failure = nil } }
-            )) {
-                Button(String(localized: "OK", bundle: .module), role: .cancel) {}
-            } message: {
-                Text("Please try recording again.", bundle: .module)
-            }
-            .alert(String(localized: "Recording ended", bundle: .module), isPresented: Binding(
-                get: { recorder.failure == .endedEarly },
-                set: { if !$0 { recorder.failure = nil } }
-            )) {
-                Button(String(localized: "OK", bundle: .module), role: .cancel) {}
-            } message: {
-                Text("Recording was interrupted or reached the 10-minute limit. The clip so far was kept.", bundle: .module)
-            }
+            .modifier(VoiceRecorderAlerts(recorder: recorder))
             .onAppear {
                 recorder.onEndedEarly = { model.attachAudio($0.url, toField: $0.fieldIndex) }
             }
@@ -220,18 +192,18 @@ struct AddNoteContent: View {
                         RichNoteFieldEditor(htmlText: $model[fieldAt: index])
                         #if canImport(UIKit)
                         if let recorder, model.fieldAudio.indices.contains(index) {
-                            ForEach(Array(model.fieldAudio[index].enumerated()), id: \.element) { clipIndex, url in
-                                NoteVoiceClipRow(
-                                    title: String(localized: "Recording \(clipIndex + 1)", bundle: .module),
-                                    isPlaying: recorder.playingURL == url,
-                                    onPlay: { recorder.togglePlayback(url) },
-                                    onDelete: {
-                                        if recorder.playingURL == url { recorder.stopPlayback() }
-                                        model.removeAudio(url, fromField: index)
-                                    }
-                                )
-                                .disabled(model.isSaving || recorder.isRecording || recorder.isStarting)
-                            }
+                            NoteFieldAudioBar(
+                                soundFiles: NoteSoundTags.filenames(in: model[fieldAt: index]),
+                                pendingClips: model.fieldAudio[index],
+                                playingURL: recorder.playingURL,
+                                resolve: { model.mediaURL(for: $0) },
+                                onTogglePlayback: { recorder.togglePlayback($0) },
+                                onDeletePending: { url in
+                                    if recorder.playingURL == url { recorder.stopPlayback() }
+                                    model.removeAudio(url, fromField: index)
+                                }
+                            )
+                            .disabled(model.isSaving || recorder.isRecording || recorder.isStarting)
                         }
                         #endif
                     }
