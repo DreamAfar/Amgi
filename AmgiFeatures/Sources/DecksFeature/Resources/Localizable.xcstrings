@@ -75,6 +75,34 @@
         }
       }
     },
+    "Add Image Occlusion…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画像オクルージョンを追加…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이미지 가림 추가…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加图像遮挡…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增影像遮擋…"
+          }
+        }
+      }
+    },
     "Add Note…" : {
       "localizations" : {
         "ja" : {

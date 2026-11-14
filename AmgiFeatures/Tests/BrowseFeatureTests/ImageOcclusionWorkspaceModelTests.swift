@@ -140,14 +140,21 @@ struct ImageOcclusionWorkspaceModelTests {
         #expect(model.masks[1].serializationOrdinal == 2)
     }
 
-    @Test("ungrouping clears the ordinal on the selection")
-    func ungroupingClearsOrdinal() {
-        let model = model([rect(0.1, ordinal: 2), rect(0.4, ordinal: 2)])
-        model.selectedMaskIndices = [0, 1]
+    @Test("ungrouping keeps the ordinal on the first member and clears the rest")
+    func ungroupingKeepsFirstOrdinal() {
+        let model = model([rect(0.1, ordinal: 2), rect(0.4, ordinal: 2), rect(0.7, ordinal: 2)])
+        model.selectedMaskIndices = [0, 1, 2]
         #expect(model.canUngroup)
         model.ungroupSelection()
 
-        #expect(model.masks.allSatisfy { $0.serializationOrdinal == nil })
+        #expect(model.masks.map(\.serializationOrdinal) == [2, nil, nil])
+        #expect(!model.canUngroup)
+    }
+
+    @Test("a lone mask with an ordinal is not a group")
+    func loneOrdinalIsNotAGroup() {
+        let model = model([rect(0.1, ordinal: 1), rect(0.4, ordinal: 2)])
+        model.selectedMaskIndices = [0]
         #expect(!model.canUngroup)
     }
 

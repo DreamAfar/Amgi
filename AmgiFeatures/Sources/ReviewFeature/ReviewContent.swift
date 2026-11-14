@@ -123,10 +123,10 @@ struct ReviewContent: View {
             .cardChromeToolbar(session: session, enabled: autoMatchCardBackground)
             #endif
             .sheet(item: $destination.editNote) { note in
-                NavigationStack {
-                    NoteEditorView(note: note) {
-                        Task { await session.refreshAfterEdit() }
-                    }
+                // Same routing as Browse: image-occlusion notes open the
+                // mask editor, everything else the field editor.
+                NoteEditingDestinationView(note: note, embedInNavigationStack: true) {
+                    Task { await session.refreshAfterEdit() }
                 }
             }
             .sheet(item: $destination.editTemplate) { target in

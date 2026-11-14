@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import AnkiKit
+import AppShared
 import AnkiClients
 import Dependencies
 import Foundation
@@ -29,7 +30,11 @@ final class EditImageOcclusionModel {
     var saveError: String?
 
     @ObservationIgnored @Dependency(\.imageOcclusionClient) private var client
+    @ObservationIgnored @Dependency(\.collectionStore) private var store
     @ObservationIgnored private let noteId: NoteID
+    /// Highest card ordinal when the note was loaded; new masks are numbered
+    /// above it even if that mask was deleted, so none inherits its history.
+    @ObservationIgnored private var loadedMaxOrdinal = 0
 
     init(noteId: NoteID) {
         self.noteId = noteId
@@ -53,6 +58,7 @@ final class EditImageOcclusionModel {
             backExtra = data.backExtra
             tagsText = data.tags.joined(separator: " ")
             masks = parseMasks(from: data.occlusions)
+            loadedMaxOrdinal = masks.compactMap(\.serializationOrdinal).max() ?? 0
         } catch {
             loadError = error.localizedDescription
         }
@@ -67,13 +73,13 @@ final class EditImageOcclusionModel {
         saveError = nil
         defer { isSaving = false }
 
-        let occlusions = masks.enumerated().map { idx, mask in
-            mask.occlusionText(index: idx)
-        }.joined(separator: "\n")
+        let occlusions = IOMask.occlusionsText(masks, reservedThrough: loadedMaxOrdinal)
         let tags = tagsText.split(separator: " ").map(String.init).filter { !$0.isEmpty }
 
         do {
             try await client.updateNote(noteId, occlusions, header, backExtra, tags)
+            // Adding or removing masks adds or empties cards.
+            store.apply(CollectionChanges(card: true, note: true, studyQueues: true))
             return true
         } catch {
             saveError = error.localizedDescription

@@ -45,8 +45,30 @@ enum IOMask: Equatable {
     /// left/top = top-left anchor; scale/fs match upstream image-occlusion text props.
     case text(left: CGFloat, top: CGFloat, text: String, scale: CGFloat, fontSize: CGFloat, extras: [String: String])
 
-    func occlusionText(index: Int) -> String {
-        let n = serializationOrdinal ?? (index + 1)
+    /// Serializes a whole mask document into the occlusions field, one
+    /// cloze per line. Masks carrying an ordinal keep it: loaded masks hold
+    /// their card's ordinal, and groups share one. Every other mask is
+    /// numbered after the highest ordinal in use, so a new mask can never
+    /// land in an existing group, or in the card of a mask deleted during
+    /// this edit (which would hand it that card's review history).
+    /// Numbering by array position did both: draw three masks, group the
+    /// last two (they take c1), and the first was written as c1 as well.
+    ///
+    /// `reservedThrough` is the highest ordinal the note had when it was
+    /// loaded, which still counts after that mask was deleted.
+    static func occlusionsText(_ masks: [IOMask], reservedThrough: Int = 0) -> String {
+        var next = max(masks.compactMap(\.serializationOrdinal).max() ?? 0, reservedThrough) + 1
+        return masks.map { mask in
+            if let ordinal = mask.serializationOrdinal {
+                return mask.occlusionText(ordinal: ordinal)
+            }
+            defer { next += 1 }
+            return mask.occlusionText(ordinal: next)
+        }
+        .joined(separator: "\n")
+    }
+
+    func occlusionText(ordinal n: Int) -> String {
         switch self {
         case .rect(let l, let t, let w, let h, let extras):
             return clozeText(
@@ -184,7 +206,11 @@ private extension IOMask {
         return "{{c\(index)::image-occlusion:\(shape):\(allTokens.joined(separator: ":"))}}"
     }
 
-    func f(_ v: CGFloat) -> String { String(format: "%.3g", v) }
+    /// Anki's own number format (`floatToDisplay` in the desktop editor):
+    /// four decimals with leading and trailing zeros stripped, so 0.25 is
+    /// ".25". Three significant digits used to cost precision on large
+    /// images and rewrote every desktop-made mask on each save.
+    func f(_ v: CGFloat) -> String { ioNumber(v) }
 }
 
 extension IOMask {
@@ -207,4 +233,15 @@ extension IOMask {
             return .text(left: left, top: top, text: text, scale: scale, fontSize: fontSize, extras: updatedExtras)
         }
     }
+}
+
+/// Mirrors Anki's `floatToDisplay`: `toFixed(4)`, then strip leading and
+/// trailing zeros; NaN and zero become ".0000".
+func ioNumber(_ value: CGFloat) -> String {
+    let double = Double(value)
+    guard !double.isNaN, double != 0 else { return ".0000" }
+    var text = String(format: "%.4f", double)
+    while text.hasPrefix("0") { text.removeFirst() }
+    while text.hasSuffix("0") { text.removeLast() }
+    return text
 }

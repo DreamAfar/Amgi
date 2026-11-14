@@ -6,11 +6,11 @@
 //
 
 #if canImport(UIKit)
-import SwiftUI
+package import SwiftUI
 import PhotosUI
 import Theme
 import UI
-import AnkiKit
+package import AnkiKit
 
 // MARK: - AddImageOcclusionNoteView
 
@@ -18,7 +18,7 @@ import AnkiKit
 /// selection, and the occlusion-editor cover, and drives an
 /// `AddImageOcclusionModel` for deck loading and the note write. The form is
 /// `AddImageOcclusionContent`, bound to the model.
-struct AddImageOcclusionNoteView: View {
+package struct AddImageOcclusionNoteView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model: AddImageOcclusionModel
     @State private var selectedItem: PhotosPickerItem?
@@ -27,12 +27,12 @@ struct AddImageOcclusionNoteView: View {
 
     let onSave: () -> Void
 
-    init(onSave: @escaping () -> Void, preselectedDeckId: DeckID? = nil) {
+    package init(onSave: @escaping () -> Void, preselectedDeckId: DeckID? = nil) {
         self.onSave = onSave
         _model = State(initialValue: AddImageOcclusionModel(preselectedDeckId: preselectedDeckId))
     }
 
-    var body: some View {
+    package var body: some View {
         NavigationStack {
             AddImageOcclusionContent(
                 model: model,
