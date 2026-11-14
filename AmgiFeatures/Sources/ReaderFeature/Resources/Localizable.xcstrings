@@ -1,6 +1,34 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ (not found)" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（見つかりません）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (찾을 수 없음)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（未找到）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（找不到）"
+          }
+        }
+      }
+    },
     "%@ · %lld decks due" : {
       "localizations" : {
         "en" : {
@@ -475,34 +503,6 @@
         }
       }
     },
-    "Book ID field" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本の ID のフィールド"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "책 ID 필드"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "书籍 ID 字段"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "書籍 ID 欄位"
-          }
-        }
-      }
-    },
     "Book cover" : {
       "localizations" : {
         "ja" : {
@@ -555,34 +555,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "書名"
-          }
-        }
-      }
-    },
-    "Book title field" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "書名のフィールド"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "책 제목 필드"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "书名字段"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "書名欄位"
           }
         }
       }
@@ -699,34 +671,6 @@
         }
       }
     },
-    "Chapter order field" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "章の順序のフィールド"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "장 순서 필드"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "章节顺序字段"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "章節順序欄位"
-          }
-        }
-      }
-    },
     "Chapter title" : {
       "localizations" : {
         "ja" : {
@@ -755,30 +699,30 @@
         }
       }
     },
-    "Chapter title field" : {
+    "Choose a note type to pick its fields." : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "章タイトルのフィールド"
+            "value" : "ノートタイプを選ぶと、そのフィールドを選べます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "장 제목 필드"
+            "value" : "노트 유형을 선택하면 해당 필드를 고를 수 있습니다."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "章节标题字段"
+            "value" : "先选择笔记类型，再选择它的字段。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "章節標題欄位"
+            "value" : "先選擇筆記類型，再選擇它的欄位。"
           }
         }
       }
@@ -863,34 +807,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "內容"
-          }
-        }
-      }
-    },
-    "Content field" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本文のフィールド"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "내용 필드"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "内容字段"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "內容欄位"
           }
         }
       }
@@ -1343,6 +1259,34 @@
         }
       }
     },
+    "Each note becomes a chapter; chapters with the same Book ID collapse into one book." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "各ノートが 1 つの章になり、本の ID が同じ章は 1 冊の本にまとめられます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "각 노트가 하나의 장이 되며, 책 ID가 같은 장은 한 권의 책으로 묶입니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每条笔记是一个章节；书籍 ID 相同的章节归为同一本书。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每則筆記是一個章節；書籍 ID 相同的章節歸為同一本書。"
+          }
+        }
+      }
+    },
     "End of book" : {
       "localizations" : {
         "ja" : {
@@ -1483,6 +1427,34 @@
         }
       }
     },
+    "Failed to load note types: %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ノートタイプを読み込めませんでした: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노트 유형 불러오기 실패: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加载笔记类型失败：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "載入筆記類型失敗：%@"
+          }
+        }
+      }
+    },
     "Failed to reorder: %@" : {
       "localizations" : {
         "ja" : {
@@ -1563,34 +1535,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "欄位對映"
-          }
-        }
-      }
-    },
-    "Field names from the notetype that holds your book chapters. Each note becomes a chapter; chapters with the same Book ID collapse into one book." : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本の章を保存しているノートタイプのフィールド名です。各ノートが 1 つの章になり、本の ID が同じ章は 1 冊にまとめられます。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "책의 장을 담은 노트 유형의 필드 이름입니다. 노트 하나가 장 하나가 되며, 책 ID가 같은 장은 한 권으로 묶입니다."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "存放书籍章节的笔记模板中的字段名称。每条笔记成为一个章节；书籍 ID 相同的章节会合并为一本书。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "存放書籍章節的筆記類型中的欄位名稱。每條筆記成為一個章節；書籍 ID 相同的章節會合併為一本書。"
           }
         }
       }
@@ -2519,6 +2463,90 @@
         }
       }
     },
+    "None" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "なし"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "없음"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無"
+          }
+        }
+      }
+    },
+    "Not a field of this note type" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このノートタイプのフィールドではありません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 노트 유형의 필드가 아닙니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不是这个笔记类型的字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不是這個筆記類型的欄位"
+          }
+        }
+      }
+    },
+    "Note type" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ノートタイプ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노트 유형"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "笔记类型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筆記類型"
+          }
+        }
+      }
+    },
     "OK" : {
       "localizations" : {
         "ja" : {
@@ -2543,34 +2571,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "好"
-          }
-        }
-      }
-    },
-    "Optional" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "任意"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "선택 사항"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "可选"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "可選"
           }
         }
       }
@@ -3051,6 +3051,62 @@
         }
       }
     },
+    "Select a field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フィールドを選択"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필드 선택"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇欄位"
+          }
+        }
+      }
+    },
+    "Select a note type" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ノートタイプを選択"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노트 유형 선택"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择笔记类型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇筆記類型"
+          }
+        }
+      }
+    },
     "Sepia" : {
       "localizations" : {
         "ja" : {
@@ -3299,6 +3355,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "詞條"
+          }
+        }
+      }
+    },
+    "This deck has no notes yet." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このデッキにはまだノートがありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 덱에는 아직 노트가 없습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个牌组还没有笔记。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這個牌組還沒有筆記。"
           }
         }
       }
