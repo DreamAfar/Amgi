@@ -32,20 +32,75 @@ struct LookupStructuredContentView: View {
     let dictionaryStyle: String
     let onLookupRequested: ((String) -> Void)?
 
-    @State private var contentHeight: CGFloat = 44
+    @State private var measuredHeight: CGFloat?
+    @State private var width: CGFloat = 0
+
+    /// A List rebuilds rows that scroll off and back on, which recreates
+    /// this view and reloads its page. Starting each time from a 44 pt
+    /// guess made rows jump while scrolling, and for a frame the old cell
+    /// height left glossaries drawn over their neighbours. The height
+    /// measured for this content at this width is kept app-wide instead.
+    private var contentKey: Int {
+        var hasher = Hasher()
+        hasher.combine(dictionary)
+        hasher.combine(glossaries)
+        hasher.combine(dictionaryStyle)
+        return hasher.finalize()
+    }
+
+    private var height: CGFloat {
+        measuredHeight ?? GlossaryHeightCache.shared.height(for: contentKey, width: width) ?? 44
+    }
 
     var body: some View {
+        let key = contentKey
         StructuredGlossaryWebView(
             dictionary: dictionary,
             glossaries: glossaries,
             dictionaryStyle: dictionaryStyle,
             onLookupRequested: onLookupRequested,
-            onHeightChange: { height in
+            onHeightChange: { height, measuredWidth in
                 let resolved = max(1, ceil(height))
-                if abs(resolved - contentHeight) > 0.5 { contentHeight = resolved }
+                GlossaryHeightCache.shared.store(resolved, for: key, width: measuredWidth)
+                if measuredHeight.map({ abs(resolved - $0) > 0.5 }) ?? true {
+                    measuredHeight = resolved
+                }
             }
         )
-        .frame(height: contentHeight)
+        .frame(height: height)
+        .frame(maxWidth: .infinity)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { newWidth in
+            // A new width reflows the page; the old measurement no longer
+            // applies, so fall back to the cache until the page reports.
+            if abs(newWidth - width) > 0.5 {
+                width = newWidth
+                measuredHeight = nil
+            }
+        }
+    }
+}
+
+/// Rendered glossary heights, keyed by content and whole-point width.
+@MainActor
+final class GlossaryHeightCache {
+    static let shared = GlossaryHeightCache()
+
+    private struct Key: Hashable {
+        let content: Int
+        let width: Int
+    }
+
+    private var heights: [Key: CGFloat] = [:]
+
+    func height(for content: Int, width: CGFloat) -> CGFloat? {
+        guard width > 1 else { return nil }
+        return heights[Key(content: content, width: Int(width.rounded()))]
+    }
+
+    func store(_ height: CGFloat, for content: Int, width: CGFloat) {
+        guard width > 1 else { return }
+        if heights.count > 2000 { heights.removeAll() }
+        heights[Key(content: content, width: Int(width.rounded()))] = height
     }
 }
 
@@ -54,7 +109,7 @@ private struct StructuredGlossaryWebView: UIViewRepresentable {
     let glossaries: [DictionaryLookupGlossary]
     let dictionaryStyle: String
     let onLookupRequested: ((String) -> Void)?
-    let onHeightChange: (CGFloat) -> Void
+    let onHeightChange: (CGFloat, CGFloat) -> Void
 
     @Dependency(\.dictionaryLookupClient) var dictionaryLookupClient
     @Shared(.appStorage(ReaderPreferences.Keys.dictionaryScanLength))
@@ -123,7 +178,7 @@ private struct StructuredGlossaryWebView: UIViewRepresentable {
         private var dictionaryStyle: String
         private var scanLength: Int
         private let onLookupRequested: ((String) -> Void)?
-        fileprivate var onHeightChange: (CGFloat) -> Void
+        fileprivate var onHeightChange: (CGFloat, CGFloat) -> Void
         /// One CSP nonce for the coordinator's life. A fresh nonce per
         /// `makeHTML` made every `update` see "new" HTML and reload the page
         /// on each SwiftUI pass, resetting its height each time.
@@ -139,7 +194,7 @@ private struct StructuredGlossaryWebView: UIViewRepresentable {
             dictionaryStyle: String,
             scanLength: Int,
             onLookupRequested: ((String) -> Void)?,
-            onHeightChange: @escaping (CGFloat) -> Void,
+            onHeightChange: @escaping (CGFloat, CGFloat) -> Void,
             loadMediaData: @escaping @Sendable (String, String) async throws -> Data
         ) {
             self.dictionary = dictionary
@@ -314,7 +369,7 @@ private extension StructuredGlossaryWebView.Coordinator {
     /// line, and that height is what left the large blank gaps.
     func reportHeight(_ height: CGFloat) {
         guard let webView, webView.bounds.width > 1, height > 0 else { return }
-        onHeightChange(height)
+        onHeightChange(height, webView.bounds.width)
     }
 
     // MARK: HTML
