@@ -221,9 +221,7 @@ struct AddNoteContent: View {
             }
 
             Section(String(localized: "Tags", bundle: .module)) {
-                TextField(String(localized: "Tags (space-separated)", bundle: .module), text: $model.tags)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
+                TagEditorField(tags: $model.tags)
             }
 
             if let errorMessage = model.errorMessage {
