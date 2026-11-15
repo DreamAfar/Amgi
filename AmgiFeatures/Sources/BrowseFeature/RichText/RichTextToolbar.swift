@@ -13,10 +13,12 @@ import UIKit
 /// alignment, MathJax, images), and a fixed button at the trailing edge to
 /// put the keyboard away. Toggles light up to match the caret.
 ///
-/// Built on `UIInputView` so it takes the keyboard's own backdrop and
-/// reads as part of it in both appearances.
+/// The bar paints its own opaque background (the palette's elevated
+/// surface) with a hairline on top. A `.keyboard`-style `UIInputView`
+/// was tried first, but on current iOS its backdrop renders clear, so the
+/// buttons sat directly over the field text behind them.
 @MainActor
-final class RichTextToolbar: UIInputView {
+final class RichTextToolbar: UIView {
     enum ImageSource: CaseIterable {
         case photoLibrary, camera, files
     }
@@ -38,13 +40,24 @@ final class RichTextToolbar: UIInputView {
     private static let barHeight: CGFloat = 46
     private static let buttonSize: CGFloat = 36
 
-    init(accent: UIColor, showsImages: Bool) {
+    init(accent: UIColor, background: UIColor, border: UIColor, showsImages: Bool) {
         self.accent = accent
-        super.init(
-            frame: CGRect(x: 0, y: 0, width: 320, height: Self.barHeight),
-            inputViewStyle: .keyboard
-        )
-        allowsSelfSizing = true
+        super.init(frame: CGRect(x: 0, y: 0, width: 320, height: Self.barHeight))
+        autoresizingMask = .flexibleHeight
+        backgroundColor = background
+        isOpaque = true
+
+        let hairline = UIView()
+        hairline.backgroundColor = border
+        hairline.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(hairline)
+        NSLayoutConstraint.activate([
+            hairline.topAnchor.constraint(equalTo: topAnchor),
+            hairline.leadingAnchor.constraint(equalTo: leadingAnchor),
+            hairline.trailingAnchor.constraint(equalTo: trailingAnchor),
+            hairline.heightAnchor.constraint(equalToConstant: 1 / max(traitCollection.displayScale, 1)),
+        ])
+
         build(showsImages: showsImages)
     }
 

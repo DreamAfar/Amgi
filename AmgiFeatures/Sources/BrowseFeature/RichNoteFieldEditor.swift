@@ -42,10 +42,20 @@ struct RichNoteFieldEditor: View {
             contentHeight: $contentHeight,
             textColor: UIColor(palette.textPrimary),
             caretColor: UIColor(palette.accent),
+            toolbarColors: ToolbarColors(
+                background: UIColor(palette.surfaceElevated),
+                border: UIColor(palette.border)
+            ),
             imageModel: imageModel
         )
         .frame(height: min(max(contentHeight, Self.minHeight), Self.maxHeight))
     }
+}
+
+/// Colors of the keyboard toolbar, taken from the palette.
+private struct ToolbarColors {
+    let background: UIColor
+    let border: UIColor
 }
 
 private struct RichFieldWebView: UIViewRepresentable {
@@ -53,10 +63,16 @@ private struct RichFieldWebView: UIViewRepresentable {
     @Binding var contentHeight: CGFloat
     let textColor: UIColor
     let caretColor: UIColor
+    let toolbarColors: ToolbarColors
     let imageModel: NoteImageInsertionModel?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(htmlText: $htmlText, contentHeight: $contentHeight, caretColor: caretColor)
+        Coordinator(
+            htmlText: $htmlText,
+            contentHeight: $contentHeight,
+            caretColor: caretColor,
+            toolbarColors: toolbarColors
+        )
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -112,6 +128,7 @@ private struct RichFieldWebView: UIViewRepresentable {
 
         private weak var webView: WKWebView?
         private let caretColor: UIColor
+        private let toolbarColors: ToolbarColors
         private var toolbar: RichTextToolbar?
         private var isReady = false
         /// The HTML the page holds, as last sent to it or reported by it.
@@ -122,10 +139,16 @@ private struct RichFieldWebView: UIViewRepresentable {
         private var shownHTML = ""
         private var shownColors = ""
 
-        init(htmlText: Binding<String>, contentHeight: Binding<CGFloat>, caretColor: UIColor) {
+        init(
+            htmlText: Binding<String>,
+            contentHeight: Binding<CGFloat>,
+            caretColor: UIColor,
+            toolbarColors: ToolbarColors
+        ) {
             self.htmlText = htmlText
             self.contentHeight = contentHeight
             self.caretColor = caretColor
+            self.toolbarColors = toolbarColors
         }
 
         func attach(_ webView: WKWebView) {
@@ -196,7 +219,12 @@ private struct RichFieldWebView: UIViewRepresentable {
 
         private func makeToolbarIfNeeded() -> UIView {
             if let toolbar { return toolbar }
-            let toolbar = RichTextToolbar(accent: caretColor, showsImages: imageModel != nil)
+            let toolbar = RichTextToolbar(
+                accent: caretColor,
+                background: toolbarColors.background,
+                border: toolbarColors.border,
+                showsImages: imageModel != nil
+            )
             toolbar.onCommand = { [weak self] in self?.perform($0) }
             toolbar.onDismiss = { [weak self] in
                 self?.run("amgi.blur()")
