@@ -26,10 +26,18 @@ import WebKit
 /// so it sits in a form row the way the plain text view did.
 struct RichNoteFieldEditor: View {
     @Binding var htmlText: String
+    /// Shows the raw HTML in a plain text view instead of the rich editor.
+    var isSourceMode = false
+    /// Asked to flip `isSourceMode` — from the toolbar's HTML button. Nil
+    /// hides that button.
+    var onToggleSource: (() -> Void)?
 
     @Environment(\.palette) private var palette
     @Environment(NoteImageInsertionModel.self) private var imageModel: NoteImageInsertionModel?
     @State private var contentHeight: CGFloat = RichNoteFieldEditor.minHeight
+    /// Set when the switch came from the keyboard toolbar, so the source
+    /// view takes the keyboard over rather than dropping it.
+    @State private var focusSource = false
 
     fileprivate static let minHeight: CGFloat = 32
     /// Past this the field scrolls inside itself rather than growing, so a
@@ -37,6 +45,15 @@ struct RichNoteFieldEditor: View {
     fileprivate static let maxHeight: CGFloat = 280
 
     var body: some View {
+        if isSourceMode {
+            HTMLSourceField(htmlText: $htmlText, focusOnAppear: focusSource)
+                .onDisappear { focusSource = false }
+        } else {
+            richEditor
+        }
+    }
+
+    private var richEditor: some View {
         RichFieldWebView(
             htmlText: $htmlText,
             contentHeight: $contentHeight,
@@ -46,7 +63,13 @@ struct RichNoteFieldEditor: View {
                 background: UIColor(palette.surfaceElevated),
                 border: UIColor(palette.border)
             ),
-            imageModel: imageModel
+            imageModel: imageModel,
+            onToggleSource: onToggleSource.map { toggle -> () -> Void in
+                {
+                    focusSource = true
+                    toggle()
+                }
+            }
         )
         .frame(height: min(max(contentHeight, Self.minHeight), Self.maxHeight))
     }
@@ -65,6 +88,7 @@ private struct RichFieldWebView: UIViewRepresentable {
     let caretColor: UIColor
     let toolbarColors: ToolbarColors
     let imageModel: NoteImageInsertionModel?
+    let onToggleSource: (() -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -92,6 +116,7 @@ private struct RichFieldWebView: UIViewRepresentable {
 
         coordinator.attach(webView)
         coordinator.imageModel = imageModel
+        coordinator.onToggleSource = onToggleSource
         coordinator.show(htmlText)
         coordinator.setColors(text: textColor, accent: caretColor, in: webView.traitCollection)
         webView.loadHTMLString(
@@ -108,6 +133,7 @@ private struct RichFieldWebView: UIViewRepresentable {
         let coordinator = context.coordinator
         coordinator.htmlText = $htmlText
         coordinator.contentHeight = $contentHeight
+        coordinator.onToggleSource = onToggleSource
         coordinator.imageModel = imageModel
         coordinator.show(htmlText)
         coordinator.setColors(text: textColor, accent: caretColor, in: webView.traitCollection)
@@ -120,10 +146,14 @@ private struct RichFieldWebView: UIViewRepresentable {
     // MARK: - Coordinator
 
     @MainActor
-    final class Coordinator: NSObject, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKScriptMessageHandler, UIEditMenuInteractionDelegate {
         var htmlText: Binding<String>
         var contentHeight: Binding<CGFloat>
         var imageModel: NoteImageInsertionModel?
+        var onToggleSource: (() -> Void)?
+        /// The image the menu is open for.
+        private var tappedImage: TappedImage?
+        private var imageMenu: UIEditMenuInteraction?
         let mediaScheme = NoteMediaScheme()
 
         private weak var webView: WKWebView?
@@ -153,6 +183,9 @@ private struct RichFieldWebView: UIViewRepresentable {
 
         func attach(_ webView: WKWebView) {
             self.webView = webView
+            let menu = UIEditMenuInteraction(delegate: self)
+            webView.addInteraction(menu)
+            imageMenu = menu
             // Built on first use: a note can have dozens of fields, and
             // only the one being edited needs its toolbar.
             WebViewInputAccessory.install(on: webView) { [weak self] in
@@ -210,8 +243,54 @@ private struct RichFieldWebView: UIViewRepresentable {
                 toolbar?.apply(RichTextFormatting(message: body))
             case "focus":
                 revealInEnclosingScrollView()
+            case "image":
+                guard let image = TappedImage(message: body) else { return }
+                tappedImage = image
+                imageMenu?.presentEditMenu(with: UIEditMenuConfiguration(
+                    identifier: nil, sourcePoint: image.anchor
+                ))
             default:
                 break
+            }
+        }
+
+        // MARK: Image menu
+
+        func editMenuInteraction(
+            _ interaction: UIEditMenuInteraction,
+            menuFor configuration: UIEditMenuConfiguration,
+            suggestedActions: [UIMenuElement]
+        ) -> UIMenu? {
+            guard let image = tappedImage else { return nil }
+            return NoteImageMenu.menu(
+                for: image,
+                canReplace: imageModel != nil,
+                onAction: { [weak self] action in self?.handle(action, for: image) }
+            )
+        }
+
+        func editMenuInteraction(
+            _ interaction: UIEditMenuInteraction,
+            willDismissMenuFor configuration: UIEditMenuConfiguration,
+            animator: any UIEditMenuInteractionAnimating
+        ) {
+            run("amgi.clearImage()")
+        }
+
+        private func handle(_ action: NoteImageMenu.Action, for image: TappedImage) {
+            switch action {
+            case .copyFilename:
+                UIPasteboard.general.string = image.src
+            case .resize(let width):
+                run(NoteImageMenu.script(index: image.index, action: "width", value: width ?? ""))
+            case .replace(let source):
+                guard let imageModel else { return }
+                webView?.endEditing(true)
+                imageModel.request(source) { [weak self] filename in
+                    self?.run(NoteImageMenu.script(index: image.index, action: "src", value: filename))
+                }
+            case .remove:
+                run(NoteImageMenu.script(index: image.index, action: "remove", value: ""))
             }
         }
 
@@ -223,8 +302,10 @@ private struct RichFieldWebView: UIViewRepresentable {
                 accent: caretColor,
                 background: toolbarColors.background,
                 border: toolbarColors.border,
-                showsImages: imageModel != nil
+                showsImages: imageModel != nil,
+                showsSourceToggle: onToggleSource != nil
             )
+            toolbar.onToggleSource = { [weak self] in self?.onToggleSource?() }
             toolbar.onCommand = { [weak self] in self?.perform($0) }
             toolbar.onDismiss = { [weak self] in
                 self?.run("amgi.blur()")
@@ -272,6 +353,8 @@ private struct RichFieldWebView: UIViewRepresentable {
 
 struct RichNoteFieldEditor: View {
     @Binding var htmlText: String
+    var isSourceMode = false
+    var onToggleSource: (() -> Void)?
 
     var body: some View {
         TextEditor(text: $htmlText)

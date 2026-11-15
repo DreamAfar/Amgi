@@ -26,6 +26,7 @@ final class RichTextToolbar: UIView {
     var onCommand: ((RichTextCommand) -> Void)?
     var onImage: ((ImageSource) -> Void)?
     var onDismiss: (() -> Void)?
+    var onToggleSource: (() -> Void)?
 
     private let accent: UIColor
     private var toggles: [Toggle: UIButton] = [:]
@@ -40,7 +41,7 @@ final class RichTextToolbar: UIView {
     private static let barHeight: CGFloat = 46
     private static let buttonSize: CGFloat = 36
 
-    init(accent: UIColor, background: UIColor, border: UIColor, showsImages: Bool) {
+    init(accent: UIColor, background: UIColor, border: UIColor, showsImages: Bool, showsSourceToggle: Bool) {
         self.accent = accent
         super.init(frame: CGRect(x: 0, y: 0, width: 320, height: Self.barHeight))
         autoresizingMask = .flexibleHeight
@@ -58,7 +59,7 @@ final class RichTextToolbar: UIView {
             hairline.heightAnchor.constraint(equalToConstant: 1 / max(traitCollection.displayScale, 1)),
         ])
 
-        build(showsImages: showsImages)
+        build(showsImages: showsImages, showsSourceToggle: showsSourceToggle)
     }
 
     @available(*, unavailable)
@@ -89,7 +90,7 @@ final class RichTextToolbar: UIView {
 
     // MARK: - Layout
 
-    private func build(showsImages: Bool) {
+    private func build(showsImages: Bool, showsSourceToggle: Bool) {
         let dismiss = makeButton(
             symbol: "keyboard.chevron.compact.down",
             title: String(localized: "Hide Keyboard", bundle: .module)
@@ -157,7 +158,14 @@ final class RichTextToolbar: UIView {
         }
         groups.append(insert)
 
-        groups.append([
+        var editing: [UIView] = []
+        if showsSourceToggle {
+            editing.append(makeButton(
+                symbol: "chevron.left.forwardslash.chevron.right",
+                title: String(localized: "HTML Source", bundle: .module)
+            ) { [weak self] in self?.onToggleSource?() })
+        }
+        groups.append(editing + [
             makeButton(symbol: "eraser", title: String(localized: "Clear formatting", bundle: .module)) { [weak self] in
                 self?.onCommand?(.clearFormatting)
             },

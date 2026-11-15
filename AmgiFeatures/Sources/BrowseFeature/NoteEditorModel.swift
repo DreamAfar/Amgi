@@ -35,6 +35,9 @@ final class NoteEditorModel {
     @ObservationIgnored @Dependency(\.notetypesService) private var notetypesService
     @ObservationIgnored private let note: NoteRecord
 
+    /// The note's type, for per-field editor settings.
+    var notetypeID: NotetypeID { note.mid }
+
     init(note: NoteRecord) {
         self.note = note
     }
