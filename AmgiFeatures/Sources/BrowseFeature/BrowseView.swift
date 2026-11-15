@@ -456,7 +456,7 @@ struct BrowseContent: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.vertical, AmgiSpacing.xs)
         }
     }
 
@@ -480,7 +480,7 @@ struct BrowseContent: View {
                     }
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 8)
+                .padding(.vertical, AmgiSpacing.xs)
             }
 
             // Subdeck row — stays visible as long as a parent with children is selected
@@ -490,23 +490,21 @@ struct BrowseContent: View {
                         // "All" chip = parent deck (includes subdecks)
                         chipButton(
                             label: String(localized: "All", bundle: .module),
-                            isSelected: model.activeDeck?.id == model.parentDeck?.id,
-                            small: true
+                            isSelected: model.activeDeck?.id == model.parentDeck?.id
                         ) {
                             model.activeDeck = model.parentDeck
                         }
                         ForEach(model.childDecks) { child in
                             chipButton(
                                 label: shortName(child.name),
-                                isSelected: model.activeDeck?.id == child.id,
-                                small: true
+                                isSelected: model.activeDeck?.id == child.id
                             ) {
                                 model.activeDeck = child
                             }
                         }
                     }
                     .padding(.horizontal)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, AmgiSpacing.xs)
                 }
             }
         }
@@ -517,14 +515,15 @@ private extension BrowseContent {
     func chipButton(
         label: String,
         isSelected: Bool,
-        small: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
+        // Caption-sized for every filter row: the bar sits above the list
+        // on every visit, so it stays compact and the rows match.
         Button(action: action) {
             Text(label)
-                .amgiFont(small ? .caption : .body)
-                .padding(.horizontal, small ? 10 : 12)
-                .padding(.vertical, small ? 4 : 6)
+                .amgiFont(.caption)
+                .padding(.horizontal, 10)
+                .padding(.vertical, AmgiSpacing.xs)
                 .background(isSelected ? palette.accent : palette.surface)
                 .foregroundStyle(isSelected ? .white : palette.textPrimary)
                 .clipShape(Capsule())
