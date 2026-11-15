@@ -139,14 +139,8 @@ struct EditImageOcclusionContent: View {
                 TextField(String(localized: "Extra info shown on the back", bundle: .module), text: $model.backExtra)
             }
 
-            Section {
-                TextField(String(localized: "Tags", bundle: .module), text: $model.tagsText)
-            } header: {
-                Text("Tags", bundle: .module)
-            } footer: {
-                Text("Space-separated", bundle: .module)
-                    .amgiFont(.caption)
-                    .foregroundStyle(palette.textSecondary)
+            Section(String(localized: "Tags", bundle: .module)) {
+                TagEditorField(tags: $model.tagsText)
             }
 
             if let err = model.saveError {
