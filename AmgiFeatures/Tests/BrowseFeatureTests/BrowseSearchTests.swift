@@ -73,7 +73,7 @@ struct BrowseSearchTests {
     func cancelledDuringDebounceNeverSearches() async {
         let log = CallLog()
         await withDependencies {
-            $0.noteClient.search = { query, _ in
+            $0.noteClient.searchSorted = { query, _, _ in
                 log.record(query)
                 return []
             }
@@ -93,7 +93,7 @@ struct BrowseSearchTests {
     func waivedDebounceSearchesImmediately() async {
         let log = CallLog()
         await withDependencies {
-            $0.noteClient.search = { query, _ in
+            $0.noteClient.searchSorted = { query, _, _ in
                 log.record(query)
                 return [Self.note(1, sfld: "hit")]
             }
@@ -113,7 +113,7 @@ struct BrowseSearchTests {
     @Test("a search cancelled mid-flight does not write its results")
     func cancelledMidFlightDoesNotWriteResults() async {
         await withDependencies {
-            $0.noteClient.search = { _, _ in
+            $0.noteClient.searchSorted = { _, _, _ in
                 // Long enough that the cancellation below lands while this is
                 // still in flight. Cancellation is not observed here, so the
                 // call returns normally and only the post-await guard can stop
@@ -142,7 +142,7 @@ struct BrowseSearchTests {
         struct Boom: Error {}
 
         await withDependencies {
-            $0.noteClient.search = { _, _ in throw Boom() }
+            $0.noteClient.searchSorted = { _, _, _ in throw Boom() }
         } operation: {
             let model = BrowseModel()
             await model.performSearch(debounce: .zero)
@@ -152,7 +152,7 @@ struct BrowseSearchTests {
         }
 
         await withDependencies {
-            $0.noteClient.search = { _, _ in [] }
+            $0.noteClient.searchSorted = { _, _, _ in [] }
         } operation: {
             let model = BrowseModel()
             await model.performSearch(debounce: .zero)
@@ -168,7 +168,7 @@ struct BrowseSearchTests {
 
         let shouldThrow = CallLog()
         await withDependencies {
-            $0.noteClient.search = { query, _ in
+            $0.noteClient.searchSorted = { query, _, _ in
                 shouldThrow.record(query)
                 if shouldThrow.all.count == 1 { throw Boom() }
                 return [Self.note(1, sfld: "ok")]
@@ -190,7 +190,7 @@ struct BrowseSearchTests {
     func loadInitialDoesNotSearch() async {
         let log = CallLog()
         await withDependencies {
-            $0.noteClient.search = { query, _ in
+            $0.noteClient.searchSorted = { query, _, _ in
                 log.record(query)
                 return []
             }

@@ -18,6 +18,9 @@ public struct NoteClient: Sendable {
     /// record's real content (e.g. the reader's chapter loader) must
     /// use `searchAll` instead.
     public var search: @Sendable (_ query: String, _ limit: Int?) async throws -> [NoteRecord]
+    /// `search` with the hits ordered by the backend, so the order holds
+    /// across the lazy placeholders too.
+    public var searchSorted: @Sendable (_ query: String, _ order: NoteSortOrder, _ limit: Int?) async throws -> [NoteRecord]
     /// Eager search — returns full NoteRecords for every hit, no lazy
     /// placeholders. Slower for large results but required when the
     /// caller reads `flds` immediately.

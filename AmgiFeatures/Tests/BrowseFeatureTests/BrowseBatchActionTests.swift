@@ -33,7 +33,7 @@ struct BrowseBatchActionTests {
         _ operation: () async -> Void
     ) async {
         await withDependencies {
-            $0.noteClient.search = { _, _ in [] }
+            $0.noteClient.searchSorted = { _, _, _ in [] }
             $0.cardClient.cardIDsOfNotes = { notes in
                 notes.flatMap { [CardID($0.rawValue * 10), CardID($0.rawValue * 10 + 1)] }
             }

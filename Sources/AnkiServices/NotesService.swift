@@ -15,6 +15,7 @@ import DependenciesMacros
 public struct NotesService: Sendable {
     public var getNote: @Sendable (_ noteId: NoteID) throws -> NoteRecord
     public var searchNoteIds: @Sendable (_ query: String) throws -> [NoteID]
+    public var searchNoteIdsSorted: @Sendable (_ query: String, _ order: NoteSortOrder) throws -> [NoteID]
     public var saveNote: @Sendable (_ note: NoteRecord) throws -> Void
     public var deleteNote: @Sendable (_ noteId: NoteID) throws -> Void
     public var newNote: @Sendable (_ notetypeId: NotetypeID) throws -> NewNoteTemplate
@@ -36,6 +37,9 @@ extension NotesService: DependencyKey {
             },
             searchNoteIds: { query in
                 try backend.invoke(.searchNoteIds(query: query))
+            },
+            searchNoteIdsSorted: { query, order in
+                try backend.invoke(.searchNoteIds(query: query, order: order))
             },
             saveNote: { note in
                 try backend.invoke(.updateNote(note))

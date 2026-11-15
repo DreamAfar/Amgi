@@ -21,27 +21,12 @@ extension NoteClient: DependencyKey {
             },
             search: { query, limit in
                 try await backendOffload {
-                    let ids = try notes.searchNoteIds(query)
-                    let bounded = Array(ids.prefix(limit ?? 5000))
-
-                    let firstPageSize = min(bounded.count, 50)
-                    var results: [NoteRecord] = []
-                    results.reserveCapacity(bounded.count)
-
-                    for nid in bounded.prefix(firstPageSize) {
-                        if let note = try? notes.getNote(nid) {
-                            results.append(note)
-                        }
-                    }
-
-                    for nid in bounded.dropFirst(firstPageSize) {
-                        results.append(NoteRecord(
-                            id: nid, guid: "", mid: NotetypeID(0), mod: 0,
-                            tags: "", flds: "", sfld: "Loading...", csum: 0
-                        ))
-                    }
-
-                    return results
+                    browsePage(try notes.searchNoteIds(query), limit: limit, notes: notes)
+                }
+            },
+            searchSorted: { query, order, limit in
+                try await backendOffload {
+                    browsePage(try notes.searchNoteIdsSorted(query, order), limit: limit, notes: notes)
                 }
             },
             searchAll: { query, limit in
@@ -106,4 +91,29 @@ extension NoteClient: DependencyKey {
             }
         )
     }()
+}
+
+/// The first 50 hits with full fields and the rest as lazy placeholders
+/// ("Loading…" sfld), so the list doesn't stall on large results.
+private func browsePage(_ ids: [NoteID], limit: Int?, notes: NotesService) -> [NoteRecord] {
+    let bounded = Array(ids.prefix(limit ?? 5000))
+
+    let firstPageSize = min(bounded.count, 50)
+    var results: [NoteRecord] = []
+    results.reserveCapacity(bounded.count)
+
+    for nid in bounded.prefix(firstPageSize) {
+        if let note = try? notes.getNote(nid) {
+            results.append(note)
+        }
+    }
+
+    for nid in bounded.dropFirst(firstPageSize) {
+        results.append(NoteRecord(
+            id: nid, guid: "", mid: NotetypeID(0), mod: 0,
+            tags: "", flds: "", sfld: "Loading...", csum: 0
+        ))
+    }
+
+    return results
 }

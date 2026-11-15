@@ -187,13 +187,20 @@ extension Request where Response == [NoteID] {
     /// Runs a note search and returns the matching note ids in match order.
     /// An empty query is rewritten to `deck:*` to match the existing
     /// service-level behaviour.
-    public static func searchNoteIds(query: String) -> Self {
+    ///
+    /// `order` sorts in the backend's query; nil keeps the backend's
+    /// default order.
+    public static func searchNoteIds(query: String, order: NoteSortOrder? = nil) -> Self {
         Self(
             serviceId: ServiceID.search,
             methodId: SearchMethod.searchNotes,
             encode: {
                 var proto = Anki_Search_SearchRequest()
                 proto.search = query.isEmpty ? "deck:*" : query
+                if let order {
+                    proto.order.builtin.column = order.column.rawValue
+                    proto.order.builtin.reverse = order.descending
+                }
                 return try proto.serializedData()
             },
             decode: { bytes in
