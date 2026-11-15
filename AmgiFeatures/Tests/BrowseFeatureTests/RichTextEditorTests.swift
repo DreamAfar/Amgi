@@ -3,6 +3,7 @@
 //  BrowseFeatureTests
 //
 
+import AnkiKit
 import CoreGraphics
 import Foundation
 import Testing
@@ -131,3 +132,52 @@ struct NoteImageGeometryTests {
     }
 }
 #endif
+
+@Suite("HTML source mode and image menu")
+@MainActor
+struct NoteFieldSourceTests {
+
+    private func freshDefaults() -> UserDefaults {
+        let name = "NoteFieldSourceTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
+    }
+
+    @Test func sourceModeIsRememberedPerNotetypeAndField() {
+        let defaults = freshDefaults()
+        let modes = NoteFieldSourceModes(defaults: defaults)
+        #expect(!modes.isOn(NotetypeID(1), field: "Front"))
+
+        modes.toggle(NotetypeID(1), field: "Front")
+        #expect(modes.isOn(NotetypeID(1), field: "Front"))
+        #expect(!modes.isOn(NotetypeID(1), field: "Back"))
+        #expect(!modes.isOn(NotetypeID(2), field: "Front"))
+
+        // Survives a new store, as on the next launch.
+        #expect(NoteFieldSourceModes(defaults: defaults).isOn(NotetypeID(1), field: "Front"))
+
+        modes.toggle(NotetypeID(1), field: "Front")
+        #expect(!NoteFieldSourceModes(defaults: defaults).isOn(NotetypeID(1), field: "Front"))
+    }
+
+    @Test func tappedImageReadsThePageMessage() {
+        let image = TappedImage(message: [
+            "name": "image", "index": 2, "src": "paste-1.jpg", "width": "50%",
+            "x": 10, "y": 20, "w": 100, "h": 40,
+        ])
+        #expect(image?.index == 2)
+        #expect(image?.src == "paste-1.jpg")
+        #expect(image?.width == "50%")
+        #expect(image?.anchor == CGPoint(x: 60, y: 20))
+        #expect(TappedImage(message: ["name": "image"]) == nil)
+    }
+
+    @Test func imageScriptsQuoteTheirValues() {
+        #expect(NoteImageMenu.script(index: 1, action: "width", value: "50%") == #"amgi.imageAction(1, "width", "50%")"#)
+        #expect(
+            NoteImageMenu.script(index: 0, action: "src", value: #"a "b".jpg"#)
+                == #"amgi.imageAction(0, "src", "a \"b\".jpg")"#
+        )
+    }
+}

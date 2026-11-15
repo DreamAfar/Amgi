@@ -160,6 +160,7 @@ struct AddNoteContent: View {
     #if canImport(UIKit)
     var recorder: VoiceRecorder? = nil
     #endif
+    @State private var sourceModes = NoteFieldSourceModes()
 
     var body: some View {
         Form {
@@ -191,6 +192,7 @@ struct AddNoteContent: View {
                                 .amgiFont(.caption)
                                 .foregroundStyle(palette.textSecondary)
                             Spacer()
+                            sourceToggle(field: name)
                             #if canImport(UIKit)
                             if let recorder {
                                 NoteVoiceRecordButton(recorder: recorder, fieldIndex: index) { url in
@@ -200,7 +202,11 @@ struct AddNoteContent: View {
                             }
                             #endif
                         }
-                        RichNoteFieldEditor(htmlText: $model[fieldAt: index])
+                        RichNoteFieldEditor(
+                            htmlText: $model[fieldAt: index],
+                            isSourceMode: sourceModes.isOn(model.selectedNotetypeId, field: name),
+                            onToggleSource: { toggleSource(field: name) }
+                        )
                         #if canImport(UIKit)
                         if let recorder, model.fieldAudio.indices.contains(index) {
                             NoteFieldAudioBar(
@@ -234,6 +240,28 @@ struct AddNoteContent: View {
             }
         }
         .disabled(model.isSaving || model.isLoadingFields)
+    }
+}
+
+private extension AddNoteContent {
+    /// Switches a field between the rich editor and its HTML source. The
+    /// choice is remembered on this device per note type and field.
+    func sourceToggle(field: String) -> some View {
+        let isOn = sourceModes.isOn(model.selectedNotetypeId, field: field)
+        return Button {
+            toggleSource(field: field)
+        } label: {
+            Image(systemName: "chevron.left.forwardslash.chevron.right")
+                .imageScale(.small)
+                .foregroundStyle(isOn ? palette.accent : palette.textSecondary)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(Text("HTML Source", bundle: .module))
+        .accessibilityValue(isOn ? Text("On", bundle: .module) : Text("Off", bundle: .module))
+    }
+
+    func toggleSource(field: String) {
+        sourceModes.toggle(model.selectedNotetypeId, field: field)
     }
 }
 
