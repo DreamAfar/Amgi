@@ -32,6 +32,13 @@ extension NotetypesClient: DependencyKey {
             remove: { id in
                 try await backend.invoke(.removeNotetype(id: id))
                 logger.info("Notetype removed: id=\(id.rawValue)")
+            },
+            changeNotetypeInfo: { old, new in
+                try await backend.invoke(.changeNotetypeInfo(from: old, to: new))
+            },
+            changeNotetype: { input in
+                try await backend.invoke(.changeNotetype(input))
+                logger.info("Changed notetype of \(input.noteIDs.count) notes")
             }
         )
     }()

@@ -33,4 +33,5 @@ enum BrowseDestination {
     case moveToDeck
     case setDueDate
     case resetToNew
+    case changeNotetype
 }

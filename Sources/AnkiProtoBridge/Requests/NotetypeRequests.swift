@@ -72,3 +72,67 @@ extension Request where Response == Void {
         )
     }
 }
+
+// MARK: - Change notetype
+
+extension Request where Response == ChangeNotetypeInfo {
+    /// Field and template names on both sides, plus the backend's default
+    /// mapping (matching names first, then position).
+    public static func changeNotetypeInfo(from old: NotetypeID, to new: NotetypeID) -> Self {
+        Self(
+            serviceId: ServiceID.notetypes,
+            methodId: NotetypesMethod.getChangeNotetypeInfo,
+            encode: {
+                var req = Anki_Notetypes_GetChangeNotetypeInfoRequest()
+                req.oldNotetypeID = old.rawValue
+                req.newNotetypeID = new.rawValue
+                return try req.serializedData()
+            },
+            decode: { bytes in
+                let info = try Anki_Notetypes_ChangeNotetypeInfo(serializedBytes: bytes)
+                return ChangeNotetypeInfo(
+                    oldNotetypeName: info.oldNotetypeName,
+                    oldFieldNames: info.oldFieldNames,
+                    oldTemplateNames: info.oldTemplateNames,
+                    newFieldNames: info.newFieldNames,
+                    newTemplateNames: info.newTemplateNames,
+                    input: ChangeNotetypeInput(
+                        noteIDs: info.input.noteIds.map(NoteID.init(rawValue:)),
+                        newFields: info.input.newFields.map { $0 < 0 ? nil : Int($0) },
+                        newTemplates: info.input.newTemplates.map { $0 < 0 ? nil : Int($0) },
+                        oldNotetypeID: NotetypeID(rawValue: info.input.oldNotetypeID),
+                        newNotetypeID: NotetypeID(rawValue: info.input.newNotetypeID),
+                        currentSchema: info.input.currentSchema,
+                        oldNotetypeName: info.input.oldNotetypeName,
+                        isCloze: info.input.isCloze
+                    )
+                )
+            }
+        )
+    }
+}
+
+extension Request where Response == Void {
+    /// Moves the notes to the new notetype with the given field and card
+    /// mapping. Changes the schema, so the next sync is a full one.
+    public static func changeNotetype(_ input: ChangeNotetypeInput) -> Self {
+        Self(
+            serviceId: ServiceID.notetypes,
+            methodId: NotetypesMethod.changeNotetype,
+            encode: {
+                var req = Anki_Notetypes_ChangeNotetypeRequest()
+                req.noteIds = input.noteIDs.map(\.rawValue)
+                // -1 stands for "nothing": repeated fields can't hold nulls.
+                req.newFields = input.newFields.map { Int32($0 ?? -1) }
+                req.newTemplates = input.newTemplates.map { Int32($0 ?? -1) }
+                req.oldNotetypeID = input.oldNotetypeID.rawValue
+                req.newNotetypeID = input.newNotetypeID.rawValue
+                req.currentSchema = input.currentSchema
+                req.oldNotetypeName = input.oldNotetypeName
+                req.isCloze = input.isCloze
+                return try req.serializedData()
+            },
+            decode: { _ in () }
+        )
+    }
+}

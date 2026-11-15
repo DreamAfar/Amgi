@@ -92,6 +92,8 @@ enum NotetypesMethod {
     static let getNotetype: UInt32 = 6
     static let getNotetypeNames: UInt32 = 8
     static let removeNotetype: UInt32 = 11
+    static let getChangeNotetypeInfo: UInt32 = 14
+    static let changeNotetype: UInt32 = 15
 }
 
 enum StatsMethod {
