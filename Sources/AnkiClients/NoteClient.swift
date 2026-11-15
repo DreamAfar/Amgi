@@ -22,6 +22,10 @@ public struct NoteClient: Sendable {
     /// placeholders. Slower for large results but required when the
     /// caller reads `flds` immediately.
     public var searchAll: @Sendable (_ query: String, _ limit: Int?) async throws -> [NoteRecord]
+    /// The distinct tags carried by the notes matching `query`. Reads the
+    /// notes in chunks and stops between chunks when the calling task is
+    /// cancelled, so a superseded request doesn't keep the backend busy.
+    public var tagsOfNotes: @Sendable (_ query: String) async throws -> [String]
     public var save: @Sendable (_ note: NoteRecord) async throws -> Void
     public var delete: @Sendable (_ noteId: NoteID) async throws -> Void
     public var findDuplicates: @Sendable () async throws -> [DuplicateGroup]
