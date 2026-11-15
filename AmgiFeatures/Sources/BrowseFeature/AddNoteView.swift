@@ -103,6 +103,7 @@ extension AddNoteView {
     private var content: some View {
         #if canImport(UIKit)
         AddNoteContent(model: model, recorder: recorder)
+            .noteImageInsertion()
             .modifier(VoiceRecorderAlerts(recorder: recorder))
             .onAppear {
                 recorder.onEndedEarly = { model.attachAudio($0.url, toField: $0.fieldIndex) }

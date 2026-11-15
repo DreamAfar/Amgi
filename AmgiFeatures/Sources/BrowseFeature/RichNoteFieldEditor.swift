@@ -5,408 +5,305 @@
 //  Created by Vladimir Gusev on 28.04.2026.
 //
 
+import Foundation
 import SwiftUI
+import Theme
 
 #if canImport(UIKit)
 import UIKit
+import WebKit
 
-/// A note field editor that defaults to plain-text editing and can preserve raw
-/// HTML source for fields that contain embedded media.
+/// A note field editor that edits the field's HTML as rich text.
 ///
-/// Anki stores field values as HTML fragments. This editor strips HTML tags for
-/// display/editing and writes back plain text on change. This avoids the crash-
-/// prone `NSAttributedString` HTML parsing path.
-struct RichNoteFieldEditor: UIViewRepresentable {
+/// Anki stores field values as HTML fragments. The field is edited in a
+/// small web page (`RichFieldPage`) whose editable element holds that HTML
+/// directly, so formatting, images and markup from other Anki clients show
+/// as they will on the card and survive an edit untouched — the previous
+/// plain-text editor stripped every tag from a field as soon as it was
+/// focused. A field is only written back when it is actually edited.
+///
+/// The view sizes itself to its content and has no background of its own,
+/// so it sits in a form row the way the plain text view did.
+struct RichNoteFieldEditor: View {
     @Binding var htmlText: String
-    var preservesSourceHTML = false
 
-    static func normalizedStoredHTML(_ text: String) -> String {
-        Coordinator.normalizedStoredHTML(from: text)
+    @Environment(\.palette) private var palette
+    @Environment(NoteImageInsertionModel.self) private var imageModel: NoteImageInsertionModel?
+    @State private var contentHeight: CGFloat = RichNoteFieldEditor.minHeight
+
+    fileprivate static let minHeight: CGFloat = 32
+    /// Past this the field scrolls inside itself rather than growing, so a
+    /// long field doesn't push the others off the screen.
+    fileprivate static let maxHeight: CGFloat = 280
+
+    var body: some View {
+        RichFieldWebView(
+            htmlText: $htmlText,
+            contentHeight: $contentHeight,
+            textColor: UIColor(palette.textPrimary),
+            caretColor: UIColor(palette.accent),
+            imageModel: imageModel
+        )
+        .frame(height: min(max(contentHeight, Self.minHeight), Self.maxHeight))
     }
+}
 
-    private let doneButtonTitle = String(localized: "Done", bundle: .module)
-    private let boldTitle = String(localized: "Bold", bundle: .module)
-    private let italicTitle = String(localized: "Italic", bundle: .module)
-    private let underlineTitle = String(localized: "Underline", bundle: .module)
-    private let strikeTitle = String(localized: "Strikethrough", bundle: .module)
-    private let clearFormatTitle = String(localized: "Clear formatting", bundle: .module)
+private struct RichFieldWebView: UIViewRepresentable {
+    @Binding var htmlText: String
+    @Binding var contentHeight: CGFloat
+    let textColor: UIColor
+    let caretColor: UIColor
+    let imageModel: NoteImageInsertionModel?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(htmlText: $htmlText)
+        Coordinator(htmlText: $htmlText, contentHeight: $contentHeight, caretColor: caretColor)
     }
 
-    func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView()
-        textView.delegate = context.coordinator
-        textView.isEditable = true
-        textView.isSelectable = true
-        textView.isScrollEnabled = true
-        textView.backgroundColor = .clear
-        textView.layer.cornerRadius = 0
-        textView.textContainer.lineFragmentPadding = 0
-        textView.textContainerInset = UIEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
-        textView.font = UIFont.preferredFont(forTextStyle: .body)
-        textView.textColor = .label
-        context.coordinator.attach(textView: textView)
-        textView.inputAccessoryView = makeInputToolbar(for: textView, coordinator: context.coordinator)
+    func makeUIView(context: Context) -> WKWebView {
+        let coordinator = context.coordinator
+        let configuration = WKWebViewConfiguration()
+        configuration.setURLSchemeHandler(coordinator.mediaScheme, forURLScheme: NoteMediaScheme.scheme)
+        configuration.userContentController.add(coordinator, name: RichFieldPage.messageHandler)
 
-        textView.text = displayText(for: htmlText)
-        context.coordinator.lastRenderedValue = htmlText
-        context.coordinator.lastPlainText = textView.text ?? ""
-        return textView
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
+        webView.scrollView.bounces = false
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        webView.allowsLinkPreview = false
+
+        coordinator.attach(webView)
+        coordinator.imageModel = imageModel
+        coordinator.show(htmlText)
+        coordinator.setColors(text: textColor, accent: caretColor, in: webView.traitCollection)
+        webView.loadHTMLString(
+            RichFieldPage.html(
+                textColor: Coordinator.css(textColor, in: webView.traitCollection),
+                caretColor: Coordinator.css(caretColor, in: webView.traitCollection)
+            ),
+            baseURL: NoteMediaScheme.baseURL
+        )
+        return webView
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
-        guard let width = proposal.width, width > 0 else { return nil }
-        let fit = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-        let height = min(max(32, fit.height), 160)
-        return CGSize(width: width, height: height)
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.htmlText = $htmlText
+        coordinator.contentHeight = $contentHeight
+        coordinator.imageModel = imageModel
+        coordinator.show(htmlText)
+        coordinator.setColors(text: textColor, accent: caretColor, in: webView.traitCollection)
     }
 
-    func updateUIView(_ uiView: UITextView, context: Context) {
-        guard !context.coordinator.isEditing else { return }
-        guard htmlText != context.coordinator.lastRenderedValue else { return }
-
-        let displayedText = displayText(for: htmlText)
-        if uiView.text != displayedText {
-            let selected = uiView.selectedRange
-            uiView.text = displayedText
-            let maxLoc = max(0, min(selected.location, displayedText.utf16.count))
-            uiView.selectedRange = NSRange(location: maxLoc, length: 0)
-        }
-        context.coordinator.lastRenderedValue = htmlText
-        context.coordinator.lastPlainText = displayedText
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: RichFieldPage.messageHandler)
     }
 
     // MARK: - Coordinator
 
-    final class Coordinator: NSObject, UITextViewDelegate {
-        @Binding var htmlText: String
-        weak var textView: UITextView?
-        var lastRenderedValue: String = ""
-        var lastPlainText: String = ""
-        var isEditing = false
+    @MainActor
+    final class Coordinator: NSObject, WKScriptMessageHandler {
+        var htmlText: Binding<String>
+        var contentHeight: Binding<CGFloat>
+        var imageModel: NoteImageInsertionModel?
+        let mediaScheme = NoteMediaScheme()
 
-        init(htmlText: Binding<String>) {
-            self._htmlText = htmlText
+        private weak var webView: WKWebView?
+        private let caretColor: UIColor
+        private var toolbar: RichTextToolbar?
+        private var isReady = false
+        /// The HTML the page holds, as last sent to it or reported by it.
+        /// Comparing against this is what keeps the two directions from
+        /// echoing: a change the page reported isn't pushed back at it
+        /// (which would reset the caret), and a value the app set isn't
+        /// reported as an edit.
+        private var shownHTML = ""
+        private var shownColors = ""
+
+        init(htmlText: Binding<String>, contentHeight: Binding<CGFloat>, caretColor: UIColor) {
+            self.htmlText = htmlText
+            self.contentHeight = contentHeight
+            self.caretColor = caretColor
         }
 
-        func attach(textView: UITextView) {
-            self.textView = textView
-        }
-
-        func textViewDidBeginEditing(_ textView: UITextView) {
-            isEditing = true
-        }
-
-        func textViewDidEndEditing(_ textView: UITextView) {
-            isEditing = false
-            commit(textView.text ?? "")
-        }
-
-        func textViewDidChange(_ textView: UITextView) {
-            commit(textView.text ?? "")
-        }
-
-        func insert(_ string: String) {
-            guard let textView, let range = textView.selectedTextRange else { return }
-            textView.replace(range, withText: string)
-            commit(textView.text ?? "")
-        }
-
-        func wrapSelection(prefix: String, suffix: String) {
-            guard let textView else { return }
-            let selected = textView.selectedRange
-            let original = textView.text ?? ""
-            let source = original as NSString
-            let selectedText = source.substring(with: selected)
-            let replacement = "\(prefix)\(selectedText)\(suffix)"
-            let updated = source.replacingCharacters(in: selected, with: replacement)
-            textView.text = updated
-
-            if selected.length == 0 {
-                let cursor = selected.location + (prefix as NSString).length
-                textView.selectedRange = NSRange(location: cursor, length: 0)
-            } else {
-                let rangeStart = selected.location + (prefix as NSString).length
-                textView.selectedRange = NSRange(location: rangeStart, length: selected.length)
+        func attach(_ webView: WKWebView) {
+            self.webView = webView
+            // Built on first use: a note can have dozens of fields, and
+            // only the one being edited needs its toolbar.
+            WebViewInputAccessory.install(on: webView) { [weak self] in
+                self?.makeToolbarIfNeeded()
             }
-
-            commit(updated)
         }
 
-        func clearFormattingInSelection() {
-            guard let textView else { return }
-            let selected = textView.selectedRange
-            let original = textView.text ?? ""
-            let source = original as NSString
+        // MARK: App → page
 
-            let targetRange: NSRange
-            if selected.length > 0 {
-                targetRange = selected
-            } else {
-                targetRange = NSRange(location: 0, length: source.length)
+        func show(_ html: String) {
+            guard html != shownHTML else { return }
+            shownHTML = html
+            if isReady { run("amgi.set(\(RichTextCommand.literal(html)))") }
+        }
+
+        func setColors(text: UIColor, accent: UIColor, in traits: UITraitCollection) {
+            let textCSS = Self.css(text, in: traits)
+            let accentCSS = Self.css(accent, in: traits)
+            let key = textCSS + accentCSS
+            guard key != shownColors else { return }
+            shownColors = key
+            if isReady {
+                run("amgi.setColors(\(RichTextCommand.literal(textCSS)), \(RichTextCommand.literal(accentCSS)))")
             }
-
-            let target = source.substring(with: targetRange)
-            let cleaned = Self.removeInlineHTMLFormatting(from: target)
-            let updated = source.replacingCharacters(in: targetRange, with: cleaned)
-            textView.text = updated
-
-            let cursor = targetRange.location + (cleaned as NSString).length
-            textView.selectedRange = NSRange(location: cursor, length: 0)
-            commit(updated)
         }
 
-        // MARK: - HTML strip
+        func perform(_ command: RichTextCommand) {
+            run(command.script)
+        }
 
-        /// Strips HTML tags and decodes common entities to produce editable plain text.
-        static func plainText(from html: String) -> String {
-            guard !html.isEmpty else { return "" }
-            guard isLikelyHTML(html) else { return html }
+        private func run(_ script: String) {
+            webView?.evaluateJavaScript(script) { _, _ in }
+        }
 
-            var result = ""
-            result.reserveCapacity(html.count)
-            var inTag = false
-            for ch in html.unicodeScalars {
-                switch ch {
-                case "<": inTag = true
-                case ">": inTag = false
-                default:
-                    if !inTag { result.unicodeScalars.append(ch) }
+        // MARK: Page → app
+
+        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard let body = message.body as? [String: Any], let name = body["name"] as? String else { return }
+            switch name {
+            case "ready":
+                isReady = true
+                if !shownHTML.isEmpty {
+                    run("amgi.set(\(RichTextCommand.literal(shownHTML)))")
+                }
+            case "change":
+                guard let html = body["html"] as? String else { return }
+                let stored = NoteFieldHTML.normalizedForStorage(html)
+                shownHTML = stored
+                if htmlText.wrappedValue != stored { htmlText.wrappedValue = stored }
+            case "height":
+                guard let height = (body["height"] as? NSNumber).map({ CGFloat(truncating: $0) }), height > 0 else { return }
+                if abs(contentHeight.wrappedValue - height) > 0.5 { contentHeight.wrappedValue = height }
+                webView?.scrollView.isScrollEnabled = height > RichNoteFieldEditor.maxHeight
+            case "state":
+                toolbar?.apply(RichTextFormatting(message: body))
+            case "focus":
+                revealInEnclosingScrollView()
+            default:
+                break
+            }
+        }
+
+        // MARK: Toolbar
+
+        private func makeToolbarIfNeeded() -> UIView {
+            if let toolbar { return toolbar }
+            let toolbar = RichTextToolbar(accent: caretColor, showsImages: imageModel != nil)
+            toolbar.onCommand = { [weak self] in self?.perform($0) }
+            toolbar.onDismiss = { [weak self] in
+                self?.run("amgi.blur()")
+                self?.webView?.endEditing(true)
+            }
+            toolbar.onImage = { [weak self] source in
+                guard let self, let imageModel = self.imageModel else { return }
+                self.webView?.endEditing(true)
+                // The page remembers where the caret was, so the image
+                // lands there once the picker and the adjust sheet are done.
+                imageModel.request(source) { [weak self] filename in
+                    self?.perform(.insertImage(filename: filename))
                 }
             }
-
-            result = result
-                .replacingOccurrences(of: "&amp;",  with: "&")
-                .replacingOccurrences(of: "&lt;",   with: "<")
-                .replacingOccurrences(of: "&gt;",   with: ">")
-                .replacingOccurrences(of: "&quot;", with: "\"")
-                .replacingOccurrences(of: "&#39;",  with: "'")
-                .replacingOccurrences(of: "&nbsp;", with: " ")
-
-            return result.trimmingCharacters(in: .whitespacesAndNewlines)
+            self.toolbar = toolbar
+            return toolbar
         }
 
-        static func normalizedStoredHTML(from text: String) -> String {
-            guard text.localizedCaseInsensitiveContains("anki-mathjax") else { return text }
-            let pattern = #"<anki-mathjax(?:[^>]*?block=\"(.*?)\")?[^>]*?>(.*?)</anki-mathjax>"#
-            guard let regex = try? NSRegularExpression(
-                pattern: pattern,
-                options: [.caseInsensitive, .dotMatchesLineSeparators]
-            ) else {
-                return text
+        /// WebKit scrolls its own content to the caret but not the form
+        /// around it, so a field low on the screen would stay under the
+        /// keyboard. Once the keyboard is up, bring the field into view.
+        private func revealInEnclosingScrollView() {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(350))
+                guard let webView = self?.webView else { return }
+                var ancestor = webView.superview
+                while let view = ancestor, !(view is UIScrollView) { ancestor = view.superview }
+                guard let scrollView = ancestor as? UIScrollView else { return }
+                let rect = webView.convert(webView.bounds, to: scrollView).insetBy(dx: 0, dy: -12)
+                scrollView.scrollRectToVisible(rect, animated: true)
             }
-
-            let source = text as NSString
-            var output = ""
-            output.reserveCapacity(source.length)
-            var currentLocation = 0
-
-            for match in regex.matches(in: text, range: NSRange(location: 0, length: source.length)) {
-                let fullRange = match.range(at: 0)
-                output += source.substring(with: NSRange(location: currentLocation, length: fullRange.location - currentLocation))
-
-                let blockValue: String? = {
-                    let range = match.range(at: 1)
-                    guard range.location != NSNotFound else { return nil }
-                    return source.substring(with: range)
-                }()
-
-                let innerText: String = {
-                    let range = match.range(at: 2)
-                    guard range.location != NSNotFound else { return "" }
-                    return source.substring(with: range)
-                }()
-
-                let trimmed = trimMathJaxBreaks(in: innerText)
-                if let blockValue, !blockValue.isEmpty, blockValue.caseInsensitiveCompare("false") != .orderedSame {
-                    output += #"\["# + trimmed + #"\]"#
-                } else {
-                    output += #"\("# + trimmed + #"\)"#
-                }
-
-                currentLocation = fullRange.location + fullRange.length
-            }
-
-            output += source.substring(from: currentLocation)
-            return output
         }
 
+        /// A color as CSS `rgba()`, resolved for the given appearance.
+        static func css(_ color: UIColor, in traits: UITraitCollection) -> String {
+            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+            color.resolvedColor(with: traits).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+            func channel(_ value: CGFloat) -> Int { Int((min(max(value, 0), 1) * 255).rounded()) }
+            return "rgba(\(channel(red)), \(channel(green)), \(channel(blue)), \(Double(alpha)))"
+        }
     }
 }
 
-private extension RichNoteFieldEditor {
-    func displayText(for html: String) -> String {
-        let normalized = Coordinator.normalizedStoredHTML(from: html)
-        return preservesSourceHTML ? normalized : Coordinator.plainText(from: normalized)
-    }
+#else
 
-    // MARK: - Toolbar
+struct RichNoteFieldEditor: View {
+    @Binding var htmlText: String
 
-    func makeInputToolbar(for textView: UITextView, coordinator: Coordinator) -> UIView {
-        let container = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 44))
-        container.backgroundColor = .secondarySystemBackground
-
-        let divider = UIView()
-        divider.translatesAutoresizingMaskIntoConstraints = false
-        divider.backgroundColor = .separator
-        container.addSubview(divider)
-
-        let scrollView = UIScrollView()
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.showsHorizontalScrollIndicator = false
-        container.addSubview(scrollView)
-
-        let stackView = UIStackView()
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.axis = .horizontal
-        stackView.alignment = .center
-        stackView.spacing = 6
-        scrollView.addSubview(stackView)
-
-        stackView.addArrangedSubview(
-            makeSymbolButton(systemName: "arrow.uturn.backward", title: String(localized: "Undo", bundle: .module)) {
-                textView.undoManager?.undo()
-            }
-        )
-        stackView.addArrangedSubview(
-            makeSymbolButton(systemName: "arrow.uturn.forward", title: String(localized: "Redo", bundle: .module)) {
-                textView.undoManager?.redo()
-            }
-        )
-
-        if preservesSourceHTML {
-            stackView.addArrangedSubview(
-                makeFormatButton(systemName: "bold", title: boldTitle) {
-                    coordinator.wrapSelection(prefix: "<b>", suffix: "</b>")
-                }
-            )
-            stackView.addArrangedSubview(
-                makeFormatButton(systemName: "italic", title: italicTitle) {
-                    coordinator.wrapSelection(prefix: "<i>", suffix: "</i>")
-                }
-            )
-            stackView.addArrangedSubview(
-                makeFormatButton(systemName: "underline", title: underlineTitle) {
-                    coordinator.wrapSelection(prefix: "<u>", suffix: "</u>")
-                }
-            )
-            stackView.addArrangedSubview(
-                makeFormatButton(systemName: "strikethrough", title: strikeTitle) {
-                    coordinator.wrapSelection(prefix: "<s>", suffix: "</s>")
-                }
-            )
-            stackView.addArrangedSubview(
-                makeFormatButton(systemName: "textformat", title: clearFormatTitle) {
-                    coordinator.clearFormattingInSelection()
-                }
-            )
-        }
-
-        stackView.addArrangedSubview(
-            makeTextButton(title: doneButtonTitle) {
-                textView.resignFirstResponder()
-            }
-        )
-
-        NSLayoutConstraint.activate([
-            divider.topAnchor.constraint(equalTo: container.topAnchor),
-            divider.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            divider.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            divider.heightAnchor.constraint(equalToConstant: 0.5),
-
-            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: divider.bottomAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-
-            stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 10),
-            stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -10),
-            stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 6),
-            stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -6),
-            stackView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -12),
-        ])
-
-        return container
-    }
-
-    func makeSymbolButton(systemName: String, title: String, action: @escaping () -> Void) -> UIButton {
-        let button = UIButton(type: .system)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.setImage(UIImage(systemName: systemName), for: .normal)
-        button.accessibilityLabel = title
-        button.tintColor = .label
-        button.backgroundColor = .tertiarySystemFill
-        button.layer.cornerRadius = 8
-        var configuration = UIButton.Configuration.plain()
-        configuration.buttonSize = .small
-        configuration.baseBackgroundColor = .tertiarySystemFill
-        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
-        button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
-        button.addAction(UIAction { _ in action() }, for: .touchUpInside)
-        return button
-    }
-
-    func makeFormatButton(systemName: String, title: String, action: @escaping () -> Void) -> UIButton {
-        let button = UIButton(type: .system)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.setImage(UIImage(systemName: systemName), for: .normal)
-        button.tintColor = .systemBlue
-        button.backgroundColor = .tertiarySystemFill
-        button.layer.cornerRadius = 8
-        button.accessibilityLabel = title
-        var configuration = UIButton.Configuration.plain()
-        configuration.buttonSize = .small
-        configuration.baseBackgroundColor = .tertiarySystemFill
-        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 6, bottom: 4, trailing: 6)
-        button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
-        button.addAction(UIAction { _ in action() }, for: .touchUpInside)
-        return button
-    }
-
-    func makeTextButton(title: String, action: @escaping () -> Void) -> UIButton {
-        let button = UIButton(type: .system)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.setTitle(title, for: .normal)
-        button.setTitleColor(.label, for: .normal)
-        button.backgroundColor = .tertiarySystemFill
-        button.layer.cornerRadius = 8
-        button.titleLabel?.font = .systemFont(ofSize: 11, weight: .medium)
-        button.titleLabel?.adjustsFontSizeToFitWidth = true
-        button.titleLabel?.minimumScaleFactor = 0.8
-        button.titleLabel?.numberOfLines = 1
-        var configuration = UIButton.Configuration.plain()
-        configuration.buttonSize = .small
-        configuration.baseBackgroundColor = .tertiarySystemFill
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
-        button.configuration = configuration
-        button.heightAnchor.constraint(equalToConstant: 28).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
-        button.addAction(UIAction { _ in action() }, for: .touchUpInside)
-        return button
+    var body: some View {
+        TextEditor(text: $htmlText)
+            .scrollContentBackground(.hidden)
     }
 }
 
-private extension RichNoteFieldEditor.Coordinator {
-    func commit(_ plain: String) {
-        let normalized = Self.normalizedStoredHTML(from: plain)
-        lastPlainText = plain
-        lastRenderedValue = normalized
-        htmlText = normalized
+#endif
+
+/// Storage-form fixes for field HTML coming out of the editor.
+enum NoteFieldHTML {
+    /// Rewrites `<anki-mathjax>` elements — the desktop editor's in-editor
+    /// form of an equation — to the `\(…\)` / `\[…\]` delimiters fields
+    /// store.
+    static func normalizedForStorage(_ text: String) -> String {
+        guard text.localizedCaseInsensitiveContains("anki-mathjax") else { return text }
+        let pattern = #"<anki-mathjax(?:[^>]*?block=\"(.*?)\")?[^>]*?>(.*?)</anki-mathjax>"#
+        guard let regex = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.caseInsensitive, .dotMatchesLineSeparators]
+        ) else {
+            return text
+        }
+
+        let source = text as NSString
+        var output = ""
+        output.reserveCapacity(source.length)
+        var currentLocation = 0
+
+        for match in regex.matches(in: text, range: NSRange(location: 0, length: source.length)) {
+            let fullRange = match.range(at: 0)
+            output += source.substring(with: NSRange(location: currentLocation, length: fullRange.location - currentLocation))
+
+            let blockValue: String? = {
+                let range = match.range(at: 1)
+                guard range.location != NSNotFound else { return nil }
+                return source.substring(with: range)
+            }()
+
+            let innerText: String = {
+                let range = match.range(at: 2)
+                guard range.location != NSNotFound else { return "" }
+                return source.substring(with: range)
+            }()
+
+            let trimmed = trimMathJaxBreaks(in: innerText)
+            if let blockValue, !blockValue.isEmpty, blockValue.caseInsensitiveCompare("false") != .orderedSame {
+                output += #"\["# + trimmed + #"\]"#
+            } else {
+                output += #"\("# + trimmed + #"\)"#
+            }
+
+            currentLocation = fullRange.location + fullRange.length
+        }
+
+        output += source.substring(from: currentLocation)
+        return output
     }
 
-    static func isLikelyHTML(_ text: String) -> Bool {
-        text.contains("<") && text.contains(">")
-    }
-
-    static func trimMathJaxBreaks(in text: String) -> String {
+    private static func trimMathJaxBreaks(in text: String) -> String {
         text
             .replacingOccurrences(
                 of: #"<br[ ]*/?>"#,
@@ -416,35 +313,4 @@ private extension RichNoteFieldEditor.Coordinator {
             .replacingOccurrences(of: #"^\n*"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"\n*$"#, with: "", options: .regularExpression)
     }
-
-    static func removeInlineHTMLFormatting(from text: String) -> String {
-        var output = text
-        let patterns = [
-            "(?i)</?(b|strong|i|em|u|s|strike|del)>",
-            "(?i)</?font[^>]*>",
-            "(?i)</?span[^>]*>"
-        ]
-        for pattern in patterns {
-            output = output.replacingOccurrences(
-                of: pattern,
-                with: "",
-                options: .regularExpression
-            )
-        }
-        return output
-    }
 }
-
-#else
-
-struct RichNoteFieldEditor: View {
-    @Binding var htmlText: String
-    var preservesSourceHTML = false
-
-    var body: some View {
-        TextEditor(text: $htmlText)
-            .scrollContentBackground(.hidden)
-    }
-}
-
-#endif
