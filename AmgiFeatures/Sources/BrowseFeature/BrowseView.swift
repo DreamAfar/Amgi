@@ -63,6 +63,7 @@ package struct BrowseView: View {
             // restart one search — SwiftUI cancels the previous run, which is
             // what debounces the typing and keeps a stale result from landing.
             .task(id: model.searchQuery) { await model.performSearch() }
+            .task(id: model.activeDeck?.id) { await model.loadDeckTags() }
             .sensoryFeedback(trigger: selectionState.isSelectMode) { _, entered in
                 entered ? .selection : nil
             }
@@ -690,7 +691,7 @@ struct BrowseContent: View {
             if !model.allDecks.isEmpty {
                 deckFilterBar
             }
-            if !model.allTags.isEmpty {
+            if !model.visibleTags.isEmpty {
                 tagChipRow
             }
         }
@@ -703,7 +704,7 @@ struct BrowseContent: View {
                 chipButton(label: String(localized: "All", bundle: .module), isSelected: model.activeTag == nil) {
                     model.activeTag = nil
                 }
-                ForEach(model.allTags, id: \.self) { tag in
+                ForEach(model.visibleTags, id: \.self) { tag in
                     chipButton(label: tag, isSelected: model.activeTag == tag) {
                         model.activeTag = (model.activeTag == tag) ? nil : tag
                     }
@@ -728,8 +729,7 @@ struct BrowseContent: View {
                             label: deck.name,
                             isSelected: model.parentDeck?.id == deck.id && model.activeDeck?.id == deck.id
                         ) {
-                            model.parentDeck = deck
-                            model.activeDeck = deck
+                            model.toggleTopLevelDeck(deck)
                         }
                     }
                 }
@@ -753,7 +753,7 @@ struct BrowseContent: View {
                                 label: shortName(child.name),
                                 isSelected: model.activeDeck?.id == child.id
                             ) {
-                                model.activeDeck = child
+                                model.toggleChildDeck(child)
                             }
                         }
                     }

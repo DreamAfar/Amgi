@@ -62,6 +62,31 @@ extension NoteClient: DependencyKey {
                     return results
                 }
             },
+            tagsOfNotes: { query in
+                // Untagged notes can't contribute, so leave them out of the
+                // read entirely.
+                let ids = try await backendOffload {
+                    try notes.searchNoteIds("(\(query)) -tag:none")
+                }
+                var seen = Set<String>()
+                var result: [String] = []
+                var start = 0
+                while start < ids.count {
+                    try Task.checkCancellation()
+                    let chunk = Array(ids[start..<min(start + 500, ids.count)])
+                    start += chunk.count
+                    let tagFields = try await backendOffload {
+                        chunk.compactMap { (try? notes.getNote($0))?.tags }
+                    }
+                    for field in tagFields {
+                        for tag in field.split(whereSeparator: \.isWhitespace)
+                        where seen.insert(tag.lowercased()).inserted {
+                            result.append(String(tag))
+                        }
+                    }
+                }
+                return result
+            },
             save: { note in
                 try await backendOffload { try notes.saveNote(note) }
             },

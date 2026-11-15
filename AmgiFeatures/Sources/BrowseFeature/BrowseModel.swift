@@ -47,6 +47,10 @@ final class BrowseModel {
     var hasMorePages = true
     var allTags: [String] = []
     var activeTag: String?
+    /// The tags (lowercased, with every `::` parent level) on the active
+    /// deck's notes, or nil when no deck is active or they aren't loaded
+    /// yet — the tag row then shows every tag.
+    private(set) var deckTagKeys: Set<String>?
     var sortOrder: BrowseSortOrder = .dateDesc {
         didSet { resort() }
     }
@@ -106,6 +110,60 @@ final class BrowseModel {
             let remainder = deck.name.dropFirst(prefix.count)
             return !remainder.contains("::")
         }
+    }
+
+    /// The tags the filter row offers: every tag, or with a deck active
+    /// only the ones its notes carry. The active tag always stays so it
+    /// can be turned off again.
+    var visibleTags: [String] {
+        guard let keys = deckTagKeys else { return allTags }
+        return allTags.filter { keys.contains($0.lowercased()) || $0 == activeTag }
+    }
+
+    /// Top-level deck chip: selects the deck, or clears the deck filter
+    /// when it's already the selected one.
+    func toggleTopLevelDeck(_ deck: DeckInfo) {
+        if parentDeck?.id == deck.id, activeDeck?.id == deck.id {
+            parentDeck = nil
+            activeDeck = nil
+        } else {
+            parentDeck = deck
+            activeDeck = deck
+        }
+    }
+
+    /// Subdeck chip: narrows to the subdeck, or widens back to its parent
+    /// when it's already the selected one.
+    func toggleChildDeck(_ deck: DeckInfo) {
+        activeDeck = activeDeck?.id == deck.id ? parentDeck : deck
+    }
+
+    /// Recomputes which tags the active deck's notes carry. Driven from
+    /// `.task(id:)` on the active deck, so switching decks cancels the
+    /// read in flight.
+    func loadDeckTags() async {
+        guard let deck = activeDeck else {
+            deckTagKeys = nil
+            return
+        }
+        // Show every tag rather than the previous deck's while loading.
+        deckTagKeys = nil
+        guard let tags = try? await noteClient.tagsOfNotes(DeckSearch.term(deck.name)),
+              !Task.isCancelled, activeDeck?.id == deck.id else { return }
+        deckTagKeys = Self.tagKeys(for: tags)
+    }
+
+    /// Lowercased tags plus each parent level: `tag:a` also matches notes
+    /// tagged `a::b`, so a parent tag belongs in the row too.
+    static func tagKeys(for tags: [String]) -> Set<String> {
+        var keys = Set<String>()
+        for tag in tags {
+            let parts = tag.lowercased().components(separatedBy: "::")
+            for depth in 1...parts.count {
+                keys.insert(parts.prefix(depth).joined(separator: "::"))
+            }
+        }
+        return keys
     }
 
     // MARK: - Loading
