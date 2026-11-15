@@ -8,21 +8,23 @@
 import AnkiClients
 import AnkiKit
 import Dependencies
+import Foundation
 import Testing
 @testable import BrowseFeature
 
-/// `sortedNotes` is stored rather than computed so `body` doesn't re-sort the
-/// whole list on every pass. That makes the `didSet` hooks that keep it in
-/// sync load-bearing — these tests are what catch it if one stops firing.
-@Suite("BrowseModel sorting")
+/// Sorting and filtering happen in the backend's query, so they cover every
+/// match and not only the loaded rows. These tests pin that the model hands
+/// the order and the filter terms to the search, restarts it when either
+/// changes, and leaves the returned order alone.
+@Suite("BrowseModel sorting and filtering")
 @MainActor
 struct BrowseSortingTests {
 
-    private func note(_ id: Int64, sfld: String, mod: Int64, mid: Int64 = 1) -> NoteRecord {
+    private nonisolated static func note(_ id: Int64, sfld: String, mod: Int64 = 100) -> NoteRecord {
         NoteRecord(
             id: NoteID(id),
             guid: "g\(id)",
-            mid: NotetypeID(mid),
+            mid: NotetypeID(1),
             mod: mod,
             tags: "",
             flds: "",
@@ -31,109 +33,109 @@ struct BrowseSortingTests {
         )
     }
 
-    @Test("assigning notes populates sortedNotes")
-    func assigningNotesPopulatesSorted() {
-        let model = BrowseModel()
-        #expect(model.sortedNotes.isEmpty)
-
-        model.notes = [note(1, sfld: "b", mod: 100)]
-
-        #expect(model.sortedNotes.count == 1)
+    private final class Orders: @unchecked Sendable {
+        private let lock = NSLock()
+        private var orders: [NoteSortOrder] = []
+        func record(_ order: NoteSortOrder) { lock.withLock { orders.append(order) } }
+        var all: [NoteSortOrder] { lock.withLock { orders } }
     }
 
-    @Test("default order is newest first")
-    func defaultOrderIsNewestFirst() {
-        let model = BrowseModel()
-        model.notes = [
-            note(1, sfld: "old", mod: 100),
-            note(2, sfld: "new", mod: 300),
-            note(3, sfld: "mid", mod: 200),
-        ]
-
-        #expect(model.sortedNotes.map(\.sfld) == ["new", "mid", "old"])
+    @Test("the default order is most recently modified first")
+    func defaultOrder() {
+        #expect(BrowseModel().sort == NoteSortOrder(column: .modified, descending: true))
     }
 
-    @Test("changing sortOrder re-sorts immediately")
-    func changingSortOrderResorts() {
-        let model = BrowseModel()
-        model.notes = [
-            note(1, sfld: "Charlie", mod: 300),
-            note(2, sfld: "alpha", mod: 200),
-            note(3, sfld: "Bravo", mod: 100),
-        ]
-
-        model.sortOrder = .titleAsc
-
-        // Case-insensitive, so lowercase "alpha" leads.
-        #expect(model.sortedNotes.map(\.sfld) == ["alpha", "Bravo", "Charlie"])
+    @Test("the search is given the chosen order")
+    func searchReceivesTheOrder() async {
+        let orders = Orders()
+        await withDependencies {
+            $0.noteClient.searchSorted = { _, order, _ in
+                orders.record(order)
+                return []
+            }
+        } operation: {
+            let model = BrowseModel()
+            model.sort = NoteSortOrder(column: .sortField, descending: false)
+            await model.performSearch(debounce: .zero)
+            #expect(orders.all == [NoteSortOrder(column: .sortField, descending: false)])
+        }
     }
 
-    @Test("appending a page keeps sortedNotes in sync")
-    func appendingKeepsSortedInSync() {
-        let model = BrowseModel()
-        model.notes = [note(1, sfld: "first", mod: 100)]
-        model.notes.append(note(2, sfld: "second", mod: 500))
-
-        #expect(model.sortedNotes.count == 2)
-        #expect(model.sortedNotes.first?.sfld == "second")
+    @Test("the backend's order is kept as returned")
+    func backendOrderIsKept() async {
+        await withDependencies {
+            $0.noteClient.searchSorted = { _, _, _ in
+                [Self.note(1, sfld: "Zebra", mod: 1), Self.note(2, sfld: "apple", mod: 9)]
+            }
+        } operation: {
+            let model = BrowseModel()
+            await model.performSearch(debounce: .zero)
+            #expect(model.sortedNotes.map(\.sfld) == ["Zebra", "apple"])
+        }
     }
 
-    @Test("replacing a stub in place refreshes sortedNotes")
-    func replacingStubRefreshesSorted() {
+    @Test("changing the order or a filter changes the search key")
+    func searchKeyTracksSortAndFilters() {
         let model = BrowseModel()
-        model.notes = [note(1, sfld: "Loading...", mod: 100)]
-        model.notes[0] = note(1, sfld: "resolved", mod: 100)
+        let initial = model.searchKey
 
-        #expect(model.sortedNotes.first?.sfld == "resolved")
+        model.sort.descending = false
+        let resorted = model.searchKey
+        #expect(resorted != initial)
+
+        model.filters.state = .due
+        #expect(model.searchKey != resorted)
     }
 
-    @Test("notetype names arriving late re-sort a template-ordered list")
-    func lateNotetypeNamesResort() {
-        let model = BrowseModel()
-        model.sortOrder = .templateAsc
-        model.notes = [
-            note(1, sfld: "one", mod: 100, mid: 1),
-            note(2, sfld: "two", mod: 200, mid: 2),
-        ]
-
-        // Names load after the search completes; "Basic" (mid 2) must overtake
-        // "Cloze" (mid 1) once they land.
-        model.notetypeNames = [NotetypeID(1): "Cloze", NotetypeID(2): "Basic"]
-
-        #expect(model.sortedNotes.map(\.sfld) == ["two", "one"])
-    }
-
-    @Test("a stub fill patches sortedNotes without reordering it")
+    @Test("a stub fill patches the row without moving it")
     func stubFillPatchesWithoutReordering() async {
-        let resolved = note(1, sfld: "Zebra", mod: 300)
+        let resolved = Self.note(1, sfld: "Zebra", mod: 300)
         await withDependencies {
             $0.noteClient.fetch = { _ in resolved }
         } operation: {
             let model = BrowseModel()
-            model.sortOrder = .titleAsc
             model.notes = [
-                note(1, sfld: "Loading...", mod: 300),
-                note(2, sfld: "Mango", mod: 200),
+                Self.note(1, sfld: "Loading...", mod: 0),
+                Self.note(2, sfld: "Mango", mod: 200),
             ]
-            // "Loading..." sorts ahead of "Mango" — that's the on-screen order.
-            #expect(model.sortedNotes.map(\.sfld) == ["Loading...", "Mango"])
-
             await model.fetchNoteDetails(id: NoteID(1))
-
-            // The resolved text lands, but the row holds its position:
-            // re-sorting here would move it under the user's finger mid-scroll,
-            // and would cost a full sort per row filled during that scroll.
             #expect(model.sortedNotes.map(\.sfld) == ["Zebra", "Mango"])
-            #expect(model.notes.map(\.sfld) == ["Zebra", "Mango"])
         }
     }
 
-    @Test("clearing notes clears sortedNotes")
-    func clearingNotesClearsSorted() {
-        let model = BrowseModel()
-        model.notes = [note(1, sfld: "a", mod: 100)]
-        model.notes = []
+    // MARK: Filters
 
-        #expect(model.sortedNotes.isEmpty)
+    @Test("no filter adds no terms")
+    func emptyFilters() {
+        #expect(!BrowseFilters().isActive)
+        #expect(BrowseFilters().searchTerms.isEmpty)
+    }
+
+    @Test("each filter contributes one search term")
+    func filterTerms() {
+        var filters = BrowseFilters()
+        filters.state = .learning
+        filters.flag = 0
+        filters.notetypeID = NotetypeID(42)
+        filters.recent = .againToday
+        #expect(filters.isActive)
+        #expect(filters.searchTerms == ["is:learn", "flag:0", "mid:42", "rated:1:1"])
+    }
+
+    @Test("filters join the deck, tag and text in the query")
+    func filtersJoinTheQuery() {
+        let model = BrowseModel()
+        model.activeTag = "verb"
+        model.filters.state = .suspended
+        model.searchText = "kanji"
+        #expect(model.searchQuery == "tag:\"verb\" is:suspended kanji")
+    }
+
+    @Test("sort columns use the backend's column keys")
+    func columnKeys() {
+        #expect(NoteSortColumn.sortField.rawValue == "noteFld")
+        #expect(NoteSortColumn.created.rawValue == "noteCrt")
+        #expect(NoteSortColumn.notetype.rawValue == "note")
+        #expect(NoteSortColumn.cardCount.rawValue == "template")
     }
 }

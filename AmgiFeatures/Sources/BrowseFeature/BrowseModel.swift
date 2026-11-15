@@ -27,14 +27,8 @@ final class BrowseModel {
     /// Surfaced when a batch mutation partially or wholly fails.
     var errorMessage: String?
     var allNotes: [NoteRecord] = []
-    var notes: [NoteRecord] = [] {
-        didSet { if !isPatchingInPlace { resort() } }
-    }
-    /// Set only across `fetchNoteDetails`' single-element write. Filling a stub
-    /// replaces one row's content without changing the list's membership, and
-    /// re-sorting there ran a full sort *per row* as stubs filled during a
-    /// scroll. Every other write to `notes` still re-sorts.
-    private var isPatchingInPlace = false
+    /// The loaded rows, in the backend's order for `sort`.
+    var notes: [NoteRecord] = []
     var allDecks: [DeckInfo] = []
     /// The top-level parent deck selected (stays set even when drilling into subdecks).
     var parentDeck: DeckInfo?
@@ -47,12 +41,11 @@ final class BrowseModel {
     var hasMorePages = true
     var allTags: [String] = []
     var activeTag: String?
-    var sortOrder: BrowseSortOrder = .dateDesc {
-        didSet { resort() }
-    }
-    var notetypeNames: [NotetypeID: String] = [:] {
-        didSet { if sortOrder == .templateAsc { resort() } }
-    }
+    /// Applied by the backend's query, so it orders every match — not just
+    /// the rows loaded so far, which is all a client-side sort could see.
+    var sort: NoteSortOrder = .modifiedNewestFirst
+    var filters = BrowseFilters()
+    var notetypeNames: [NotetypeID: String] = [:]
 
     /// First card of each note, resolved lazily by the row context menu.
     /// Cached here rather than in per-row `@State` so a row scrolling out and
@@ -75,22 +68,16 @@ final class BrowseModel {
 
     // MARK: - Derived
 
-    /// Stored, not computed: `body` reads this on every pass, and a computed
-    /// property would re-sort the whole loaded list each time — including once
-    /// per row as `fetchNoteDetails` fills in stubs during a scroll.
-    private(set) var sortedNotes: [NoteRecord] = []
+    /// The rows as listed. The backend already returned them in `sort`
+    /// order, so this is `notes` as is — no client-side sort to redo as
+    /// stubs fill in during a scroll.
+    var sortedNotes: [NoteRecord] { notes }
 
-    private func resort() {
-        switch sortOrder {
-        case .dateDesc:
-            sortedNotes = notes.sorted { $0.mod > $1.mod }
-        case .titleAsc:
-            sortedNotes = notes.sorted {
-                $0.sfld.localizedCaseInsensitiveCompare($1.sfld) == .orderedAscending
-            }
-        case .templateAsc:
-            sortedNotes = notes.sorted { (notetypeNames[$0.mid] ?? "") < (notetypeNames[$1.mid] ?? "") }
-        }
+    /// Note types by name, for the filter menu.
+    var notetypeChoices: [(id: NotetypeID, name: String)] {
+        notetypeNames
+            .map { (id: $0.key, name: $0.value) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     var topLevelDecks: [DeckInfo] {
@@ -135,6 +122,10 @@ final class BrowseModel {
     /// instead of racing it.
     var searchQuery: String { buildQuery() }
 
+    /// Everything a search depends on. Key `.task(id:)` on this so a new
+    /// sort order restarts the search the same way a new query does.
+    var searchKey: BrowseSearchKey { BrowseSearchKey(query: buildQuery(), sort: sort) }
+
     /// Runs the current query after a debounce.
     ///
     /// Both waits are cancellation points, and that is what makes this safe to
@@ -151,7 +142,7 @@ final class BrowseModel {
         isLoading = true
         let query = buildQuery()
         do {
-            let results = try await noteClient.search(query, nil)
+            let results = try await noteClient.searchSorted(query, sort, nil)
             guard !Task.isCancelled else { return }
             searchFailed = false
             allNotes = results
@@ -179,23 +170,15 @@ final class BrowseModel {
 
     /// Lazy-fetch full note details for a stub and update the arrays in place.
     ///
-    /// Patches `sortedNotes` directly rather than re-sorting: a stub fill
-    /// replaces one row's content without changing which notes are in the
-    /// list, and re-sorting here ran a full sort per row filled during a
-    /// scroll — under `.titleAsc` that also reordered rows under the user's
-    /// finger mid-scroll.
+    /// A stub fill replaces one row's content in place; the row keeps the
+    /// position the backend's ordering gave it.
     func fetchNoteDetails(id: NoteID) async {
         guard let fullNote = try? await noteClient.fetch(id) else { return }
         if let idx = notes.firstIndex(where: { $0.id == id }) {
-            isPatchingInPlace = true
             notes[idx] = fullNote
-            isPatchingInPlace = false
         }
         if let idx = allNotes.firstIndex(where: { $0.id == id }) {
             allNotes[idx] = fullNote
-        }
-        if let idx = sortedNotes.firstIndex(where: { $0.id == id }) {
-            sortedNotes[idx] = fullNote
         }
     }
 
@@ -284,6 +267,7 @@ final class BrowseModel {
         if let tag = activeTag {
             parts.append("tag:\"\(tag)\"")
         }
+        parts.append(contentsOf: filters.searchTerms)
         let trimmed = searchText.trimmingCharacters(in: .whitespaces)
         if !trimmed.isEmpty {
             parts.append(trimmed)

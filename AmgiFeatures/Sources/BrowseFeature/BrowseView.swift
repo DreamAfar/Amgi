@@ -11,21 +11,6 @@ import AnkiKit
 import Theme
 import SwiftUINavigation
 
-enum BrowseSortOrder: String, CaseIterable, Sendable {
-    case dateDesc = "Date (newest)"
-    case titleAsc = "Title (A→Z)"
-    case templateAsc = "Type (A→Z)"
-
-    /// The order's display name; `rawValue` stays the stable identifier.
-    var title: String {
-        switch self {
-        case .dateDesc: String(localized: "Date (newest)", bundle: .module)
-        case .titleAsc: String(localized: "Title (A→Z)", bundle: .module)
-        case .templateAsc: String(localized: "Type (A→Z)", bundle: .module)
-        }
-    }
-}
-
 /// Browse container: owns navigation, sheets, selection, and the toolbar,
 /// and drives a `BrowseModel` for load/search/paging + note mutations.
 /// Rendering is delegated to `BrowseContent`; the model owns all I/O so the
@@ -56,10 +41,10 @@ package struct BrowseView: View {
             .searchable(text: $model.searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: String(localized: "Search notes...", bundle: .module))
             .searchFocused($searchFocused)
             .task { await model.loadInitial() }
-            // Keyed on the assembled query so text, deck, and tag changes all
-            // restart one search — SwiftUI cancels the previous run, which is
+            // Keyed on the assembled query and the sort order so text, deck,
+            // tag, filter, and sort changes all restart one search — SwiftUI cancels the previous run, which is
             // what debounces the typing and keeps a stale result from landing.
-            .task(id: model.searchQuery) { await model.performSearch() }
+            .task(id: model.searchKey) { await model.performSearch() }
             .sensoryFeedback(trigger: selectionState.isSelectMode) { _, entered in
                 entered ? .selection : nil
             }
@@ -170,6 +155,9 @@ package struct BrowseView: View {
             selectionToolbar
         } else {
             ToolbarItem(placement: .primaryAction) {
+                sortFilterMenu
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button(String(localized: "Add Note", bundle: .module), systemImage: "square.and.pencil") {
                         destination = .addNote
@@ -190,14 +178,6 @@ package struct BrowseView: View {
                                 selectionState.enterSelectMode()
                             }
                         }
-                        Section {
-                            Picker(String(localized: "Sort By", bundle: .module), selection: $model.sortOrder) {
-                                ForEach(BrowseSortOrder.allCases, id: \.self) { order in
-                                    Text(order.title).tag(order)
-                                }
-                            }
-                            .pickerStyle(.inline)
-                        }
                     }
                     Section {
                         Button(String(localized: "Find", bundle: .module), systemImage: "magnifyingglass") {
@@ -215,6 +195,72 @@ package struct BrowseView: View {
                     Label(String(localized: "More", bundle: .module), systemImage: "ellipsis")
                 }
             }
+        }
+    }
+
+    /// Sort and filter in one menu. Each row is a submenu that shows its
+    /// current choice, so the whole state reads at a glance; the icon fills
+    /// while a filter is on, since a filtered list otherwise looks like a
+    /// short one.
+    private var sortFilterMenu: some View {
+        Menu {
+            Section(String(localized: "Sort", bundle: .module)) {
+                Picker(String(localized: "Sort By", bundle: .module), selection: $model.sort.column) {
+                    ForEach(NoteSortColumn.allCases, id: \.self) { column in
+                        Text(column.title).tag(column)
+                    }
+                }
+                .pickerStyle(.menu)
+                Picker(String(localized: "Order", bundle: .module), selection: $model.sort.descending) {
+                    Label(String(localized: "Ascending", bundle: .module), systemImage: "arrow.up").tag(false)
+                    Label(String(localized: "Descending", bundle: .module), systemImage: "arrow.down").tag(true)
+                }
+                .pickerStyle(.menu)
+            }
+            Section(String(localized: "Filter", bundle: .module)) {
+                Picker(String(localized: "Card State", bundle: .module), selection: $model.filters.state) {
+                    Text("Any", bundle: .module).tag(BrowseFilters.CardState?.none)
+                    ForEach(BrowseFilters.CardState.allCases, id: \.self) { state in
+                        Text(state.title).tag(Optional(state))
+                    }
+                }
+                .pickerStyle(.menu)
+                Picker(String(localized: "Flag", bundle: .module), selection: $model.filters.flag) {
+                    Text("Any", bundle: .module).tag(Int?.none)
+                    ForEach(BrowseFilters.flags, id: \.self) { flag in
+                        Text(BrowseFilters.flagTitle(flag)).tag(Optional(flag))
+                    }
+                }
+                .pickerStyle(.menu)
+                Picker(String(localized: "Note Type", bundle: .module), selection: $model.filters.notetypeID) {
+                    Text("Any", bundle: .module).tag(NotetypeID?.none)
+                    ForEach(model.notetypeChoices, id: \.id) { choice in
+                        Text(choice.name).tag(Optional(choice.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                Picker(String(localized: "Recent Activity", bundle: .module), selection: $model.filters.recent) {
+                    Text("Any", bundle: .module).tag(BrowseFilters.Recent?.none)
+                    ForEach(BrowseFilters.Recent.allCases, id: \.self) { recent in
+                        Text(recent.title).tag(Optional(recent))
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            if model.filters.isActive {
+                Section {
+                    Button(String(localized: "Clear Filters", bundle: .module), systemImage: "xmark.circle", role: .destructive) {
+                        model.filters = BrowseFilters()
+                    }
+                }
+            }
+        } label: {
+            Label(
+                String(localized: "Sort and Filter", bundle: .module),
+                systemImage: model.filters.isActive
+                    ? "line.3.horizontal.decrease.circle.fill"
+                    : "line.3.horizontal.decrease.circle"
+            )
         }
     }
 
@@ -321,7 +367,7 @@ struct BrowseContent: View {
     @ViewBuilder
     private var statefulContent: some View {
         if model.notes.isEmpty && !model.isLoading && model.searchText.isEmpty
-            && model.activeDeck == nil && model.activeTag == nil {
+            && model.activeDeck == nil && model.activeTag == nil && !model.filters.isActive {
             ContentUnavailableView(
                 String(localized: "Browse Notes", bundle: .module),
                 systemImage: "magnifyingglass",
