@@ -36,6 +36,8 @@ package struct BrowseView: View {
     @State private var destination: BrowseDestination?
     @State private var pendingTool: BrowseTool?
     @State private var dueDateInput = ""
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @FocusState private var searchFocused: Bool
 
     package init() {
@@ -72,6 +74,8 @@ package struct BrowseView: View {
                 ? String(localized: "\(selectionState.count) Selected", bundle: .module)
                 : String(localized: "Browse", bundle: .module))
             .navigationBarTitleDisplayMode(.inline)
+            // Back would leave the screen mid-selection; Done is the way out.
+            .navigationBarBackButtonHidden(selectionState.isSelectMode)
             .toolbar { toolbarContent }
             .toolbarVisibility(selectionState.isSelectMode ? .hidden : .automatic, for: .tabBar)
             .navigationDestination(item: $pendingTool) { tool in
@@ -205,7 +209,10 @@ package struct BrowseView: View {
     private var toolbarContent: some ToolbarContent {
         if selectionState.isSelectMode {
             ToolbarItem(placement: .topBarLeading) {
-                selectAllButton
+                selectAllControl
+            }
+            ToolbarItem(placement: .principal) {
+                selectionTitle
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button(String(localized: "Done", bundle: .module)) {
@@ -263,24 +270,83 @@ package struct BrowseView: View {
         }
     }
 
-    /// Select All covers every note in the results, not just the rows
-    /// loaded so far; once everything is selected it turns into Deselect All.
-    private var selectAllButton: some View {
+    /// Every note in the results, not just the rows loaded so far.
+    private var everythingSelected: Bool {
         let all = model.allResultNoteIDs
-        let everything = !all.isEmpty && all.isSubset(of: selectionState.selectedNoteIDs)
-        return Button(everything
-            ? String(localized: "Deselect All", bundle: .module)
-            : String(localized: "Select All", bundle: .module)
-        ) {
-            selectionState.selectedNoteIDs = everything ? [] : all
+        return !all.isEmpty && all.isSubset(of: selectionState.selectedNoteIDs)
+    }
+
+    /// Select All / Deselect All as the button, with a chevron menu beside
+    /// it for the less common Invert Selection. Each label has a shorter
+    /// fallback for when a long translation or a large text size leaves
+    /// too little room.
+    private var selectAllControl: some View {
+        let everything = everythingSelected
+        return HStack(spacing: AmgiSpacing.xs) {
+            Button {
+                selectionState.selectedNoteIDs = everything ? [] : model.allResultNoteIDs
+            } label: {
+                ViewThatFits(in: .horizontal) {
+                    Text(everything ? "Deselect All" : "Select All", bundle: .module)
+                    Text(everything ? "browse.deselectAll.short" : "browse.selectAll.short", bundle: .module)
+                }
+                .lineLimit(1)
+            }
+            Menu {
+                Button(String(localized: "Select All", bundle: .module), systemImage: "checkmark.circle") {
+                    selectionState.selectedNoteIDs = model.allResultNoteIDs
+                }
+                .disabled(everything)
+                Button(String(localized: "Deselect All", bundle: .module), systemImage: "circle") {
+                    selectionState.selectedNoteIDs = []
+                }
+                .disabled(selectionState.isEmpty)
+                Button(String(localized: "Invert Selection", bundle: .module),
+                       systemImage: "circle.lefthalf.filled") {
+                    selectionState.selectedNoteIDs = model.allResultNoteIDs
+                        .subtracting(selectionState.selectedNoteIDs)
+                }
+            } label: {
+                Label(String(localized: "Selection Options", bundle: .module), systemImage: "chevron.down")
+                    .labelStyle(.iconOnly)
+                    .imageScale(.small)
+            }
         }
     }
 
-    /// Five slots, the most an iPhone bottom bar holds without crowding:
-    /// the three batch edits people reach for most (flag, tags, deck) get
-    /// their own buttons, everything else is grouped by what it acts on
-    /// under More, and Delete sits apart at the trailing edge — the layout
-    /// Mail and Files use for their selection bars.
+    /// The count, a size smaller than a normal title so a big selection
+    /// still fits between the buttons: "12 Selected", then just "1,234",
+    /// then the number shrunk a little rather than cut off.
+    private var selectionTitle: some View {
+        let count = selectionState.count
+        return ViewThatFits(in: .horizontal) {
+            if count == 0 {
+                Text("Select Notes", bundle: .module)
+            } else {
+                Text("\(count) Selected", bundle: .module)
+            }
+            Text(count, format: .number)
+                .minimumScaleFactor(0.8)
+        }
+        .amgiFont(.captionBold)
+        .lineLimit(1)
+        .monospacedDigit()
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    /// Wide layouts (iPad, iPhone in landscape) have room for more than
+    /// the five slots a portrait iPhone bar holds comfortably.
+    private var isWideBar: Bool {
+        horizontalSizeClass == .regular || verticalSizeClass == .compact
+    }
+
+    /// Portrait iPhone: five slots, the most its bottom bar holds without
+    /// crowding — the three batch edits people reach for most (flag, tags,
+    /// deck) get their own buttons, everything else is grouped by what it
+    /// acts on under More, and Delete sits apart at the trailing edge, the
+    /// layout Mail and Files use for their selection bars. Wide layouts
+    /// also lift Suspend, Set Due Date and Mark out of More; the menu keeps
+    /// them too so it reads the same in every orientation.
     @ToolbarContentBuilder
     private var selectionToolbar: some ToolbarContent {
         ToolbarItem(placement: .bottomBar) {
@@ -303,6 +369,36 @@ package struct BrowseView: View {
                 Label(String(localized: "Change Deck", bundle: .module), systemImage: "folder")
             }
             .disabled(selectionState.isEmpty)
+        }
+        if isWideBar {
+            ToolbarItem(placement: .bottomBar) { Spacer() }
+            ToolbarItem(placement: .bottomBar) {
+                Button {
+                    runOnSelection { await model.suspendAllSelected($0) }
+                } label: {
+                    Label(String(localized: "Suspend", bundle: .module), systemImage: "pause.circle")
+                }
+                .disabled(selectionState.isEmpty)
+            }
+            ToolbarItem(placement: .bottomBar) { Spacer() }
+            ToolbarItem(placement: .bottomBar) {
+                Button {
+                    dueDateInput = ""
+                    destination = .setDueDate
+                } label: {
+                    Label(String(localized: "Set Due Date…", bundle: .module), systemImage: "calendar")
+                }
+                .disabled(selectionState.isEmpty)
+            }
+            ToolbarItem(placement: .bottomBar) { Spacer() }
+            ToolbarItem(placement: .bottomBar) {
+                Button {
+                    runOnSelection(exit: false) { await model.setMarked(true, for: $0) }
+                } label: {
+                    Label(String(localized: "Mark", bundle: .module), systemImage: "star")
+                }
+                .disabled(selectionState.isEmpty)
+            }
         }
         ToolbarItem(placement: .bottomBar) { Spacer() }
         ToolbarItem(placement: .bottomBar) {
