@@ -81,6 +81,7 @@ package struct NoteEditorView: View {
     private var content: some View {
         #if canImport(UIKit)
         NoteEditorContent(model: model, recorder: recorder)
+            .noteImageInsertion()
             .modifier(VoiceRecorderAlerts(recorder: recorder))
             .onAppear {
                 recorder.onEndedEarly = { model.attachAudio($0.url, toField: $0.fieldIndex) }
