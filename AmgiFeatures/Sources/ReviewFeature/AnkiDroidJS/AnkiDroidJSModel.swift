@@ -8,6 +8,7 @@ import AnkiKit
 import Dependencies
 import AppCore
 import Foundation
+import OSLog
 import ReviewCore
 
 /// Answers the AnkiDroid-compatible card API during review. Owns the

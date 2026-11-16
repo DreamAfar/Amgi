@@ -7,6 +7,7 @@ import AnkiClients
 import AnkiKit
 import AppCore
 import Dependencies
+import Foundation
 import Sharing
 import SwiftUI
 import Theme
