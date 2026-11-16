@@ -7,11 +7,12 @@
 
 import Reader
 import SwiftUI
+import Theme
 
 /// The plain list of dictionary entries shared by the root lookup popup and
 /// every pushed child pane. Both used to inline an identical
-/// `List { ForEach(result.entries) { LookupEntryView(...) } }`; this is that
-/// body, parameterised by the per-entry callbacks each caller supplies.
+/// list of `LookupEntryView`s; this is that body, parameterised by the
+/// per-entry callbacks each caller supplies.
 struct LookupResultList: View {
     let result: DictionaryLookupResult
     let styling: LookupEntryStyling
@@ -24,23 +25,34 @@ struct LookupResultList: View {
     let onLookupRequested: (String) -> Void
 
     var body: some View {
-        List {
-            ForEach(result.entries) { entry in
-                LookupEntryView(
-                    entry: entry,
-                    dictionaryStyles: result.dictionaryStyles,
-                    audioTemplate: audioTemplate,
-                    audioPlaybackMode: audioPlaybackMode,
-                    styling: styling,
-                    collapsedDictionaries: collapsedDictionaries,
-                    onSetCollapsed: onSetCollapsed,
-                    languageHint: languageHint,
-                    onMakeNote: { onMakeNote(entry) },
-                    onLookupRequested: onLookupRequested
-                )
+        // A scroll view and stack rather than a `List`: entries are tall and
+        // their height arrives late, from the web views inside them. A List
+        // sizes its rows as collection-view cells and didn't always pick the
+        // new height up, so entries were drawn over one another until the
+        // next scroll or tap. A stack lays its rows out again on any change.
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(result.entries) { entry in
+                    LookupEntryView(
+                        entry: entry,
+                        dictionaryStyles: result.dictionaryStyles,
+                        audioTemplate: audioTemplate,
+                        audioPlaybackMode: audioPlaybackMode,
+                        styling: styling,
+                        collapsedDictionaries: collapsedDictionaries,
+                        onSetCollapsed: onSetCollapsed,
+                        languageHint: languageHint,
+                        onMakeNote: { onMakeNote(entry) },
+                        onLookupRequested: onLookupRequested
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, AmgiSpacing.lg)
+                    .padding(.vertical, AmgiSpacing.sm)
+                    Divider()
+                        .padding(.leading, AmgiSpacing.lg)
+                }
             }
         }
-        .listStyle(.plain)
     }
 }
 
