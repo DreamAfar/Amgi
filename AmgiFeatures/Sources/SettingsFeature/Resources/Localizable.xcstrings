@@ -337,6 +337,34 @@
         }
       }
     },
+    "Allow changes to cards" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カードの変更を許可"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카드 변경 허용"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许修改卡片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允許修改卡片"
+          }
+        }
+      }
+    },
     "Amgi uses the official Anki Rust backend. The backend code is licensed under AGPL-3.0 and remains the work of its authors." : {
       "localizations" : {
         "ja" : {
@@ -473,6 +501,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Anki 引擎"
+          }
+        }
+      }
+    },
+    "AnkiDroid JavaScript API" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AnkiDroid JavaScript API"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AnkiDroid JavaScript API"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AnkiDroid JavaScript API"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AnkiDroid JavaScript API"
           }
         }
       }
@@ -1033,6 +1089,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "卡片渲染"
+          }
+        }
+      }
+    },
+    "Card Scripts" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カードスクリプト"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카드 스크립트"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片脚本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片腳本"
           }
         }
       }
@@ -3721,6 +3805,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "名稱來源（韓語）"
+          }
+        }
+      }
+    },
+    "Lets card templates written for AnkiDroid read the card's details, show the answer, answer, flag and mark. Changes to cards — bury, suspend, set due date, reset, edit tags — run only when allowed, since any shared deck's template could use them." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AnkiDroid向けのカードテンプレートが、カードの情報の取得、解答の表示、回答、フラグ、マークを行えるようにします。延期・保留・期日の設定・リセット・タグの編集といったカードの変更は、共有デッキのテンプレートでも使えてしまうため、許可した場合のみ実行されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AnkiDroid용으로 만든 카드 템플릿이 카드 정보를 읽고, 답 보기, 답하기, 깃발, 표시를 할 수 있게 합니다. 묻기, 보류, 예정일 설정, 초기화, 태그 편집 같은 카드 변경은 공유 덱의 템플릿도 사용할 수 있으므로 허용한 경우에만 실행됩니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许为 AnkiDroid 编写的卡片模板读取卡片信息、显示答案、作答、设置旗标和标记。搁置、暂停、设置到期日、重置、编辑标签等修改卡片的操作，任何共享牌组的模板都可能调用，所以只有在允许后才会执行。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允許為 AnkiDroid 編寫的卡片模板讀取卡片資訊、顯示答案、作答、設定旗標和標記。擱置、暫停、設定到期日、重置、編輯標籤等修改卡片的操作，任何共享牌組的模板都可能呼叫，所以只有在允許後才會執行。"
           }
         }
       }

@@ -46,12 +46,19 @@ struct ReviewSettingsView: View {
     @Shared(.appStorage(ReviewPreferences.Keys.playAudioInSilentMode))
     private var playAudioInSilentMode: Bool = false
 
+    @Shared(.appStorage(ReviewPreferences.Keys.ankiDroidJSEnabled))
+    private var ankiDroidJSEnabled: Bool = true
+
+    @Shared(.appStorage(ReviewPreferences.Keys.ankiDroidJSAllowsCardChanges))
+    private var ankiDroidJSAllowsCardChanges: Bool = false
+
     var body: some View {
         SettingsPage {
             cardDisplaySection
             lookupSection
             answerButtonsSection
             audioSection
+            cardScriptsSection
         }
         .navigationTitle(String(localized: "Review", bundle: .module))
         .navigationBarTitleDisplayMode(.inline)
@@ -168,6 +175,29 @@ struct ReviewSettingsView: View {
                     isOn: Binding($playAudioInSilentMode)
                 )
             }
+        }
+    }
+
+    private var cardScriptsSection: some View {
+        Group {
+            SettingsSectionHeader(title: String(localized: "Card Scripts", bundle: .module))
+            SettingsGroup {
+                SettingsToggleRow(
+                    title: String(localized: "AnkiDroid JavaScript API", bundle: .module),
+                    systemImage: "curlybraces",
+                    tone: .info,
+                    isOn: Binding($ankiDroidJSEnabled)
+                )
+                SettingsSeparator()
+                SettingsToggleRow(
+                    title: String(localized: "Allow changes to cards", bundle: .module),
+                    systemImage: "exclamationmark.shield",
+                    tone: .danger,
+                    isOn: Binding($ankiDroidJSAllowsCardChanges)
+                )
+                .disabled(!ankiDroidJSEnabled)
+            }
+            SettingsFootnote(String(localized: "Lets card templates written for AnkiDroid read the card's details, show the answer, answer, flag and mark. Changes to cards — bury, suspend, set due date, reset, edit tags — run only when allowed, since any shared deck's template could use them.", bundle: .module))
         }
     }
 }

@@ -6,6 +6,7 @@
 //
 
 import AppCore
+import ReviewCore
 import AppShared
 import OSLog
 import Reader
@@ -40,6 +41,7 @@ struct CardWebView {
     let onCardBackgroundColorChange: ((Color, Bool) -> Void)?
     let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
     let onShowAnswerRequested: (() -> Void)?
+    let onAnkiDroidJS: (@MainActor (AnkiDroidJSRequest) async -> String?)?
 
     init(
         html: String,
@@ -61,7 +63,8 @@ struct CardWebView {
         onAudioStateChange: ((Bool) -> Void)? = nil,
         onCardBackgroundColorChange: ((Color, Bool) -> Void)? = nil,
         onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil,
-        onShowAnswerRequested: (() -> Void)? = nil
+        onShowAnswerRequested: (() -> Void)? = nil,
+        onAnkiDroidJS: (@MainActor (AnkiDroidJSRequest) async -> String?)? = nil
     ) {
         self.html = html
         self.cardCSS = cardCSS
@@ -83,6 +86,7 @@ struct CardWebView {
         self.onCardBackgroundColorChange = onCardBackgroundColorChange
         self.onLookupRequested = onLookupRequested
         self.onShowAnswerRequested = onShowAnswerRequested
+        self.onAnkiDroidJS = onAnkiDroidJS
     }
 
     func makeCoordinator() -> CardWebViewCoordinator {
@@ -111,6 +115,16 @@ struct CardWebView {
         config.userContentController.add(coordinator, name: "amgiCardTheme")
         config.userContentController.add(coordinator, name: "amgiLookupText")
         config.userContentController.add(coordinator, name: "amgiShowAnswer")
+        // The AnkiDroid-compatible API lives in the page world, where card
+        // scripts run, and answers through a reply.
+        config.userContentController.addScriptMessageHandler(
+            coordinator, contentWorld: .page, name: AnkiDroidJSShim.handlerName
+        )
+        config.userContentController.addUserScript(WKUserScript(
+            source: AnkiDroidJSShim.source,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        ))
 
         config.userContentController.addUserScript(WKUserScript(
             source: LookupExtractionScript.source,
@@ -140,6 +154,9 @@ struct CardWebView {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiCardTheme")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiLookupText")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiShowAnswer")
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: AnkiDroidJSShim.handlerName, contentWorld: .page
+        )
         coordinator.stopTTS()
     }
 
@@ -162,6 +179,7 @@ struct CardWebView {
 
         // Bookkeeping that has to track every render, expensive or not.
         coordinator.openLinksExternally = openLinksExternally
+        coordinator.onAnkiDroidJS = onAnkiDroidJS
         coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
 

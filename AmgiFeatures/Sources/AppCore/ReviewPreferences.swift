@@ -43,6 +43,11 @@ public enum ReviewPreferences {
         public static let autoMatchCardBackground = "review_pref_auto_match_card_background"
         public static let answerButtonStyle = "review_pref_answer_button_style"
         public static let hideHardAndEasyButtons = "review_pref_hide_hard_and_easy_buttons"
+        /// Card templates may use the AnkiDroid JavaScript API.
+        public static let ankiDroidJSEnabled = "review_pref_ankidroid_js_enabled"
+        /// …including the calls that bury, suspend, reschedule, reset or
+        /// retag the card.
+        public static let ankiDroidJSAllowsCardChanges = "review_pref_ankidroid_js_allows_card_changes"
     }
 }
 
