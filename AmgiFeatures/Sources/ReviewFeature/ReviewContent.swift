@@ -503,9 +503,18 @@ private struct ReviewFinishedView: View {
                     .foregroundStyle(palette.textSecondary)
             }
             Spacer()
-            Button(String(localized: "Done", bundle: .module), action: onDone)
-                .buttonStyle(AmgiPrimaryButtonStyle())
-                .padding()
+            // Same height and style as Show Answer, so the end of a session
+            // reads as the same control the user has been tapping — but
+            // content-width rather than edge to edge.
+            Button(action: onDone) {
+                Text("Done", bundle: .module)
+                    .amgiFont(.bodyEmphasis)
+                    .frame(minWidth: 160)
+                    .padding()
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
+            .padding()
         }
     }
 }
