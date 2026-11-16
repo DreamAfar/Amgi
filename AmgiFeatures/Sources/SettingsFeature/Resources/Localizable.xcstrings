@@ -141,6 +141,62 @@
         }
       }
     },
+    "AI Explanations" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI の解説"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 설명"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 解释"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 解釋"
+          }
+        }
+      }
+    },
+    "AI and Translation" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI と翻訳"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 및 번역"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 与翻译"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 與翻譯"
+          }
+        }
+      }
+    },
     "AI explanation" : {
       "localizations" : {
         "ja" : {
@@ -165,6 +221,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AI 解釋"
+          }
+        }
+      }
+    },
+    "API key" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API キー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 키"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 密钥"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 金鑰"
           }
         }
       }
@@ -309,6 +393,34 @@
         }
       }
     },
+    "Actions for selected text" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択テキストの操作"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 텍스트 작업"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选中文字的快捷操作"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選取文字的快捷操作"
+          }
+        }
+      }
+    },
     "Add" : {
       "localizations" : {
         "ja" : {
@@ -333,6 +445,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新增"
+          }
+        }
+      }
+    },
+    "Address" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アドレス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "주소"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位址"
+          }
+        }
+      }
+    },
+    "Adds AI Explain, Translate, Speak and Make Card to the menu that appears when you select text on a card." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カードのテキストを選択したときのメニューに「AI で解説」「翻訳」「読み上げ」「カードを作成」を追加します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카드의 텍스트를 선택했을 때 나타나는 메뉴에 AI 설명, 번역, 읽어 주기, 카드 만들기를 추가합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在卡片上选中文字时弹出的菜单里，加入「AI 解释」「翻译」「朗读」「制卡」。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在卡片上選取文字時彈出的選單裡，加入「AI 解釋」「翻譯」「朗讀」「製卡」。"
           }
         }
       }
@@ -589,6 +757,34 @@
         }
       }
     },
+    "Any service with the OpenAI chat API works: OpenAI, DeepSeek, Qwen, or Ollama on your own computer. The key is kept in this device's Keychain and isn't synced." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenAI のチャット API に対応したサービスなら使えます：OpenAI、DeepSeek、Qwen、自分のパソコンの Ollama など。キーはこのデバイスのキーチェーンに保存され、同期されません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenAI 채팅 API를 지원하는 서비스라면 사용할 수 있습니다: OpenAI, DeepSeek, Qwen, 내 컴퓨터의 Ollama 등. 키는 이 기기의 키체인에 저장되며 동기화되지 않습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持 OpenAI 聊天接口的服务都可以：OpenAI、DeepSeek、通义千问，或你电脑上的 Ollama。密钥保存在本机钥匙串中，不会同步。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支援 OpenAI 聊天介面的服務都可以：OpenAI、DeepSeek、通義千問，或你電腦上的 Ollama。金鑰儲存在本機鑰匙圈中，不會同步。"
+          }
+        }
+      }
+    },
     "App Font" : {
       "localizations" : {
         "ja" : {
@@ -669,6 +865,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "外觀"
+          }
+        }
+      }
+    },
+    "Apple on-device model" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple オンデバイスモデル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 온디바이스 모델"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 端侧模型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 裝置端模型"
           }
         }
       }
@@ -3669,6 +3893,34 @@
         }
       }
     },
+    "Explanation language" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解説の言語"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설명 언어"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解释语言"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解釋語言"
+          }
+        }
+      }
+    },
     "Eye-care" : {
       "localizations" : {
         "ja" : {
@@ -3693,6 +3945,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "護眼"
+          }
+        }
+      }
+    },
+    "Failed" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "失敗"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "실패"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "失败"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "失敗"
           }
         }
       }
@@ -4873,6 +5153,34 @@
         }
       }
     },
+    "Model" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "モデル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모델"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模型"
+          }
+        }
+      }
+    },
     "Name" : {
       "localizations" : {
         "ja" : {
@@ -5461,6 +5769,62 @@
         }
       }
     },
+    "OpenAI-compatible service" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenAI 互換サービス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenAI 호환 서비스"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenAI 兼容服务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenAI 相容服務"
+          }
+        }
+      }
+    },
+    "Optional for local servers" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ローカルサーバーでは不要"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로컬 서버는 선택 사항"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地服务可以不填"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本機服務可以不填"
+          }
+        }
+      }
+    },
     "Optional, silent reminders. Open Amgi at least every two weeks to prepare more words. Time-zone changes take effect next time you open the app." : {
       "localizations" : {
         "ja" : {
@@ -5849,6 +6213,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設定檔"
+          }
+        }
+      }
+    },
+    "Provider" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提供元"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제공자"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由谁来做"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提供者"
           }
         }
       }
@@ -6357,6 +6749,34 @@
         }
       }
     },
+    "Runs on this device and works offline. Needs a device with Apple Intelligence turned on (iOS 26 or later)." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このデバイス上で動作し、オフラインでも使えます。Apple Intelligence をオンにしたデバイス（iOS 26 以降）が必要です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 기기에서 실행되며 오프라인에서도 작동합니다. Apple Intelligence가 켜진 기기(iOS 26 이상)가 필요합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在本机运行，不联网也能用。需要已打开 Apple 智能的设备（iOS 26 或以上）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在本機執行，不連網也能用。需要已開啟 Apple Intelligence 的裝置（iOS 26 或以上）。"
+          }
+        }
+      }
+    },
     "Save" : {
       "localizations" : {
         "ja" : {
@@ -6469,6 +6889,34 @@
         }
       }
     },
+    "Selected Text" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択したテキスト"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 텍스트"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选中的文字"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選取的文字"
+          }
+        }
+      }
+    },
     "Sentence" : {
       "localizations" : {
         "ja" : {
@@ -6577,6 +7025,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "伺服器"
+          }
+        }
+      }
+    },
+    "Service" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サービス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서비스"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服務"
           }
         }
       }
@@ -7337,6 +7813,34 @@
         }
       }
     },
+    "Test" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テスト"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "테스트"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測試"
+          }
+        }
+      }
+    },
     "Text colour" : {
       "localizations" : {
         "ja" : {
@@ -7617,6 +8121,34 @@
         }
       }
     },
+    "Translate into" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻訳先"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "번역할 언어"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "译成"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "譯成"
+          }
+        }
+      }
+    },
     "Translation" : {
       "localizations" : {
         "ja" : {
@@ -7641,6 +8173,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "翻譯"
+          }
+        }
+      }
+    },
+    "Translations use Apple Translation on this device; the first time, it may ask to download the language. Make Card fills the vocabulary card template, including its AI explanation and translation fields. Only the selected text and its sentence are ever sent to an AI service." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻訳はこのデバイス上の Apple 翻訳を使います。初回は言語のダウンロードを求められることがあります。「カードを作成」は単語カードのテンプレート（AI の解説と翻訳のフィールドを含む）に従って入力します。AI サービスに送るのは選択したテキストとその文だけです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "번역은 이 기기의 Apple 번역을 사용합니다. 처음에는 언어 다운로드를 요청할 수 있습니다. 카드 만들기는 AI 설명과 번역 필드를 포함한 단어 카드 템플릿대로 채웁니다. AI 서비스에는 선택한 텍스트와 그 문장만 보냅니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻译使用本机的 Apple 翻译，第一次可能会提示下载语言。「制卡」按生词卡模板填写，包括 AI 解释和翻译字段。发送给 AI 服务的只有选中的文字和所在句子。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻譯使用本機的 Apple 翻譯，第一次可能會提示下載語言。「製卡」依生詞卡模板填寫，包括 AI 解釋和翻譯欄位。傳送給 AI 服務的只有選取的文字和所在句子。"
           }
         }
       }
@@ -8145,6 +8705,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "單詞聚焦"
+          }
+        }
+      }
+    },
+    "Working" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続できました"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결됨"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以使用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以使用"
           }
         }
       }

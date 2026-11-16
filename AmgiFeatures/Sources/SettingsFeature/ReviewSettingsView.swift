@@ -59,6 +59,7 @@ struct ReviewSettingsView: View {
             answerButtonsSection
             audioSection
             cardScriptsSection
+            selectionSection
         }
         .navigationTitle(String(localized: "Review", bundle: .module))
         .navigationBarTitleDisplayMode(.inline)
@@ -160,6 +161,21 @@ struct ReviewSettingsView: View {
                     tone: .learning,
                     isOn: Binding($hideHardAndEasyButtons)
                 )
+            }
+        }
+    }
+
+    private var selectionSection: some View {
+        Group {
+            SettingsSectionHeader(title: String(localized: "Selected Text", bundle: .module))
+            SettingsGroup {
+                SettingsRowLink(
+                    title: String(localized: "AI and Translation", bundle: .module),
+                    systemImage: "sparkles",
+                    tone: .info
+                ) {
+                    AIAssistantSettingsView()
+                }
             }
         }
     }

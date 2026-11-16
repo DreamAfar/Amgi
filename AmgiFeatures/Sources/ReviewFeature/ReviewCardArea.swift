@@ -39,6 +39,8 @@ struct ReviewCardArea: View {
     @Binding var lookupQuery: String?
     /// Answers the card's AnkiDroid-compatible script API.
     var onAnkiDroidJS: (@MainActor (AnkiDroidJSRequest) async -> String?)?
+    /// The app's items in the card's text-selection menu.
+    var selectionActions: [WebSelectionAction] = []
 
     @Environment(\.palette) private var palette
     @Shared(.appStorage(ReaderPreferences.Keys.dictionaryScanLength))
@@ -230,7 +232,8 @@ struct ReviewCardArea: View {
                         if let text, !text.isEmpty { lookupQuery = text }
                     } : nil,
                     onShowAnswerRequested: { session.revealAnswer() },
-                    onAnkiDroidJS: onAnkiDroidJS
+                    onAnkiDroidJS: onAnkiDroidJS,
+                    selectionActions: selectionActions
                 )
             }
         }
