@@ -30,11 +30,12 @@ final class ReaderDictionarySettingsModel {
     }
 
     var dictionaries: [AppDictionaryInfo] {
-        switch selectedKind {
-        case .term: return libraryState.termDictionaries
-        case .frequency: return libraryState.frequencyDictionaries
-        case .pitch: return libraryState.pitchDictionaries
-        }
+        libraryState.dictionaries(of: selectedKind)
+    }
+
+    /// Titles of the frequency dictionaries results can be sorted by.
+    var frequencyDictionaryTitles: [String] {
+        libraryState.frequencyDictionaries.filter { $0.isEnabled && !$0.needsReimport }.map(\.title)
     }
 
     func refresh() async {

@@ -30,6 +30,10 @@ package struct ReaderDictionarySettingsView: View {
     private var maxResults: Int = 16
     @Shared(.appStorage(ReaderPreferences.Keys.dictionaryScanLength))
     private var scanLength: Int = 16
+    @Shared(.appStorage(ReaderPreferences.Keys.dictionaryFrequencySortOrder))
+    private var frequencySortOrderRaw: String = LookupFrequencySort.Order.automatic.rawValue
+    @Shared(.appStorage(ReaderPreferences.Keys.dictionaryFrequencySortDictionary))
+    private var frequencySortDictionary: String = ""
 
     @Shared(.appStorage(ReaderPreferences.Keys.popupAudioSourceTemplate))
     private var audioTemplate: String = ""
@@ -50,11 +54,46 @@ package struct ReaderDictionarySettingsView: View {
         return base + String(localized: " Add a frequency dictionary to sort common words first.", bundle: .module)
     }
 
+    private var frequencySortUsesDictionary: Bool {
+        let order = LookupFrequencySort.Order(rawValue: frequencySortOrderRaw)
+        return order == .ascending || order == .descending
+    }
+
     package var body: some View {
         Form {
+            if model.libraryState.needsReimport {
+                Section {
+                    Label {
+                        Text("The lookup engine was updated and can't read dictionaries imported before. Delete the ones marked below and import their ZIP files again.", bundle: .module)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                            .foregroundStyle(palette.danger)
+                    }
+                }
+            }
+
             Section(String(localized: "Lookup behavior", bundle: .module)) {
                 Stepper(String(localized: "Max results: \(maxResults)", bundle: .module), value: Binding($maxResults), in: 1...50)
                 Stepper(String(localized: "Scan length: \(scanLength)", bundle: .module), value: Binding($scanLength), in: 4...64)
+            }
+
+            Section {
+                Picker(String(localized: "Sort by frequency", bundle: .module), selection: Binding($frequencySortOrderRaw)) {
+                    Text("Automatic", bundle: .module).tag(LookupFrequencySort.Order.automatic.rawValue)
+                    Text("Low numbers first", bundle: .module).tag(LookupFrequencySort.Order.ascending.rawValue)
+                    Text("High numbers first", bundle: .module).tag(LookupFrequencySort.Order.descending.rawValue)
+                    Text("Off", bundle: .module).tag(LookupFrequencySort.Order.disabled.rawValue)
+                }
+                if frequencySortUsesDictionary {
+                    Picker(String(localized: "Frequency dictionary", bundle: .module), selection: Binding($frequencySortDictionary)) {
+                        Text("All", bundle: .module).tag("")
+                        ForEach(model.frequencyDictionaryTitles, id: \.self) { title in
+                            Text(title).tag(title)
+                        }
+                    }
+                }
+            } footer: {
+                Text("Decides the order of results that match equally well. Low numbers first suits rank lists; high numbers first suits occurrence counts.", bundle: .module)
             }
 
             Section {
@@ -87,6 +126,7 @@ package struct ReaderDictionarySettingsView: View {
                     Text("Term", bundle: .module).tag(AppDictionaryKind.term)
                     Text("Frequency", bundle: .module).tag(AppDictionaryKind.frequency)
                     Text("Pitch", bundle: .module).tag(AppDictionaryKind.pitch)
+                    Text("Kanji", bundle: .module).tag(AppDictionaryKind.kanji)
                 }
                 .pickerStyle(.segmented)
             }
@@ -177,7 +217,11 @@ private struct DictionaryRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(info.title).amgiFont(.body)
-                if !info.index.revision.isEmpty {
+                if info.needsReimport {
+                    Text("Needs importing again", bundle: .module)
+                        .amgiFont(.caption)
+                        .foregroundStyle(palette.danger)
+                } else if !info.index.revision.isEmpty {
                     Text("rev \(info.index.revision)", bundle: .module)
                         .amgiFont(.caption)
                         .foregroundStyle(palette.textSecondary)
@@ -205,6 +249,7 @@ private extension AppDictionaryKind {
         case .term: return String(localized: "term", bundle: .module)
         case .frequency: return String(localized: "frequency", bundle: .module)
         case .pitch: return String(localized: "pitch", bundle: .module)
+        case .kanji: return String(localized: "kanji", bundle: .module)
         }
     }
 }

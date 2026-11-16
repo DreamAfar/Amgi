@@ -7,7 +7,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/tadija/AEXML", from: "4.7.0"),
         .package(url: "https://github.com/ZipArchive/ZipArchive", from: "2.6.0"),
-        .package(url: "https://github.com/Manhhao/hoshidicts.git", revision: "e70589d33b6b346663278383b422e41f1ed05f3c"),
+        .package(url: "https://github.com/Manhhao/hoshidicts.git", revision: "a28d82eb0f169b8ceff79e8c99ffe0b96709ab27"),
         .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
         .package(url: "https://github.com/pointfreeco/swift-navigation", from: "2.0.0"),
         .package(url: "https://github.com/pointfreeco/swift-sharing", from: "2.0.0"),

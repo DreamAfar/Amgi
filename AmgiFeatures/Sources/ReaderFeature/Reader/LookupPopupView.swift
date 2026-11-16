@@ -217,7 +217,7 @@ package struct LookupPopupView: View {
             } actions: {
                 Button(String(localized: "Retry", bundle: .module)) { Task { await performLookup() } }
             }
-        } else if let result = model.result, !result.entries.isEmpty {
+        } else if let result = model.result, result.hasContent {
             LookupResultList(
                 result: result,
                 styling: entryStyling,
@@ -253,6 +253,8 @@ package struct LookupPopupView: View {
                     onAddedNote?()
                 }
             }
+        } else if model.result?.needsReimport == true {
+            LookupReimportNotice()
         } else if model.result?.isPlaceholder == true {
             ContentUnavailableView {
                 Label(String(localized: "Engine not ready", bundle: .module), systemImage: "hourglass")
@@ -424,7 +426,7 @@ private struct LookupChildPane: View {
                         }
                     }
                 }
-            } else if let result = model.result, !result.entries.isEmpty {
+            } else if let result = model.result, result.hasContent {
                 LookupResultList(
                     result: result,
                     styling: styling,
@@ -436,6 +438,8 @@ private struct LookupChildPane: View {
                     onMakeNote: onMakeNote,
                     onLookupRequested: onPushLookup
                 )
+            } else if model.result?.needsReimport == true {
+                LookupReimportNotice()
             } else {
                 ContentUnavailableView.search(text: query)
             }
@@ -480,3 +484,15 @@ private extension String {
     return LookupPopupView(initialQuery: "猫", onDismiss: {})
 }
 #endif
+
+/// Shown instead of results when every dictionary predates the current
+/// lookup engine's file format.
+private struct LookupReimportNotice: View {
+    var body: some View {
+        ContentUnavailableView {
+            Label(String(localized: "Dictionaries need importing again", bundle: .module), systemImage: "arrow.triangle.2.circlepath")
+        } description: {
+            Text("The lookup engine was updated and can't read dictionaries imported before. Delete them in Settings › Reader › Dictionaries and import the ZIP files again.", bundle: .module)
+        }
+    }
+}
