@@ -340,6 +340,14 @@ struct ReaderSettingsView: View {
         Group {
             SettingsSectionHeader(title: String(localized: "Lookup Popup", bundle: .module))
             SettingsGroup {
+                SettingsRowLink(
+                    title: String(localized: "Vocabulary Card Template", bundle: .module),
+                    systemImage: "rectangle.and.pencil.and.ellipsis",
+                    tone: .review
+                ) {
+                    LookupNoteTemplateView()
+                }
+                SettingsSeparator()
                 SettingsToggleRow(
                     title: String(localized: "Full-screen popup", bundle: .module),
                     systemImage: "arrow.up.left.and.arrow.down.right",
