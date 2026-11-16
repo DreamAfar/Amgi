@@ -5,6 +5,7 @@
 //  Created by Vladimir Gusev on 16.05.2026.
 //
 
+import AppCore
 import AppShared
 import Foundation
 import SwiftUI
@@ -19,7 +20,7 @@ import SwiftUI
 /// the sheet and the chapter VC agree on the schema.
 enum ReaderTypographyPreferences {
     enum Keys {
-        static let fontFamily = "reader_typo_font_family"
+        static let fontFamily = ReaderPreferences.Keys.typographyFontFamily
         static let fontSize = "reader_typo_font_size"
         static let lineHeight = "reader_typo_line_height"
         static let pageMargin = "reader_typo_page_margin"

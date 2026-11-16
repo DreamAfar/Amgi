@@ -7,6 +7,7 @@
 
 import Theme
 import AppCore
+import AppShared
 import OSLog
 import Foundation
 import Reader
@@ -38,6 +39,8 @@ struct EPUBReaderStyleTokens: Equatable {
     var paddingPx: Int = 22
     var verticalMode: Bool = false
     var fontFamilyCSS: String = "-apple-system, BlinkMacSystemFont, \"Helvetica Neue\", sans-serif"
+    /// `@font-face` rule for an imported font named in `fontFamilyCSS`.
+    var fontFaceCSS: String = ""
     var pageMarginPx: Int = 24
     var textAlign: String = "justify"
     var tokenUnderlineCSS: String = "rgba(120, 120, 120, 0.55)"
@@ -127,6 +130,7 @@ final class EPUBChapterPageController: UIViewController {
         userContent.add(bridge, name: "wordTap")
 
         config.userContentController = userContent
+        config.setURLSchemeHandler(ReaderFontScheme(), forURLScheme: ReaderCustomFonts.scheme)
         config.defaultWebpagePreferences.allowsContentJavaScript = false
         config.suppressesIncrementalRendering = false
         config.defaultWebpagePreferences.preferredContentMode = .mobile
@@ -279,6 +283,9 @@ final class EPUBChapterPageController: UIViewController {
         let escapedFontFamily = styleTokens.fontFamilyCSS
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
+        let escapedFontFace = styleTokens.fontFaceCSS
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
         let js = """
         (function() {
           var r = document.documentElement;
@@ -290,6 +297,13 @@ final class EPUBChapterPageController: UIViewController {
           r.style.setProperty('--reader-page-margin', '\(styleTokens.pageMarginPx)px');
           r.style.setProperty('--reader-page-padding', '\(styleTokens.paddingPx)px');
           r.style.setProperty('--reader-writing-mode', '\(mode)');
+          var face = document.getElementById('amgi-reader-font-face');
+          if (!face) {
+            face = document.createElement('style');
+            face.id = 'amgi-reader-font-face';
+            (document.head || r).appendChild(face);
+          }
+          if (face.textContent !== '\(escapedFontFace)') { face.textContent = '\(escapedFontFace)'; }
           r.style.setProperty('--reader-font-family', '\(escapedFontFamily)');
           r.style.setProperty('--reader-text-align', '\(styleTokens.textAlign)');
           r.style.setProperty('--reader-tok-underline', '\(styleTokens.tokenUnderlineCSS)');

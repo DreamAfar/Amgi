@@ -93,6 +93,14 @@ struct EPUBChapterReaderView: View {
         ReaderTypographyPreferences.PageMargin(rawValue: typoPageMarginRaw) ?? .defaultMargin
     }
 
+    /// The imported font the typography sheet picked, if any.
+    private var customFont: (fontFace: String, family: String)? {
+        ReaderCustomFonts.css(
+            forSelection: typoFontFamilyRaw,
+            fallback: ReaderTypographyPreferences.FontFamily.system.cssStack
+        )
+    }
+
     private var styleTokens: EPUBReaderStyleTokens {
         let theme = typoTheme
         return EPUBReaderStyleTokens(
@@ -102,7 +110,8 @@ struct EPUBChapterReaderView: View {
             lineHeight: typoLineHeight,
             paddingPx: Int(horizontalPadding),
             verticalMode: verticalLayout,
-            fontFamilyCSS: typoFontFamily.cssStack,
+            fontFamilyCSS: customFont?.family ?? typoFontFamily.cssStack,
+            fontFaceCSS: customFont?.fontFace ?? "",
             pageMarginPx: typoPageMargin.pixels,
             textAlign: typoJustify ? "justify" : "left",
             tokenUnderlineCSS: theme.tokenUnderlineHex,

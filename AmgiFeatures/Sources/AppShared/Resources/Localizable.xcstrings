@@ -365,6 +365,34 @@
         }
       }
     },
+    "Couldn't Import Font" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォントを読み込めませんでした"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "글꼴을 가져올 수 없습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法导入字体"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法匯入字體"
+          }
+        }
+      }
+    },
     "Couldn't import deck" : {
       "localizations" : {
         "ja" : {
@@ -389,6 +417,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法匯入牌組"
+          }
+        }
+      }
+    },
+    "Custom Fonts" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カスタムフォント"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용자 글꼴"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义字体"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自訂字體"
           }
         }
       }
@@ -445,6 +501,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "刪除"
+          }
+        }
+      }
+    },
+    "Delete Font?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォントを削除しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "글꼴을 삭제하시겠습니까?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除字体？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除字體？"
           }
         }
       }
@@ -533,6 +617,34 @@
         }
       }
     },
+    "Delete “%@”" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」を削除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” 삭제"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除“%@”"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除「%@」"
+          }
+        }
+      }
+    },
     "Flag" : {
       "localizations" : {
         "ja" : {
@@ -589,6 +701,34 @@
         }
       }
     },
+    "Fonts stay on this device and are available in both readers. A book set in a deleted font goes back to the default." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォントはこのデバイスに保存され、両方のリーダーで使えます。削除したフォントを使っていた本は既定のフォントに戻ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "글꼴은 이 기기에 저장되며 두 리더 모두에서 사용할 수 있습니다. 삭제한 글꼴을 쓰던 책은 기본 글꼴로 돌아갑니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字体保存在本设备上，两个阅读器都能使用。使用已删除字体的书会恢复为默认字体。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字體保存在本裝置上，兩個閱讀器都能使用。使用已刪除字體的書會恢復為預設字體。"
+          }
+        }
+      }
+    },
     "Forget Card" : {
       "localizations" : {
         "ja" : {
@@ -641,6 +781,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "遺忘失敗"
+          }
+        }
+      }
+    },
+    "Import Font" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォントを読み込む"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "글꼴 가져오기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入字体"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯入字體"
+          }
+        }
+      }
+    },
+    "Import TrueType, OpenType or WOFF fonts to read books in them." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TrueType、OpenType、WOFFフォントを読み込むと、そのフォントで本を読めます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TrueType, OpenType 또는 WOFF 글꼴을 가져와 책을 그 글꼴로 읽을 수 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入 TrueType、OpenType 或 WOFF 字体后，可以用它们阅读书籍。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯入 TrueType、OpenType 或 WOFF 字體後，可以用它們閱讀書籍。"
           }
         }
       }
@@ -725,6 +921,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "標記筆記失敗"
+          }
+        }
+      }
+    },
+    "No Custom Fonts" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カスタムフォントはありません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용자 글꼴 없음"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有自定义字体"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有自訂字體"
           }
         }
       }
@@ -1229,6 +1453,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "單詞聚焦"
+          }
+        }
+      }
+    },
+    "“%@” isn't a font file that can be used." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」は使用できるフォントファイルではありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”은(는) 사용할 수 있는 글꼴 파일이 아닙니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”不是可用的字体文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」不是可用的字體檔案。"
           }
         }
       }
