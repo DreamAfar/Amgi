@@ -503,6 +503,34 @@
         }
       }
     },
+    "Book ID field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本の ID のフィールド"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "책 ID 필드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "书籍 ID 字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書籍 ID 欄位"
+          }
+        }
+      }
+    },
     "Book cover" : {
       "localizations" : {
         "ja" : {
@@ -555,6 +583,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "書名"
+          }
+        }
+      }
+    },
+    "Book title field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書名のフィールド"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "책 제목 필드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "书名字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書名欄位"
           }
         }
       }
@@ -671,6 +727,34 @@
         }
       }
     },
+    "Chapter order field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章の順序のフィールド"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "장 순서 필드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章节顺序字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章節順序欄位"
+          }
+        }
+      }
+    },
     "Chapter title" : {
       "localizations" : {
         "ja" : {
@@ -695,6 +779,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "章節標題"
+          }
+        }
+      }
+    },
+    "Chapter title field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章タイトルのフィールド"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "장 제목 필드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章节标题字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章節標題欄位"
           }
         }
       }
@@ -807,6 +919,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "內容"
+          }
+        }
+      }
+    },
+    "Content field" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本文のフィールド"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내용 필드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内容字段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "內容欄位"
           }
         }
       }
@@ -1567,6 +1707,34 @@
         }
       }
     },
+    "Field names from the notetype that holds your book chapters. Each note becomes a chapter; chapters with the same Book ID collapse into one book." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本の章を保存しているノートタイプのフィールド名です。各ノートが 1 つの章になり、本の ID が同じ章は 1 冊にまとめられます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "책의 장을 담은 노트 유형의 필드 이름입니다. 노트 하나가 장 하나가 되며, 책 ID가 같은 장은 한 권으로 묶입니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存放书籍章节的笔记模板中的字段名称。每条笔记成为一个章节；书籍 ID 相同的章节会合并为一本书。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存放書籍章節的筆記類型中的欄位名稱。每條筆記成為一個章節；書籍 ID 相同的章節會合併為一本書。"
+          }
+        }
+      }
+    },
     "Find" : {
       "localizations" : {
         "ja" : {
@@ -2099,6 +2267,34 @@
         }
       }
     },
+    "Look Up Word" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "単語を調べる"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단어 찾기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查词"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查詞"
+          }
+        }
+      }
+    },
     "Look up word" : {
       "localizations" : {
         "ja" : {
@@ -2235,6 +2431,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "寬鬆"
+          }
+        }
+      }
+    },
+    "Make Card" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カードを作成"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카드 만들기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "制卡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "製卡"
           }
         }
       }
@@ -2599,6 +2823,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "好"
+          }
+        }
+      }
+    },
+    "Optional" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "任意"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택 사항"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可选"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可選"
           }
         }
       }
@@ -3131,6 +3383,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "選擇筆記類型"
+          }
+        }
+      }
+    },
+    "Select some text first (touch and hold), then tap + — or choose Make Card in the menu that appears." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "まず長押しでテキストを選択してから＋をタップするか、表示されるメニューで「カードを作成」を選んでください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "먼저 길게 눌러 텍스트를 선택한 다음 +를 탭하거나, 나타나는 메뉴에서 '카드 만들기'를 선택하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先长按选中文字，再点 ＋；也可以在弹出的菜单里点「制卡」。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先長按選取文字，再點 ＋；也可以在彈出的選單裡點「製卡」。"
           }
         }
       }
