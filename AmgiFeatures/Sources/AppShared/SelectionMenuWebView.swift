@@ -49,8 +49,8 @@ public struct WebSelectionAction {
 }
 
 /// A web view whose text-selection menu — the system's own, with Copy,
-/// Look Up and the rest — also offers this app's actions, placed right
-/// after Look Up. The menu keeps the system's look in every iOS version;
+/// Look Up and the rest — also offers this app's actions, placed ahead
+/// of them. The menu keeps the system's look in every iOS version;
 /// only the items are ours.
 open class SelectionMenuWebView: WKWebView {
     /// Read each time the menu opens, so it can change with the content.
@@ -67,10 +67,12 @@ open class SelectionMenuWebView: WKWebView {
             }
         }
         let menu = UIMenu(options: .displayInline, children: items)
-        if builder.menu(for: .lookup) != nil {
-            builder.insertSibling(menu, afterMenu: .lookup)
-        } else if builder.menu(for: .standardEdit) != nil {
-            builder.insertChild(menu, atEndOfMenu: .standardEdit)
+        // Ahead of Copy / Look Up, so the app's actions show without
+        // paging the menu.
+        if builder.menu(for: .standardEdit) != nil {
+            builder.insertSibling(menu, beforeMenu: .standardEdit)
+        } else {
+            builder.insertChild(menu, atStartOfMenu: .root)
         }
     }
 
