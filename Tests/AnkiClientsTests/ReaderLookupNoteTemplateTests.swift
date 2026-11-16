@@ -92,4 +92,39 @@ struct ReaderLookupNoteTemplateTests {
         let restored = ReaderLookupNoteTemplate.decode(from: original.encodedString())
         #expect(restored == original)
     }
+
+    @Test("autoMap fills slots by common field names, once each")
+    func autoMapByName() {
+        var template = ReaderLookupNoteTemplate()
+        template.autoMap(fields: ["Expression", "Reading", "Sentence", "Meaning", "SentenceTranslation", "Notes"])
+        #expect(template.termField == "Expression")
+        #expect(template.readingField == "Reading")
+        #expect(template.sentenceField == "Sentence")
+        #expect(template.definition1Field == "Meaning")
+        #expect(template.translationField == "SentenceTranslation")
+        #expect(template.explanationField == "Notes")
+    }
+
+    @Test("autoMap keeps the user's own choices and doesn't reuse a field")
+    func autoMapKeepsChoices() {
+        var template = ReaderLookupNoteTemplate(termField: "Back")
+        template.autoMap(fields: ["Front", "Back"])
+        #expect(template.termField == "Back")
+        #expect(template.definition1Field == "")
+    }
+
+    @Test("explanation and translation are mapped and round-trip")
+    func explanationAndTranslation() {
+        let template = ReaderLookupNoteTemplate(termField: "单词", explanationField: "解释", translationField: "翻译")
+        let draft = template.makeDraft(
+            payload: ReaderLookupNotePayload(term: "あくせく", explanation: "忙忙碌碌", translation: "他忙忙碌碌地工作"),
+            fallbackDeckID: nil,
+            sourceDescription: "Review"
+        )
+        #expect(draft.fieldValues["解释"] == "忙忙碌碌")
+        #expect(draft.fieldValues["翻译"] == "他忙忙碌碌地工作")
+        #expect(ReaderLookupNoteTemplate.decode(from: template.encodedString()) == template)
+        #expect(template.hasFieldMapping)
+        #expect(!ReaderLookupNoteTemplate.empty.hasFieldMapping)
+    }
 }

@@ -25,6 +25,10 @@ public struct ReaderLookupNotePayload: Sendable, Hashable {
     public var matched: String?
     public var source: String?
     public var rules: String?
+    /// An AI explanation of the term in its sentence (review selection).
+    public var explanation: String?
+    /// A translation of the sentence or selection (review selection).
+    public var translation: String?
 
     public init(
         term: String,
@@ -37,7 +41,9 @@ public struct ReaderLookupNotePayload: Sendable, Hashable {
         deinflection: String? = nil,
         matched: String? = nil,
         source: String? = nil,
-        rules: String? = nil
+        rules: String? = nil,
+        explanation: String? = nil,
+        translation: String? = nil
     ) {
         self.term = term
         self.reading = reading
@@ -50,6 +56,8 @@ public struct ReaderLookupNotePayload: Sendable, Hashable {
         self.matched = matched
         self.source = source
         self.rules = rules
+        self.explanation = explanation
+        self.translation = translation
     }
 
     public var normalizedDefinitions: [String] {
@@ -106,6 +114,8 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     public var matchedField: String
     public var sourceField: String
     public var rulesField: String
+    public var explanationField: String
+    public var translationField: String
 
     public static let empty = Self()
 
@@ -124,7 +134,9 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         deinflectionField: String = "",
         matchedField: String = "",
         sourceField: String = "",
-        rulesField: String = ""
+        rulesField: String = "",
+        explanationField: String = "",
+        translationField: String = ""
     ) {
         self.deckID = deckID
         self.notetypeID = notetypeID
@@ -141,6 +153,8 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         self.matchedField = matchedField
         self.sourceField = sourceField
         self.rulesField = rulesField
+        self.explanationField = explanationField
+        self.translationField = translationField
     }
 
     enum CodingKeys: String, CodingKey {
@@ -149,6 +163,7 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         case definition1Field, definition2Field, definition3Field
         case dictionariesField, frequencyField, pitchField
         case deinflectionField, matchedField, sourceField, rulesField
+        case explanationField, translationField
     }
 
     public init(from decoder: any Decoder) throws {
@@ -168,6 +183,49 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         matchedField = try c.decodeIfPresent(String.self, forKey: .matchedField) ?? ""
         sourceField = try c.decodeIfPresent(String.self, forKey: .sourceField) ?? ""
         rulesField = try c.decodeIfPresent(String.self, forKey: .rulesField) ?? ""
+        explanationField = try c.decodeIfPresent(String.self, forKey: .explanationField) ?? ""
+        translationField = try c.decodeIfPresent(String.self, forKey: .translationField) ?? ""
+    }
+
+    /// Whether any field is mapped. An unmapped template falls back to
+    /// common Basic field names in `makeDraft`.
+    public var hasFieldMapping: Bool {
+        !mappedFields.isEmpty
+    }
+
+    private var mappedFields: [String] {
+        [termField, readingField, sentenceField, definition1Field, definition2Field, definition3Field,
+         dictionariesField, frequencyField, pitchField, deinflectionField, matchedField, sourceField,
+         rulesField, explanationField, translationField].filter { !$0.isEmpty }
+    }
+
+    /// Fills the unmapped slots from a notetype's field names by the names
+    /// they commonly have (English, Chinese, Japanese and the Yomitan /
+    /// Lapis conventions), leaving slots the user already mapped alone.
+    /// Each field is used for at most one slot.
+    public mutating func autoMap(fields: [String]) {
+        var taken = Set(mappedFields)
+        func pick(_ current: inout String, _ candidates: [String]) {
+            guard current.isEmpty else { return }
+            for candidate in candidates {
+                if let field = fields.first(where: {
+                    $0.caseInsensitiveCompare(candidate) == .orderedSame && !taken.contains($0)
+                }) {
+                    current = field
+                    taken.insert(field)
+                    return
+                }
+            }
+        }
+        pick(&termField, ["Expression", "Word", "Term", "Vocab", "Front", "Text", "单词", "单字", "词语", "正面", "単語"])
+        pick(&readingField, ["Reading", "ExpressionReading", "Kana", "Furigana", "Pronunciation", "读音", "读法", "読み"])
+        pick(&sentenceField, ["Sentence", "Example", "Context", "例句", "句子", "例文"])
+        pick(&definition1Field, ["Meaning", "Definition", "Glossary", "MainDefinition", "Back", "释义", "意思", "背面", "意味"])
+        pick(&translationField, ["SentenceTranslation", "Translation", "例句翻译", "翻译", "訳"])
+        pick(&explanationField, ["Explanation", "Notes", "Extra", "解释", "笔记", "備考"])
+        pick(&frequencyField, ["Frequency", "FreqSort", "词频", "頻度"])
+        pick(&pitchField, ["Pitch", "PitchAccent", "音调", "アクセント"])
+        pick(&sourceField, ["Source", "来源", "出典"])
     }
 
     public func encodedString() -> String {
@@ -200,6 +258,8 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         if !valid.contains(matchedField) { matchedField = "" }
         if !valid.contains(sourceField) { sourceField = "" }
         if !valid.contains(rulesField) { rulesField = "" }
+        if !valid.contains(explanationField) { explanationField = "" }
+        if !valid.contains(translationField) { translationField = "" }
     }
 
     public func makeDraft(
@@ -230,6 +290,8 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         assign(matchedField, payload.matched)
         assign(sourceField, payload.source)
         assign(rulesField, payload.rules)
+        assign(explanationField, payload.explanation)
+        assign(translationField, payload.translation)
 
         // No mapping configured yet: best-effort fallback to common
         // basic-notetype field names so the user still gets *some* note,
