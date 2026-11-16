@@ -27,7 +27,7 @@ private final class LookupEngineBox {
     private let deinflectorPtr: UnsafeMutablePointer<Deinflector>
     private let lookupPtr: UnsafeMutablePointer<Lookup>
 
-    init(termPaths: [String], frequencyPaths: [String], pitchPaths: [String]) {
+    init(termPaths: [String], frequencyPaths: [String], pitchPaths: [String], kanjiPaths: [String]) {
         queryPtr = UnsafeMutablePointer<DictionaryQuery>.allocate(capacity: 1)
         queryPtr.initialize(to: DictionaryQuery())
         deinflectorPtr = UnsafeMutablePointer<Deinflector>.allocate(capacity: 1)
@@ -36,6 +36,7 @@ private final class LookupEngineBox {
         for path in termPaths { queryPtr.pointee.add_term_dict(std.string(path)) }
         for path in frequencyPaths { queryPtr.pointee.add_freq_dict(std.string(path)) }
         for path in pitchPaths { queryPtr.pointee.add_pitch_dict(std.string(path)) }
+        for path in kanjiPaths { queryPtr.pointee.add_kanji_dict(std.string(path)) }
 
         lookupPtr = UnsafeMutablePointer<Lookup>.allocate(capacity: 1)
         lookupPtr.initialize(to: Lookup(&queryPtr.pointee, &deinflectorPtr.pointee))
@@ -52,8 +53,49 @@ private final class LookupEngineBox {
         queryPtr.deallocate()
     }
 
-    func lookup(_ query: String, maxResults: Int, scanLength: Int) -> [LookupResult] {
-        Array(lookupPtr.pointee.lookup(std.string(query), Int32(maxResults), scanLength))
+    func lookup(
+        _ query: String,
+        maxResults: Int,
+        scanLength: Int,
+        frequencySort: LookupFrequencySort
+    ) -> [LookupResult] {
+        var options = LookupOptions()
+        switch frequencySort.order {
+        case .automatic: options.frequency_order = .Auto
+        case .ascending: options.frequency_order = .Ascending
+        case .descending: options.frequency_order = .Descending
+        case .disabled: options.frequency_order = .Disabled
+        }
+        // Which dictionary to sort by is left to `LookupRanking`, which
+        // orders the entries again anyway: the engine takes the name as a
+        // `std::optional<std::string>`, which Swift can't construct here.
+        return Array(lookupPtr.pointee.lookup(std.string(query), Int32(maxResults), scanLength, options))
+    }
+
+    func kanji(_ character: String) -> DictionaryLookupKanji? {
+        let result = queryPtr.pointee.query_kanji(std.string(character))
+        var entries: [DictionaryLookupKanji.Entry] = []
+        for entry in result.entries {
+            var meanings: [String] = []
+            for definition in entry.definitions {
+                meanings.append(String(definition))
+            }
+            entries.append(
+                DictionaryLookupKanji.Entry(
+                    dictionary: String(entry.dict_name),
+                    onyomi: Self.readings(String(entry.onyomi)),
+                    kunyomi: Self.readings(String(entry.kunyomi)),
+                    meanings: meanings
+                )
+            )
+        }
+        guard !entries.isEmpty else { return nil }
+        return DictionaryLookupKanji(character: character, entries: entries)
+    }
+
+    /// Yomitan kanji banks store readings as one space-separated string.
+    private static func readings(_ raw: String) -> [String] {
+        raw.split(whereSeparator: \.isWhitespace).map(String.init)
     }
 
     func styles() -> [DictionaryStyle] {
@@ -114,6 +156,7 @@ actor DictionaryLookupRuntime {
     private var termDictionaries: [ManagedDictionary] = []
     private var frequencyDictionaries: [ManagedDictionary] = []
     private var pitchDictionaries: [ManagedDictionary] = []
+    private var kanjiDictionaries: [ManagedDictionary] = []
     private var engine: LookupEngineBox?
     /// In-flight profile load, so concurrent callers coalesce onto one
     /// rebuild instead of racing across `reloadState`'s suspension points.
@@ -134,40 +177,88 @@ actor DictionaryLookupRuntime {
             return DictionaryLookupResult(query: text, entries: [], isPlaceholder: false)
         }
 
-        guard termDictionaries.contains(where: \.info.isEnabled) else {
-            return DictionaryLookupResult(query: trimmed, entries: [], isPlaceholder: true)
+        let hasTermDictionary = termDictionaries.contains(where: Self.isUsable)
+        let hasKanjiDictionary = kanjiDictionaries.contains(where: Self.isUsable)
+        guard hasTermDictionary || hasKanjiDictionary else {
+            let outdated = (termDictionaries + kanjiDictionaries).contains { $0.info.isEnabled && $0.info.needsReimport }
+            return DictionaryLookupResult(query: trimmed, entries: [], isPlaceholder: !outdated, needsReimport: outdated)
         }
 
         let resolvedMaxResults = max(1, maxResults)
         let resolvedScanLength = max(1, scanLength)
-        var rawResults = performLookup(trimmed, maxResults: resolvedMaxResults, scanLength: resolvedScanLength)
+        let frequencySort = Self.frequencySortPreference()
+        var rawResults = performLookup(
+            trimmed, maxResults: resolvedMaxResults, scanLength: resolvedScanLength, frequencySort: frequencySort
+        )
 
         // Try the lowercased form for ASCII queries; pick whichever yields
         // the higher-quality match. Mirrors DreamAfar's behavior so JMdict
         // entries surface for queries the user typed in mixed case.
         let lowercaseQuery = trimmed.lowercased()
         if lowercaseQuery != trimmed, Self.containsASCIIUppercase(trimmed) {
-            let lowercaseResults = performLookup(lowercaseQuery, maxResults: resolvedMaxResults, scanLength: resolvedScanLength)
+            let lowercaseResults = performLookup(
+                lowercaseQuery, maxResults: resolvedMaxResults, scanLength: resolvedScanLength,
+                frequencySort: frequencySort
+            )
             if Self.lookupQualityScore(lowercaseResults, query: lowercaseQuery)
                 > Self.lookupQualityScore(rawResults, query: trimmed) {
                 rawResults = lowercaseResults
             }
         }
 
+        let entries = LookupRanking.rank(
+            rawResults.map(Self.makeEntry),
+            dictionaryOrder: enabledTermDictionaryOrder(),
+            frequencySort: frequencySort
+        )
         return DictionaryLookupResult(
             query: trimmed,
-            entries: LookupRanking.rank(
-                rawResults.map(Self.makeEntry),
-                dictionaryOrder: enabledTermDictionaryOrder()
-            ),
+            entries: entries,
             isPlaceholder: false,
-            dictionaryStyles: loadStylesSync()
+            dictionaryStyles: loadStylesSync(),
+            kanji: hasKanjiDictionary ? kanjiEntries(in: entries.first?.matched ?? trimmed) : []
         )
+    }
+
+    /// Kanji-dictionary entries for the distinct kanji of `text`, in order.
+    /// Capped: a long match would otherwise bury the words under kanji.
+    private func kanjiEntries(in text: String, limit: Int = 4) -> [DictionaryLookupKanji] {
+        guard let engine else { return [] }
+        var seen: Set<Character> = []
+        var found: [DictionaryLookupKanji] = []
+        for character in text where Self.isKanji(character) && seen.insert(character).inserted {
+            if let entry = engine.kanji(String(character)) { found.append(entry) }
+            if seen.count >= limit { break }
+        }
+        return found
+    }
+
+    private static func isKanji(_ character: Character) -> Bool {
+        guard character.unicodeScalars.count == 1, let scalar = character.unicodeScalars.first else { return false }
+        switch scalar.value {
+        case 0x3400...0x4DBF, 0x4E00...0x9FFF, 0xF900...0xFAFF, 0x20000...0x2FA1F: return true
+        default: return false
+        }
+    }
+
+    /// The reader's frequency-sort setting. The keys are AppCore's
+    /// `ReaderPreferences.Keys.dictionaryFrequencySortOrder` / `…Dictionary`,
+    /// repeated here because this package has no dependency edge to AppCore.
+    private static func frequencySortPreference() -> LookupFrequencySort {
+        let defaults = UserDefaults.standard
+        let order = defaults.string(forKey: "reader_pref_dictionary_frequency_sort_order")
+            .flatMap(LookupFrequencySort.Order.init(rawValue:)) ?? .automatic
+        let dictionary = defaults.string(forKey: "reader_pref_dictionary_frequency_sort_dictionary")
+        return LookupFrequencySort(order: order, dictionary: dictionary?.isEmpty == false ? dictionary : nil)
+    }
+
+    private static func isUsable(_ dictionary: ManagedDictionary) -> Bool {
+        dictionary.info.isEnabled && !dictionary.info.needsReimport
     }
 
     private func enabledTermDictionaryOrder() -> [String: Int] {
         var order: [String: Int] = [:]
-        for d in termDictionaries where d.info.isEnabled {
+        for d in termDictionaries where Self.isUsable(d) {
             if order[d.info.title] == nil { order[d.info.title] = order.count }
         }
         return order
@@ -220,6 +311,10 @@ actor DictionaryLookupRuntime {
             guard let i = pitchDictionaries.firstIndex(where: { $0.info.id == dictionaryID })
             else { throw RuntimeError.dictionaryNotFound(dictionaryID) }
             pitchDictionaries[i].info.isEnabled = enabled
+        case .kanji:
+            guard let i = kanjiDictionaries.firstIndex(where: { $0.info.id == dictionaryID })
+            else { throw RuntimeError.dictionaryNotFound(dictionaryID) }
+            kanjiDictionaries[i].info.isEnabled = enabled
         }
 
         try await persistAndRebuild()
@@ -233,6 +328,7 @@ actor DictionaryLookupRuntime {
         case .term: termDictionaries = applyOrder(dictionaryIDs, to: termDictionaries)
         case .frequency: frequencyDictionaries = applyOrder(dictionaryIDs, to: frequencyDictionaries)
         case .pitch: pitchDictionaries = applyOrder(dictionaryIDs, to: pitchDictionaries)
+        case .kanji: kanjiDictionaries = applyOrder(dictionaryIDs, to: kanjiDictionaries)
         }
 
         try await persistAndRebuild()
@@ -279,6 +375,12 @@ actor DictionaryLookupRuntime {
             try? FileManager.default.removeItem(at: pitchDictionaries[i].path)
             pitchDictionaries.remove(at: i)
             pitchDictionaries = normalized(pitchDictionaries)
+        case .kanji:
+            guard let i = kanjiDictionaries.firstIndex(where: { $0.info.id == dictionaryID })
+            else { throw RuntimeError.dictionaryNotFound(dictionaryID) }
+            try? FileManager.default.removeItem(at: kanjiDictionaries[i].path)
+            kanjiDictionaries.remove(at: i)
+            kanjiDictionaries = normalized(kanjiDictionaries)
         }
 
         try await persistAndRebuild()
@@ -287,8 +389,13 @@ actor DictionaryLookupRuntime {
 
     // MARK: - Engine
 
-    private func performLookup(_ query: String, maxResults: Int, scanLength: Int) -> [LookupResult] {
-        engine?.lookup(query, maxResults: maxResults, scanLength: scanLength) ?? []
+    private func performLookup(
+        _ query: String,
+        maxResults: Int,
+        scanLength: Int,
+        frequencySort: LookupFrequencySort
+    ) -> [LookupResult] {
+        engine?.lookup(query, maxResults: maxResults, scanLength: scanLength, frequencySort: frequencySort) ?? []
     }
 
     private func loadStylesSync() -> [String: String] {
@@ -304,12 +411,13 @@ actor DictionaryLookupRuntime {
         engine = LookupEngineBox(
             termPaths: enabledPaths(termDictionaries),
             frequencyPaths: enabledPaths(frequencyDictionaries),
-            pitchPaths: enabledPaths(pitchDictionaries)
+            pitchPaths: enabledPaths(pitchDictionaries),
+            kanjiPaths: enabledPaths(kanjiDictionaries)
         )
     }
 
     private func enabledPaths(_ dictionaries: [ManagedDictionary]) -> [String] {
-        dictionaries.filter(\.info.isEnabled).map { $0.path.path(percentEncoded: false) }
+        dictionaries.filter(Self.isUsable).map { $0.path.path(percentEncoded: false) }
     }
 
     @discardableResult
@@ -358,11 +466,13 @@ actor DictionaryLookupRuntime {
         let storedTerm = try dictionariesFromStorage(kind: .term, profileID: profileID)
         let storedFrequency = try dictionariesFromStorage(kind: .frequency, profileID: profileID)
         let storedPitch = try dictionariesFromStorage(kind: .pitch, profileID: profileID)
+        let storedKanji = try dictionariesFromStorage(kind: .kanji, profileID: profileID)
         let config = try await loadConfig(profileID: profileID) ?? AppDictionaryConfig()
 
         termDictionaries = collect(stored: storedTerm, configured: config.termDictionaries)
         frequencyDictionaries = collect(stored: storedFrequency, configured: config.frequencyDictionaries)
         pitchDictionaries = collect(stored: storedPitch, configured: config.pitchDictionaries)
+        kanjiDictionaries = collect(stored: storedKanji, configured: config.kanjiDictionaries)
 
         activeProfileID = profileID
         try await persistAndRebuild()
@@ -378,7 +488,8 @@ actor DictionaryLookupRuntime {
         AppDictionaryLibraryState(
             termDictionaries: termDictionaries.map(\.info),
             frequencyDictionaries: frequencyDictionaries.map(\.info),
-            pitchDictionaries: pitchDictionaries.map(\.info)
+            pitchDictionaries: pitchDictionaries.map(\.info),
+            kanjiDictionaries: kanjiDictionaries.map(\.info)
         )
     }
 
@@ -430,11 +541,25 @@ actor DictionaryLookupRuntime {
                     return nil
                 }
                 return ManagedDictionary(
-                    info: AppDictionaryInfo(fileName: url.lastPathComponent, index: index),
+                    info: AppDictionaryInfo(
+                        fileName: url.lastPathComponent,
+                        index: index,
+                        needsReimport: !Self.hasCurrentFormat(at: url)
+                    ),
                     path: url
                 )
             }
             .sorted { $0.info.title.localizedCaseInsensitiveCompare($1.info.title) == .orderedAscending }
+    }
+
+    /// Whether the engine can open the dictionary in `directory`. It needs
+    /// the `bloom.filter` its importer has written since mid-2026; a folder
+    /// imported by the engine this app used to ship has none, and the
+    /// engine skips it without reporting an error.
+    private static func hasCurrentFormat(at directory: URL) -> Bool {
+        FileManager.default.fileExists(
+            atPath: directory.appendingPathComponent("bloom.filter").path(percentEncoded: false)
+        )
     }
 
     // MARK: - Config persistence (via injected DictionaryConfigStore)
@@ -473,7 +598,8 @@ actor DictionaryLookupRuntime {
         let config = AppDictionaryConfig(
             termDictionaries: termDictionaries.map(Self.entry),
             frequencyDictionaries: frequencyDictionaries.map(Self.entry),
-            pitchDictionaries: pitchDictionaries.map(Self.entry)
+            pitchDictionaries: pitchDictionaries.map(Self.entry),
+            kanjiDictionaries: kanjiDictionaries.map(Self.entry)
         )
         let updatedAt = Date()
         try writeLocalConfig(config, updatedAt: updatedAt, profileID: profileID)
@@ -626,14 +752,29 @@ actor DictionaryLookupRuntime {
 
         let pitchesArray = Array(result.term.pitches)
         let structuredPitches = pitchesArray.map { entry in
-            let positions = Array(entry.pitch_positions)
-                .map(Int.init)
-                .reduce(into: [Int]()) { out, p in
-                    if !out.contains(p) { out.append(p) }
+            var positions: [Int] = []
+            var patterns: [String] = []
+            for accent in entry.pitches {
+                let pattern = String(accent.pattern)
+                if pattern.isEmpty {
+                    let position = Int(accent.position)
+                    if !positions.contains(position) { positions.append(position) }
+                } else if !patterns.contains(pattern) {
+                    patterns.append(pattern)
                 }
+            }
+            var transcriptions: [String] = []
+            for element in entry.transcriptions {
+                let transcription = String(element)
+                if !transcription.isEmpty, !transcriptions.contains(transcription) {
+                    transcriptions.append(transcription)
+                }
+            }
             return DictionaryLookupPitch(
                 dictionary: String(entry.dict_name),
-                positions: positions
+                positions: positions,
+                patterns: patterns,
+                transcriptions: transcriptions
             )
         }
 
@@ -653,14 +794,13 @@ actor DictionaryLookupRuntime {
             }
             .joined(separator: "  ")
 
-        let pitch = pitchesArray
+        let pitch = structuredPitches
             .compactMap { entry -> String? in
-                let positions = Array(entry.pitch_positions).map { String($0) }
-                guard !positions.isEmpty else { return nil }
-                let dictName = String(entry.dict_name)
-                return dictName.isEmpty
-                    ? positions.joined(separator: ", ")
-                    : "\(dictName): \(positions.joined(separator: ", "))"
+                let values = entry.displayValues
+                guard !values.isEmpty else { return nil }
+                return entry.dictionary.isEmpty
+                    ? values.joined(separator: ", ")
+                    : "\(entry.dictionary): \(values.joined(separator: ", "))"
             }
             .joined(separator: "  ")
 
@@ -763,6 +903,7 @@ private extension AppDictionaryKind {
         case .term: return "Term"
         case .frequency: return "Frequency"
         case .pitch: return "Pitch"
+        case .kanji: return "Kanji"
         }
     }
 }
