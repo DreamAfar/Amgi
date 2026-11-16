@@ -51,7 +51,64 @@ struct LookupResultList: View {
                     Divider()
                         .padding(.leading, AmgiSpacing.lg)
                 }
+                ForEach(result.kanji) { kanji in
+                    LookupKanjiView(kanji: kanji, styling: styling)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, AmgiSpacing.lg)
+                        .padding(.vertical, AmgiSpacing.sm)
+                    Divider()
+                        .padding(.leading, AmgiSpacing.lg)
+                }
             }
+        }
+    }
+}
+
+/// One kanji with its readings and meanings, per kanji dictionary.
+struct LookupKanjiView: View {
+    let kanji: DictionaryLookupKanji
+    let styling: LookupEntryStyling
+
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        HStack(alignment: .top, spacing: AmgiSpacing.md) {
+            Text(kanji.character)
+                .amgiFont(.displayHero)
+                .foregroundStyle(palette.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: AmgiSpacing.sm) {
+                ForEach(Array(kanji.entries.enumerated()), id: \.offset) { _, entry in
+                    VStack(alignment: .leading, spacing: AmgiSpacing.xxs) {
+                        Text(entry.dictionary)
+                            .font(.system(size: styling.dictionaryNameFontSize))
+                            .foregroundStyle(palette.textSecondary)
+                        if !entry.onyomi.isEmpty {
+                            reading(String(localized: "On reading", bundle: .module), entry.onyomi)
+                        }
+                        if !entry.kunyomi.isEmpty {
+                            reading(String(localized: "Kun reading", bundle: .module), entry.kunyomi)
+                        }
+                        if !entry.meanings.isEmpty {
+                            Text(entry.meanings.joined(separator: "; "))
+                                .font(.system(size: styling.contentFontSize))
+                                .foregroundStyle(palette.textPrimary)
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func reading(_ label: String, _ values: [String]) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: AmgiSpacing.sm) {
+            Text(label)
+                .amgiFont(.micro)
+                .foregroundStyle(palette.textSecondary)
+            Text(values.joined(separator: "、"))
+                .font(.system(size: styling.contentFontSize))
+                .foregroundStyle(palette.textPrimary)
         }
     }
 }

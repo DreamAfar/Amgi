@@ -99,4 +99,43 @@ struct LookupRankingTests {
         let ranked = LookupRanking.rank(c.entries, dictionaryOrder: c.dictionaryOrder)
         #expect(ranked.map(\.term) == c.expected)
     }
+
+    // MARK: Frequency sort
+
+    static func entry(_ term: String, frequencies: [String: Int]) -> DictionaryLookupEntry {
+        DictionaryLookupEntry(
+            term: term,
+            matched: "先生",
+            structuredGlossaries: [DictionaryLookupGlossary(dictionary: "A")],
+            structuredFrequencies: frequencies.sorted { $0.key < $1.key }.map {
+                DictionaryLookupFrequency(dictionary: $0.key, frequencies: [.init(value: $0.value)])
+            }
+        )
+    }
+
+    static let frequencyEntries = [
+        entry("rare", frequencies: ["rank": 9000, "count": 3]),
+        entry("common", frequencies: ["rank": 12, "count": 800]),
+        entry("unlisted", frequencies: [:]),
+    ]
+
+    private func terms(_ sort: LookupFrequencySort) -> [String] {
+        LookupRanking.rank(Self.frequencyEntries, dictionaryOrder: ["A": 0], frequencySort: sort).map(\.term)
+    }
+
+    @Test func automaticPutsTheLowestNumberFirst() {
+        #expect(terms(.automatic) == ["rare", "common", "unlisted"])
+    }
+
+    @Test func ascendingUsesTheChosenDictionary() {
+        #expect(terms(LookupFrequencySort(order: .ascending, dictionary: "rank")) == ["common", "rare", "unlisted"])
+    }
+
+    @Test func descendingSuitsOccurrenceCounts() {
+        #expect(terms(LookupFrequencySort(order: .descending, dictionary: "count")) == ["common", "rare", "unlisted"])
+    }
+
+    @Test func disabledKeepsTheEngineOrder() {
+        #expect(terms(LookupFrequencySort(order: .disabled)) == ["rare", "common", "unlisted"])
+    }
 }

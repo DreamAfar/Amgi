@@ -419,6 +419,34 @@
         }
       }
     },
+    "All" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべて"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전체"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        }
+      }
+    },
     "Audio" : {
       "localizations" : {
         "ja" : {
@@ -443,6 +471,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "音訊"
+          }
+        }
+      }
+    },
+    "Automatic" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動"
           }
         }
       }
@@ -1091,6 +1147,34 @@
         }
       }
     },
+    "Decides the order of results that match equally well. Low numbers first suits rank lists; high numbers first suits occurrence counts." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一致度が同じ結果の並び順を決めます。順位形式の頻度リストには「数値の小さい順」、出現回数形式には「数値の大きい順」が向いています。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일치도가 같은 결과의 순서를 정합니다. 순위 목록에는 '낮은 숫자 먼저', 출현 횟수에는 '높은 숫자 먼저'가 알맞습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "决定匹配程度相同的结果的先后顺序。排名式词频表适合「数值小的在前」，出现次数式适合「数值大的在前」。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "決定符合程度相同的結果的先後順序。排名式詞頻表適合「數值小的在前」，出現次數式適合「數值大的在前」。"
+          }
+        }
+      }
+    },
     "Deck" : {
       "localizations" : {
         "ja" : {
@@ -1255,6 +1339,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "辭典"
+          }
+        }
+      }
+    },
+    "Dictionaries need importing again" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "辞書の再読み込みが必要です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사전을 다시 가져와야 합니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "词典需要重新导入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "辭典需要重新匯入"
           }
         }
       }
@@ -1847,6 +1959,62 @@
         }
       }
     },
+    "Frequency dictionary" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "頻度辞書"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빈도 사전"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "词频词典"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "詞頻辭典"
+          }
+        }
+      }
+    },
+    "High numbers first" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数値の大きい順"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "높은 숫자 먼저"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数值大的在前"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "數值大的在前"
+          }
+        }
+      }
+    },
     "Import %@ archive…" : {
       "localizations" : {
         "ja" : {
@@ -2123,6 +2291,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "兩端對齊"
+          }
+        }
+      }
+    },
+    "Kanji" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "漢字"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "한자"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "汉字"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "漢字"
+          }
+        }
+      }
+    },
+    "Kun reading" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓読み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "훈독"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训读"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓讀"
           }
         }
       }
@@ -2435,6 +2659,34 @@
         }
       }
     },
+    "Low numbers first" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数値の小さい順"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "낮은 숫자 먼저"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数值小的在前"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "數值小的在前"
+          }
+        }
+      }
+    },
     "Make Card" : {
       "localizations" : {
         "ja" : {
@@ -2659,6 +2911,34 @@
         }
       }
     },
+    "Needs importing again" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再読み込みが必要"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 가져와야 함"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要重新导入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要重新匯入"
+          }
+        }
+      }
+    },
     "No %@ dictionaries imported yet." : {
       "localizations" : {
         "ja" : {
@@ -2823,6 +3103,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "好"
+          }
+        }
+      }
+    },
+    "Off" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オフ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "끔"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉"
+          }
+        }
+      }
+    },
+    "On reading" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音読み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "음독"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音读"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音讀"
           }
         }
       }
@@ -3527,6 +3863,34 @@
         }
       }
     },
+    "Sort by frequency" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "頻度で並べ替え"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빈도순 정렬"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按词频排序"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "依詞頻排序"
+          }
+        }
+      }
+    },
     "Source URL template" : {
       "localizations" : {
         "ja" : {
@@ -3663,6 +4027,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "詞條"
+          }
+        }
+      }
+    },
+    "The lookup engine was updated and can't read dictionaries imported before. Delete the ones marked below and import their ZIP files again." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "検索エンジンが更新され、以前に読み込んだ辞書は読めなくなりました。下で印の付いた辞書を削除し、ZIP ファイルをもう一度読み込んでください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "조회 엔진이 업데이트되어 이전에 가져온 사전을 읽을 수 없습니다. 아래에 표시된 사전을 삭제하고 ZIP 파일을 다시 가져오세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查词引擎已更新，无法读取之前导入的词典。请删除下面标出的词典，再重新导入它们的 ZIP 文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查詞引擎已更新，無法讀取之前匯入的辭典。請刪除下面標出的辭典，再重新匯入它們的 ZIP 檔案。"
+          }
+        }
+      }
+    },
+    "The lookup engine was updated and can't read dictionaries imported before. Delete them in Settings › Reader › Dictionaries and import the ZIP files again." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "検索エンジンが更新され、以前に読み込んだ辞書は読めなくなりました。「設定 › リーダー › 辞書」で削除し、ZIP ファイルをもう一度読み込んでください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "조회 엔진이 업데이트되어 이전에 가져온 사전을 읽을 수 없습니다. 설정 › 리더 › 사전에서 삭제하고 ZIP 파일을 다시 가져오세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查词引擎已更新，无法读取之前导入的词典。请在「设置 › 阅读器 › 词典」里删除它们，再重新导入 ZIP 文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查詞引擎已更新，無法讀取之前匯入的辭典。請在「設定 › 閱讀器 › 辭典」裡刪除它們，再重新匯入 ZIP 檔案。"
           }
         }
       }
@@ -3915,6 +4335,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "詞頻"
+          }
+        }
+      }
+    },
+    "kanji" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "漢字"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "한자"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "汉字"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "漢字"
           }
         }
       }

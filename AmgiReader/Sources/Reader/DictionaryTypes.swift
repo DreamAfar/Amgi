@@ -59,11 +59,63 @@ public struct DictionaryLookupFrequency: Sendable, Hashable, Codable {
 
 public struct DictionaryLookupPitch: Sendable, Hashable, Codable {
     public var dictionary: String
+    /// Downstep positions, for accents given as a number.
     public var positions: [Int]
+    /// Accents given as a pattern of highs and lows, such as `LHHL`.
+    public var patterns: [String]
+    /// IPA transcriptions, from dictionaries that carry those instead.
+    public var transcriptions: [String]
 
-    public init(dictionary: String, positions: [Int] = []) {
+    public init(
+        dictionary: String,
+        positions: [Int] = [],
+        patterns: [String] = [],
+        transcriptions: [String] = []
+    ) {
         self.dictionary = dictionary
         self.positions = positions
+        self.patterns = patterns
+        self.transcriptions = transcriptions
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        dictionary = try container.decode(String.self, forKey: .dictionary)
+        positions = try container.decodeIfPresent([Int].self, forKey: .positions) ?? []
+        patterns = try container.decodeIfPresent([String].self, forKey: .patterns) ?? []
+        transcriptions = try container.decodeIfPresent([String].self, forKey: .transcriptions) ?? []
+    }
+
+    /// Everything this dictionary gives for the word, in reading order.
+    public var displayValues: [String] {
+        positions.map(String.init) + patterns + transcriptions
+    }
+}
+
+/// One character's entries from the kanji dictionaries.
+public struct DictionaryLookupKanji: Sendable, Hashable, Identifiable, Codable {
+    public struct Entry: Sendable, Hashable, Codable {
+        public var dictionary: String
+        public var onyomi: [String]
+        public var kunyomi: [String]
+        public var meanings: [String]
+
+        public init(dictionary: String, onyomi: [String] = [], kunyomi: [String] = [], meanings: [String] = []) {
+            self.dictionary = dictionary
+            self.onyomi = onyomi
+            self.kunyomi = kunyomi
+            self.meanings = meanings
+        }
+    }
+
+    public var character: String
+    public var entries: [Entry]
+
+    public var id: String { character }
+
+    public init(character: String, entries: [Entry] = []) {
+        self.character = character
+        self.entries = entries
     }
 }
 
@@ -119,16 +171,38 @@ public struct DictionaryLookupResult: Sendable, Hashable, Codable {
     public var entries: [DictionaryLookupEntry]
     public var isPlaceholder: Bool
     public var dictionaryStyles: [String: String]
+    /// The kanji of the best match, looked up in the kanji dictionaries.
+    public var kanji: [DictionaryLookupKanji]
+    /// True when nothing could be searched because every dictionary was
+    /// imported by an older engine and has to be imported again.
+    public var needsReimport: Bool
 
     public init(
         query: String,
         entries: [DictionaryLookupEntry] = [],
         isPlaceholder: Bool = false,
-        dictionaryStyles: [String: String] = [:]
+        dictionaryStyles: [String: String] = [:],
+        kanji: [DictionaryLookupKanji] = [],
+        needsReimport: Bool = false
     ) {
         self.query = query
         self.entries = entries
         self.isPlaceholder = isPlaceholder
         self.dictionaryStyles = dictionaryStyles
+        self.kanji = kanji
+        self.needsReimport = needsReimport
     }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        query = try container.decode(String.self, forKey: .query)
+        entries = try container.decodeIfPresent([DictionaryLookupEntry].self, forKey: .entries) ?? []
+        isPlaceholder = try container.decodeIfPresent(Bool.self, forKey: .isPlaceholder) ?? false
+        dictionaryStyles = try container.decodeIfPresent([String: String].self, forKey: .dictionaryStyles) ?? [:]
+        kanji = try container.decodeIfPresent([DictionaryLookupKanji].self, forKey: .kanji) ?? []
+        needsReimport = try container.decodeIfPresent(Bool.self, forKey: .needsReimport) ?? false
+    }
+
+    /// Whether there is anything to show: a word or a kanji.
+    public var hasContent: Bool { !entries.isEmpty || !kanji.isEmpty }
 }

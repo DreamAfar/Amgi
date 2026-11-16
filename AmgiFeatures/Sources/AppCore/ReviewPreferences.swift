@@ -116,6 +116,10 @@ public enum ReaderPreferences {
         public static let popupDebugInfoEnabled = "reader_pref_popup_debug_info_enabled"
         public static let dictionaryMaxResults = "reader_pref_dictionary_max_results"
         public static let dictionaryScanLength = "reader_pref_dictionary_scan_length"
+        /// A `LookupFrequencySort.Order` raw value. The lookup runtime reads
+        /// this key and the next straight from `UserDefaults`.
+        public static let dictionaryFrequencySortOrder = "reader_pref_dictionary_frequency_sort_order"
+        public static let dictionaryFrequencySortDictionary = "reader_pref_dictionary_frequency_sort_dictionary"
         public static let lookupNoteTemplate = "reader_pref_lookup_note_template"
         public static let popupSearchHistory = "reader_pref_popup_search_history"
         public static let popupCollapsedDictionaries = "reader_pref_popup_collapsed_dictionaries"
