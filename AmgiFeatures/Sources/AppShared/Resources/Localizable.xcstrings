@@ -869,6 +869,34 @@
         }
       }
     },
+    "Set the service address and model in Settings › Review › AI and Translation." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「設定 › 復習 › AI と翻訳」でサービスのアドレスとモデルを設定してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 › 복습 › AI 및 번역에서 서비스 주소와 모델을 설정하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在「设置 › 复习 › AI 与翻译」里填写服务地址和模型。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在「設定 › 複習 › AI 與翻譯」裡填寫服務位址和模型。"
+          }
+        }
+      }
+    },
     "Suspend Card" : {
       "localizations" : {
         "ja" : {
@@ -1005,6 +1033,90 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "花點時間複習詞彙吧。"
+          }
+        }
+      }
+    },
+    "The AI service answered with an error (%lld): %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI サービスがエラーを返しました（%lld）：%@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 서비스가 오류를 반환했습니다(%lld): %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服务返回了错误（%lld）：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服務回傳了錯誤（%lld）：%@"
+          }
+        }
+      }
+    },
+    "The AI service sent back an empty answer." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI サービスの回答が空でした。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 서비스의 답변이 비어 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服务返回了空的回答。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服務回傳了空的回答。"
+          }
+        }
+      }
+    },
+    "The on-device model isn't available on this device. Turn on Apple Intelligence, or set up an OpenAI-compatible service in Settings › Review › AI and Translation." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このデバイスではオンデバイスモデルを使えません。Apple Intelligence をオンにするか、「設定 › 復習 › AI と翻訳」で OpenAI 互換サービスを設定してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 기기에서는 온디바이스 모델을 사용할 수 없습니다. Apple Intelligence를 켜거나 설정 › 복습 › AI 및 번역에서 OpenAI 호환 서비스를 설정하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本机无法使用端侧模型。请打开 Apple 智能，或在「设置 › 复习 › AI 与翻译」里设置 OpenAI 兼容服务。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本機無法使用裝置端模型。請開啟 Apple Intelligence，或在「設定 › 複習 › AI 與翻譯」裡設定 OpenAI 相容服務。"
           }
         }
       }

@@ -36,6 +36,7 @@ struct ReviewSettingsView: View {
             cardDisplaySection
             answerButtonsSection
             audioSection
+            selectionSection
         }
         .navigationTitle(String(localized: "Review", bundle: .module))
         .navigationBarTitleDisplayMode(.inline)
@@ -89,6 +90,21 @@ struct ReviewSettingsView: View {
                     tone: .info,
                     isOn: Binding($showNextReviewTime)
                 )
+            }
+        }
+    }
+
+    private var selectionSection: some View {
+        Group {
+            SettingsSectionHeader(title: String(localized: "Selected Text", bundle: .module))
+            SettingsGroup {
+                SettingsRowLink(
+                    title: String(localized: "AI and Translation", bundle: .module),
+                    systemImage: "sparkles",
+                    tone: .info
+                ) {
+                    AIAssistantSettingsView()
+                }
             }
         }
     }

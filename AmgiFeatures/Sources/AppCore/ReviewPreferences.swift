@@ -33,6 +33,18 @@ public enum ReviewPreferences {
         public static let cardContentAlignment = "review_pref_card_content_alignment"
         public static let glassAnswerButtons = "review_pref_glass_answer_buttons"
         public static let autoMatchCardBackground = "review_pref_auto_match_card_background"
+        /// Text-selection actions in review (AI explanation, translation,
+        /// speak, make card) in the system selection menu.
+        public static let selectionActionsEnabled = "review_pref_selection_actions_enabled"
+        /// "apple" (on-device Foundation Models) or "openai" (an
+        /// OpenAI-compatible chat-completions service).
+        public static let aiProvider = "review_pref_ai_provider"
+        public static let aiBaseURL = "review_pref_ai_base_url"
+        public static let aiModel = "review_pref_ai_model"
+        /// BCP-47 code of the language explanations are written in.
+        public static let aiExplanationLanguage = "review_pref_ai_explanation_language"
+        /// BCP-47 code translations are made into.
+        public static let translationTargetLanguage = "review_pref_translation_target_language"
     }
 }
 
