@@ -8,6 +8,7 @@
 import Reader
 import Theme
 import AppCore
+import AppShared
 import Sharing
 import SwiftUI
 import WebKit
@@ -28,6 +29,11 @@ struct ChapterWebView: UIViewRepresentable {
     /// "make note" button fires the `.amgiReaderRequestSelection`
     /// notification. nil ignores the request.
     let onSelectionForNote: ((String) -> Void)?
+    /// How many characters a tap hands the dictionary.
+    var scanLength = 16
+    /// The span the dictionary matched for the last tap, highlighted in
+    /// the page until the popup closes.
+    var lookupHighlight = LookupHighlight()
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -42,6 +48,11 @@ struct ChapterWebView: UIViewRepresentable {
         let userContent = WKUserContentController()
         if onTapLookup != nil {
             userContent.add(context.coordinator, name: "amgiLookup")
+            userContent.addUserScript(WKUserScript(
+                source: LookupExtractionScript.source,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true
+            ))
             userContent.addUserScript(WKUserScript(
                 source: tapScript,
                 injectionTime: .atDocumentEnd,
@@ -60,6 +71,7 @@ struct ChapterWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.pendingInitialProgress = initialProgress
+        context.coordinator.apply(scanLength: scanLength, highlight: lookupHighlight)
         // The host builds the HTML in a `.task`, so the very first update
         // arrives empty. Loading it would flash a blank document before the
         // real one lands one runloop later.
@@ -80,68 +92,25 @@ struct ChapterWebView: UIViewRepresentable {
         coordinator.detach()
     }
 
-    /// Single-tap → grab a clean phrase starting at the tap caret and
-    /// post it to native. Long-press still triggers WKWebView's native
-    /// selection so copy/paste keeps working. Skip when there's an
-    /// active selection so tapping to dismiss the selection doesn't
-    /// also fire a lookup.
-    ///
-    /// The phrase is cut at the next sentence boundary using `Intl.Segmenter`
-    /// when available — this gives the dictionary engine a complete clause
-    /// (typically a few words / a clause) to scan rather than an arbitrary
-    /// 32-char window that often splits a Hangul/CJK token mid-character.
-    /// Falls back to the legacy 32-char chunk on browsers without Segmenter
-    /// (mostly old WebKit; current iOS WKWebView ships it).
+    /// Single tap → the shared lookup extractor (the one the EPUB reader
+    /// and the reviewer use) takes the text from the tapped character
+    /// forward — expanding back to the word start in scripts with spaces —
+    /// and remembers exactly which characters it took, so the span the
+    /// dictionary matched can be highlighted once the popup reports it.
+    /// Long-press still gives WebKit's own selection for copy/paste, and a
+    /// tap that only dismisses a selection doesn't look anything up.
     private var tapScript: String {
         """
         document.addEventListener('click', function(e) {
           const sel = window.getSelection();
           if (sel && sel.toString().length > 0) { return; }
-          const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-          if (!range) { return; }
-
-          // Walk forward through text nodes from the tap caret until we
-          // have enough characters for the segmenter to find a sentence
-          // boundary. 96 is generous — Segmenter cuts at the first
-          // boundary anyway, and the engine's scanLength still caps the
-          // match.
-          let phrase = '';
-          let node = range.startContainer;
-          let offset = range.startOffset;
-          while (node && phrase.length < 96) {
-            if (node.nodeType === Node.TEXT_NODE) {
-              const t = node.nodeValue || '';
-              phrase += t.substring(offset);
-              offset = 0;
-            }
-            if (node.firstChild) {
-              node = node.firstChild;
-            } else {
-              while (node && !node.nextSibling) { node = node.parentNode; }
-              node = node && node.nextSibling;
-            }
+          if (!window.amgiLookup) { return; }
+          const payload = window.amgiLookup.payloadAt(e.clientX, e.clientY, window.__amgiLookupScanLength || 16);
+          if (!payload || !payload.text) {
+            window.amgiLookup.clearHighlight();
+            return;
           }
-          phrase = phrase.replace(/\\s+/g, ' ').trim();
-          if (phrase.length === 0) { return; }
-
-          // Trim to the first sentence using Intl.Segmenter — gives the
-          // engine a complete clause without trailing junk. Locale
-          // `und` lets the runtime pick rules per script.
-          if (typeof Intl !== 'undefined' && Intl.Segmenter) {
-            try {
-              const seg = new Intl.Segmenter('und', { granularity: 'sentence' });
-              const first = seg.segment(phrase)[Symbol.iterator]().next();
-              if (first.value && first.value.segment) {
-                phrase = first.value.segment.trim();
-              }
-            } catch (err) {
-              // Fall through with the raw phrase.
-            }
-          }
-
-          if (phrase.length > 0) {
-            window.webkit.messageHandlers.amgiLookup.postMessage(phrase);
-          }
+          window.webkit.messageHandlers.amgiLookup.postMessage(payload.text);
         }, true);
         """
     }
@@ -151,6 +120,8 @@ struct ChapterWebView: UIViewRepresentable {
         var loadedHTML: String?
         var didFinishLoad = false
         var didApplyInitialProgress = false
+        private var scanLength = 16
+        private var highlightGeneration = 0
         @Binding var progress: Double
         let onTapLookup: ((String) -> Void)?
         let onSelectionForNote: ((String) -> Void)?
@@ -197,7 +168,23 @@ struct ChapterWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             didFinishLoad = true
+            webView.evaluateJavaScript("window.__amgiLookupScanLength = \(scanLength);")
             applyPendingInitialProgressIfLoaded()
+        }
+
+        /// Pushes the scan length and, when it changed, the lookup
+        /// highlight into the page.
+        func apply(scanLength: Int, highlight: LookupHighlight) {
+            if scanLength != self.scanLength {
+                self.scanLength = scanLength
+                webView?.evaluateJavaScript("window.__amgiLookupScanLength = \(scanLength);")
+            }
+            guard highlight.generation != highlightGeneration else { return }
+            highlightGeneration = highlight.generation
+            let call = highlight.utf16Length > 0
+                ? "highlightMatched(\(highlight.utf16Length))"
+                : "clearHighlight()"
+            webView?.evaluateJavaScript("window.amgiLookup && window.amgiLookup.\(call);")
         }
 
         /// Restore prior scroll position once the page reports a real
