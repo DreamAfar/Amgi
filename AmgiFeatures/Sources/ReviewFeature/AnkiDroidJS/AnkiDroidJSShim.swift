@@ -3,6 +3,8 @@
 //  ReviewFeature
 //
 
+import Foundation
+
 /// The page side of the AnkiDroid-compatible card API: a global
 /// `AnkiDroidJS` class with the same methods, arguments and promise results
 /// as AnkiDroid's `js-api.js` (API version 0.0.3), so card templates written
