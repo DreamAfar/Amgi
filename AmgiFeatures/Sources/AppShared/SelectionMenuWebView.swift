@@ -4,8 +4,8 @@
 //
 
 #if canImport(UIKit)
-import UIKit
-import WebKit
+public import UIKit
+public import WebKit
 
 /// Text the user selected in a web view, with the sentence around it.
 public struct WebSelection: Sendable, Equatable {

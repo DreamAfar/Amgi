@@ -10,6 +10,7 @@ import AVFoundation
 import Dependencies
 import Foundation
 import NaturalLanguage
+import Observation
 
 /// The text-selection actions of the review card: AI explanation,
 /// translation, speaking, and a quick card. Owns the AI client so the

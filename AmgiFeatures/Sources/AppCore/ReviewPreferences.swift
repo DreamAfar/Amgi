@@ -6,7 +6,6 @@
 //
 
 import AnkiKit
-import Foundation
 public import Foundation
 
 public enum ReaderThemeMode: String, CaseIterable, Identifiable {

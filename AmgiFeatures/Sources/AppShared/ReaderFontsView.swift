@@ -3,7 +3,8 @@
 //  AppShared
 //
 
-import SwiftUI
+public import Observation
+public import SwiftUI
 import Theme
 import UniformTypeIdentifiers
 

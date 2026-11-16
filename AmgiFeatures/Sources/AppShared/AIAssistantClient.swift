@@ -5,7 +5,7 @@
 
 import AppCore
 public import Dependencies
-import Foundation
+public import Foundation
 import Security
 #if canImport(FoundationModels)
 import FoundationModels

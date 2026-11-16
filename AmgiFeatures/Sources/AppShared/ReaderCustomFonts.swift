@@ -5,7 +5,7 @@
 
 import AppCore
 import CoreText
-import Foundation
+public import Foundation
 
 /// A font file the user imported for the readers.
 public struct ReaderCustomFont: Identifiable, Hashable, Sendable {
