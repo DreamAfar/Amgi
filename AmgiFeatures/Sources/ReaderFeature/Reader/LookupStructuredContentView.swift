@@ -420,7 +420,12 @@ private extension StructuredGlossaryWebView.Coordinator {
             const dictStyle = window.dictionaryStyles?.[dictName] ?? '';
             if (dictStyle) {
                 const style = document.createElement('style');
-                style.textContent = constructDictCss(dictStyle, dictName);
+                // Nested under the dictionary's own container, as the
+                // renderer's popup does. `constructDictCss` is for cards
+                // exported to Anki: it scopes rules to a `.yomitan-glossary`
+                // wrapper this page doesn't have, so nothing matched and
+                // the dictionary's colours and layout never showed.
+                style.textContent = `[data-dictionary=${JSON.stringify(dictName)}] {\n${dictStyle}\n}`;
                 document.head.appendChild(style);
             }
 
