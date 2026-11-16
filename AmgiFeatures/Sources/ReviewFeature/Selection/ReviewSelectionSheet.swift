@@ -317,6 +317,10 @@ struct ReviewSelectionSheet: View {
             if let sentence = separateSentence {
                 requests.append(TranslationSession.Request(sourceText: sentence, clientIdentifier: "sentence"))
             }
+            // The session is handed to this view's task and used nowhere else,
+            // but the framework doesn't mark it Sendable, so its off-main-actor
+            // `translations(from:)` can't be reached from the main actor without this.
+            nonisolated(unsafe) let session = session
             let responses = try await session.translations(from: requests)
             for response in responses {
                 if response.clientIdentifier == "sentence" {
