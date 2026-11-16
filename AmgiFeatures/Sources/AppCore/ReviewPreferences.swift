@@ -68,6 +68,8 @@ public enum ReaderPreferences {
         public static let bookshelfSortMode = "reader_pref_bookshelf_sort_mode"
         public static let verticalLayout = "reader_pref_vertical_layout"
         public static let selectedFont = "reader_pref_selected_font"
+        /// The EPUB reader's font, from its typography sheet.
+        public static let typographyFontFamily = "reader_typo_font_family"
         public static let fontSize = "reader_pref_font_size"
         public static let hideFurigana = "reader_pref_hide_furigana"
         public static let horizontalPadding = "reader_pref_horizontal_padding"

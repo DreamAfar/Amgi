@@ -60,6 +60,7 @@ struct ChapterWebView: UIViewRepresentable {
             ))
         }
         config.userContentController = userContent
+        config.setURLSchemeHandler(ReaderFontScheme(), forURLScheme: ReaderCustomFonts.scheme)
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
