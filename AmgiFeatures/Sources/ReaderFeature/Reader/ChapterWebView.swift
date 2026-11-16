@@ -25,15 +25,37 @@ struct ChapterWebView: UIViewRepresentable {
     /// where word boundaries don't exist at the DOM level). nil disables
     /// the tap gesture entirely (controlled by the user pref).
     let onTapLookup: ((String) -> Void)?
-    /// Called with the user's current text selection when the toolbar
-    /// "make note" button fires the `.amgiReaderRequestSelection`
-    /// notification. nil ignores the request.
-    let onSelectionForNote: ((String) -> Void)?
+    /// Called with the user's current text selection — nil when nothing
+    /// is selected — when the toolbar "make note" button fires the
+    /// `.amgiReaderRequestSelection` notification, or with the selection
+    /// when Make Card is chosen in the text-selection menu.
+    let onSelectionForNote: ((WebSelection?) -> Void)?
+    /// Look Up Word in the text-selection menu: the app's dictionary, next
+    /// to the system's own Look Up.
+    var onLookupSelection: ((String) -> Void)? = nil
     /// How many characters a tap hands the dictionary.
     var scanLength = 16
     /// The span the dictionary matched for the last tap, highlighted in
     /// the page until the popup closes.
     var lookupHighlight = LookupHighlight()
+
+    /// The app's items in the text-selection menu.
+    private var selectionActions: [WebSelectionAction] {
+        var actions: [WebSelectionAction] = []
+        if let onLookupSelection {
+            actions.append(WebSelectionAction(
+                title: String(localized: "Look Up Word", bundle: .module),
+                systemImage: "character.book.closed"
+            ) { onLookupSelection($0.text) })
+        }
+        if let onSelectionForNote {
+            actions.append(WebSelectionAction(
+                title: String(localized: "Make Card", bundle: .module),
+                systemImage: "plus.rectangle.on.rectangle"
+            ) { onSelectionForNote($0) })
+        }
+        return actions
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -61,7 +83,7 @@ struct ChapterWebView: UIViewRepresentable {
         }
         config.userContentController = userContent
 
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = SelectionMenuWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.scrollView.delegate = context.coordinator
         webView.isOpaque = false
@@ -71,6 +93,7 @@ struct ChapterWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.pendingInitialProgress = initialProgress
+        (webView as? SelectionMenuWebView)?.selectionActions = selectionActions
         context.coordinator.apply(scanLength: scanLength, highlight: lookupHighlight)
         // The host builds the HTML in a `.task`, so the very first update
         // arrives empty. Loading it would flash a blank document before the
@@ -124,7 +147,7 @@ struct ChapterWebView: UIViewRepresentable {
         private var highlightGeneration = 0
         @Binding var progress: Double
         let onTapLookup: ((String) -> Void)?
-        let onSelectionForNote: ((String) -> Void)?
+        let onSelectionForNote: ((WebSelection?) -> Void)?
         private weak var webView: WKWebView?
         private var selectionObserver: (any NSObjectProtocol)?
         /// Live while waiting for the page to report a real content size.
@@ -133,7 +156,7 @@ struct ChapterWebView: UIViewRepresentable {
         init(
             progress: Binding<Double>,
             onTapLookup: ((String) -> Void)?,
-            onSelectionForNote: ((String) -> Void)?
+            onSelectionForNote: ((WebSelection?) -> Void)?
         ) {
             self._progress = progress
             self.onTapLookup = onTapLookup
@@ -252,15 +275,10 @@ struct ChapterWebView: UIViewRepresentable {
 }
 
 extension ChapterWebView.Coordinator {
+    /// Reports the selection, or nil when there is none so the caller
+    /// can say how to make one rather than doing nothing.
     func fetchSelection() {
-        guard let webView, let onSelectionForNote else { return }
-        // window.getSelection() — current text selection in the page.
-        // Empty string when nothing's selected; we just no-op then.
-        webView.evaluateJavaScript("window.getSelection().toString()") { result, _ in
-            guard let text = result as? String else { return }
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return }
-            onSelectionForNote(trimmed)
-        }
+        guard let webView = webView as? SelectionMenuWebView, let onSelectionForNote else { return }
+        webView.currentSelection { onSelectionForNote($0) }
     }
 }

@@ -2127,6 +2127,34 @@
         }
       }
     },
+    "Look Up Word" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "単語を調べる"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단어 찾기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查词"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查詞"
+          }
+        }
+      }
+    },
     "Look up word" : {
       "localizations" : {
         "ja" : {
@@ -2263,6 +2291,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "寬鬆"
+          }
+        }
+      }
+    },
+    "Make Card" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カードを作成"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카드 만들기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "制卡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "製卡"
           }
         }
       }
@@ -3047,6 +3103,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "選擇牌組"
+          }
+        }
+      }
+    },
+    "Select some text first (touch and hold), then tap + — or choose Make Card in the menu that appears." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "まず長押しでテキストを選択してから＋をタップするか、表示されるメニューで「カードを作成」を選んでください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "먼저 길게 눌러 텍스트를 선택한 다음 +를 탭하거나, 나타나는 메뉴에서 '카드 만들기'를 선택하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先长按选中文字，再点 ＋；也可以在弹出的菜单里点「制卡」。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先長按選取文字，再點 ＋；也可以在彈出的選單裡點「製卡」。"
           }
         }
       }

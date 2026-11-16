@@ -9,6 +9,9 @@ import Reader
 import Theme
 import AppCore
 import AppShared
+import AnkiClients
+import AnkiKit
+import BrowseFeature
 import Sharing
 import SwiftUI
 import WebKit
@@ -30,7 +33,16 @@ struct ChapterReaderView: View {
     @State private var scrollProgress: Double = 0
     @State private var didRestoreInitialProgress = false
     @State private var initialRestoreProgress: Double?
-    @State private var lookupQuery: String?
+    /// The dictionary popup, when open. Stored rather than derived from a
+    /// query string: a sheet item rebuilt on every render gets a new
+    /// identity each time, and the reader re-renders on every scroll, so
+    /// the popup could close or reopen by itself.
+    @State private var lookup: LookupQuery?
+    @State private var noteDraft: ReaderNoteDraft?
+    @State private var hint: String?
+    @State private var hintTask: Task<Void, Never>?
+    @Shared(.appStorage(ReaderPreferences.Keys.lookupNoteTemplate))
+    private var serializedNoteTemplate: String = ""
 
     @Shared(.appStorage(ReaderPreferences.Keys.fontSize))
     private var fontSize: Double = 17
@@ -75,7 +87,6 @@ struct ChapterReaderView: View {
     @Shared(.appStorage(ReaderPreferences.Keys.popupDebugInfoEnabled))
     private var debugInfoEnabled: Bool = false
 
-    @State private var pendingNoteText: String?
     @State private var lastTapPhrase: String?
     /// Whether the open lookup came from a tap in the text — only then is
     /// there a tapped span to highlight.
@@ -131,10 +142,14 @@ struct ChapterReaderView: View {
                     ? { phrase in
                         lastTapPhrase = phrase
                         lookupFromTap = true
-                        lookupQuery = phrase
+                        lookup = LookupQuery(text: phrase)
                     }
                     : nil,
-                onSelectionForNote: { selected in pendingNoteText = selected },
+                onSelectionForNote: { makeCard(from: $0) },
+                onLookupSelection: { text in
+                    lookupFromTap = false
+                    lookup = LookupQuery(text: text)
+                },
                 scanLength: dictionaryScanLength,
                 lookupHighlight: lookupHighlight
             )
@@ -180,36 +195,44 @@ struct ChapterReaderView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     lookupFromTap = false
-                    lookupQuery = ""
+                    lookup = LookupQuery(text: "")
                 } label: {
                     Image(systemName: "character.book.closed")
                 }
                 .accessibilityLabel(String(localized: "Look up word", bundle: .module))
             }
         }
-        .sheet(item: Binding(
-            get: { lookupQuery.map(LookupQuery.init) },
-            set: { lookupQuery = $0?.text }
-        ), onDismiss: { lookupHighlight.clear() }) { wrapped in
+        .sheet(item: $lookup, onDismiss: { lookupHighlight.clear() }) { wrapped in
             LookupPopupView(
                 initialQuery: wrapped.text,
                 languageHint: book.language,
                 onMatched: lookupFromTap ? { lookupHighlight.show(matched: $0) } : nil
             ) {
-                lookupQuery = nil
+                lookup = nil
             }
         }
-        .sheet(item: Binding(
-            get: { pendingNoteText.map(LookupQuery.init) },
-            set: { pendingNoteText = $0?.text }
-        )) { wrapped in
-            // Reuse the lookup popup with the selection prefilled — the
-            // popup's "+" already drives note creation through the user's
-            // saved note template, so we don't need a parallel codepath.
-            LookupPopupView(initialQuery: wrapped.text, languageHint: book.language) {
-                pendingNoteText = nil
+        .sheet(item: $noteDraft) { wrapped in
+            AddNoteView(initialDraft: wrapped.draft) {
+                noteDraft = nil
             }
         }
+        .overlay(alignment: .bottom) {
+            if let hint {
+                Text(hint)
+                    .amgiFont(.caption)
+                    .foregroundStyle(palette.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AmgiSpacing.lg)
+                    .padding(.vertical, AmgiSpacing.sm)
+                    .background(palette.surfaceElevated, in: Capsule())
+                    .overlay(Capsule().strokeBorder(palette.border))
+                    .padding(.horizontal, AmgiSpacing.lg)
+                    .padding(.bottom, AmgiSpacing.xxl)
+                    .transition(AmgiMotion.slide(from: .bottom))
+                    .accessibilityAddTraits(.isStaticText)
+            }
+        }
+        .animation(AmgiMotion.quick, value: hint)
         .onAppear {
             didRestoreInitialProgress = false
         }
@@ -256,9 +279,39 @@ struct ChapterReaderView: View {
 }
 
 extension ChapterReaderView {
+    /// Opens Add Note filled from the vocabulary card template: the
+    /// selection as the word, its sentence (selection in bold) as the
+    /// example, the book as the source. Without a selection, says how to
+    /// make one instead of doing nothing.
+    func makeCard(from selection: WebSelection?) {
+        guard let selection else {
+            showHint(String(localized: "Select some text first (touch and hold), then tap + — or choose Make Card in the menu that appears.", bundle: .module))
+            return
+        }
+        let template = serializedNoteTemplate.isEmpty
+            ? ReaderLookupNoteTemplate.empty
+            : ReaderLookupNoteTemplate.decode(from: serializedNoteTemplate)
+        let draft = template.makeDraft(
+            payload: ReaderLookupNotePayload(term: selection.text, sentence: selection.sentenceHTML, source: book.title),
+            fallbackDeckID: nil,
+            sourceDescription: book.title
+        )
+        noteDraft = ReaderNoteDraft(draft: draft)
+    }
+
+    private func showHint(_ text: String) {
+        hint = text
+        hintTask?.cancel()
+        hintTask = Task {
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            hint = nil
+        }
+    }
+
     /// Toolbar "+" handler: ask the WebView for the user's current
     /// selection. The WebView responds via the `onSelectionForNote`
-    /// callback, which seeds `pendingNoteText` and triggers the sheet.
+    /// callback, which opens Add Note (or a hint when nothing is selected).
     func requestSelectionForNote() {
         NotificationCenter.default.post(
             name: .amgiReaderRequestSelection,
@@ -440,4 +493,9 @@ struct ChapterRenderInputs: Equatable, Sendable {
 private struct LookupQuery: Identifiable {
     let id = UUID()
     let text: String
+}
+
+private struct ReaderNoteDraft: Identifiable {
+    let id = UUID()
+    let draft: AddNoteDraft
 }
