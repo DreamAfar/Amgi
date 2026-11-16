@@ -26,6 +26,7 @@ struct ReaderSettingsView: View {
     // Display — chapter reader CSS pulls these via ChapterReaderStyle.
     @Shared(.appStorage(ReaderPreferences.Keys.selectedFont))
     private var selectedFontRaw: String = ReaderFontOption.defaultValue
+    @State private var customFonts = ReaderFontsModel()
 
     @Shared(.appStorage(ReaderPreferences.Keys.fontSize))
     private var fontSize: Double = 17
@@ -145,6 +146,7 @@ struct ReaderSettingsView: View {
     private var displaySection: some View {
         Group {
             SettingsSectionHeader(title: String(localized: "Display", bundle: .module))
+                .onAppear { customFonts.reload() }
             SettingsGroup {
                 SettingsPickerRow(
                     title: String(localized: "Font", bundle: .module),
@@ -155,6 +157,18 @@ struct ReaderSettingsView: View {
                     ForEach(ReaderFontOption.allCases) { option in
                         Text(option.title).tag(option.rawValue)
                     }
+                    ForEach(customFonts.fonts) { font in
+                        Text(font.displayName).tag(font.selectionValue)
+                    }
+                }
+                SettingsSeparator()
+                SettingsRowLink(
+                    title: String(localized: "Custom Fonts", bundle: .module),
+                    systemImage: "textformat.alt",
+                    tone: .accent,
+                    detail: customFonts.fonts.isEmpty ? nil : "\(customFonts.fonts.count)"
+                ) {
+                    ReaderFontsView()
                 }
                 SettingsSeparator()
                 SettingsStepperRow(

@@ -16,6 +16,7 @@ import SwiftUI
 struct ReaderTypographySettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.palette) private var palette
+    @State private var customFonts = ReaderFontsModel()
 
     @Shared(.appStorage(ReaderTypographyPreferences.Keys.fontFamily))
     private var fontFamilyRaw: String = ReaderTypographyPreferences.FontFamily.system.rawValue
@@ -43,6 +44,7 @@ struct ReaderTypographySettingsView: View {
             .navigationTitle(String(localized: "Reading Style", bundle: .module))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { doneButton }
+            .onAppear { customFonts.reload() }
         }
         .presentationDetents([.medium])
     }
@@ -99,10 +101,36 @@ struct ReaderTypographySettingsView: View {
         Section {
             Picker(String(localized: "Font", bundle: .module), selection: fontFamilyBinding) {
                 ForEach(ReaderTypographyPreferences.FontFamily.allCases) { option in
-                    Text(option.label).tag(option)
+                    Text(option.label).tag(Optional(option))
                 }
             }
             .pickerStyle(.segmented)
+            // Imported fonts don't fit the segments: one row each, in the
+            // font itself, checked when chosen.
+            ForEach(customFonts.fonts) { font in
+                Button {
+                    $fontFamilyRaw.withLock { $0 = font.selectionValue }
+                } label: {
+                    HStack {
+                        Text(font.displayName)
+                            .font(.custom(font.postScriptName, size: 17, relativeTo: .body))
+                            .foregroundStyle(palette.textPrimary)
+                            .lineLimit(1)
+                        Spacer()
+                        if fontFamilyRaw == font.selectionValue {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(palette.accent)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                }
+                .accessibilityAddTraits(fontFamilyRaw == font.selectionValue ? .isSelected : [])
+            }
+            NavigationLink {
+                ReaderFontsView()
+            } label: {
+                Label(String(localized: "Custom Fonts", bundle: .module), systemImage: "textformat.alt")
+            }
         } header: {
             Label(String(localized: "Font", bundle: .module), systemImage: "textformat")
         }
@@ -154,10 +182,17 @@ struct ReaderTypographySettingsView: View {
 
     // MARK: - Bindings
 
-    private var fontFamilyBinding: Binding<ReaderTypographyPreferences.FontFamily> {
+    /// Nil while an imported font is chosen, so no segment shows selected.
+    private var fontFamilyBinding: Binding<ReaderTypographyPreferences.FontFamily?> {
         Binding(
-            get: { ReaderTypographyPreferences.FontFamily(rawValue: fontFamilyRaw) ?? .system },
-            set: { value in $fontFamilyRaw.withLock { $0 = value.rawValue } }
+            get: {
+                if let family = ReaderTypographyPreferences.FontFamily(rawValue: fontFamilyRaw) { return family }
+                return ReaderCustomFonts.css(forSelection: fontFamilyRaw, fallback: "") == nil ? .system : nil
+            },
+            set: { value in
+                guard let value else { return }
+                $fontFamilyRaw.withLock { $0 = value.rawValue }
+            }
         )
     }
 

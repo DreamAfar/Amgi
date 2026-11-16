@@ -225,12 +225,13 @@ struct ChapterReaderView: View {
     /// without spinning up a debug build. Hit-testing is disabled at the
     /// call site so the overlay never swallows reader taps.
     private var debugOverlay: some View {
-        let font = ReaderFontOption.resolved(selectedFontRaw)
+        let fontTitle = ReaderCustomFonts.font(forSelection: selectedFontRaw)?.displayName
+            ?? ReaderFontOption.resolved(selectedFontRaw).title
         let latin = Self.prefersLatinWordLayout(chapter.content, language: book.language)
         let layout = verticalLayout ? "vertical" : (latin ? "latin" : "cjk")
         let phrase = (lastTapPhrase ?? "—").prefix(40)
         return VStack(alignment: .leading, spacing: 2) {
-            Text("\(Int(scrollProgress * 100))% · font: \(font.title)", bundle: .module)
+            Text("\(Int(scrollProgress * 100))% · font: \(fontTitle)", bundle: .module)
             Text("layout: \(layout) · lang: \(book.language ?? "?")", bundle: .module)
             Text("last tap: \(phrase)", bundle: .module)
         }
@@ -298,7 +299,13 @@ extension ChapterReaderView {
     nonisolated static func wrappedHTML(_ content: String, inputs: ChapterRenderInputs) -> String {
         let mode = ReaderThemeMode(rawValue: inputs.themeModeRaw) ?? .system
         let theme = themeCSS(for: mode, customTextColorHex: inputs.customTextColorHex, customBackgroundColorHex: inputs.customBackgroundColorHex)
-        let fontFamily = ReaderFontOption.resolved(inputs.selectedFontRaw).cssFontFamily
+        let builtInFamily = ReaderFontOption.resolved(inputs.selectedFontRaw).cssFontFamily
+        let customFont = ReaderCustomFonts.css(
+            forSelection: inputs.selectedFontRaw,
+            fallback: ReaderFontOption.system.cssFontFamily
+        )
+        let fontFamily = customFont?.family ?? builtInFamily
+        let fontFaceRule = customFont?.fontFace ?? ""
         let letterSpacingEm = String(format: "%.3f", inputs.characterSpacing / 100)
         let pageBreakRule = inputs.avoidPageBreak
             ? "p { break-inside: avoid; -webkit-column-break-inside: avoid; }"
@@ -350,6 +357,7 @@ extension ChapterReaderView {
           \(hyphenRule)
           \(theme)
         }
+        \(fontFaceRule)
         p { margin: 0 0 1em 0; }
         \(pageBreakRule)
         \(rubyRule)
