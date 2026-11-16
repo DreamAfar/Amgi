@@ -425,7 +425,10 @@ private extension StructuredGlossaryWebView.Coordinator {
                 // exported to Anki: it scopes rules to a `.yomitan-glossary`
                 // wrapper this page doesn't have, so nothing matched and
                 // the dictionary's colours and layout never showed.
-                style.textContent = `[data-dictionary=${JSON.stringify(dictName)}] {\n${dictStyle}\n}`;
+                // `:where(div)` keeps the container out of the nested
+                // rules' specificity, so one dictionary's CSS can't
+                // outrank the page's own (Hoshi Reader 0a91398).
+                style.textContent = `:where(div)[data-dictionary=${JSON.stringify(dictName)}] {\n${dictStyle}\n}`;
                 document.head.appendChild(style);
             }
 
