@@ -33,6 +33,11 @@ public enum ReviewPreferences {
         public static let cardContentAlignment = "review_pref_card_content_alignment"
         public static let glassAnswerButtons = "review_pref_glass_answer_buttons"
         public static let autoMatchCardBackground = "review_pref_auto_match_card_background"
+        /// Card templates may use the AnkiDroid JavaScript API.
+        public static let ankiDroidJSEnabled = "review_pref_ankidroid_js_enabled"
+        /// …including the calls that bury, suspend, reschedule, reset or
+        /// retag the card.
+        public static let ankiDroidJSAllowsCardChanges = "review_pref_ankidroid_js_allows_card_changes"
     }
 }
 

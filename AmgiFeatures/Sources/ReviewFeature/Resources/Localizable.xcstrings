@@ -1065,6 +1065,118 @@
         }
       }
     },
+    "This card asks for AnkiDroid JavaScript API %@; Amgi supports %@. Contact the deck's developer: %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このカードはAnkiDroid JavaScript API %1$@を要求していますが、Amgiが対応しているのは%2$@です。デッキの開発者に連絡してください：%3$@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 카드는 AnkiDroid JavaScript API %1$@을(를) 요청하지만 Amgi는 %2$@을(를) 지원합니다. 덱 개발자에게 문의하세요: %3$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片要求 AnkiDroid JavaScript API %1$@，Amgi 支持的是 %2$@。请联系牌组开发者：%3$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片要求 AnkiDroid JavaScript API %1$@，Amgi 支援的是 %2$@。請聯絡牌組開發者：%3$@"
+          }
+        }
+      }
+    },
+    "This card uses the AnkiDroid JavaScript API without a version and developer contact, so its script features are off." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このカードはバージョンと開発者の連絡先なしでAnkiDroid JavaScript APIを使っているため、スクリプト機能はオフです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 카드는 버전과 개발자 연락처 없이 AnkiDroid JavaScript API를 사용하므로 스크립트 기능이 꺼져 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片使用 AnkiDroid JavaScript API 时没有提供版本和开发者联系方式，所以脚本功能已关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片使用 AnkiDroid JavaScript API 時沒有提供版本和開發者聯絡方式，所以腳本功能已關閉。"
+          }
+        }
+      }
+    },
+    "This card's script asked for an unknown flag." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このカードのスクリプトが不明なフラグを指定しました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 카드의 스크립트가 알 수 없는 깃발을 요청했습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片的脚本请求了未知的旗标。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片的腳本要求了未知的旗標。"
+          }
+        }
+      }
+    },
+    "This card's script tried to change the card. Allow it in Settings › Review › Card Scripts." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このカードのスクリプトがカードを変更しようとしました。「設定 › 復習 › カードスクリプト」で許可できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 카드의 스크립트가 카드를 변경하려고 했습니다. 설정 › 복습 › 카드 스크립트에서 허용할 수 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片的脚本尝试修改卡片。可在「设置 › 复习 › 卡片脚本」中允许。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片的腳本嘗試修改卡片。可在「設定 › 複習 › 卡片腳本」中允許。"
+          }
+        }
+      }
+    },
     "This card: %@" : {
       "localizations" : {
         "ja" : {

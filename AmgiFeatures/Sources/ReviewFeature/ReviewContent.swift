@@ -36,8 +36,12 @@ struct ReviewContent: View {
     let showNextReviewTime: Bool
     @Binding var destination: ReviewDestination?
     let onDismiss: () -> Void
+    var ankiDroidJSEnabled = true
+    var ankiDroidJSAllowsCardChanges = false
 
     @Environment(\.palette) private var palette
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var ankiDroidJS = AnkiDroidJSModel()
     /// Supplied by the app root — see `EnvironmentValues.lookupPopup`. Keeping
     /// the popup itself out of this target is what keeps it off the Cxx chain.
     @Environment(\.lookupPopup) private var lookupPopup
@@ -73,13 +77,29 @@ struct ReviewContent: View {
                         showNextReviewTime: showNextReviewTime,
                         lookupHighlight: lookupHighlight,
                         shortcutsEnabled: keyboardActive,
-                        lookupQuery: $destination.lookupText
+                        lookupQuery: $destination.lookupText,
+                        onAnkiDroidJS: { request in
+                            await ankiDroidJS.handle(
+                                request,
+                                session: session,
+                                isNightMode: colorScheme == .dark,
+                                onFlagChange: { cardActions.currentFlag = $0 }
+                            )
+                        }
                     )
                 }
             }
             .background(palette.background)
             .reviewHaptics(session: session)
             .reviewStudyNotice(session.studyNotice)
+            .reviewCardScriptToast(ankiDroidJS.toast)
+            .onAppear {
+                ankiDroidJS.isEnabled = ankiDroidJSEnabled
+                ankiDroidJS.allowsCardChanges = ankiDroidJSAllowsCardChanges
+            }
+            .onChange(of: ankiDroidJSEnabled) { _, enabled in ankiDroidJS.isEnabled = enabled }
+            .onChange(of: ankiDroidJSAllowsCardChanges) { _, allowed in ankiDroidJS.allowsCardChanges = allowed }
+            .onDisappear { ankiDroidJS.stop() }
             .navigationBarTitleDisplayMode(.inline)
             #if canImport(UIKit)
             .toolbar {
@@ -254,6 +274,27 @@ private struct ReviewStudyNoticeOverlay: ViewModifier {
     }
 }
 
+/// A card script's `ankiShowToast`, and the API's own notices, on the same
+/// caption shape as the study notice, at the top so the two never collide.
+private struct ReviewCardScriptToastOverlay: ViewModifier {
+    let toast: AnkiDroidJSModel.Toast?
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .top) {
+                if let toast {
+                    ReviewStudyNotice(message: toast.text)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, AmgiSpacing.lg)
+                        .padding(.top, AmgiSpacing.sm)
+                        .transition(AmgiMotion.slide(from: .top))
+                        .id(toast.id)
+                }
+            }
+            .animation(AmgiMotion.momentum, value: toast)
+    }
+}
+
 private struct ReviewStudyNotice: View {
     let message: String
 
@@ -282,6 +323,10 @@ private extension View {
 
     func reviewStudyNotice(_ notice: ReviewSession.StudyNotice?) -> some View {
         modifier(ReviewStudyNoticeOverlay(notice: notice))
+    }
+
+    func reviewCardScriptToast(_ toast: AnkiDroidJSModel.Toast?) -> some View {
+        modifier(ReviewCardScriptToastOverlay(toast: toast))
     }
 }
 

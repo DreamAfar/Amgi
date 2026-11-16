@@ -51,6 +51,12 @@ package struct ReviewView: View {
     @Shared(.appStorage(ReviewPreferences.Keys.playAudioInSilentMode))
     private var playAudioInSilentMode: Bool = false
 
+    @Shared(.appStorage(ReviewPreferences.Keys.ankiDroidJSEnabled))
+    private var ankiDroidJSEnabled: Bool = true
+
+    @Shared(.appStorage(ReviewPreferences.Keys.ankiDroidJSAllowsCardChanges))
+    private var ankiDroidJSAllowsCardChanges: Bool = false
+
     @State private var session: ReviewSession
     @State private var destination: ReviewDestination?
 
@@ -70,7 +76,9 @@ package struct ReviewView: View {
             tapLookup: tapLookup,
             showNextReviewTime: showNextReviewTime,
             destination: $destination,
-            onDismiss: onDismiss
+            onDismiss: onDismiss,
+            ankiDroidJSEnabled: ankiDroidJSEnabled,
+            ankiDroidJSAllowsCardChanges: ankiDroidJSAllowsCardChanges
         )
         .task {
             ReviewAudioSession.apply(playInSilent: playAudioInSilentMode)
