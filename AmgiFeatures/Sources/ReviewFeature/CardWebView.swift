@@ -40,6 +40,8 @@ struct CardWebView {
     let onCardBackgroundColorChange: ((Color, Bool) -> Void)?
     let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
     let onShowAnswerRequested: (() -> Void)?
+    /// The app's items in the card's text-selection menu.
+    let selectionActions: [WebSelectionAction]
 
     init(
         html: String,
@@ -61,7 +63,8 @@ struct CardWebView {
         onAudioStateChange: ((Bool) -> Void)? = nil,
         onCardBackgroundColorChange: ((Color, Bool) -> Void)? = nil,
         onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil,
-        onShowAnswerRequested: (() -> Void)? = nil
+        onShowAnswerRequested: (() -> Void)? = nil,
+        selectionActions: [WebSelectionAction] = []
     ) {
         self.html = html
         self.cardCSS = cardCSS
@@ -83,6 +86,7 @@ struct CardWebView {
         self.onCardBackgroundColorChange = onCardBackgroundColorChange
         self.onLookupRequested = onLookupRequested
         self.onShowAnswerRequested = onShowAnswerRequested
+        self.selectionActions = selectionActions
     }
 
     func makeCoordinator() -> CardWebViewCoordinator {
@@ -122,7 +126,7 @@ struct CardWebView {
         config.mediaTypesRequiringUserActionForPlayback = []
         config.allowsInlineMediaPlayback = true
 
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = SelectionMenuWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
@@ -162,6 +166,7 @@ struct CardWebView {
 
         // Bookkeeping that has to track every render, expensive or not.
         coordinator.openLinksExternally = openLinksExternally
+        (webView as? SelectionMenuWebView)?.selectionActions = selectionActions
         coordinator.currentWebView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
 

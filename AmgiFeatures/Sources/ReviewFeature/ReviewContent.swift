@@ -44,9 +44,37 @@ struct ReviewContent: View {
     @State private var cardActions = CardContextMenuModel()
     @State private var confirmDeleteNote = false
     @State private var lookupHighlight = LookupHighlight()
+    @State private var selectionModel = ReviewSelectionModel()
+    @Shared(.appStorage(ReviewPreferences.Keys.selectionActionsEnabled))
+    private var selectionActionsEnabled: Bool = true
+    @Shared(.appStorage(ReaderPreferences.Keys.lookupNoteTemplate))
+    private var noteTemplateJSON: String = ""
 
     private var keyboardActive: Bool {
         destination == nil && !confirmDeleteNote
+            && selectionModel.assist == nil && selectionModel.quickCard == nil
+    }
+
+    /// The app's items in the card's text-selection menu, after the
+    /// system's own Copy and Look Up.
+    private var selectionActions: [WebSelectionAction] {
+        guard selectionActionsEnabled else { return [] }
+        let model = selectionModel
+        let template = noteTemplateJSON
+        return [
+            WebSelectionAction(title: String(localized: "AI Explain", bundle: .module), systemImage: "sparkles") {
+                model.open($0, tab: .explain)
+            },
+            WebSelectionAction(title: String(localized: "Translate", bundle: .module), systemImage: "translate") {
+                model.open($0, tab: .translate)
+            },
+            WebSelectionAction(title: String(localized: "Speak", bundle: .module), systemImage: "speaker.wave.2") {
+                model.speak($0.text)
+            },
+            WebSelectionAction(title: String(localized: "Make Card", bundle: .module), systemImage: "plus.rectangle.on.rectangle") {
+                model.makeCard(from: $0, templateJSON: template)
+            },
+        ]
     }
 
     var body: some View {
@@ -73,7 +101,8 @@ struct ReviewContent: View {
                         showNextReviewTime: showNextReviewTime,
                         lookupHighlight: lookupHighlight,
                         shortcutsEnabled: keyboardActive,
-                        lookupQuery: $destination.lookupText
+                        lookupQuery: $destination.lookupText,
+                        selectionActions: selectionActions
                     )
                 }
             }
@@ -122,6 +151,23 @@ struct ReviewContent: View {
             #if canImport(UIKit)
             .cardChromeToolbar(session: session, enabled: autoMatchCardBackground)
             #endif
+            .sheet(item: Binding(
+                get: { selectionModel.assist },
+                set: { if $0 == nil { selectionModel.close() } }
+            )) { assist in
+                ReviewSelectionSheet(model: selectionModel, assist: assist) {
+                    selectionModel.makeCard(from: assist.selection, templateJSON: noteTemplateJSON)
+                }
+            }
+            .sheet(item: Binding(
+                get: { selectionModel.quickCard },
+                set: { selectionModel.quickCard = $0 }
+            )) { card in
+                AddNoteView(initialDraft: card.draft) {
+                    selectionModel.quickCard = nil
+                }
+            }
+            .onDisappear { selectionModel.stopSpeaking() }
             .sheet(item: $destination.editNote) { note in
                 NavigationStack {
                     NoteEditorView(note: note) {
