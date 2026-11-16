@@ -7,6 +7,7 @@
 
 import OSLog
 import AppCore
+import ReviewCore
 import Foundation
 import WebKit
 import SwiftUI
@@ -31,7 +32,7 @@ private final class TTSUtterance: AVSpeechUtterance {
 ///  - AVSpeechSynthesizer integration for TTS
 ///  - Frame-load lifecycle so per-card evaluateJavaScript runs at the right moment
 @MainActor
-final class CardWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, AVSpeechSynthesizerDelegate {
+final class CardWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKScriptMessageHandlerWithReply, AVSpeechSynthesizerDelegate {
 
     // MARK: State tracked across updates
 
@@ -43,6 +44,9 @@ final class CardWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMess
     var isPageLoaded = false
     var pendingUpdateScript: String?
     var openLinksExternally: Bool = true
+    /// Answers the card's AnkiDroid-compatible API calls; nil outside the
+    /// reviewer, where every call reports itself unavailable.
+    var onAnkiDroidJS: (@MainActor (AnkiDroidJSRequest) async -> String?)?
     weak var currentWebView: WKWebView?
 
     // MARK: Callbacks (injected by makeCoordinator)
@@ -74,6 +78,33 @@ final class CardWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMess
         self.onShowAnswerRequested = onShowAnswerRequested
         super.init()
         speechSynthesizer.delegate = self
+    }
+
+    // MARK: - WKScriptMessageHandlerWithReply
+
+    /// The AnkiDroid-compatible API: the reply resolves the promise the
+    /// card's script is waiting on; an error rejects it.
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage,
+        replyHandler: @escaping @MainActor @Sendable (Any?, String?) -> Void
+    ) {
+        guard message.name == AnkiDroidJSShim.handlerName,
+              let request = AnkiDroidJSRequest(body: message.body) else {
+            replyHandler(nil, "Invalid request")
+            return
+        }
+        guard let handler = onAnkiDroidJS else {
+            replyHandler(AnkiDroidJSResult.unavailable, nil)
+            return
+        }
+        Task { @MainActor in
+            if let reply = await handler(request) {
+                replyHandler(reply, nil)
+            } else {
+                replyHandler(nil, "unhandled request: \(request.endpoint)")
+            }
+        }
     }
 
     // MARK: - WKScriptMessageHandler

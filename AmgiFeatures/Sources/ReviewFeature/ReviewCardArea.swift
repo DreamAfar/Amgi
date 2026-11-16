@@ -37,6 +37,8 @@ struct ReviewCardArea: View {
     let lookupHighlight: LookupHighlight
     let shortcutsEnabled: Bool
     @Binding var lookupQuery: String?
+    /// Answers the card's AnkiDroid-compatible script API.
+    var onAnkiDroidJS: (@MainActor (AnkiDroidJSRequest) async -> String?)?
 
     @Environment(\.palette) private var palette
     @Shared(.appStorage(ReaderPreferences.Keys.dictionaryScanLength))
@@ -202,7 +204,8 @@ struct ReviewCardArea: View {
                     onLookupRequested: tapLookup && !session.requiresTypedAnswerInput ? { text, _, _ in
                         if let text, !text.isEmpty { lookupQuery = text }
                     } : nil,
-                    onShowAnswerRequested: { session.revealAnswer() }
+                    onShowAnswerRequested: { session.revealAnswer() },
+                    onAnkiDroidJS: onAnkiDroidJS
                 )
             }
         }

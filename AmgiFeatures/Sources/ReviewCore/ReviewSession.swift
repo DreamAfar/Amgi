@@ -127,6 +127,12 @@ public final class ReviewSession {
         currentQueuedCard?.card.id
     }
 
+    /// The card on screen as the queue gathered it, for card scripts that
+    /// read its scheduling fields.
+    public var currentCard: CardRecord? {
+        currentQueuedCard?.card
+    }
+
     // MARK: - Session progress
 
     public var sessionTotal: Int {

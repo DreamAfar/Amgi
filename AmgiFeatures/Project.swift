@@ -166,6 +166,15 @@ let project = AmgiModule.project(
             watchOS: true
         ),
         AmgiModule.target(
+            "ReviewCoreTests",
+            package: "AmgiFeatures",
+            dependencies: [
+                .target(name: "ReviewCore"),
+                .project(target: "AnkiKit", path: .relativeToRoot(".")),
+            ],
+            tests: true
+        ),
+        AmgiModule.target(
             "DecksFeature",
             package: "AmgiFeatures",
             dependencies: [
