@@ -33,6 +33,10 @@ struct ChapterReaderView: View {
     @State private var scrollProgress: Double = 0
     @State private var didRestoreInitialProgress = false
     @State private var initialRestoreProgress: Double?
+    /// True from opening until the saved position is known and, if there
+    /// is one, scrolled to. Leaving before then would otherwise save the
+    /// top of the chapter over the reader's real position.
+    @State private var awaitingRestore = true
     /// The dictionary popup, when open. Stored rather than derived from a
     /// query string: a sheet item rebuilt on every render gets a new
     /// identity each time, and the reader re-renders on every scroll, so
@@ -138,6 +142,7 @@ struct ChapterReaderView: View {
                 html: renderedHTML,
                 initialProgress: didRestoreInitialProgress ? nil : initialRestoreProgress,
                 progress: $scrollProgress,
+                verticalLayout: verticalLayout,
                 onTapLookup: tapLookup
                     ? { phrase in
                         lastTapPhrase = phrase
@@ -244,15 +249,23 @@ struct ChapterReaderView: View {
             }.value
         }
         .task(id: chapter.id) {
+            awaitingRestore = true
             guard let saved = await progress.resolved(bookID: book.id),
-                  saved.chapterID == chapter.id else { return }
+                  saved.chapterID == chapter.id, saved.progress > 0 else {
+                awaitingRestore = false
+                return
+            }
             initialRestoreProgress = saved.progress
+        }
+        .onChange(of: scrollProgress) { _, value in
+            if value > 0 { awaitingRestore = false }
         }
         .onDisappear {
             // Persist whatever the user reached. Save unconditionally —
             // even 0% writes are cheap and keep the chapterID stable so
             // the bookshelf "Resume" hint stays accurate. The coordinator
             // also fires-and-forgets a sync write to the Anki collection.
+            guard !awaitingRestore else { return }
             progress.save(bookID: book.id, chapterID: chapter.id, progress: scrollProgress)
         }
     }
