@@ -27,11 +27,17 @@ public struct LibraryListContent: View {
     let onRenameDeck: (DeckRowViewData) -> Void
     let onCreateDeck: () -> Void
 
-    @AppStorage("appearance_deck_layout") private var layout: DeckLayout = .list
+    /// Owned by the caller and part of `==`: this view is compared with
+    /// `.equatable()`, so a layout it kept itself (it used to hold the
+    /// `@AppStorage`) never re-ran `body`. The rows already on screen kept
+    /// the old layout while rows scrolled in later read the new one, and the
+    /// whole list only switched after a relaunch.
+    @Binding var layout: DeckLayout
 
     public init(
         state: State,
         selectedDeckID: Int64? = nil,
+        layout: Binding<DeckLayout> = .constant(.list),
         onRefresh: @escaping () async -> Void,
         onStartReview: @escaping () -> Void,
         onTapDeck: @escaping (DeckRowViewData) -> Void,
@@ -41,6 +47,7 @@ public struct LibraryListContent: View {
     ) {
         self.state = state
         self.selectedDeckID = selectedDeckID
+        self._layout = layout
         self.onRefresh = onRefresh
         self.onStartReview = onStartReview
         self.onTapDeck = onTapDeck
@@ -92,11 +99,12 @@ public struct LibraryListContent: View {
 
             Section {
                 switch layout {
-                case .list:
+                case .list, .compact:
                     ForEach(rows) { row in
                         DeckListRowView(
                             data: row,
                             isSelected: row.id == selectedDeckID,
+                            isCompact: layout == .compact,
                             onTap: { onTapDeck(row) },
                             onDelete: { Task { await onDeleteDeck(row.id) } },
                             onRename: { onRenameDeck(row) }
@@ -151,7 +159,7 @@ public struct LibraryListContent: View {
             .pickerStyle(.segmented)
             .labelStyle(.iconOnly)
             .labelsHidden()
-            .frame(width: 96)
+            .frame(width: 132)
         }
         .textCase(nil)
     }
@@ -172,7 +180,7 @@ private struct DeckRowChrome: ViewModifier {
 
 extension LibraryListContent: Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.state == rhs.state && lhs.selectedDeckID == rhs.selectedDeckID
+        lhs.state == rhs.state && lhs.selectedDeckID == rhs.selectedDeckID && lhs.layout == rhs.layout
     }
 }
 

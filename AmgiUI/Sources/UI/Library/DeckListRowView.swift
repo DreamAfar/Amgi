@@ -11,6 +11,8 @@ import Theme
 public struct DeckListRowView: View {
     let data: DeckRowViewData
     let isSelected: Bool
+    /// One line, without the deck tile or the due line.
+    let isCompact: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
     let onRename: () -> Void
@@ -21,12 +23,14 @@ public struct DeckListRowView: View {
     public init(
         data: DeckRowViewData,
         isSelected: Bool = false,
+        isCompact: Bool = false,
         onTap: @escaping () -> Void,
         onDelete: @escaping () -> Void,
         onRename: @escaping () -> Void
     ) {
         self.data = data
         self.isSelected = isSelected
+        self.isCompact = isCompact
         self.onTap = onTap
         self.onDelete = onDelete
         self.onRename = onRename
@@ -35,15 +39,37 @@ public struct DeckListRowView: View {
     public var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                DeckTile(name: data.name, isFiltered: data.isFiltered)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(data.name)
-                        .amgiFont(.body)
-                        .bold()
-                        .foregroundStyle(palette.textPrimary)
-                    Text(metaLine)
-                        .amgiFont(.caption)
-                        .foregroundStyle(palette.textSecondary)
+                if !isCompact {
+                    DeckTile(name: data.name, isFiltered: data.isFiltered)
+                }
+                Group {
+                    if isCompact {
+                        // One line: the name, with the filtered-deck mark the
+                        // tile carries in the full list. The counts on the right
+                        // say what the due line would.
+                        HStack(spacing: 6) {
+                            if data.isFiltered {
+                                Image(systemName: "bolt.fill")
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(palette.customStudyBadge)
+                                    .accessibilityLabel(Text("Filtered deck", bundle: .module))
+                            }
+                            Text(data.name)
+                                .amgiFont(.body)
+                                .bold()
+                                .foregroundStyle(palette.textPrimary)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(data.name)
+                                .amgiFont(.body)
+                                .bold()
+                                .foregroundStyle(palette.textPrimary)
+                            Text(metaLine)
+                                .amgiFont(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 trailingContent
@@ -52,10 +78,13 @@ public struct DeckListRowView: View {
                     .foregroundStyle(palette.textTertiary)
                     .accessibilityHidden(true)
             }
-            .padding(.vertical, 14)
+            // 11 keeps a one-line row at the 44pt touch height.
+            .padding(.vertical, isCompact ? 11 : 14)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // The due line isn't drawn in the compact list; VoiceOver still reads it.
+        .accessibilityValue(isCompact ? Text(metaLine) : Text(verbatim: ""))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             // A destructive swipe removes the row before the user can confirm.
@@ -178,6 +207,30 @@ struct DeckTile: View {
         ),
         onTap: {}, onDelete: {}, onRename: {}
     )
+    .padding()
+    .environment(\.palette, .vividLight)
+}
+
+#Preview("Compact rows") {
+    VStack(spacing: 0) {
+        DeckListRowView(
+            data: DeckRowViewData(
+                id: 1, name: "eggrolls-JLPT10k-v3.5", fullName: "eggrolls-JLPT10k-v3.5",
+                newCount: 20, learnCount: 4, reviewCount: 710, isFiltered: false, subdeckCount: 5
+            ),
+            isCompact: true,
+            onTap: {}, onDelete: {}, onRename: {}
+        )
+        Divider()
+        DeckListRowView(
+            data: DeckRowViewData(
+                id: 2, name: "Hardest cards", fullName: "Hardest cards",
+                newCount: 0, learnCount: 0, reviewCount: 24, isFiltered: true, subdeckCount: 0
+            ),
+            isCompact: true,
+            onTap: {}, onDelete: {}, onRename: {}
+        )
+    }
     .padding()
     .environment(\.palette, .vividLight)
 }
