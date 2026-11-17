@@ -28,8 +28,10 @@ public enum DeckLayout: String, CaseIterable, Identifiable, Sendable {
 
     var symbol: String {
         switch self {
+        // The bullets stand for the deck tiles; the compact list has none,
+        // so it is plain lines (`list.dash` read as the same icon).
         case .list: "list.bullet"
-        case .compact: "list.dash"
+        case .compact: "text.justify.leading"
         case .grid: "square.grid.2x2"
         }
     }
