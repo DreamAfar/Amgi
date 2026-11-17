@@ -157,7 +157,25 @@ struct LookupNoteTemplateView: View {
                     }
                     SettingsFootnote(String(localized: "Choosing a note type fills these from field names it recognizes; change any of them. Content without a field is left out.", bundle: .module))
                 }
-            } else {
+            }
+
+            Group {
+                SettingsSectionHeader(title: String(localized: "Definitions", bundle: .module))
+                SettingsGroup {
+                    SettingsToggleRow(
+                        title: String(localized: "Keep dictionary styling", bundle: .module),
+                        systemImage: "paintpalette",
+                        tone: .info,
+                        isOn: Binding(
+                            get: { template.styledDefinitions },
+                            set: { styled in update { $0.styledDefinitions = styled } }
+                        )
+                    )
+                }
+                SettingsFootnote(String(localized: "On, a definition is saved with its dictionary's layout and colours, as it looks in the lookup popup. Off, it is saved as plain lines of text.", bundle: .module))
+            }
+
+            if fields.isEmpty {
                 SettingsFootnote(String(localized: "Choose a note type to set which field gets the word, the sentence, the definitions and so on. Until then new cards use the Front and Back fields.", bundle: .module))
             }
         }
