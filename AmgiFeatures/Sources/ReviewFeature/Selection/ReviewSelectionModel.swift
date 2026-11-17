@@ -150,7 +150,7 @@ final class ReviewSelectionModel {
         synthesizer.stopSpeaking(at: .immediate)
         let utterance = AVSpeechUtterance(string: text)
         if let language = Self.dominantLanguage(of: text) {
-            utterance.voice = AVSpeechSynthesisVoice(language: language)
+            utterance.voice = Self.bestVoice(for: language)
         }
         synthesizer.speak(utterance)
     }
@@ -204,7 +204,26 @@ final class ReviewSelectionModel {
         [selection.text, selection.sentence ?? "", language].joined(separator: "\u{1F}")
     }
 
+    /// The voice for a language: the system's own choice, unless the user
+    /// has downloaded a better-sounding one (enhanced or premium) for the
+    /// same language in Settings.
+    static func bestVoice(for language: String) -> AVSpeechSynthesisVoice? {
+        let code: String = switch language {
+        case "zh-Hans": "zh-CN"
+        case "zh-Hant": "zh-TW"
+        default: language
+        }
+        guard let standard = AVSpeechSynthesisVoice(language: code) else { return nil }
+        let better = AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language == standard.language && $0.quality.rawValue > standard.quality.rawValue }
+            .max { $0.quality.rawValue < $1.quality.rawValue }
+        return better ?? standard
+    }
+
     static func dominantLanguage(of text: String) -> String? {
+        // Kana settles it: a short phrase that is mostly kanji is otherwise
+        // taken for Chinese.
+        if text.unicodeScalars.contains(where: { (0x3040...0x30FF).contains($0.value) }) { return "ja" }
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
         guard let language = recognizer.dominantLanguage else { return nil }
