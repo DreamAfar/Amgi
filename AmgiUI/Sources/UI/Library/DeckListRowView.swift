@@ -11,7 +11,7 @@ import Theme
 public struct DeckListRowView: View {
     let data: DeckRowViewData
     let isSelected: Bool
-    /// Without the deck tile and with less space above and below.
+    /// One line, without the deck tile or the due line.
     let isCompact: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
@@ -42,19 +42,28 @@ public struct DeckListRowView: View {
                 if !isCompact {
                     DeckTile(name: data.name, isFiltered: data.isFiltered)
                 }
-                VStack(alignment: .leading, spacing: isCompact ? 1 : 2) {
-                    Text(data.name)
-                        .amgiFont(.body)
-                        .bold()
-                        .foregroundStyle(palette.textPrimary)
-                    HStack(spacing: 4) {
-                        // The tile carries this mark in the full list.
-                        if isCompact, data.isFiltered {
+                if isCompact {
+                    // One line: the name, with the filtered-deck mark the
+                    // tile carries in the full list. The counts on the right
+                    // say what the due line would.
+                    HStack(spacing: 6) {
+                        if data.isFiltered {
                             Image(systemName: "bolt.fill")
                                 .amgiFont(.micro)
                                 .foregroundStyle(palette.customStudyBadge)
                                 .accessibilityLabel(Text("Filtered deck", bundle: .module))
                         }
+                        Text(data.name)
+                            .amgiFont(.body)
+                            .bold()
+                            .foregroundStyle(palette.textPrimary)
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(data.name)
+                            .amgiFont(.body)
+                            .bold()
+                            .foregroundStyle(palette.textPrimary)
                         Text(metaLine)
                             .amgiFont(.caption)
                             .foregroundStyle(palette.textSecondary)
@@ -67,10 +76,13 @@ public struct DeckListRowView: View {
                     .foregroundStyle(palette.textTertiary)
                     .accessibilityHidden(true)
             }
-            .padding(.vertical, isCompact ? 8 : 14)
+            // 11 keeps a one-line row at the 44pt touch height.
+            .padding(.vertical, isCompact ? 11 : 14)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // The due line isn't drawn in the compact list; VoiceOver still reads it.
+        .accessibilityValue(isCompact ? Text(metaLine) : Text(verbatim: ""))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             // A destructive swipe removes the row before the user can confirm.
