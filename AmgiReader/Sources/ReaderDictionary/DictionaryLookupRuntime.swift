@@ -66,10 +66,9 @@ private final class LookupEngineBox {
         case .descending: options.frequency_order = .Descending
         case .disabled: options.frequency_order = .Disabled
         }
-        if let dictionary = frequencySort.dictionary, !dictionary.isEmpty,
-           frequencySort.order == .ascending || frequencySort.order == .descending {
-            options.frequency_dictionary = .init(std.string(dictionary))
-        }
+        // Which dictionary to sort by is left to `LookupRanking`, which
+        // orders the entries again anyway: the engine takes the name as a
+        // `std::optional<std::string>`, which Swift can't construct here.
         return Array(lookupPtr.pointee.lookup(std.string(query), Int32(maxResults), scanLength, options))
     }
 
