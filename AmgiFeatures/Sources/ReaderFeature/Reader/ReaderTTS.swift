@@ -37,10 +37,39 @@ final class ReaderTTS {
 
         let utterance = AVSpeechUtterance(string: trimmed)
         if let bcp47 = Self.resolvedLanguage(hint: languageHint, fallbackText: trimmed),
-           let voice = AVSpeechSynthesisVoice(language: bcp47) {
+           let voice = Self.bestVoice(for: bcp47) {
             utterance.voice = voice
         }
         synthesizer.speak(utterance)
+    }
+
+    /// Speaks a dictionary entry. A reading written in kana settles two
+    /// things the headword alone can't: that the word is Japanese — 紙 on
+    /// its own is as much Chinese, and was read by a Chinese voice — and
+    /// which of its readings is meant, so the kana is what gets spoken.
+    func speak(term: String, reading: String?, languageHint: String?) {
+        if let reading = reading?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !reading.isEmpty, Self.isKana(reading) {
+            speak(reading, languageHint: "ja")
+        } else {
+            speak(term, languageHint: languageHint)
+        }
+    }
+
+    /// The voice for a language: the system's own choice, unless the user
+    /// has downloaded a better-sounding one (enhanced or premium) for the
+    /// same language in Settings. Only a strictly better voice replaces the
+    /// default — the list also holds novelty voices of the default quality.
+    static func bestVoice(for bcp47: String) -> AVSpeechSynthesisVoice? {
+        guard let standard = AVSpeechSynthesisVoice(language: bcp47) else { return nil }
+        let better = AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language == standard.language && $0.quality.rawValue > standard.quality.rawValue }
+            .max { $0.quality.rawValue < $1.quality.rawValue }
+        return better ?? standard
+    }
+
+    static func isKana(_ text: String) -> Bool {
+        text.unicodeScalars.contains { (0x3040...0x30FF).contains(Int($0.value)) }
     }
 
     func stop() {
