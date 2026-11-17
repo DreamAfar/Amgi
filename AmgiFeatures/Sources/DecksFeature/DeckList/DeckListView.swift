@@ -27,6 +27,7 @@ package struct DeckListView: View {
     @State private var renameTarget: DeckRowViewData?
     @State private var pendingDeck: DeckInfo?
     @State private var accounts = AccountStore.shared
+    @AppStorage("appearance_deck_layout") private var deckLayout: DeckLayout = .list
     @Shared(.appStorage(AppearancePreferences.Keys.showProfileInToolbar))
     private var showProfileInToolbar = true
 
@@ -58,6 +59,7 @@ package struct DeckListView: View {
         LibraryListContent(
             state: model.state,
             selectedDeckID: pendingDeck?.id.rawValue,
+            layout: $deckLayout,
             onRefresh: { await model.load() },
             onStartReview: { pendingDeck = model.firstReviewableDeck() },
             onTapDeck: { row in pendingDeck = row.asDeckInfo },

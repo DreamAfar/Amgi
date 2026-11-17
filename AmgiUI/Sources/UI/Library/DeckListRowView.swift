@@ -11,6 +11,8 @@ import Theme
 public struct DeckListRowView: View {
     let data: DeckRowViewData
     let isSelected: Bool
+    /// Without the deck tile and with less space above and below.
+    let isCompact: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
     let onRename: () -> Void
@@ -21,12 +23,14 @@ public struct DeckListRowView: View {
     public init(
         data: DeckRowViewData,
         isSelected: Bool = false,
+        isCompact: Bool = false,
         onTap: @escaping () -> Void,
         onDelete: @escaping () -> Void,
         onRename: @escaping () -> Void
     ) {
         self.data = data
         self.isSelected = isSelected
+        self.isCompact = isCompact
         self.onTap = onTap
         self.onDelete = onDelete
         self.onRename = onRename
@@ -35,15 +39,26 @@ public struct DeckListRowView: View {
     public var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                DeckTile(name: data.name, isFiltered: data.isFiltered)
-                VStack(alignment: .leading, spacing: 2) {
+                if !isCompact {
+                    DeckTile(name: data.name, isFiltered: data.isFiltered)
+                }
+                VStack(alignment: .leading, spacing: isCompact ? 1 : 2) {
                     Text(data.name)
                         .amgiFont(.body)
                         .bold()
                         .foregroundStyle(palette.textPrimary)
-                    Text(metaLine)
-                        .amgiFont(.caption)
-                        .foregroundStyle(palette.textSecondary)
+                    HStack(spacing: 4) {
+                        // The tile carries this mark in the full list.
+                        if isCompact, data.isFiltered {
+                            Image(systemName: "bolt.fill")
+                                .amgiFont(.micro)
+                                .foregroundStyle(palette.customStudyBadge)
+                                .accessibilityLabel(Text("Filtered deck", bundle: .module))
+                        }
+                        Text(metaLine)
+                            .amgiFont(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 trailingContent
@@ -52,7 +67,7 @@ public struct DeckListRowView: View {
                     .foregroundStyle(palette.textTertiary)
                     .accessibilityHidden(true)
             }
-            .padding(.vertical, 14)
+            .padding(.vertical, isCompact ? 8 : 14)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -178,6 +193,30 @@ struct DeckTile: View {
         ),
         onTap: {}, onDelete: {}, onRename: {}
     )
+    .padding()
+    .environment(\.palette, .vividLight)
+}
+
+#Preview("Compact rows") {
+    VStack(spacing: 0) {
+        DeckListRowView(
+            data: DeckRowViewData(
+                id: 1, name: "eggrolls-JLPT10k-v3.5", fullName: "eggrolls-JLPT10k-v3.5",
+                newCount: 20, learnCount: 4, reviewCount: 710, isFiltered: false, subdeckCount: 5
+            ),
+            isCompact: true,
+            onTap: {}, onDelete: {}, onRename: {}
+        )
+        Divider()
+        DeckListRowView(
+            data: DeckRowViewData(
+                id: 2, name: "Hardest cards", fullName: "Hardest cards",
+                newCount: 0, learnCount: 0, reviewCount: 24, isFiltered: true, subdeckCount: 0
+            ),
+            isCompact: true,
+            onTap: {}, onDelete: {}, onRename: {}
+        )
+    }
     .padding()
     .environment(\.palette, .vividLight)
 }
