@@ -493,6 +493,34 @@
         }
       }
     },
+    "Compact list view" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コンパクトなリスト表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "간결한 목록 보기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紧凑列表视图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "緊湊列表檢視"
+          }
+        }
+      }
+    },
     "Couldn't Load Decks" : {
       "localizations" : {
         "ja" : {
