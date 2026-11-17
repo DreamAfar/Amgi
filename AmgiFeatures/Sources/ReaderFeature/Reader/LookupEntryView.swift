@@ -37,6 +37,10 @@ struct LookupEntryHeaderView: View {
     let onMakeNote: () -> Void
 
     @State private var isResolvingAudio = false
+    /// Bumped on each tap, so the buttons answer every press — the audio
+    /// can start late, or be the same clip again, and the tap looked lost.
+    @State private var audioTaps = 0
+    @State private var speechTaps = 0
     @Environment(\.palette) private var palette
 
     var body: some View {
@@ -57,23 +61,34 @@ struct LookupEntryHeaderView: View {
             }
             HStack(spacing: 16) {
                 Button {
+                    audioTaps += 1
                     Task { await playAudio() }
                 } label: {
-                    if isResolvingAudio {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "speaker.wave.2.fill").amgiFont(.cardTitle)
-                    }
+                    // The icon stays in place under the spinner: swapped
+                    // out, a fresh one appeared after each fetch and never
+                    // played its bounce.
+                    Image(systemName: "speaker.wave.2.fill")
+                        .amgiFont(.cardTitle)
+                        .symbolEffect(.bounce, value: audioTaps)
+                        .opacity(isResolvingAudio ? 0.35 : 1)
+                        .overlay {
+                            if isResolvingAudio { ProgressView().controlSize(.small) }
+                        }
                 }
                 .buttonStyle(.pressScale)
                 .disabled(isResolvingAudio)
+                .sensoryFeedback(.impact(weight: .light), trigger: audioTaps)
                 .accessibilityLabel(String(localized: "Play pronunciation", bundle: .module))
                 Button {
-                    ReaderTTS.shared.speak(term, languageHint: languageHint)
+                    speechTaps += 1
+                    ReaderTTS.shared.speak(term: term, reading: reading, languageHint: languageHint)
                 } label: {
-                    Image(systemName: "waveform.badge.mic").amgiFont(.cardTitle)
+                    Image(systemName: "waveform.badge.mic")
+                        .amgiFont(.cardTitle)
+                        .symbolEffect(.bounce, value: speechTaps)
                 }
                 .buttonStyle(.pressScale)
+                .sensoryFeedback(.impact(weight: .light), trigger: speechTaps)
                 .accessibilityLabel(String(localized: "Speak with TTS", bundle: .module))
                 Button {
                     onMakeNote()
@@ -218,20 +233,30 @@ private extension LookupEntryView {
             ) {
                 inner
             } label: {
-                Text(group.dictionary.isEmpty ? String(localized: "Definitions", bundle: .module) : group.dictionary)
-                    .font(.system(size: styling.dictionaryNameFontSize))
-                    .foregroundStyle(palette.textSecondary)
+                dictionaryName(group.dictionary.isEmpty ? String(localized: "Definitions", bundle: .module) : group.dictionary)
             }
         } else {
             VStack(alignment: .leading, spacing: styling.compactGlossaries ? 1 : 4) {
                 if !group.dictionary.isEmpty {
-                    Text(group.dictionary)
-                        .font(.system(size: styling.dictionaryNameFontSize))
-                        .foregroundStyle(palette.textSecondary)
+                    dictionaryName(group.dictionary)
+                        .padding(.top, AmgiSpacing.xs)
                 }
                 inner
             }
         }
+    }
+
+    /// The dictionary a block of definitions comes from, as a tag rather
+    /// than a line of small grey text: between two dictionaries' definitions
+    /// that read as one more line of the first.
+    private func dictionaryName(_ name: String) -> some View {
+        Text(name)
+            .font(.system(size: styling.dictionaryNameFontSize, weight: .semibold))
+            .foregroundStyle(palette.accent)
+            .padding(.horizontal, AmgiSpacing.sm)
+            .padding(.vertical, AmgiSpacing.xxs)
+            .background(palette.separator, in: Capsule())
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
