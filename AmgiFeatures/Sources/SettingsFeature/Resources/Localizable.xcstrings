@@ -2829,6 +2829,34 @@
         }
       }
     },
+    "Definitions" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "語義"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "뜻풀이"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "释义"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "釋義"
+          }
+        }
+      }
+    },
     "Deinflection" : {
       "localizations" : {
         "ja" : {
@@ -4537,6 +4565,34 @@
         }
       }
     },
+    "Keep dictionary styling" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "辞書のスタイルを保つ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사전 스타일 유지"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留词典样式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留辭典樣式"
+          }
+        }
+      }
+    },
     "Korean origin" : {
       "localizations" : {
         "ja" : {
@@ -5681,6 +5737,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正面"
+          }
+        }
+      }
+    },
+    "On, a definition is saved with its dictionary's layout and colours, as it looks in the lookup popup. Off, it is saved as plain lines of text." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オンにすると、語義は辞書のレイアウトと色のまま、検索ポップアップと同じ見た目で保存されます。オフにすると、プレーンテキストの行として保存されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "켜면 뜻풀이가 사전의 레이아웃과 색상 그대로, 조회 팝업에서 보이는 모습으로 저장됩니다. 끄면 일반 텍스트 줄로 저장됩니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开后，释义会带着词典的排版和颜色保存，和查词弹窗里看到的一样。关闭后保存为逐行的纯文本。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟後，釋義會帶著辭典的排版和顏色儲存，和查詞彈窗裡看到的一樣。關閉後儲存為逐行的純文字。"
           }
         }
       }

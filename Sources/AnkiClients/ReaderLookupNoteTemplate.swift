@@ -18,6 +18,9 @@ public struct ReaderLookupNotePayload: Sendable, Hashable {
     public var reading: String?
     public var sentence: String?
     public var definitions: [String]
+    /// True when `definitions` are already HTML (`styledDefinitionsByDictionary`),
+    /// false when they are plain text whose line breaks still need keeping.
+    public var definitionsAreHTML: Bool
     public var dictionaries: String?
     public var frequency: String?
     public var pitch: String?
@@ -35,6 +38,7 @@ public struct ReaderLookupNotePayload: Sendable, Hashable {
         reading: String? = nil,
         sentence: String? = nil,
         definitions: [String] = [],
+        definitionsAreHTML: Bool = false,
         dictionaries: String? = nil,
         frequency: String? = nil,
         pitch: String? = nil,
@@ -49,6 +53,7 @@ public struct ReaderLookupNotePayload: Sendable, Hashable {
         self.reading = reading
         self.sentence = sentence
         self.definitions = definitions
+        self.definitionsAreHTML = definitionsAreHTML
         self.dictionaries = dictionaries
         self.frequency = frequency
         self.pitch = pitch
@@ -64,6 +69,29 @@ public struct ReaderLookupNotePayload: Sendable, Hashable {
         definitions
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    /// One HTML block per dictionary, laid out and coloured by the
+    /// dictionary's own stylesheet as in the lookup popup. Dictionary order
+    /// is kept; `styles` maps a dictionary's name to its CSS.
+    public static func styledDefinitionsByDictionary(
+        from glossaries: [DictionaryLookupGlossary],
+        styles: [String: String]
+    ) -> [String] {
+        var orderedDictionaries: [String] = []
+        var grouped: [String: [DictionaryLookupGlossary]] = [:]
+        for glossary in glossaries {
+            if grouped[glossary.dictionary] == nil { orderedDictionaries.append(glossary.dictionary) }
+            grouped[glossary.dictionary, default: []].append(glossary)
+        }
+        return orderedDictionaries.compactMap { dictionary in
+            let html = GlossaryHTML.styled(
+                dictionary: dictionary,
+                glossaries: grouped[dictionary] ?? [],
+                style: styles[dictionary] ?? ""
+            )
+            return html.isEmpty ? nil : html
+        }
     }
 
     /// Collapses a lookup's per-dictionary glossary list into one
@@ -116,6 +144,10 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
     public var rulesField: String
     public var explanationField: String
     public var translationField: String
+    /// Definitions go into the note laid out and coloured by their
+    /// dictionary's stylesheet, as in the lookup popup, rather than as
+    /// plain lines of text.
+    public var styledDefinitions: Bool
 
     public static let empty = Self()
 
@@ -136,7 +168,8 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         sourceField: String = "",
         rulesField: String = "",
         explanationField: String = "",
-        translationField: String = ""
+        translationField: String = "",
+        styledDefinitions: Bool = true
     ) {
         self.deckID = deckID
         self.notetypeID = notetypeID
@@ -155,6 +188,7 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         self.rulesField = rulesField
         self.explanationField = explanationField
         self.translationField = translationField
+        self.styledDefinitions = styledDefinitions
     }
 
     enum CodingKeys: String, CodingKey {
@@ -164,6 +198,7 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         case dictionariesField, frequencyField, pitchField
         case deinflectionField, matchedField, sourceField, rulesField
         case explanationField, translationField
+        case styledDefinitions
     }
 
     public init(from decoder: any Decoder) throws {
@@ -185,6 +220,7 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         rulesField = try c.decodeIfPresent(String.self, forKey: .rulesField) ?? ""
         explanationField = try c.decodeIfPresent(String.self, forKey: .explanationField) ?? ""
         translationField = try c.decodeIfPresent(String.self, forKey: .translationField) ?? ""
+        styledDefinitions = try c.decodeIfPresent(Bool.self, forKey: .styledDefinitions) ?? true
     }
 
     /// Whether any field is mapped. An unmapped template falls back to
@@ -280,9 +316,15 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         assign(termField, payload.term)
         assign(readingField, payload.reading)
         assign(sentenceField, payload.sentence)
-        assign(definition1Field, definitions[safe: 0])
-        assign(definition2Field, definitions[safe: 1])
-        assign(definition3Field, definitions[safe: 2])
+        // A field is HTML. Definitions, explanation and translation arrive
+        // as plain text unless said otherwise, and their line breaks would
+        // collapse into one run of text on the card.
+        func definition(_ index: Int) -> String? {
+            definitions[safe: index].map { payload.definitionsAreHTML ? $0 : NoteFieldText.html(fromPlain: $0) }
+        }
+        assign(definition1Field, definition(0))
+        assign(definition2Field, definition(1))
+        assign(definition3Field, definition(2))
         assign(dictionariesField, payload.dictionaries)
         assign(frequencyField, payload.frequency)
         assign(pitchField, payload.pitch)
@@ -290,8 +332,8 @@ public struct ReaderLookupNoteTemplate: Codable, Hashable, Sendable {
         assign(matchedField, payload.matched)
         assign(sourceField, payload.source)
         assign(rulesField, payload.rules)
-        assign(explanationField, payload.explanation)
-        assign(translationField, payload.translation)
+        assign(explanationField, payload.explanation.map(NoteFieldText.html(fromExplanation:)))
+        assign(translationField, payload.translation.map(NoteFieldText.html(fromPlain:)))
 
         // No mapping configured yet: best-effort fallback to common
         // basic-notetype field names so the user still gets *some* note,

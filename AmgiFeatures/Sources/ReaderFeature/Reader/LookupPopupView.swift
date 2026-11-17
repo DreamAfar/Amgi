@@ -340,13 +340,20 @@ private extension LookupPopupView {
             ? .empty
             : ReaderLookupNoteTemplate.decode(from: serializedTemplate)
 
+        let styled = template.styledDefinitions && !entry.structuredGlossaries.isEmpty
         let payload = ReaderLookupNotePayload(
             term: entry.term,
             reading: entry.reading,
             sentence: sentence,
-            definitions: entry.glossaries.isEmpty
-                ? ReaderLookupNotePayload.definitionsByDictionary(from: entry.structuredGlossaries)
-                : entry.glossaries,
+            definitions: styled
+                ? ReaderLookupNotePayload.styledDefinitionsByDictionary(
+                    from: entry.structuredGlossaries,
+                    styles: model.result?.dictionaryStyles ?? [:]
+                )
+                : entry.glossaries.isEmpty
+                    ? ReaderLookupNotePayload.definitionsByDictionary(from: entry.structuredGlossaries)
+                    : entry.glossaries,
+            definitionsAreHTML: styled,
             dictionaries: entry.structuredGlossaries
                 .map(\.dictionary)
                 .filter { !$0.isEmpty }
