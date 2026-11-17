@@ -11,12 +11,28 @@ import Theme
 
 public enum DeckLayout: String, CaseIterable, Identifiable, Sendable {
     case list
+    /// The list without deck tiles and with tighter rows, to fit more decks
+    /// on screen.
+    case compact
     case grid
 
     public var id: String { rawValue }
 
-    var label: String { self == .list ? String(localized: "List view", bundle: .module) : String(localized: "Grid view", bundle: .module) }
-    var symbol: String { self == .list ? "list.bullet" : "square.grid.2x2" }
+    var label: String {
+        switch self {
+        case .list: String(localized: "List view", bundle: .module)
+        case .compact: String(localized: "Compact list view", bundle: .module)
+        case .grid: String(localized: "Grid view", bundle: .module)
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .list: "list.bullet"
+        case .compact: "list.dash"
+        case .grid: "square.grid.2x2"
+        }
+    }
 }
 
 public struct DeckGridCardView: View {

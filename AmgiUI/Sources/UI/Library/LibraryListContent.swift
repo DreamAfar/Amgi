@@ -92,11 +92,12 @@ public struct LibraryListContent: View {
 
             Section {
                 switch layout {
-                case .list:
+                case .list, .compact:
                     ForEach(rows) { row in
                         DeckListRowView(
                             data: row,
                             isSelected: row.id == selectedDeckID,
+                            isCompact: layout == .compact,
                             onTap: { onTapDeck(row) },
                             onDelete: { Task { await onDeleteDeck(row.id) } },
                             onRename: { onRenameDeck(row) }
@@ -151,7 +152,7 @@ public struct LibraryListContent: View {
             .pickerStyle(.segmented)
             .labelStyle(.iconOnly)
             .labelsHidden()
-            .frame(width: 96)
+            .frame(width: 132)
         }
         .textCase(nil)
     }
