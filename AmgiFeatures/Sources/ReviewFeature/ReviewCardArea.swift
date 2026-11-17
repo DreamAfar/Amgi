@@ -36,6 +36,7 @@ struct ReviewCardArea: View {
     let showNextReviewTime: Bool
     let lookupHighlight: LookupHighlight
     let shortcutsEnabled: Bool
+    var isMarked = false
     @Binding var lookupQuery: String?
 
     @Environment(\.palette) private var palette
@@ -78,6 +79,7 @@ struct ReviewCardArea: View {
                 isNative: isNativeMode,
                 isAuto: session.resolvedByAuto,
                 templateName: session.templateName,
+                isMarked: isMarked,
                 onTap: { showRenderModeSheet = true }
             )
             .padding(.horizontal)

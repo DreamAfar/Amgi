@@ -73,6 +73,7 @@ struct ReviewContent: View {
                         showNextReviewTime: showNextReviewTime,
                         lookupHighlight: lookupHighlight,
                         shortcutsEnabled: keyboardActive,
+                        isMarked: cardActions.isMarkedNote,
                         lookupQuery: $destination.lookupText
                     )
                 }
