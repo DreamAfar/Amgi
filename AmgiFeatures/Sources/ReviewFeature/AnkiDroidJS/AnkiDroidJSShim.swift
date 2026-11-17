@@ -150,11 +150,47 @@ enum AnkiDroidJSShim {
             call = function (text, shortLength) {
                 return this.handleRequest(endpoint, JSON.stringify({ text: text, shortLength: shortLength === undefined ? true : shortLength }));
             };
+        } else if (method === "ankiSearchCardWithCallback") {
+            call = function (data) {
+                return this.handleRequest(endpoint, data).then(function (response) {
+                    if (response && Array.isArray(response.results)) {
+                        var results = response.results;
+                        delete response.results;
+                        if (typeof window.ankiSearchCard === "function") {
+                            window.ankiSearchCard(JSON.stringify(results));
+                        }
+                    }
+                    return response;
+                });
+            };
         } else {
             call = function (data) { return this.handleRequest(endpoint, data); };
         }
         AnkiDroidJS.prototype[method] = call;
     });
+
+    // AnkiDroid's card page has `addHook("ankiSearchCard", fn)` and a global
+    // `ankiSearchCard(json)` that runs the hooks; cards written for it test
+    // for `addHook` before using the search callback.
+    var searchCardHooks = [];
+    if (typeof window.addHook !== "function") {
+        window.addHook = function (name, fn) {
+            if (name !== "ankiSearchCard" || typeof fn !== "function") { return; }
+            // This page outlives a card, so the next card's script hooks
+            // again: replace the copy it left rather than run both.
+            var source = String(fn);
+            for (var i = 0; i < searchCardHooks.length; i++) {
+                if (String(searchCardHooks[i]) === source) { searchCardHooks[i] = fn; return; }
+            }
+            searchCardHooks.push(fn);
+        };
+    }
+    if (typeof window.ankiSearchCard !== "function") {
+        window.ankiSearchCard = function (result) {
+            result = JSON.parse(result);
+            for (var i = 0; i < searchCardHooks.length; i++) { searchCardHooks[i](result); }
+        };
+    }
 
     window.AnkiDroidJS = AnkiDroidJS;
     globalThis.AnkiDroidJS = AnkiDroidJS;

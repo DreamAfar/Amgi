@@ -10,6 +10,7 @@ import AppCore
 import Foundation
 import OSLog
 import ReviewCore
+import Sharing
 
 /// Answers the AnkiDroid-compatible card API during review. Owns the
 /// card, note, tag and deck clients so the views carry no `@Dependency`.
@@ -28,6 +29,8 @@ final class AnkiDroidJSModel {
     }
 
     private(set) var toast: Toast?
+    /// Set by `ankiSearchCard`; the review screen shows the browser for it.
+    var browseRequest: AnkiDroidJSBrowseRequest?
     var isEnabled = true
     var allowsCardChanges = false
 
@@ -45,6 +48,13 @@ final class AnkiDroidJSModel {
     @ObservationIgnored @Dependency(\.noteClient) private var noteClient
     @ObservationIgnored @Dependency(\.tagClient) private var tagClient
     @ObservationIgnored @Dependency(\.deckClient) private var deckClient
+    @ObservationIgnored @Dependency(\.notetypesClient) private var notetypesClient
+
+    /// Whether a script may read the notes a search finds. Read here rather
+    /// than passed down like the other two switches: only this model uses it.
+    @ObservationIgnored
+    @Shared(.appStorage(ReviewPreferences.Keys.ankiDroidJSAllowsSearch))
+    private var allowsSearch: Bool = false
 
     private static let markedTag = "marked"
 
@@ -215,6 +225,20 @@ final class AnkiDroidJSModel {
             if tag.caseInsensitiveCompare(Self.markedTag) == .orderedSame { marks[card.nid] = true }
             return AnkiDroidJSResult.success(true)
 
+        // Search
+        case "searchCard":
+            let query = request.data.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty else { return AnkiDroidJSResult.failure(false) }
+            browseRequest = AnkiDroidJSBrowseRequest(query: query)
+            return AnkiDroidJSResult.success(true)
+        case "searchCardWithCallback":
+            guard allowsSearch else {
+                notice("search", String(localized: "This card's script tried to search your collection. Allow it in Settings › Review › Card Scripts.", bundle: .module))
+                return AnkiDroidJSResult.failure(false)
+            }
+            let results = try await searchResults(for: request.data)
+            return AnkiDroidJSResult.search(results: results)
+
         // Speech
         case "ttsSpeak":
             let payload = request.jsonObject
@@ -234,7 +258,7 @@ final class AnkiDroidJSModel {
         // Part of AnkiDroid's API but tied to its own screens, or not
         // available on iOS: they answer "not done" rather than reject, so
         // a card that calls them keeps running.
-        case "eta", "isActiveNetworkMetered", "searchCard", "searchCardWithCallback", "addTagToCard",
+        case "eta", "isActiveNetworkMetered", "addTagToCard",
              "setFullscreenButtonsAndMenu", "setFullscreenButtonsOnly", "setFullscreenAllGone",
              "enableHorizontalScrollbar", "enableVerticalScrollbar",
              "showNavigationDrawer", "showOptionsMenu", "sttSetLanguage", "sttStart", "sttStop":
@@ -243,6 +267,28 @@ final class AnkiDroidJSModel {
         default:
             return nil
         }
+    }
+
+    // MARK: - Search
+
+    /// Every card of the notes `query` finds, as AnkiDroid's hook gets them.
+    private func searchResults(for query: String) async throws -> [[String: Any]] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+        let notes = try await noteClient.searchAll(query, AnkiDroidJSSearchResult.noteLimit)
+        var fieldNames: [NotetypeID: [String]] = [:]
+        var results: [[String: Any]] = []
+        for note in notes.prefix(AnkiDroidJSSearchResult.noteLimit) {
+            if fieldNames[note.mid] == nil {
+                fieldNames[note.mid] = try await notetypesClient.get(note.mid).fields.map(\.name)
+            }
+            for card in try await cardClient.fetchByNote(note.id) {
+                results.append(
+                    AnkiDroidJSSearchResult.entry(cardID: card.id, note: note, fieldNames: fieldNames[note.mid] ?? [])
+                )
+            }
+        }
+        return results
     }
 
     // MARK: - State

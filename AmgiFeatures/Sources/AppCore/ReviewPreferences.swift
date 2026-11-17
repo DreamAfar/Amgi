@@ -47,6 +47,8 @@ public enum ReviewPreferences {
         /// …including the calls that bury, suspend, reschedule, reset or
         /// retag the card.
         public static let ankiDroidJSAllowsCardChanges = "review_pref_ankidroid_js_allows_card_changes"
+        /// …and the call that hands a card's script the notes a search finds.
+        public static let ankiDroidJSAllowsSearch = "review_pref_ankidroid_js_allows_search"
         /// Text-selection actions in review (AI explanation, translation,
         /// speak, make card) in the system selection menu.
         public static let selectionActionsEnabled = "review_pref_selection_actions_enabled"

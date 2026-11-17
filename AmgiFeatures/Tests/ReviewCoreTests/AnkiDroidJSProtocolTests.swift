@@ -90,3 +90,22 @@ struct AnkiDroidJSProtocolTests {
         #expect(request("cardReps").rating == nil)
     }
 }
+
+struct AnkiDroidJSSearchAnswerTests {
+    @Test func carriesTheCardsBesideTheUsualAnswer() throws {
+        let text = AnkiDroidJSResult.search(results: [
+            ["cardId": Int64(1_700_000_000_001), "noteId": Int64(1_700_000_000_000), "fieldsData": ["Front": "犬", "Back": "dog"]],
+        ])
+        let object = try #require(try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
+        #expect(object["success"] as? Bool == true)
+        #expect(object["value"] as? Bool == true)
+        let results = try #require(object["results"] as? [[String: Any]])
+        #expect(results.count == 1)
+        #expect((results[0]["cardId"] as? NSNumber)?.int64Value == 1_700_000_000_001)
+        #expect(results[0]["fieldsData"] as? [String: String] == ["Front": "犬", "Back": "dog"])
+    }
+
+    @Test func anEmptySearchStillAnswers() {
+        #expect(AnkiDroidJSResult.search(results: []) == #"{"results":[],"success":true,"value":true}"#)
+    }
+}

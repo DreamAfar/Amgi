@@ -1625,6 +1625,34 @@
         }
       }
     },
+    "This card's script tried to search your collection. Allow it in Settings › Review › Card Scripts." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このカードのスクリプトがコレクションを検索しようとしました。「設定 › 復習 › カードスクリプト」で許可できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 카드의 스크립트가 컬렉션을 검색하려고 했습니다. 설정 › 복습 › 카드 스크립트에서 허용할 수 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片的脚本尝试搜索你的集合。可在「设置 › 复习 › 卡片脚本」中允许。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此卡片的腳本嘗試搜尋你的集合。可在「設定 › 複習 › 卡片腳本」中允許。"
+          }
+        }
+      }
+    },
     "This card: %@" : {
       "localizations" : {
         "ja" : {

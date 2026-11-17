@@ -55,7 +55,7 @@ struct ReviewContent: View {
     private var noteTemplateJSON: String = ""
 
     private var keyboardActive: Bool {
-        destination == nil && !confirmDeleteNote
+        destination == nil && !confirmDeleteNote && ankiDroidJS.browseRequest == nil
             && selectionModel.assist == nil && selectionModel.quickCard == nil
     }
 
@@ -132,6 +132,7 @@ struct ReviewContent: View {
             .reviewHaptics(session: session)
             .reviewStudyNotice(session.studyNotice)
             .reviewCardScriptToast(ankiDroidJS.toast)
+            .reviewCardScriptBrowse($ankiDroidJS.browseRequest)
             .onAppear {
                 ankiDroidJS.isEnabled = ankiDroidJSEnabled
                 ankiDroidJS.allowsCardChanges = ankiDroidJSAllowsCardChanges

@@ -52,6 +52,9 @@ struct ReviewSettingsView: View {
     @Shared(.appStorage(ReviewPreferences.Keys.ankiDroidJSAllowsCardChanges))
     private var ankiDroidJSAllowsCardChanges: Bool = false
 
+    @Shared(.appStorage(ReviewPreferences.Keys.ankiDroidJSAllowsSearch))
+    private var ankiDroidJSAllowsSearch: Bool = false
+
     var body: some View {
         SettingsPage {
             cardDisplaySection
@@ -212,8 +215,16 @@ struct ReviewSettingsView: View {
                     isOn: Binding($ankiDroidJSAllowsCardChanges)
                 )
                 .disabled(!ankiDroidJSEnabled)
+                SettingsSeparator()
+                SettingsToggleRow(
+                    title: String(localized: "Allow searching the collection", bundle: .module),
+                    systemImage: "magnifyingglass",
+                    tone: .danger,
+                    isOn: Binding($ankiDroidJSAllowsSearch)
+                )
+                .disabled(!ankiDroidJSEnabled)
             }
-            SettingsFootnote(String(localized: "Lets card templates written for AnkiDroid read the card's details, show the answer, answer, flag and mark. Changes to cards — bury, suspend, set due date, reset, edit tags — run only when allowed, since any shared deck's template could use them.", bundle: .module))
+            SettingsFootnote(String(localized: "Lets card templates written for AnkiDroid read the card's details, show the answer, answer, flag and mark. Changes to cards — bury, suspend, set due date, reset, edit tags — run only when allowed, since any shared deck's template could use them. Searching lets a card's script read the notes a search finds, from any deck.", bundle: .module))
         }
     }
 }

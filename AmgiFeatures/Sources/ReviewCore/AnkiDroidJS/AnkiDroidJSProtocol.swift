@@ -87,6 +87,21 @@ package enum AnkiDroidJSResult {
 
     package static func success(_ value: Any) -> String { json(success: true, value: value) }
 
+    /// The answer to `searchCardWithCallback`. AnkiDroid answers `true` and
+    /// separately calls the page's `ankiSearchCard` with the cards; here
+    /// they ride along as `results`, which the shim hands to that function
+    /// and strips before the card sees the answer.
+    package static func search(results: [[String: Any]]) -> String {
+        let object: [String: Any] = ["success": true, "value": true, "results": results]
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(
+                  withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes]
+              ), let text = String(data: data, encoding: .utf8) else {
+            return failure(false)
+        }
+        return text
+    }
+
     package static func failure(_ value: Any = false) -> String { json(success: false, value: value) }
 
     /// What AnkiDroid answers an invalid contract, or a call made outside

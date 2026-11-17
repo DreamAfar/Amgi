@@ -561,6 +561,34 @@
         }
       }
     },
+    "Allow searching the collection" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コレクションの検索を許可"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컬렉션 검색 허용"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许搜索集合"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允許搜尋集合"
+          }
+        }
+      }
+    },
     "Amgi uses the official Anki Rust backend. The backend code is licensed under AGPL-3.0 and remains the work of its authors." : {
       "localizations" : {
         "ja" : {
@@ -4537,30 +4565,30 @@
         }
       }
     },
-    "Lets card templates written for AnkiDroid read the card's details, show the answer, answer, flag and mark. Changes to cards — bury, suspend, set due date, reset, edit tags — run only when allowed, since any shared deck's template could use them." : {
+    "Lets card templates written for AnkiDroid read the card's details, show the answer, answer, flag and mark. Changes to cards — bury, suspend, set due date, reset, edit tags — run only when allowed, since any shared deck's template could use them. Searching lets a card's script read the notes a search finds, from any deck." : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AnkiDroid向けのカードテンプレートが、カードの情報の取得、解答の表示、回答、フラグ、マークを行えるようにします。延期・保留・期日の設定・リセット・タグの編集といったカードの変更は、共有デッキのテンプレートでも使えてしまうため、許可した場合のみ実行されます。"
+            "value" : "AnkiDroid向けのカードテンプレートが、カードの情報の取得、解答の表示、回答、フラグ、マークを行えるようにします。延期・保留・期日の設定・リセット・タグの編集といったカードの変更は、共有デッキのテンプレートでも使えてしまうため、許可した場合のみ実行されます。検索を許可すると、カードのスクリプトが検索で見つかったノートを、どのデッキのものでも読めるようになります。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AnkiDroid용으로 만든 카드 템플릿이 카드 정보를 읽고, 답 보기, 답하기, 깃발, 표시를 할 수 있게 합니다. 묻기, 보류, 예정일 설정, 초기화, 태그 편집 같은 카드 변경은 공유 덱의 템플릿도 사용할 수 있으므로 허용한 경우에만 실행됩니다."
+            "value" : "AnkiDroid용으로 만든 카드 템플릿이 카드 정보를 읽고, 답 보기, 답하기, 깃발, 표시를 할 수 있게 합니다. 묻기, 보류, 예정일 설정, 초기화, 태그 편집 같은 카드 변경은 공유 덱의 템플릿도 사용할 수 있으므로 허용한 경우에만 실행됩니다.검색을 허용하면 카드의 스크립트가 검색으로 찾은 노트를 어느 덱의 것이든 읽을 수 있습니다."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "允许为 AnkiDroid 编写的卡片模板读取卡片信息、显示答案、作答、设置旗标和标记。搁置、暂停、设置到期日、重置、编辑标签等修改卡片的操作，任何共享牌组的模板都可能调用，所以只有在允许后才会执行。"
+            "value" : "允许为 AnkiDroid 编写的卡片模板读取卡片信息、显示答案、作答、设置旗标和标记。搁置、暂停、设置到期日、重置、编辑标签等修改卡片的操作，任何共享牌组的模板都可能调用，所以只有在允许后才会执行。允许搜索后，卡片的脚本可以读取搜索到的笔记，不限牌组。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "允許為 AnkiDroid 編寫的卡片模板讀取卡片資訊、顯示答案、作答、設定旗標和標記。擱置、暫停、設定到期日、重置、編輯標籤等修改卡片的操作，任何共享牌組的模板都可能呼叫，所以只有在允許後才會執行。"
+            "value" : "允許為 AnkiDroid 編寫的卡片模板讀取卡片資訊、顯示答案、作答、設定旗標和標記。擱置、暫停、設定到期日、重置、編輯標籤等修改卡片的操作，任何共享牌組的模板都可能呼叫，所以只有在允許後才會執行。允許搜尋後，卡片的腳本可以讀取搜尋到的筆記，不限牌組。"
           }
         }
       }
