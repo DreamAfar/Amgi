@@ -42,31 +42,33 @@ public struct DeckListRowView: View {
                 if !isCompact {
                     DeckTile(name: data.name, isFiltered: data.isFiltered)
                 }
-                if isCompact {
-                    // One line: the name, with the filtered-deck mark the
-                    // tile carries in the full list. The counts on the right
-                    // say what the due line would.
-                    HStack(spacing: 6) {
-                        if data.isFiltered {
-                            Image(systemName: "bolt.fill")
-                                .amgiFont(.micro)
-                                .foregroundStyle(palette.customStudyBadge)
-                                .accessibilityLabel(Text("Filtered deck", bundle: .module))
+                Group {
+                    if isCompact {
+                        // One line: the name, with the filtered-deck mark the
+                        // tile carries in the full list. The counts on the right
+                        // say what the due line would.
+                        HStack(spacing: 6) {
+                            if data.isFiltered {
+                                Image(systemName: "bolt.fill")
+                                    .amgiFont(.micro)
+                                    .foregroundStyle(palette.customStudyBadge)
+                                    .accessibilityLabel(Text("Filtered deck", bundle: .module))
+                            }
+                            Text(data.name)
+                                .amgiFont(.body)
+                                .bold()
+                                .foregroundStyle(palette.textPrimary)
                         }
-                        Text(data.name)
-                            .amgiFont(.body)
-                            .bold()
-                            .foregroundStyle(palette.textPrimary)
-                    }
-                } else {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(data.name)
-                            .amgiFont(.body)
-                            .bold()
-                            .foregroundStyle(palette.textPrimary)
-                        Text(metaLine)
-                            .amgiFont(.caption)
-                            .foregroundStyle(palette.textSecondary)
+                    } else {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(data.name)
+                                .amgiFont(.body)
+                                .bold()
+                                .foregroundStyle(palette.textPrimary)
+                            Text(metaLine)
+                                .amgiFont(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
