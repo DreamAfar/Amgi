@@ -22,7 +22,7 @@ public import Observation
 @Observable
 @MainActor
 public final class CardContextMenuModel {
-    var isMarkedNote = false
+    public internal(set) var isMarkedNote = false
     public var currentFlag: UInt32 = 0
     var canUndo = false
     var isUndoing = false

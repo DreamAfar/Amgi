@@ -17,6 +17,9 @@ struct RenderModeChipRow: View {
     let isNative: Bool
     let isAuto: Bool
     let templateName: String?
+    /// The note carries Anki's `marked` tag: a star at the row's end, where
+    /// Anki shows one on the card.
+    var isMarked = false
     let onTap: () -> Void
 
     @Environment(\.palette) private var palette
@@ -36,16 +39,27 @@ struct RenderModeChipRow: View {
                         .foregroundStyle(palette.textTertiary)
                         .lineLimit(1)
                 }
-                Image(systemName: "chevron.up.chevron.down")
-                    .amgiFont(.micro)
-                    .foregroundStyle(palette.textTertiary)
-                    .accessibilityHidden(true)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                HStack(spacing: AmgiSpacing.lg) {
+                    if isMarked {
+                        Image(systemName: "star.fill")
+                            .amgiFont(.caption)
+                            .foregroundStyle(palette.warning)
+                            .transition(.scale.combined(with: .opacity))
+                            .accessibilityHidden(true)
+                    }
+                    Image(systemName: "chevron.up.chevron.down")
+                        .amgiFont(.micro)
+                        .foregroundStyle(palette.textTertiary)
+                        .accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .animation(AmgiMotion.quick, value: isMarked)
             }
             .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.pressScale)
+        .accessibilityValue(isMarked ? Text("Marked", bundle: .module) : Text(verbatim: ""))
         .accessibilityLabel(String(localized: "Rendering: \(isNative ? String(localized: "Native", bundle: .module) : "HTML")\(isAuto ? String(localized: ", automatic", bundle: .module) : "")", bundle: .module))
     }
 
