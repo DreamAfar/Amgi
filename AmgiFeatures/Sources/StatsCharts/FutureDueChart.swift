@@ -24,7 +24,17 @@ public struct FutureDueChart: View {
     @State private var includeBacklog = false
     @ScaledMetric(relativeTo: .caption) private var chartHeight: CGFloat = 180
 
+    @State private var chartWidth: CGFloat = 0
+
     private var cappedChartHeight: CGFloat { min(chartHeight, 270) }
+
+    /// Today through the end of the period, as in Anki, or through the last
+    /// due day for all time; with the backlog, from its oldest day.
+    private func makeAxis(_ data: [(day: Int, count: Int)]) -> StatsBinAxis {
+        let upper = period == .all ? max(data.last?.day ?? 0, 1) : period.days - 1
+        let lower = includeBacklog ? min(data.first?.day ?? 0, 0) : 0
+        return StatsBinAxis(lower: lower, upper: upper)
+    }
 
     private var filteredData: [(day: Int, count: Int)] {
         let maxDay = period.days
@@ -66,26 +76,8 @@ public struct FutureDueChart: View {
                 if filteredData.isEmpty {
                     Text("No cards due", bundle: .module).foregroundStyle(palette.textSecondary).frame(height: cappedChartHeight)
                 } else {
-                    Chart(filteredData, id: \.day) { item in
-                        BarMark(
-                            x: .value(String(localized: "Day", bundle: .module), item.day),
-                            y: .value(String(localized: "Cards", bundle: .module), item.count)
-                        )
-                        .foregroundStyle(item.day < 0 ? palette.danger.gradient : palette.accent.gradient)
-                        .accessibilityLabel(
-                            item.day < 0
-                                ? String(localized: "\(ChartSpeech.day(item.day)), overdue", bundle: .module)
-                                : ChartSpeech.day(item.day)
-                        )
-                        .accessibilityValue(ChartSpeech.count(item.count, .card))
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                            AxisGridLine()
-                            AxisValueLabel(collisionResolution: .greedy)
-                        }
-                    }
-                    .frame(height: cappedChartHeight)
+                    dueChart(filteredData)
+                        .frame(height: cappedChartHeight)
                 }
 
                 if futureDue.haveBacklog {
@@ -123,6 +115,54 @@ public struct FutureDueChart: View {
 }
 
 private extension FutureDueChart {
+    func dueChart(_ data: [(day: Int, count: Int)]) -> some View {
+        let axis = makeAxis(data)
+        // Overdue and upcoming days are binned apart so no bar mixes the two.
+        let bars = axis.bars(data.filter { $0.day < 0 }.map { ($0.day, $0.count) })
+            + axis.bars(data.filter { $0.day >= 0 }.map { ($0.day, $0.count) })
+        let counts = StatsChartScale.countAxis(maximum: bars.map(\.count).max() ?? 0)
+        let width = StatsChartScale.barWidth(plotWidth: StatsChartScale.plotWidth(chartWidth: chartWidth), slots: axis.slots)
+        return Chart(bars, id: \.start) { bar in
+            dueBar(bar, width: width)
+        }
+        .chartXScale(domain: axis.domain)
+        .chartYScale(domain: 0...counts.top)
+        .chartXAxis {
+            AxisMarks(values: axis.ticks) { value in
+                AxisGridLine()
+                if let day = value.as(Double.self) {
+                    AxisValueLabel("\(Int(day))")
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks(values: counts.ticks) { value in
+                AxisGridLine()
+                if let count = value.as(Double.self) {
+                    AxisValueLabel("\(Int(count))")
+                }
+            }
+        }
+        .measuringWidth($chartWidth)
+    }
+
+    @ChartContentBuilder
+    func dueBar(_ bar: StatsBar, width: MarkDimension) -> some ChartContent {
+        let overdue = bar.start < 0
+        BarMark(
+            x: .value(String(localized: "Day", bundle: .module), bar.center),
+            y: .value(String(localized: "Cards", bundle: .module), bar.count),
+            width: width
+        )
+        .foregroundStyle(overdue ? palette.danger.gradient : palette.accent.gradient)
+        .accessibilityLabel(
+            overdue
+                ? String(localized: "\(ChartSpeech.days(bar.start, bar.end)), overdue", bundle: .module)
+                : ChartSpeech.days(bar.start, bar.end)
+        )
+        .accessibilityValue(ChartSpeech.count(bar.count, .card))
+    }
+
     func footerItem(_ label: String, value: String) -> some View {
         VStack(spacing: AmgiSpacing.xxs) {
             Text(value).amgiFont(.captionBold).monospacedDigit()

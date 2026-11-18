@@ -28,7 +28,7 @@ public struct StatsChartStack: View {
         ReviewsChart(reviews: graphs.reviews, period: period)
         CardCountsChart(cardCounts: graphs.cardCounts)
         IntervalsChart(intervals: graphs.intervals)
-        EaseChart(eases: graphs.eases)
+        EaseChart(eases: graphs.eases, difficulty: graphs.difficulty, isFSRS: graphs.fsrs)
         HourlyChart(hours: graphs.hours, period: period)
         ButtonsChart(buttons: graphs.buttons, period: period)
         AddedChart(added: graphs.added, period: period)

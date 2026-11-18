@@ -11,27 +11,51 @@ import UI
 import Charts
 public import AnkiKit
 
+/// How the cards' ease is spread — or under FSRS, which has no ease, their
+/// difficulty, as Anki shows in its place.
+///
+/// Both arrive in percent: ease buckets are the ease factor over 10 (250 is
+/// 250%), difficulty buckets 0–100.
 public struct EaseChart: View {
     let eases: EaseBuckets
+    let difficulty: EaseBuckets
+    let isFSRS: Bool
 
-    public init(eases: EaseBuckets) {
+    public init(eases: EaseBuckets, difficulty: EaseBuckets = EaseBuckets(), isFSRS: Bool = false) {
         self.eases = eases
+        self.difficulty = difficulty
+        self.isFSRS = isFSRS
     }
 
     @Environment(\.palette) private var palette
+    @State private var chartWidth: CGFloat = 0
 
-    private var chartData: [(ease: Int, count: Int)] {
-        eases.eases
-            .map { (ease: Int($0.key), count: Int($0.value)) }
-            .sorted(by: { $0.ease < $1.ease })
+    private var buckets: EaseBuckets { isFSRS ? difficulty : eases }
+
+    private var chartData: [(value: Int, count: Int)] {
+        buckets.eases
+            .map { (value: $0.key, count: $0.value) }
+            .sorted(by: { $0.value < $1.value })
     }
 
-    private var averageEase: String {
-        guard eases.average > 0 else { return "---" }
-        return String(format: "%.0f%%", eases.average / 10)
+    private var averageLabel: String {
+        guard buckets.average > 0 else { return "---" }
+        return String(format: "%.0f%%", buckets.average)
+    }
+
+    /// Anki's ranges: ease from its 130% floor in about 20 bars, difficulty
+    /// across 0–100% in 20.
+    private func makeAxis(_ data: [(value: Int, count: Int)]) -> StatsBinAxis {
+        if isFSRS {
+            return StatsBinAxis(lower: 0, upper: 100, desiredBars: 20)
+        }
+        let lower = min(data.first?.value ?? 130, 130)
+        let upper = max(data.last?.value ?? 250, lower + 20)
+        return StatsBinAxis(lower: lower, upper: upper, desiredBars: 20)
     }
 
     public var body: some View {
+        let chartData = self.chartData
         AmgiCard(
             background: .surface,
             cornerRadius: AmgiRadius.inset,
@@ -39,37 +63,86 @@ public struct EaseChart: View {
         ) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("Card Ease", bundle: .module).amgiFont(.bodyEmphasis)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text("Avg: \(averageEase)", bundle: .module)
+                    Group {
+                        if isFSRS {
+                            Text("Card Difficulty", bundle: .module)
+                        } else {
+                            Text("Card Ease", bundle: .module)
+                        }
+                    }
+                    .amgiFont(.bodyEmphasis)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Avg: \(averageLabel)", bundle: .module)
                         .amgiFont(.captionBold)
                         .foregroundStyle(palette.textSecondary)
                 }
 
                 if chartData.isEmpty {
-                    Text("No ease data", bundle: .module).foregroundStyle(palette.textSecondary).frame(height: 180)
-                } else {
-                    Chart(chartData, id: \.ease) { item in
-                        BarMark(
-                            x: .value(String(localized: "Ease", bundle: .module), item.ease),
-                            y: .value(String(localized: "Cards", bundle: .module), item.count)
-                        )
-                        .foregroundStyle(palette.accent.gradient)
-                        .accessibilityLabel(String(localized: "\(item.ease / 10)% ease", bundle: .module))
-                        .accessibilityValue(ChartSpeech.count(item.count, .card))
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: .automatic(desiredCount: 5)) { value in
-                            AxisGridLine()
-                            if let v = value.as(UInt32.self) {
-                                AxisValueLabel("\(v / 10)%")
-                            }
+                    Group {
+                        if isFSRS {
+                            Text("No difficulty data", bundle: .module)
+                        } else {
+                            Text("No ease data", bundle: .module)
                         }
                     }
+                    .foregroundStyle(palette.textSecondary)
                     .frame(height: 180)
+                } else {
+                    easeChart(chartData)
+                        .frame(height: 180)
                 }
             }
         }
+    }
+}
+
+private extension EaseChart {
+    func easeChart(_ data: [(value: Int, count: Int)]) -> some View {
+        let axis = makeAxis(data)
+        let bars = axis.bars(data)
+        let counts = StatsChartScale.countAxis(maximum: bars.map(\.count).max() ?? 0)
+        let width = StatsChartScale.barWidth(plotWidth: StatsChartScale.plotWidth(chartWidth: chartWidth), slots: axis.slots)
+        return Chart(bars, id: \.start) { bar in
+            easeBar(bar, width: width)
+        }
+        .chartXScale(domain: axis.domain)
+        .chartYScale(domain: 0...counts.top)
+        .chartXAxis {
+            AxisMarks(values: axis.ticks) { value in
+                AxisGridLine()
+                if let percent = value.as(Double.self) {
+                    AxisValueLabel("\(Int(percent))%")
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks(values: counts.ticks) { value in
+                AxisGridLine()
+                if let count = value.as(Double.self) {
+                    AxisValueLabel("\(Int(count))")
+                }
+            }
+        }
+        .measuringWidth($chartWidth)
+    }
+
+    @ChartContentBuilder
+    func easeBar(_ bar: StatsBar, width: MarkDimension) -> some ChartContent {
+        BarMark(
+            x: .value(
+                isFSRS ? String(localized: "Difficulty", bundle: .module) : String(localized: "Ease", bundle: .module),
+                bar.center
+            ),
+            y: .value(String(localized: "Cards", bundle: .module), bar.count),
+            width: width
+        )
+        .foregroundStyle(palette.accent.gradient)
+        .accessibilityLabel(
+            isFSRS
+                ? String(localized: "\(bar.start)% difficulty", bundle: .module)
+                : String(localized: "\(bar.start)% ease", bundle: .module)
+        )
+        .accessibilityValue(ChartSpeech.count(bar.count, .card))
     }
 }
 
