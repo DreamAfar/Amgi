@@ -45,14 +45,14 @@ extension IntervalsBuckets {
 }
 
 extension EaseBuckets {
-    /// Ease factors in per-mille (2500 == 250%), matching the proto units the
-    /// chart divides by 10 for its average label.
+    /// Ease in percent (250 == 250%), as Anki's graphs send it: the ease
+    /// factor over 10, and the median for the average.
     public static let sample = EaseBuckets(
         eases: [
-            1300: 8, 1500: 22, 1700: 40, 1900: 72, 2100: 96, 2300: 140,
-            2500: 168, 2700: 120, 2900: 84, 3100: 50, 3300: 26, 3500: 11,
+            130: 8, 150: 22, 170: 40, 190: 72, 210: 96, 230: 140,
+            250: 168, 270: 120, 290: 84, 310: 50, 330: 26, 350: 11,
         ],
-        average: 2500
+        average: 250
     )
 }
 

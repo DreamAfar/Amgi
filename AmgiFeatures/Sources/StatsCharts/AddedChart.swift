@@ -21,13 +21,14 @@ public struct AddedChart: View {
     }
 
     @Environment(\.palette) private var palette
+    @State private var chartWidth: CGFloat = 0
 
     private var filteredData: [(day: Int, count: Int)] {
         let maxDay = period.days
         return added.added
             .compactMap { (dayOffset, count) -> (day: Int, count: Int)? in
                 let day = Int(dayOffset)
-                guard day <= 0, abs(day) <= maxDay else { return nil }
+                guard day <= 0, -day < maxDay else { return nil }
                 return (day: day, count: Int(count))
             }
             .sorted(by: { $0.day < $1.day })
@@ -52,22 +53,8 @@ public struct AddedChart: View {
                 if filteredData.isEmpty {
                     Text("No cards added", bundle: .module).foregroundStyle(palette.textSecondary).frame(height: 180)
                 } else {
-                    Chart(filteredData, id: \.day) { item in
-                        BarMark(
-                            x: .value(String(localized: "Day", bundle: .module), item.day),
-                            y: .value(String(localized: "Cards", bundle: .module), item.count)
-                        )
-                        .foregroundStyle(palette.accent.gradient)
-                        .accessibilityLabel(ChartSpeech.day(item.day))
-                        .accessibilityValue(ChartSpeech.count(item.count, .card))
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                            AxisGridLine()
-                            AxisValueLabel()
-                        }
-                    }
-                    .frame(height: 180)
+                    addedChart(filteredData)
+                        .frame(height: 180)
                 }
 
                 HStack(spacing: 16) {
@@ -80,6 +67,49 @@ public struct AddedChart: View {
 }
 
 private extension AddedChart {
+    func addedChart(_ data: [(day: Int, count: Int)]) -> some View {
+        // The period up to today, as in Anki, or back to the first card added.
+        let lower = period == .all ? min(data.first?.day ?? 0, -1) : -(period.days - 1)
+        let axis = StatsBinAxis(lower: lower, upper: 0)
+        let bars = axis.bars(data.map { ($0.day, $0.count) })
+        let counts = StatsChartScale.countAxis(maximum: bars.map(\.count).max() ?? 0)
+        let width = StatsChartScale.barWidth(plotWidth: StatsChartScale.plotWidth(chartWidth: chartWidth), slots: axis.slots)
+        return Chart(bars, id: \.start) { bar in
+            addedBar(bar, width: width)
+        }
+        .chartXScale(domain: axis.domain)
+        .chartYScale(domain: 0...counts.top)
+        .chartXAxis {
+            AxisMarks(values: axis.ticks) { value in
+                AxisGridLine()
+                if let day = value.as(Double.self) {
+                    AxisValueLabel("\(Int(day))")
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks(values: counts.ticks) { value in
+                AxisGridLine()
+                if let count = value.as(Double.self) {
+                    AxisValueLabel("\(Int(count))")
+                }
+            }
+        }
+        .measuringWidth($chartWidth)
+    }
+
+    @ChartContentBuilder
+    func addedBar(_ bar: StatsBar, width: MarkDimension) -> some ChartContent {
+        BarMark(
+            x: .value(String(localized: "Day", bundle: .module), bar.center),
+            y: .value(String(localized: "Cards", bundle: .module), bar.count),
+            width: width
+        )
+        .foregroundStyle(palette.accent.gradient)
+        .accessibilityLabel(ChartSpeech.days(bar.start, bar.end))
+        .accessibilityValue(ChartSpeech.count(bar.count, .card))
+    }
+
     func footerItem(_ label: String, value: String) -> some View {
         VStack(spacing: 2) {
             Text(value).amgiFont(.captionBold).monospacedDigit()
