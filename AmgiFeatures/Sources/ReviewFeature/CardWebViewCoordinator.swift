@@ -51,6 +51,7 @@ final class CardWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMess
     private let onCardBackgroundColorChange: ((Color, Bool) -> Void)?
     private let onLookupRequested: ((String?, String?, CGPoint) -> Void)?
     private let onShowAnswerRequested: (() -> Void)?
+    private let onGesture: ((String) -> Void)?
 
     // MARK: Private state
 
@@ -66,12 +67,14 @@ final class CardWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMess
         onAudioStateChange: ((Bool) -> Void)? = nil,
         onCardBackgroundColorChange: ((Color, Bool) -> Void)? = nil,
         onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil,
-        onShowAnswerRequested: (() -> Void)? = nil
+        onShowAnswerRequested: (() -> Void)? = nil,
+        onGesture: ((String) -> Void)? = nil
     ) {
         self.onAudioStateChange = onAudioStateChange
         self.onCardBackgroundColorChange = onCardBackgroundColorChange
         self.onLookupRequested = onLookupRequested
         self.onShowAnswerRequested = onShowAnswerRequested
+        self.onGesture = onGesture
         super.init()
         speechSynthesizer.delegate = self
     }
@@ -81,6 +84,11 @@ final class CardWebViewCoordinator: NSObject, WKNavigationDelegate, WKScriptMess
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "amgiShowAnswer" {
             onShowAnswerRequested?()
+            return
+        }
+
+        if message.name == "amgiCardGesture" {
+            if let gesture = message.body as? String { onGesture?(gesture) }
             return
         }
 

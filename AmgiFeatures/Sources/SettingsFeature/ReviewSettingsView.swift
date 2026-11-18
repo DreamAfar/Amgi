@@ -35,6 +35,7 @@ struct ReviewSettingsView: View {
         SettingsPage {
             cardDisplaySection
             answerButtonsSection
+            inputSection
             audioSection
         }
         .navigationTitle(String(localized: "Review", bundle: .module))
@@ -89,6 +90,39 @@ struct ReviewSettingsView: View {
                     tone: .info,
                     isOn: Binding($showNextReviewTime)
                 )
+            }
+        }
+    }
+
+    /// AnkiMobile's taps, swipes, gamepads and keyboard, each mapped to
+    /// review actions on its own page.
+    private var inputSection: some View {
+        Group {
+            SettingsSectionHeader(title: String(localized: "Input", bundle: .module))
+            SettingsGroup {
+                SettingsRowLink(
+                    title: String(localized: "Gestures", bundle: .module),
+                    systemImage: "hand.tap",
+                    tone: .accent
+                ) {
+                    ReviewGestureSettingsView()
+                }
+                SettingsSeparator()
+                SettingsRowLink(
+                    title: String(localized: "Game Controller", bundle: .module),
+                    systemImage: "gamecontroller",
+                    tone: .review
+                ) {
+                    ReviewGamepadSettingsView()
+                }
+                SettingsSeparator()
+                SettingsRowLink(
+                    title: String(localized: "Keyboard", bundle: .module),
+                    systemImage: "keyboard",
+                    tone: .neutral
+                ) {
+                    ReviewKeyboardSettingsView()
+                }
             }
         }
     }

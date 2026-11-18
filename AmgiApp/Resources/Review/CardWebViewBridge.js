@@ -180,9 +180,102 @@ document.addEventListener('click', function(event) {
     var state = amgiCardState();
     if (state.renderedAt && Date.now() - state.renderedAt < 300) return;
     var payload = amgiCardLookupPayloadAt(event.clientX, event.clientY, state.dictionaryScanLength);
-    if (!payload) return;
-    try { window.webkit.messageHandlers.amgiLookupText.postMessage(payload); } catch(e) {}
+    if (payload) {
+        try { window.webkit.messageHandlers.amgiLookupText.postMessage(payload); } catch(e) {}
+        return;
+    }
+    // Not a word to look up: a tap zone. A click rather than raw touches, so
+    // the browser has already told a tap from a scroll or a long press.
+    amgiPostTapGesture(event);
 }, false);
+
+// ===== Gestures (tap zones, swipes → amgiCardGesture) =====
+// Taps and swipes the card's own content needs are left to it: links,
+// buttons, form fields, audio buttons, the occlusion canvas, anything the
+// template handled itself, and text being selected.
+var amgiGestureExcluded = 'a, button, input, textarea, select, option, label, summary, details, video, audio, [contenteditable], [onclick], .replay-button, .replay-btn, .sound-btn, #image-occlusion-canvas';
+
+function amgiHasSelection() {
+    var selection = window.getSelection();
+    return !!(selection && selection.toString().length > 0);
+}
+
+function amgiPostGesture(message) {
+    try { window.webkit.messageHandlers.amgiCardGesture.postMessage(message); } catch(e) {}
+}
+
+function amgiPostTapGesture(event) {
+    if (event.defaultPrevented || amgiHasSelection()) return;
+    var target = event.target;
+    if (target && target.closest && target.closest(amgiGestureExcluded)) return;
+    var width = Math.max(window.innerWidth, 1);
+    var height = Math.max(window.innerHeight, 1);
+    var column = Math.min(2, Math.max(0, Math.floor(event.clientX / (width / 3))));
+    var row = Math.min(2, Math.max(0, Math.floor(event.clientY / (height / 3))));
+    amgiPostGesture('tap.' + (row * 3 + column));
+}
+
+// Whether a touch began inside something that scrolls sideways — a wide
+// table or code block — whose own scrolling a swipe would steal.
+function amgiScrollsHorizontally(element) {
+    for (var node = element; node && node !== document.body; node = node.parentElement) {
+        if (node.scrollWidth > node.clientWidth + 1) {
+            var overflow = window.getComputedStyle(node).overflowX;
+            if (overflow === 'auto' || overflow === 'scroll') return true;
+        }
+    }
+    return false;
+}
+
+var amgiSwipeStart = null;
+document.addEventListener('touchstart', function(event) {
+    amgiSwipeStart = null;
+    if (!event.touches || event.touches.length !== 1 || amgiHasSelection()) return;
+    var touch = event.touches[0];
+    var target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (target && target.closest && target.closest(amgiGestureExcluded)) return;
+    if (amgiScrollsHorizontally(target)) return;
+    amgiSwipeStart = { x: touch.clientX, y: touch.clientY, at: Date.now() };
+}, { passive: true });
+
+document.addEventListener('touchend', function(event) {
+    var start = amgiSwipeStart;
+    amgiSwipeStart = null;
+    if (!start || !event.changedTouches || event.changedTouches.length !== 1) return;
+    if (amgiHasSelection() || Date.now() - start.at > 600) return;
+    var touch = event.changedTouches[0];
+    var dx = touch.clientX - start.x;
+    var dy = touch.clientY - start.y;
+    var minimum = 72;
+    if (Math.abs(dx) >= minimum && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        amgiPostGesture(dx < 0 ? 'swipe.left' : 'swipe.right');
+        return;
+    }
+    // Vertical swipes only from the left or right edge, as in AnkiMobile:
+    // anywhere else a vertical drag scrolls the card.
+    var edge = 28;
+    var fromEdge = start.x <= edge || start.x >= window.innerWidth - edge;
+    if (fromEdge && Math.abs(dy) >= minimum && Math.abs(dy) > Math.abs(dx) * 1.5) {
+        amgiPostGesture(dy < 0 ? 'swipe.up' : 'swipe.down');
+    }
+}, { passive: true });
+
+document.addEventListener('touchcancel', function() { amgiSwipeStart = null; }, { passive: true });
+
+// User Actions: AnkiMobile calls a template's `userJs1` … `userJs9`.
+function amgiRunUserAction(index) {
+    var name = 'userJs' + index;
+    var action = window[name];
+    // `let`/`const` at a script's top level isn't a window property, but an
+    // indirect eval runs in the global scope and still sees it.
+    if (typeof action !== 'function') {
+        try { action = (0, eval)('typeof ' + name + " === 'function' ? " + name + ' : undefined'); } catch(e) { action = undefined; }
+    }
+    if (typeof action !== 'function') return false;
+    try { action(); } catch(e) { console.error('userJs' + index + ' failed', e); }
+    return true;
+}
+window.amgiRunUserAction = amgiRunUserAction;
 
 function amgiSetCardCSS(cssText) {
     var style = document.getElementById('amgi-card-css');

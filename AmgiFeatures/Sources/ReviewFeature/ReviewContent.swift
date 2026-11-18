@@ -44,9 +44,20 @@ struct ReviewContent: View {
     @State private var cardActions = CardContextMenuModel()
     @State private var confirmDeleteNote = false
     @State private var lookupHighlight = LookupHighlight()
+    @State private var input = ReviewInputController()
+    @State private var cardCommands = ReviewCardCommands()
 
-    private var keyboardActive: Bool {
-        destination == nil && !confirmDeleteNote
+    @Shared(.appStorage(ReviewPreferences.Keys.gestureMap)) private var gestureMap: String = ""
+    @Shared(.appStorage(ReviewPreferences.Keys.gamepadMap)) private var gamepadMap: String = ""
+    @Shared(.appStorage(ReviewPreferences.Keys.keyboardMap)) private var keyboardMap: String = ""
+    @Shared(.appStorage(ReviewPreferences.Keys.doubleTapPrevention))
+    private var doubleTapPrevention: Int = ReviewDoubleTapPrevention.normal.rawValue
+
+    /// Whether taps, buttons and keys may act on the card: not behind a
+    /// sheet, a confirmation or the card menu's prompts.
+    private var acceptsInput: Bool {
+        destination == nil && !confirmDeleteNote && !cardActions.isPresentingPrompt
+            && !session.isFinished && session.currentCardId != nil
     }
 
     var body: some View {
@@ -72,13 +83,21 @@ struct ReviewContent: View {
                         tapLookup: tapLookup,
                         showNextReviewTime: showNextReviewTime,
                         lookupHighlight: lookupHighlight,
-                        shortcutsEnabled: keyboardActive,
+                        commands: cardCommands,
+                        onGesture: { input.gesture($0) },
                         lookupQuery: $destination.lookupText
                     )
                 }
             }
             .background(palette.background)
             .reviewHaptics(session: session)
+            .modifier(ReviewInputLifecycle(
+                input: input,
+                commands: cardCommands,
+                session: session,
+                settings: [gestureMap, gamepadMap, keyboardMap, String(doubleTapPrevention)],
+                configure: configureInput
+            ))
             .reviewStudyNotice(session.studyNotice)
             .navigationBarTitleDisplayMode(.inline)
             #if canImport(UIKit)
@@ -100,7 +119,7 @@ struct ReviewContent: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    ReviewUndoButton(session: session, shortcutEnabled: keyboardActive)
+                    ReviewUndoButton(session: session)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     CardActionsMenu(
@@ -151,6 +170,92 @@ struct ReviewContent: View {
         }
     }
 
+    // MARK: Input mapping
+
+    private func configureInput() {
+        input.gestures = ReviewInputMap(json: gestureMap, default: .defaultGestures)
+        input.gamepad = ReviewInputMap(json: gamepadMap, default: .defaultGamepad)
+        input.keyboard = ReviewInputMap(json: keyboardMap, default: .defaultKeyboard)
+        input.doubleTapPrevention = ReviewDoubleTapPrevention(rawValue: doubleTapPrevention) ?? .normal
+        input.side = { session.showAnswer ? .answer : .question }
+        input.acceptsInput = { acceptsInput }
+        // The typed-answer field takes keys as text.
+        input.acceptsKeys = { !session.isTypedAnswerCard || session.showAnswer }
+        input.perform = { perform($0) }
+    }
+
+    private func perform(_ action: ReviewInputAction) {
+        let cardId = session.currentCardId
+        let noteId = session.currentNote?.id
+        switch action {
+        case .none:
+            break
+        case .showAnswer:
+            if !session.showAnswer { session.revealAnswer() }
+        case .again, .hard, .good, .easy:
+            // On the question a rating does nothing, as in Anki: the answer
+            // has to be seen before it can be graded.
+            guard session.showAnswer, !session.isAdvancing else { return }
+            session.answer(rating: Self.rating(action))
+        case .undo:
+            if session.canUndo { session.undo() }
+        case .replayAudio:
+            session.bumpReplayRequest()
+        case .stopAudio:
+            session.bumpStopAudioRequest()
+        case .scrollUp:
+            cardCommands.scrollPage(-1)
+        case .scrollDown:
+            cardCommands.scrollPage(1)
+        case .lookUp:
+            destination = .lookup("")
+        case .editNote:
+            destination = session.currentNote.map(ReviewDestination.editNote)
+        case .editTemplate:
+            destination = session.currentTemplateTarget.map(ReviewDestination.editTemplate)
+        case .mark:
+            guard let noteId else { return }
+            runCardAction { await cardActions.toggleMarked(noteId) }
+        case .buryCard:
+            guard let cardId else { return }
+            runCardAction { await cardActions.bury(cardId) }
+        case .buryNote:
+            guard let noteId else { return }
+            runCardAction { await cardActions.buryNote(noteId) }
+        case .suspendCard:
+            guard let cardId else { return }
+            runCardAction { await cardActions.suspend(cardId) }
+        case .suspendNote:
+            guard let noteId else { return }
+            runCardAction { await cardActions.suspendNote(noteId) }
+        case .close:
+            onDismiss()
+        default:
+            if let flag = action.flag, let cardId {
+                // Pressing a card's own flag again clears it, as in Anki.
+                let value = cardActions.currentFlag == flag ? 0 : flag
+                runCardAction { await cardActions.flag(cardId, value) }
+            } else if let index = action.userAction {
+                cardCommands.runUserAction(index)
+            }
+        }
+    }
+
+    private func runCardAction(_ body: @escaping () async -> Bool?) {
+        Task {
+            if let shouldAdvance = await body() { session.respondToCardAction(shouldAdvance) }
+        }
+    }
+
+    private static func rating(_ action: ReviewInputAction) -> Rating {
+        switch action {
+        case .again: .again
+        case .hard: .hard
+        case .easy: .easy
+        default: .good
+        }
+    }
+
     #if !canImport(UIKit)
     @ViewBuilder
     private var macChrome: some View {
@@ -169,7 +274,7 @@ struct ReviewContent: View {
             if showRemainingDays {
                 ReviewPositionCounter(session: session)
             }
-            ReviewUndoButton(session: session, shortcutEnabled: keyboardActive)
+            ReviewUndoButton(session: session)
             CardActionsMenu(
                 session: session,
                 cardActions: cardActions,
@@ -340,9 +445,34 @@ private struct ReviewPositionCounter: View {
     }
 }
 
+// MARK: - Input mapping
+
+/// Starts and stops the input mapping with the reviewer, and tells it when
+/// the card turns over or the settings change. A modifier of its own, so the
+/// reviewer's long chain of modifiers stays within what the compiler checks
+/// in reasonable time.
+private struct ReviewInputLifecycle: ViewModifier {
+    let input: ReviewInputController
+    let commands: ReviewCardCommands
+    let session: ReviewSession
+    let settings: [String]
+    let configure: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                configure()
+                input.start(commands: commands)
+            }
+            .onDisappear { input.stop() }
+            .onChange(of: session.showAnswer) { input.sideChanged() }
+            .onChange(of: session.currentCardId) { input.sideChanged() }
+            .onChange(of: settings) { configure() }
+    }
+}
+
 private struct ReviewUndoButton: View {
     let session: ReviewSession
-    let shortcutEnabled: Bool
 
     var body: some View {
         Button {
@@ -351,7 +481,6 @@ private struct ReviewUndoButton: View {
             Image(systemName: "arrow.uturn.backward")
         }
         .disabled(!session.canUndo)
-        .keyboardShortcut(shortcutEnabled ? KeyboardShortcut("z", modifiers: .command) : nil)
         .accessibilityLabel(String(localized: "Undo", bundle: .module))
     }
 }
