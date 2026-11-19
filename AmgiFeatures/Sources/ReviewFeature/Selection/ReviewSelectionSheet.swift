@@ -24,6 +24,14 @@ struct ReviewSelectionSheet: View {
     private var explanationLanguage: String = AIAssistantLanguage.deviceDefault
     @Shared(.appStorage(ReviewPreferences.Keys.translationTargetLanguage))
     private var translationTarget: String = AIAssistantLanguage.deviceDefault
+    @Shared(.appStorage(ReviewPreferences.Keys.translationProvider))
+    private var translationProviderRaw: String = AITranslationProvider.apple.rawValue
+    @Shared(.appStorage(ReviewPreferences.Keys.aiExplainPrompt))
+    private var explainPromptID: String = ""
+    @Shared(.appStorage(ReviewPreferences.Keys.aiTranslatePrompt))
+    private var translatePromptID: String = ""
+    @Shared(.appStorage(ReviewPreferences.Keys.aiSelectedService))
+    private var selectedServiceID: String = ""
 
     @State private var tab: ReviewSelectionModel.Tab
     @State private var question = ""
@@ -70,6 +78,9 @@ struct ReviewSelectionSheet: View {
             .navigationTitle(tab == .explain ? String(localized: "AI Explanation", bundle: .module) : String(localized: "Translation", bundle: .module))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    aiOptionsMenu
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "Done", bundle: .module)) { model.close() }
                 }
@@ -81,6 +92,87 @@ struct ReviewSelectionSheet: View {
         .onChange(of: tab) { _, newTab in start(newTab) }
         .translationTask(translationConfig) { session in
             await translate(with: session)
+        }
+    }
+
+    // MARK: - Prompt and service
+
+    private var usesAITranslation: Bool {
+        AITranslationProvider(rawValue: translationProviderRaw) == .ai
+    }
+
+    /// Which prompt the open tab uses, when it uses one.
+    private var activePurpose: AIPromptPreset.Purpose? {
+        switch tab {
+        case .explain: .explain
+        case .translate: usesAITranslation ? .translate : nil
+        }
+    }
+
+    /// Switches the prompt or the service for this tab without leaving the
+    /// sheet, and asks again with it.
+    @ViewBuilder
+    private var aiOptionsMenu: some View {
+        // The store reads user defaults directly; reading the shared values
+        // here is what redraws the sheet when a choice changes.
+        let _ = (explainPromptID, translatePromptID, selectedServiceID, translationProviderRaw)
+        let services = AIAssistantProvider.current == .openAI ? AIServiceStore.services : []
+        if activePurpose != nil || services.count > 1 {
+            Menu {
+                if let purpose = activePurpose {
+                    Picker(String(localized: "Prompt", bundle: .module), selection: promptBinding(purpose)) {
+                        ForEach(AIServiceStore.prompts(for: purpose)) { preset in
+                            Text(preset.name).tag(preset.id)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                }
+                if services.count > 1 {
+                    Picker(String(localized: "Service", bundle: .module), selection: serviceBinding) {
+                        ForEach(services) { service in
+                            Text(service.displayName).tag(service.id.uuidString)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                }
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+            }
+            .accessibilityLabel(Text("AI Options", bundle: .module))
+        }
+    }
+
+    private func promptBinding(_ purpose: AIPromptPreset.Purpose) -> Binding<String> {
+        Binding(
+            get: { AIServiceStore.selectedPrompt(for: purpose).id },
+            set: { id in
+                if purpose == .explain {
+                    $explainPromptID.withLock { $0 = id }
+                } else {
+                    $translatePromptID.withLock { $0 = id }
+                }
+                rerun()
+            }
+        )
+    }
+
+    private var serviceBinding: Binding<String> {
+        Binding(
+            get: { AIServiceStore.selectedService?.id.uuidString ?? "" },
+            set: { id in
+                $selectedServiceID.withLock { $0 = id }
+                rerun()
+            }
+        )
+    }
+
+    /// The open tab's answer again, with the prompt or service just chosen.
+    private func rerun() {
+        switch tab {
+        case .explain:
+            model.restartExplanation(language: explanationLanguage)
+        case .translate:
+            if usesAITranslation { model.translateWithAI(language: translationTarget, force: true) }
         }
     }
 
@@ -207,9 +299,12 @@ struct ReviewSelectionSheet: View {
     }
 
     private var providerNote: String {
-        switch AIAssistantProvider.current {
-        case .apple: String(localized: "Explained by Apple's on-device model.", bundle: .module)
-        case .openAI: String(localized: "Explained by your AI service. Only the selection and its sentence were sent.", bundle: .module)
+        let prompt = AIServiceStore.selectedPrompt(for: .explain).name
+        return switch AIAssistantProvider.current {
+        case .apple:
+            String(localized: "Explained by Apple's on-device model, with the prompt “\(prompt)”.", bundle: .module)
+        case .openAI:
+            String(localized: "Explained by \(aiProviderName), with the prompt “\(prompt)”. Only the selection and its sentence were sent.", bundle: .module)
         }
     }
 
@@ -217,6 +312,34 @@ struct ReviewSelectionSheet: View {
 
     @ViewBuilder
     private var translateContent: some View {
+        if usesAITranslation {
+            aiTranslateContent
+        } else {
+            appleTranslateContent
+        }
+    }
+
+    @ViewBuilder
+    private var aiTranslateContent: some View {
+        answerView(model.aiTranslation, retry: { model.translateWithAI(language: translationTarget, force: true) })
+
+        Text(String(
+            localized: "Translated into \(AIAssistantLanguage.name(for: translationTarget)) by \(aiProviderName), with the prompt “\(AIServiceStore.selectedPrompt(for: .translate).name)”.",
+            bundle: .module
+        ))
+        .amgiFont(.micro)
+        .foregroundStyle(palette.textSecondary)
+    }
+
+    private var aiProviderName: String {
+        switch AIAssistantProvider.current {
+        case .apple: String(localized: "Apple's on-device model", bundle: .module)
+        case .openAI: AIServiceStore.selectedService?.displayName ?? String(localized: "your AI service", bundle: .module)
+        }
+    }
+
+    @ViewBuilder
+    private var appleTranslateContent: some View {
         if let translationError {
             Label(translationError, systemImage: "exclamationmark.triangle")
                 .amgiFont(.caption)
@@ -294,7 +417,9 @@ struct ReviewSelectionSheet: View {
         case .explain:
             ([model.explanation.text] + model.followUps.map(\.answer.text)).compactMap { $0 }.joined(separator: "\n\n")
         case .translate:
-            [selectionTranslation, sentenceTranslation].compactMap { $0 }.joined(separator: "\n")
+            usesAITranslation
+                ? model.aiTranslation.text ?? ""
+                : [selectionTranslation, sentenceTranslation].compactMap { $0 }.joined(separator: "\n")
         }
     }
 
@@ -303,6 +428,10 @@ struct ReviewSelectionSheet: View {
         case .explain:
             model.explain(language: explanationLanguage)
         case .translate:
+            if usesAITranslation {
+                model.translateWithAI(language: translationTarget)
+                return
+            }
             guard selectionTranslation == nil, translationConfig == nil else { return }
             translationConfig = TranslationSession.Configuration(
                 source: nil,

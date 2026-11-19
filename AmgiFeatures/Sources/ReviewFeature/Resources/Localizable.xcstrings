@@ -141,6 +141,34 @@
         }
       }
     },
+    "AI Options" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI オプション"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 옵션"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 选项"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 選項"
+          }
+        }
+      }
+    },
     "Accuracy: %lld%%" : {
       "localizations" : {
         "ja" : {
@@ -221,6 +249,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "始終使用卡片自身的模板。"
+          }
+        }
+      }
+    },
+    "Apple's on-device model" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple のオンデバイスモデル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 온디바이스 모델"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 设备端模型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 裝置端模型"
           }
         }
       }
@@ -785,6 +841,62 @@
         }
       }
     },
+    "Explained by %@, with the prompt “%@”. Only the selection and its sentence were sent." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ がプロンプト「%2$@」で説明しました。送信したのは選択部分とその文だけです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@이(가) 프롬프트 “%2$@”로 설명했습니다. 선택한 부분과 그 문장만 전송되었습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 %1$@ 使用提示词“%2$@”解释。只发送了选中内容及其所在句子。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 %1$@ 使用提示詞「%2$@」解釋。只傳送了選取內容及其所在句子。"
+          }
+        }
+      }
+    },
+    "Explained by Apple's on-device model, with the prompt “%@”." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple のオンデバイスモデルがプロンプト「%@」で説明しました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 온디바이스 모델이 프롬프트 “%@”로 설명했습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 Apple 设备端模型使用提示词“%@”解释。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 Apple 裝置端模型使用提示詞「%@」解釋。"
+          }
+        }
+      }
+    },
     "Explained by Apple's on-device model." : {
       "localizations" : {
         "ja" : {
@@ -1205,6 +1317,34 @@
         }
       }
     },
+    "Prompt" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロンプト"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "프롬프트"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提示词"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提示詞"
+          }
+        }
+      }
+    },
     "Rendering: %@%@" : {
       "localizations" : {
         "ja" : {
@@ -1313,6 +1453,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "選取部分"
+          }
+        }
+      }
+    },
+    "Service" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サービス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "서비스"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服務"
           }
         }
       }
@@ -1621,6 +1789,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "把整句意譯出來，並解釋其中的難點。"
+          }
+        }
+      }
+    },
+    "Translated into %@ by %@, with the prompt “%@”." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@ がプロンプト「%3$@」で%1$@に翻訳しました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@이(가) 프롬프트 “%3$@”로 %1$@(으)로 번역했습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 %2$@ 使用提示词“%3$@”译为%1$@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 %2$@ 使用提示詞「%3$@」譯為%1$@。"
           }
         }
       }
@@ -2013,6 +2209,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用內建渲染器顯示。"
+          }
+        }
+      }
+    },
+    "your AI service" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "あなたの AI サービス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내 AI 서비스"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 AI 服务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 AI 服務"
           }
         }
       }
