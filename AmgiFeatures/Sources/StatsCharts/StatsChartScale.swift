@@ -84,10 +84,20 @@ enum StatsChartScale {
         return .fixed(min(28, max(1.5, slot * ratio)))
     }
 
-    /// The chart's width less room for the count labels, near enough
-    /// to the plot's width to size the bars.
-    static func plotWidth(chartWidth: CGFloat) -> CGFloat {
-        max(0, chartWidth - 36)
+    /// The chart's width less room for the count labels, and for the
+    /// running total's on the right when it has them: near enough to the
+    /// plot's width to size the bars.
+    static func plotWidth(chartWidth: CGFloat, trailingAxis: Bool = false) -> CGFloat {
+        max(0, chartWidth - (trailingAxis ? 72 : 36))
+    }
+
+    /// `countAxis` for values that aren't whole, such as minutes.
+    static func valueAxis(maximum: Double) -> (top: Double, ticks: [Double]) {
+        guard maximum > 1 else {
+            let top = maximum > 0 ? step(span: maximum, count: 4, minimum: 0.01) * 4 : 1
+            return (top, [0, top / 2, top])
+        }
+        return countAxis(maximum: Int(maximum.rounded(.up)))
     }
 }
 

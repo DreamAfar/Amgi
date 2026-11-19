@@ -114,7 +114,11 @@ public struct RetrievabilityChart: View {
     private var retrievabilityChart: some View {
         baseRetrievabilityChart
             .chartXScale(domain: 0...100)
-            .chartXSelection(value: $selectedX)
+            .statsChartTap(as: Double.self) { x in
+                // A tap rather than chartXSelection, whose drag held the page's scrolling.
+                let bucket = x.flatMap { x in chartData.min { abs($0.center - x) < abs($1.center - x) } }
+                selectedX = bucket == nil || bucket?.start == selectedBucket?.start ? nil : bucket?.center
+            }
             .chartXAxis {
                 retrievabilityChartXAxis()
             }

@@ -25,6 +25,7 @@ public struct FutureDueChart: View {
     @ScaledMetric(relativeTo: .caption) private var chartHeight: CGFloat = 180
 
     @State private var chartWidth: CGFloat = 0
+    @State private var selectedX: Double?
 
     private var cappedChartHeight: CGFloat { min(chartHeight, 270) }
 
@@ -121,27 +122,43 @@ private extension FutureDueChart {
         let bars = axis.bars(data.filter { $0.day < 0 }.map { ($0.day, $0.count) })
             + axis.bars(data.filter { $0.day >= 0 }.map { ($0.day, $0.count) })
         let counts = StatsChartScale.countAxis(maximum: bars.map(\.count).max() ?? 0)
-        let width = StatsChartScale.barWidth(plotWidth: StatsChartScale.plotWidth(chartWidth: chartWidth), slots: axis.slots)
-        return Chart(bars, id: \.start) { bar in
-            dueBar(bar, width: width)
+        let running = StatsRunningTotal(
+            bars.map { ($0.center, Double($0.count)) },
+            plottedMax: counts.top,
+            format: StatsDualAxisSupport.formatCount
+        )
+        let width = StatsChartScale.barWidth(
+            plotWidth: StatsChartScale.plotWidth(chartWidth: chartWidth, trailingAxis: true),
+            slots: axis.slots
+        )
+        let selected = axis.bar(at: selectedX, in: bars)
+        return Chart {
+            ForEach(bars) { bar in
+                dueBar(bar, width: width)
+            }
+            StatsRunningTotalMarks(total: running, color: palette.textSecondary)
+            if let selected {
+                StatsSelectionMark(
+                    x: selected.center,
+                    title: ChartSpeech.days(selected.start, selected.end),
+                    lines: [
+                        ChartSpeech.count(selected.count, .card),
+                        String(localized: "Running total: \(StatsDualAxisSupport.formatCount(running.total(at: selected.center) ?? 0))", bundle: .module),
+                    ],
+                    color: palette.accent
+                )
+            }
         }
         .chartXScale(domain: axis.domain)
         .chartYScale(domain: 0...counts.top)
-        .chartXAxis {
-            AxisMarks(values: axis.ticks) { value in
-                AxisGridLine()
-                if let day = value.as(Double.self) {
-                    AxisValueLabel("\(Int(day))")
-                }
-            }
-        }
+        .chartXAxis { StatsAxes.values(axis.ticks) }
         .chartYAxis {
-            AxisMarks(values: counts.ticks) { value in
-                AxisGridLine()
-                if let count = value.as(Double.self) {
-                    AxisValueLabel("\(Int(count))")
-                }
-            }
+            StatsAxes.count(counts.ticks)
+            StatsAxes.runningTotal(running.ticks)
+        }
+        .statsChartTap(as: Double.self) { x in
+            let bar = axis.bar(at: x, in: bars)
+            selectedX = bar == nil || bar == selected ? nil : bar?.center
         }
         .measuringWidth($chartWidth)
     }

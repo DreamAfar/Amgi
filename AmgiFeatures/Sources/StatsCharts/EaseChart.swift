@@ -29,6 +29,7 @@ public struct EaseChart: View {
 
     @Environment(\.palette) private var palette
     @State private var chartWidth: CGFloat = 0
+    @State private var selectedX: Double?
 
     private var buckets: EaseBuckets { isFSRS ? difficulty : eases }
 
@@ -101,27 +102,32 @@ private extension EaseChart {
         let axis = makeAxis(data)
         let bars = axis.bars(data)
         let counts = StatsChartScale.countAxis(maximum: bars.map(\.count).max() ?? 0)
+        let total = bars.reduce(0) { $0 + $1.count }
         let width = StatsChartScale.barWidth(plotWidth: StatsChartScale.plotWidth(chartWidth: chartWidth), slots: axis.slots)
-        return Chart(bars, id: \.start) { bar in
-            easeBar(bar, width: width)
+        let selected = axis.bar(at: selectedX, in: bars)
+        return Chart {
+            ForEach(bars) { bar in
+                easeBar(bar, width: width)
+            }
+            if let selected {
+                StatsSelectionMark(
+                    x: selected.center,
+                    title: selected.size > 1 ? "\(selected.start)%–\(selected.end + 1)%" : "\(selected.start)%",
+                    lines: [
+                        ChartSpeech.count(selected.count, .card),
+                        StatsFormat.percent(Double(selected.count), of: Double(total)),
+                    ],
+                    color: palette.accent
+                )
+            }
         }
         .chartXScale(domain: axis.domain)
         .chartYScale(domain: 0...counts.top)
-        .chartXAxis {
-            AxisMarks(values: axis.ticks) { value in
-                AxisGridLine()
-                if let percent = value.as(Double.self) {
-                    AxisValueLabel("\(Int(percent))%")
-                }
-            }
-        }
-        .chartYAxis {
-            AxisMarks(values: counts.ticks) { value in
-                AxisGridLine()
-                if let count = value.as(Double.self) {
-                    AxisValueLabel("\(Int(count))")
-                }
-            }
+        .chartXAxis { StatsAxes.values(axis.ticks) { "\(Int($0))%" } }
+        .chartYAxis { StatsAxes.count(counts.ticks) }
+        .statsChartTap(as: Double.self) { x in
+            let bar = axis.bar(at: x, in: bars)
+            selectedX = bar == nil || bar == selected ? nil : bar?.center
         }
         .measuringWidth($chartWidth)
     }
