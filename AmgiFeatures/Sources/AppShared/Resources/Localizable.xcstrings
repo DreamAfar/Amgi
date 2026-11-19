@@ -57,6 +57,34 @@
         }
       }
     },
+    "Add a service with its address and model in Settings › Review › AI and Translation." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定 › 復習 › AI と翻訳 で、アドレスとモデルを指定してサービスを追加してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 › 복습 › AI 및 번역에서 주소와 모델로 서비스를 추가하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在“设置 › 复习 › AI 与翻译”中添加服务并填写地址和模型。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在「設定 › 複習 › AI 與翻譯」中新增服務並填寫位址和模型。"
+          }
+        }
+      }
+    },
     "All Decks" : {
       "localizations" : {
         "ja" : {
@@ -109,6 +137,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "發生未知錯誤。"
+          }
+        }
+      }
+    },
+    "Brief meaning" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "簡潔な意味"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "간단한 뜻"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "简要释义"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "簡要釋義"
           }
         }
       }
@@ -785,6 +841,34 @@
         }
       }
     },
+    "Grammar" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文法"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "문법"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语法"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文法"
+          }
+        }
+      }
+    },
     "Import Font" : {
       "localizations" : {
         "ja" : {
@@ -869,6 +953,34 @@
         }
       }
     },
+    "Literal and natural" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直訳と自然な訳"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "직역과 자연스러운 번역"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直译与意译"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直譯與意譯"
+          }
+        }
+      }
+    },
     "Mark Note" : {
       "localizations" : {
         "ja" : {
@@ -921,6 +1033,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "標記筆記失敗"
+          }
+        }
+      }
+    },
+    "Meaning in context" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文脈での意味"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "문맥 속 의미"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语境释义"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "語境釋義"
+          }
+        }
+      }
+    },
+    "Natural translation" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自然な翻訳"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자연스러운 번역"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自然翻译"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自然翻譯"
           }
         }
       }
@@ -1537,6 +1705,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "不支援的檔案型別。請選擇 .apkg 或 .colpkg 檔案。"
+          }
+        }
+      }
+    },
+    "Untitled Service" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名称未設定のサービス"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이름 없는 서비스"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未命名服务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未命名服務"
           }
         }
       }

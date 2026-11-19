@@ -54,7 +54,7 @@ public enum AIAssistantError: LocalizedError, Equatable {
         case .appleModelUnavailable:
             String(localized: "The on-device model isn't available on this device. Turn on Apple Intelligence, or set up an OpenAI-compatible service in Settings › Review › AI and Translation.", bundle: .module)
         case .notConfigured:
-            String(localized: "Set the service address and model in Settings › Review › AI and Translation.", bundle: .module)
+            String(localized: "Add a service with its address and model in Settings › Review › AI and Translation.", bundle: .module)
         case .service(let status, let message):
             String(localized: "The AI service answered with an error (\(status)): \(message)", bundle: .module)
         case .emptyAnswer:
@@ -63,17 +63,22 @@ public enum AIAssistantError: LocalizedError, Equatable {
     }
 }
 
-/// Explains selected text with the provider chosen in Settings.
+/// Explains and translates selected text with the provider, service and
+/// prompts chosen in Settings, read at the moment of each request.
 public struct AIAssistantClient: Sendable {
     public var explain: @Sendable (_ request: AIAssistantRequest) async throws -> String
-    /// A tiny request to check that the chosen provider answers.
-    public var testConnection: @Sendable () async throws -> String
+    public var translate: @Sendable (_ request: AIAssistantRequest) async throws -> String
+    /// A tiny request to check that a service answers: the one given, or with
+    /// nil the provider and service in use.
+    public var testConnection: @Sendable (_ service: AIServiceProfile?) async throws -> String
 
     public init(
         explain: @escaping @Sendable (_ request: AIAssistantRequest) async throws -> String,
-        testConnection: @escaping @Sendable () async throws -> String
+        translate: @escaping @Sendable (_ request: AIAssistantRequest) async throws -> String,
+        testConnection: @escaping @Sendable (_ service: AIServiceProfile?) async throws -> String
     ) {
         self.explain = explain
+        self.translate = translate
         self.testConnection = testConnection
     }
 }
@@ -81,17 +86,26 @@ public struct AIAssistantClient: Sendable {
 extension AIAssistantClient: DependencyKey {
     public static let liveValue = AIAssistantClient(
         explain: { request in
-            let prompt = AIAssistantPrompt(request: request)
+            let prompt = AIAssistantPrompt(request: request, preset: AIServiceStore.selectedPrompt(for: .explain))
             return try await AIAssistantLive.answer(instructions: prompt.instructions, prompt: prompt.prompt)
         },
-        testConnection: {
-            try await AIAssistantLive.answer(instructions: "Reply with the single word: OK", prompt: "Ping")
+        translate: { request in
+            let prompt = AIAssistantPrompt(request: request, preset: AIServiceStore.selectedPrompt(for: .translate))
+            return try await AIAssistantLive.answer(instructions: prompt.instructions, prompt: prompt.prompt)
+        },
+        testConnection: { service in
+            let instructions = "Reply with the single word: OK"
+            if let service {
+                return try await AIAssistantLive.openAIAnswer(service: service, instructions: instructions, prompt: "Ping")
+            }
+            return try await AIAssistantLive.answer(instructions: instructions, prompt: "Ping")
         }
     )
 
     public static let testValue = AIAssistantClient(
         explain: { _ in "" },
-        testConnection: { "OK" }
+        translate: { _ in "" },
+        testConnection: { _ in "OK" }
     )
 }
 
@@ -102,38 +116,32 @@ public extension DependencyValues {
     }
 }
 
-/// The instructions and prompt for a request. Plain text with fixed
-/// section labels, so any model's answer renders the same way.
+/// The instructions and prompt for a request, from a prompt preset with its
+/// placeholders filled.
 public struct AIAssistantPrompt: Sendable, Equatable {
     public let instructions: String
     public let prompt: String
 
-    public init(request: AIAssistantRequest) {
-        instructions = """
-        You help a language learner reviewing flashcards. Answer in \(request.answerLanguage). \
-        Be concise and concrete; no greetings, no preamble, no Markdown tables. \
-        Explain what the selected text means in this particular sentence, not every sense it can have.
-        """
-        var lines: [String] = []
-        lines.append("Selected text: \(request.text)")
-        if let sentence = request.sentence, sentence != request.text {
-            lines.append("Sentence: \(sentence)")
+    public init(request: AIAssistantRequest, preset: AIPromptPreset = .explainInContext) {
+        let fill = { (template: String) in
+            AIPromptPreset.fill(template, text: request.text, sentence: request.sentence, language: request.answerLanguage)
         }
+        instructions = fill(preset.instructions)
         if let followUp = request.followUp, !followUp.isEmpty {
+            // A follow-up keeps the preset's voice but not its answer format:
+            // it's a question about the answer already given.
+            var lines = ["Selected text: \(request.text)"]
+            if let sentence = request.sentence, sentence != request.text, !sentence.isEmpty {
+                lines.append("Sentence: \(sentence)")
+            }
             if let previous = request.previousAnswer, !previous.isEmpty {
                 lines.append("Your earlier explanation:\n\(previous)")
             }
             lines.append("Follow-up question: \(followUp)")
+            prompt = lines.joined(separator: "\n")
         } else {
-            lines.append("""
-            Write three short sections, each starting with its label on its own line:
-            【In this sentence】what it means here and the nuance it carries
-            【Usage】part of speech, typical patterns or collocations, register
-            【Example】one natural example sentence with its translation
-            Translate the three labels into \(request.answerLanguage).
-            """)
+            prompt = fill(preset.prompt)
         }
-        prompt = lines.joined(separator: "\n")
     }
 }
 
@@ -143,7 +151,8 @@ enum AIAssistantLive {
         case .apple:
             return try await appleAnswer(instructions: instructions, prompt: prompt)
         case .openAI:
-            return try await openAIAnswer(instructions: instructions, prompt: prompt)
+            guard let service = AIServiceStore.selectedService else { throw AIAssistantError.notConfigured }
+            return try await openAIAnswer(service: service, instructions: instructions, prompt: prompt)
         }
     }
 
@@ -163,17 +172,15 @@ enum AIAssistantLive {
         throw AIAssistantError.appleModelUnavailable
     }
 
-    private static func openAIAnswer(instructions: String, prompt: String) async throws -> String {
-        let defaults = UserDefaults.standard
-        let base = (defaults.string(forKey: ReviewPreferences.Keys.aiBaseURL) ?? "").trimmingCharacters(in: .whitespaces)
-        let model = (defaults.string(forKey: ReviewPreferences.Keys.aiModel) ?? "").trimmingCharacters(in: .whitespaces)
-        guard let url = AIAssistantEndpoint.chatCompletionsURL(base: base), !model.isEmpty else {
+    static func openAIAnswer(service: AIServiceProfile, instructions: String, prompt: String) async throws -> String {
+        let model = service.model.trimmingCharacters(in: .whitespaces)
+        guard let url = AIAssistantEndpoint.chatCompletionsURL(base: service.baseURL), !model.isEmpty else {
             throw AIAssistantError.notConfigured
         }
         var request = URLRequest(url: url, timeoutInterval: 60)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let key = AIKeychain.apiKey, !key.isEmpty {
+        if let key = AIKeychain.apiKey(for: service.id), !key.isEmpty {
             request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         }
         let body: [String: Any] = [
@@ -227,13 +234,24 @@ public enum AIAssistantEndpoint {
     }
 }
 
-/// The AI service's API key, kept in the Keychain on this device only —
+/// Each AI service's API key, kept in the Keychain on this device only —
 /// never in preferences, and never synced with the collection.
 public enum AIKeychain {
     private static let service = "com.amgiapp.ai"
-    private static let account = "openai-compatible"
+    /// The one key of earlier versions, which had a single service.
+    private static let legacyAccount = "openai-compatible"
 
-    public static var apiKey: String? {
+    private static func account(for id: UUID) -> String { "\(legacyAccount).\(id.uuidString)" }
+
+    public static func apiKey(for id: UUID) -> String? { read(account(for: id)) }
+
+    public static func setAPIKey(_ key: String, for id: UUID) { write(key, account: account(for: id)) }
+
+    public static func deleteAPIKey(for id: UUID) { write("", account: account(for: id)) }
+
+    static var legacyAPIKey: String? { read(legacyAccount) }
+
+    private static func read(_ account: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -247,7 +265,8 @@ public enum AIKeychain {
         return String(data: data, encoding: .utf8)
     }
 
-    public static func setAPIKey(_ key: String) {
+    /// Saves a key; an empty one deletes it.
+    private static func write(_ key: String, account: String) {
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

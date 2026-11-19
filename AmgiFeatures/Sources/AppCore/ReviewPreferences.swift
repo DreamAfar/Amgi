@@ -61,6 +61,17 @@ public enum ReviewPreferences {
         public static let aiExplanationLanguage = "review_pref_ai_explanation_language"
         /// BCP-47 code translations are made into.
         public static let translationTargetLanguage = "review_pref_translation_target_language"
+        /// The OpenAI-compatible services set up, as JSON; the one in use by id.
+        /// `aiBaseURL`/`aiModel` are the single service of earlier versions,
+        /// read once to fill the first entry.
+        public static let aiServices = "review_pref_ai_services"
+        public static let aiSelectedService = "review_pref_ai_selected_service"
+        /// The user's own prompts, as JSON; the one in use for each task by id.
+        public static let aiCustomPrompts = "review_pref_ai_custom_prompts"
+        public static let aiExplainPrompt = "review_pref_ai_explain_prompt"
+        public static let aiTranslatePrompt = "review_pref_ai_translate_prompt"
+        /// `apple` (Apple Translation, on device) or `ai` (the AI provider).
+        public static let translationProvider = "review_pref_translation_provider"
     }
 }
 

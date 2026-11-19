@@ -52,8 +52,10 @@ final class ReviewSelectionModel {
     var quickCard: QuickCard?
     private(set) var explanation: Answer = .idle
     private(set) var followUps: [Exchange] = []
-    /// Set by the sheet once the translation framework has answered.
+    /// Set by the sheet once the translation framework has answered, or
+    /// by `translateWithAI` when translations go to the AI provider.
     var translation: String?
+    private(set) var aiTranslation: Answer = .idle
 
     struct QuickCard: Identifiable {
         let id = UUID()
@@ -66,17 +68,21 @@ final class ReviewSelectionModel {
     /// language, so reopening the same word costs nothing.
     @ObservationIgnored private var cache: [String: String] = [:]
     @ObservationIgnored private var explainTask: Task<Void, Never>?
+    @ObservationIgnored private var translateTask: Task<Void, Never>?
 
     func open(_ selection: WebSelection, tab: Tab) {
         explainTask?.cancel()
+        translateTask?.cancel()
         explanation = .idle
         followUps = []
         translation = nil
+        aiTranslation = .idle
         assist = Assist(selection: selection, tab: tab)
     }
 
     func close() {
         explainTask?.cancel()
+        translateTask?.cancel()
         assist = nil
     }
 
@@ -85,7 +91,7 @@ final class ReviewSelectionModel {
     /// Explains the open selection, from the cache when it was asked before.
     func explain(language: String) {
         guard let selection = assist?.selection else { return }
-        let key = Self.cacheKey(selection, language: language)
+        let key = Self.cacheKey(selection, language: language, purpose: .explain)
         if let cached = cache[key] {
             explanation = .done(cached)
             return
@@ -114,6 +120,50 @@ final class ReviewSelectionModel {
     func retryExplanation(language: String) {
         explanation = .idle
         explain(language: language)
+    }
+
+    /// Asks again after the prompt or service changed: the answer and any
+    /// follow-ups were for the old one.
+    func restartExplanation(language: String) {
+        explainTask?.cancel()
+        followUps = []
+        explanation = .idle
+        explain(language: language)
+    }
+
+    // MARK: - AI translation
+
+    /// Translates the open selection with the AI provider and the chosen
+    /// translation prompt, when translations are set to go there.
+    func translateWithAI(language: String, force: Bool = false) {
+        guard let selection = assist?.selection else { return }
+        let key = Self.cacheKey(selection, language: language, purpose: .translate)
+        if !force, let cached = cache[key] {
+            aiTranslation = .done(cached)
+            translation = cached
+            return
+        }
+        guard force || aiTranslation == .idle || isFailed(aiTranslation) else { return }
+        translateTask?.cancel()
+        aiTranslation = .loading
+        let request = AIAssistantRequest(
+            text: selection.text,
+            sentence: selection.sentence,
+            answerLanguage: AIAssistantLanguage.name(for: language)
+        )
+        let client = aiClient
+        translateTask = Task {
+            do {
+                let text = try await client.translate(request)
+                guard !Task.isCancelled else { return }
+                cache[key] = text
+                aiTranslation = .done(text)
+                translation = text
+            } catch {
+                guard !Task.isCancelled else { return }
+                aiTranslation = .failed(error.localizedDescription)
+            }
+        }
     }
 
     /// A follow-up question about the explanation.
@@ -200,8 +250,15 @@ final class ReviewSelectionModel {
         return false
     }
 
-    static func cacheKey(_ selection: WebSelection, language: String) -> String {
-        [selection.text, selection.sentence ?? "", language].joined(separator: "\u{1F}")
+    /// Answers depend on the prompt and service as much as on the text, so
+    /// switching either asks again instead of showing the old answer.
+    static func cacheKey(_ selection: WebSelection, language: String, purpose: AIPromptPreset.Purpose) -> String {
+        [
+            selection.text, selection.sentence ?? "", language, purpose.rawValue,
+            AIServiceStore.selectedPrompt(for: purpose).id,
+            AIAssistantProvider.current.rawValue,
+            AIServiceStore.selectedService?.id.uuidString ?? "",
+        ].joined(separator: "\u{1F}")
     }
 
     /// The voice for a language: the system's own choice, unless the user
