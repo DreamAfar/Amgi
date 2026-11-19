@@ -128,7 +128,12 @@ extension CardWebView {
             let filename = String(result[filenameRange])
             let encoded = filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? filename
             let replacement: String
-            if showReplayButtons {
+            if isVideoFile(filename) {
+                // A video plays in the card, with its own controls; it goes
+                // full screen only from the full-screen control. An <audio>
+                // element given a video file made iOS open it full screen.
+                replacement = "<span class=\"amgi-sound-video-wrap\"><video class=\"amgi-sound-video\" src=\"\(encoded)\" controls playsinline webkit-playsinline preload=\"metadata\"></video></span>"
+            } else if showReplayButtons {
                 let iconHTML = audioButtonIconHTML(systemName: "play.circle", alt: String(localized: "Play", bundle: .module), isDarkMode: isDarkMode)
                 replacement = "<span class=\"sound-btn\"><audio class=\"anki-sound-audio\" src=\"\(encoded)\" preload=\"auto\"></audio><a class=\"replay-button replay-btn soundLink\" href=\"#\" draggable=\"false\" onclick=\"return playSound(this)\">\(iconHTML)</a></span>"
             } else {
@@ -137,6 +142,14 @@ extension CardWebView {
             result.replaceSubrange(matchRange, with: replacement)
         }
         return result
+    }
+
+    /// Video formats WebKit plays, which `[sound:]` can name as Anki allows.
+    private static let videoExtensions: Set<String> = ["mp4", "m4v", "mov", "webm", "ogv", "mpg", "mpeg", "3gp"]
+
+    static func isVideoFile(_ filename: String) -> Bool {
+        let name = filename.split(separator: "?").first.map(String.init) ?? filename
+        return videoExtensions.contains((name as NSString).pathExtension.lowercased())
     }
 
     static func expandTTSTags(
