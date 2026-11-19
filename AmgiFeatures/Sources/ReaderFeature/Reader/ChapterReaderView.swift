@@ -77,6 +77,12 @@ struct ChapterReaderView: View {
 
     @State private var pendingNoteText: String?
     @State private var lastTapPhrase: String?
+    /// Whether the open lookup came from a tap in the text — only then is
+    /// there a tapped span to highlight.
+    @State private var lookupFromTap = false
+    @State private var lookupHighlight = LookupHighlight()
+    @Shared(.appStorage(ReaderPreferences.Keys.dictionaryScanLength))
+    private var dictionaryScanLength: Int = 16
 
     /// The wrapped chapter HTML, rebuilt only when the chapter or a
     /// typography preference changes.
@@ -124,10 +130,13 @@ struct ChapterReaderView: View {
                 onTapLookup: tapLookup
                     ? { phrase in
                         lastTapPhrase = phrase
+                        lookupFromTap = true
                         lookupQuery = phrase
                     }
                     : nil,
-                onSelectionForNote: { selected in pendingNoteText = selected }
+                onSelectionForNote: { selected in pendingNoteText = selected },
+                scanLength: dictionaryScanLength,
+                lookupHighlight: lookupHighlight
             )
             if showProgressTop {
                 ProgressView(value: scrollProgress)
@@ -170,6 +179,7 @@ struct ChapterReaderView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
+                    lookupFromTap = false
                     lookupQuery = ""
                 } label: {
                     Image(systemName: "character.book.closed")
@@ -180,8 +190,12 @@ struct ChapterReaderView: View {
         .sheet(item: Binding(
             get: { lookupQuery.map(LookupQuery.init) },
             set: { lookupQuery = $0?.text }
-        )) { wrapped in
-            LookupPopupView(initialQuery: wrapped.text, languageHint: book.language) {
+        ), onDismiss: { lookupHighlight.clear() }) { wrapped in
+            LookupPopupView(
+                initialQuery: wrapped.text,
+                languageHint: book.language,
+                onMatched: lookupFromTap ? { lookupHighlight.show(matched: $0) } : nil
+            ) {
                 lookupQuery = nil
             }
         }
