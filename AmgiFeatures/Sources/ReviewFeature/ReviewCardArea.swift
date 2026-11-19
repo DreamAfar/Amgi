@@ -35,8 +35,10 @@ struct ReviewCardArea: View {
     let lookup: ReviewLookupSides
     let showNextReviewTime: Bool
     let lookupHighlight: LookupHighlight
-    let shortcutsEnabled: Bool
     var isMarked = false
+    let commands: ReviewCardCommands
+    /// A tap zone or swipe on the card, as `"tap.4"` or `"swipe.left"`.
+    let onGesture: (String) -> Void
     @Binding var lookupQuery: String?
     /// Answers the card's AnkiDroid-compatible script API.
     var onAnkiDroidJS: (@MainActor (AnkiDroidJSRequest) async -> String?)?
@@ -146,7 +148,6 @@ struct ReviewCardArea: View {
                         .padding()
                 }
                 .buttonStyle(.borderedProminent)
-                .keyboardShortcut(keyboardActive ? KeyboardShortcut(.space, modifiers: []) : nil)
                 .padding()
             }
         }
@@ -157,9 +158,6 @@ struct ReviewCardArea: View {
         return false
     }
 
-    private var keyboardActive: Bool {
-        shortcutsEnabled && !showRenderModeSheet && !session.isTypedAnswerCard
-    }
 
     /// The reveal region. Native cards get the 3D flip (pure SwiftUI, crisp);
     /// WebView cards swap sides without rotation, because 3D-rotating a live
@@ -209,6 +207,7 @@ struct ReviewCardArea: View {
                 isAnswerSide: isBack,
                 mediaFolder: mediaFolder
             )
+            .nativeCardGestures(onGesture)
         case .html:
             VStack(spacing: 0) {
                 CardWebView(
@@ -235,7 +234,9 @@ struct ReviewCardArea: View {
                     } : nil,
                     onShowAnswerRequested: { session.revealAnswer() },
                     onAnkiDroidJS: onAnkiDroidJS,
-                    selectionActions: selectionActions
+                    selectionActions: selectionActions,
+                    onGesture: onGesture,
+                    commands: commands
                 )
             }
         }
@@ -254,11 +255,48 @@ struct ReviewCardArea: View {
             intervals: session.nextIntervals,
             showIntervals: showNextReviewTime,
             isDisabled: session.isAdvancing,
-            shortcutsEnabled: keyboardActive,
             style: AnswerButtonStyle(rawValue: answerButtonStyle) ?? .cards,
             showsHardAndEasy: !hideHardAndEasyButtons,
             onRate: { rating in session.answer(rating: rating) }
         )
+    }
+}
+
+// MARK: - Native card gestures
+
+private extension View {
+    /// Tap zones and sideways swipes on a natively rendered card, matching
+    /// what the bridge script reports from a web card. A plain tap, so the
+    /// card's own buttons (audio) still win; the swipe is simultaneous so the
+    /// card's scroll view keeps scrolling, and only a clearly sideways drag
+    /// counts.
+    func nativeCardGestures(_ onGesture: @escaping (String) -> Void) -> some View {
+        modifier(NativeCardGestures(onGesture: onGesture))
+    }
+}
+
+private struct NativeCardGestures: ViewModifier {
+    let onGesture: (String) -> Void
+    @State private var size: CGSize = .zero
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .onTapGesture(coordinateSpace: .local) { location in
+                guard size.width > 0, size.height > 0 else { return }
+                let column = min(2, max(0, Int(location.x / (size.width / 3))))
+                let row = min(2, max(0, Int(location.y / (size.height / 3))))
+                onGesture("tap.\(row * 3 + column)")
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 40).onEnded { drag in
+                    let dx = drag.translation.width
+                    let dy = drag.translation.height
+                    guard abs(dx) >= 72, abs(dx) > abs(dy) * 1.5 else { return }
+                    onGesture(dx < 0 ? "swipe.left" : "swipe.right")
+                }
+            )
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
     }
 }
 

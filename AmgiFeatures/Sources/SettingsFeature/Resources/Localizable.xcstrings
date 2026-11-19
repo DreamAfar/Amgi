@@ -365,6 +365,34 @@
         }
       }
     },
+    "Action" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アクション"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "동작"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "动作"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "動作"
+          }
+        }
+      }
+    },
     "Actions" : {
       "localizations" : {
         "ja" : {
@@ -445,6 +473,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新增"
+          }
+        }
+      }
+    },
+    "Add Shortcut" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ショートカットを追加"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단축키 추가"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加快捷键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增快速鍵"
           }
         }
       }
@@ -1233,6 +1289,34 @@
         }
       }
     },
+    "Buttons" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ボタン"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "버튼"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按鍵"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "ja" : {
@@ -1397,6 +1481,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "卡片腳本"
+          }
+        }
+      }
+    },
+    "Card side" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カードの面"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카드 면"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片面"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片面"
           }
         }
       }
@@ -1765,6 +1877,62 @@
         }
       }
     },
+    "Clear All" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべて消去"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모두 지우기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部清除"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部清除"
+          }
+        }
+      }
+    },
+    "Clear every mapping on both sides?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "両面のすべての割り当てを消去しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "양면의 모든 매핑을 지울까요?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除正反两面的所有映射？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除正反兩面的所有對應？"
+          }
+        }
+      }
+    },
     "Code Editor" : {
       "localizations" : {
         "ja" : {
@@ -1905,6 +2073,34 @@
         }
       }
     },
+    "Connected" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続中"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결됨"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已连接"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已連接"
+          }
+        }
+      }
+    },
     "Content alignment" : {
       "localizations" : {
         "ja" : {
@@ -1929,6 +2125,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "內容對齊"
+          }
+        }
+      }
+    },
+    "Controller" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コントローラ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "컨트롤러"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手柄"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手把"
           }
         }
       }
@@ -3529,6 +3753,34 @@
         }
       }
     },
+    "Double tap prevention" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダブルタップ防止"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "두 번 탭 방지"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "防止连点"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "防止連點"
+          }
+        }
+      }
+    },
     "DreamAfar — fork contributor" : {
       "localizations" : {
         "ja" : {
@@ -4397,6 +4649,62 @@
         }
       }
     },
+    "Game Controller" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ゲームコントローラ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "게임 컨트롤러"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "游戏手柄"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "遊戲手把"
+          }
+        }
+      }
+    },
+    "Gestures" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ジェスチャ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제스처"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手势"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手勢"
+          }
+        }
+      }
+    },
     "Grammar rules" : {
       "localizations" : {
         "ja" : {
@@ -4537,6 +4845,62 @@
         }
       }
     },
+    "Ignores a tap that comes right after the card turns over, so a quick double tap doesn't show the answer and grade it at once." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カードがめくれた直後のタップを無視し、素早いダブルタップで解答の表示と評価が同時に起きないようにします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카드가 넘어간 직후의 탭을 무시해, 빠른 두 번 탭으로 답 보기와 평가가 한꺼번에 일어나지 않게 합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忽略卡片翻面后紧接着的点击，避免快速连点时同时显示答案又评分。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忽略卡片翻面後緊接著的點擊，避免快速連點時同時顯示答案又評分。"
+          }
+        }
+      }
+    },
+    "Input" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入力"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "입력"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸入"
+          }
+        }
+      }
+    },
     "Justify text" : {
       "localizations" : {
         "ja" : {
@@ -4589,6 +4953,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保留辭典樣式"
+          }
+        }
+      }
+    },
+    "Keyboard" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーボード"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키보드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "键盘"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鍵盤"
           }
         }
       }
@@ -5265,6 +5657,34 @@
         }
       }
     },
+    "Modifiers such as ⌘ and ⌃ can be held with it." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘ や ⌃ などの修飾キーと一緒に押せます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘, ⌃ 같은 보조 키와 함께 누를 수 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可同时按住 ⌘、⌃ 等修饰键。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可同時按住 ⌘、⌃ 等修飾鍵。"
+          }
+        }
+      }
+    },
     "Name" : {
       "localizations" : {
         "ja" : {
@@ -5289,6 +5709,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "名稱"
+          }
+        }
+      }
+    },
+    "Needs a controller iOS supports with a full button layout, such as an Xbox, PlayStation or 8BitDo controller in its Xbox or macOS mode. The thumbsticks always scroll the card." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS が対応するフルボタン配列のコントローラが必要です（Xbox、PlayStation、または Xbox／macOS モードの 8BitDo など）。スティックは常にカードをスクロールします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS가 지원하는 전체 버튼 배열 컨트롤러가 필요합니다(Xbox, PlayStation, 또는 Xbox/macOS 모드의 8BitDo 등). 스틱은 항상 카드를 스크롤합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要 iOS 支持、按键齐全的手柄，例如 Xbox、PlayStation，或处于 Xbox／macOS 模式的 8BitDo。摇杆始终用于滚动卡片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要 iOS 支援、按鍵齊全的手把，例如 Xbox、PlayStation，或處於 Xbox／macOS 模式的 8BitDo。搖桿一律用於捲動卡片。"
           }
         }
       }
@@ -5457,6 +5905,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "沒有找到空卡片"
+          }
+        }
+      }
+    },
+    "No hardware keyboard is connected." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ハードウェアキーボードが接続されていません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "하드웨어 키보드가 연결되어 있지 않습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未连接实体键盘。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未連接實體鍵盤。"
           }
         }
       }
@@ -5965,6 +6441,34 @@
         }
       }
     },
+    "Options" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オプション"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "옵션"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选项"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選項"
+          }
+        }
+      }
+    },
     "Overrides" : {
       "localizations" : {
         "ja" : {
@@ -6213,6 +6717,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正面"
+          }
+        }
+      }
+    },
+    "Press a key on your keyboard" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーボードのキーを押してください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "키보드의 키를 누르세요"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请按下键盘上的按键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請按下鍵盤上的按鍵"
+          }
+        }
+      }
+    },
+    "Press another key to change it." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "別のキーを押すと変更できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 키를 누르면 바뀝니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按其他键可更换。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按其他鍵可更換。"
           }
         }
       }
@@ -6721,6 +7281,62 @@
         }
       }
     },
+    "Restore Anki Shortcuts" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anki のショートカットに戻す"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anki 단축키로 복원"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复 Anki 快捷键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢復 Anki 快速鍵"
+          }
+        }
+      }
+    },
+    "Restore Defaults" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "デフォルトに戻す"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본값 복원"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复默认"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢復預設"
+          }
+        }
+      }
+    },
     "Restore trash" : {
       "localizations" : {
         "ja" : {
@@ -7197,6 +7813,34 @@
         }
       }
     },
+    "Set a shortcut to None to remove it. Shortcuts work with any hardware keyboard, including keyboard-mode remotes, and pause while you type an answer." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ショートカットを「なし」にすると削除されます。キーボードモードのリモコンを含むあらゆるハードウェアキーボードで使え、解答の入力中は一時停止します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단축키를 '없음'으로 설정하면 삭제됩니다. 키보드 모드 리모컨을 포함한 모든 하드웨어 키보드에서 동작하며, 답을 입력하는 동안에는 멈춥니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将快捷键设为“无”即可删除。适用于任何实体键盘（包括键盘模式的遥控器），输入答案时暂停生效。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將快速鍵設為「無」即可刪除。適用於任何實體鍵盤（包括鍵盤模式的遙控器），輸入答案時暫停生效。"
+          }
+        }
+      }
+    },
     "Set one from the render-mode sheet while reviewing." : {
       "localizations" : {
         "ja" : {
@@ -7277,6 +7921,90 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "共享 %@ 的備份"
+          }
+        }
+      }
+    },
+    "Shortcut on the Answer" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解答面のショートカット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "답 면 단축키"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "答案面快捷键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "答案面快速鍵"
+          }
+        }
+      }
+    },
+    "Shortcut on the Question" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "問題面のショートカット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "질문 면 단축키"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "问题面快捷键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "問題面快速鍵"
+          }
+        }
+      }
+    },
+    "Shortcuts" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ショートカット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단축키"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快捷键"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快速鍵"
           }
         }
       }
@@ -7701,6 +8429,34 @@
         }
       }
     },
+    "Swipe up or down starting at the left or right edge of the screen; elsewhere a vertical drag scrolls the card." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下のスワイプは画面の左端か右端から始めてください。それ以外の縦ドラッグはカードをスクロールします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "위아래 쓸기는 화면 왼쪽이나 오른쪽 가장자리에서 시작하세요. 그 밖의 세로 드래그는 카드를 스크롤합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下滑动需从屏幕左边缘或右边缘开始；其他位置的纵向拖动用于滚动卡片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下滑動需從螢幕左邊緣或右邊緣開始；其他位置的縱向拖曳用於捲動卡片。"
+          }
+        }
+      }
+    },
     "Swipe-down handle" : {
       "localizations" : {
         "ja" : {
@@ -7725,6 +8481,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "下滑手柄"
+          }
+        }
+      }
+    },
+    "Swipes" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スワイプ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "쓸기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑動"
           }
         }
       }
@@ -7869,6 +8653,34 @@
         }
       }
     },
+    "Tap Zones" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タップ領域"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 영역"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点击区域"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點擊區域"
+          }
+        }
+      }
+    },
     "Tap word to look up" : {
       "localizations" : {
         "ja" : {
@@ -8005,6 +8817,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "該筆記已不存在。"
+          }
+        }
+      }
+    },
+    "The card is split into nine zones. With tap to look up on, tapping a word still looks it up; links, buttons and audio keep working." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カードは 9 つの領域に分かれます。タップで調べるがオンなら単語のタップは引き続き辞書を引き、リンク・ボタン・音声もそのまま動作します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카드는 9개 영역으로 나뉩니다. 탭하여 찾아보기가 켜져 있으면 단어를 탭할 때 계속 사전을 찾고, 링크·버튼·오디오도 그대로 동작합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片分为九个区域。开启点击查词时，点到单词仍会查词；链接、按钮和音频照常可用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片分為九個區域。開啟點擊查詞時，點到單字仍會查詞；連結、按鈕和音訊照常可用。"
           }
         }
       }
@@ -8481,6 +9321,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未使用的檔案"
+          }
+        }
+      }
+    },
+    "Use AnkiMobile Defaults" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AnkiMobile の既定値を使う"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AnkiMobile 기본값 사용"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 AnkiMobile 默认设置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 AnkiMobile 預設設定"
           }
         }
       }

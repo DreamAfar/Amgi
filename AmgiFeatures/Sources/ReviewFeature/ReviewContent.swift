@@ -54,9 +54,22 @@ struct ReviewContent: View {
     @Shared(.appStorage(ReaderPreferences.Keys.lookupNoteTemplate))
     private var noteTemplateJSON: String = ""
 
-    private var keyboardActive: Bool {
-        destination == nil && !confirmDeleteNote && ankiDroidJS.browseRequest == nil
+    @State private var input = ReviewInputController()
+    @State private var cardCommands = ReviewCardCommands()
+
+    @Shared(.appStorage(ReviewPreferences.Keys.gestureMap)) private var gestureMap: String = ""
+    @Shared(.appStorage(ReviewPreferences.Keys.gamepadMap)) private var gamepadMap: String = ""
+    @Shared(.appStorage(ReviewPreferences.Keys.keyboardMap)) private var keyboardMap: String = ""
+    @Shared(.appStorage(ReviewPreferences.Keys.doubleTapPrevention))
+    private var doubleTapPrevention: Int = ReviewDoubleTapPrevention.normal.rawValue
+
+    /// Whether taps, buttons and keys may act on the card: not behind a
+    /// sheet, a confirmation, the card menu's prompts or a selection panel.
+    private var acceptsInput: Bool {
+        destination == nil && !confirmDeleteNote && !cardActions.isPresentingPrompt
+            && ankiDroidJS.browseRequest == nil
             && selectionModel.assist == nil && selectionModel.quickCard == nil
+            && !session.isFinished && session.currentCardId != nil
     }
 
     /// The app's items in the card's text-selection menu, after the
@@ -93,44 +106,72 @@ struct ReviewContent: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                #if !canImport(UIKit)
-                macChrome
-                #endif
+            presentations(chrome(scripts(inputMapping(cardColumn))))
+        }
+    }
 
-                if showRemainingDays && session.startError == nil {
-                    ReviewProgressBar(session: session)
-                }
+    // The body is split into stages so each type-checks on its own: as one
+    // chain of modifiers it ran past the compiler's time limit.
 
-                if let startError = session.startError {
-                    ReviewStartFailureView(message: startError) { session.start() }
-                } else if session.isFinished {
-                    ReviewFinishedView(session: session, onDone: onDismiss)
-                } else {
-                    ReviewCardArea(
-                        session: session,
-                        openLinksExternally: openLinksExternally,
-                        cardContentAlignment: cardContentAlignment,
-                        lookup: lookup,
-                        showNextReviewTime: showNextReviewTime,
-                        lookupHighlight: lookupHighlight,
-                        shortcutsEnabled: keyboardActive,
-                        isMarked: cardActions.isMarkedNote,
-                        lookupQuery: $destination.lookupText,
-                        onAnkiDroidJS: { request in
-                            await ankiDroidJS.handle(
-                                request,
-                                session: session,
-                                isNightMode: colorScheme == .dark,
-                                onFlagChange: { cardActions.currentFlag = $0 }
-                            )
-                        },
-                        selectionActions: selectionActions
-                    )
-                }
+    private var cardColumn: some View {
+        VStack(spacing: 0) {
+            #if !canImport(UIKit)
+            macChrome
+            #endif
+
+            if showRemainingDays && session.startError == nil {
+                ReviewProgressBar(session: session)
             }
-            .background(screenBackground)
-            .reviewHaptics(session: session)
+
+            if let startError = session.startError {
+                ReviewStartFailureView(message: startError) { session.start() }
+            } else if session.isFinished {
+                ReviewFinishedView(session: session, onDone: onDismiss)
+            } else {
+                ReviewCardArea(
+                    session: session,
+                    openLinksExternally: openLinksExternally,
+                    cardContentAlignment: cardContentAlignment,
+                    lookup: lookup,
+                    showNextReviewTime: showNextReviewTime,
+                    lookupHighlight: lookupHighlight,
+                    isMarked: cardActions.isMarkedNote,
+                    commands: cardCommands,
+                    onGesture: { input.gesture($0) },
+                    lookupQuery: $destination.lookupText,
+                    onAnkiDroidJS: { request in
+                        await ankiDroidJS.handle(
+                            request,
+                            session: session,
+                            isNightMode: colorScheme == .dark,
+                            onFlagChange: { cardActions.currentFlag = $0 }
+                        )
+                    },
+                    selectionActions: selectionActions
+                )
+            }
+        }
+        .background(screenBackground)
+        .reviewHaptics(session: session)
+    }
+
+    private func inputMapping<Content: View>(_ content: Content) -> some View {
+        content
+            .onAppear {
+                configureInput()
+                input.start(commands: cardCommands)
+            }
+            .onDisappear { input.stop() }
+            .onChange(of: session.showAnswer) { input.sideChanged() }
+            .onChange(of: session.currentCardId) { input.sideChanged() }
+            .onChange(of: gestureMap) { configureInput() }
+            .onChange(of: gamepadMap) { configureInput() }
+            .onChange(of: keyboardMap) { configureInput() }
+            .onChange(of: doubleTapPrevention) { configureInput() }
+    }
+
+    private func scripts<Content: View>(_ content: Content) -> some View {
+        content
             .reviewStudyNotice(session.studyNotice)
             .reviewCardScriptToast(ankiDroidJS.toast)
             .reviewCardScriptBrowse($ankiDroidJS.browseRequest)
@@ -141,6 +182,10 @@ struct ReviewContent: View {
             .onChange(of: ankiDroidJSEnabled) { _, enabled in ankiDroidJS.isEnabled = enabled }
             .onChange(of: ankiDroidJSAllowsCardChanges) { _, allowed in ankiDroidJS.allowsCardChanges = allowed }
             .onDisappear { ankiDroidJS.stop() }
+    }
+
+    private func chrome<Content: View>(_ content: Content) -> some View {
+        content
             .navigationBarTitleDisplayMode(.inline)
             #if canImport(UIKit)
             .toolbar {
@@ -161,7 +206,7 @@ struct ReviewContent: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    ReviewUndoButton(session: session, shortcutEnabled: keyboardActive)
+                    ReviewUndoButton(session: session)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     CardActionsMenu(
@@ -183,6 +228,10 @@ struct ReviewContent: View {
             #if canImport(UIKit)
             .cardChromeToolbar(session: session, enabled: autoMatchCardBackground)
             #endif
+    }
+
+    private func presentations<Content: View>(_ content: Content) -> some View {
+        content
             .sheet(item: Binding(
                 get: { selectionModel.assist },
                 set: { if $0 == nil { selectionModel.close() } }
@@ -229,6 +278,91 @@ struct ReviewContent: View {
                     )
                 }
             }
+    }
+
+    // MARK: Input mapping
+
+    private func configureInput() {
+        input.gestures = ReviewInputMap(json: gestureMap, default: .defaultGestures)
+        input.gamepad = ReviewInputMap(json: gamepadMap, default: .defaultGamepad)
+        input.keyboard = ReviewInputMap(json: keyboardMap, default: .defaultKeyboard)
+        input.doubleTapPrevention = ReviewDoubleTapPrevention(rawValue: doubleTapPrevention) ?? .normal
+        input.side = { session.showAnswer ? .answer : .question }
+        input.acceptsInput = { acceptsInput }
+        // The typed-answer field takes keys as text.
+        input.acceptsKeys = { !session.isTypedAnswerCard || session.showAnswer }
+        input.perform = { perform($0) }
+    }
+
+    private func perform(_ action: ReviewInputAction) {
+        let cardId = session.currentCardId
+        let noteId = session.currentNote?.id
+        switch action {
+        case .none:
+            break
+        case .showAnswer:
+            if !session.showAnswer { session.revealAnswer() }
+        case .again, .hard, .good, .easy:
+            // On the question a rating does nothing, as in Anki: the answer
+            // has to be seen before it can be graded.
+            guard session.showAnswer, !session.isAdvancing else { return }
+            session.answer(rating: Self.rating(action))
+        case .undo:
+            if session.canUndo { session.undo() }
+        case .replayAudio:
+            session.bumpReplayRequest()
+        case .stopAudio:
+            session.bumpStopAudioRequest()
+        case .scrollUp:
+            cardCommands.scrollPage(-1)
+        case .scrollDown:
+            cardCommands.scrollPage(1)
+        case .lookUp:
+            destination = .lookup("")
+        case .editNote:
+            destination = session.currentNote.map(ReviewDestination.editNote)
+        case .editTemplate:
+            destination = session.currentTemplateTarget.map(ReviewDestination.editTemplate)
+        case .mark:
+            guard let noteId else { return }
+            runCardAction { await cardActions.toggleMarked(noteId) }
+        case .buryCard:
+            guard let cardId else { return }
+            runCardAction { await cardActions.bury(cardId) }
+        case .buryNote:
+            guard let noteId else { return }
+            runCardAction { await cardActions.buryNote(noteId) }
+        case .suspendCard:
+            guard let cardId else { return }
+            runCardAction { await cardActions.suspend(cardId) }
+        case .suspendNote:
+            guard let noteId else { return }
+            runCardAction { await cardActions.suspendNote(noteId) }
+        case .close:
+            onDismiss()
+        default:
+            if let flag = action.flag, let cardId {
+                // Pressing a card's own flag again clears it, as in Anki.
+                let value = cardActions.currentFlag == flag ? 0 : flag
+                runCardAction { await cardActions.flag(cardId, value) }
+            } else if let index = action.userAction {
+                cardCommands.runUserAction(index)
+            }
+        }
+    }
+
+    private func runCardAction(_ body: @escaping () async -> Bool?) {
+        Task {
+            if let shouldAdvance = await body() { session.respondToCardAction(shouldAdvance) }
+        }
+    }
+
+    private static func rating(_ action: ReviewInputAction) -> Rating {
+        switch action {
+        case .again: .again
+        case .hard: .hard
+        case .easy: .easy
+        default: .good
         }
     }
 
@@ -250,7 +384,7 @@ struct ReviewContent: View {
             if showRemainingDays {
                 ReviewPositionCounter(session: session)
             }
-            ReviewUndoButton(session: session, shortcutEnabled: keyboardActive)
+            ReviewUndoButton(session: session)
             CardActionsMenu(
                 session: session,
                 cardActions: cardActions,
@@ -276,18 +410,18 @@ private struct CardChromeToolbar: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .toolbarBackground(
-                enabled ? session.cardChromeColor : Color.clear,
-                for: .navigationBar
-            )
-            .toolbarBackground(
-                enabled ? .visible : .automatic,
-                for: .navigationBar
-            )
-            .toolbarColorScheme(
-                enabled && session.cardChromeIsDark ? .dark : .light,
-                for: .navigationBar
-            )
+                .toolbarBackground(
+                    enabled ? session.cardChromeColor : Color.clear,
+                    for: .navigationBar
+                )
+                .toolbarBackground(
+                    enabled ? .visible : .automatic,
+                    for: .navigationBar
+                )
+                .toolbarColorScheme(
+                    enabled && session.cardChromeIsDark ? .dark : .light,
+                    for: .navigationBar
+                )
     }
 }
 
@@ -296,21 +430,21 @@ private struct ReviewHaptics: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .sensoryFeedback(trigger: session.answerTapCount) { _, _ in
-                session.tappedRating == .again
-                    ? .impact(weight: .medium)
-                    : .impact(weight: .light)
-            }
-            .sensoryFeedback(.impact(flexibility: .soft), trigger: session.undoneCount)
-            .sensoryFeedback(trigger: session.isFinished) { _, finished in
-                finished ? .success : nil
-            }
-            // A take-out gets its own quiet channel — `.selection`, distinct
-            // from the answer's impact and undo's soft impact. Arrival only:
-            // the caption leaving on its own must not buzz again.
-            .sensoryFeedback(trigger: session.studyNotice) { _, notice in
-                notice != nil ? .selection : nil
-            }
+                .sensoryFeedback(trigger: session.answerTapCount) { _, _ in
+                    session.tappedRating == .again
+                        ? .impact(weight: .medium)
+                        : .impact(weight: .light)
+                }
+                .sensoryFeedback(.impact(flexibility: .soft), trigger: session.undoneCount)
+                .sensoryFeedback(trigger: session.isFinished) { _, finished in
+                    finished ? .success : nil
+                }
+                // A take-out gets its own quiet channel — `.selection`, distinct
+                // from the answer's impact and undo's soft impact. Arrival only:
+                // the caption leaving on its own must not buzz again.
+                .sensoryFeedback(trigger: session.studyNotice) { _, notice in
+                    notice != nil ? .selection : nil
+                }
     }
 }
 
@@ -323,15 +457,15 @@ private struct ReviewStudyNoticeOverlay: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .overlay(alignment: .bottom) {
-                if let notice {
-                    ReviewStudyNotice(message: notice.caption)
-                        .transition(AmgiMotion.slide(from: .bottom))
+                .overlay(alignment: .bottom) {
+                    if let notice {
+                        ReviewStudyNotice(message: notice.caption)
+                            .transition(AmgiMotion.slide(from: .bottom))
+                    }
                 }
-            }
-            // Momentum, as with the sync toast: it arrives from off-screen, so a
-            // little overshoot reads as thrown up from the edge.
-            .animation(AmgiMotion.momentum, value: notice)
+                // Momentum, as with the sync toast: it arrives from off-screen, so a
+                // little overshoot reads as thrown up from the edge.
+                .animation(AmgiMotion.momentum, value: notice)
     }
 }
 
@@ -342,17 +476,17 @@ private struct ReviewCardScriptToastOverlay: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .overlay(alignment: .top) {
-                if let toast {
-                    ReviewStudyNotice(message: toast.text)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, AmgiSpacing.lg)
-                        .padding(.top, AmgiSpacing.sm)
-                        .transition(AmgiMotion.slide(from: .top))
-                        .id(toast.id)
+                .overlay(alignment: .top) {
+                    if let toast {
+                        ReviewStudyNotice(message: toast.text)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, AmgiSpacing.lg)
+                            .padding(.top, AmgiSpacing.sm)
+                            .transition(AmgiMotion.slide(from: .top))
+                            .id(toast.id)
+                    }
                 }
-            }
-            .animation(AmgiMotion.momentum, value: toast)
+                .animation(AmgiMotion.momentum, value: toast)
     }
 }
 
@@ -448,7 +582,6 @@ private struct ReviewPositionCounter: View {
 
 private struct ReviewUndoButton: View {
     let session: ReviewSession
-    let shortcutEnabled: Bool
 
     var body: some View {
         Button {
@@ -457,7 +590,6 @@ private struct ReviewUndoButton: View {
             Image(systemName: "arrow.uturn.backward")
         }
         .disabled(!session.canUndo)
-        .keyboardShortcut(shortcutEnabled ? KeyboardShortcut("z", modifiers: .command) : nil)
         .accessibilityLabel(String(localized: "Undo", bundle: .module))
     }
 }

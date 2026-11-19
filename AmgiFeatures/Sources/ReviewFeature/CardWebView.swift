@@ -44,6 +44,9 @@ struct CardWebView {
     let onAnkiDroidJS: (@MainActor (AnkiDroidJSRequest) async -> String?)?
     /// The app's items in the card's text-selection menu.
     let selectionActions: [WebSelectionAction]
+    /// A tap zone or swipe on the card, as `"tap.4"` or `"swipe.left"`.
+    let onGesture: ((String) -> Void)?
+    let commands: ReviewCardCommands?
 
     init(
         html: String,
@@ -67,7 +70,9 @@ struct CardWebView {
         onLookupRequested: ((String?, String?, CGPoint) -> Void)? = nil,
         onShowAnswerRequested: (() -> Void)? = nil,
         onAnkiDroidJS: (@MainActor (AnkiDroidJSRequest) async -> String?)? = nil,
-        selectionActions: [WebSelectionAction] = []
+        selectionActions: [WebSelectionAction] = [],
+        onGesture: ((String) -> Void)? = nil,
+        commands: ReviewCardCommands? = nil
     ) {
         self.html = html
         self.cardCSS = cardCSS
@@ -91,6 +96,8 @@ struct CardWebView {
         self.onShowAnswerRequested = onShowAnswerRequested
         self.onAnkiDroidJS = onAnkiDroidJS
         self.selectionActions = selectionActions
+        self.onGesture = onGesture
+        self.commands = commands
     }
 
     func makeCoordinator() -> CardWebViewCoordinator {
@@ -98,7 +105,8 @@ struct CardWebView {
             onAudioStateChange: onAudioStateChange,
             onCardBackgroundColorChange: onCardBackgroundColorChange,
             onLookupRequested: onLookupRequested,
-            onShowAnswerRequested: onShowAnswerRequested
+            onShowAnswerRequested: onShowAnswerRequested,
+            onGesture: onGesture
         )
     }
 
@@ -129,6 +137,7 @@ struct CardWebView {
             injectionTime: .atDocumentStart,
             forMainFrameOnly: true
         ))
+        config.userContentController.add(coordinator, name: "amgiCardGesture")
 
         config.userContentController.addUserScript(WKUserScript(
             source: LookupExtractionScript.source,
@@ -161,6 +170,7 @@ struct CardWebView {
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: AnkiDroidJSShim.handlerName, contentWorld: .page
         )
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "amgiCardGesture")
         coordinator.stopTTS()
     }
 
@@ -186,6 +196,7 @@ struct CardWebView {
         coordinator.onAnkiDroidJS = onAnkiDroidJS
         (webView as? SelectionMenuWebView)?.selectionActions = selectionActions
         coordinator.currentWebView = webView
+        commands?.webView = webView
         webView.overrideUserInterfaceStyle = isDarkMode ? .dark : .light
 
         let pageChanged = coordinator.lastPageSignature != pageSignature

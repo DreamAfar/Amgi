@@ -6,7 +6,7 @@
 //
 
 import AnkiClients
-import AnkiKit
+package import AnkiKit
 import Dependencies
 import Foundation
 public import Observation
@@ -31,6 +31,10 @@ public final class CardContextMenuModel {
     var showSetDueDate = false
     var dueDateSpec = ""
 
+    /// Whether an alert or prompt of the card menu is up, so a reviewer's
+    /// keys and taps don't act on the card behind it.
+    public var isPresentingPrompt: Bool { showError || showSetDueDate }
+
     @ObservationIgnored @Dependency(\.cardClient) private var cardClient
     @ObservationIgnored @Dependency(\.noteClient) private var noteClient
     @ObservationIgnored @Dependency(\.tagClient) private var tagClient
@@ -39,11 +43,11 @@ public final class CardContextMenuModel {
 
     // MARK: - Actions (return shouldAdvance on success, nil on failure)
 
-    func suspend(_ cardId: CardID) async -> Bool? {
+    package func suspend(_ cardId: CardID) async -> Bool? {
         await run(String(localized: "Suspend failed", bundle: .module)) { try await cardClient.suspend(cardId); return true }
     }
 
-    func bury(_ cardId: CardID) async -> Bool? {
+    package func bury(_ cardId: CardID) async -> Bool? {
         await run(String(localized: "Bury failed", bundle: .module)) { try await cardClient.bury(cardId); return true }
     }
 
@@ -64,7 +68,7 @@ public final class CardContextMenuModel {
         await run(String(localized: "Delete note failed", bundle: .module)) { try await noteClient.delete(noteId); return true }
     }
 
-    func toggleMarked(_ noteId: NoteID) async -> Bool? {
+    package func toggleMarked(_ noteId: NoteID) async -> Bool? {
         await run(String(localized: "Mark note failed", bundle: .module)) {
             if isMarkedNote {
                 try await tagClient.removeTagFromNotes(markedTag, [noteId])
@@ -76,15 +80,15 @@ public final class CardContextMenuModel {
         }
     }
 
-    func suspendNote(_ noteId: NoteID) async -> Bool? {
+    package func suspendNote(_ noteId: NoteID) async -> Bool? {
         await noteAction(noteId, String(localized: "Suspend note failed", bundle: .module)) { try await cardClient.suspend($0) }
     }
 
-    func buryNote(_ noteId: NoteID) async -> Bool? {
+    package func buryNote(_ noteId: NoteID) async -> Bool? {
         await noteAction(noteId, String(localized: "Bury note failed", bundle: .module)) { try await cardClient.bury($0) }
     }
 
-    func flag(_ cardId: CardID, _ value: UInt32) async -> Bool? {
+    package func flag(_ cardId: CardID, _ value: UInt32) async -> Bool? {
         await run(String(localized: "Flag failed", bundle: .module)) {
             try await cardClient.flag(cardId, value)
             currentFlag = value

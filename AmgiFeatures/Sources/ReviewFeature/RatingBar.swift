@@ -26,7 +26,6 @@ struct RatingBar: View {
     let intervals: [Rating: String]
     let showIntervals: Bool
     let isDisabled: Bool
-    let shortcutsEnabled: Bool
     var style: AnswerButtonStyle = .cards
     var showsHardAndEasy = true
     let onRate: (Rating) -> Void
@@ -37,15 +36,14 @@ struct RatingBar: View {
     private struct Choice {
         let rating: Rating
         let label: String
-        let key: Character
     }
 
     private var choices: [Choice] {
         let all = [
-            Choice(rating: .again, label: String(localized: "Again", bundle: .module), key: "1"),
-            Choice(rating: .hard, label: String(localized: "Hard", bundle: .module), key: "2"),
-            Choice(rating: .good, label: String(localized: "Good", bundle: .module), key: "3"),
-            Choice(rating: .easy, label: String(localized: "Easy", bundle: .module), key: "4"),
+            Choice(rating: .again, label: String(localized: "Again", bundle: .module)),
+            Choice(rating: .hard, label: String(localized: "Hard", bundle: .module)),
+            Choice(rating: .good, label: String(localized: "Good", bundle: .module)),
+            Choice(rating: .easy, label: String(localized: "Easy", bundle: .module)),
         ]
         return showsHardAndEasy ? all : all.filter { $0.rating == .again || $0.rating == .good }
     }
@@ -94,11 +92,8 @@ struct RatingBar: View {
                 filledButton(choice.rating, label: choice.label, color: color(for: choice.rating))
             }
         }
-        .keyboardShortcut(
-            shortcutsEnabled
-                ? KeyboardShortcut(KeyEquivalent(choice.key), modifiers: [])
-                : nil
-        )
+        // Keys reach these through the reviewer's input map, not
+        // `.keyboardShortcut`, which only fires while the card isn't focused.
     }
 
     private func ratingCard(_ rating: Rating, label: String, color: Color) -> some View {
@@ -173,7 +168,6 @@ struct RatingBar: View {
         intervals: [.again: "<1m", .hard: "8m", .good: "10m", .easy: "4d"],
         showIntervals: true,
         isDisabled: false,
-        shortcutsEnabled: true,
         onRate: { _ in }
     )
 }
@@ -183,7 +177,6 @@ struct RatingBar: View {
         intervals: [.again: "<1m", .hard: "8m", .good: "10m", .easy: "4d"],
         showIntervals: true,
         isDisabled: false,
-        shortcutsEnabled: true,
         style: .filled,
         showsHardAndEasy: false,
         onRate: { _ in }
@@ -195,7 +188,6 @@ struct RatingBar: View {
         intervals: [.again: "<1m", .hard: "8m", .good: "10m", .easy: "4d"],
         showIntervals: true,
         isDisabled: false,
-        shortcutsEnabled: true,
         onRate: { _ in }
     )
     .dynamicTypeSize(.accessibility3)
