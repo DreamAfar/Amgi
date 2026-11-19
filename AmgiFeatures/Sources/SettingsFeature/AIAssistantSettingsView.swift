@@ -56,7 +56,7 @@ struct AIAssistantSettingsView: View {
                 SettingsSectionHeader(title: String(localized: "AI Explanations", bundle: .module))
                 SettingsGroup {
                     SettingsPickerRow(
-                        title: String(localized: "Provider", bundle: .module),
+                        title: String(localized: "Model source", bundle: .module),
                         systemImage: "sparkles",
                         tone: .info,
                         selection: Binding(
@@ -67,8 +67,8 @@ struct AIAssistantSettingsView: View {
                             }
                         )
                     ) {
-                        Text("Apple on-device model", bundle: .module).tag(AIAssistantProvider.apple.rawValue)
-                        Text("OpenAI-compatible service", bundle: .module).tag(AIAssistantProvider.openAI.rawValue)
+                        Text("On-device (Apple)", bundle: .module).tag(AIAssistantProvider.apple.rawValue)
+                        Text("API service", bundle: .module).tag(AIAssistantProvider.openAI.rawValue)
                     }
                     SettingsSeparator()
                     SettingsPickerRow(
