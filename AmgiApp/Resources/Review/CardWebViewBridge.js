@@ -49,6 +49,7 @@ __AMGI_BASE_TAG__
     pre { text-align: left; }
     .sound-btn { display: inline-flex; align-items: center; justify-content: center; margin: 4px; }
     .sound-btn audio { display: none; }
+    .amgi-sound-video-wrap { display: block; }
     #typeans {
         width: 100%; box-sizing: border-box; line-height: 1.75;
         padding: 10px 12px; border-radius: 10px;
@@ -641,6 +642,7 @@ async function amgiSetInnerHTML(element, html) {
     });
     element.innerHTML = html;
     amgiHoistDynamicHeadResources(element);
+    amgiInlineVideos(element);
     for (var script of Array.from(element.getElementsByTagName('script'))) {
         await amgiReplaceScript(script);
     }
@@ -674,9 +676,35 @@ function amgiQueuePlayer() {
 }
 // Exclude the internal queue player from "template-managed media" detection
 // so its presence on the page doesn't make us skip autoplay.
+// Videos from [sound:] tags are the app's own, not the template's, and
+// don't stop the card's audio from playing automatically.
 function amgiHasTemplateManagedMedia() {
-    return document.querySelector('audio:not(.anki-sound-audio):not(#amgi-audio-queue-player), video') !== null;
+    return document.querySelector('audio:not(.anki-sound-audio):not(#amgi-audio-queue-player), video:not(.amgi-sound-video)') !== null;
 }
+
+// ===== Inline video =====
+// On iPhone a <video> without `playsinline` opens full screen as soon as it
+// plays. Every video on the card plays in place instead — the template's own
+// too, including ones its scripts add later — and full screen stays one tap
+// away on the player's own control.
+function amgiInlineVideo(video) {
+    if (video.hasAttribute('playsinline')) return;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    video.playsInline = true;
+}
+function amgiInlineVideos(root) {
+    if (!root) return;
+    if (root.tagName === 'VIDEO') { amgiInlineVideo(root); return; }
+    if (root.getElementsByTagName) Array.from(root.getElementsByTagName('video')).forEach(amgiInlineVideo);
+}
+new MutationObserver(function(records) {
+    records.forEach(function(record) {
+        record.addedNodes.forEach(function(node) {
+            if (node.nodeType === 1) amgiInlineVideos(node);
+        });
+    });
+}).observe(document.documentElement, { childList: true, subtree: true });
 var amgiReplayGeneration = 0;
 var amgiPendingTts = null;
 function stopAllSystemAudio() {
