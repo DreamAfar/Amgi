@@ -757,6 +757,34 @@
         }
       }
     },
+    "Amgi is free software under AGPL-3.0; the full source of every release is at github.com/antigluten/amgi. It uses the official Anki Rust backend, which remains the work of its authors." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amgi は AGPL-3.0 のフリーソフトウェアで、各リリースの完全なソースは github.com/antigluten/amgi にあります。公式の Anki Rust バックエンドを使用しており、その著作権は作者に帰属します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amgi는 AGPL-3.0 자유 소프트웨어이며, 모든 릴리스의 전체 소스는 github.com/antigluten/amgi에 있습니다. 공식 Anki Rust 백엔드를 사용하며, 그 저작권은 원저작자에게 있습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amgi 是基于 AGPL-3.0 的自由软件，每个版本的完整源代码都在 github.com/antigluten/amgi。它使用官方的 Anki Rust 后端，后端仍归其作者所有。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amgi 是基於 AGPL-3.0 的自由軟體，每個版本的完整原始碼都在 github.com/antigluten/amgi。它使用官方的 Anki Rust 後端，後端仍歸其作者所有。"
+          }
+        }
+      }
+    },
     "Amgi uses the official Anki Rust backend. The backend code is licensed under AGPL-3.0 and remains the work of its authors." : {
       "localizations" : {
         "ja" : {
@@ -893,6 +921,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Anki 引擎"
+          }
+        }
+      }
+    },
+    "Anki is a registered trademark of Ankitects Pty Ltd. Amgi is not affiliated with or endorsed by Ankitects." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anki は Ankitects Pty Ltd の登録商標です。Amgi は Ankitects と提携しておらず、その承認も受けていません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anki는 Ankitects Pty Ltd의 등록 상표입니다. Amgi는 Ankitects와 제휴하거나 그 승인을 받지 않았습니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anki 是 Ankitects Pty Ltd 的注册商标。Amgi 与 Ankitects 无关联，也未获其认可。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anki 是 Ankitects Pty Ltd 的註冊商標。Amgi 與 Ankitects 無關聯，也未獲其認可。"
           }
         }
       }
@@ -2321,6 +2377,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "內容對齊"
+          }
+        }
+      }
+    },
+    "Contributors" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "貢献者"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기여자"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "贡献者"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "貢獻者"
           }
         }
       }
@@ -9041,6 +9125,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "來源"
+          }
+        }
+      }
+    },
+    "Source code" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ソースコード"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "소스 코드"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "源代码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始碼"
           }
         }
       }
